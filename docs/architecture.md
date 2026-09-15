@@ -1,0 +1,7 @@
+# Architecture
+
+The application shell keeps command-line validation in `src/app/main.cpp`, SDL initialization and lifecycle in `src/app/Application.cpp`, and rendering in `src/renderer/TitleScreen.cpp` and `src/renderer/ImagePreview.cpp`. The inspector uses `tools/asset-inspector/main.cpp` for command dispatch, `src/assets/Sg3Archive.cpp` for independent, bounds-checked SG3 metadata parsing, `src/assets/Sg3RgbaDecoder.cpp` for one documented uncompressed image conversion, `src/assets/RgbaPngEncoder.cpp` for PNG container encoding of decoded RGBA pixels, and `tools/asset-inspector/Sg3Inspect.cpp` for `.555` file-size checks, exact one-image payload reads, and structured output. `src/assets/RgbaPngReader.cpp` decodes only this project's exported PNG subset for preview.
+
+Future game-data discovery and importing belong in `src/assets/` and `tools/importer/`. General reusable types belong in `src/core/`; platform-specific integrations belong in `src/platform/`. None of those modules contain game logic yet.
+
+The app receives an optional `--data` directory from the user. It only checks and reports the path. SG3 inspection reads documented metadata and checks associated bitmap file ranges. A separate export command reads the payload of exactly one supported image and writes raw RGBA bytes or an RGBA PNG locally. The app's optional `--preview` mode reads that PNG, uploads its pixels to one SDL3 texture, and renders it centered. It does not read SG3 or `.555` files. Reverse-engineering evidence belongs in `docs/reverse/`, separate from implementation.
