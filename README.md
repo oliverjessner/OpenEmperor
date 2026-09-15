@@ -9,20 +9,35 @@ This repository contains an SDL3 application shell, an SG3 metadata inspector, a
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
 ✅ native C++20/SDL3-App
+
 ✅ Apple-Silicon-Build vorgesehen
+
 ✅ saubere Clean-Room-Regeln
+
 ✅ SG3-Metadatenparser
+
 ✅ .555-Range-Validierung
+
 ✅ RGB555 → RGBA
+
 ✅ PNG-Export
+
 ✅ SDL3-Preview
+
 ✅ synthetische Parser-Tests ohne proprietäre Daten
+
 ❌ Engine lädt SG3 noch nicht direkt
+
 ❌ komprimierte Sprites
+
 ❌ isometrische Sprites
+
 ❌ Alpha-Masks
+
 ❌ Asset-Katalog
+
 ❌ Maps
+
 ❌ Simulation
 
 ## Build on macOS
