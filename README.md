@@ -1,12 +1,29 @@
 # OpenEmperor
 
-OpenEmperor is a clean-room, open-source reimplementation of *Emperor: Rise of the Middle Kingdom* for modern systems. The initial target is native macOS on Apple Silicon (arm64), with an architecture intended to support Linux and Windows later.
+OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of the Middle Kingdom_ for modern systems. The initial target is native macOS on Apple Silicon (arm64), with an architecture intended to support Linux and Windows later.
 
 ## Current status
 
 This repository contains an SDL3 application shell, an SG3 metadata inspector, and a one-image RGBA/PNG exporter. The app opens a window showing “OpenEmperor”, handles Escape/window-close, and accepts a game-data directory without reading its contents. With `--preview`, it displays one locally exported PNG in an SDL3 texture. The inspector reads SG3 headers, image groups and image metadata, then checks referenced `.555` file sizes and byte ranges. The exporter supports documented uncompressed regular images only. There is no game logic or asset import yet.
 
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
+
+✅ native C++20/SDL3-App
+✅ Apple-Silicon-Build vorgesehen
+✅ saubere Clean-Room-Regeln
+✅ SG3-Metadatenparser
+✅ .555-Range-Validierung
+✅ RGB555 → RGBA
+✅ PNG-Export
+✅ SDL3-Preview
+✅ synthetische Parser-Tests ohne proprietäre Daten
+❌ Engine lädt SG3 noch nicht direkt
+❌ komprimierte Sprites
+❌ isometrische Sprites
+❌ Alpha-Masks
+❌ Asset-Katalog
+❌ Maps
+❌ Simulation
 
 ## Build on macOS
 
