@@ -4,12 +4,9 @@
 #include <filesystem>
 #include <iosfwd>
 
-void inspect_sg3(const std::filesystem::path& path,
-                 std::uint64_t actual_file_size,
-                 std::ostream& output);
+void inspect_sg3(const std::filesystem::path& path, std::ostream& output);
 enum class ImageOutputFormat { Rgba, Png };
 void decode_one_sg3_image(const std::filesystem::path& path,
-                          std::uint64_t actual_file_size,
                           std::uint32_t image_index,
                           const std::filesystem::path& image_output_path,
                           ImageOutputFormat output_format,

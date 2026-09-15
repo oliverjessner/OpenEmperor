@@ -4,7 +4,7 @@ OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of t
 
 ## Current status
 
-This repository contains an SDL3 application shell, an SG3 metadata inspector, and a one-image RGBA/PNG exporter. The app opens a window showing “OpenEmperor”, handles Escape/window-close, and accepts a game-data directory without reading its contents. With `--preview`, it displays one locally exported PNG in an SDL3 texture. The inspector reads SG3 headers, image groups and image metadata, then checks referenced `.555` file sizes and byte ranges. The exporter supports documented uncompressed regular images only. There is no game logic or asset import yet.
+This repository contains an SDL3 application shell, an SG3 metadata inspector, and a one-image RGBA/PNG exporter. The app opens a window showing “OpenEmperor”, handles Escape/window-close, and accepts a game-data directory without reading its contents. With `--sg3 <file.sg3> --image <index>`, it loads one documented uncompressed regular image directly from the user's SG3/.555 files and renders it in an SDL3 texture, entirely in memory. `--preview <exported.png>` remains available for debugging. The inspector reports SG3 metadata and associated `.555` bounds and can optionally export an image. There is no game logic, map loading, or bulk asset import yet.
 
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
@@ -17,7 +17,7 @@ You must provide your own legally obtained original Emperor game data. The first
 - ✅ PNG-Export
 - ✅ SDL3-Preview
 - ✅ synthetische Parser-Tests ohne proprietäre Daten
-- ❌ Engine lädt SG3 noch nicht direkt
+- ✅ direkte SG3/.555-Vorschau im SDL3-Fenster
 - ❌ komprimierte Sprites
 - ❌ isometrische Sprites
 - ❌ Alpha-Masks
@@ -44,8 +44,9 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor-inspect /path/to/file.sg3 --image 1 --rgba .local/decoded/image-1.rgba
 ./build/openemperor-inspect /path/to/file.sg3 --image 1 --png .local/decoded/image-1.png
 ./build/openemperor --preview .local/decoded/image-1.png
+./build/openemperor --sg3 /path/to/your/game-data/example.sg3 --image 1
 ```
 
-`--data` checks that the directory exists and prints its absolute path. `openemperor-inspect` prints generic file metadata and the first 32 bytes in hex for other files. For a `.sg3` input, it prints structured JSON with the header, index, groups, image records, associated `.555` files, raw unknown fields, and bounds results. `--image <index>` decodes exactly one supported image; choose `--rgba <output>` for headerless, row-major RGBA8 bytes or `--png <output>` for an RGBA PNG. Dimensions and byte counts are printed as JSON. The PNG encoder uses uncompressed DEFLATE blocks, so files may be larger than PNGs made by optimizing encoders. `--preview <exported.png>` displays that PNG with nearest-neighbor scaling; the current reader supports only the RGBA8, filter-0, stored-DEFLATE subset written by this project, and rejects other PNG features. Keep decoded files under ignored `.local/` and do not distribute original game assets or decoded image copies.
+`--data` checks that the directory exists and prints its absolute path. The application's `--sg3` and `--image` options must be supplied together and cannot be combined with `--preview`. The direct preview resolves the documented internal or external `.555` source, checks the selected byte range against the actual file size, reads only that payload, and renders the decoded image without writing an intermediary. It rejects compressed, isometric, alpha-mask, and undocumented image layouts explicitly. `openemperor-inspect` prints generic file metadata and the first 32 bytes in hex for other files. For a `.sg3` input, it prints structured JSON with the header, index, groups, image records, associated `.555` files, raw unknown fields, and bounds results. Its `--image <index>` export can still write headerless RGBA8 with `--rgba <output>` or an RGBA PNG with `--png <output>`. `--preview <exported.png>` displays that PNG with nearest-neighbor scaling; the current reader supports only the RGBA8, filter-0, stored-DEFLATE subset written by this project. Keep decoded files under ignored `.local/` and do not distribute original game assets or decoded image copies.
 
 See [architecture](docs/architecture.md) and [reverse-engineering notes](docs/reverse/README.md) for the project boundaries.

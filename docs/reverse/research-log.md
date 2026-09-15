@@ -22,3 +22,11 @@
 - A single documented uncompressed regular image was selected from ignored, user-supplied GOG data for a local smoke test. The 32 × 32 result is 4,096 bytes of row-major RGBA8 and remains under ignored `.local/decoded/`.
 - The exporter checks the actual `.555` range before reading the selected payload. It refuses external ranges outside the observed file size, compressed data, alpha-mask metadata, and image types without a documented uncompressed layout.
 - Compression, isometric layout, and version-214 alpha-mask decoding remain unresolved and unimplemented. The previously observed one-byte external range discrepancy is not corrected.
+
+## Direct one-image SG3 preview stage
+
+- Scope: reuse the already documented metadata and uncompressed regular RGB555 decoding in a read-only asset loader. This stage adds no SG3 field interpretations.
+- Synthetic on-disk SG3/.555 pairs constructed from the public layout cover internal and external sources, missing and out-of-bounds data, unsafe names and symlink escapes, index rejection, and compressed/unsupported types. No original game bytes are embedded in tests.
+- The application obtains only the selected `.555` payload and sends the resulting RGBA pixels directly to SDL3; inspector exports and PNG debugging preview continue as separate commands. Original and decoded local files remain outside the repository in ignored `.local/`.
+- A local smoke test selected image index 1 from an ignored, user-supplied SG3/.555 pair. The app reported 32 × 32 pixels, opened its SDL window and exited normally with Escape. The ignored decoded-file inventory was unchanged before and after the app run. Inspector RGBA and PNG exports were checked separately in temporary space and matched the previous local exports byte for byte; those temporary checks were removed.
+- Unknown metadata fields, the unparsed SG3 suffix, one-byte external range discrepancies, compression, isometric layout, and alpha-mask behavior remain unresolved; no undocumented adjustment or fallback is made.

@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
     if (extension == ".sg3") {
         try {
             if (argc == 2) {
-                inspect_sg3(absolute_path, static_cast<std::uint64_t>(size), std::cout);
+                inspect_sg3(absolute_path, std::cout);
             } else {
                 const std::string_view output_option{argv[4]};
                 if (std::string_view{argv[2]} != "--image" ||
@@ -56,8 +56,7 @@ int main(int argc, char* argv[]) {
                     std::cerr << "Image index must be a nonnegative integer\n";
                     return 2;
                 }
-                decode_one_sg3_image(absolute_path, static_cast<std::uint64_t>(size),
-                                     image_index, argv[5],
+                decode_one_sg3_image(absolute_path, image_index, argv[5],
                                      output_option == "--png" ? ImageOutputFormat::Png : ImageOutputFormat::Rgba,
                                      std::cout);
             }

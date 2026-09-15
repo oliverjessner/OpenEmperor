@@ -1,12 +1,10 @@
 #include "Sg3Inspect.h"
 
 #include "assets/Sg3Archive.h"
+#include "assets/Sg3ImageLoader.h"
 #include "assets/Sg3RgbaDecoder.h"
 #include "assets/RgbaPngEncoder.h"
 
-#include <algorithm>
-#include <array>
-#include <cctype>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -70,13 +68,6 @@ void json_key_string(std::ostream& output, const char* key, const std::string& v
     json_string(output, value);
 }
 
-std::string lowercase(std::string value) {
-    for (char& letter : value) {
-        letter = static_cast<char>(std::tolower(static_cast<unsigned char>(letter)));
-    }
-    return value;
-}
-
 BitmapFile inspect_file(const fs::path& path) {
     BitmapFile file{path.lexically_normal(), std::nullopt, "missing"};
     std::error_code error;
@@ -84,7 +75,7 @@ BitmapFile inspect_file(const fs::path& path) {
         return file;
     }
     const std::uintmax_t size = fs::file_size(file.path, error);
-    if (!error) {
+    if (!error && size <= std::numeric_limits<std::uint64_t>::max()) {
         file.size = static_cast<std::uint64_t>(size);
         file.status = "present";
     } else {
@@ -93,22 +84,13 @@ BitmapFile inspect_file(const fs::path& path) {
     return file;
 }
 
-BitmapFile inspect_external_file(const fs::path& archive_path, const Sg3Group& group) {
-    std::string filename = group.filename;
-    std::replace(filename.begin(), filename.end(), '\\', '/');
-    const fs::path relative{filename};
-    if (filename.empty() || relative.is_absolute() || relative.has_root_name() ||
-        lowercase(relative.extension().string()) != ".bmp") {
-        return BitmapFile{{}, std::nullopt, "unresolved_name"};
+BitmapFile inspect_external_file(const fs::path& archive_path, const Sg3Group& group,
+                                 std::size_t group_index) {
+    const auto location = openemperor::assets::resolve_sg3_group_bitmap(archive_path, group, group_index);
+    if (location.status != openemperor::assets::Sg3BitmapStatus::Resolved) {
+        return BitmapFile{{}, std::nullopt, openemperor::assets::sg3_bitmap_status_name(location.status)};
     }
-    for (const auto& component : relative) {
-        if (component == "..") {
-            return BitmapFile{{}, std::nullopt, "unsafe_relative_name"};
-        }
-    }
-    fs::path bitmap_name = relative;
-    bitmap_name.replace_extension(".555");
-    return inspect_file(archive_path.parent_path() / bitmap_name);
+    return inspect_file(location.path);
 }
 
 std::string check_bounds(std::uint32_t offset, std::uint32_t length, const BitmapFile& file) {
@@ -119,35 +101,6 @@ std::string check_bounds(std::uint32_t offset, std::uint32_t length, const Bitma
         return "out_of_bounds";
     }
     return "in_bounds";
-}
-
-Sg3Archive read_archive(const fs::path& path, std::uint64_t actual_file_size) {
-    if (actual_file_size < 680) {
-        throw openemperor::assets::Sg3ParseError("SG3 file is shorter than the 680-byte header/index prefix");
-    }
-    std::ifstream input{path, std::ios::binary};
-    if (!input) {
-        throw std::runtime_error("cannot open SG3 file");
-    }
-    std::array<std::uint8_t, 680> prefix{};
-    input.read(reinterpret_cast<char*>(prefix.data()), static_cast<std::streamsize>(prefix.size()));
-    if (input.gcount() != static_cast<std::streamsize>(prefix.size())) {
-        throw std::runtime_error("cannot read SG3 header/index prefix");
-    }
-    const std::uint64_t required = openemperor::assets::required_sg3_table_size(prefix, actual_file_size);
-    if (required > std::numeric_limits<std::size_t>::max() ||
-        required > static_cast<std::uint64_t>(std::numeric_limits<std::streamsize>::max())) {
-        throw std::runtime_error("SG3 metadata table is too large to read on this platform");
-    }
-    std::vector<std::uint8_t> table(static_cast<std::size_t>(required));
-    std::copy(prefix.begin(), prefix.end(), table.begin());
-    const std::size_t remaining = table.size() - prefix.size();
-    input.read(reinterpret_cast<char*>(table.data() + prefix.size()),
-               static_cast<std::streamsize>(remaining));
-    if (input.gcount() != static_cast<std::streamsize>(remaining)) {
-        throw std::runtime_error("cannot read complete SG3 metadata table");
-    }
-    return openemperor::assets::parse_sg3(table, actual_file_size);
 }
 
 void print_bitmap(std::ostream& output, const BitmapFile& file, const std::string& ref) {
@@ -235,13 +188,13 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
 
 } // namespace
 
-void inspect_sg3(const fs::path& path, std::uint64_t actual_file_size, std::ostream& output) {
-    const Sg3Archive archive = read_archive(path, actual_file_size);
+void inspect_sg3(const fs::path& path, std::ostream& output) {
+    const Sg3Archive archive = openemperor::assets::read_sg3_archive(path);
     const BitmapFile internal = inspect_file(fs::path{path}.replace_extension(".555"));
     std::vector<BitmapFile> external;
     external.reserve(archive.groups.size());
-    for (const Sg3Group& group : archive.groups) {
-        external.push_back(inspect_external_file(path, group));
+    for (std::size_t index = 0; index < archive.groups.size(); ++index) {
+        external.push_back(inspect_external_file(path, archive.groups[index], index));
     }
 
     output << "{\n  \"format\":\"SG3\",\n  \"archive_path\":";
@@ -369,57 +322,12 @@ void inspect_sg3(const fs::path& path, std::uint64_t actual_file_size, std::ostr
            << "}\n}\n";
 }
 
-void decode_one_sg3_image(const fs::path& path, std::uint64_t actual_file_size,
+void decode_one_sg3_image(const fs::path& path,
                           std::uint32_t image_index, const fs::path& image_output_path,
                           ImageOutputFormat output_format,
                           std::ostream& output) {
-    const Sg3Archive archive = read_archive(path, actual_file_size);
-    if (image_index >= archive.images.size()) {
-        throw openemperor::assets::Sg3DecodeError("selected image index is outside the SG3 image table");
-    }
-    const Sg3Image& image = archive.images[image_index];
-    if (image.group_id >= archive.groups.size()) {
-        throw openemperor::assets::Sg3DecodeError("selected image has an out-of-range group ID");
-    }
-    const std::uint64_t payload_bytes = openemperor::assets::required_uncompressed_payload_size(image);
-
-    BitmapFile bitmap;
-    std::string bitmap_ref = "internal";
-    if (image.external_flag == 0) {
-        bitmap = inspect_file(fs::path{path}.replace_extension(".555"));
-    } else if (image.external_flag == 1) {
-        bitmap = inspect_external_file(path, archive.groups[image.group_id]);
-        bitmap_ref = "group:" + std::to_string(image.group_id);
-    } else {
-        throw openemperor::assets::Sg3DecodeError("selected image has an undocumented external flag value");
-    }
-    if (!bitmap.size) {
-        throw openemperor::assets::Sg3DecodeError("selected image bitmap file is unavailable: " + bitmap.status);
-    }
-    if (!openemperor::assets::range_within_file(image.data_offset, payload_bytes, *bitmap.size)) {
-        throw openemperor::assets::Sg3DecodeError("selected image data range exceeds the actual .555 file size");
-    }
-    const std::streamoff seek_offset = static_cast<std::streamoff>(image.data_offset);
-    if (seek_offset < 0 || static_cast<std::uint64_t>(seek_offset) != image.data_offset ||
-        payload_bytes > std::numeric_limits<std::size_t>::max() ||
-        payload_bytes > static_cast<std::uint64_t>(std::numeric_limits<std::streamsize>::max())) {
-        throw openemperor::assets::Sg3DecodeError("selected image data range cannot be read on this platform");
-    }
-
-    std::ifstream bitmap_input{bitmap.path, std::ios::binary};
-    if (!bitmap_input) {
-        throw std::runtime_error("cannot open selected .555 bitmap file");
-    }
-    bitmap_input.seekg(seek_offset);
-    if (!bitmap_input) {
-        throw std::runtime_error("cannot seek to selected image data offset");
-    }
-    std::vector<std::uint8_t> payload(static_cast<std::size_t>(payload_bytes));
-    bitmap_input.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
-    if (bitmap_input.gcount() != static_cast<std::streamsize>(payload.size())) {
-        throw std::runtime_error("cannot read the complete selected image payload");
-    }
-    const openemperor::assets::RgbaImage rgba = openemperor::assets::decode_uncompressed_rgba(image, payload);
+    const auto loaded = openemperor::assets::load_sg3_image_with_source({path, image_index});
+    const openemperor::assets::RgbaImage& rgba = loaded.rgba;
     const std::vector<std::uint8_t> png = output_format == ImageOutputFormat::Png
         ? openemperor::assets::encode_rgba_png(rgba) : std::vector<std::uint8_t>{};
     const std::vector<std::uint8_t>& output_bytes = output_format == ImageOutputFormat::Png ? png : rgba.pixels;
@@ -466,9 +374,9 @@ void decode_one_sg3_image(const fs::path& path, std::uint64_t actual_file_size,
            << ",\"height\":" << rgba.height
            << ",\"rgba_bytes\":" << rgba.pixels.size()
            << ",\"output_bytes\":" << output_bytes.size() << ',';
-    json_key_string(output, "bitmap_ref", bitmap_ref);
+    json_key_string(output, "bitmap_ref", loaded.bitmap.ref);
     output << ',';
-    json_key_string(output, "bitmap_path", bitmap.path.string());
+    json_key_string(output, "bitmap_path", loaded.bitmap.path.string());
     output << ',';
     json_key_string(output, "output_path", absolute_output.lexically_normal().string());
     output << "}\n";
