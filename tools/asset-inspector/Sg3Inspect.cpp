@@ -157,7 +157,8 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
         openemperor::assets::classify_sg3_image_type(image.image_type)));
     if (has_alpha) {
         output << ",\"alpha_offset\":" << image.alpha_offset
-               << ",\"alpha_length\":" << image.alpha_length;
+               << ",\"alpha_length\":" << image.alpha_length
+               << ",\"has_alpha\":" << (image.alpha_length != 0 ? "true" : "false");
     }
     output << ',';
     json_key_string(output, "bitmap_ref", validation.bitmap_ref);
@@ -286,13 +287,13 @@ void inspect_sg3(const fs::path& path, std::ostream& output) {
         }
         if (source) {
             validation.data_bounds = check_bounds(image.data_offset, image.data_length, *source);
-            validation.alpha_bounds = archive.header.version == 214 &&
-                (image.alpha_offset != 0 || image.alpha_length != 0)
+            validation.alpha_bounds = archive.header.version == 214 && image.alpha_length != 0
                 ? check_bounds(image.alpha_offset, image.alpha_length, *source)
                 : "not_present";
         } else {
             validation.data_bounds = "source_unresolved";
-            validation.alpha_bounds = "source_unresolved";
+            validation.alpha_bounds = archive.header.version == 214 && image.alpha_length != 0
+                ? "source_unresolved" : "not_present";
         }
         if (validation.data_bounds == "out_of_bounds") ++outside_count;
         if (validation.alpha_bounds == "out_of_bounds") ++outside_count;
@@ -335,6 +336,10 @@ void summarize_sg3(const fs::path& path, std::ostream& output) {
     std::uint64_t external_count = 0;
     std::uint64_t unknown_source_count = 0;
     std::uint64_t alpha_count = 0;
+    std::array<std::uint64_t, 4> alpha_kind_counts{};
+    std::uint64_t alpha_in_bounds = 0;
+    std::uint64_t alpha_out_of_bounds = 0;
+    std::uint64_t alpha_source_unavailable = 0;
     std::uint64_t out_of_bounds_count = 0;
     std::uint64_t unavailable_source_count = 0;
     for (const Sg3Image& image : archive.images) {
@@ -346,8 +351,15 @@ void summarize_sg3(const fs::path& path, std::ostream& output) {
         case openemperor::assets::Sg3ImageKind::Isometric: ++kind_counts[2]; break;
         case openemperor::assets::Sg3ImageKind::Unsupported: ++kind_counts[3]; break;
         }
-        if (archive.header.version == 214 && (image.alpha_offset != 0 || image.alpha_length != 0)) {
+        const bool has_alpha = archive.header.version == 214 && image.alpha_length != 0;
+        if (has_alpha) {
             ++alpha_count;
+            switch (kind) {
+            case openemperor::assets::Sg3ImageKind::Plain: ++alpha_kind_counts[0]; break;
+            case openemperor::assets::Sg3ImageKind::Sprite: ++alpha_kind_counts[1]; break;
+            case openemperor::assets::Sg3ImageKind::Isometric: ++alpha_kind_counts[2]; break;
+            case openemperor::assets::Sg3ImageKind::Unsupported: ++alpha_kind_counts[3]; break;
+            }
         }
         const BitmapFile* source = nullptr;
         if (image.external_flag == 0) {
@@ -361,8 +373,17 @@ void summarize_sg3(const fs::path& path, std::ostream& output) {
         }
         if (source == nullptr || !source->size) {
             ++unavailable_source_count;
+            if (has_alpha) ++alpha_source_unavailable;
         } else if (!openemperor::assets::range_within_file(image.data_offset, image.data_length, *source->size)) {
             ++out_of_bounds_count;
+        }
+        if (has_alpha && source != nullptr && source->size) {
+            if (openemperor::assets::range_within_file(
+                    image.alpha_offset, image.alpha_length, *source->size)) {
+                ++alpha_in_bounds;
+            } else {
+                ++alpha_out_of_bounds;
+            }
         }
     }
     output << "{\"format\":\"SG3\",\"archive_path\":";
@@ -383,7 +404,15 @@ void summarize_sg3(const fs::path& path, std::ostream& output) {
            << "},\"source_counts\":{\"internal\":" << internal_count
            << ",\"external\":" << external_count
            << ",\"unknown_flag\":" << unknown_source_count
-           << "},\"images_with_alpha_data\":" << alpha_count
+           << "},\"images_with_alpha\":" << alpha_count
+           << ",\"images_with_alpha_data\":" << alpha_count
+           << ",\"plain_with_alpha\":" << alpha_kind_counts[0]
+           << ",\"sprite_with_alpha\":" << alpha_kind_counts[1]
+           << ",\"isometric_with_alpha\":" << alpha_kind_counts[2]
+           << ",\"unsupported_with_alpha\":" << alpha_kind_counts[3]
+           << ",\"alpha_in_bounds\":" << alpha_in_bounds
+           << ",\"alpha_out_of_bounds\":" << alpha_out_of_bounds
+           << ",\"alpha_source_unavailable\":" << alpha_source_unavailable
            << ",\"out_of_bounds_payload_ranges\":" << out_of_bounds_count
            << ",\"unavailable_payload_sources\":" << unavailable_source_count
            << "}\n";

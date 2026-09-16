@@ -1,4 +1,5 @@
 #include "assets/Sg3ImageLoader.h"
+#include "assets/Sg3AlphaDecoder.h"
 #include "assets/Sg3IsometricDecoder.h"
 #include "assets/Sg3OmegaDecoder.h"
 
@@ -43,6 +44,34 @@ bool remains_under(const fs::path& base, const fs::path& candidate) {
         }
     }
     return true;
+}
+
+std::vector<std::uint8_t> read_bitmap_range(std::ifstream& input,
+                                             std::uint64_t bitmap_size,
+                                             std::uint64_t offset,
+                                             std::uint64_t length,
+                                             const char* description) {
+    if (!range_within_file(offset, length, bitmap_size)) {
+        throw Sg3LoadError(std::string{"selected image "} + description +
+                           " range exceeds the actual .555 file size");
+    }
+    if (offset > static_cast<std::uint64_t>(std::numeric_limits<std::streamoff>::max()) ||
+        length > std::numeric_limits<std::size_t>::max() ||
+        length > static_cast<std::uint64_t>(std::numeric_limits<std::streamsize>::max())) {
+        throw Sg3LoadError(std::string{"selected image "} + description +
+                           " range cannot be read on this platform");
+    }
+    input.clear();
+    input.seekg(static_cast<std::streamoff>(offset));
+    if (!input) {
+        throw Sg3LoadError(std::string{"cannot seek to selected image "} + description + " offset");
+    }
+    std::vector<std::uint8_t> bytes(static_cast<std::size_t>(length));
+    input.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    if (input.gcount() != static_cast<std::streamsize>(bytes.size())) {
+        throw Sg3LoadError(std::string{"cannot read complete selected image "} + description);
+    }
+    return bytes;
 }
 
 } // namespace
@@ -163,9 +192,6 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
     if (kind == Sg3ImageKind::Unsupported) {
         throw Sg3DecodeError("unsupported SG3 image type " + std::to_string(image.image_type));
     }
-    if (image.alpha_offset != 0 || image.alpha_length != 0) {
-        throw Sg3DecodeError("selected image has alpha-mask metadata; alpha-mask decoding is not implemented");
-    }
     if (image.width <= 0 || image.height <= 0) {
         throw Sg3DecodeError("selected image has non-positive width or height");
     }
@@ -180,28 +206,12 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
                            std::string{sg3_bitmap_status_name(bitmap.status)});
     }
     const std::uint64_t bitmap_size = regular_file_size(bitmap.path, "selected .555 bitmap");
-    if (!range_within_file(image.data_offset, payload_bytes, bitmap_size)) {
-        throw Sg3LoadError("selected image data range exceeds the actual .555 file size");
-    }
-    const std::streamoff seek_offset = static_cast<std::streamoff>(image.data_offset);
-    if (seek_offset < 0 || static_cast<std::uint64_t>(seek_offset) != image.data_offset ||
-        payload_bytes > std::numeric_limits<std::size_t>::max() ||
-        payload_bytes > static_cast<std::uint64_t>(std::numeric_limits<std::streamsize>::max())) {
-        throw Sg3LoadError("selected image data range cannot be read on this platform");
-    }
     std::ifstream input{bitmap.path, std::ios::binary};
     if (!input) {
         throw Sg3LoadError("cannot open selected .555 bitmap file");
     }
-    input.seekg(seek_offset);
-    if (!input) {
-        throw Sg3LoadError("cannot seek to selected image data offset");
-    }
-    std::vector<std::uint8_t> payload(static_cast<std::size_t>(payload_bytes));
-    input.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
-    if (input.gcount() != static_cast<std::streamsize>(payload.size())) {
-        throw Sg3LoadError("cannot read the complete selected image payload");
-    }
+    const std::vector<std::uint8_t> payload = read_bitmap_range(
+        input, bitmap_size, image.data_offset, payload_bytes, "data");
     RgbaImage rgba;
     switch (kind) {
     case Sg3ImageKind::Plain:
@@ -216,6 +226,11 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
         break;
     case Sg3ImageKind::Unsupported:
         throw Sg3DecodeError("unsupported SG3 image type " + std::to_string(image.image_type));
+    }
+    if (image.alpha_length != 0) {
+        const std::vector<std::uint8_t> alpha = read_bitmap_range(
+            input, bitmap_size, image.alpha_offset, image.alpha_length, "alpha");
+        apply_omega_alpha_mask(alpha, rgba);
     }
     return {std::move(rgba), std::move(bitmap)};
 }

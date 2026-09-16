@@ -118,7 +118,7 @@ bool run_checks() {
         !rejects([&] { decode_isometric_rgba(metadata(78, -1, 1, emperor.size()), emperor); })) return false;
     auto bad_alpha = metadata(78, 40, 1, emperor.size());
     bad_alpha.alpha_length = 1;
-    return rejects([&] { decode_isometric_rgba(bad_alpha, emperor); });
+    return decode_isometric_rgba(bad_alpha, emperor).pixels == emperor_image.pixels;
 }
 
 } // namespace

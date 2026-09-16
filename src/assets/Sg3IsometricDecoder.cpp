@@ -85,9 +85,6 @@ RgbaImage decode_isometric_rgba(const Sg3Image& image,
     if (image.image_type != 30) {
         throw Sg3DecodeError("isometric decoder requires SG3 image type 30");
     }
-    if (image.alpha_offset != 0 || image.alpha_length != 0) {
-        throw Sg3DecodeError("alpha-mask decoding is not implemented");
-    }
     if (image.width <= 0 || image.height <= 0) {
         throw Sg3DecodeError("isometric image dimensions must be positive");
     }

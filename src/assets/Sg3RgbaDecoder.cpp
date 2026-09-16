@@ -25,9 +25,6 @@ std::uint64_t required_uncompressed_payload_size(const Sg3Image& image) {
     if (classify_sg3_image_type(image.image_type) != Sg3ImageKind::Plain) {
         throw Sg3DecodeError("selected image type is not a documented plain image type");
     }
-    if (image.alpha_offset != 0 || image.alpha_length != 0) {
-        throw Sg3DecodeError("selected image has alpha-mask metadata; alpha-mask decoding is not implemented");
-    }
     if (image.width <= 0 || image.height <= 0) {
         throw Sg3DecodeError("selected image has non-positive width or height");
     }

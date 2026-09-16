@@ -8,7 +8,8 @@
 namespace openemperor::assets {
 
 // Decodes only documented Type-30 diamond bases and their optional Omega
-// color overlay. Alpha masks and horizontal mirroring are not applied.
+// color overlay. The shared loader applies any separate alpha stream afterward.
+// Horizontal mirroring is not applied.
 RgbaImage decode_isometric_rgba(const Sg3Image& image,
                                 std::span<const std::uint8_t> payload);
 

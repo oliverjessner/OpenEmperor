@@ -23,7 +23,7 @@ struct RgbaImage {
 
 std::array<std::uint8_t, 4> decode_rgb555_pixel(std::uint16_t color);
 
-// Decodes only a documented plain image. No isometric or alpha-mask
+// Decodes only a documented plain image. No isometric or separate alpha-mask
 // semantics are assumed.
 std::uint64_t required_uncompressed_payload_size(const Sg3Image& image);
 RgbaImage decode_uncompressed_rgba(const Sg3Image& image,

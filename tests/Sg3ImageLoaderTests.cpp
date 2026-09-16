@@ -1,5 +1,6 @@
 #include "assets/Sg3ImageLoader.h"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstddef>
@@ -218,9 +219,91 @@ bool run_checks(const fs::path& root) {
     auto type30_alpha = tile_record;
     u32(type30_alpha, image_offset + 68, 1);
     const fs::path type30_alpha_path = root / "type30-alpha.sg3";
+    u32(type30_alpha, image_offset + 64, 5000);
+    u32(type30_alpha, image_offset + 68, 4);
     write_file(type30_alpha_path, type30_alpha);
-    if (!rejects_with([&] { load_sg3_image({type30_alpha_path, 0}); },
-                      "alpha-mask decoding is not implemented")) return false;
+    auto type30_alpha_bitmap = tile_bitmap;
+    type30_alpha_bitmap.resize(5004, 0xaa);
+    const std::array<std::uint8_t, 4> type30_alpha_stream{255, 38, 1, 0};
+    std::copy(type30_alpha_stream.begin(), type30_alpha_stream.end(),
+              type30_alpha_bitmap.begin() + 5000);
+    write_file(root / "type30-alpha.555", type30_alpha_bitmap);
+    const auto type30_masked = load_sg3_image({type30_alpha_path, 0});
+    if (type30_masked.pixels[apex + 1] != 255 || type30_masked.pixels[apex + 3] != 0 ||
+        type30_masked.pixels[(39U * 4U) + 3U] != 255) return false;
+
+    auto separated_record = synthetic_sg3();
+    u32(separated_record, image_offset, 100);
+    u32(separated_record, image_offset + 64, 500);
+    const std::array<std::uint8_t, 7> plain_alpha_stream{255, 1, 2, 0, 16, 255, 1};
+    u32(separated_record, image_offset + 68,
+        static_cast<std::uint32_t>(plain_alpha_stream.size()));
+    auto separated_bitmap = std::vector<std::uint8_t>(512, 0xaa);
+    std::copy(bitmap.begin() + 4, bitmap.begin() + 12, separated_bitmap.begin() + 100);
+    std::copy(plain_alpha_stream.begin(), plain_alpha_stream.end(),
+              separated_bitmap.begin() + 500);
+    const fs::path plain_alpha = root / "plain-alpha.sg3";
+    write_file(plain_alpha, separated_record);
+    write_file(root / "plain-alpha.555", separated_bitmap);
+    const auto plain_masked = load_sg3_image({plain_alpha, 0});
+    const std::vector<std::uint8_t> masked_expected{
+        255, 0, 0, 255, 0, 255, 0, 0,
+        0, 0, 255, 132, 0, 0, 0, 0,
+    };
+    if (plain_masked.pixels != masked_expected) return false;
+
+    auto alpha_at_zero = separated_record;
+    u32(alpha_at_zero, image_offset + 64, 0);
+    const fs::path alpha_zero = root / "alpha-zero.sg3";
+    write_file(alpha_zero, alpha_at_zero);
+    std::copy(plain_alpha_stream.begin(), plain_alpha_stream.end(), separated_bitmap.begin());
+    write_file(root / "alpha-zero.555", separated_bitmap);
+    if (load_sg3_image({alpha_zero, 0}).pixels != masked_expected) return false;
+
+    auto no_alpha = separated_record;
+    u32(no_alpha, image_offset + 64, 0xffffffffU);
+    u32(no_alpha, image_offset + 68, 0);
+    const fs::path no_alpha_path = root / "no-alpha.sg3";
+    write_file(no_alpha_path, no_alpha);
+    write_file(root / "no-alpha.555", separated_bitmap);
+    if (load_sg3_image({no_alpha_path, 0}).pixels != expected) return false;
+
+    auto bad_alpha_range = separated_record;
+    u32(bad_alpha_range, image_offset + 64, 510);
+    const fs::path bad_alpha_path = root / "bad-alpha.sg3";
+    write_file(bad_alpha_path, bad_alpha_range);
+    write_file(root / "bad-alpha.555", separated_bitmap);
+    if (!rejects_with([&] { load_sg3_image({bad_alpha_path, 0}); }, "alpha range exceeds")) {
+        return false;
+    }
+    auto bad_color_range = separated_record;
+    u32(bad_color_range, image_offset, 510);
+    const fs::path bad_color_path = root / "bad-color.sg3";
+    write_file(bad_color_path, bad_color_range);
+    write_file(root / "bad-color.555", separated_bitmap);
+    if (!rejects_with([&] { load_sg3_image({bad_color_path, 0}); }, "data range exceeds")) {
+        return false;
+    }
+
+    auto sprite_alpha_record = synthetic_sg3("", false, 256,
+                                              static_cast<std::uint32_t>(sprite_stream.size()));
+    u32(sprite_alpha_record, image_offset, 100);
+    u32(sprite_alpha_record, image_offset + 64, 500);
+    const std::array<std::uint8_t, 7> sprite_alpha_stream{255, 1, 2, 31, 16, 255, 1};
+    u32(sprite_alpha_record, image_offset + 68,
+        static_cast<std::uint32_t>(sprite_alpha_stream.size()));
+    auto sprite_alpha_bitmap = std::vector<std::uint8_t>(512, 0xaa);
+    std::copy(sprite_stream.begin(), sprite_stream.end(), sprite_alpha_bitmap.begin() + 100);
+    std::copy(sprite_alpha_stream.begin(), sprite_alpha_stream.end(),
+              sprite_alpha_bitmap.begin() + 500);
+    const fs::path sprite_alpha_path = root / "sprite-alpha.sg3";
+    write_file(sprite_alpha_path, sprite_alpha_record);
+    write_file(root / "sprite-alpha.555", sprite_alpha_bitmap);
+    const std::vector<std::uint8_t> sprite_alpha_expected{
+        0, 0, 0, 0, 255, 0, 0, 255,
+        0, 255, 0, 132, 0, 0, 0, 0,
+    };
+    if (load_sg3_image({sprite_alpha_path, 0}).pixels != sprite_alpha_expected) return false;
 
     const fs::path unknown = root / "unknown.sg3";
     write_file(unknown, synthetic_sg3("", false, 999));

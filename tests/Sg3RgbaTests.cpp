@@ -47,7 +47,8 @@ bool run_checks() {
     if (!rejects([&] { required_uncompressed_payload_size(image); })) return false;
     image.image_type = 13;
     image.alpha_length = 1;
-    if (!rejects([&] { required_uncompressed_payload_size(image); })) return false;
+    if (required_uncompressed_payload_size(image) != colors.size() ||
+        decode_uncompressed_rgba(image, colors).pixels != expected) return false;
     image.alpha_length = 0;
     image.image_type = 30;
     if (!rejects([&] { required_uncompressed_payload_size(image); })) return false;
