@@ -1,4 +1,5 @@
 #include "assets/Sg3ImageLoader.h"
+#include "assets/Sg3IsometricDecoder.h"
 #include "assets/Sg3OmegaDecoder.h"
 
 #include <algorithm>
@@ -159,9 +160,6 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
     }
     const Sg3Image& image = archive.images[request.image_index];
     const Sg3ImageKind kind = classify_sg3_image_type(image.image_type);
-    if (kind == Sg3ImageKind::Isometric) {
-        throw Sg3DecodeError("isometric SG3 image decoding is not implemented");
-    }
     if (kind == Sg3ImageKind::Unsupported) {
         throw Sg3DecodeError("unsupported SG3 image type " + std::to_string(image.image_type));
     }
@@ -204,10 +202,21 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
     if (input.gcount() != static_cast<std::streamsize>(payload.size())) {
         throw Sg3LoadError("cannot read the complete selected image payload");
     }
-    RgbaImage rgba = kind == Sg3ImageKind::Plain
-        ? decode_uncompressed_rgba(image, payload)
-        : decode_omega_color_rgba(payload, static_cast<std::uint16_t>(image.width),
-                                  static_cast<std::uint16_t>(image.height));
+    RgbaImage rgba;
+    switch (kind) {
+    case Sg3ImageKind::Plain:
+        rgba = decode_uncompressed_rgba(image, payload);
+        break;
+    case Sg3ImageKind::Sprite:
+        rgba = decode_omega_color_rgba(payload, static_cast<std::uint16_t>(image.width),
+                                       static_cast<std::uint16_t>(image.height));
+        break;
+    case Sg3ImageKind::Isometric:
+        rgba = decode_isometric_rgba(image, payload);
+        break;
+    case Sg3ImageKind::Unsupported:
+        throw Sg3DecodeError("unsupported SG3 image type " + std::to_string(image.image_type));
+    }
     return {std::move(rgba), std::move(bitmap)};
 }
 

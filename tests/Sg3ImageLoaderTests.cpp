@@ -186,6 +186,42 @@ bool run_checks(const fs::path& root) {
     const fs::path isometric = root / "isometric.sg3";
     write_file(isometric, synthetic_sg3("", false, 30));
     if (!rejects_with([&] { load_sg3_image({isometric, 0}); }, "isometric")) return false;
+
+    auto tile_record = synthetic_sg3("", false, 30, 3200);
+    u32(tile_record, image_offset + 8, 3200); // Documented base/overlay boundary.
+    u16(tile_record, image_offset + 20, 78);
+    u16(tile_record, image_offset + 22, 40);
+    tile_record[image_offset + 55] = 1;
+    const fs::path type30 = root / "type30.sg3";
+    write_file(type30, tile_record);
+    std::vector<std::uint8_t> tile_bitmap(4, 0xaa);
+    for (std::size_t offset = 0; offset < 3200; offset += 2) {
+        tile_bitmap.push_back(0xe0);
+        tile_bitmap.push_back(0x03); // Synthetic green RGB555 pixel.
+    }
+    tile_bitmap.push_back(0xee); // Outside the selected payload.
+    write_file(root / "type30.555", tile_bitmap);
+    const auto type30_result = load_sg3_image_with_source({type30, 0});
+    if (type30_result.rgba.width != 78 || type30_result.rgba.height != 40 ||
+        type30_result.bitmap.ref != "internal" ||
+        type30_result.bitmap.path != root / "type30.555" ||
+        type30_result.rgba.pixels.size() != 78U * 40U * 4U) return false;
+    const auto& pixels = type30_result.rgba.pixels;
+    const std::size_t apex = (38U * 4U);
+    if (pixels[3] != 0 || pixels[apex] != 0 || pixels[apex + 1] != 255 ||
+        pixels[apex + 2] != 0 || pixels[apex + 3] != 255) return false;
+
+    const fs::path type30_short = root / "type30-short.sg3";
+    write_file(type30_short, tile_record);
+    write_file(root / "type30-short.555", std::span{tile_bitmap}.first(3203));
+    if (!rejects_with([&] { load_sg3_image({type30_short, 0}); }, "exceeds")) return false;
+    auto type30_alpha = tile_record;
+    u32(type30_alpha, image_offset + 68, 1);
+    const fs::path type30_alpha_path = root / "type30-alpha.sg3";
+    write_file(type30_alpha_path, type30_alpha);
+    if (!rejects_with([&] { load_sg3_image({type30_alpha_path, 0}); },
+                      "alpha-mask decoding is not implemented")) return false;
+
     const fs::path unknown = root / "unknown.sg3";
     write_file(unknown, synthetic_sg3("", false, 999));
     return rejects_with([&] { load_sg3_image({unknown, 0}); }, "unsupported SG3 image type");

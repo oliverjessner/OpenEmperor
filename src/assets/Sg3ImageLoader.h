@@ -49,7 +49,7 @@ Sg3BitmapLocation resolve_sg3_group_bitmap(const std::filesystem::path& archive_
 Sg3BitmapLocation resolve_sg3_image_bitmap(const std::filesystem::path& archive_path,
                                             const Sg3Archive& archive, const Sg3Image& image);
 
-// Reads exactly one documented uncompressed regular image from its .555 file.
+// Reads exactly one documented Plain, Sprite, or Type-30 image from its .555 file.
 LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request);
 RgbaImage load_sg3_image(const Sg3ImageRequest& request);
 

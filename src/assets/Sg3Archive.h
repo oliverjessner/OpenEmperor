@@ -52,7 +52,7 @@ struct Sg3Image {
     std::uint8_t reversible_animation_flag = 0;
     std::uint16_t image_type = 0;
     std::uint8_t external_flag = 0;
-    std::uint8_t isometric_size_flag = 0; // Meaning is not established.
+    std::uint8_t isometric_size_flag = 0; // Size hint for Type 30; no other meaning assumed.
     std::uint8_t group_id = 0;
     std::uint8_t animation_speed_id = 0;
     std::uint32_t alpha_offset = 0;

@@ -21,6 +21,19 @@ RgbaImage decode_omega_color_rgba(std::span<const std::uint8_t> stream,
     image.height = height;
     image.pixels.resize(static_cast<std::size_t>(output_bytes), 0);
 
+    decode_omega_color_into(stream, image);
+    return image;
+}
+
+void decode_omega_color_into(std::span<const std::uint8_t> stream, RgbaImage& image) {
+    if (image.width == 0 || image.height == 0) {
+        throw Sg3DecodeError("Omega destination dimensions must be nonzero");
+    }
+    const std::uint64_t pixel_count = static_cast<std::uint64_t>(image.width) * image.height;
+    if (pixel_count * 4U != image.pixels.size()) {
+        throw Sg3DecodeError("Omega destination pixel buffer does not match dimensions");
+    }
+
     std::size_t input = 0;
     std::uint64_t cursor = 0;
     while (input < stream.size()) {
@@ -58,7 +71,6 @@ RgbaImage decode_omega_color_rgba(std::span<const std::uint8_t> stream,
             ++cursor; // A linear cursor naturally wraps to the next row.
         }
     }
-    return image;
 }
 
 } // namespace openemperor::assets

@@ -4,24 +4,18 @@ OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of t
 
 ## Current status
 
-This repository contains an SDL3 application shell, an SG3 metadata inspector, and a one-image RGBA/PNG exporter. The app opens a window showing “OpenEmperor”, handles Escape/window-close, and accepts a game-data directory without reading its contents. With `--sg3 <file.sg3> --image <index>`, it loads one documented uncompressed regular image directly from the user's SG3/.555 files and renders it in an SDL3 texture, entirely in memory. `--preview <exported.png>` remains available for debugging. The inspector reports SG3 metadata and associated `.555` bounds and can optionally export an image. There is no game logic, map loading, or bulk asset import yet.
+This repository contains an SDL3 application shell, a read-only SG3 metadata inspector, and a one-image RGBA/PNG exporter. The app opens a window showing “OpenEmperor”, handles Escape/window-close, and accepts a game-data directory without reading its contents. With `--sg3 <file.sg3> --image <index>`, it loads one supported image directly from the user's SG3/.555 files and renders it in an SDL3 texture, entirely in memory. Supported layouts are plain RGB555, Omega sprite streams, and Type-30 isometric footprints (classic 58×30 and Emperor 78×40 tiles, with optional Omega overlay). `--preview <exported.png>` remains available for debugging. There is no game logic, map loading, or bulk asset import yet.
 
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
-- ✅ native C++20/SDL3-App
-- ✅ Apple-Silicon-Build vorgesehen
-- ✅ saubere Clean-Room-Regeln
-- ✅ SG3-Metadatenparser
-- ✅ .555-Range-Validierung
-- ✅ RGB555 → RGBA
-- ✅ PNG-Export
-- ✅ SDL3-Preview
-- ✅ synthetische Parser-Tests ohne proprietäre Daten
-- ✅ direkte SG3/.555-Vorschau im SDL3-Fenster
-- ❌ komprimierte Sprites
-- ❌ isometrische Sprites
-- ❌ Alpha-Masks
-- ❌ Asset-Katalog
+- ✅ C++20/SDL3 application and macOS arm64 build
+- ✅ clean-room SG3 metadata parsing and `.555` range checks
+- ✅ plain RGB555, Omega sprite, and Type-30 isometric image decoding
+- ✅ optional Type-30 Omega overlay over the decoded footprint
+- ✅ synthetic tests containing no proprietary game bytes
+- ✅ direct SG3/.555 → RGBA → SDL3 preview, plus optional PNG export/debugging preview
+- ❌ alpha masks and unverified mirroring
+- ❌ asset catalog
 - ❌ Maps
 - ❌ Simulation
 
@@ -41,12 +35,13 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ```sh
 ./build/openemperor --data /absolute/path/to/your/game-data
 ./build/openemperor-inspect /path/to/a/file
+./build/openemperor-inspect /path/to/file.sg3 --summary
 ./build/openemperor-inspect /path/to/file.sg3 --image 1 --rgba .local/decoded/image-1.rgba
 ./build/openemperor-inspect /path/to/file.sg3 --image 1 --png .local/decoded/image-1.png
 ./build/openemperor --preview .local/decoded/image-1.png
 ./build/openemperor --sg3 /path/to/your/game-data/example.sg3 --image 1
 ```
 
-`--data` checks that the directory exists and prints its absolute path. The application's `--sg3` and `--image` options must be supplied together and cannot be combined with `--preview`. The direct preview resolves the documented internal or external `.555` source, checks the selected byte range against the actual file size, reads only that payload, and renders the decoded image without writing an intermediary. It rejects compressed, isometric, alpha-mask, and undocumented image layouts explicitly. `openemperor-inspect` prints generic file metadata and the first 32 bytes in hex for other files. For a `.sg3` input, it prints structured JSON with the header, index, groups, image records, associated `.555` files, raw unknown fields, and bounds results. Its `--image <index>` export can still write headerless RGBA8 with `--rgba <output>` or an RGBA PNG with `--png <output>`. `--preview <exported.png>` displays that PNG with nearest-neighbor scaling; the current reader supports only the RGBA8, filter-0, stored-DEFLATE subset written by this project. Keep decoded files under ignored `.local/` and do not distribute original game assets or decoded image copies.
+`--data` checks that the directory exists and prints its absolute path. The application's `--sg3` and `--image` options must be supplied together and cannot be combined with `--preview`. The direct preview resolves the documented internal or external `.555` source, checks the selected byte range against the actual file size, reads only that payload, and renders without writing an intermediary. Unsupported image types and alpha-mask metadata fail explicitly; the parsed horizontal-mirror offset is not applied. `openemperor-inspect` prints generic file metadata and the first 32 bytes in hex for other files. For a `.sg3` input, it prints structured JSON with the header, index, groups, image records, associated `.555` files, raw unknown fields, and bounds results. `--summary` produces compact type/kind counts. Its `--image <index>` export can write headerless RGBA8 with `--rgba <output>` or an RGBA PNG with `--png <output>`. `--preview <exported.png>` displays that PNG with nearest-neighbor scaling; the current reader supports only the RGBA8, filter-0, stored-DEFLATE subset written by this project. Keep decoded files under ignored `.local/` and do not distribute original game assets or decoded image copies.
 
 See [architecture](docs/architecture.md) and [reverse-engineering notes](docs/reverse/README.md) for the project boundaries.
