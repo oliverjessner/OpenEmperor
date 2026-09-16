@@ -2,6 +2,7 @@
 
 #include "assets/Sg3Archive.h"
 
+#include <array>
 #include <cstdint>
 #include <span>
 #include <stdexcept>
@@ -20,8 +21,10 @@ struct RgbaImage {
     std::vector<std::uint8_t> pixels; // Row-major, 8-bit R, G, B, A per pixel.
 };
 
-// Decodes only a documented, uncompressed regular image. No isometric,
-// compressed, or alpha-mask semantics are assumed.
+std::array<std::uint8_t, 4> decode_rgb555_pixel(std::uint16_t color);
+
+// Decodes only a documented plain image. No isometric or alpha-mask
+// semantics are assumed.
 std::uint64_t required_uncompressed_payload_size(const Sg3Image& image);
 RgbaImage decode_uncompressed_rgba(const Sg3Image& image,
                                    std::span<const std::uint8_t> payload);

@@ -39,6 +39,7 @@ add_executable(openemperor-inspect
 add_library(openemperor-sg3 STATIC
     src/assets/Sg3Archive.cpp
     src/assets/Sg3RgbaDecoder.cpp
+    src/assets/Sg3OmegaDecoder.cpp
     src/assets/Sg3ImageLoader.cpp
     src/assets/RgbaPngEncoder.cpp
     src/assets/RgbaPngReader.cpp
@@ -61,6 +62,11 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-sg3-rgba-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-sg3-rgba-tests)
     add_test(NAME sg3-rgba-decode COMMAND openemperor-sg3-rgba-tests)
+
+    add_executable(openemperor-sg3-omega-tests tests/Sg3OmegaTests.cpp)
+    target_link_libraries(openemperor-sg3-omega-tests PRIVATE openemperor-sg3)
+    openemperor_enable_warnings(openemperor-sg3-omega-tests)
+    add_test(NAME sg3-omega-decode COMMAND openemperor-sg3-omega-tests)
 
     add_executable(openemperor-sg3-loader-tests tests/Sg3ImageLoaderTests.cpp)
     target_link_libraries(openemperor-sg3-loader-tests PRIVATE openemperor-sg3)

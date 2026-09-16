@@ -14,8 +14,8 @@
 
 int main(int argc, char* argv[]) {
     namespace fs = std::filesystem;
-    if (argc != 2 && argc != 6) {
-        std::cerr << "Usage: " << argv[0] << " <file.sg3> [--image <index> (--rgba <output.rgba> | --png <output.png>)]\n"
+    if (argc != 2 && argc != 3 && argc != 6) {
+        std::cerr << "Usage: " << argv[0] << " <file.sg3> [--summary | --image <index> (--rgba <output.rgba> | --png <output.png>)]\n"
                   << "       " << argv[0] << " <other-file>\n";
         return 2;
     }
@@ -41,6 +41,12 @@ int main(int argc, char* argv[]) {
         try {
             if (argc == 2) {
                 inspect_sg3(absolute_path, std::cout);
+            } else if (argc == 3) {
+                if (std::string_view{argv[2]} != "--summary") {
+                    std::cerr << "Usage: " << argv[0] << " <file.sg3> --summary\n";
+                    return 2;
+                }
+                summarize_sg3(absolute_path, std::cout);
             } else {
                 const std::string_view output_option{argv[4]};
                 if (std::string_view{argv[2]} != "--image" ||
@@ -68,7 +74,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (argc != 2) {
-        std::cerr << "Image export requires a .sg3 input file\n";
+        std::cerr << "SG3 summary or image export requires a .sg3 input file\n";
         return 2;
     }
 

@@ -139,17 +139,17 @@ Sg3Archive parse_sg3(std::span<const std::uint8_t> table,
         copy_record(image.raw, record);
         image.data_offset = reader.u32(offset);
         image.data_length = reader.u32(offset + 4);
-        image.uncompressed_part_length = reader.u32(offset + 8);
-        image.width = reader.u16(offset + 20);
-        image.height = reader.u16(offset + 22);
+        image.uncompressed_length = reader.u32(offset + 8);
+        image.horizontal_mirror_offset = reader.u32(offset + 16);
+        image.width = reader.i16(offset + 20);
+        image.height = reader.i16(offset + 22);
         image.animation_sprites = reader.u16(offset + 30);
         image.animation_x_offset = reader.i16(offset + 34);
         image.animation_y_offset = reader.i16(offset + 36);
         image.reversible_animation_flag = record[48];
-        image.image_type = record[50];
-        image.fully_compressed_flag = record[51];
+        image.image_type = reader.u16(offset + 50);
         image.external_flag = record[52];
-        image.partly_compressed_flag = record[53];
+        image.isometric_size_flag = record[55];
         image.group_id = record[56];
         image.animation_speed_id = record[58];
         if (stride == 72) {
@@ -164,6 +164,31 @@ Sg3Archive parse_sg3(std::span<const std::uint8_t> table,
 bool range_within_file(std::uint64_t offset, std::uint64_t length,
                        std::uint64_t file_size) {
     return offset <= file_size && length <= file_size - offset;
+}
+
+Sg3ImageKind classify_sg3_image_type(std::uint16_t image_type) {
+    switch (image_type) {
+    case 0:
+    case 1:
+    case 10:
+    case 12:
+    case 13: return Sg3ImageKind::Plain;
+    case 30: return Sg3ImageKind::Isometric;
+    case 256:
+    case 257:
+    case 276: return Sg3ImageKind::Sprite;
+    default: return Sg3ImageKind::Unsupported;
+    }
+}
+
+const char* sg3_image_kind_name(Sg3ImageKind kind) {
+    switch (kind) {
+    case Sg3ImageKind::Plain: return "plain";
+    case Sg3ImageKind::Sprite: return "sprite";
+    case Sg3ImageKind::Isometric: return "isometric";
+    case Sg3ImageKind::Unsupported: return "unsupported";
+    }
+    return "unsupported";
 }
 
 } // namespace openemperor::assets

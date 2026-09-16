@@ -5,10 +5,12 @@
 #include "assets/Sg3RgbaDecoder.h"
 #include "assets/RgbaPngEncoder.h"
 
+#include <array>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <optional>
 #include <ostream>
 #include <span>
@@ -33,7 +35,6 @@ struct ImageValidation {
     std::string bitmap_ref;
     std::string data_bounds;
     std::string alpha_bounds;
-    std::string part_length_bounds;
 };
 
 std::string hex_bytes(std::span<const std::uint8_t> bytes) {
@@ -138,19 +139,22 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
     output << "    {\"index\":" << index
            << ",\"data_offset\":" << image.data_offset
            << ",\"data_length\":" << image.data_length
-           << ",\"uncompressed_part_length\":" << image.uncompressed_part_length
+           << ",\"uncompressed_length\":" << image.uncompressed_length
+           << ",\"horizontal_mirror_offset\":" << image.horizontal_mirror_offset
            << ",\"width\":" << image.width
            << ",\"height\":" << image.height
            << ",\"animation_sprites\":" << image.animation_sprites
            << ",\"animation_x_offset\":" << image.animation_x_offset
            << ",\"animation_y_offset\":" << image.animation_y_offset
            << ",\"reversible_animation_flag\":" << static_cast<unsigned int>(image.reversible_animation_flag)
-           << ",\"image_type\":" << static_cast<unsigned int>(image.image_type)
-           << ",\"fully_compressed_flag\":" << static_cast<unsigned int>(image.fully_compressed_flag)
+           << ",\"image_type\":" << image.image_type
            << ",\"external_flag\":" << static_cast<unsigned int>(image.external_flag)
-           << ",\"partly_compressed_flag\":" << static_cast<unsigned int>(image.partly_compressed_flag)
+           << ",\"isometric_size_flag\":" << static_cast<unsigned int>(image.isometric_size_flag)
            << ",\"group_id\":" << static_cast<unsigned int>(image.group_id)
            << ",\"animation_speed_id\":" << static_cast<unsigned int>(image.animation_speed_id);
+    output << ',';
+    json_key_string(output, "image_kind", openemperor::assets::sg3_image_kind_name(
+        openemperor::assets::classify_sg3_image_type(image.image_type)));
     if (has_alpha) {
         output << ",\"alpha_offset\":" << image.alpha_offset
                << ",\"alpha_length\":" << image.alpha_length;
@@ -162,11 +166,9 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
     output << ',';
     json_key_string(output, "alpha_bounds", validation.alpha_bounds);
     output << ',';
-    json_key_string(output, "uncompressed_part_bounds", validation.part_length_bounds);
-    output << ',';
     json_key_string(output, "documented_zero_12_15_hex", hex_bytes(std::span{image.raw}.subspan(12, 4)));
     output << ',';
-    json_key_string(output, "unknown_16_19_hex", hex_bytes(std::span{image.raw}.subspan(16, 4)));
+    json_key_string(output, "horizontal_mirror_field_raw_hex", hex_bytes(std::span{image.raw}.subspan(16, 4)));
     output << ',';
     json_key_string(output, "unknown_24_29_hex", hex_bytes(std::span{image.raw}.subspan(24, 6)));
     output << ',';
@@ -176,7 +178,9 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
     output << ',';
     json_key_string(output, "unknown_49_hex", hex_bytes(std::span{image.raw}.subspan(49, 1)));
     output << ',';
-    json_key_string(output, "unknown_54_55_hex", hex_bytes(std::span{image.raw}.subspan(54, 2)));
+    json_key_string(output, "unknown_53_hex", hex_bytes(std::span{image.raw}.subspan(53, 1)));
+    output << ',';
+    json_key_string(output, "unknown_54_hex", hex_bytes(std::span{image.raw}.subspan(54, 1)));
     output << ',';
     json_key_string(output, "unknown_57_hex", hex_bytes(std::span{image.raw}.subspan(57, 1)));
     output << ',';
@@ -257,7 +261,6 @@ void inspect_sg3(const fs::path& path, std::ostream& output) {
     std::uint64_t invalid_group_count = 0;
     std::uint64_t invalid_image_group_count = 0;
     std::uint64_t unknown_external_flag_count = 0;
-    std::uint64_t part_length_count = 0;
     for (std::size_t index = 0; index < archive.images.size(); ++index) {
         const Sg3Image& image = archive.images[index];
         if ((image.data_length != 0 || image.alpha_length != 0) &&
@@ -291,12 +294,9 @@ void inspect_sg3(const fs::path& path, std::ostream& output) {
             validation.data_bounds = "source_unresolved";
             validation.alpha_bounds = "source_unresolved";
         }
-        validation.part_length_bounds = image.uncompressed_part_length <= image.data_length
-            ? "within_data_length" : "exceeds_data_length";
         if (validation.data_bounds == "out_of_bounds") ++outside_count;
         if (validation.alpha_bounds == "out_of_bounds") ++outside_count;
         if (validation.data_bounds != "in_bounds" && validation.data_bounds != "out_of_bounds") ++unavailable_count;
-        if (validation.part_length_bounds == "exceeds_data_length") ++part_length_count;
         if (index != 0) output << ",\n";
         print_image(output, image, index, validation, archive.header.version == 214);
     }
@@ -318,8 +318,75 @@ void inspect_sg3(const fs::path& path, std::ostream& output) {
            << ",\"out_of_range_image_group_ids\":" << invalid_image_group_count
            << ",\"invalid_external_group_references\":" << invalid_group_count
            << ",\"unknown_external_flag_values\":" << unknown_external_flag_count
-           << ",\"uncompressed_part_exceeds_data_length\":" << part_length_count
            << "}\n}\n";
+}
+
+void summarize_sg3(const fs::path& path, std::ostream& output) {
+    const Sg3Archive archive = openemperor::assets::read_sg3_archive(path);
+    const BitmapFile internal = inspect_file(fs::path{path}.replace_extension(".555"));
+    std::vector<BitmapFile> external;
+    external.reserve(archive.groups.size());
+    for (std::size_t index = 0; index < archive.groups.size(); ++index) {
+        external.push_back(inspect_external_file(path, archive.groups[index], index));
+    }
+    std::map<std::uint16_t, std::uint64_t> type_counts;
+    std::array<std::uint64_t, 4> kind_counts{};
+    std::uint64_t internal_count = 0;
+    std::uint64_t external_count = 0;
+    std::uint64_t unknown_source_count = 0;
+    std::uint64_t alpha_count = 0;
+    std::uint64_t out_of_bounds_count = 0;
+    std::uint64_t unavailable_source_count = 0;
+    for (const Sg3Image& image : archive.images) {
+        ++type_counts[image.image_type];
+        const auto kind = openemperor::assets::classify_sg3_image_type(image.image_type);
+        switch (kind) {
+        case openemperor::assets::Sg3ImageKind::Plain: ++kind_counts[0]; break;
+        case openemperor::assets::Sg3ImageKind::Sprite: ++kind_counts[1]; break;
+        case openemperor::assets::Sg3ImageKind::Isometric: ++kind_counts[2]; break;
+        case openemperor::assets::Sg3ImageKind::Unsupported: ++kind_counts[3]; break;
+        }
+        if (archive.header.version == 214 && (image.alpha_offset != 0 || image.alpha_length != 0)) {
+            ++alpha_count;
+        }
+        const BitmapFile* source = nullptr;
+        if (image.external_flag == 0) {
+            ++internal_count;
+            source = &internal;
+        } else if (image.external_flag == 1) {
+            ++external_count;
+            if (image.group_id < external.size()) source = &external[image.group_id];
+        } else {
+            ++unknown_source_count;
+        }
+        if (source == nullptr || !source->size) {
+            ++unavailable_source_count;
+        } else if (!openemperor::assets::range_within_file(image.data_offset, image.data_length, *source->size)) {
+            ++out_of_bounds_count;
+        }
+    }
+    output << "{\"format\":\"SG3\",\"archive_path\":";
+    json_string(output, path.lexically_normal().string());
+    output << ",\"version\":" << archive.header.version
+           << ",\"image_record_count\":" << archive.images.size()
+           << ",\"image_type_counts\":[";
+    bool first = true;
+    for (const auto& [type, count] : type_counts) {
+        if (!first) output << ',';
+        first = false;
+        output << "{\"type\":" << type << ",\"count\":" << count << '}';
+    }
+    output << "],\"image_kind_counts\":{\"plain\":" << kind_counts[0]
+           << ",\"sprite\":" << kind_counts[1]
+           << ",\"isometric\":" << kind_counts[2]
+           << ",\"unsupported\":" << kind_counts[3]
+           << "},\"source_counts\":{\"internal\":" << internal_count
+           << ",\"external\":" << external_count
+           << ",\"unknown_flag\":" << unknown_source_count
+           << "},\"images_with_alpha_data\":" << alpha_count
+           << ",\"out_of_bounds_payload_ranges\":" << out_of_bounds_count
+           << ",\"unavailable_payload_sources\":" << unavailable_source_count
+           << "}\n";
 }
 
 void decode_one_sg3_image(const fs::path& path,

@@ -1,4 +1,5 @@
 #include "assets/Sg3ImageLoader.h"
+#include "assets/Sg3OmegaDecoder.h"
 
 #include <algorithm>
 #include <array>
@@ -157,10 +158,24 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
                            " is outside the SG3 image table");
     }
     const Sg3Image& image = archive.images[request.image_index];
+    const Sg3ImageKind kind = classify_sg3_image_type(image.image_type);
+    if (kind == Sg3ImageKind::Isometric) {
+        throw Sg3DecodeError("isometric SG3 image decoding is not implemented");
+    }
+    if (kind == Sg3ImageKind::Unsupported) {
+        throw Sg3DecodeError("unsupported SG3 image type " + std::to_string(image.image_type));
+    }
+    if (image.alpha_offset != 0 || image.alpha_length != 0) {
+        throw Sg3DecodeError("selected image has alpha-mask metadata; alpha-mask decoding is not implemented");
+    }
+    if (image.width <= 0 || image.height <= 0) {
+        throw Sg3DecodeError("selected image has non-positive width or height");
+    }
     if (image.group_id >= archive.groups.size()) {
         throw Sg3LoadError("selected image has an out-of-range group ID");
     }
-    const std::uint64_t payload_bytes = required_uncompressed_payload_size(image);
+    const std::uint64_t payload_bytes = kind == Sg3ImageKind::Plain
+        ? required_uncompressed_payload_size(image) : image.data_length;
     Sg3BitmapLocation bitmap = resolve_sg3_image_bitmap(archive_path, archive, image);
     if (bitmap.status != Sg3BitmapStatus::Resolved) {
         throw Sg3LoadError("selected image .555 path cannot be resolved: " +
@@ -189,7 +204,11 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
     if (input.gcount() != static_cast<std::streamsize>(payload.size())) {
         throw Sg3LoadError("cannot read the complete selected image payload");
     }
-    return {decode_uncompressed_rgba(image, payload), std::move(bitmap)};
+    RgbaImage rgba = kind == Sg3ImageKind::Plain
+        ? decode_uncompressed_rgba(image, payload)
+        : decode_omega_color_rgba(payload, static_cast<std::uint16_t>(image.width),
+                                  static_cast<std::uint16_t>(image.height));
+    return {std::move(rgba), std::move(bitmap)};
 }
 
 RgbaImage load_sg3_image(const Sg3ImageRequest& request) {

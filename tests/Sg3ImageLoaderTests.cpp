@@ -44,7 +44,8 @@ void u32(std::vector<std::uint8_t>& bytes, std::size_t at, std::uint32_t value) 
 }
 
 std::vector<std::uint8_t> synthetic_sg3(const std::string& group_filename = "",
-                                         bool external = false, bool compressed = false) {
+                                         bool external = false, std::uint16_t image_type = 13,
+                                         std::uint32_t data_length = 8) {
     // Independently authored public SG3 metadata layout, never copied game data.
     std::vector<std::uint8_t> bytes(image_offset + 72, 0);
     u32(bytes, 0, static_cast<std::uint32_t>(bytes.size()));
@@ -58,11 +59,10 @@ std::vector<std::uint8_t> synthetic_sg3(const std::string& group_filename = "",
     }
     u32(bytes, 680 + 124, 1);
     u32(bytes, image_offset, 4);
-    u32(bytes, image_offset + 4, 8);
+    u32(bytes, image_offset + 4, data_length);
     u16(bytes, image_offset + 20, 2);
     u16(bytes, image_offset + 22, 2);
-    bytes[image_offset + 50] = 13; // Documented regular type.
-    bytes[image_offset + 51] = compressed ? 1 : 0;
+    u16(bytes, image_offset + 50, image_type);
     bytes[image_offset + 52] = external ? 1 : 0;
     return bytes;
 }
@@ -160,14 +160,35 @@ bool run_checks(const fs::path& root) {
         return false;
     }
 
-    const fs::path compressed = root / "compressed.sg3";
-    write_file(compressed, synthetic_sg3("", false, true));
-    if (!rejects_with([&] { load_sg3_image({compressed, 0}); }, "compression")) return false;
-    auto unsupported = synthetic_sg3();
-    unsupported[image_offset + 50] = 30;
-    const fs::path undocumented = root / "unsupported.sg3";
-    write_file(undocumented, unsupported);
-    return rejects_with([&] { load_sg3_image({undocumented, 0}); }, "documented regular");
+    const std::vector<std::uint8_t> sprite_stream{
+        255, 1, // First pixel stays transparent.
+        2, 0x1f, 0x00, 0xe0, 0x03, // Red and green across the row boundary.
+        255, 1, // Last pixel stays transparent.
+    };
+    std::vector<std::uint8_t> sprite_bitmap{0xaa, 0xbb, 0xcc, 0xdd};
+    sprite_bitmap.insert(sprite_bitmap.end(), sprite_stream.begin(), sprite_stream.end());
+    sprite_bitmap.push_back(0xee);
+    const fs::path sprite = root / "sprite.sg3";
+    write_file(sprite, synthetic_sg3("", false, 256, static_cast<std::uint32_t>(sprite_stream.size())));
+    write_file(root / "sprite.555", sprite_bitmap);
+    const std::vector<std::uint8_t> sprite_expected{
+        0, 0, 0, 0, 255, 0, 0, 255,
+        0, 255, 0, 255, 0, 0, 0, 0,
+    };
+    if (load_sg3_image({sprite, 0}).pixels != sprite_expected) return false;
+
+    const fs::path sprite_short = root / "sprite-short.sg3";
+    write_file(sprite_short, synthetic_sg3("", false, 257,
+                                           static_cast<std::uint32_t>(sprite_stream.size())));
+    write_file(root / "sprite-short.555", std::span{sprite_bitmap}.first(12));
+    if (!rejects_with([&] { load_sg3_image({sprite_short, 0}); }, "exceeds")) return false;
+
+    const fs::path isometric = root / "isometric.sg3";
+    write_file(isometric, synthetic_sg3("", false, 30));
+    if (!rejects_with([&] { load_sg3_image({isometric, 0}); }, "isometric")) return false;
+    const fs::path unknown = root / "unknown.sg3";
+    write_file(unknown, synthetic_sg3("", false, 999));
+    return rejects_with([&] { load_sg3_image({unknown, 0}); }, "unsupported SG3 image type");
 }
 
 } // namespace

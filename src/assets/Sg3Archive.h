@@ -42,22 +42,26 @@ struct Sg3Image {
     std::array<std::uint8_t, 72> raw{};
     std::uint32_t data_offset = 0;
     std::uint32_t data_length = 0;
-    std::uint32_t uncompressed_part_length = 0;
-    std::uint16_t width = 0;
-    std::uint16_t height = 0;
+    std::uint32_t uncompressed_length = 0;
+    std::uint32_t horizontal_mirror_offset = 0; // Parsed, not applied.
+    std::int16_t width = 0;
+    std::int16_t height = 0;
     std::uint16_t animation_sprites = 0;
     std::int16_t animation_x_offset = 0;
     std::int16_t animation_y_offset = 0;
     std::uint8_t reversible_animation_flag = 0;
-    std::uint8_t image_type = 0;
-    std::uint8_t fully_compressed_flag = 0;
+    std::uint16_t image_type = 0;
     std::uint8_t external_flag = 0;
-    std::uint8_t partly_compressed_flag = 0;
+    std::uint8_t isometric_size_flag = 0; // Meaning is not established.
     std::uint8_t group_id = 0;
     std::uint8_t animation_speed_id = 0;
     std::uint32_t alpha_offset = 0;
     std::uint32_t alpha_length = 0;
 };
+
+enum class Sg3ImageKind { Plain, Sprite, Isometric, Unsupported };
+Sg3ImageKind classify_sg3_image_type(std::uint16_t image_type);
+const char* sg3_image_kind_name(Sg3ImageKind kind);
 
 struct Sg3Archive {
     std::uint64_t actual_file_size = 0;

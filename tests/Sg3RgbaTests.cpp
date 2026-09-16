@@ -43,9 +43,9 @@ bool run_checks() {
     if (!rejects([&] { decode_uncompressed_rgba(image, std::span{colors}.first(7)); })) {
         return false;
     }
-    image.fully_compressed_flag = 1;
+    image.image_type = 256;
     if (!rejects([&] { required_uncompressed_payload_size(image); })) return false;
-    image.fully_compressed_flag = 0;
+    image.image_type = 13;
     image.alpha_length = 1;
     if (!rejects([&] { required_uncompressed_payload_size(image); })) return false;
     image.alpha_length = 0;

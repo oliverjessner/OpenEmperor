@@ -37,7 +37,9 @@ std::vector<std::uint8_t> make_synthetic_archive() {
     write_u32(bytes, 40680 + 8, 4);
     write_u16(bytes, 40680 + 20, 2);
     write_u16(bytes, 40680 + 22, 2);
-    bytes[40680 + 50] = 1;
+    write_u32(bytes, 40680 + 16, 0x12345678);
+    write_u16(bytes, 40680 + 50, 13);
+    bytes[40680 + 55] = 2;
     write_u32(bytes, 40680 + 64, 12);
     write_u32(bytes, 40680 + 68, 4);
     return bytes;
@@ -60,9 +62,26 @@ bool run_checks() {
     if (archive.header.version != 214 || archive.groups.size() != 1 ||
         archive.groups[0].filename != "test" || archive.images.size() != 1 ||
         archive.images[0].data_offset != 4 || archive.images[0].data_length != 8 ||
+        archive.images[0].uncompressed_length != 4 ||
+        archive.images[0].horizontal_mirror_offset != 0x12345678 ||
+        archive.images[0].isometric_size_flag != 2 ||
+        archive.images[0].image_type != 13 ||
         archive.images[0].alpha_offset != 12 || archive.images[0].alpha_length != 4) {
         return false;
     }
+    for (const std::uint16_t type : {std::uint16_t{13}, std::uint16_t{30},
+                                     std::uint16_t{256}, std::uint16_t{257},
+                                     std::uint16_t{276}}) {
+        auto typed = make_synthetic_archive();
+        write_u16(typed, 40680 + 50, type);
+        const auto parsed = parse_sg3(typed, typed.size());
+        const auto kind = classify_sg3_image_type(parsed.images[0].image_type);
+        const auto expected = type == 30 ? Sg3ImageKind::Isometric
+                            : type >= 256 ? Sg3ImageKind::Sprite : Sg3ImageKind::Plain;
+        if (parsed.images[0].image_type != type || kind != expected) return false;
+    }
+    if (classify_sg3_image_type(999) != Sg3ImageKind::Unsupported ||
+        classify_sg3_image_type(20) != Sg3ImageKind::Unsupported) return false;
     if (required_sg3_table_size(std::span{bytes}.first(680), bytes.size()) != bytes.size()) {
         return false;
     }
