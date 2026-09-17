@@ -2,6 +2,7 @@
 #include "assets/Sg3ImageLoader.h"
 #include "maps/DirectGraphicCandidate.h"
 #include "maps/GraphicsIdHypothesis.h"
+#include "maps/MapGraphicCandidates.h"
 #include "Sg3Inspect.h"
 
 #include <algorithm>
@@ -67,6 +68,26 @@ Bytes archive(std::uint32_t count) {
     u32(bytes, 680 + 128, 0);
     u32(bytes, 680 + 132, count - 1U);
     return bytes;
+}
+
+Bytes archive_v213(std::uint32_t capacity, std::uint32_t in_use) {
+    Bytes bytes(table_offset + static_cast<std::size_t>(capacity) * 64U, 0);
+    u32(bytes, 0, static_cast<std::uint32_t>(bytes.size()));
+    u32(bytes, 4, 213);
+    u32(bytes, 12, capacity);
+    u32(bytes, 16, in_use);
+    u32(bytes, 20, 1);
+    return bytes;
+}
+
+void image_v213(Bytes& bytes, std::size_t physical, std::uint32_t offset,
+                std::uint32_t length) {
+    const auto at = table_offset + physical * 64U;
+    u32(bytes, at, offset);
+    u32(bytes, at + 4, length);
+    u16(bytes, at + 20, 1);
+    u16(bytes, at + 22, 1);
+    u16(bytes, at + 50, 13);
 }
 
 void image(Bytes& bytes, std::size_t index, std::uint16_t type,
@@ -226,25 +247,62 @@ bool run_checks(const fs::path& parent) {
     if (no_bitmap.records.size()!=1 ||
         maps::resolve_direct_candidate(no_bitmap,0).status !=
             maps::DirectCandidateStatus::SourceUnavailable) return false;
-    const std::map<std::uint32_t,const assets::AssetCatalog*> registrations{{3,&one},{16,&no_bitmap}};
+    Bytes mapped = archive_v213(6,4);
+    image_v213(mapped,0,4,2); // Dummy: decodable on disk, skipped by runtime table.
+    image_v213(mapped,2,1000,2); // Runtime local 1: source beyond .555.
+    image_v213(mapped,3,4,2); // Runtime local 2: decodable.
+    image_v213(mapped,4,4,2); // Last loaded record, before reserved tail.
+    image_v213(mapped,5,4,2); // Reserved record, never addressable.
+    write(probe_root / "mapped.sg3", mapped);
+    write(probe_root / "mapped.555", Bytes{0,0,0,0,0x00,0x7c});
+    Bytes mapped_other = archive_v213(3,1);
+    image_v213(mapped_other,1,4,2);
+    write(probe_root / "mapped-other.sg3",mapped_other); // Missing .555.
+    const auto mapped_catalog=assets::scan_asset_archive(probe_root,"mapped.sg3");
+    const auto mapped_other_catalog=assets::scan_asset_archive(probe_root,"mapped-other.sg3");
+    const std::map<std::uint32_t,maps::GraphicsArchiveRegistration> registrations{
+        {3,{&mapped_catalog,213,6,4}}, {16,{&mapped_other_catalog,213,3,1}}};
     const auto graphic = [&](std::uint32_t raw) {
         return maps::resolve_graphics_id_hypothesis(raw,registrations);
     };
     if (graphic(0xc000U).status!=maps::GraphicsIdStatus::EmptyRecord ||
+        mapped_catalog.records[0].id.image_index!=0 ||
+        mapped_catalog.records[0].decoder_supported!=true ||
         graphic(0xc001U).status!=maps::GraphicsIdStatus::SourceUnavailable ||
         graphic(0xc002U).status!=maps::GraphicsIdStatus::DecodeCandidate ||
         graphic(0xc002U).raw!=0xc002U || graphic(0xc002U).slot!=3 ||
-        graphic(0xc002U).local_index!=2 ||
-        graphic(0xc003U).status!=maps::GraphicsIdStatus::EmptyRecord ||
+        graphic(0xc002U).local_index!=2 || graphic(0xc002U).physical_record_index!=3 ||
+        graphic(0xc000U).physical_record_index!=1 ||
+        graphic(0xc003U).physical_record_index!=4 ||
+        graphic(0xc003U).status!=maps::GraphicsIdStatus::DecodeCandidate ||
         graphic(0xc004U).status!=maps::GraphicsIdStatus::IndexOutOfRange ||
+        graphic(0xc004U).physical_record_index.has_value() ||
         graphic(0xffffU).status!=maps::GraphicsIdStatus::IndexOutOfRange ||
         graphic(0x40000U).status!=maps::GraphicsIdStatus::SourceUnavailable ||
         graphic(0xbfffU).status!=maps::GraphicsIdStatus::UnregisteredSlot ||
         graphic(0x14000U).status!=maps::GraphicsIdStatus::UnregisteredSlot ||
         graphic(0x8000c002U).status!=maps::GraphicsIdStatus::UnsupportedHighBit ||
-        graphic(0xc002U).record->id.archive_relative_path!="probe.sg3" ||
+        graphic(0xc002U).record->id.archive_relative_path!="mapped.sg3" ||
+        graphic(0xc002U).record->id.image_index!=3 ||
+        graphic(0x40000U).record->id.archive_relative_path!="mapped-other.sg3" ||
         assets::load_sg3_image({probe_root / graphic(0xc002U).record->id.archive_relative_path,
-                                graphic(0xc002U).local_index}).pixels!=Bytes{255,0,0,255}) return false;
+                                graphic(0xc002U).record->id.image_index}).pixels!=Bytes{255,0,0,255}) return false;
+    auto unverified=registrations;
+    unverified.at(3).sg3_version=214;
+    if (maps::resolve_graphics_id_hypothesis(0xc002U,unverified).status !=
+        maps::GraphicsIdStatus::UnverifiedRegistration) return false;
+    Bytes synthetic_words(static_cast<std::size_t>(maps::candidate_word_byte_length),0);
+    Bytes synthetic_bytes(static_cast<std::size_t>(maps::candidate_byte_byte_length),0);
+    const std::size_t cell=75U*maps::stored_grid_width+110U;
+    u32(synthetic_words,cell*4U,0xc002U);
+    const auto source_cell=maps::decode_map_graphic_candidates(synthetic_words,synthetic_bytes);
+    const auto traced=graphic(source_cell.word_at(110,75));
+    if (source_cell.cell_index(110,75)!=cell ||
+        source_cell.word_offset(110,75)!=maps::candidate_word_logical_offset+cell*4U ||
+        source_cell.word_at(110,75)!=0xc002U ||
+        traced.physical_record_index!=3 || traced.record==nullptr ||
+        traced.record->id.image_index!=3 ||
+        source_cell.word_at(111,75)!=0) return false;
     const std::array<std::uint32_t,6> words{1,1,1,2,2,2};
     const std::array<std::uint32_t,6> labels{1,1,1,2,2,2};
     const auto control=maps::compare_candidate_structure(words,labels);

@@ -99,7 +99,7 @@ Json resolution(std::uint32_t value, const assets::AssetCatalog& catalog) {
     return out;
 }
 
-using Registrations = std::map<std::uint32_t, const assets::AssetCatalog*>;
+using Registrations = std::map<std::uint32_t, maps::GraphicsArchiveRegistration>;
 constexpr std::string_view graphics_profile = "exe-6373328b-14bit-hypothesis";
 
 Json graphics_resolution(std::uint32_t raw, const Registrations& registrations,
@@ -107,6 +107,14 @@ Json graphics_resolution(std::uint32_t raw, const Registrations& registrations,
     const auto result = maps::resolve_graphics_id_hypothesis(raw, registrations);
     Json out{{"profile",graphics_profile},{"raw",result.raw},{"slot",result.slot},
              {"local_index",result.local_index},{"status",maps::graphics_id_status_name(result.status)},
+             {"physical_record_index",result.physical_record_index},
+             {"evidence",{{"generic_lookup_observed",true},
+                          {"registration_observed",result.slot==3 || result.slot==16},
+                          {"runtime_to_file_record_observed",result.physical_record_index.has_value()},
+                          {"map_to_lookup_dataflow_observed",true},
+                          {"sample_value_at_draw_unverified",true},
+                          {"corpus_decode_checked",false},
+                          {"original_game_visual_match_unverified",true}}},
              {"metadata_status",result.record ?
                  (result.record->width>0 && result.record->height>0 && result.record->data_length>0 ?
                      "nonempty" : "empty") : "not_found"},
@@ -117,6 +125,13 @@ Json graphics_resolution(std::uint32_t raw, const Registrations& registrations,
              {"decode_status","not_attempted"}};
     if (result.record) {
         const auto& record=*result.record;
+        const auto found=registrations.find(result.slot);
+        if (found!=registrations.end()) {
+            out["sg3_version"]=found->second.sg3_version;
+            out["sg3_record_stride"]=found->second.sg3_version==213 ? 64 : 72;
+            out["runtime_record_count"]=found->second.reported_images_in_use;
+            out["sg3_image_capacity"]=found->second.image_capacity;
+        }
         out["archive"]=record.id.archive_relative_path.generic_string();
         out["image_index"]=record.id.image_index;
         out["type"]=record.image_type;
@@ -124,18 +139,27 @@ Json graphics_resolution(std::uint32_t raw, const Registrations& registrations,
         out["width"]=record.width;
         out["height"]=record.height;
         out["data_length"]=record.data_length;
+        out["data_offset"]=record.data_offset;
+        out["uncompressed_length"]=record.uncompressed_length;
+        out["group_id"]=record.group_id;
+        out["asset_id"]={{"archive",record.id.archive_relative_path.generic_string()},
+                         {"physical_image_index",record.id.image_index}};
+        if (record.sg3_version==213 && result.physical_record_index)
+            out["sg3_record_file_offset"]=40680ULL+64ULL*(*result.physical_record_index);
         out["color_bounds"]=assets::asset_range_status_name(record.color_bounds);
         out["alpha_bounds"]=assets::asset_range_status_name(record.alpha_bounds);
     }
     if (decode && result.status==maps::GraphicsIdStatus::DecodeCandidate) {
         try {
             const auto image=assets::load_sg3_image(
-                {root / result.record->id.archive_relative_path,result.local_index});
+                {safe_file(root,result.record->id.archive_relative_path),result.record->id.image_index});
             out["decode_status"]="success";
+            out["evidence"]["corpus_decode_checked"]=true;
             out["decoded_width"]=image.width;
             out["decoded_height"]=image.height;
         } catch (const std::exception& error) {
             out["decode_status"]="failed";
+            out["evidence"]["corpus_decode_checked"]=true;
             out["decode_error"]=error.what();
         }
     }
@@ -173,6 +197,8 @@ Json cell_json(maps::GridCell cell, const maps::ParsedEmperorMap& map,
     } else result["resolution"]["decode_status"] = "not_attempted";
     if (registrations) result["graphics_id_hypothesis"] =
         graphics_resolution(word,*registrations,root,true);
+    if (registrations) result["graphics_id_hypothesis"]["candidate_word_logical_offset"] =
+        candidates.word_offset(cell.x,cell.y);
     return result;
 }
 
@@ -193,8 +219,14 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
     if (use_graphics_profile) {
         terrain_catalog.emplace(assets::scan_asset_archive(root,"DATA/China_Terrain.sg3"));
         elevation_catalog.emplace(assets::scan_asset_archive(root,"DATA/China_Elevation.sg3"));
-        registrations.emplace(3U,&*terrain_catalog);
-        registrations.emplace(16U,&*elevation_catalog);
+        const auto terrain_meta=assets::read_sg3_archive(safe_file(root,"DATA/China_Terrain.sg3"));
+        const auto elevation_meta=assets::read_sg3_archive(safe_file(root,"DATA/China_Elevation.sg3"));
+        registrations.emplace(3U,maps::GraphicsArchiveRegistration{
+            &*terrain_catalog,terrain_meta.header.version,terrain_meta.header.image_capacity,
+            terrain_meta.header.reported_images_in_use});
+        registrations.emplace(16U,maps::GraphicsArchiveRegistration{
+            &*elevation_catalog,elevation_meta.header.version,elevation_meta.header.image_capacity,
+            elevation_meta.header.reported_images_in_use});
     }
     Json output{{"map",map_relative.generic_string()},{"part",part},
                 {"archive",archive_relative.generic_string()},
@@ -250,6 +282,7 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
         output["graphics_id_status_counts"]=graphics_counts;
         output["graphics_id_registration_hypothesis"]={{"3","DATA/China_Terrain.sg3"},
                                                       {"16","DATA/China_Elevation.sg3"}};
+        output["graphics_id_index_rule"]="v213 Terrain/Elevation: local i -> physical SG3 record i+1; runtime count is reported_images_in_use";
     }
     output["category_word_stats"]=Json::object();
     for (const auto& [category,stats] : by_category)

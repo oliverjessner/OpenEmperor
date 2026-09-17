@@ -6,6 +6,7 @@ const char* graphics_id_status_name(GraphicsIdStatus status) {
     switch (status) {
     case GraphicsIdStatus::UnsupportedHighBit: return "unsupported_high_bit";
     case GraphicsIdStatus::UnregisteredSlot: return "unregistered_slot";
+    case GraphicsIdStatus::UnverifiedRegistration: return "unverified_registration";
     case GraphicsIdStatus::IndexOutOfRange: return "index_out_of_range";
     case GraphicsIdStatus::EmptyRecord: return "empty_record";
     case GraphicsIdStatus::SourceUnavailable: return "source_unavailable";
@@ -16,7 +17,7 @@ const char* graphics_id_status_name(GraphicsIdStatus status) {
 }
 
 GraphicsIdResolution resolve_graphics_id_hypothesis(
-    std::uint32_t raw, const std::map<std::uint32_t, const assets::AssetCatalog*>& registrations) {
+    std::uint32_t raw, const std::map<std::uint32_t, GraphicsArchiveRegistration>& registrations) {
     GraphicsIdResolution result;
     result.raw = raw;
     if ((raw & 0x80000000U) != 0) {
@@ -26,8 +27,20 @@ GraphicsIdResolution resolve_graphics_id_hypothesis(
     result.slot = raw >> 14U;
     result.local_index = raw & 0x3fffU;
     const auto found = registrations.find(result.slot);
-    if (found == registrations.end() || found->second == nullptr) return result;
-    const auto direct = resolve_direct_candidate(*found->second, result.local_index);
+    if (found == registrations.end()) return result;
+    const auto& registration = found->second;
+    if (registration.catalog == nullptr || registration.sg3_version != 213 ||
+        registration.image_capacity != registration.catalog->records.size() ||
+        registration.reported_images_in_use >= registration.image_capacity) {
+        result.status = GraphicsIdStatus::UnverifiedRegistration;
+        return result;
+    }
+    if (result.local_index >= registration.reported_images_in_use) {
+        result.status = GraphicsIdStatus::IndexOutOfRange;
+        return result;
+    }
+    result.physical_record_index = result.local_index + 1U;
+    const auto direct = resolve_direct_candidate(*registration.catalog, *result.physical_record_index);
     result.record = direct.record;
     switch (direct.status) {
     case DirectCandidateStatus::IndexOutOfRange: result.status = GraphicsIdStatus::IndexOutOfRange; break;
