@@ -8,7 +8,7 @@
 
 namespace openemperor::maps {
 
-enum class MapViewMode { Storage, Semantic, Projected };
+enum class MapViewMode { Storage, Semantic, Projected, Textured };
 enum class MaskMode { Full, Candidate, OffMap, Compare };
 const char* view_name(MapViewMode view);
 const char* mask_name(MaskMode mask);

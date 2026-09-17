@@ -8,6 +8,7 @@
 #include "scene/Scene.h"
 #include "maps/EmperorContainer.h"
 #include "maps/EmperorMap.h"
+#include "maps/TerrainBindings.h"
 
 #include <SDL3/SDL_main.h>
 
@@ -32,7 +33,8 @@ void print_usage(const char* executable) {
               << "       " << executable << " --data <directory> --scene <scene.json>\n"
               << "       " << executable << " --data <directory> --map-debug <relative.map>"
               << " [--part <index>] [--layer terrain_raw|objects_raw]"
-              << " [--view storage|semantic|projected]\n";
+              << " [--view storage|semantic|projected|textured]"
+              << " [--terrain-bindings <preview.json>]\n";
 }
 
 std::filesystem::path resolve_map_path(const std::filesystem::path& root_path,
@@ -66,6 +68,7 @@ int main(int argc, char* argv[]) {
     bool part_supplied = false;
     bool layer_supplied = false;
     bool view_supplied = false;
+    bool terrain_bindings_supplied = false;
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
@@ -73,6 +76,7 @@ int main(int argc, char* argv[]) {
     fs::path sg3_path;
     fs::path scene_path;
     fs::path map_debug_path;
+    fs::path terrain_bindings_path;
     std::uint32_t image_index = 0;
     std::uint32_t map_part = 0;
     openemperor::maps::RawLayer map_layer = openemperor::maps::RawLayer::Terrain;
@@ -108,6 +112,9 @@ int main(int argc, char* argv[]) {
         } else if (argument == "--map-debug" && !map_debug_supplied) {
             map_debug_path = argv[++index];
             map_debug_supplied = true;
+        } else if (argument == "--terrain-bindings" && !terrain_bindings_supplied) {
+            terrain_bindings_path = argv[++index];
+            terrain_bindings_supplied = true;
         } else if (argument == "--part" && !part_supplied) {
             const std::string_view value{argv[++index]};
             const auto parsed = std::from_chars(value.data(), value.data() + value.size(), map_part);
@@ -127,6 +134,7 @@ int main(int argc, char* argv[]) {
             if (value == "storage") map_view_mode = openemperor::maps::MapViewMode::Storage;
             else if (value == "semantic") map_view_mode = openemperor::maps::MapViewMode::Semantic;
             else if (value == "projected") map_view_mode = openemperor::maps::MapViewMode::Projected;
+            else if (value == "textured") map_view_mode = openemperor::maps::MapViewMode::Textured;
             else { print_usage(argv[0]); return 2; }
             view_supplied = true;
         } else if (argument == "--image" && !image_supplied) {
@@ -156,7 +164,9 @@ int main(int argc, char* argv[]) {
                             ignore_alpha || diagnostic_alpha_addressing || browser_kind || map_debug_supplied)) ||
         (map_debug_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
                                 scene_supplied || ignore_alpha || diagnostic_alpha_addressing || browser_kind)) ||
-        ((part_supplied || layer_supplied || view_supplied) && !map_debug_supplied)) {
+        ((part_supplied || layer_supplied || view_supplied || terrain_bindings_supplied) && !map_debug_supplied) ||
+        (map_view_mode == openemperor::maps::MapViewMode::Textured && !terrain_bindings_supplied) ||
+        (terrain_bindings_supplied && map_view_mode != openemperor::maps::MapViewMode::Textured)) {
         print_usage(argv[0]);
         return 2;
     }
@@ -226,7 +236,11 @@ int main(int argc, char* argv[]) {
             std::cout << "Original map: " << map_path << " part " << map_part << " storage "
                       << map.stored_width << 'x' << map.stored_height << " declared size "
                       << map.declared_map_size << " active extent unknown\n";
-            map_view = std::make_unique<openemperor::MapDebugView>(std::move(map), map_layer, map_view_mode);
+            std::optional<openemperor::maps::TerrainBindings> bindings;
+            if (terrain_bindings_supplied)
+                bindings = openemperor::maps::load_terrain_bindings(data_directory, terrain_bindings_path);
+            map_view = std::make_unique<openemperor::MapDebugView>(
+                std::move(map), map_layer, map_view_mode, std::move(bindings));
         } catch (const std::exception& error_message) {
             std::cerr << "Map debug load failed: " << error_message.what() << '\n';
             return 1;

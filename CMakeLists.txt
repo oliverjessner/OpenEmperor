@@ -43,6 +43,7 @@ add_executable(openemperor
     src/renderer/TitleScreen.cpp
     src/renderer/ImagePreview.cpp
     src/renderer/SceneRenderer.cpp
+    src/renderer/TerrainPreviewRenderer.cpp
 )
 target_include_directories(openemperor PRIVATE src)
 target_link_libraries(openemperor PRIVATE SDL3::SDL3)
@@ -74,7 +75,6 @@ add_library(openemperor-scene STATIC src/scene/IsoProjection.cpp src/scene/Scene
 target_include_directories(openemperor-scene PUBLIC src)
 target_link_libraries(openemperor-scene PUBLIC openemperor-sg3 nlohmann_json::nlohmann_json)
 openemperor_enable_warnings(openemperor-scene)
-target_link_libraries(openemperor PRIVATE openemperor-scene)
 
 add_library(openemperor-maps STATIC
     src/maps/EmperorContainer.cpp
@@ -83,9 +83,11 @@ add_library(openemperor-maps STATIC
     src/maps/MapGeometry.cpp
     src/maps/TerrainInterpretation.cpp
     src/maps/MapVisualization.cpp
+    src/maps/TerrainBindings.cpp
+    src/maps/TerrainRenderPlan.cpp
 )
 target_include_directories(openemperor-maps PUBLIC src)
-target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB)
+target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohmann_json::nlohmann_json openemperor-scene)
 openemperor_enable_warnings(openemperor-maps)
 target_link_libraries(openemperor PRIVATE openemperor-maps)
 
@@ -109,10 +111,14 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-map-tests)
     add_test(NAME emperor-map-reader COMMAND openemperor-map-tests)
 
-    add_executable(openemperor-map-view-tests tests/MapDebugViewTests.cpp src/app/MapDebugView.cpp)
+    add_executable(openemperor-map-view-tests tests/MapDebugViewTests.cpp src/app/MapDebugView.cpp src/renderer/TerrainPreviewRenderer.cpp)
     target_link_libraries(openemperor-map-view-tests PRIVATE openemperor-maps SDL3::SDL3)
     openemperor_enable_warnings(openemperor-map-view-tests)
     add_test(NAME emperor-map-debug-view COMMAND openemperor-map-view-tests)
+    add_executable(openemperor-terrain-preview-tests tests/TerrainPreviewTests.cpp src/renderer/TerrainPreviewRenderer.cpp)
+    target_link_libraries(openemperor-terrain-preview-tests PRIVATE openemperor-maps SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-terrain-preview-tests)
+    add_test(NAME terrain-preview-bindings-geometry-render COMMAND openemperor-terrain-preview-tests)
     add_executable(openemperor-scene-tests tests/SceneTests.cpp)
     target_link_libraries(openemperor-scene-tests PRIVATE openemperor-scene)
     openemperor_enable_warnings(openemperor-scene-tests)
