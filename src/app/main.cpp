@@ -1,8 +1,10 @@
 #include "app/Application.h"
 #include "app/AssetBrowser.h"
+#include "app/SceneView.h"
 #include "assets/AssetCatalog.h"
 #include "assets/RgbaPngReader.h"
 #include "assets/Sg3ImageLoader.h"
+#include "scene/Scene.h"
 
 #include <SDL3/SDL_main.h>
 
@@ -23,7 +25,8 @@ void print_usage(const char* executable) {
               << "       " << executable << " --sg3 <file.sg3> --image <index>"
               << " --alpha-addressing spec|contiguous|legacy (diagnostic)\n"
               << "       " << executable << " --data <directory> --browse-assets"
-              << " [--kind plain|sprite|isometric] [--ignore-alpha]\n";
+              << " [--kind plain|sprite|isometric] [--ignore-alpha]\n"
+              << "       " << executable << " --data <directory> --scene <scene.json>\n";
 }
 
 } // namespace
@@ -36,11 +39,13 @@ int main(int argc, char* argv[]) {
     bool image_supplied = false;
     bool browse_assets = false;
     bool ignore_alpha = false;
+    bool scene_supplied = false;
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
     fs::path preview_path;
     fs::path sg3_path;
+    fs::path scene_path;
     std::uint32_t image_index = 0;
 
     for (int index = 1; index < argc; ++index) {
@@ -67,6 +72,9 @@ int main(int argc, char* argv[]) {
         } else if (argument == "--sg3" && !sg3_supplied) {
             sg3_path = argv[++index];
             sg3_supplied = true;
+        } else if (argument == "--scene" && !scene_supplied) {
+            scene_path = argv[++index];
+            scene_supplied = true;
         } else if (argument == "--image" && !image_supplied) {
             const std::string_view text{argv[++index]};
             const auto parsed = std::from_chars(text.data(), text.data() + text.size(), image_index);
@@ -89,7 +97,9 @@ int main(int argc, char* argv[]) {
     if ((sg3_supplied != image_supplied) || (preview_supplied && sg3_supplied) ||
         (browse_assets && (!data_supplied || preview_supplied || sg3_supplied)) ||
         (browser_kind && !browse_assets) || (ignore_alpha && !browse_assets && !sg3_supplied) ||
-        (diagnostic_alpha_addressing && (!sg3_supplied || ignore_alpha || browse_assets))) {
+        (diagnostic_alpha_addressing && (!sg3_supplied || ignore_alpha || browse_assets)) ||
+        (scene_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
+                            ignore_alpha || diagnostic_alpha_addressing || browser_kind))) {
         print_usage(argv[0]);
         return 2;
     }
@@ -106,6 +116,7 @@ int main(int argc, char* argv[]) {
 
     std::optional<openemperor::assets::RgbaImage> preview;
     std::unique_ptr<openemperor::AssetBrowser> browser;
+    std::unique_ptr<openemperor::SceneView> scene_view;
     if (preview_supplied) {
         try {
             preview = openemperor::assets::read_exported_png(preview_path);
@@ -139,9 +150,17 @@ int main(int argc, char* argv[]) {
             std::cerr << "Asset browser scan failed: " << error_message.what() << '\n';
             return 1;
         }
+    } else if (scene_supplied) {
+        try {
+            scene_view = std::make_unique<openemperor::SceneView>(
+                openemperor::scene::load_scene(data_directory, scene_path));
+        } catch (const std::exception& error_message) {
+            std::cerr << "Scene load failed: " << error_message.what() << '\n';
+            return 1;
+        }
     }
 
-    openemperor::Application application{std::move(preview), std::move(browser)};
+    openemperor::Application application{std::move(preview), std::move(browser), std::move(scene_view)};
     if (!application.initialize()) {
         return 1;
     }

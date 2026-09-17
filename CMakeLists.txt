@@ -20,14 +20,26 @@ else()
     FetchContent_MakeAvailable(SDL3)
 endif()
 
+find_package(nlohmann_json 3.12.0 EXACT CONFIG QUIET)
+if(NOT nlohmann_json_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(nlohmann_json
+        URL https://github.com/nlohmann/json/archive/refs/tags/v3.12.0.tar.gz
+        URL_HASH SHA256=4b92eb0c06d10683f7447ce9406cb97cd4b453be18d7279320f7b2f025c10187
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
+
 include(cmake/OpenEmperorWarnings.cmake)
 
 add_executable(openemperor
     src/app/main.cpp
     src/app/Application.cpp
     src/app/AssetBrowser.cpp
+    src/app/SceneView.cpp
     src/renderer/TitleScreen.cpp
     src/renderer/ImagePreview.cpp
+    src/renderer/SceneRenderer.cpp
 )
 target_include_directories(openemperor PRIVATE src)
 target_link_libraries(openemperor PRIVATE SDL3::SDL3)
@@ -55,7 +67,11 @@ openemperor_enable_warnings(openemperor-sg3)
 target_include_directories(openemperor-inspect PRIVATE tools/asset-inspector)
 target_link_libraries(openemperor-inspect PRIVATE openemperor-sg3)
 openemperor_enable_warnings(openemperor-inspect)
-target_link_libraries(openemperor PRIVATE openemperor-sg3)
+add_library(openemperor-scene STATIC src/scene/IsoProjection.cpp src/scene/Scene.cpp)
+target_include_directories(openemperor-scene PUBLIC src)
+target_link_libraries(openemperor-scene PUBLIC openemperor-sg3 nlohmann_json::nlohmann_json)
+openemperor_enable_warnings(openemperor-scene)
+target_link_libraries(openemperor PRIVATE openemperor-scene)
 
 add_executable(openemperor-assets tools/asset-catalog/main.cpp)
 target_link_libraries(openemperor-assets PRIVATE openemperor-sg3)
@@ -63,6 +79,16 @@ openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(openemperor-scene-tests tests/SceneTests.cpp)
+    target_link_libraries(openemperor-scene-tests PRIVATE openemperor-scene)
+    openemperor_enable_warnings(openemperor-scene-tests)
+    add_test(NAME scene-math-manifest COMMAND openemperor-scene-tests)
+
+    add_executable(openemperor-scene-renderer-tests
+        tests/SceneRendererTests.cpp src/renderer/SceneRenderer.cpp src/app/SceneView.cpp)
+    target_link_libraries(openemperor-scene-renderer-tests PRIVATE openemperor-scene SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-scene-renderer-tests)
+    add_test(NAME scene-renderer COMMAND openemperor-scene-renderer-tests)
     add_executable(openemperor-sg3-tests tests/Sg3ParserTests.cpp)
     target_link_libraries(openemperor-sg3-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-sg3-tests)

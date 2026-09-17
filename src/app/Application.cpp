@@ -1,5 +1,6 @@
 #include "app/Application.h"
 #include "app/AssetBrowser.h"
+#include "app/SceneView.h"
 
 #include "renderer/TitleScreen.h"
 #include "renderer/ImagePreview.h"
@@ -13,8 +14,9 @@
 namespace openemperor {
 
 Application::Application(std::optional<assets::RgbaImage> preview,
-                         std::unique_ptr<AssetBrowser> browser)
-    : preview_(std::move(preview)), browser_(std::move(browser)) {}
+                         std::unique_ptr<AssetBrowser> browser,
+                         std::unique_ptr<SceneView> scene)
+    : preview_(std::move(preview)), browser_(std::move(browser)), scene_(std::move(scene)) {}
 
 Application::~Application() {
     shutdown();
@@ -27,13 +29,24 @@ bool Application::initialize() {
     }
     sdl_initialized_ = true;
 
-    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ ? 1100 : 800,
-                                     browser_ ? 700 : 450, 0, &window_, &renderer_)) {
+    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ || scene_ ? 1100 : 800,
+                                     browser_ || scene_ ? 700 : 450,
+                                     scene_ ? SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY : 0,
+                                     &window_, &renderer_)) {
         std::cerr << "SDL window/renderer creation failed: " << SDL_GetError() << '\n';
         shutdown();
         return false;
     }
     if (browser_) browser_->initialize(window_, renderer_);
+    if (scene_) {
+        try { scene_->initialize(window_, renderer_); }
+        catch (const std::exception& error) {
+            std::cerr << "Scene initialization failed: " << error.what() << '\n';
+            shutdown();
+            return false;
+        }
+        std::cout << "Scene loaded " << scene_->texture_count() << " distinct assets\n";
+    }
     if (preview_) {
         const std::uint64_t pitch = static_cast<std::uint64_t>(preview_->width) * 4U;
         if (pitch > static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
@@ -59,10 +72,13 @@ bool Application::initialize() {
 
 int Application::run() {
     bool running = true;
+    std::uint64_t last_ticks = SDL_GetTicksNS();
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (browser_) {
+            if (scene_) {
+                scene_->handle_event(event, running);
+            } else if (browser_) {
                 browser_->handle_event(event, running);
             } else if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
                 (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) {
@@ -73,6 +89,9 @@ int Application::run() {
         if (!running) {
             break;
         }
+        const std::uint64_t now = SDL_GetTicksNS();
+        if (scene_) scene_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
+        last_ticks = now;
         if (!render()) {
             std::cerr << "SDL rendering failed: " << SDL_GetError() << '\n';
             return 1;
@@ -86,10 +105,13 @@ int Application::run() {
                   << ", peak cache: " << browser_->cache_peak_entries() << " textures / "
                   << browser_->cache_peak_bytes() << " bytes\n";
     }
+    if (scene_) std::cout << "Scene final frame: " << scene_->last_drawn_instances()
+                          << " drawn instances, " << scene_->texture_count() << " textures\n";
     return 0;
 }
 
 bool Application::render() {
+    if (scene_) return scene_->render();
     if (browser_) return browser_->render();
     if (preview_texture_ != nullptr && preview_) {
         return render_image_preview(renderer_, preview_texture_, preview_->width, preview_->height);
@@ -98,6 +120,7 @@ bool Application::render() {
 }
 
 void Application::shutdown() {
+    if (scene_) scene_->shutdown();
     if (browser_) browser_->shutdown();
     if (preview_texture_ != nullptr) {
         SDL_DestroyTexture(preview_texture_);
