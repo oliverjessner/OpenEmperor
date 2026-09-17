@@ -101,6 +101,7 @@ Json resolution(std::uint32_t value, const assets::AssetCatalog& catalog) {
 
 using Registrations = std::map<std::uint32_t, maps::GraphicsArchiveRegistration>;
 constexpr std::string_view graphics_profile = "exe-6373328b-14bit-hypothesis";
+constexpr std::string_view terrain_probe_profile = "exe-6373328b-first-terrain-probe";
 
 Json graphics_resolution(std::uint32_t raw, const Registrations& registrations,
                          const fs::path& root, bool decode) {
@@ -170,7 +171,7 @@ Json cell_json(maps::GridCell cell, const maps::ParsedEmperorMap& map,
                const maps::MapGraphicCandidates& candidates,
                const maps::MapGeometry& geometry, const assets::AssetCatalog& catalog,
                const fs::path& archive_path, const Registrations* registrations,
-               const fs::path& root) {
+               const fs::path& root, bool terrain_probe) {
     const auto word = candidates.word_at(cell.x, cell.y);
     const auto byte = candidates.byte_at(cell.x, cell.y);
     const auto interpretation = maps::interpret_terrain(map.terrain_at(cell.x, cell.y),
@@ -199,12 +200,37 @@ Json cell_json(maps::GridCell cell, const maps::ParsedEmperorMap& map,
         graphics_resolution(word,*registrations,root,true);
     if (registrations) result["graphics_id_hypothesis"]["candidate_word_logical_offset"] =
         candidates.word_offset(cell.x,cell.y);
+    if (terrain_probe) {
+        const bool simple_ground = interpretation.terrain_raw == 0x80U &&
+                                   interpretation.objects_raw == 0;
+        result["terrain_selection_probe"] = {
+            {"profile",terrain_probe_profile},
+            {"status",simple_ground ? "unresolved_post_read_selection" : "outside_simple_ground_case"},
+            {"stored_graphic_id",word},
+            {"computed_graphic_id",nullptr},
+            {"terrain_raw",interpretation.terrain_raw},
+            {"objects_raw",interpretation.objects_raw},
+            {"adjacent_byte_raw",byte},
+            {"stored_id_resolution",result["graphics_id_hypothesis"]},
+            {"evidence",{{"observed_path_reset_before_read",true},
+                         {"pre_read_range_writer_routine_observed",true},
+                         {"cell_in_writer_span_unverified",true},
+                         {"saved_graphic_array_read_observed",true},
+                         {"post_read_simple_ground_rule_observed",false},
+                         {"value_at_first_draw_observed",false},
+                         {"native_rule_implemented",false},
+                         {"original_game_visual_match_unverified",true}}},
+            {"missing_link",simple_ground ?
+                "No verified post-read path establishes whether this cell's stored graphic ID is retained or replaced before its first draw; the observed range writer runs before the map read, and the selected image's composition/placement is unknown." :
+                "The exact 0x80/0 simple-ground case does not apply to this cell."}
+        };
+    }
     return result;
 }
 
 Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path& archive_relative,
              std::uint32_t part, const std::vector<maps::GridCell>& requested,
-             bool use_graphics_profile) {
+             bool use_graphics_profile, bool terrain_probe) {
     const auto map_path = safe_file(root,map_relative);
     const auto container = maps::EmperorContainer::open(map_path);
     const auto map = maps::read_emperor_map(container,part);
@@ -246,7 +272,8 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
     auto add_example = [&](maps::GridCell cell) {
         if (selected.emplace(cell.x,cell.y).second && selected.size() <= 18)
             examples.push_back(cell_json(cell,map,candidate,geometry,catalog,archive_path,
-                                         use_graphics_profile ? &registrations : nullptr,root));
+                                         use_graphics_profile ? &registrations : nullptr,root,
+                                         terrain_probe));
     };
     for (const auto cell : requested) add_example(cell);
     for (std::uint32_t y=0;y<maps::stored_grid_height;++y) {
@@ -283,6 +310,10 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
         output["graphics_id_registration_hypothesis"]={{"3","DATA/China_Terrain.sg3"},
                                                       {"16","DATA/China_Elevation.sg3"}};
         output["graphics_id_index_rule"]="v213 Terrain/Elevation: local i -> physical SG3 record i+1; runtime count is reported_images_in_use";
+    }
+    if (terrain_probe) {
+        output["terrain_selection_profile"]=terrain_probe_profile;
+        output["terrain_selection_status"]="unresolved_no_complete_native_rule";
     }
     output["category_word_stats"]=Json::object();
     for (const auto& [category,stats] : by_category)
@@ -325,7 +356,8 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
     auto example_with_reason = [&](maps::GridCell cell, std::string reason) {
         if (selected.emplace(cell.x,cell.y).second && selected.size() <= 18) {
             auto item=cell_json(cell,map,candidate,geometry,catalog,archive_path,
-                                use_graphics_profile ? &registrations : nullptr,root);
+                                use_graphics_profile ? &registrations : nullptr,root,
+                                terrain_probe);
             item["sample_reason"]=std::move(reason);
             examples.push_back(std::move(item));
         }
@@ -390,6 +422,7 @@ int main(int argc,char* argv[]) {
         fs::path root,map,archive="DATA/China_Terrain.sg3";
         std::uint32_t part=0;
         bool use_graphics_profile=false;
+        bool terrain_probe=false;
         std::vector<maps::GridCell> cells_to_show;
         for (int i=1;i<argc;++i) {
             const std::string_view arg=argv[i];
@@ -402,15 +435,22 @@ int main(int argc,char* argv[]) {
                     throw std::invalid_argument("unknown graphics profile");
                 use_graphics_profile=true;
             }
+            else if (arg=="--terrain-selection-profile" && i+1<argc) {
+                if (std::string_view{argv[++i]} != terrain_probe_profile)
+                    throw std::invalid_argument("unknown terrain-selection profile");
+                use_graphics_profile=true;
+                terrain_probe=true;
+            }
             else if (arg=="--cell" && i+2<argc) {
                 const auto x=number(argv[++i]), y=number(argv[++i]);
                 if (x>=maps::stored_grid_width || y>=maps::stored_grid_height)
                     throw std::invalid_argument("cell is outside 228x228");
                 cells_to_show.push_back({x,y});
-            } else throw std::invalid_argument("usage: openemperor-map-graphics --data <root> --map <relative.map> [--part N] [--archive <relative.sg3>] [--profile exe-6373328b-14bit-hypothesis] [--cell x y]...");
+            } else throw std::invalid_argument("usage: openemperor-map-graphics --data <root> --map <relative.map> [--part N] [--archive <relative.sg3>] [--profile exe-6373328b-14bit-hypothesis | --terrain-selection-profile exe-6373328b-first-terrain-probe] [--cell x y]...");
         }
         if (root.empty() || map.empty()) throw std::invalid_argument("--data and --map are required");
-        std::cout << analyze(fs::canonical(root),map,archive,part,cells_to_show,use_graphics_profile).dump(2) << '\n';
+        std::cout << analyze(fs::canonical(root),map,archive,part,cells_to_show,
+                             use_graphics_profile,terrain_probe).dump(2) << '\n';
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "Map graphics candidate inspection failed: " << error.what() << '\n';
