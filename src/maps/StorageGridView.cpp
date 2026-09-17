@@ -14,11 +14,11 @@ GridPoint StorageGridCamera::screen_to_grid(GridPoint screen) const {
     const double scale = base_cell_pixels * zoom;
     return {(screen.x - offset.x) / scale, (screen.y - offset.y) / scale};
 }
-std::optional<GridCell> StorageGridCamera::pick(GridPoint screen) const {
+std::optional<DisplayCell> StorageGridCamera::pick(GridPoint screen) const {
     const auto point = screen_to_grid(screen);
     if (!std::isfinite(point.x) || !std::isfinite(point.y) || point.x < 0 || point.y < 0 ||
-        point.x >= stored_grid_width || point.y >= stored_grid_height) return std::nullopt;
-    return GridCell{static_cast<std::uint32_t>(std::floor(point.x)),
+        point.x >= grid_width || point.y >= grid_height) return std::nullopt;
+    return DisplayCell{static_cast<std::uint32_t>(std::floor(point.x)),
                     static_cast<std::uint32_t>(std::floor(point.y))};
 }
 void StorageGridCamera::zoom_at(GridPoint screen, double factor) {

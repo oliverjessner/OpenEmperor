@@ -42,4 +42,53 @@ Three standalone maps were individually fully read by the inspector: `Cities/Xia
 
 `raw_value_color` hashes the entire raw 32-bit value to a deterministic RGBA color; identical words have identical colors. Colors are deliberately unnamed and have no inferred terrain meaning. The view uses one nearest-neighbor 228×228 texture, updates its pixels only when switching between `terrain_raw` and `objects_raw`, and reports selected raw decimal/hex words and logical byte offsets. This is a rectangular **storage-grid** view, not a claim about the game's isometric world.
 
-Still unknown: the meaning of the block's first word and unused multipart table words; the meaning of all other map fields/layers; whether map-size encodes a playable side, border, or another quantity; active-cell mask and map-coordinate mapping; terrain bit meanings, object identities, and map-to-SG3 graphics. Savegames and campaign logic remain unsupported. No original files were changed, and no source bytes, screenshots, or decoded assets were committed.
+Still unknown: the meaning of the block's first word and unused multipart table words; the meaning of all other map fields/layers; whether map-size encodes a playable side, border, or another quantity; original-game active-cell/world-coordinate semantics, object identities, and map-to-SG3 graphics. The following section records a **reference-derived diagnostic interpretation** of some terrain conditions, not verification against the original game. Savegames and campaign logic remain unsupported. No original files were changed, and no source bytes, screenshots, or decoded assets were committed.
+
+## Reference-derived terrain rules
+
+The pinned reference's `EmperorFile::getTerrainColours` is an ordered minimap-color decision tree. Our independently written `TerrainInterpretation` retains both raw `uint32_t` words, recognized flag bits, remaining unknown bits, a coarse category, the rule that won, and a `partial` flag. All rule evidence is **reference-derived; original-game behavior is unverified**. We do not copy the reference palette or infer SG3 image IDs. In precedence order:
+
+| Reference condition, tested in this order | Reference reading | Our coarse category / limit |
+| --- | --- | --- |
+| `terrain & 0x80000` | off map | `off_map`, independent of the diamond candidate mask |
+| `(terrain & 0x104) == 0x100` | flood before water/trees | `flood`; presence of `0x100` alone is not sufficient if water bit `0x4` is also present |
+| `terrain & 0x1`, with `objects & 0x2` inside this branch | tree versus bamboo | `vegetation` or `bamboo`; object bit is interpreted **only** here |
+| `terrain & 0x2`; reference checks `terrain & 0x300002` for copper/iron | rock or ore | `rock_or_ore`; ore identity deliberately omitted |
+| `terrain & 0x101000` | ruins, before buildings | coarse `rock_or_ore` with rule `ruins_before_buildings`; individual ruin bits not decoded |
+| `terrain & 0x10000000`, then `terrain & 0x8` | monument/canal, then building | coarse `monument` or `structure`; no building type |
+| `(terrain & 0x44) == 0x4` **or** `(terrain & 0x104) == 0x104` | water without road, unless flood is present; deep-water subcase uses `0x4000100` | `water`; no deep/shallow distinction |
+| `terrain & 0x20000`, then `terrain & 0x200` | quarry before elevation | coarse `rock_or_ore` or `elevation_hint`; quarry depth requires the unread stone layer; height is not reconstructed |
+| `0x20`, `0x40`, `0x800`, `0x4000`, `0x10000`, `0x40000`, `0x2000000`, `0x80000000` in order | garden, road, irrigation, wall, beach, marsh, pinnacle, sand | `road` or `other_marked`; details and variation omitted |
+| `terrain & 0x80`, otherwise empty | fertile land or default ground | `fertile_hint` or `empty_by_reference`; a fertility value requires an unread byte layer, and unknown-only combinations become `unknown` instead of empty |
+
+The reference also reads `random`, `fertile`, and sometimes `stone` byte layers to vary colors or choose specific fertility/quarry shades. We have not added those layers. A recognized bit can remain visible even when an earlier rule determines the display color; the chosen category never replaces the raw word. Unknown terrain bits and uninterpreted object bits remain explicit. A partial result can mean omitted detail, an unknown bit, or object data outside the one supported bamboo test.
+
+## Diamond candidate, off-map bit, and bitmap coordinates
+
+The pinned `EmperorFile::getImage` uses `half=114`, `border=(228-m)/2`, and `m=declared_map_size`. For each storage row `y` in `[border,border+m)`, it includes storage columns in `[start,end)`, with:
+
+```text
+if y < 114: start = border + 114 - y - 1; end = 114 + y + 1 - border
+otherwise: start = border + y - 114; end = 342 - y - border
+```
+
+This is our **candidate mask**, not a proven active/playable-cell mask. We support only the five declared sizes observed in the local corpus: 84, 112, 140, 170, and 226. Their candidate counts are respectively 3,612; 6,384; 9,940; 14,620; and 25,764 storage cells. Other raw-parser-accepted sizes retain the full storage view but do not acquire this geometry by extrapolation.
+
+The independent second signal is the reference's `terrain & 0x80000` off-map check. Our inspector counts all four combinations of candidate membership and this bit and lists up to 16 mismatch storage coordinates. It never shifts or trims a boundary to force agreement.
+
+`GameFile::getBitmapCoordinates` maps local `(x-border,y-border)` to a **minimap pixel**, not an original-game world coordinate:
+
+```text
+pixel_x = m/2 + local_x - local_y - 1
+pixel_y = 1 + local_x + local_y - m/2
+```
+
+The reference paints two horizontal pixels per selected storage cell. The first pixel always has even `pixel_x + pixel_y` parity (`2*local_x`); its right-hand companion has odd parity. Some border-cell writes are outside the `m×m` output and are clipped in our diagnostic; every in-bounds output pixel maps back to exactly one storage cell. For `m=84`, storage `(113,72)` maps to pixel `(82,0)`, `(72,113)` to `(0,0)`, and `(114,114)` to `(41,43)`. The projected view retains inverse pixel-to-storage lookup and selection, but calls itself `projected_reference` rather than a world or isometric coordinate system. Orientation relative to the original game is unverified.
+
+## Local corpus and visible checks for this layer
+
+A read-only semantic scan of all 167 previously supported standalone maps produced **2,107,780 candidate** and **6,573,548 outside** storage-cell observations. Of these, 2,107,780 are candidate+off-map-bit-clear; 6,573,492 are outside+off-map-bit-set; **56 are outside+bit-clear**; and zero are candidate+bit-set. The 56 differences occur in 17 files; 150 files match exactly. `Xia.map`, `Banpo.map`, and `Chengdu.map` each match exactly. The deviations remain reported (for example, `MP48.map` has 30 outside+clear cells) and are not repaired. These correlations support the diamond as a useful diagnostic candidate but do not prove gameplay boundaries.
+
+Within the candidate cells, the coarse categories include 1,137,615 fertility hints, 239,907 water, 201,555 vegetation, 82,205 rock/ore, 45,240 bamboo, and 23,301 road cells. There are **zero unclassified categories** in this corpus, but that does **not** imply complete semantics: 1,677,964 candidate cells are marked partial, including 77,341 with unknown terrain bits and 323,142 with uninterpreted object bits. Common still-unknown terrain-bit patterns include `0x20400000` and `0x00400000`; they remain raw unknown bits rather than being assigned terrain names. Full-storage and candidate-only counts are reported separately because off-map storage dominates otherwise.
+
+In visible SDL runs of the actual `Cities/Xia.map`, `Cities/Banpo.map`, and `Cities/Chengdu.map`, semantic storage showed coherent, differing spatial structures. Xia had connected blue water and patches of vegetation/rock; Banpo showed a near-circular blue water band; Chengdu showed multiple branching blue water bands. These visual patterns are consistent with the reference-derived water condition but do not independently prove its meaning. On Xia, the comparison view showed the matching green candidate against blue off-map storage, and the projected diagnostic showed the referenced minimap layout. Selecting storage `(114,114)` via the center-selection key displayed raw terrain `0x00000080`, object `0x00000000`, `fertile_hint`, terrain logical offset `365879`, and object logical offset `573815`; the same storage cell remained selected after switching to the projected view. These are direct checks of our file-to-view path and internal coordinates, not a comparison to an original game/editor screenshot or independent mapper output. No screenshots or decoded pixels were committed.

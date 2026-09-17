@@ -31,7 +31,8 @@ void print_usage(const char* executable) {
               << " [--kind plain|sprite|isometric] [--ignore-alpha]\n"
               << "       " << executable << " --data <directory> --scene <scene.json>\n"
               << "       " << executable << " --data <directory> --map-debug <relative.map>"
-              << " [--part <index>] [--layer terrain_raw|objects_raw]\n";
+              << " [--part <index>] [--layer terrain_raw|objects_raw]"
+              << " [--view storage|semantic|projected]\n";
 }
 
 std::filesystem::path resolve_map_path(const std::filesystem::path& root_path,
@@ -64,6 +65,7 @@ int main(int argc, char* argv[]) {
     bool map_debug_supplied = false;
     bool part_supplied = false;
     bool layer_supplied = false;
+    bool view_supplied = false;
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
@@ -74,6 +76,7 @@ int main(int argc, char* argv[]) {
     std::uint32_t image_index = 0;
     std::uint32_t map_part = 0;
     openemperor::maps::RawLayer map_layer = openemperor::maps::RawLayer::Terrain;
+    openemperor::maps::MapViewMode map_view_mode = openemperor::maps::MapViewMode::Storage;
 
     for (int index = 1; index < argc; ++index) {
         const std::string_view argument{argv[index]};
@@ -119,6 +122,13 @@ int main(int argc, char* argv[]) {
             else if (value == "objects_raw") map_layer = openemperor::maps::RawLayer::Objects;
             else { print_usage(argv[0]); return 2; }
             layer_supplied = true;
+        } else if (argument == "--view" && !view_supplied) {
+            const std::string_view value{argv[++index]};
+            if (value == "storage") map_view_mode = openemperor::maps::MapViewMode::Storage;
+            else if (value == "semantic") map_view_mode = openemperor::maps::MapViewMode::Semantic;
+            else if (value == "projected") map_view_mode = openemperor::maps::MapViewMode::Projected;
+            else { print_usage(argv[0]); return 2; }
+            view_supplied = true;
         } else if (argument == "--image" && !image_supplied) {
             const std::string_view text{argv[++index]};
             const auto parsed = std::from_chars(text.data(), text.data() + text.size(), image_index);
@@ -146,7 +156,7 @@ int main(int argc, char* argv[]) {
                             ignore_alpha || diagnostic_alpha_addressing || browser_kind || map_debug_supplied)) ||
         (map_debug_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
                                 scene_supplied || ignore_alpha || diagnostic_alpha_addressing || browser_kind)) ||
-        ((part_supplied || layer_supplied) && !map_debug_supplied)) {
+        ((part_supplied || layer_supplied || view_supplied) && !map_debug_supplied)) {
         print_usage(argv[0]);
         return 2;
     }
@@ -216,7 +226,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Original map: " << map_path << " part " << map_part << " storage "
                       << map.stored_width << 'x' << map.stored_height << " declared size "
                       << map.declared_map_size << " active extent unknown\n";
-            map_view = std::make_unique<openemperor::MapDebugView>(std::move(map), map_layer);
+            map_view = std::make_unique<openemperor::MapDebugView>(std::move(map), map_layer, map_view_mode);
         } catch (const std::exception& error_message) {
             std::cerr << "Map debug load failed: " << error_message.what() << '\n';
             return 1;

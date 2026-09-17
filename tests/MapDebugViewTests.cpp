@@ -40,8 +40,8 @@ int main() {
         maps::StorageGridCamera math;
         math.viewport_width = 160; math.viewport_height = 120;
         math.center_on({114,114});
-        check(math.pick({80,60}) == maps::GridCell{114,114}, "center selection");
-        check(math.pick({83,60}) == maps::GridCell{115,114}, "positive boundary");
+        check(math.pick({80,60}) == maps::DisplayCell{114,114}, "center selection");
+        check(math.pick({83,60}) == maps::DisplayCell{115,114}, "positive boundary");
         check(!math.pick(math.grid_to_screen({-0.5,1})), "outside selection");
         const auto fixed = math.screen_to_grid({65,72});
         math.zoom_at({65,72}, 2.0);
@@ -82,6 +82,35 @@ int main() {
         view.handle_event(wheel, running);
         view.handle_event(click, running);
         check(view.selected_cell() == maps::GridCell{114,114}, "selection after wheel zoom");
+        SDL_Event change_view{}; change_view.type = SDL_EVENT_KEY_DOWN; change_view.key.key = SDLK_V;
+        view.handle_event(change_view, running);
+        check(view.view() == maps::MapViewMode::Semantic &&
+              view.selected_cell() == maps::GridCell{114,114} && view.render(),
+              "semantic view preserves selected storage cell");
+        SDL_Event change_mask{}; change_mask.type = SDL_EVENT_KEY_DOWN; change_mask.key.key = SDLK_M;
+        view.handle_event(change_mask, running);
+        check(view.mask() == maps::MaskMode::Candidate && view.render(), "candidate mask view");
+        view.handle_event(change_mask, running);
+        check(view.mask() == maps::MaskMode::OffMap && view.render(), "offmap diagnostic view");
+        view.handle_event(change_mask, running);
+        check(view.mask() == maps::MaskMode::Compare && view.render(), "mask comparison view");
+        view.handle_event(change_view, running);
+        check(view.view() == maps::MapViewMode::Projected &&
+              view.selected_cell() == maps::GridCell{114,114} && view.render(),
+              "projected view retains selected storage cell");
+        click.button.x = 80; click.button.y = 60;
+        view.handle_event(click, running);
+        check(view.selected_cell() == maps::GridCell{114,114},
+              "projected screen selection maps back to same storage cell");
+        view.handle_event(change_view, running);
+        check(view.view() == maps::MapViewMode::Storage &&
+              view.selected_cell() == maps::GridCell{114,114} && view.render(),
+              "raw storage view remains reachable after cycling");
+        SDL_Event center_select{}; center_select.type = SDL_EVENT_KEY_DOWN;
+        center_select.key.key = SDLK_RETURN;
+        view.handle_event(center_select, running);
+        check(view.selected_cell() == maps::GridCell{114,114},
+              "keyboard selection uses the visible center storage cell");
         const auto old_center = view.camera().screen_to_grid(
             {view.camera().viewport_width*0.5,view.camera().viewport_height*0.5});
         check(SDL_SetWindowSize(window,200,150), "resize dummy window");
@@ -91,6 +120,19 @@ int main() {
         check(std::abs(old_center.x-new_center.x)<1e-8 &&
               std::abs(old_center.y-new_center.y)<1e-8, "resize preserves grid center");
         view.shutdown();
+        auto unsupported_map = fixture(); unsupported_map.declared_map_size = 85;
+        openemperor::MapDebugView unsupported_view{std::move(unsupported_map)};
+        unsupported_view.initialize(window,renderer);
+        unsupported_view.handle_event(change_view,running);
+        check(unsupported_view.view() == maps::MapViewMode::Semantic && unsupported_view.render(),
+              "unsupported geometry retains semantic storage view");
+        unsupported_view.handle_event(change_view,running);
+        check(unsupported_view.view() == maps::MapViewMode::Storage,
+              "unsupported geometry cycles back to raw storage instead of projection");
+        unsupported_view.handle_event(change_mask,running);
+        check(unsupported_view.mask() == maps::MaskMode::OffMap,
+              "unsupported geometry can still show offmap bit without candidate mask");
+        unsupported_view.shutdown();
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
         auto bad = fixture(); bad.terrain_raw.values.clear();
         try { maps::make_storage_rgba(bad, maps::RawLayer::Terrain); }

@@ -16,6 +16,11 @@ struct GridCell {
     std::uint32_t y = 0;
     bool operator==(const GridCell&) const = default;
 };
+struct DisplayCell {
+    std::uint32_t x = 0;
+    std::uint32_t y = 0;
+    bool operator==(const DisplayCell&) const = default;
+};
 
 class StorageGridCamera {
 public:
@@ -23,10 +28,12 @@ public:
     GridPoint offset{};
     int viewport_width = 1;
     int viewport_height = 1;
+    std::uint32_t grid_width = stored_grid_width;
+    std::uint32_t grid_height = stored_grid_height;
     static constexpr double base_cell_pixels = 3.0;
     GridPoint grid_to_screen(GridPoint grid) const;
     GridPoint screen_to_grid(GridPoint screen) const;
-    std::optional<GridCell> pick(GridPoint screen) const;
+    std::optional<DisplayCell> pick(GridPoint screen) const;
     void zoom_at(GridPoint screen, double factor);
     void center_on(GridPoint grid);
 };

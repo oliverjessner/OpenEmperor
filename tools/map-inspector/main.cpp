@@ -1,5 +1,7 @@
 #include "maps/EmperorContainer.h"
 #include "maps/EmperorMap.h"
+#include "maps/MapGeometry.h"
+#include "maps/TerrainInterpretation.h"
 
 #include <nlohmann/json.hpp>
 
@@ -63,6 +65,102 @@ Json frequency(const maps::MapLayer& layer) {
     for (std::size_t i = 0; i < std::min<std::size_t>(ordered.size(), 16); ++i)
         top.push_back({{"value", ordered[i].first}, {"count", ordered[i].second}});
     return {{"distinct_values", counts.size()}, {"top_values", top}};
+}
+Json semantic_stats(const maps::ParsedEmperorMap& map, const maps::MapGeometry& geometry,
+                    bool candidate_only) {
+    const auto interpreted = maps::interpret_map(map);
+    std::map<std::string, std::uint64_t> categories;
+    std::map<std::string, std::uint64_t> rules;
+    std::map<std::uint32_t, std::uint64_t> terrain_bits, object_bits;
+    std::map<std::uint32_t, std::uint64_t> unknown_terrain_patterns, unknown_object_patterns;
+    std::map<std::pair<std::uint32_t, std::uint32_t>, std::uint64_t> combinations;
+    std::map<std::pair<std::uint32_t, std::uint32_t>, std::uint64_t> partial_combinations;
+    std::uint64_t partial = 0, unknown = 0, cells = 0;
+    std::uint64_t unknown_terrain_cells = 0, unknown_object_cells = 0;
+    for (std::uint32_t y = 0; y < maps::stored_grid_height; ++y) {
+        for (std::uint32_t x = 0; x < maps::stored_grid_width; ++x) {
+            if (candidate_only && !geometry.contains({x,y})) continue;
+            const auto& item = interpreted[static_cast<std::size_t>(y) * maps::stored_grid_width + x];
+            ++cells;
+            ++categories[maps::category_name(item.category)];
+            ++rules[std::string{item.rule}];
+            ++combinations[{item.terrain_raw, item.objects_raw}];
+            if (item.partial) { ++partial; ++partial_combinations[{item.terrain_raw,item.objects_raw}]; }
+            if (item.category == maps::TerrainCategory::Unknown) ++unknown;
+            if (item.unknown_terrain_bits) {
+                ++unknown_terrain_cells;
+                ++unknown_terrain_patterns[item.unknown_terrain_bits];
+            }
+            if (item.unknown_object_bits) {
+                ++unknown_object_cells;
+                ++unknown_object_patterns[item.unknown_object_bits];
+            }
+            for (unsigned bit = 0; bit < 32; ++bit) {
+                const std::uint32_t flag = std::uint32_t{1} << bit;
+                if (item.recognized_terrain_flags & flag) ++terrain_bits[flag];
+                if (item.recognized_object_flags & flag) ++object_bits[flag];
+            }
+        }
+    }
+    std::vector<std::pair<std::pair<std::uint32_t,std::uint32_t>,std::uint64_t>> ordered(combinations.begin(), combinations.end());
+    std::sort(ordered.begin(), ordered.end(), [](const auto& a, const auto& b) {
+        if (a.second != b.second) return a.second > b.second;
+        return a.first < b.first;
+    });
+    Json top = Json::array();
+    for (std::size_t i = 0; i < std::min<std::size_t>(ordered.size(), 16); ++i)
+        top.push_back({{"terrain_raw", ordered[i].first.first},
+                       {"objects_raw", ordered[i].first.second}, {"count", ordered[i].second}});
+    std::vector<std::pair<std::pair<std::uint32_t,std::uint32_t>,std::uint64_t>> partial_ordered(
+        partial_combinations.begin(), partial_combinations.end());
+    std::sort(partial_ordered.begin(), partial_ordered.end(), [](const auto& a, const auto& b) {
+        if (a.second != b.second) return a.second > b.second;
+        return a.first < b.first;
+    });
+    Json partial_top = Json::array();
+    for (std::size_t i = 0; i < std::min<std::size_t>(partial_ordered.size(), 16); ++i)
+        partial_top.push_back({{"terrain_raw",partial_ordered[i].first.first},
+                               {"objects_raw",partial_ordered[i].first.second},
+                               {"count",partial_ordered[i].second}});
+    auto pattern_json = [](const auto& counts) {
+        Json out = Json::array();
+        std::vector<std::pair<std::uint32_t,std::uint64_t>> ordered_patterns(counts.begin(),counts.end());
+        std::sort(ordered_patterns.begin(), ordered_patterns.end(), [](const auto& a,const auto& b) {
+            if (a.second != b.second) return a.second > b.second;
+            return a.first < b.first;
+        });
+        for (std::size_t i=0;i<std::min<std::size_t>(ordered_patterns.size(),16);++i)
+            out.push_back({{"bits",ordered_patterns[i].first},{"count",ordered_patterns[i].second}});
+        return out;
+    };
+    Json terrain_counts = Json::array(), object_counts = Json::array();
+    for (const auto& [flag,count] : terrain_bits) terrain_counts.push_back({{"bit",flag},{"count",count}});
+    for (const auto& [flag,count] : object_bits) object_counts.push_back({{"bit",flag},{"count",count}});
+    return {{"cells",cells}, {"categories",categories}, {"rules",rules}, {"partial_cells",partial},
+            {"unknown_category_cells",unknown}, {"raw_combinations_distinct",combinations.size()},
+            {"top_raw_combinations",top}, {"partial_combinations_distinct",partial_combinations.size()},
+            {"top_partial_combinations",partial_top},
+            {"unknown_terrain_bits_cells",unknown_terrain_cells},
+            {"unknown_object_bits_cells",unknown_object_cells},
+            {"unknown_terrain_bit_patterns_distinct",unknown_terrain_patterns.size()},
+            {"unknown_object_bit_patterns_distinct",unknown_object_patterns.size()},
+            {"top_unknown_terrain_bit_patterns",pattern_json(unknown_terrain_patterns)},
+            {"top_unknown_object_bit_patterns",pattern_json(unknown_object_patterns)},
+            {"recognized_terrain_bits",terrain_counts}, {"recognized_object_bits",object_counts}};
+}
+Json mask_json(const maps::MaskComparison& mask) {
+    Json examples = Json::array();
+    for (const auto cell : mask.mismatch_examples)
+        examples.push_back({{"storage_x",cell.x},{"storage_y",cell.y}});
+    return {{"candidate_and_offmap",mask.candidate_and_offmap},
+            {"candidate_and_onmap",mask.candidate_and_onmap},
+            {"outside_and_offmap",mask.outside_and_offmap},
+            {"outside_and_onmap",mask.outside_and_onmap},
+            {"candidate_cells",mask.candidate_and_offmap + mask.candidate_and_onmap},
+            {"outside_cells",mask.outside_and_offmap + mask.outside_and_onmap},
+            {"offmap_bit_cells",mask.candidate_and_offmap + mask.outside_and_offmap},
+            {"without_offmap_bit_cells",mask.candidate_and_onmap + mask.outside_and_onmap},
+            {"mismatch_cells",mask.mismatches()}, {"mismatch_examples",examples}};
 }
 Json part_json(const maps::EmperorContainer& container, std::size_t index) {
     const auto& part = container.parts()[index];
@@ -128,6 +226,23 @@ Json inspect_file(const fs::path& path, const std::string& display,
                                       {"bounds_valid", true},
                                       {"statistics", frequency(map.objects_raw)}}}
                 };
+                const maps::MapGeometry geometry{map.declared_map_size};
+                result["map"]["interpretation"] = {
+                    {"profile", "reference_derived_coarse_terrain_v1"},
+                    {"evidence", "reference-derived; original game unverified"},
+                    {"full_storage", semantic_stats(map, geometry, false)}
+                };
+                result["map"]["geometry"] = {
+                    {"profile", geometry.supported ? "reference_derived_diamond_bitmap_v1" : "unsupported"},
+                    {"supported", geometry.supported},
+                    {"declared_map_size", map.declared_map_size},
+                    {"stored_width", map.stored_width}, {"stored_height", map.stored_height}
+                };
+                if (geometry.supported) {
+                    result["map"]["interpretation"]["candidate_mask"] = semantic_stats(map, geometry, true);
+                    result["map"]["geometry"]["border"] = geometry.border;
+                    result["map"]["geometry"]["mask_comparison"] = mask_json(maps::compare_masks(map, geometry));
+                } else result["map"]["interpretation"]["candidate_mask"] = nullptr;
             } catch (const maps::UnsupportedMapProfile& error) {
                 result["map_error"] = error.what();
             }
@@ -153,6 +268,16 @@ void print_human(const Json& result) {
                   << ", terrain values " << map.at("terrain_raw").at("statistics").at("distinct_values")
                   << ", object values " << map.at("objects_raw").at("statistics").at("distinct_values")
                   << ", active cells unknown";
+        const auto& geometry = map.at("geometry");
+        if (geometry.at("supported").get<bool>()) {
+            const auto& mask = geometry.at("mask_comparison");
+            std::cout << ", candidate cells " << mask.at("candidate_cells")
+                      << ", off-map bit cells " << mask.at("offmap_bit_cells")
+                      << ", mask mismatches " << mask.at("mismatch_cells");
+        } else std::cout << ", geometry unsupported";
+        const auto& stats = map.at("interpretation").at("full_storage");
+        std::cout << ", semantic partial " << stats.at("partial_cells")
+                  << ", unknown categories " << stats.at("unknown_category_cells");
     } else if (result.contains("map_error")) std::cout << ", map unsupported: " << result.at("map_error");
     if (result.contains("error")) std::cout << ", error: " << result.at("error");
     std::cout << '\n';

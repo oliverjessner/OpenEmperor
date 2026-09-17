@@ -1,6 +1,6 @@
 #pragma once
 
-#include "maps/StorageGridView.h"
+#include "maps/MapVisualization.h"
 
 #include <optional>
 
@@ -14,7 +14,8 @@ namespace openemperor {
 class MapDebugView {
 public:
     explicit MapDebugView(maps::ParsedEmperorMap map,
-                          maps::RawLayer initial_layer = maps::RawLayer::Terrain);
+                          maps::RawLayer initial_layer = maps::RawLayer::Terrain,
+                          maps::MapViewMode initial_view = maps::MapViewMode::Storage);
     ~MapDebugView();
     MapDebugView(const MapDebugView&) = delete;
     MapDebugView& operator=(const MapDebugView&) = delete;
@@ -24,15 +25,29 @@ public:
     void update(double seconds);
     bool render();
     maps::RawLayer layer() const { return layer_; }
+    maps::MapViewMode view() const { return view_; }
+    maps::MaskMode mask() const { return mask_; }
     std::optional<maps::GridCell> selected_cell() const { return selected_; }
     const maps::StorageGridCamera& camera() const { return camera_; }
 private:
     void set_layer(maps::RawLayer layer);
+    void set_view(maps::MapViewMode view);
+    void set_mask(maps::MaskMode mask);
+    void upload_pixels();
+    void show_selected();
+    std::optional<maps::GridCell> storage_from_display(
+        std::optional<maps::DisplayCell> display) const;
     void update_title();
     void reset_camera();
     void resize_camera();
     maps::ParsedEmperorMap map_;
     maps::RawLayer layer_;
+    maps::MapViewMode view_;
+    maps::MaskMode mask_ = maps::MaskMode::Full;
+    maps::MapGeometry geometry_;
+    std::vector<maps::TerrainCellInterpretation> interpreted_;
+    std::uint32_t texture_width_ = maps::stored_grid_width;
+    std::uint32_t texture_height_ = maps::stored_grid_height;
     maps::StorageGridCamera camera_;
     std::optional<maps::GridCell> selected_;
     SDL_Window* window_ = nullptr;

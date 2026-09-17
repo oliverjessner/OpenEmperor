@@ -80,6 +80,9 @@ add_library(openemperor-maps STATIC
     src/maps/EmperorContainer.cpp
     src/maps/EmperorMap.cpp
     src/maps/StorageGridView.cpp
+    src/maps/MapGeometry.cpp
+    src/maps/TerrainInterpretation.cpp
+    src/maps/MapVisualization.cpp
 )
 target_include_directories(openemperor-maps PUBLIC src)
 target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB)
@@ -96,6 +99,11 @@ openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(openemperor-map-semantic-tests tests/MapSemanticTests.cpp)
+    target_link_libraries(openemperor-map-semantic-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-map-semantic-tests)
+    add_test(NAME emperor-map-semantic-geometry COMMAND openemperor-map-semantic-tests)
+
     add_executable(openemperor-map-tests tests/EmperorMapTests.cpp)
     target_link_libraries(openemperor-map-tests PRIVATE openemperor-maps)
     openemperor_enable_warnings(openemperor-map-tests)
