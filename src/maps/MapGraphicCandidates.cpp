@@ -51,4 +51,15 @@ MapGraphicCandidates read_map_graphic_candidates(const EmperorContainer& contain
     return decode_map_graphic_candidates(words,bytes);
 }
 
+std::uint8_t read_auxiliary_map_byte(const EmperorContainer& container, std::size_t part,
+                                     std::uint32_t x, std::uint32_t y) {
+    const auto probe = probe_map_part(container,part);
+    if (probe.profile != PartProfile::Map)
+        throw UnsupportedMapProfile("auxiliary byte requires the supported map profile: " + probe.reason);
+    if (x >= stored_grid_width || y >= stored_grid_height)
+        throw std::out_of_range("auxiliary byte cell is outside 228x228");
+    const auto index = static_cast<std::uint64_t>(y) * stored_grid_width + x;
+    return container.read_range(part,auxiliary_byte_logical_offset+index,1).front();
+}
+
 } // namespace openemperor::maps

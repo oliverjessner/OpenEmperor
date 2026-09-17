@@ -15,6 +15,9 @@ constexpr std::uint64_t candidate_word_logical_offset = 1535;
 constexpr std::uint64_t candidate_byte_logical_offset = 209471;
 constexpr std::uint64_t candidate_word_byte_length = grid_byte_length;
 constexpr std::uint64_t candidate_byte_byte_length = stored_grid_width * stored_grid_height;
+// Separately observed map byte range copied to VA 0xf1e780. Its general
+// file-format meaning is unknown; do not conflate it with candidate_byte_layer.
+constexpr std::uint64_t auxiliary_byte_logical_offset = 729311;
 
 struct MapGraphicCandidates {
     std::vector<std::uint32_t> candidate_word_layer;
@@ -29,5 +32,7 @@ struct MapGraphicCandidates {
 MapGraphicCandidates read_map_graphic_candidates(const EmperorContainer& container, std::size_t part);
 MapGraphicCandidates decode_map_graphic_candidates(std::span<const std::uint8_t> words,
                                                    std::span<const std::uint8_t> bytes);
+std::uint8_t read_auxiliary_map_byte(const EmperorContainer& container, std::size_t part,
+                                     std::uint32_t x, std::uint32_t y);
 
 } // namespace openemperor::maps

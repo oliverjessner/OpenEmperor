@@ -82,6 +82,7 @@ add_library(openemperor-maps STATIC
     src/maps/MapGraphicCandidates.cpp
     src/maps/DirectGraphicCandidate.cpp
     src/maps/GraphicsIdHypothesis.cpp
+    src/maps/ResourceGroupLookup.cpp
     src/maps/StorageGridView.cpp
     src/maps/MapGeometry.cpp
     src/maps/TerrainInterpretation.cpp
@@ -108,6 +109,10 @@ openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(openemperor-resource-group-tests tests/ResourceGroupLookupTests.cpp)
+    target_link_libraries(openemperor-resource-group-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-resource-group-tests)
+    add_test(NAME resource-group-lookup COMMAND openemperor-resource-group-tests)
     add_executable(openemperor-map-semantic-tests tests/MapSemanticTests.cpp)
     target_link_libraries(openemperor-map-semantic-tests PRIVATE openemperor-maps)
     openemperor_enable_warnings(openemperor-map-semantic-tests)

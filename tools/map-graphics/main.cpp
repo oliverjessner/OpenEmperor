@@ -6,6 +6,7 @@
 #include "maps/MapGraphicCandidates.h"
 #include "maps/DirectGraphicCandidate.h"
 #include "maps/GraphicsIdHypothesis.h"
+#include "maps/ResourceGroupLookup.h"
 #include "maps/TerrainInterpretation.h"
 
 #include <nlohmann/json.hpp>
@@ -37,6 +38,17 @@ std::uint32_t number(std::string_view value) {
     if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size())
         throw std::invalid_argument("invalid unsigned number");
     return result;
+}
+std::uint32_t key_number(std::string_view value) {
+    if (value.starts_with("0x") || value.starts_with("0X")) {
+        value.remove_prefix(2);
+        std::uint32_t result = 0;
+        const auto parsed = std::from_chars(value.data(), value.data() + value.size(), result, 16);
+        if (value.empty() || parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size())
+            throw std::invalid_argument("invalid hexadecimal group key");
+        return result;
+    }
+    return number(value);
 }
 fs::path safe_file(const fs::path& root, const fs::path& relative) {
     if (relative.empty() || relative.is_absolute()) throw std::invalid_argument("expected relative map path");
@@ -102,6 +114,7 @@ Json resolution(std::uint32_t value, const assets::AssetCatalog& catalog) {
 using Registrations = std::map<std::uint32_t, maps::GraphicsArchiveRegistration>;
 constexpr std::string_view graphics_profile = "exe-6373328b-14bit-hypothesis";
 constexpr std::string_view terrain_probe_profile = "exe-6373328b-first-terrain-probe";
+constexpr std::string_view group_profile = "exe-6373328b-v213-resource-group";
 
 Json graphics_resolution(std::uint32_t raw, const Registrations& registrations,
                          const fs::path& root, bool decode) {
@@ -143,6 +156,8 @@ Json graphics_resolution(std::uint32_t raw, const Registrations& registrations,
         out["data_offset"]=record.data_offset;
         out["uncompressed_length"]=record.uncompressed_length;
         out["group_id"]=record.group_id;
+        out["group_filename"]=record.group_filename;
+        out["group_description"]=record.group_description;
         out["asset_id"]={{"archive",record.id.archive_relative_path.generic_string()},
                          {"physical_image_index",record.id.image_index}};
         if (record.sg3_version==213 && result.physical_record_index)
@@ -226,6 +241,88 @@ Json cell_json(maps::GridCell cell, const maps::ParsedEmperorMap& map,
         };
     }
     return result;
+}
+
+Json group_query(const fs::path& root, std::uint32_t key, std::uint32_t variant_count,
+                 const fs::path& map_relative, std::uint32_t part,
+                 const std::vector<maps::GridCell>& requested) {
+    const std::uint32_t slot = key >> 9U;
+    const fs::path archive_relative = slot == 3U ? "DATA/China_Terrain.sg3" :
+                                      slot == 16U ? "DATA/China_Elevation.sg3" : fs::path{};
+    Json output{{"profile",group_profile},{"group_key",key},{"slot",slot},
+                {"status",maps::group_lookup_status_name(
+                    maps::resolve_resource_group({key},{}).status)},
+                {"evidence",{{"group_lookup_statically_observed",true},
+                             {"sg3_table_value_read",false},
+                             {"native_resolution_tested",true},
+                             {"selected_image_decodes_checked",false},
+                             {"map_correlation_checked",false},
+                             {"images_visually_viewed_by_tool",false},
+                             {"original_game_execution_observed",false},
+                             {"original_game_visual_match_observed",false}}}};
+    if (archive_relative.empty()) return output;
+    const auto archive_path = safe_file(root,archive_relative);
+    const auto archive = assets::read_sg3_archive(archive_path);
+    const auto catalog = assets::scan_asset_archive(root,archive_relative);
+    const auto resolved = maps::resolve_resource_group({key},{{slot,{&archive}}});
+    output["status"] = maps::group_lookup_status_name(resolved.status);
+    output["archive"] = archive_relative.generic_string();
+    output["runtime_group_position"] = resolved.group_position;
+    output["sg3_index_position"] = resolved.sg3_index_position;
+    output["sg3_index_file_offset"] = resolved.sg3_file_offset;
+    output["sg3_index_raw_value"] = resolved.sg3_raw_value;
+    output["runtime_local_base"] = resolved.local_base;
+    output["packed_graphic_base"] = resolved.packed_base ?
+        Json(resolved.packed_base->value) : Json(nullptr);
+    output["index_table_source"] = "SG3 header+index prefix, 300 little-endian uint16 words";
+    output["runtime_transform"] = "signed-positive entries, reverse order, local base=raw-1, packed base=slot*16384+local base";
+    output["variants"] = Json::array();
+    output["map_comparison"] = Json::array();
+    if (resolved.status != maps::GroupLookupStatus::Resolved) return output;
+    output["evidence"]["sg3_table_value_read"] = true;
+    Registrations registrations{{slot,{&catalog,archive.header.version,
+                                            archive.header.image_capacity,
+                                            archive.header.reported_images_in_use}}};
+    for (std::uint32_t variant=0;variant<variant_count;++variant) {
+        const auto packed = maps::group_variant(*resolved.packed_base,variant);
+        Json item{{"variant",variant},{"packed_graphic_id",packed ? Json(packed->value) : Json(nullptr)}};
+        item["image_resolution"] = packed ? graphics_resolution(packed->value,registrations,root,true) :
+                                           Json{{"status","variant_out_of_range"}};
+        item["image_visually_viewed_by_tool"] = false;
+        output["variants"].push_back(std::move(item));
+    }
+    output["evidence"]["selected_image_decodes_checked"] = variant_count > 0;
+    if (!map_relative.empty()) {
+        const auto container = maps::EmperorContainer::open(safe_file(root,map_relative));
+        const auto map = maps::read_emperor_map(container,part);
+        const auto candidates = maps::read_map_graphic_candidates(container,part);
+        output["map"] = map_relative.generic_string();
+        output["input_byte_logical_offset"] = maps::auxiliary_byte_logical_offset;
+        for (const auto cell : requested) {
+            const auto index = candidates.cell_index(cell.x,cell.y);
+            const auto input = maps::read_auxiliary_map_byte(container,part,cell.x,cell.y);
+            const std::uint32_t stored = candidates.word_at(cell.x,cell.y);
+            const std::int64_t difference = static_cast<std::int64_t>(stored) -
+                                            static_cast<std::int64_t>(resolved.packed_base->value);
+            output["map_comparison"].push_back({
+                {"storage_x",cell.x},{"storage_y",cell.y},
+                {"terrain_raw",map.terrain_at(cell.x,cell.y)},
+                {"objects_raw",map.object_at(cell.x,cell.y)},
+                {"stored_graphic_id",stored},
+                {"candidate_byte_raw",candidates.byte_at(cell.x,cell.y)},
+                {"generator_input_byte_raw",input},
+                {"generator_input_byte_logical_offset",maps::auxiliary_byte_logical_offset+index},
+                {"packed_group_base",resolved.packed_base->value},
+                {"signed_difference",difference},
+                {"difference_in_0_to_7",difference>=0 && difference<=7},
+                {"matches_observed_pre_read_expression",
+                    difference==static_cast<std::int64_t>(input & 7U)}
+            });
+        }
+        output["map_comparison_scope"] = "stored data correlation only; pre-read generator is not a post-load rule";
+        output["evidence"]["map_correlation_checked"] = !requested.empty();
+    }
+    return output;
 }
 
 Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path& archive_relative,
@@ -423,6 +520,9 @@ int main(int argc,char* argv[]) {
         std::uint32_t part=0;
         bool use_graphics_profile=false;
         bool terrain_probe=false;
+        std::optional<std::uint32_t> group_key;
+        std::uint32_t variant_count=8;
+        bool variants_supplied=false;
         std::vector<maps::GridCell> cells_to_show;
         for (int i=1;i<argc;++i) {
             const std::string_view arg=argv[i];
@@ -430,6 +530,12 @@ int main(int argc,char* argv[]) {
             else if (arg=="--map" && i+1<argc) map=argv[++i];
             else if (arg=="--archive" && i+1<argc) archive=argv[++i];
             else if (arg=="--part" && i+1<argc) part=number(argv[++i]);
+            else if (arg=="--group-key" && i+1<argc) group_key=key_number(argv[++i]);
+            else if (arg=="--variants" && i+1<argc) {
+                variant_count=number(argv[++i]);
+                variants_supplied=true;
+                if (variant_count>8) throw std::invalid_argument("--variants must be between 0 and 8");
+            }
             else if (arg=="--profile" && i+1<argc) {
                 if (std::string_view{argv[++i]} != graphics_profile)
                     throw std::invalid_argument("unknown graphics profile");
@@ -446,9 +552,20 @@ int main(int argc,char* argv[]) {
                 if (x>=maps::stored_grid_width || y>=maps::stored_grid_height)
                     throw std::invalid_argument("cell is outside 228x228");
                 cells_to_show.push_back({x,y});
-            } else throw std::invalid_argument("usage: openemperor-map-graphics --data <root> --map <relative.map> [--part N] [--archive <relative.sg3>] [--profile exe-6373328b-14bit-hypothesis | --terrain-selection-profile exe-6373328b-first-terrain-probe] [--cell x y]...");
+            } else throw std::invalid_argument("usage: openemperor-map-graphics --data <root> [--group-key 0x603 --variants 8 [--map <relative.map> --cell x y]...] | --map <relative.map> [--part N] [--archive <relative.sg3>] [--profile exe-6373328b-14bit-hypothesis | --terrain-selection-profile exe-6373328b-first-terrain-probe] [--cell x y]...");
         }
-        if (root.empty() || map.empty()) throw std::invalid_argument("--data and --map are required");
+        if (root.empty()) throw std::invalid_argument("--data is required");
+        if (group_key) {
+            if (use_graphics_profile || terrain_probe || archive != "DATA/China_Terrain.sg3")
+                throw std::invalid_argument("group query cannot be combined with another graphics profile or --archive");
+            if (map.empty() && !cells_to_show.empty())
+                throw std::invalid_argument("--cell requires --map in group query mode");
+            std::cout << group_query(fs::canonical(root),*group_key,variant_count,
+                                     map,part,cells_to_show).dump(2) << '\n';
+            return 0;
+        }
+        if (variants_supplied) throw std::invalid_argument("--variants requires --group-key");
+        if (map.empty()) throw std::invalid_argument("--map is required");
         std::cout << analyze(fs::canonical(root),map,archive,part,cells_to_show,
                              use_graphics_profile,terrain_probe).dump(2) << '\n';
         return 0;

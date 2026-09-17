@@ -84,6 +84,8 @@ void write(const fs::path& path, const Bytes& bytes) {
 }
 Bytes map_bytes() {
     Bytes bytes(static_cast<std::size_t>(maps::objects_logical_offset + maps::grid_byte_length), 0);
+    bytes.resize(static_cast<std::size_t>(maps::auxiliary_byte_logical_offset +
+                                          maps::candidate_byte_byte_length),0);
     const std::array<std::uint8_t, 8> signature{5, 0, 0xfe, 0xca, 0, 0, 2, 0};
     std::copy(signature.begin(), signature.end(), bytes.begin());
     u32(bytes, 84, 112);
@@ -94,6 +96,7 @@ Bytes map_bytes() {
         2U);
     bytes[static_cast<std::size_t>(maps::candidate_byte_logical_offset)] = 0xa5;
     bytes[static_cast<std::size_t>(maps::candidate_byte_logical_offset) + 2U * 228U + 3U] = 0x5a;
+    bytes[static_cast<std::size_t>(maps::auxiliary_byte_logical_offset) + 2U * 228U + 3U] = 0x37;
     u32(bytes, static_cast<std::size_t>(maps::terrain_logical_offset) + 4U, 0x12345678U); // (1,0)
     u32(bytes, static_cast<std::size_t>(maps::terrain_logical_offset) + 228U * 4U, 0xdeadbeefU); // (0,1)
     u32(bytes, static_cast<std::size_t>(maps::objects_logical_offset) + (2U * 228U + 3U) * 4U, 0xaabbccddU);
@@ -138,6 +141,11 @@ int main() {
               parsed.object_cell_offset(3,2) == maps::objects_logical_offset + (2 * 228 + 3) * 4,
               "cell logical offsets");
         const auto diagnostic = maps::read_map_graphic_candidates(container, 0);
+        check(maps::read_auxiliary_map_byte(container,0,3,2) == 0x37 &&
+              diagnostic.byte_at(3,2) == 0x5a &&
+              maps::auxiliary_byte_logical_offset != maps::candidate_byte_logical_offset,
+              "separate bounded auxiliary and candidate byte layers");
+        rejects([&] { (void)maps::read_auxiliary_map_byte(container,0,228,2); });
         check(diagnostic.candidate_word_layer.size() == 51984 &&
               diagnostic.candidate_byte_layer.size() == 51984 &&
               diagnostic.word_at(0,0) == 0x12345678U &&

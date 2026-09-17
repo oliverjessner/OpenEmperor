@@ -104,3 +104,55 @@ Every listed selected payload decoded using the normal loader. Records 43, 41, a
 ./build/openemperor-map-graphics --data .local/gog-extracted/app --map Cities/Xia.map --terrain-selection-profile exe-6373328b-first-terrain-probe --cell 114 114 --cell 115 114
 ./build/openemperor --sg3 .local/gog-extracted/app/DATA/China_Terrain.sg3 --image 43
 ```
+
+## SG3 resource-group lookup for key `0x603` (follow-up from `074899fe88d62ee6ad62c93843fea3c324804247`)
+
+The locally supplied PE32 EXE was again checked as SHA-256 `6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`. Its image base is `0x400000`. The `.text` section has RVA `0x1000`, static VA `0x401000`, and PE file offset `0x400`, so a `.text` instruction's file offset is `RVA - 0xc00`; the SG3 offsets below are in a **different file**. Selected anchors checked against actual instruction VAs:
+
+| Operation | Static VA | PE RVA | PE file offset |
+| --- | ---: | ---: | ---: |
+| group-key split / resource lookup | `0x408170` | `0x8170` | `0x7570` |
+| table entry value read | `0x4081ba` | `0x81ba` | `0x75ba` |
+| slot-3 registration calls archive loader | `0x5cd061` | `0x1cd061` | `0x1cc461` |
+| signed SG3 index-word read | `0x5cd468` | `0x1cd468` | `0x1cc868` |
+| runtime group-table write | `0x5cd519` | `0x1cd519` | `0x1cc919` |
+| runtime-record index association | `0x5cd531` | `0x1cd531` | `0x1cc931` |
+| range writer supplies `0x603` and manager | `0x4b39b3` | `0xb39b3` | `0xb2db3` |
+
+The group lookup at VA `0x408170` receives the manager in `ECX` and key on the stack. For nonnegative `0x603` (`1539`), quotient by 512 is **slot 3**, remainder is **3**, and the remainder is decremented to runtime group position **2**. It forms the same slot-object address as registration: manager base VA `0x1c42130` plus `0x1000` and slot times the observed object stride `0x264cc`. The registration caller at VA `0x475c36` passes that manager to VA `0x5ccdf0`; the registration routine at VA `0x5ccfcd` computes the same slot-object address, passes that object to the loader at VA `0x5cd061`, and the writer at VA `0x4b39b3` supplies `0x1c42130` to the group lookup. This connects the named Terrain registration, group table, and image lookup to **one manager/object**, rather than merely matching a slot number from another list. Conditional registration success remains a prerequisite; the native diagnostic uses an explicit registration snapshot.
+
+The v213 loader reads the SG3 header and its 300 little-endian index words into the static buffer beginning at VA `0x1b501c8`; index word 0 is at VA `0x1b50218`. At VA `0x5cd468` it sign-extends each word and subtracts the loader's record skip (zero for this ordinary Terrain name). Only strictly positive results enter the temporary list; zero and signed-negative words do not. The list insertion at VA `0x5cff20`/`0x41f730` prepends equal-key entries, and the loop at VA `0x5cd4fc` copies the list head-to-tail into the runtime eight-byte group table. Thus the retained SG3 index words appear in **reverse file order**, not at their original index positions. At VA `0x5cd51b`–`0x5cd524`, the value placed in entry field `+4` is `signed_word - skip - 1`. VA `0x4081d0` addresses eight-byte entries, and VA `0x4081ba` returns this field plus `slot * 16384`; the function returns a **complete packed graphic ID**, not a pointer or physical record index. For a key with remainder zero, the examined lookup returns zero rather than indexing the table; the native resolver treats it as outside the supported group-position profile.
+
+In this local `DATA/China_Terrain.sg3` (v213), 55 of 300 index words are signed-positive. Runtime group position 2 therefore comes from **SG3 index word 53**, not word 2. The existing parser reads that word at **SG3 file offset `80 + 2*53 = 186` (`0xba`)** as raw `1368` (`0x558`). The stored runtime entry value is `1367` (`0x557`); group lookup returns **`0xC557` (50519)**. This is the physical image start only after the separate, already documented v213 translation: packed local 1367 → physical SG3 image record **1368**. No second `+1` is applied. `Sg3Archive::groups[6]` describes the resolved image as `China_land2.bmp` / `A new bitmap.`; that group metadata is unrelated to index-word position 53.
+
+The range writer at VA `0x4b39a8`–`0x4b39c7` adds `(input_byte & 7)` to this returned packed ID. Supplying variants 0–7 explicitly produces the following independently decoded records from the user's local archive. All have in-bounds color payloads, no alpha payload, Type 30, 78×40, SG3 metadata group 6, and successful normal-loader decodes:
+
+| Variant | Packed ID | Runtime local | Physical SG3 record |
+| ---: | ---: | ---: | ---: |
+| 0 | `0xc557` | 1367 | 1368 |
+| 1 | `0xc558` | 1368 | 1369 |
+| 2 | `0xc559` | 1369 | 1370 |
+| 3 | `0xc55a` | 1370 | 1371 |
+| 4 | `0xc55b` | 1371 | 1372 |
+| 5 | `0xc55c` | 1372 | 1373 |
+| 6 | `0xc55d` | 1373 | 1374 |
+| 7 | `0xc55e` | 1374 | 1375 |
+
+All eight PNG exports were generated only under ignored `.local/re/emperor/group-603/` and actually viewed offscreen. They appear as similar teal-gray diamond images with small detailed patches; no image was stretched or committed. This is visual inspection of our decoder, **not** an original-game comparison or evidence that this group composes the ground for a particular loaded map. There was no interactive desktop test.
+
+The map comparison reads the separate byte range at **decompressed map logical offset `729311 + cell_index`**, using the existing container's bounded range API. Its general file-format meaning remains unknown; it is distinct from `candidate_byte_layer` at `209471 + cell_index`. For two exact `(terrain_raw=0x80, objects_raw=0)` cells per map, the unchanged stored IDs are all **below** `0xc557`; signed differences are shown so negative values cannot wrap into a false 0–7 match:
+
+| Map / storage cells | Stored IDs | Input bytes at 729311+index | Stored minus base |
+| --- | --- | --- | --- |
+| Xia `(114,114)`, `(115,114)` | `0xc02a`, `0xc027` | 194, 254 | -1325, -1328 |
+| Banpo `(114,114)`, `(115,114)` | `0xc028`, `0xc026` | 111, 73 | -1327, -1329 |
+| Chengdu `(113,29)`, `(114,29)` | `0xc017`, `0xc00e` | 40, 58 | -1344, -1353 |
+| Anyi `(113,29)`, `(114,29)` | `0xc029`, `0xc02a` | 184, 131 | -1326, -1325 |
+
+No row equals `group_base + (stored_input_byte & 7)`. That mismatch does not invalidate the **pre-read** group writer: the map serializer subsequently replaces its per-cell graphic values. It does rule out quietly replacing these sampled saved IDs with the group's eight IDs in a loaded-map preview. The SDL-free `ResourceGroupLookup` implements only the bounded, explicit v213 group-table transformation, and `openemperor-map-graphics --group-key 0x603 --variants 8` reports it separately from saved-map correlation. It neither generates unknown byte state nor changes rendering.
+
+```sh
+./build/openemperor-map-graphics --data .local/gog-extracted/app --group-key 0x603 --variants 8
+./build/openemperor-map-graphics --data .local/gog-extracted/app --group-key 0x603 --variants 8 --map Cities/Xia.map --cell 114 114 --cell 115 114
+./build/openemperor --sg3 .local/gog-extracted/app/DATA/China_Terrain.sg3 --image 1368
+```
