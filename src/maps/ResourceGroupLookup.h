@@ -1,6 +1,6 @@
 #pragma once
 
-#include "assets/Sg3Archive.h"
+#include "maps/RuntimeArchiveLayout.h"
 
 #include <cstdint>
 #include <map>
@@ -19,7 +19,7 @@ enum class GroupLookupStatus {
 const char* group_lookup_status_name(GroupLookupStatus status);
 
 struct GroupRegistration {
-    const assets::Sg3Archive* archive = nullptr;
+    const RuntimeArchiveLayout* layout = nullptr;
 };
 
 struct GroupResolution {
@@ -34,7 +34,7 @@ struct GroupResolution {
 };
 
 // Explicit snapshot of the studied v213 resource manager. No archive is selected
-// by filesystem order. The caller owns each parsed archive.
+// by filesystem order. The caller owns each built layout.
 GroupResolution resolve_resource_group(
     ResourceGroupKey key, const std::map<std::uint32_t, GroupRegistration>& registrations);
 

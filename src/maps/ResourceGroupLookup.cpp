@@ -34,39 +34,26 @@ GroupResolution resolve_resource_group(
     const auto found = registrations.find(result.slot);
     if (found == registrations.end() || (result.slot != 3U && result.slot != 16U))
         return result;
-    const auto* archive = found->second.archive;
-    if (archive == nullptr || archive->header.version != 213 ||
-        archive->header.image_capacity != archive->images.size() ||
-        archive->header.reported_images_in_use >= archive->header.image_capacity) {
+    const auto* layout = found->second.layout;
+    if (layout == nullptr || layout->slot != result.slot || layout->sg3_version != 213) {
         result.status = GroupLookupStatus::UnverifiedRegistration;
         return result;
     }
-    // The studied loader keeps only signed-positive index words, prepends each
-    // to a temporary list, then copies that list to its eight-byte group table.
-    std::uint32_t remaining = result.group_position;
-    for (std::uint32_t position = static_cast<std::uint32_t>(archive->index.size());
-         position > 0;) {
-        --position;
-        const std::uint16_t raw = archive->index[position];
-        if (raw == 0 || raw > static_cast<std::uint16_t>(std::numeric_limits<std::int16_t>::max())) continue;
-        if (remaining != 0) {
-            --remaining;
-            continue;
-        }
-        result.sg3_index_position = position;
-        result.sg3_file_offset = 80ULL + 2ULL * position;
-        result.sg3_raw_value = raw;
-        result.local_base = static_cast<std::uint32_t>(raw - 1U);
-        if (*result.local_base >= archive->header.reported_images_in_use ||
-            *result.local_base >= 0x4000U) {
-            result.status = GroupLookupStatus::ImageOutOfRange;
-            return result;
-        }
-        result.packed_base = PackedGraphicId{result.slot * 0x4000U + *result.local_base};
-        result.status = GroupLookupStatus::Resolved;
+    if (result.group_position >= layout->groups.size()) {
+        result.status = GroupLookupStatus::GroupOutOfRange;
         return result;
     }
-    result.status = GroupLookupStatus::GroupOutOfRange;
+    const auto& entry = layout->groups[result.group_position];
+    result.sg3_index_position = entry.sg3_index_position;
+    result.sg3_file_offset = entry.sg3_file_offset;
+    result.sg3_raw_value = entry.raw_value;
+    result.local_base = entry.local_base;
+    if (entry.local_base >= layout->runtime_image_count || entry.local_base >= 0x4000U) {
+        result.status = GroupLookupStatus::ImageOutOfRange;
+        return result;
+    }
+    result.packed_base = PackedGraphicId{result.slot * 0x4000U + entry.local_base};
+    result.status = GroupLookupStatus::Resolved;
     return result;
 }
 

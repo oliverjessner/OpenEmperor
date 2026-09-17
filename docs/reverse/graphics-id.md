@@ -1,5 +1,7 @@
 # Graphics-ID investigation (2026-09-17)
 
+**Current correction:** The [runtime-table fidelity check](#runtime-table-fidelity-correction-2026-09-17) below supersedes this document's earlier `skip=0`, `local+1`, reverse-group-order, `0xc557` and selected-image identities. Earlier sections remain as an audit trail. Their old CLI profile names are intentionally rejected; use the new explicit profile in the correction section.
+
 This is a narrow, read-only static study of the locally supplied `Emperor.exe` (SHA-256 `6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`, PE32 Intel 80386). The starting repository commit was `10906083e1697b12782d2dc302c040944513e4d8`. All addresses below are **RVAs** unless marked VA or file offset. The PE image base is `0x400000`; static VAs are base plus RVA. The EXE was never run, patched, or committed. Apple LLVM `objdump` 21.0.0 and the independent read-only `tools/re/pe_string_refs.py` were used. Ghidra/analyzeHeadless was not installed; no decompiler output or Ghidra project was produced.
 
 The runtime-record follow-up started at commit `1ed282de020b2387f73d523c853f622d735af06a`; the EXE hash was rechecked unchanged. [PE file offsets, RVAs and static VAs](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format) below are distinct coordinate systems. The logical decompressed-map offset and the SG3 file offset are distinct again. The current study corrected an earlier address-label error: Apple `objdump` displays `.text+offset` relative to the section at VA `0x401000`. That displayed offset is **0x1000 smaller than the PE RVA** for `.text`; it must not be copied as an RVA. The prose below now uses actual RVAs checked against instruction VAs.
@@ -24,7 +26,7 @@ At RVA `0x71b60` (wrapped by RVA `0x71b40`), a graphic-resource manager divides 
 
 The preceding paragraph states the **initial study's** dataflow limit. The follow-up below found the map-load edge and the related RVA `0x8100` draw path; the earlier negative statement is historical.
 
-## Runtime local index to physical SG3 record (follow-up)
+## Runtime local index to physical SG3 record (historical, superseded)
 
 At RVA `0x8150` (VA `0x408150`), the selected resource object reads its count at object offset `0xcc34` and addresses a 36-byte runtime record as `table_pointer + 36 * local_index`. The table pointer is the first member of that object. RVA `0x1cd1f0` (VA `0x5cd1f0`) supplies it on the observed registration path. Its version-213 branch at RVA `0x1cd3c5` converts each 64-byte physical SG3 image record to a 72-byte intermediate record **in physical order**; no reordering or index table was observed in that loop. For ordinary Terrain/Elevation names, the special `Zeus_system.bmp` branch at RVA `0x1cd34f` is not taken, leaving its skip variable at zero. The routine reads the SG3 header's `reported_images_in_use` from VA `0x1b501d8` at RVA `0x1cd401`, stores that count at object offset `0xcc34`, and copies from intermediate base VA `0x1b5a0f8` at RVA `0x1cd43b`. This source is 72 bytes after the intermediate physical-record-zero base `0x1b5a0b0`: **the dummy record is skipped**. The copied runtime records are then processed in place; the examined loop does not reorder them. The allocation/copy uses the in-use count, not the 10,000-record SG3 capacity. Subsequent runtime count adjustment and mutations have not been proven irrelevant for every context; the resolver therefore applies this rule only to the explicit v213 Terrain/Elevation registration snapshot and bounds `local_index < reported_images_in_use`.
 
@@ -40,7 +42,7 @@ The renderer-side chain is separately observed: at RVA `0x6f0e0`, a map-cell ind
 
 The prior profile output below directly indexed the catalog with the runtime local index. It is retained as history but its record identities and counts are **superseded** by the physical-record translation above.
 
-## Corpus check (independent of binary dataflow)
+## Corpus check (historical layout, superseded)
 
 The corrected physical-record translation was checked first on Xia, then Banpo, Chengdu and Anyi. All counts below cover candidate-mask cells; `decode_candidate` is a metadata/source/layout gate, **not** a successful decode count. The selected two coordinates in each map decoded successfully, but are not identical terrain classes across maps.
 
@@ -66,7 +68,7 @@ The table covers actual local `DATA/China_Terrain.sg3` and `DATA/China_Elevation
 
 Four selected images were exported locally for visual inspection: terrain 39 was a small dark/transparent sprite, terrain 201 a sparse blue footprint-like image from a water-classified cell, terrain 698 a textured diamond from a vegetation-classified cell, and elevation 28 a dark/transparent sprite. This confirms the actual decoder output and also shows that many candidate values select nonflat overlays. Appearance is neither a pixel-exact comparison to the original game nor proof of the map-field mapping. The texture preview was **not** activated because the map-to-lookup dataflow is unproven and many supported records are not flat ground tiles.
 
-To reproduce the bounded diagnostic with your own legally obtained data:
+Historical reproduction commands below used a superseded profile and are retained only as a record of that study; the current CLI rejects them:
 
 ```sh
 python3 tools/re/pe_string_refs.py .local/gog-extracted/app/Emperor.exe --needle China_Terrain --needle China_Elevation --needle '%sChinaMapProj.sg3'
@@ -77,7 +79,7 @@ python3 tools/re/pe_string_refs.py .local/gog-extracted/app/Emperor.exe --needle
 
 There is no graphics-candidate texture-preview command yet. The existing hand-curated `--view textured --terrain-bindings ...` preview is independent of this hypothesis.
 
-## First native terrain-selection probe (follow-up from `f5a39d0328745fecbef7c705699f6bb84992eaf1`)
+## First native terrain-selection probe (historical layout, superseded)
 
 The same local, unexecuted PE32 EXE was rehashed to SHA-256 `6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`. Apple LLVM `objdump` 21.0.0 was used on bounded address windows and direct call sites, following the [LLVM command reference](https://llvm.org/docs/CommandGuide/llvm-objdump.html). All addresses in this section are RVAs; static VA is RVA plus `0x400000`. No raw EXE bytes or disassembly are stored here.
 
@@ -105,7 +107,7 @@ Every listed selected payload decoded using the normal loader. Records 43, 41, a
 ./build/openemperor --sg3 .local/gog-extracted/app/DATA/China_Terrain.sg3 --image 43
 ```
 
-## SG3 resource-group lookup for key `0x603` (follow-up from `074899fe88d62ee6ad62c93843fea3c324804247`)
+## SG3 resource-group lookup for key `0x603` (historical layout, superseded)
 
 The locally supplied PE32 EXE was again checked as SHA-256 `6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`. Its image base is `0x400000`. The `.text` section has RVA `0x1000`, static VA `0x401000`, and PE file offset `0x400`, so a `.text` instruction's file offset is `RVA - 0xc00`; the SG3 offsets below are in a **different file**. Selected anchors checked against actual instruction VAs:
 
@@ -155,4 +157,51 @@ No row equals `group_base + (stored_input_byte & 7)`. That mismatch does not inv
 ./build/openemperor-map-graphics --data .local/gog-extracted/app --group-key 0x603 --variants 8
 ./build/openemperor-map-graphics --data .local/gog-extracted/app --group-key 0x603 --variants 8 --map Cities/Xia.map --cell 114 114 --cell 115 114
 ./build/openemperor --sg3 .local/gog-extracted/app/DATA/China_Terrain.sg3 --image 1368
+```
+
+## Runtime-table fidelity correction (2026-09-17)
+
+Starting commit `d09887d7e0335aa5169786970fc96efba51b83d2`; the local EXE SHA-256 was rechecked as `6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`. The EXE was read for bounded static analysis, never executed or changed. Its `.text` section begins at VA `0x401000`, RVA `0x1000`, PE file offset `0x400`, so an instruction in that section has PE file offset `RVA−0xc00`. SG3 file offsets below refer to a different file.
+
+### System-bitmap branch and image records
+
+At VA `0x5cd346` (RVA `0x1cd346`) the v213 loader first checks that a registration slot exists. At VA `0x5cd354` (RVA `0x1cd354`, PE file offset `0x1cc754`), the first string-compare operand points to VA `0x1b50470`: the **filename of the first SG3 bitmap-group record**, whose SG3 record starts at file offset **680**. The second operand points to the literal `Zeus_system.bmp` at VA `0x86a6fc` (PE file offset `0x468cfc`). It is not the outer `.sg3` filename. On equality, VA `0x5cd38a` stores `0xc8` (200) in the skip local at stack+`0x14`; without equality the skip stays zero. The branch also stores `0x992e` at stack+`0x24` (VA `0x5cd392`), later passed to a bitmap helper at VA `0x5cef60`. Its further meaning is not asserted here.
+
+The existing parser reports both local archives' group 0 as filename `Zeus_system.bmp`, `image_count=200`, `first_image_index=1`, `last_image_index=200`. Both are v213 with capacity 10,000. `China_Terrain.sg3` reports 1,443 images in use and eight bitmap groups; `China_Elevation.sg3` reports 372 and four. Both therefore activate the 200-record branch. At VA `0x5cd406`, the loader subtracts the skip from the reported count; its runtime count is **1,243** for Terrain and **172** for Elevation. At VA `0x5cd43b` it begins the contiguous runtime copy at intermediate physical record `skip+1`. The 64-byte physical SG3 records were converted to 72-byte intermediates in physical order at VA `0x5cd3c5`, and the selected resource object's lookup accesses its resulting 36-byte runtime records. The supported relation is **local `i` → physical SG3 record `201+i`** for these two archives. Physical record 0 is the dummy, records 1–200 are skipped by this branch, and the range is bounded by `reported_images_in_use−200`, not the 10,000-record capacity. This corrects the earlier `i+1` model; `AssetId` and catalog record indices remain physical and unchanged. No claim is made about other versions or registrations.
+
+### Group list keys and order
+
+The v213 loop at VA `0x5cd468` reads each of 300 SG3 little-endian index words, sign-extends it, subtracts the same skip and retains it only when the result is positive. The loop visits SG3 index positions in ascending **file order**. VA `0x5cd45a` initializes `ebx` to zero; VA `0x5cd4a5` passes `ebx` as the list insertion **key**, and VA `0x5cd4b9` increments it at every index position, including a filtered one. The transformed index word is the **value**, not the key. VA `0x5cff20` forwards the key to the node constructor at VA `0x41f710`, which stores it at node+8. VA `0x41f730` compares keys and inserts increasing unique keys at the tail through VA `0x467e90`; equality/prepend behavior is irrelevant because these caller keys are distinct. Equal positive **values** are allowed. VA `0x5cd4fc` traverses from the list head, preserving file order in the final group table. VA `0x5cd519` writes the transformed value (`signed word−skip−1`) into its group entry; VA `0x5cd531` associates groups with runtime image records but does not reorder the contiguous image copy. The group lookup at VA `0x4081ba` adds `slot×16384` to that local base. Thus group key `0x603` splits into slot 3 and one-based group position 3, selecting the **third retained** Terrain index word. The old reverse-order interpretation mistook an increasing insertion key for a constant key.
+
+The local Terrain index at position 3, **SG3 file offset 86**, contains 247. Its transformed local base is `247−200−1=46`, so group `0x603` returns packed base **`0xc02e`**. Variants 0–7 resolve to local 46–53 and physical records **247–254**, not the old `0xc557`/1368–1375. The analogous Elevation key `0x2001` selects index position 1, raw 359, local base 158 and physical record 359; its packed base is `0x4009e`. These are table identities, not a claim that a particular map cell uses the group at draw time.
+
+| Key or saved ID | Previous diagnostic | Corrected v213 result | Runtime local / physical SG3 record | Type and dimensions after correction | Payload / decode |
+| --- | --- | --- | --- | --- | --- |
+| Terrain group `0x603`, variant 0 | `0xc557`, record 1368, Type-30 78×40 | `0xc02e` | 46 / 247 | Type-30 78×41 | in bounds / success |
+| Terrain variants 1–7 | `0xc558`–`0xc55e`, records 1369–1375, Type-30 78×40 | `0xc02f`–`0xc035` | 47–53 / 248–254 | Type-30 78×40 except variant 6: 78×46 | in bounds / all seven successful |
+| Terrain saved `0xc027` | record 40, Type-276 4×9 | same ID | 39 / 240 | Type-30 78×46 | in bounds / success |
+| Terrain saved `0xc02a` | record 43, Type-276 5×9 | same ID | 42 / 243 | Type-30 78×48 | in bounds / success |
+| Terrain saved `0xc0c9` | record 202, Type-30 78×41 | same ID | 201 / 402 | Type-30 78×54 | in bounds / success |
+| Elevation group `0x2001`, variant 0 | old reverse/zero-skip model | `0x4009e` | 158 / 359 | Type-30 158×125 | in bounds / success |
+
+Every corrected row uses the same **skip 200 plus dummy 1** rule. The eight Terrain group images and the three selected saved-ID images were decoded with the existing loader and viewed as local offscreen PNGs under ignored `.local/re/emperor/runtime-table/`. The group images look like sandy diamonds with details; the saved-ID images have grassy or vegetation/rock details. The Elevation image was also decoded and viewed there. The direct `openemperor --sg3 ... --image 240` path loaded a 78×46 texture and remained in its SDL event loop under SDL's dummy video/software renderer; the current shell session could not initialize a macOS GUI window. These are qualitative views of OpenEmperor's decoded output and a headless preview-path check, not an interactive first-draw test or original-game pixel comparison.
+
+For the previously selected exact `(terrain_raw=0x80, objects_raw=0)` cells, the map words are unchanged. The difference from the corrected group base `0xc02e` remains outside variants 0–7:
+
+| Map / storage cells | Stored IDs | Byte at logical `729311+cell_index` | Stored minus `0xc02e` |
+| --- | --- | --- | --- |
+| Xia `(114,114)`, `(115,114)` | `0xc02a`, `0xc027` | 194, 254 | -4, -7 |
+| Banpo `(114,114)`, `(115,114)` | `0xc028`, `0xc026` | 111, 73 | -6, -8 |
+| Chengdu `(113,29)`, `(114,29)` | `0xc017`, `0xc00e` | 40, 58 | -23, -32 |
+| Anyi `(113,29)`, `(114,29)` | `0xc029`, `0xc02a` | 184, 131 | -5, -4 |
+
+The separate candidate byte is at logical `209471+cell_index`; no general meaning is inferred for either byte. The observed group writer runs **before** the saved map arrays are read, so its `0x603` expression cannot be substituted for these loaded words. The corrected saved IDs now resolve to tall Type-30 images, but that alone does not establish their placement, compositing, or retention at first draw. The remaining focused dependency is to follow a selected loaded cell's value through the post-read writers and the VA `0x46f0e0` → `0x470167` → `0x408100` lookup/draw path, including how any overlay relates to an underlying tile. No map texture rule was enabled from this evidence.
+
+`src/maps/RuntimeArchiveLayout.*` is the shared SDL-free v213 model for group and image resolution; it is constructed from parsed user-supplied SG3 metadata at runtime, with no EXE dependency. Synthetic tests distinguish file order from sort/reverse, exercise equal and filtered values, both skip branches, dummy/count bounds, and shared group/image mapping with always-active checks in Debug and Release. Current commands with legally obtained local data:
+
+```sh
+./build/openemperor-map-graphics --data .local/gog-extracted/app --layout-profile exe-6373328b-v213-runtime-table --group-key 0x603 --variants 8 --graphic-id 0xc027 --graphic-id 0xc02a --graphic-id 0xc0c9
+./build/openemperor-map-graphics --data .local/gog-extracted/app --layout-profile exe-6373328b-v213-runtime-table --group-key 0x2001 --variants 1
+./build/openemperor-map-graphics --data .local/gog-extracted/app --map Cities/Xia.map --profile exe-6373328b-v213-runtime-table --cell 114 114 --cell 115 114
+./build/openemperor --sg3 .local/gog-extracted/app/DATA/China_Terrain.sg3 --image 240
 ```

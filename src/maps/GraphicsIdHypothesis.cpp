@@ -29,17 +29,18 @@ GraphicsIdResolution resolve_graphics_id_hypothesis(
     const auto found = registrations.find(result.slot);
     if (found == registrations.end()) return result;
     const auto& registration = found->second;
-    if (registration.catalog == nullptr || registration.sg3_version != 213 ||
-        registration.image_capacity != registration.catalog->records.size() ||
-        registration.reported_images_in_use >= registration.image_capacity) {
+    const auto* layout = registration.layout;
+    if (registration.catalog == nullptr || layout == nullptr || layout->slot != result.slot ||
+        layout->sg3_version != 213 ||
+        layout->image_capacity != registration.catalog->records.size()) {
         result.status = GraphicsIdStatus::UnverifiedRegistration;
         return result;
     }
-    if (result.local_index >= registration.reported_images_in_use) {
+    result.physical_record_index = layout->physical_record_for_local(result.local_index);
+    if (!result.physical_record_index) {
         result.status = GraphicsIdStatus::IndexOutOfRange;
         return result;
     }
-    result.physical_record_index = result.local_index + 1U;
     const auto direct = resolve_direct_candidate(*registration.catalog, *result.physical_record_index);
     result.record = direct.record;
     switch (direct.status) {

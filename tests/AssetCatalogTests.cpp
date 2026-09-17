@@ -260,8 +260,13 @@ bool run_checks(const fs::path& parent) {
     write(probe_root / "mapped-other.sg3",mapped_other); // Missing .555.
     const auto mapped_catalog=assets::scan_asset_archive(probe_root,"mapped.sg3");
     const auto mapped_other_catalog=assets::scan_asset_archive(probe_root,"mapped-other.sg3");
+    const auto mapped_layout=maps::build_runtime_archive_layout(
+        3,assets::read_sg3_archive(probe_root / "mapped.sg3"));
+    const auto mapped_other_layout=maps::build_runtime_archive_layout(
+        16,assets::read_sg3_archive(probe_root / "mapped-other.sg3"));
+    if (!mapped_layout || !mapped_other_layout) return false;
     const std::map<std::uint32_t,maps::GraphicsArchiveRegistration> registrations{
-        {3,{&mapped_catalog,213,6,4}}, {16,{&mapped_other_catalog,213,3,1}}};
+        {3,{&mapped_catalog,&*mapped_layout}}, {16,{&mapped_other_catalog,&*mapped_other_layout}}};
     const auto graphic = [&](std::uint32_t raw) {
         return maps::resolve_graphics_id_hypothesis(raw,registrations);
     };
@@ -288,7 +293,7 @@ bool run_checks(const fs::path& parent) {
         assets::load_sg3_image({probe_root / graphic(0xc002U).record->id.archive_relative_path,
                                 graphic(0xc002U).record->id.image_index}).pixels!=Bytes{255,0,0,255}) return false;
     auto unverified=registrations;
-    unverified.at(3).sg3_version=214;
+    unverified.at(3).layout=nullptr;
     if (maps::resolve_graphics_id_hypothesis(0xc002U,unverified).status !=
         maps::GraphicsIdStatus::UnverifiedRegistration) return false;
     Bytes synthetic_words(static_cast<std::size_t>(maps::candidate_word_byte_length),0);

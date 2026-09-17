@@ -1,6 +1,7 @@
 #pragma once
 
 #include "maps/DirectGraphicCandidate.h"
+#include "maps/RuntimeArchiveLayout.h"
 
 #include <cstdint>
 #include <map>
@@ -24,14 +25,11 @@ struct GraphicsIdResolution {
     const assets::AssetRecord* record = nullptr;
 };
 
-// Observed for the examined EXE's v213 Terrain/Elevation registration only:
-// it skips physical record zero and copies reported_images_in_use records.
-// A catalog contains physical records, including the dummy and reserved tail.
+// The common v213 runtime layout supplies the record skip and count. A catalog
+// retains physical positions, including dummy/system and reserved records.
 struct GraphicsArchiveRegistration {
     const assets::AssetCatalog* catalog = nullptr;
-    std::uint32_t sg3_version = 0;
-    std::uint32_t image_capacity = 0;
-    std::uint32_t reported_images_in_use = 0;
+    const RuntimeArchiveLayout* layout = nullptr;
 };
 
 // Callers provide an explicit registration snapshot. No filesystem-order or
