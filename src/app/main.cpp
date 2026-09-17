@@ -1,10 +1,13 @@
 #include "app/Application.h"
 #include "app/AssetBrowser.h"
 #include "app/SceneView.h"
+#include "app/MapDebugView.h"
 #include "assets/AssetCatalog.h"
 #include "assets/RgbaPngReader.h"
 #include "assets/Sg3ImageLoader.h"
 #include "scene/Scene.h"
+#include "maps/EmperorContainer.h"
+#include "maps/EmperorMap.h"
 
 #include <SDL3/SDL_main.h>
 
@@ -26,7 +29,25 @@ void print_usage(const char* executable) {
               << " --alpha-addressing spec|contiguous|legacy (diagnostic)\n"
               << "       " << executable << " --data <directory> --browse-assets"
               << " [--kind plain|sprite|isometric] [--ignore-alpha]\n"
-              << "       " << executable << " --data <directory> --scene <scene.json>\n";
+              << "       " << executable << " --data <directory> --scene <scene.json>\n"
+              << "       " << executable << " --data <directory> --map-debug <relative.map>"
+              << " [--part <index>] [--layer terrain_raw|objects_raw]\n";
+}
+
+std::filesystem::path resolve_map_path(const std::filesystem::path& root_path,
+                                       const std::filesystem::path& requested) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const fs::path root = fs::canonical(root_path, ec);
+    if (ec) throw std::runtime_error("cannot resolve data directory");
+    const fs::path candidate = fs::canonical(requested.is_absolute() ? requested : root / requested, ec);
+    if (ec || !fs::is_regular_file(candidate))
+        throw std::runtime_error("map file is missing or cannot be resolved");
+    const fs::path relative = candidate.lexically_relative(root);
+    if (relative.empty() || relative.is_absolute()) throw std::runtime_error("map file escapes data directory");
+    for (const auto& component : relative)
+        if (component == "..") throw std::runtime_error("map file escapes data directory");
+    return candidate;
 }
 
 } // namespace
@@ -40,13 +61,19 @@ int main(int argc, char* argv[]) {
     bool browse_assets = false;
     bool ignore_alpha = false;
     bool scene_supplied = false;
+    bool map_debug_supplied = false;
+    bool part_supplied = false;
+    bool layer_supplied = false;
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
     fs::path preview_path;
     fs::path sg3_path;
     fs::path scene_path;
+    fs::path map_debug_path;
     std::uint32_t image_index = 0;
+    std::uint32_t map_part = 0;
+    openemperor::maps::RawLayer map_layer = openemperor::maps::RawLayer::Terrain;
 
     for (int index = 1; index < argc; ++index) {
         const std::string_view argument{argv[index]};
@@ -75,6 +102,23 @@ int main(int argc, char* argv[]) {
         } else if (argument == "--scene" && !scene_supplied) {
             scene_path = argv[++index];
             scene_supplied = true;
+        } else if (argument == "--map-debug" && !map_debug_supplied) {
+            map_debug_path = argv[++index];
+            map_debug_supplied = true;
+        } else if (argument == "--part" && !part_supplied) {
+            const std::string_view value{argv[++index]};
+            const auto parsed = std::from_chars(value.data(), value.data() + value.size(), map_part);
+            if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
+                std::cerr << "Map part must be a nonnegative integer\n";
+                return 2;
+            }
+            part_supplied = true;
+        } else if (argument == "--layer" && !layer_supplied) {
+            const std::string_view value{argv[++index]};
+            if (value == "terrain_raw") map_layer = openemperor::maps::RawLayer::Terrain;
+            else if (value == "objects_raw") map_layer = openemperor::maps::RawLayer::Objects;
+            else { print_usage(argv[0]); return 2; }
+            layer_supplied = true;
         } else if (argument == "--image" && !image_supplied) {
             const std::string_view text{argv[++index]};
             const auto parsed = std::from_chars(text.data(), text.data() + text.size(), image_index);
@@ -99,7 +143,10 @@ int main(int argc, char* argv[]) {
         (browser_kind && !browse_assets) || (ignore_alpha && !browse_assets && !sg3_supplied) ||
         (diagnostic_alpha_addressing && (!sg3_supplied || ignore_alpha || browse_assets)) ||
         (scene_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
-                            ignore_alpha || diagnostic_alpha_addressing || browser_kind))) {
+                            ignore_alpha || diagnostic_alpha_addressing || browser_kind || map_debug_supplied)) ||
+        (map_debug_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
+                                scene_supplied || ignore_alpha || diagnostic_alpha_addressing || browser_kind)) ||
+        ((part_supplied || layer_supplied) && !map_debug_supplied)) {
         print_usage(argv[0]);
         return 2;
     }
@@ -117,6 +164,7 @@ int main(int argc, char* argv[]) {
     std::optional<openemperor::assets::RgbaImage> preview;
     std::unique_ptr<openemperor::AssetBrowser> browser;
     std::unique_ptr<openemperor::SceneView> scene_view;
+    std::unique_ptr<openemperor::MapDebugView> map_view;
     if (preview_supplied) {
         try {
             preview = openemperor::assets::read_exported_png(preview_path);
@@ -158,9 +206,25 @@ int main(int argc, char* argv[]) {
             std::cerr << "Scene load failed: " << error_message.what() << '\n';
             return 1;
         }
+    } else if (map_debug_supplied) {
+        try {
+            const fs::path map_path = resolve_map_path(data_directory, map_debug_path);
+            auto container = openemperor::maps::EmperorContainer::open(map_path);
+            if (container.multipart() && !part_supplied)
+                throw std::runtime_error("multipart container requires --part <index>");
+            auto map = openemperor::maps::read_emperor_map(container, map_part);
+            std::cout << "Original map: " << map_path << " part " << map_part << " storage "
+                      << map.stored_width << 'x' << map.stored_height << " declared size "
+                      << map.declared_map_size << " active extent unknown\n";
+            map_view = std::make_unique<openemperor::MapDebugView>(std::move(map), map_layer);
+        } catch (const std::exception& error_message) {
+            std::cerr << "Map debug load failed: " << error_message.what() << '\n';
+            return 1;
+        }
     }
 
-    openemperor::Application application{std::move(preview), std::move(browser), std::move(scene_view)};
+    openemperor::Application application{std::move(preview), std::move(browser),
+                                       std::move(scene_view), std::move(map_view)};
     if (!application.initialize()) {
         return 1;
     }

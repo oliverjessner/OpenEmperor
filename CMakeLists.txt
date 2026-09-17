@@ -30,6 +30,8 @@ if(NOT nlohmann_json_FOUND)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
+find_package(ZLIB REQUIRED)
+
 include(cmake/OpenEmperorWarnings.cmake)
 
 add_executable(openemperor
@@ -37,6 +39,7 @@ add_executable(openemperor
     src/app/Application.cpp
     src/app/AssetBrowser.cpp
     src/app/SceneView.cpp
+    src/app/MapDebugView.cpp
     src/renderer/TitleScreen.cpp
     src/renderer/ImagePreview.cpp
     src/renderer/SceneRenderer.cpp
@@ -73,12 +76,35 @@ target_link_libraries(openemperor-scene PUBLIC openemperor-sg3 nlohmann_json::nl
 openemperor_enable_warnings(openemperor-scene)
 target_link_libraries(openemperor PRIVATE openemperor-scene)
 
+add_library(openemperor-maps STATIC
+    src/maps/EmperorContainer.cpp
+    src/maps/EmperorMap.cpp
+    src/maps/StorageGridView.cpp
+)
+target_include_directories(openemperor-maps PUBLIC src)
+target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB)
+openemperor_enable_warnings(openemperor-maps)
+target_link_libraries(openemperor PRIVATE openemperor-maps)
+
+add_executable(openemperor-map-inspect tools/map-inspector/main.cpp)
+target_link_libraries(openemperor-map-inspect PRIVATE openemperor-maps nlohmann_json::nlohmann_json)
+openemperor_enable_warnings(openemperor-map-inspect)
+
 add_executable(openemperor-assets tools/asset-catalog/main.cpp)
 target_link_libraries(openemperor-assets PRIVATE openemperor-sg3)
 openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(openemperor-map-tests tests/EmperorMapTests.cpp)
+    target_link_libraries(openemperor-map-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-map-tests)
+    add_test(NAME emperor-map-reader COMMAND openemperor-map-tests)
+
+    add_executable(openemperor-map-view-tests tests/MapDebugViewTests.cpp src/app/MapDebugView.cpp)
+    target_link_libraries(openemperor-map-view-tests PRIVATE openemperor-maps SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-map-view-tests)
+    add_test(NAME emperor-map-debug-view COMMAND openemperor-map-view-tests)
     add_executable(openemperor-scene-tests tests/SceneTests.cpp)
     target_link_libraries(openemperor-scene-tests PRIVATE openemperor-scene)
     openemperor_enable_warnings(openemperor-scene-tests)

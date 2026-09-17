@@ -1,0 +1,197 @@
+#include "maps/EmperorContainer.h"
+#include "maps/EmperorMap.h"
+
+#include <zlib.h>
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace {
+namespace fs = std::filesystem;
+namespace maps = openemperor::maps;
+using Bytes = std::vector<std::uint8_t>;
+void check(bool yes, const char* message) { if (!yes) throw std::runtime_error(message); }
+template <class F> void rejects(F f) {
+    try { f(); } catch (const std::exception&) { return; }
+    throw std::runtime_error("expected malformed input rejection");
+}
+void u32(Bytes& bytes, std::size_t at, std::uint32_t value) {
+    bytes[at] = static_cast<std::uint8_t>(value);
+    bytes[at + 1] = static_cast<std::uint8_t>(value >> 8U);
+    bytes[at + 2] = static_cast<std::uint8_t>(value >> 16U);
+    bytes[at + 3] = static_cast<std::uint8_t>(value >> 24U);
+}
+void append_u32(Bytes& bytes, std::uint32_t value) {
+    const auto at = bytes.size(); bytes.resize(at + 4); u32(bytes, at, value);
+}
+Bytes block(const Bytes& input) {
+    uLongf limit = compressBound(static_cast<uLong>(input.size()));
+    Bytes compressed(static_cast<std::size_t>(limit));
+    check(compress2(compressed.data(), &limit, input.data(),
+                    static_cast<uLong>(input.size()), 6) == Z_OK, "synthetic zlib compression");
+    compressed.resize(static_cast<std::size_t>(limit));
+    Bytes result;
+    append_u32(result, 0x12345678U); // Deliberately unknown synthetic header word.
+    append_u32(result, static_cast<std::uint32_t>(compressed.size()));
+    append_u32(result, static_cast<std::uint32_t>(input.size()));
+    result.insert(result.end(), compressed.begin(), compressed.end());
+    return result;
+}
+Bytes part(const Bytes& input, std::size_t chunk = 32768) {
+    Bytes result;
+    for (std::size_t at = 0; at < input.size(); at += chunk) {
+        const auto stop = std::min(input.size(), at + chunk);
+        const auto encoded = block(Bytes(input.begin() + static_cast<std::ptrdiff_t>(at),
+                                         input.begin() + static_cast<std::ptrdiff_t>(stop)));
+        result.insert(result.end(), encoded.begin(), encoded.end());
+    }
+    return result;
+}
+Bytes single(const Bytes& raw, std::size_t chunk = 32768) {
+    Bytes result; append_u32(result, 0xfedcbaaaU);
+    const auto p = part(raw, chunk);
+    result.insert(result.end(), p.begin(), p.end());
+    return result;
+}
+Bytes multipart(const Bytes& first, const Bytes& second) {
+    Bytes result; append_u32(result, 0xfedcbaaaU);
+    const auto a = part(first), b = part(second);
+    result.insert(result.end(), a.begin(), a.end());
+    const auto second_at = static_cast<std::uint32_t>(result.size());
+    result.insert(result.end(), b.begin(), b.end());
+    const auto footer_at = result.size();
+    result.resize(footer_at + 68, 0);
+    u32(result, footer_at, 0xaaabcdefU);
+    u32(result, footer_at + 4, 0x3cU);
+    u32(result, footer_at + 8, second_at);
+    u32(result, footer_at + 12, static_cast<std::uint32_t>(footer_at)); // End marker, ignored.
+    return result;
+}
+void write(const fs::path& path, const Bytes& bytes) {
+    std::ofstream out{path, std::ios::binary};
+    out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    check(static_cast<bool>(out), "write synthetic fixture");
+}
+Bytes map_bytes() {
+    Bytes bytes(static_cast<std::size_t>(maps::objects_logical_offset + maps::grid_byte_length), 0);
+    const std::array<std::uint8_t, 8> signature{5, 0, 0xfe, 0xca, 0, 0, 2, 0};
+    std::copy(signature.begin(), signature.end(), bytes.begin());
+    u32(bytes, 84, 112);
+    u32(bytes, static_cast<std::size_t>(maps::terrain_logical_offset) + 4U, 0x12345678U); // (1,0)
+    u32(bytes, static_cast<std::size_t>(maps::terrain_logical_offset) + 228U * 4U, 0xdeadbeefU); // (0,1)
+    u32(bytes, static_cast<std::size_t>(maps::objects_logical_offset) + (2U * 228U + 3U) * 4U, 0xaabbccddU);
+    return bytes;
+}
+} // namespace
+
+int main() {
+    try {
+        const fs::path root = fs::temp_directory_path() /
+            ("openemperor-map-tests-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        fs::create_directory(root);
+        const auto file = root / "synthetic.map";
+        write(file, single(Bytes{'a', 'b', 'c'}));
+        auto container = maps::EmperorContainer::open(file);
+        check(!container.multipart() && container.parts().size() == 1 &&
+              container.parts()[0].blocks.size() == 1 &&
+              container.read_part(0) == Bytes({'a', 'b', 'c'}), "single block");
+        check(container.parts()[0].blocks[0].physical_header_offset == 4 &&
+              container.parts()[0].blocks[0].logical_offset == 0, "offset domains");
+        rejects([&] { container.read_range(0, 3, 1); });
+        rejects([&] { container.read_range(0, UINT64_MAX, 1); });
+        rejects([&] { container.read_part(1); });
+
+        write(file, single(Bytes{'a','b','c','d','e','f','g'}, 3));
+        container = maps::EmperorContainer::open(file);
+        check(container.parts()[0].blocks.size() == 3 &&
+              container.read_range(0, 2, 4) == Bytes({'c','d','e','f'}), "cross-block logical read");
+
+        auto data = map_bytes();
+        write(file, single(data));
+        container = maps::EmperorContainer::open(file);
+        check(maps::probe_map_part(container, 0).profile == maps::PartProfile::Map, "map profile probe");
+        const auto parsed = maps::read_emperor_map(container, 0);
+        check(parsed.stored_width == 228 && parsed.declared_map_size == 112 &&
+              parsed.terrain_raw.values.size() == 51984 && parsed.objects_raw.values.size() == 51984,
+              "complete map layer lengths");
+        check(parsed.terrain_at(1,0) == 0x12345678U &&
+              parsed.terrain_at(0,1) == 0xdeadbeefU &&
+              parsed.object_at(3,2) == 0xaabbccddU, "row-major little-endian raw words");
+        check(parsed.terrain_cell_offset(1,0) == maps::terrain_logical_offset + 4 &&
+              parsed.object_cell_offset(3,2) == maps::objects_logical_offset + (2 * 228 + 3) * 4,
+              "cell logical offsets");
+        rejects([&] { parsed.terrain_at(228,0); });
+        rejects([&] { parsed.object_at(0,228); });
+
+        const auto multi_file = root / "synthetic.pak";
+        write(multi_file, multipart(Bytes{'x','y','z'}, data));
+        auto multi = maps::EmperorContainer::open(multi_file);
+        check(multi.multipart() && multi.parts().size() == 2 &&
+              maps::probe_map_part(multi, 0).profile == maps::PartProfile::Unknown &&
+              maps::read_emperor_map(multi, 1).terrain_at(1,0) == 0x12345678U,
+              "selected multipart map profile");
+        rejects([&] { maps::read_emperor_map(multi, 0); });
+        auto broken_table = multipart(Bytes{'x'}, Bytes{'y'});
+        u32(broken_table, broken_table.size() - 60, 3); // Part start before first physical block.
+        write(multi_file, broken_table);
+        rejects([&] { maps::EmperorContainer::open(multi_file); });
+
+        auto invalid_size = data; u32(invalid_size, 84, 229);
+        write(file, single(invalid_size));
+        container = maps::EmperorContainer::open(file);
+        rejects([&] { maps::read_emperor_map(container, 0); });
+        auto invalid_signature = data; invalid_signature[0] = 0;
+        write(file, single(invalid_signature));
+        container = maps::EmperorContainer::open(file);
+        rejects([&] { maps::read_emperor_map(container, 0); });
+        auto short_map = data; short_map.resize(500000);
+        write(file, single(short_map));
+        container = maps::EmperorContainer::open(file);
+        rejects([&] { maps::read_emperor_map(container, 0); });
+
+        auto truncated = single(Bytes{'a','b'});
+        truncated.resize(14); write(file, truncated);
+        rejects([&] { maps::EmperorContainer::open(file); });
+        auto bad_length = single(Bytes{'a','b'});
+        u32(bad_length, 8, 0xffffffffU); write(file, bad_length);
+        rejects([&] { maps::EmperorContainer::open(file); });
+        bad_length = single(Bytes{'a','b'});
+        u32(bad_length, 12, 32769); write(file, bad_length);
+        rejects([&] { maps::EmperorContainer::open(file); });
+        auto extra_input = single(Bytes{'a','b'});
+        extra_input.push_back(0);
+        u32(extra_input, 8, static_cast<std::uint32_t>(extra_input.size() - 16));
+        write(file, extra_input);
+        container = maps::EmperorContainer::open(file);
+        rejects([&] { container.read_part(0); });
+        auto wrong_output = single(Bytes{'a','b'});
+        u32(wrong_output, 12, 3); write(file, wrong_output);
+        container = maps::EmperorContainer::open(file);
+        rejects([&] { container.read_part(0); });
+        auto corrupt = single(Bytes{'a','b'}); corrupt[16] ^= 0xffU;
+        write(file, corrupt); container = maps::EmperorContainer::open(file);
+        rejects([&] { container.read_part(0); });
+        auto short_payload = single(Bytes{'a','b'}); short_payload.pop_back();
+        write(file, short_payload);
+        rejects([&] { maps::EmperorContainer::open(file); });
+
+        {
+            std::ofstream oversized{file, std::ios::binary | std::ios::trunc};
+            oversized.seekp(64 * 1024 * 1024);
+            oversized.put('\0');
+        }
+        rejects([&] { maps::EmperorContainer::open(file); });
+
+        fs::remove_all(root);
+        std::cout << "synthetic container and map checks passed\n";
+        return 0;
+    } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
+}

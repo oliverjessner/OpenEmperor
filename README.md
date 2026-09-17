@@ -4,7 +4,7 @@ OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of t
 
 ## Current status
 
-This repository contains an SDL3 application shell, a read-only SG3 metadata inspector, a metadata-only asset catalog, a visual asset browser, a one-image RGBA/PNG exporter, and a small isometric test-scene viewer. With `--sg3 <file.sg3> --image <index>`, the app loads one supported image directly from the user's SG3/.555 files and renders it in an SDL3 texture. With `--data <directory> --browse-assets`, it inventories SG3 files recursively and shows lazily decoded thumbnails. With `--data <directory> --scene <scene.json>`, it composes a locally defined still scene from selected images. Supported color layouts are plain RGB555, Omega sprite streams, and Type-30 isometric footprints (classic 58×30 and Emperor 78×40 tiles, with optional Omega color overlay). The observed internal version-214 Type-256 alpha profile is supported; other alpha profiles remain unverified. `--preview <exported.png>` remains available for debugging. Original maps and game simulation are not supported.
+This repository contains an SDL3 application shell, a read-only SG3 metadata inspector, a metadata-only asset catalog, a visual asset browser, a one-image RGBA/PNG exporter, a small isometric test-scene viewer, and a read-only original-map storage-grid debug view. With `--sg3 <file.sg3> --image <index>`, the app loads one supported image directly from the user's SG3/.555 files and renders it in an SDL3 texture. With `--data <directory> --browse-assets`, it inventories SG3 files recursively and shows lazily decoded thumbnails. With `--data <directory> --scene <scene.json>`, it composes a locally defined still scene from selected images. With `--data <directory> --map-debug <relative.map>`, it reads one supported original map and displays its raw terrain or object raster. Supported color layouts are plain RGB555, Omega sprite streams, and Type-30 isometric footprints (classic 58×30 and Emperor 78×40 tiles, with optional Omega color overlay). The observed internal version-214 Type-256 alpha profile is supported; other alpha profiles remain unverified. `--preview <exported.png>` remains available for debugging. There is no game simulation.
 
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
@@ -18,14 +18,15 @@ You must provide your own legally obtained original Emperor game data. The first
 - ✅ SDL3 visual asset browser with lazy thumbnails and bounded texture cache
 - ✅ observed internal version-214 Type-256 alpha addressing and full-image decoding in the local GOG set
 - ✅ isometric test scene with camera pan, pointer-centered zoom, ground-cell selection, and grid overlay
+- ✅ bounded zlib map-container reader, map inspector, and raw 228×228 storage-grid view of original maps
 - ⚠️ external and other unobserved alpha profiles remain unverified; no pixel-exact game comparison
 - ❌ verified horizontal mirroring
-- ❌ original map loading
+- ❌ confirmed active map cells, logical map projection, or map-to-SG3 graphics mapping
 - ❌ game simulation
 
 ## Build on macOS
 
-Install Xcode Command Line Tools and CMake. The default CMake configuration fetches a fixed SDL3 source commit and the checksum-pinned nlohmann/json 3.12.0 release if no exact system package exists; network access may be needed the first time.
+Install Xcode Command Line Tools and CMake. The map reader also uses the system zlib library through CMake's `find_package(ZLIB REQUIRED)`. The default CMake configuration fetches a fixed SDL3 source commit and the checksum-pinned nlohmann/json 3.12.0 release if no exact system package exists; network access may be needed the first time.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=arm64
@@ -52,6 +53,9 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor --data /path/to/your/game-data --browse-assets
 ./build/openemperor --data /path/to/your/game-data --browse-assets --ignore-alpha
 ./build/openemperor --data /path/to/your/game-data --scene .local/scenes/first-scene.json
+./build/openemperor-map-inspect --data /path/to/your/game-data --list --json
+./build/openemperor-map-inspect /path/to/your/game-data/Cities/Xia.map --json
+./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map
 ctest --test-dir build --output-on-failure
 ```
 
@@ -66,5 +70,7 @@ For diagnosis only, `openemperor-assets --data <directory> --audit-alpha` prints
 The browser initially shows records with supported color metadata and valid color ranges, including supported alpha profiles whose effective alpha range is valid. Unverified profiles remain available through `4` (all candidates), where decode failures become placeholders. Keys `1`, `2`, and `3` select Plain, Sprite, and Type-30 images; `0` shows all kinds. Arrow keys or WASD move the selection, Page Up/Down move a page, Enter opens detail, and Escape returns to the grid or quits. Detail mode reports the selected policy and effective offset. Thumbnails exist only in memory, use nearest-neighbor scaling, and are cached up to 64 textures or 64 MiB (with a 16 MiB per-image limit). `--ignore-alpha` is a separate diagnostic color-only browser mode.
 
 The scene viewer uses a deliberately authored JSON scene, not an Emperor map. The local `.local/scenes/first-scene.json` selects four graphics from the user's GOG data; it is ignored by Git. WASD/arrow keys pan, the wheel zooms around the cursor (0.5×–4×), left-click outlines a ground cell and shows its coordinates in the title, `G` toggles the grid, `R` recenters, and Escape quits. Terrain is drawn before objects, which are sorted by their frontmost footprint point with instance ID as a stable tie-breaker. This is sufficient for the simple, non-interlocking example, not arbitrary overlapping buildings. See [our scene format](docs/scene-format.md) for anchors, bounds, and budgets.
+
+`openemperor-map-inspect` scans `.map`, `.pak`, and common save extensions under a selected data root without following symlinks. Extensions only select candidates: the container and each part are checked by content. A direct file inspection supports `--part <index>` and `--json`; multipart containers require a selected part for a full map read. JSON separates `container_valid` from `map_read_success` and reports physical and logical sizes, block counts, candidate map parts, bounded value frequencies, and file-specific errors. A valid container alone does not establish a valid map. The app's `--map-debug` path must remain within `--data`; a multipart file additionally requires `--part`. The view shows the **stored** 228×228 raster with deterministic colors keyed only by raw values. Press `1`/`2` or Tab to switch terrain/object values, WASD/arrows to pan, wheel to zoom, left-click to inspect both decimal/hex values and logical offsets, `R` to recenter, and Escape to quit. The declared map size is shown separately; the playable area and coordinate mapping are **unknown**. No original graphics, assets, map logic, or intermediate file is used. See [map-format notes](docs/reverse/map-format.md).
 
 See [architecture](docs/architecture.md) and [reverse-engineering notes](docs/reverse/README.md) for the project boundaries.

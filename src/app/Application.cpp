@@ -1,6 +1,7 @@
 #include "app/Application.h"
 #include "app/AssetBrowser.h"
 #include "app/SceneView.h"
+#include "app/MapDebugView.h"
 
 #include "renderer/TitleScreen.h"
 #include "renderer/ImagePreview.h"
@@ -15,8 +16,10 @@ namespace openemperor {
 
 Application::Application(std::optional<assets::RgbaImage> preview,
                          std::unique_ptr<AssetBrowser> browser,
-                         std::unique_ptr<SceneView> scene)
-    : preview_(std::move(preview)), browser_(std::move(browser)), scene_(std::move(scene)) {}
+                         std::unique_ptr<SceneView> scene,
+                         std::unique_ptr<MapDebugView> map_debug)
+    : preview_(std::move(preview)), browser_(std::move(browser)), scene_(std::move(scene)),
+      map_debug_(std::move(map_debug)) {}
 
 Application::~Application() {
     shutdown();
@@ -29,9 +32,9 @@ bool Application::initialize() {
     }
     sdl_initialized_ = true;
 
-    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ || scene_ ? 1100 : 800,
-                                     browser_ || scene_ ? 700 : 450,
-                                     scene_ ? SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY : 0,
+    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ || scene_ || map_debug_ ? 1100 : 800,
+                                     browser_ || scene_ || map_debug_ ? 700 : 450,
+                                     scene_ || map_debug_ ? SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY : 0,
                                      &window_, &renderer_)) {
         std::cerr << "SDL window/renderer creation failed: " << SDL_GetError() << '\n';
         shutdown();
@@ -46,6 +49,14 @@ bool Application::initialize() {
             return false;
         }
         std::cout << "Scene loaded " << scene_->texture_count() << " distinct assets\n";
+    }
+    if (map_debug_) {
+        try { map_debug_->initialize(window_, renderer_); }
+        catch (const std::exception& error) {
+            std::cerr << "Map debug initialization failed: " << error.what() << '\n';
+            shutdown();
+            return false;
+        }
     }
     if (preview_) {
         const std::uint64_t pitch = static_cast<std::uint64_t>(preview_->width) * 4U;
@@ -76,7 +87,13 @@ int Application::run() {
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (scene_) {
+            if (map_debug_) {
+                try { map_debug_->handle_event(event, running); }
+                catch (const std::exception& error) {
+                    std::cerr << "Map debug event failed: " << error.what() << '\n';
+                    return 1;
+                }
+            } else if (scene_) {
                 scene_->handle_event(event, running);
             } else if (browser_) {
                 browser_->handle_event(event, running);
@@ -91,6 +108,7 @@ int Application::run() {
         }
         const std::uint64_t now = SDL_GetTicksNS();
         if (scene_) scene_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
+        if (map_debug_) map_debug_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
         last_ticks = now;
         if (!render()) {
             std::cerr << "SDL rendering failed: " << SDL_GetError() << '\n';
@@ -111,6 +129,13 @@ int Application::run() {
 }
 
 bool Application::render() {
+    if (map_debug_) {
+        try { return map_debug_->render(); }
+        catch (const std::exception& error) {
+            std::cerr << "Map debug render failed: " << error.what() << '\n';
+            return false;
+        }
+    }
     if (scene_) return scene_->render();
     if (browser_) return browser_->render();
     if (preview_texture_ != nullptr && preview_) {
@@ -120,6 +145,7 @@ bool Application::render() {
 }
 
 void Application::shutdown() {
+    if (map_debug_) map_debug_->shutdown();
     if (scene_) scene_->shutdown();
     if (browser_) browser_->shutdown();
     if (preview_texture_ != nullptr) {
