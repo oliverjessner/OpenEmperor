@@ -77,7 +77,7 @@ void write_file(const fs::path& path, std::span<const std::uint8_t> bytes) {
 
 const std::vector<std::uint8_t> bitmap{
     0xaa, 0xbb, 0xcc, 0xdd, // Payload starts at offset four.
-    0x1f, 0x00, 0xe0, 0x03, 0x00, 0x7c, 0x1f, 0xf8,
+    0x00, 0x7c, 0xe0, 0x03, 0x1f, 0x00, 0x1f, 0xf8,
     0xee, 0xff, // Trailing bytes must not become image pixels.
 };
 const std::vector<std::uint8_t> expected{
@@ -164,7 +164,7 @@ bool run_checks(const fs::path& root) {
 
     const std::vector<std::uint8_t> sprite_stream{
         255, 1, // First pixel stays transparent.
-        2, 0x1f, 0x00, 0xe0, 0x03, // Red and green across the row boundary.
+        2, 0x00, 0x7c, 0xe0, 0x03, // Red and green across the row boundary.
         255, 1, // Last pixel stays transparent.
     };
     std::vector<std::uint8_t> sprite_bitmap{0xaa, 0xbb, 0xcc, 0xdd};
@@ -178,6 +178,22 @@ bool run_checks(const fs::path& root) {
         0, 255, 0, 255, 0, 0, 0, 0,
     };
     if (load_sg3_image({sprite, 0}).pixels != sprite_expected) return false;
+
+    auto mixed_alpha_record = synthetic_sg3("", false, 256, 3);
+    u32(mixed_alpha_record, image_offset + 4, 3);
+    u16(mixed_alpha_record, image_offset + 20, 1);
+    u16(mixed_alpha_record, image_offset + 22, 1);
+    u32(mixed_alpha_record, image_offset + 64, 10); // Profile marker: 4 + 2 * 3.
+    u32(mixed_alpha_record, image_offset + 68, 2);
+    const fs::path mixed_alpha_path = root / "mixed-alpha.sg3";
+    write_file(mixed_alpha_path, mixed_alpha_record);
+    const std::array<std::uint8_t, 12> mixed_alpha_bitmap{
+        0, 0, 0, 0, 1, 0x23, 0x4a, 1, 16, 0, 0, 0};
+    write_file(root / "mixed-alpha.555", mixed_alpha_bitmap);
+    if (load_sg3_image({mixed_alpha_path, 0}).pixels !=
+            std::vector<std::uint8_t>{148, 140, 24, 132} ||
+        load_sg3_image({mixed_alpha_path, 0, true}).pixels !=
+            std::vector<std::uint8_t>{148, 140, 24, 255}) return false;
 
     const fs::path sprite_short = root / "sprite-short.sg3";
     write_file(sprite_short, synthetic_sg3("", false, 257,

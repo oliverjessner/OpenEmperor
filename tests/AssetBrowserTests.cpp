@@ -73,7 +73,7 @@ void make_fixture(const fs::path& root) {
     write(root / "many.sg3", sg3);
     std::vector<std::uint8_t> bitmap(4U + count * 8U, 0);
     for (std::size_t at = 4; at < bitmap.size(); at += 2U) {
-        bitmap[at] = 0x1f; // Independent synthetic red RGB555 pixel.
+        bitmap[at + 1] = 0x7c; // Independent synthetic red RGB555 pixel.
     }
     write(root / "many.555", bitmap);
 }
@@ -99,7 +99,7 @@ bool check_alpha_browser(const fs::path& root) {
         u32(sg3, at + 68, 2);
     }
     write(root / "alpha.sg3", sg3);
-    write(root / "alpha.555", std::vector<std::uint8_t>{0, 0, 0, 0, 1, 0x1f, 0, 1, 31});
+    write(root / "alpha.555", std::vector<std::uint8_t>{0, 0, 0, 0, 1, 0x00, 0x7c, 1, 31});
     const auto catalog = openemperor::assets::scan_asset_catalog(root);
     if (catalog.records.size() != 2 || !catalog.records[0].decoder_supported ||
         catalog.records[1].decoder_supported) return false;

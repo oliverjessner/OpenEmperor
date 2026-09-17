@@ -66,10 +66,11 @@ int main() {
         const fs::path root = fs::temp_directory_path() / "openemperor-scene-renderer-test";
         fs::remove_all(root); fs::create_directory(root);
         std::vector<std::uint8_t> red(3200);
-        for (std::size_t i = 0; i < red.size(); i += 2) { red[i] = 0x1f; red[i + 1] = 0; }
+        for (std::size_t i = 0; i < red.size(); i += 2) { red[i] = 0x00; red[i + 1] = 0x7c; }
         archive(root, "ground", 78, 40, 30, red);
-        archive(root, "overlay", 1, 1, 256, {1, 0x00, 0x7c}, {1, 0xf0});
+        archive(root, "overlay", 1, 1, 256, {1, 0x1f, 0x00}, {1, 0xf0});
         archive(root, "front", 1, 1, 13, {0xe0, 0x03});
+        archive(root, "mixed", 1, 1, 13, {0x23, 0x4a});
         std::vector<std::uint8_t> green(200);
         for (std::size_t i = 0; i < green.size(); i += 2) { green[i] = 0xe0; green[i + 1] = 0x03; }
         archive(root, "tall", 1, 100, 13, green);
@@ -126,6 +127,22 @@ int main() {
         pixel(surface, 40, 80, r,g,b,a);
         check(r == 0 && g == 255 && b == 0, "tall visible pixel");
         tall_renderer.shutdown();
+
+        sc::Scene mixed_scene;
+        mixed_scene.width = 1; mixed_scene.height = 1;
+        mixed_scene.assets["ground"] = scene.assets.at("ground");
+        mixed_scene.assets["mixed"] = asset(root, "mixed", 1, 1, {0, 0}, false);
+        mixed_scene.default_terrain = "ground";
+        mixed_scene.objects.push_back({"mixed-pixel", "mixed", {0.5, 0.5}});
+        openemperor::SceneRenderer mixed_renderer{mixed_scene};
+        mixed_renderer.initialize(sdl);
+        camera.zoom = 4;
+        camera.center_on(sc::project({0.5, 0.5}));
+        check(mixed_renderer.render(camera, false, std::nullopt), "render asymmetric RGB source");
+        pixel(surface, 81, 61, r,g,b,a);
+        check(r == 148 && g == 140 && b == 24 && a == 255,
+              "SDL RGBA32 texture preserves independent R/G/B/A bytes");
+        mixed_renderer.shutdown();
 
         SDL_Window* window = nullptr;
         SDL_Renderer* window_renderer = nullptr;

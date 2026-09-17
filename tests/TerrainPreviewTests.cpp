@@ -93,7 +93,7 @@ int main() {
         const fs::path root = fs::temp_directory_path() / ("openemperor-terrain-preview-" + std::to_string(unique));
         fs::create_directory(root);
         struct Cleanup { fs::path path; ~Cleanup() { std::error_code ignored; fs::remove_all(path, ignored); } } cleanup{root};
-        synthetic_tile(root, "red", 0x001f);
+        synthetic_tile(root, "red", 0x7c00);
         synthetic_tile(root, "green", 0x03e0);
         const auto json_path = root / "preview.json";
         Json document = fixture_json();

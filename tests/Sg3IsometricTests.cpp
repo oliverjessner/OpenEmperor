@@ -57,7 +57,7 @@ bool rejects(Operation operation) {
 
 bool run_checks() {
     using openemperor::assets::decode_isometric_rgba;
-    const Bytes classic = tile(0x001f, 1800);
+    const Bytes classic = tile(0x7c00, 1800); // Red in source bits 10–14.
     const auto classic_image = decode_isometric_rgba(metadata(58, 30, 1, classic.size()), classic);
     if (classic_image.width != 58 || classic_image.height != 30 ||
         pixel(classic_image, 0, 0) != transparent ||
@@ -75,8 +75,8 @@ bool run_checks() {
     if (decode_isometric_rgba(metadata(78, 40, 0, emperor.size()), emperor).pixels !=
         emperor_image.pixels) return false;
 
-    Bytes four_tiles = tile(0x001f, 3200);
-    for (const auto& next : {tile(0x03e0, 3200), tile(0x7c00, 3200), tile(0x7fff, 3200)}) {
+    Bytes four_tiles = tile(0x7c00, 3200);
+    for (const auto& next : {tile(0x03e0, 3200), tile(0x001f, 3200), tile(0x7fff, 3200)}) {
         four_tiles.insert(four_tiles.end(), next.begin(), next.end());
     }
     const auto footprint = decode_isometric_rgba(metadata(158, 80, 2, four_tiles.size()), four_tiles);
@@ -97,6 +97,16 @@ bool run_checks() {
     const auto overlay = decode_isometric_rgba(metadata(58, 30, 1, classic.size(), omega.size()), overlaid);
     if (pixel(overlay, 28, 0) != green || pixel(overlay, 29, 0) != red ||
         pixel(overlay, 0, 0) != transparent) return false;
+    Bytes asymmetric = tile(0x4a23, 3200);
+    const auto asymmetric_image = decode_isometric_rgba(metadata(78, 40, 1, asymmetric.size()), asymmetric);
+    if (pixel(asymmetric_image, 38, 0) != Pixel{148, 140, 24, 255}) return false;
+    Bytes asymmetric_overlay = emperor;
+    const Bytes literal{255, 38, 1, 0x23, 0x4a};
+    asymmetric_overlay.insert(asymmetric_overlay.end(), literal.begin(), literal.end());
+    const auto changed = decode_isometric_rgba(
+        metadata(78, 40, 1, emperor.size(), literal.size()), asymmetric_overlay);
+    if (pixel(changed, 38, 0) != Pixel{148, 140, 24, 255} ||
+        pixel(changed, 39, 0) != green) return false;
 
     auto bad_length = metadata(78, 40, 1, emperor.size());
     bad_length.uncompressed_length = 3198;

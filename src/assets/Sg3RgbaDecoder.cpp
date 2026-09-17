@@ -16,9 +16,11 @@ std::array<std::uint8_t, 4> decode_rgb555_pixel(std::uint16_t color) {
     if (color == 0xf81f) {
         return {0, 0, 0, 0};
     }
-    return {expand_five_bits(color),
+    // The source word is already assembled little-endian. These shifts select
+    // its channel bit groups; the returned bytes remain straight R, G, B, A.
+    return {expand_five_bits(static_cast<std::uint16_t>(color >> 10)),
             expand_five_bits(static_cast<std::uint16_t>(color >> 5)),
-            expand_five_bits(static_cast<std::uint16_t>(color >> 10)), 255};
+            expand_five_bits(color), 255};
 }
 
 std::uint64_t required_uncompressed_payload_size(const Sg3Image& image) {

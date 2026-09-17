@@ -10,6 +10,8 @@ You must provide your own legally obtained original Emperor game data. The first
 
 The textured map preview reads original map cells but uses a small, explicit local binding table to choose original SG3 graphics for exact `(terrain_raw, objects_raw)` pairs. Unbound cells are purple diagnostic diamonds. The map-to-image assignments and the 80×40 isometric placement are preview conventions; the original game's graphic variant logic, coastlines, animation, heights, buildings, and simulation are not reconstructed.
 
+RGB555 decoding now follows the public SGReader's red-high/blue-low channel positions; the published sgfileio pixel table gives the opposite red/blue order. Fixed synthetic vectors cover the correction through decode, PNG export, and SDL software rendering. The previous local terrain-preview choice (image 655) was incorrectly described as sandy before this correction. The ignored local binding now uses a visually checked ochre tile (image 268) for one exact raw pair. Water remains unbound because the viewed blue candidates were not verified as water; no original-game pixel match has been established.
+
 - ✅ C++20/SDL3 application and macOS arm64 build
 - ✅ clean-room SG3 metadata parsing and `.555` range checks
 - ✅ plain RGB555, Omega sprite, and Type-30 isometric image decoding

@@ -173,7 +173,7 @@ bool run_checks(const fs::path& parent) {
     u32(supported, table_offset + 68, 2);
     const fs::path supported_archive = alpha_root / "supported.sg3";
     write(supported_archive, supported);
-    write(alpha_root / "supported.555", Bytes{0, 0, 0, 0, 1, 0x1f, 0, 1, 31});
+    write(alpha_root / "supported.555", Bytes{0, 0, 0, 0, 1, 0x00, 0x7c, 1, 31});
     const auto alpha_catalog = assets::scan_asset_catalog(alpha_root);
     if (alpha_catalog.records.size() != 1) return false;
     const auto& alpha = alpha_catalog.records.front();
