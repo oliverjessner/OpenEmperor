@@ -64,6 +64,7 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor-map-inspect --data /path/to/your/game-data --list --json
 ./build/openemperor-map-inspect /path/to/your/game-data/Cities/Xia.map --json
 ./build/openemperor-map-graphics --data /path/to/your/game-data --map Cities/Xia.map --archive DATA/China_Terrain.sg3 --cell 114 114
+./build/openemperor-map-graphics --data /path/to/your/game-data --map Cities/Xia.map --profile exe-6373328b-14bit-hypothesis --cell 134 93
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map --view semantic
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map --view projected
@@ -88,3 +89,5 @@ The scene viewer uses a deliberately authored JSON scene, not an Emperor map. Th
 See [architecture](docs/architecture.md) and [reverse-engineering notes](docs/reverse/README.md) for the project boundaries.
 
 The textured command requires a local binding file (see [terrain binding format](docs/terrain-bindings.md)); no original or decoded assets are bundled. `V` cycles through the available map views. The app prints candidate, bound, unmapped, excluded, loaded-asset, and per-binding counts when it loads a textured map. A missing or damaged referenced asset fails as `asset_error`, never as an unmapped fallback. The binding file under `.local/` is ignored by Git.
+
+The optional `openemperor-map-graphics --profile exe-6373328b-14bit-hypothesis` diagnoses one version-specific graphics-ID interpretation found by bounded static analysis of a locally supplied EXE. It keeps the original raw candidate and the rejected direct-index H1 report, and separately reports a 14-bit slot/local split against explicitly named Terrain/Elevation archives, metadata and payload gates, and selected-image decodes. The generic EXE lookup and registration positions are evidenced, but **the map candidate word has not been traced into that lookup**. This profile therefore does not drive the SDL map preview. See [graphics-ID evidence](docs/reverse/graphics-id.md) for addresses, limits, and the four-map check.

@@ -5,6 +5,7 @@
 #include "maps/MapGeometry.h"
 #include "maps/MapGraphicCandidates.h"
 #include "maps/DirectGraphicCandidate.h"
+#include "maps/GraphicsIdHypothesis.h"
 #include "maps/TerrainInterpretation.h"
 
 #include <nlohmann/json.hpp>
@@ -98,10 +99,54 @@ Json resolution(std::uint32_t value, const assets::AssetCatalog& catalog) {
     return out;
 }
 
+using Registrations = std::map<std::uint32_t, const assets::AssetCatalog*>;
+constexpr std::string_view graphics_profile = "exe-6373328b-14bit-hypothesis";
+
+Json graphics_resolution(std::uint32_t raw, const Registrations& registrations,
+                         const fs::path& root, bool decode) {
+    const auto result = maps::resolve_graphics_id_hypothesis(raw, registrations);
+    Json out{{"profile",graphics_profile},{"raw",result.raw},{"slot",result.slot},
+             {"local_index",result.local_index},{"status",maps::graphics_id_status_name(result.status)},
+             {"metadata_status",result.record ?
+                 (result.record->width>0 && result.record->height>0 && result.record->data_length>0 ?
+                     "nonempty" : "empty") : "not_found"},
+             {"payload_status",result.record ?
+                 (result.status==maps::GraphicsIdStatus::SourceUnavailable ? "unavailable" :
+                     result.status==maps::GraphicsIdStatus::EmptyRecord ? "not_checked" : "available") :
+                 "not_checked"},
+             {"decode_status","not_attempted"}};
+    if (result.record) {
+        const auto& record=*result.record;
+        out["archive"]=record.id.archive_relative_path.generic_string();
+        out["image_index"]=record.id.image_index;
+        out["type"]=record.image_type;
+        out["kind"]=assets::sg3_image_kind_name(record.image_kind);
+        out["width"]=record.width;
+        out["height"]=record.height;
+        out["data_length"]=record.data_length;
+        out["color_bounds"]=assets::asset_range_status_name(record.color_bounds);
+        out["alpha_bounds"]=assets::asset_range_status_name(record.alpha_bounds);
+    }
+    if (decode && result.status==maps::GraphicsIdStatus::DecodeCandidate) {
+        try {
+            const auto image=assets::load_sg3_image(
+                {root / result.record->id.archive_relative_path,result.local_index});
+            out["decode_status"]="success";
+            out["decoded_width"]=image.width;
+            out["decoded_height"]=image.height;
+        } catch (const std::exception& error) {
+            out["decode_status"]="failed";
+            out["decode_error"]=error.what();
+        }
+    }
+    return out;
+}
+
 Json cell_json(maps::GridCell cell, const maps::ParsedEmperorMap& map,
                const maps::MapGraphicCandidates& candidates,
                const maps::MapGeometry& geometry, const assets::AssetCatalog& catalog,
-               const fs::path& archive_path) {
+               const fs::path& archive_path, const Registrations* registrations,
+               const fs::path& root) {
     const auto word = candidates.word_at(cell.x, cell.y);
     const auto byte = candidates.byte_at(cell.x, cell.y);
     const auto interpretation = maps::interpret_terrain(map.terrain_at(cell.x, cell.y),
@@ -126,11 +171,14 @@ Json cell_json(maps::GridCell cell, const maps::ParsedEmperorMap& map,
             result["resolution"]["decode_error"] = error.what();
         }
     } else result["resolution"]["decode_status"] = "not_attempted";
+    if (registrations) result["graphics_id_hypothesis"] =
+        graphics_resolution(word,*registrations,root,true);
     return result;
 }
 
 Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path& archive_relative,
-             std::uint32_t part, const std::vector<maps::GridCell>& requested) {
+             std::uint32_t part, const std::vector<maps::GridCell>& requested,
+             bool use_graphics_profile) {
     const auto map_path = safe_file(root,map_relative);
     const auto container = maps::EmperorContainer::open(map_path);
     const auto map = maps::read_emperor_map(container,part);
@@ -139,6 +187,15 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
     if (!geometry.supported) throw std::runtime_error("candidate mask is unavailable for this map size");
     const auto catalog = assets::scan_asset_archive(root,archive_relative);
     const auto archive_path = safe_file(root,archive_relative);
+    std::optional<assets::AssetCatalog> terrain_catalog;
+    std::optional<assets::AssetCatalog> elevation_catalog;
+    Registrations registrations;
+    if (use_graphics_profile) {
+        terrain_catalog.emplace(assets::scan_asset_archive(root,"DATA/China_Terrain.sg3"));
+        elevation_catalog.emplace(assets::scan_asset_archive(root,"DATA/China_Elevation.sg3"));
+        registrations.emplace(3U,&*terrain_catalog);
+        registrations.emplace(16U,&*elevation_catalog);
+    }
     Json output{{"map",map_relative.generic_string()},{"part",part},
                 {"archive",archive_relative.generic_string()},
                 {"hypothesis","candidate_word_is_direct_index_in_selected_archive"},
@@ -151,11 +208,13 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
     std::map<std::pair<std::uint32_t,std::uint32_t>,Stats> by_raw_pair;
     std::map<std::pair<std::uint32_t,std::uint32_t>,Stats> by_raw_pair_byte;
     std::map<std::string,std::uint64_t> direct, shifted;
+    std::map<std::string,std::uint64_t> graphics_counts;
     Json examples = Json::array();
     std::set<std::pair<std::uint32_t,std::uint32_t>> selected;
     auto add_example = [&](maps::GridCell cell) {
         if (selected.emplace(cell.x,cell.y).second && selected.size() <= 18)
-            examples.push_back(cell_json(cell,map,candidate,geometry,catalog,archive_path));
+            examples.push_back(cell_json(cell,map,candidate,geometry,catalog,archive_path,
+                                         use_graphics_profile ? &registrations : nullptr,root));
     };
     for (const auto cell : requested) add_example(cell);
     for (std::uint32_t y=0;y<maps::stored_grid_height;++y) {
@@ -178,12 +237,20 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
             ++shifted[maps::direct_candidate_status_name(control ?
                 maps::resolve_direct_candidate(catalog,*control).status :
                 maps::DirectCandidateStatus::IndexOutOfRange)];
+            if (use_graphics_profile) ++graphics_counts[maps::graphics_id_status_name(
+                maps::resolve_graphics_id_hypothesis(word,registrations).status)];
         }
     }
     output["word"]={{"candidate",inside_word.json()},{"outside",outside_word.json()}};
     output["byte"]={{"candidate",inside_byte.json()},{"outside",outside_byte.json()}};
     output["direct_status_counts"]=direct;
     output["control_plus_1024_status_counts"]=shifted;
+    if (use_graphics_profile) {
+        output["graphics_id_profile"]=graphics_profile;
+        output["graphics_id_status_counts"]=graphics_counts;
+        output["graphics_id_registration_hypothesis"]={{"3","DATA/China_Terrain.sg3"},
+                                                      {"16","DATA/China_Elevation.sg3"}};
+    }
     output["category_word_stats"]=Json::object();
     for (const auto& [category,stats] : by_category)
         output["category_word_stats"][category]=stats.json();
@@ -224,7 +291,8 @@ Json analyze(const fs::path& root, const fs::path& map_relative, const fs::path&
 
     auto example_with_reason = [&](maps::GridCell cell, std::string reason) {
         if (selected.emplace(cell.x,cell.y).second && selected.size() <= 18) {
-            auto item=cell_json(cell,map,candidate,geometry,catalog,archive_path);
+            auto item=cell_json(cell,map,candidate,geometry,catalog,archive_path,
+                                use_graphics_profile ? &registrations : nullptr,root);
             item["sample_reason"]=std::move(reason);
             examples.push_back(std::move(item));
         }
@@ -288,6 +356,7 @@ int main(int argc,char* argv[]) {
     try {
         fs::path root,map,archive="DATA/China_Terrain.sg3";
         std::uint32_t part=0;
+        bool use_graphics_profile=false;
         std::vector<maps::GridCell> cells_to_show;
         for (int i=1;i<argc;++i) {
             const std::string_view arg=argv[i];
@@ -295,15 +364,20 @@ int main(int argc,char* argv[]) {
             else if (arg=="--map" && i+1<argc) map=argv[++i];
             else if (arg=="--archive" && i+1<argc) archive=argv[++i];
             else if (arg=="--part" && i+1<argc) part=number(argv[++i]);
+            else if (arg=="--profile" && i+1<argc) {
+                if (std::string_view{argv[++i]} != graphics_profile)
+                    throw std::invalid_argument("unknown graphics profile");
+                use_graphics_profile=true;
+            }
             else if (arg=="--cell" && i+2<argc) {
                 const auto x=number(argv[++i]), y=number(argv[++i]);
                 if (x>=maps::stored_grid_width || y>=maps::stored_grid_height)
                     throw std::invalid_argument("cell is outside 228x228");
                 cells_to_show.push_back({x,y});
-            } else throw std::invalid_argument("usage: openemperor-map-graphics --data <root> --map <relative.map> [--part N] [--archive <relative.sg3>] [--cell x y]...");
+            } else throw std::invalid_argument("usage: openemperor-map-graphics --data <root> --map <relative.map> [--part N] [--archive <relative.sg3>] [--profile exe-6373328b-14bit-hypothesis] [--cell x y]...");
         }
         if (root.empty() || map.empty()) throw std::invalid_argument("--data and --map are required");
-        std::cout << analyze(fs::canonical(root),map,archive,part,cells_to_show).dump(2) << '\n';
+        std::cout << analyze(fs::canonical(root),map,archive,part,cells_to_show,use_graphics_profile).dump(2) << '\n';
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "Map graphics candidate inspection failed: " << error.what() << '\n';

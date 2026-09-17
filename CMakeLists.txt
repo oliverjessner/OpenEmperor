@@ -81,6 +81,7 @@ add_library(openemperor-maps STATIC
     src/maps/EmperorMap.cpp
     src/maps/MapGraphicCandidates.cpp
     src/maps/DirectGraphicCandidate.cpp
+    src/maps/GraphicsIdHypothesis.cpp
     src/maps/StorageGridView.cpp
     src/maps/MapGeometry.cpp
     src/maps/TerrainInterpretation.cpp

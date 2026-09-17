@@ -1,6 +1,7 @@
 #include "assets/AssetCatalog.h"
 #include "assets/Sg3ImageLoader.h"
 #include "maps/DirectGraphicCandidate.h"
+#include "maps/GraphicsIdHypothesis.h"
 #include "Sg3Inspect.h"
 
 #include <algorithm>
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <span>
 #include <stdexcept>
@@ -224,6 +226,25 @@ bool run_checks(const fs::path& parent) {
     if (no_bitmap.records.size()!=1 ||
         maps::resolve_direct_candidate(no_bitmap,0).status !=
             maps::DirectCandidateStatus::SourceUnavailable) return false;
+    const std::map<std::uint32_t,const assets::AssetCatalog*> registrations{{3,&one},{16,&no_bitmap}};
+    const auto graphic = [&](std::uint32_t raw) {
+        return maps::resolve_graphics_id_hypothesis(raw,registrations);
+    };
+    if (graphic(0xc000U).status!=maps::GraphicsIdStatus::EmptyRecord ||
+        graphic(0xc001U).status!=maps::GraphicsIdStatus::SourceUnavailable ||
+        graphic(0xc002U).status!=maps::GraphicsIdStatus::DecodeCandidate ||
+        graphic(0xc002U).raw!=0xc002U || graphic(0xc002U).slot!=3 ||
+        graphic(0xc002U).local_index!=2 ||
+        graphic(0xc003U).status!=maps::GraphicsIdStatus::EmptyRecord ||
+        graphic(0xc004U).status!=maps::GraphicsIdStatus::IndexOutOfRange ||
+        graphic(0xffffU).status!=maps::GraphicsIdStatus::IndexOutOfRange ||
+        graphic(0x40000U).status!=maps::GraphicsIdStatus::SourceUnavailable ||
+        graphic(0xbfffU).status!=maps::GraphicsIdStatus::UnregisteredSlot ||
+        graphic(0x14000U).status!=maps::GraphicsIdStatus::UnregisteredSlot ||
+        graphic(0x8000c002U).status!=maps::GraphicsIdStatus::UnsupportedHighBit ||
+        graphic(0xc002U).record->id.archive_relative_path!="probe.sg3" ||
+        assets::load_sg3_image({probe_root / graphic(0xc002U).record->id.archive_relative_path,
+                                graphic(0xc002U).local_index}).pixels!=Bytes{255,0,0,255}) return false;
     const std::array<std::uint32_t,6> words{1,1,1,2,2,2};
     const std::array<std::uint32_t,6> labels{1,1,1,2,2,2};
     const auto control=maps::compare_candidate_structure(words,labels);
