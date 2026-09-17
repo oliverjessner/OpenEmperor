@@ -155,10 +155,10 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
     output << ',';
     json_key_string(output, "image_kind", openemperor::assets::sg3_image_kind_name(
         openemperor::assets::classify_sg3_image_type(image.image_type)));
+    output << ",\"has_alpha\":" << (has_alpha && image.alpha_length != 0 ? "true" : "false");
     if (has_alpha) {
         output << ",\"alpha_offset\":" << image.alpha_offset
-               << ",\"alpha_length\":" << image.alpha_length
-               << ",\"has_alpha\":" << (image.alpha_length != 0 ? "true" : "false");
+               << ",\"alpha_length\":" << image.alpha_length;
     }
     output << ',';
     json_key_string(output, "bitmap_ref", validation.bitmap_ref);
