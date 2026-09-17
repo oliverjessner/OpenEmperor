@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assets/Sg3Archive.h"
+#include "assets/Sg3PayloadLayout.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -18,7 +19,7 @@ struct AssetId {
     bool operator==(const AssetId&) const = default;
 };
 
-enum class AssetRangeStatus { NotPresent, InBounds, OutOfBounds, SourceUnavailable };
+enum class AssetRangeStatus { NotPresent, InBounds, OutOfBounds, SourceUnavailable, Unverified };
 const char* asset_range_status_name(AssetRangeStatus status);
 
 struct AssetRecord {
@@ -38,13 +39,17 @@ struct AssetRecord {
     std::uint8_t isometric_size_flag = 0;
     std::uint32_t alpha_offset = 0;
     std::uint32_t alpha_length = 0;
+    std::optional<std::uint64_t> effective_alpha_offset;
+    AlphaPolicy alpha_policy = AlphaPolicy::None;
+    bool alpha_profile_supported = true;
     std::uint32_t horizontal_mirror_offset = 0;
     AssetRangeStatus color_bounds = AssetRangeStatus::SourceUnavailable;
     AssetRangeStatus alpha_bounds = AssetRangeStatus::NotPresent;
+    AssetRangeStatus raw_alpha_bounds = AssetRangeStatus::NotPresent;
     bool metadata_supported = true;
     bool payload_in_bounds = false;
     bool color_decoder_supported = false;
-    bool decoder_supported = false; // Conservative full-image status; alpha semantics unresolved.
+    bool decoder_supported = false; // Supported layout, independent of source bounds or decode outcome.
     bool decode_attempted = false;
     bool decode_succeeded = false;
     std::string decode_error;

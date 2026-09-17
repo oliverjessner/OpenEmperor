@@ -1,5 +1,6 @@
 #include "assets/AssetCatalog.h"
 #include "assets/Sg3AlphaAudit.h"
+#include "assets/Sg3ImageLoader.h"
 
 #include <charconv>
 #include <cstdint>
@@ -22,6 +23,7 @@ void usage() {
               << " [--archive <substring>] [--group <substring>]"
               << " [--with-alpha|--without-alpha] [--min-width <n>] [--min-height <n>]\n";
     std::cerr << "       openemperor-assets --data <directory> --audit-alpha [--json]\n";
+    std::cerr << "       openemperor-assets --data <directory> --verify-alpha-decodes\n";
 }
 
 bool parse_u16(std::string_view text, std::uint16_t& value) {
@@ -108,12 +110,24 @@ void print_json(const assets::AssetCatalog& catalog,
                << ",\"external_flag\":" << static_cast<unsigned int>(record.external_flag)
                << ",\"isometric_size_flag\":" << static_cast<unsigned int>(record.isometric_size_flag)
                << ",\"alpha_offset\":" << record.alpha_offset
+               << ",\"alpha_offset_raw\":" << record.alpha_offset
+               << ",\"effective_alpha_offset\":";
+        if (record.effective_alpha_offset) output << *record.effective_alpha_offset;
+        else output << "null";
+        output << ",\"alpha_addressing_policy\":";
+        json_string(output, assets::alpha_policy_name(record.alpha_policy));
+        output << ",\"alpha_profile_supported\":"
+               << (record.alpha_profile_supported ? "true" : "false")
                << ",\"alpha_length\":" << record.alpha_length
                << ",\"horizontal_mirror_offset\":" << record.horizontal_mirror_offset
                << ",\"color_bounds\":";
         json_string(output, assets::asset_range_status_name(record.color_bounds));
         output << ",\"alpha_bounds\":";
         json_string(output, assets::asset_range_status_name(record.alpha_bounds));
+        output << ",\"effective_alpha_bounds\":";
+        json_string(output, assets::asset_range_status_name(record.alpha_bounds));
+        output << ",\"raw_alpha_bounds\":";
+        json_string(output, assets::asset_range_status_name(record.raw_alpha_bounds));
         output << ",\"alpha_metadata_present\":" << (record.alpha_length != 0 ? "true" : "false")
                << ",\"metadata_supported\":" << (record.metadata_supported ? "true" : "false")
                << ",\"payload_in_bounds\":" << (record.payload_in_bounds ? "true" : "false")
@@ -229,6 +243,77 @@ void print_audit(const assets::AlphaAudit& audit, bool json, std::ostream& outpu
     }
 }
 
+bool verify_alpha_decodes(const assets::AssetCatalog& catalog, std::ostream& output) {
+    std::uint64_t found = 0;
+    std::uint64_t supported_profile = 0;
+    std::uint64_t supported_color = 0;
+    std::uint64_t effective_in_bounds = 0;
+    std::uint64_t decoded = 0;
+    std::uint64_t failed = 0;
+    std::uint64_t compared = 0;
+    std::uint64_t matched = 0;
+    std::uint64_t comparison_failed = 0;
+    std::map<std::string, std::uint64_t> errors;
+    std::map<std::string, std::uint64_t> skipped_ranges;
+    std::map<std::filesystem::path, std::uint64_t> archive_samples;
+    for (const auto& record : catalog.records) {
+        if (record.alpha_length == 0) continue;
+        ++found;
+        if (!record.alpha_profile_supported) continue;
+        ++supported_profile;
+        if (!record.color_decoder_supported) continue;
+        ++supported_color;
+        if (record.color_bounds != assets::AssetRangeStatus::InBounds ||
+            record.alpha_bounds != assets::AssetRangeStatus::InBounds) {
+            ++skipped_ranges[std::string{"color="} + assets::asset_range_status_name(record.color_bounds) +
+                             " alpha=" + assets::asset_range_status_name(record.alpha_bounds)];
+            continue;
+        }
+        ++effective_in_bounds;
+        const std::filesystem::path archive = catalog.data_root / record.id.archive_relative_path;
+        try {
+            const auto image = assets::load_sg3_image({archive, record.id.image_index});
+            ++decoded;
+            const bool sample = archive_samples[record.id.archive_relative_path]++ < 2 ||
+                record.raw_alpha_bounds == assets::AssetRangeStatus::OutOfBounds;
+            if (sample) {
+                ++compared;
+                try {
+                    const auto diagnostic = assets::load_sg3_image({archive, record.id.image_index,
+                        false, assets::AlphaAddressing::Contiguous});
+                    if (diagnostic.width == image.width && diagnostic.height == image.height &&
+                        diagnostic.pixels == image.pixels) ++matched;
+                    else ++comparison_failed;
+                } catch (const std::exception& error) {
+                    ++comparison_failed;
+                    ++errors[std::string{"comparison: "} + error.what()];
+                }
+            }
+        } catch (const std::exception& error) {
+            ++failed;
+            ++errors[error.what()];
+        }
+    }
+    output << "Alpha records found: " << found << '\n'
+           << "Supported alpha profile: " << supported_profile << '\n'
+           << "Supported profile and color metadata: " << supported_color << '\n'
+           << "Effective color/alpha ranges in bounds: " << effective_in_bounds << '\n'
+           << "Full RGBA decodes succeeded: " << decoded << '\n'
+           << "Full RGBA decodes failed: " << failed << '\n'
+           << "Unverified/unsupported alpha profiles: " << found - supported_profile << '\n'
+           << "Default/CONTIGUOUS samples compared: " << compared << '\n'
+           << "Identical RGBA samples: " << matched << '\n'
+           << "Comparison failures or mismatches: " << comparison_failed << '\n';
+    for (const auto& [message, count] : errors) {
+        output << "  " << count << " × " << message << '\n';
+    }
+    for (const auto& [reason, count] : skipped_ranges) {
+        output << "  " << count << " skipped range: " << reason << '\n';
+    }
+    return failed == 0 && comparison_failed == 0 &&
+        effective_in_bounds == supported_profile && supported_color == supported_profile;
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -236,6 +321,7 @@ int main(int argc, char* argv[]) {
     bool data_supplied = false;
     bool json = false;
     bool audit_alpha = false;
+    bool verify_alpha = false;
     assets::AssetFilter filter;
     for (int index = 1; index < argc; ++index) {
         const std::string_view option{argv[index]};
@@ -243,6 +329,8 @@ int main(int argc, char* argv[]) {
             json = true;
         } else if (option == "--audit-alpha" && !audit_alpha) {
             audit_alpha = true;
+        } else if (option == "--verify-alpha-decodes" && !verify_alpha) {
+            verify_alpha = true;
         } else if (option == "--with-alpha" && !filter.with_alpha) {
             filter.with_alpha = true;
         } else if (option == "--without-alpha" && !filter.with_alpha) {
@@ -282,8 +370,16 @@ int main(int argc, char* argv[]) {
         }
     }
     if (!data_supplied) { usage(); return 2; }
+    if (audit_alpha && verify_alpha) { usage(); return 2; }
     try {
         const assets::AssetCatalog catalog = assets::scan_asset_catalog(data_directory);
+        if (verify_alpha) {
+            if (json || filter.kind || filter.image_type || filter.archive_substring ||
+                filter.group_substring || filter.with_alpha || filter.min_width || filter.min_height) {
+                usage(); return 2;
+            }
+            return verify_alpha_decodes(catalog, std::cout) ? 0 : 1;
+        }
         if (audit_alpha) {
             if (filter.kind || filter.image_type || filter.archive_substring || filter.group_substring ||
                 filter.with_alpha || filter.min_width || filter.min_height) {

@@ -78,6 +78,63 @@ void make_fixture(const fs::path& root) {
     write(root / "many.555", bitmap);
 }
 
+bool check_alpha_browser(const fs::path& root) {
+    fs::create_directory(root);
+    std::vector<std::uint8_t> sg3(image_table + 2U * 72U, 0);
+    u32(sg3, 0, static_cast<std::uint32_t>(sg3.size()));
+    u32(sg3, 4, 214);
+    u32(sg3, 12, 2);
+    u32(sg3, 16, 2);
+    u32(sg3, 20, 1);
+    u32(sg3, 680 + 124, 2);
+    u32(sg3, 680 + 132, 1);
+    for (std::size_t index = 0; index < 2; ++index) {
+        const std::size_t at = image_table + index * 72U;
+        u32(sg3, at, 4);
+        u32(sg3, at + 4, 3);
+        u16(sg3, at + 20, 1);
+        u16(sg3, at + 22, 1);
+        u16(sg3, at + 50, 256);
+        u32(sg3, at + 64, index == 0 ? 10 : 0);
+        u32(sg3, at + 68, 2);
+    }
+    write(root / "alpha.sg3", sg3);
+    write(root / "alpha.555", std::vector<std::uint8_t>{0, 0, 0, 0, 1, 0x1f, 0, 1, 31});
+    const auto catalog = openemperor::assets::scan_asset_catalog(root);
+    if (catalog.records.size() != 2 || !catalog.records[0].decoder_supported ||
+        catalog.records[1].decoder_supported) return false;
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+    if (!SDL_Init(SDL_INIT_VIDEO)) throw std::runtime_error(SDL_GetError());
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    if (!SDL_CreateWindowAndRenderer("Alpha browser test", 800, 600,
+                                     SDL_WINDOW_HIDDEN, &window, &renderer)) {
+        SDL_Quit();
+        throw std::runtime_error(SDL_GetError());
+    }
+    openemperor::AssetBrowser browser{catalog, false};
+    browser.initialize(window, renderer);
+    bool passed = browser.render() && browser.decode_attempts() == 1 &&
+                  browser.decode_failures() == 0;
+    bool running = true;
+    SDL_Event event{};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = SDLK_4;
+    browser.handle_event(event, running);
+    passed = passed && browser.render() && browser.decode_attempts() == 2 &&
+             browser.decode_failures() == 1;
+    browser.shutdown();
+    openemperor::AssetBrowser color_only{catalog, true};
+    color_only.initialize(window, renderer);
+    passed = passed && color_only.render() && color_only.decode_attempts() == 2 &&
+             color_only.decode_failures() == 0;
+    color_only.shutdown();
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return passed;
+}
+
 bool run_checks(const fs::path& root) {
     make_fixture(root);
     auto catalog = openemperor::assets::scan_asset_catalog(root);
@@ -123,7 +180,7 @@ bool run_checks(const fs::path& root) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    return passed;
+    return passed && check_alpha_browser(root / "alpha-browser");
 }
 
 } // namespace

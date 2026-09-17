@@ -2,7 +2,7 @@
 
 #include "assets/Sg3Archive.h"
 #include "assets/Sg3RgbaDecoder.h"
-#include "assets/Sg3AlphaAudit.h"
+#include "assets/Sg3PayloadLayout.h"
 
 #include <cstddef>
 #include <cstdint>

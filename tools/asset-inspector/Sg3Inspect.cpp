@@ -2,6 +2,7 @@
 
 #include "assets/Sg3Archive.h"
 #include "assets/Sg3ImageLoader.h"
+#include "assets/Sg3PayloadLayout.h"
 #include "assets/Sg3RgbaDecoder.h"
 #include "assets/RgbaPngEncoder.h"
 
@@ -35,6 +36,10 @@ struct ImageValidation {
     std::string bitmap_ref;
     std::string data_bounds;
     std::string alpha_bounds;
+    std::string raw_alpha_bounds;
+    std::optional<std::uint64_t> effective_alpha_offset;
+    openemperor::assets::AlphaPolicy alpha_policy = openemperor::assets::AlphaPolicy::None;
+    bool alpha_profile_supported = true;
 };
 
 std::string hex_bytes(std::span<const std::uint8_t> bytes) {
@@ -94,7 +99,7 @@ BitmapFile inspect_external_file(const fs::path& archive_path, const Sg3Group& g
     return inspect_file(location.path);
 }
 
-std::string check_bounds(std::uint32_t offset, std::uint32_t length, const BitmapFile& file) {
+std::string check_bounds(std::uint64_t offset, std::uint64_t length, const BitmapFile& file) {
     if (!file.size) {
         return file.status;
     }
@@ -158,14 +163,26 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
     output << ",\"has_alpha\":" << (has_alpha && image.alpha_length != 0 ? "true" : "false");
     if (has_alpha) {
         output << ",\"alpha_offset\":" << image.alpha_offset
+               << ",\"alpha_offset_raw\":" << image.alpha_offset
                << ",\"alpha_length\":" << image.alpha_length;
     }
+    output << ",\"effective_alpha_offset\":";
+    if (validation.effective_alpha_offset) output << *validation.effective_alpha_offset;
+    else output << "null";
+    output << ",\"alpha_addressing_policy\":";
+    json_string(output, openemperor::assets::alpha_policy_name(validation.alpha_policy));
+    output << ",\"alpha_profile_supported\":"
+           << (validation.alpha_profile_supported ? "true" : "false");
     output << ',';
     json_key_string(output, "bitmap_ref", validation.bitmap_ref);
     output << ',';
     json_key_string(output, "data_bounds", validation.data_bounds);
     output << ',';
     json_key_string(output, "alpha_bounds", validation.alpha_bounds);
+    output << ',';
+    json_key_string(output, "effective_alpha_bounds", validation.alpha_bounds);
+    output << ',';
+    json_key_string(output, "raw_alpha_bounds", validation.raw_alpha_bounds);
     output << ',';
     json_key_string(output, "documented_zero_12_15_hex", hex_bytes(std::span{image.raw}.subspan(12, 4)));
     output << ',';
@@ -269,6 +286,10 @@ void inspect_sg3(const fs::path& path, std::ostream& output) {
             ++invalid_image_group_count;
         }
         ImageValidation validation;
+        const auto layout = openemperor::assets::sg3_payload_layout(archive.header.version, image);
+        validation.alpha_policy = layout.alpha_policy;
+        validation.alpha_profile_supported = layout.alpha_profile_supported;
+        if (layout.alpha) validation.effective_alpha_offset = layout.alpha->offset;
         const BitmapFile* source = &internal;
         validation.bitmap_ref = "internal";
         if (image.external_flag == 1) {
@@ -286,14 +307,17 @@ void inspect_sg3(const fs::path& path, std::ostream& output) {
             ++unknown_external_flag_count;
         }
         if (source) {
-            validation.data_bounds = check_bounds(image.data_offset, image.data_length, *source);
-            validation.alpha_bounds = archive.header.version == 214 && image.alpha_length != 0
-                ? check_bounds(image.alpha_offset, image.alpha_length, *source)
-                : "not_present";
+            validation.data_bounds = check_bounds(layout.color.offset, layout.color.length, *source);
+            validation.raw_alpha_bounds = image.alpha_length != 0
+                ? check_bounds(image.alpha_offset, image.alpha_length, *source) : "not_present";
+            validation.alpha_bounds = image.alpha_length == 0 ? "not_present"
+                : layout.alpha ? check_bounds(layout.alpha->offset, layout.alpha->length, *source)
+                               : "unverified";
         } else {
             validation.data_bounds = "source_unresolved";
-            validation.alpha_bounds = archive.header.version == 214 && image.alpha_length != 0
-                ? "source_unresolved" : "not_present";
+            validation.raw_alpha_bounds = image.alpha_length != 0 ? "source_unresolved" : "not_present";
+            validation.alpha_bounds = image.alpha_length == 0 ? "not_present"
+                : layout.alpha ? "source_unresolved" : "unverified";
         }
         if (validation.data_bounds == "out_of_bounds") ++outside_count;
         if (validation.alpha_bounds == "out_of_bounds") ++outside_count;
@@ -340,9 +364,13 @@ void summarize_sg3(const fs::path& path, std::ostream& output) {
     std::uint64_t alpha_in_bounds = 0;
     std::uint64_t alpha_out_of_bounds = 0;
     std::uint64_t alpha_source_unavailable = 0;
+    std::uint64_t alpha_unverified = 0;
+    std::uint64_t raw_alpha_in_bounds = 0;
+    std::uint64_t raw_alpha_out_of_bounds = 0;
     std::uint64_t out_of_bounds_count = 0;
     std::uint64_t unavailable_source_count = 0;
     for (const Sg3Image& image : archive.images) {
+        const auto layout = openemperor::assets::sg3_payload_layout(archive.header.version, image);
         ++type_counts[image.image_type];
         const auto kind = openemperor::assets::classify_sg3_image_type(image.image_type);
         switch (kind) {
@@ -374,16 +402,29 @@ void summarize_sg3(const fs::path& path, std::ostream& output) {
         if (source == nullptr || !source->size) {
             ++unavailable_source_count;
             if (has_alpha) ++alpha_source_unavailable;
-        } else if (!openemperor::assets::range_within_file(image.data_offset, image.data_length, *source->size)) {
+        } else if (!openemperor::assets::range_within_file(
+                       layout.color.offset, layout.color.length, *source->size)) {
             ++out_of_bounds_count;
         }
         if (has_alpha && source != nullptr && source->size) {
             if (openemperor::assets::range_within_file(
                     image.alpha_offset, image.alpha_length, *source->size)) {
-                ++alpha_in_bounds;
+                ++raw_alpha_in_bounds;
             } else {
-                ++alpha_out_of_bounds;
+                ++raw_alpha_out_of_bounds;
             }
+            if (layout.alpha) {
+                if (openemperor::assets::range_within_file(
+                        layout.alpha->offset, layout.alpha->length, *source->size)) {
+                    ++alpha_in_bounds;
+                } else {
+                    ++alpha_out_of_bounds;
+                }
+            } else {
+                ++alpha_unverified;
+            }
+        } else if (has_alpha && !layout.alpha) {
+            ++alpha_unverified;
         }
     }
     output << "{\"format\":\"SG3\",\"archive_path\":";
@@ -412,6 +453,9 @@ void summarize_sg3(const fs::path& path, std::ostream& output) {
            << ",\"unsupported_with_alpha\":" << alpha_kind_counts[3]
            << ",\"alpha_in_bounds\":" << alpha_in_bounds
            << ",\"alpha_out_of_bounds\":" << alpha_out_of_bounds
+           << ",\"alpha_unverified\":" << alpha_unverified
+           << ",\"raw_alpha_in_bounds\":" << raw_alpha_in_bounds
+           << ",\"raw_alpha_out_of_bounds\":" << raw_alpha_out_of_bounds
            << ",\"alpha_source_unavailable\":" << alpha_source_unavailable
            << ",\"out_of_bounds_payload_ranges\":" << out_of_bounds_count
            << ",\"unavailable_payload_sources\":" << unavailable_source_count

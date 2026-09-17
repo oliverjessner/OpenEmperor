@@ -96,6 +96,7 @@ bool rejects_with(Operation operation, const std::string& fragment) {
 }
 
 bool run_checks(const fs::path& root) {
+    using openemperor::assets::AlphaAddressing;
     using openemperor::assets::Sg3ImageRequest;
     using openemperor::assets::load_sg3_image;
     using openemperor::assets::load_sg3_image_with_source;
@@ -228,7 +229,8 @@ bool run_checks(const fs::path& root) {
     std::copy(type30_alpha_stream.begin(), type30_alpha_stream.end(),
               type30_alpha_bitmap.begin() + 5000);
     write_file(root / "type30-alpha.555", type30_alpha_bitmap);
-    const auto type30_masked = load_sg3_image({type30_alpha_path, 0});
+    if (!rejects_with([&] { load_sg3_image({type30_alpha_path, 0}); }, "unverified")) return false;
+    const auto type30_masked = load_sg3_image({type30_alpha_path, 0, false, AlphaAddressing::Spec});
     if (type30_masked.pixels[apex + 1] != 255 || type30_masked.pixels[apex + 3] != 0 ||
         type30_masked.pixels[(39U * 4U) + 3U] != 255) return false;
 
@@ -245,7 +247,8 @@ bool run_checks(const fs::path& root) {
     const fs::path plain_alpha = root / "plain-alpha.sg3";
     write_file(plain_alpha, separated_record);
     write_file(root / "plain-alpha.555", separated_bitmap);
-    const auto plain_masked = load_sg3_image({plain_alpha, 0});
+    if (!rejects_with([&] { load_sg3_image({plain_alpha, 0}); }, "unverified")) return false;
+    const auto plain_masked = load_sg3_image({plain_alpha, 0, false, AlphaAddressing::Spec});
     const std::vector<std::uint8_t> masked_expected{
         255, 0, 0, 255, 0, 255, 0, 0,
         0, 0, 255, 132, 0, 0, 0, 0,
@@ -259,7 +262,7 @@ bool run_checks(const fs::path& root) {
     write_file(alpha_zero, alpha_at_zero);
     std::copy(plain_alpha_stream.begin(), plain_alpha_stream.end(), separated_bitmap.begin());
     write_file(root / "alpha-zero.555", separated_bitmap);
-    if (load_sg3_image({alpha_zero, 0}).pixels != masked_expected) return false;
+    if (load_sg3_image({alpha_zero, 0, false, AlphaAddressing::Spec}).pixels != masked_expected) return false;
 
     auto no_alpha = separated_record;
     u32(no_alpha, image_offset + 64, 0xffffffffU);
@@ -274,7 +277,7 @@ bool run_checks(const fs::path& root) {
     const fs::path bad_alpha_path = root / "bad-alpha.sg3";
     write_file(bad_alpha_path, bad_alpha_range);
     write_file(root / "bad-alpha.555", separated_bitmap);
-    if (!rejects_with([&] { load_sg3_image({bad_alpha_path, 0}); }, "alpha range exceeds")) {
+    if (!rejects_with([&] { load_sg3_image({bad_alpha_path, 0, false, AlphaAddressing::Spec}); }, "alpha range exceeds")) {
         return false;
     }
     if (load_sg3_image({bad_alpha_path, 0, true}).pixels != expected) return false;
@@ -283,7 +286,7 @@ bool run_checks(const fs::path& root) {
     const fs::path bad_color_path = root / "bad-color.sg3";
     write_file(bad_color_path, bad_color_range);
     write_file(root / "bad-color.555", separated_bitmap);
-    if (!rejects_with([&] { load_sg3_image({bad_color_path, 0}); }, "data range exceeds")) {
+    if (!rejects_with([&] { load_sg3_image({bad_color_path, 0, false, AlphaAddressing::Spec}); }, "data range exceeds")) {
         return false;
     }
 
@@ -305,7 +308,70 @@ bool run_checks(const fs::path& root) {
         0, 0, 0, 0, 255, 0, 0, 255,
         0, 255, 0, 132, 0, 0, 0, 0,
     };
-    if (load_sg3_image({sprite_alpha_path, 0}).pixels != sprite_alpha_expected) return false;
+    if (load_sg3_image({sprite_alpha_path, 0, false, AlphaAddressing::Spec}).pixels != sprite_alpha_expected) return false;
+
+    // Observed Emperor profile: raw metadata is deliberately not the alpha payload start.
+    auto contiguous_record = sprite_alpha_record;
+    constexpr std::uint32_t color_offset = 100;
+    const std::uint32_t color_length = static_cast<std::uint32_t>(sprite_stream.size());
+    const std::uint32_t effective_alpha = color_offset + color_length;
+    const std::uint32_t raw_alpha = color_offset + 2U * color_length;
+    u32(contiguous_record, image_offset + 64, raw_alpha);
+    auto contiguous_bitmap = std::vector<std::uint8_t>(128, 0xaa);
+    std::copy(sprite_stream.begin(), sprite_stream.end(), contiguous_bitmap.begin() + color_offset);
+    std::copy(sprite_alpha_stream.begin(), sprite_alpha_stream.end(),
+              contiguous_bitmap.begin() + effective_alpha);
+    const std::array<std::uint8_t, 7> different_raw_stream{255, 1, 2, 0, 0, 255, 1};
+    std::copy(different_raw_stream.begin(), different_raw_stream.end(),
+              contiguous_bitmap.begin() + raw_alpha);
+    const fs::path contiguous_path = root / "contiguous-alpha.sg3";
+    write_file(contiguous_path, contiguous_record);
+    write_file(root / "contiguous-alpha.555", contiguous_bitmap);
+    const auto production = load_sg3_image({contiguous_path, 0});
+    if (production.pixels != sprite_alpha_expected ||
+        production.pixels != load_sg3_image({contiguous_path, 0, false,
+                                             AlphaAddressing::Contiguous}).pixels ||
+        production.pixels == load_sg3_image({contiguous_path, 0, false,
+                                             AlphaAddressing::Spec}).pixels) return false;
+
+    // The raw offset can be beyond EOF while the selected effective range is valid.
+    const fs::path raw_outside_path = root / "raw-outside-alpha.sg3";
+    write_file(raw_outside_path, contiguous_record);
+    write_file(root / "raw-outside-alpha.555",
+               std::span{contiguous_bitmap}.first(effective_alpha + sprite_alpha_stream.size()));
+    if (load_sg3_image({raw_outside_path, 0}).pixels != sprite_alpha_expected ||
+        !rejects_with([&] { load_sg3_image({raw_outside_path, 0, false,
+                                             AlphaAddressing::Spec}); }, "alpha range exceeds")) return false;
+
+    // A valid raw range cannot imply a valid effective range for an unverified profile.
+    auto unverified_record = contiguous_record;
+    u32(unverified_record, image_offset + 64, 0);
+    const fs::path unverified_path = root / "unverified-alpha.sg3";
+    write_file(unverified_path, unverified_record);
+    write_file(root / "unverified-alpha.555",
+               std::span{contiguous_bitmap}.first(effective_alpha + sprite_alpha_stream.size() - 1U));
+    if (!rejects_with([&] { load_sg3_image({unverified_path, 0}); }, "unverified") ||
+        !rejects_with([&] { load_sg3_image({unverified_path, 0, false,
+                                             AlphaAddressing::Contiguous}); }, "alpha range exceeds")) return false;
+
+    auto malformed_bitmap = contiguous_bitmap;
+    malformed_bitmap[effective_alpha] = 9; // Literal exceeds the four-pixel image.
+    const fs::path malformed_path = root / "malformed-contiguous.sg3";
+    write_file(malformed_path, contiguous_record);
+    write_file(root / "malformed-contiguous.555", malformed_bitmap);
+    if (!rejects_with([&] { load_sg3_image({malformed_path, 0}); }, "alpha literal run")) return false;
+
+    auto external_alpha_record = synthetic_sg3("external.bmp", true, 256, color_length);
+    u32(external_alpha_record, image_offset, color_offset);
+    u32(external_alpha_record, image_offset + 64, raw_alpha);
+    u32(external_alpha_record, image_offset + 68,
+        static_cast<std::uint32_t>(sprite_alpha_stream.size()));
+    const fs::path external_alpha_path = root / "external-alpha.sg3";
+    write_file(external_alpha_path, external_alpha_record);
+    write_file(root / "external.555", contiguous_bitmap);
+    if (!rejects_with([&] { load_sg3_image({external_alpha_path, 0}); }, "unverified") ||
+        load_sg3_image({external_alpha_path, 0, false,
+                        AlphaAddressing::Contiguous}).pixels != sprite_alpha_expected) return false;
 
     const fs::path unknown = root / "unknown.sg3";
     write_file(unknown, synthetic_sg3("", false, 999));

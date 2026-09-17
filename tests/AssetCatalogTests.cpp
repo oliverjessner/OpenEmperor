@@ -1,4 +1,6 @@
 #include "assets/AssetCatalog.h"
+#include "assets/Sg3ImageLoader.h"
+#include "Sg3Inspect.h"
 
 #include <algorithm>
 #include <chrono>
@@ -7,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -127,7 +130,9 @@ bool run_checks(const fs::path& parent) {
     const auto& sprite = catalog.records[2];
     const auto& bad_iso = catalog.records[3];
     if (plain.color_bounds != assets::AssetRangeStatus::InBounds ||
-        plain.alpha_bounds != assets::AssetRangeStatus::OutOfBounds ||
+        plain.alpha_bounds != assets::AssetRangeStatus::Unverified ||
+        plain.raw_alpha_bounds != assets::AssetRangeStatus::OutOfBounds ||
+        plain.alpha_profile_supported || plain.effective_alpha_offset ||
         !plain.color_decoder_supported || plain.decoder_supported || !plain.payload_in_bounds ||
         sprite.color_bounds != assets::AssetRangeStatus::InBounds ||
         sprite.alpha_bounds != assets::AssetRangeStatus::NotPresent ||
@@ -139,7 +144,7 @@ bool run_checks(const fs::path& parent) {
     const auto counts = assets::count_assets(catalog, all);
     if (counts.records != 4 || counts.plain != 1 || counts.sprite != 1 ||
         counts.isometric != 2 || counts.unsupported != 0 || counts.with_alpha != 1 ||
-        counts.color_out_of_bounds != 1 || counts.alpha_out_of_bounds != 1 ||
+        counts.color_out_of_bounds != 1 || counts.alpha_out_of_bounds != 0 ||
         counts.color_source_unavailable != 0 || counts.alpha_source_unavailable != 0 ||
         counts.type_counts.at(30) != 2) return false;
     assets::AssetFilter combined;
@@ -159,6 +164,34 @@ bool run_checks(const fs::path& parent) {
     for (std::size_t index = 0; index < catalog.records.size(); ++index) {
         if (!(again.records[index].id == catalog.records[index].id)) return false;
     }
+
+    const fs::path alpha_root = parent / "alpha-data";
+    fs::create_directory(alpha_root);
+    Bytes supported = archive(1);
+    image(supported, 0, 256, 1, 1, 4, 3);
+    u32(supported, table_offset + 64, 10); // 4 + 2 * 3; raw range is outside the file.
+    u32(supported, table_offset + 68, 2);
+    const fs::path supported_archive = alpha_root / "supported.sg3";
+    write(supported_archive, supported);
+    write(alpha_root / "supported.555", Bytes{0, 0, 0, 0, 1, 0x1f, 0, 1, 31});
+    const auto alpha_catalog = assets::scan_asset_catalog(alpha_root);
+    if (alpha_catalog.records.size() != 1) return false;
+    const auto& alpha = alpha_catalog.records.front();
+    if (!alpha.alpha_profile_supported || !alpha.decoder_supported ||
+        alpha.alpha_policy != assets::AlphaPolicy::InternalV214SpriteContiguous ||
+        alpha.effective_alpha_offset != 7 ||
+        alpha.raw_alpha_bounds != assets::AssetRangeStatus::OutOfBounds ||
+        alpha.alpha_bounds != assets::AssetRangeStatus::InBounds ||
+        alpha.decode_attempted || alpha.decode_succeeded ||
+        assets::load_sg3_image({supported_archive, 0}).pixels != Bytes{255, 0, 0, 255}) return false;
+    std::ostringstream inspector;
+    inspect_sg3(supported_archive, inspector);
+    const std::string output = inspector.str();
+    if (output.find("\"alpha_offset_raw\":10") == std::string::npos ||
+        output.find("\"effective_alpha_offset\":7") == std::string::npos ||
+        output.find("\"alpha_addressing_policy\":\"internal_v214_type256_contiguous\"") == std::string::npos ||
+        output.find("\"raw_alpha_bounds\":\"out_of_bounds\"") == std::string::npos ||
+        output.find("\"effective_alpha_bounds\":\"in_bounds\"") == std::string::npos) return false;
     return true;
 }
 

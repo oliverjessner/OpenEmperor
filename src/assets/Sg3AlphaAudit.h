@@ -2,6 +2,7 @@
 
 #include "assets/AssetCatalog.h"
 #include "assets/Sg3AlphaDecoder.h"
+#include "assets/Sg3PayloadLayout.h"
 
 #include <array>
 #include <cstdint>
@@ -11,7 +12,6 @@
 
 namespace openemperor::assets {
 
-enum class AlphaAddressing { Spec, Contiguous, Legacy };
 const char* alpha_addressing_name(AlphaAddressing addressing);
 
 enum class AuditRangeStatus { InBounds, SourceUnavailable, OutOfBounds, Overflow, NegativeOffset };

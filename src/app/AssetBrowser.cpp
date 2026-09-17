@@ -52,7 +52,9 @@ void AssetBrowser::rebuild_visible() {
         if (kind_ && record.image_kind != *kind_) continue;
         if (!show_all_candidates_ &&
             (!record.color_decoder_supported || !record.payload_in_bounds)) continue;
-        if (!show_all_candidates_ && !ignore_alpha_ && record.alpha_length != 0) continue;
+        if (!show_all_candidates_ && !ignore_alpha_ &&
+            (!record.decoder_supported ||
+             (record.alpha_length != 0 && record.alpha_bounds != assets::AssetRangeStatus::InBounds))) continue;
         visible_.push_back(index);
     }
     selected_ = 0;
@@ -72,6 +74,10 @@ void AssetBrowser::update_title() {
         if (detail_) {
             title += " — group " + std::to_string(record.group_id) +
                      " — alpha " + (record.alpha_length != 0 ? "yes" : "no") +
+                     " — policy " + (ignore_alpha_ ? "ignored_diagnostic" :
+                         assets::alpha_policy_name(record.alpha_policy)) +
+                     " — effective alpha " + (!ignore_alpha_ && record.effective_alpha_offset
+                         ? std::to_string(*record.effective_alpha_offset) : "none") +
                      " — mirror " + std::to_string(record.horizontal_mirror_offset);
         }
     }
@@ -89,6 +95,10 @@ void AssetBrowser::enter_detail() {
               << " dimensions=" << record.width << 'x' << record.height
               << " group=" << static_cast<unsigned int>(record.group_id)
               << " alpha=" << (record.alpha_length != 0 ? "yes" : "no")
+              << " alpha_policy=" << (ignore_alpha_ ? "ignored_diagnostic" :
+                  assets::alpha_policy_name(record.alpha_policy))
+              << " effective_alpha_offset=" << (!ignore_alpha_ && record.effective_alpha_offset
+                  ? std::to_string(*record.effective_alpha_offset) : "none")
               << " mirror_offset=" << record.horizontal_mirror_offset << '\n';
     update_title();
 }
@@ -304,6 +314,10 @@ bool AssetBrowser::render_detail() {
         " | " + std::to_string(record.width) + "x" + std::to_string(record.height);
     const std::string details = "Group " + std::to_string(record.group_id) +
         " | alpha " + (record.alpha_length != 0 ? "yes" : "no") +
+        " | policy " + (ignore_alpha_ ? "ignored_diagnostic" :
+            assets::alpha_policy_name(record.alpha_policy)) +
+        " | offset " + (!ignore_alpha_ && record.effective_alpha_offset
+            ? std::to_string(*record.effective_alpha_offset) : "none") +
         " | mirror offset " + std::to_string(record.horizontal_mirror_offset) +
         " | Esc grid";
     if (!SDL_SetRenderDrawColor(renderer_, 230, 236, 247, 255) ||

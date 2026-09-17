@@ -57,7 +57,7 @@ std::optional<std::uint64_t> source_size(
     return result;
 }
 
-AssetRangeStatus range_status(std::uint32_t offset, std::uint32_t length,
+AssetRangeStatus range_status(std::uint64_t offset, std::uint64_t length,
                               const SourceInfo& source) {
     if (!source.resolved || !source.size) return AssetRangeStatus::SourceUnavailable;
     return range_within_file(offset, length, *source.size)
@@ -120,6 +120,10 @@ void append_archive(AssetCatalog& catalog, const fs::path& archive_path,
         record.isometric_size_flag = image.isometric_size_flag;
         record.alpha_offset = image.alpha_offset;
         record.alpha_length = image.alpha_length;
+        const Sg3PayloadLayout layout = sg3_payload_layout(archive.header.version, image);
+        record.alpha_policy = layout.alpha_policy;
+        record.alpha_profile_supported = layout.alpha_profile_supported;
+        if (layout.alpha) record.effective_alpha_offset = layout.alpha->offset;
         record.horizontal_mirror_offset = image.horizontal_mirror_offset;
         const SourceInfo unavailable{};
         const SourceInfo* source = &unavailable;
@@ -127,12 +131,15 @@ void append_archive(AssetCatalog& catalog, const fs::path& archive_path,
         if (image.external_flag == 1 && image.group_id < external.size()) {
             source = &external[image.group_id];
         }
-        record.color_bounds = range_status(image.data_offset, image.data_length, *source);
-        record.alpha_bounds = image.alpha_length == 0 ? AssetRangeStatus::NotPresent
+        record.color_bounds = range_status(layout.color.offset, layout.color.length, *source);
+        record.raw_alpha_bounds = image.alpha_length == 0 ? AssetRangeStatus::NotPresent
             : range_status(image.alpha_offset, image.alpha_length, *source);
+        record.alpha_bounds = image.alpha_length == 0 ? AssetRangeStatus::NotPresent
+            : layout.alpha ? range_status(layout.alpha->offset, layout.alpha->length, *source)
+                           : AssetRangeStatus::Unverified;
         record.payload_in_bounds = record.color_bounds == AssetRangeStatus::InBounds;
         record.color_decoder_supported = supported_color_metadata(image, record.image_kind);
-        record.decoder_supported = record.color_decoder_supported && image.alpha_length == 0;
+        record.decoder_supported = record.color_decoder_supported && layout.alpha_profile_supported;
         catalog.records.push_back(std::move(record));
     }
 }
@@ -145,6 +152,7 @@ const char* asset_range_status_name(AssetRangeStatus status) {
     case AssetRangeStatus::InBounds: return "in_bounds";
     case AssetRangeStatus::OutOfBounds: return "out_of_bounds";
     case AssetRangeStatus::SourceUnavailable: return "source_unavailable";
+    case AssetRangeStatus::Unverified: return "unverified";
     }
     return "unknown";
 }

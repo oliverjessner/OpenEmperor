@@ -43,6 +43,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/Sg3OmegaDecoder.cpp
     src/assets/Sg3AlphaDecoder.cpp
     src/assets/Sg3AlphaAudit.cpp
+    src/assets/Sg3PayloadLayout.cpp
     src/assets/Sg3IsometricDecoder.cpp
     src/assets/Sg3ImageLoader.cpp
     src/assets/AssetCatalog.cpp
@@ -102,7 +103,10 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-png-preview-tests)
     add_test(NAME png-preview-bounds COMMAND openemperor-png-preview-tests)
 
-    add_executable(openemperor-asset-catalog-tests tests/AssetCatalogTests.cpp)
+    add_executable(openemperor-asset-catalog-tests
+        tests/AssetCatalogTests.cpp
+        tools/asset-inspector/Sg3Inspect.cpp)
+    target_include_directories(openemperor-asset-catalog-tests PRIVATE tools/asset-inspector)
     target_link_libraries(openemperor-asset-catalog-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-asset-catalog-tests)
     add_test(NAME asset-catalog COMMAND openemperor-asset-catalog-tests)

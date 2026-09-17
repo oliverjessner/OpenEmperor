@@ -210,26 +210,14 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
     if (!input) {
         throw Sg3LoadError("cannot open selected .555 bitmap file");
     }
-    std::uint64_t color_start = image.data_offset;
-    std::uint64_t alpha_start = image.alpha_offset;
-    if (request.diagnostic_alpha_addressing) {
-        if (image.alpha_length == 0 || request.ignore_alpha) {
-            throw Sg3LoadError("diagnostic alpha addressing requires an alpha-bearing image");
-        }
-        const AlphaCandidate candidate = evaluate_alpha_candidate(
-            image.data_offset, payload_bytes, image.alpha_offset, image.alpha_length,
-            image.external_flag, bitmap_size, true, *request.diagnostic_alpha_addressing);
-        if (candidate.color != AuditRangeStatus::InBounds ||
-            candidate.alpha != AuditRangeStatus::InBounds) {
-            throw Sg3LoadError("diagnostic alpha addressing has invalid .555 ranges: color=" +
-                std::string{audit_range_status_name(candidate.color)} + " alpha=" +
-                audit_range_status_name(candidate.alpha));
-        }
-        color_start = candidate.color_start;
-        alpha_start = candidate.alpha_start;
+    const Sg3PayloadLayout layout = sg3_payload_layout(
+        archive.header.version, image, request.ignore_alpha, request.diagnostic_alpha_addressing);
+    if (image.alpha_length != 0 && !request.ignore_alpha && !layout.alpha) {
+        throw Sg3LoadError("unverified SG3 alpha profile (version/type/external flag or raw offset relation); "
+                           "use --alpha-addressing only for diagnosis");
     }
     const std::vector<std::uint8_t> payload = read_bitmap_range(
-        input, bitmap_size, color_start, payload_bytes, "data");
+        input, bitmap_size, layout.color.offset, payload_bytes, "data");
     RgbaImage rgba;
     switch (kind) {
     case Sg3ImageKind::Plain:
@@ -245,9 +233,9 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
     case Sg3ImageKind::Unsupported:
         throw Sg3DecodeError("unsupported SG3 image type " + std::to_string(image.image_type));
     }
-    if (image.alpha_length != 0 && !request.ignore_alpha) {
+    if (layout.alpha) {
         const std::vector<std::uint8_t> alpha = read_bitmap_range(
-            input, bitmap_size, alpha_start, image.alpha_length, "alpha");
+            input, bitmap_size, layout.alpha->offset, layout.alpha->length, "alpha");
         apply_omega_alpha_mask(alpha, rgba);
     }
     return {std::move(rgba), std::move(bitmap)};
