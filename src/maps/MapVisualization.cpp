@@ -10,6 +10,7 @@ const char* view_name(MapViewMode view) {
     case MapViewMode::Semantic: return "semantic_storage";
     case MapViewMode::Projected: return "projected_reference";
     case MapViewMode::Textured: return "curated_terrain_preview";
+    case MapViewMode::StoredGraphics: return "stored_graphics_preview";
     }
     return "unknown";
 }
@@ -26,7 +27,7 @@ DebugPixels make_map_debug_pixels(const ParsedEmperorMap& map,
                                   const std::vector<TerrainCellInterpretation>& interpreted,
                                   const MapGeometry& geometry, MapViewMode view,
                                   RawLayer raw_layer, MaskMode mask) {
-    if (view == MapViewMode::Textured)
+    if (view == MapViewMode::Textured || view == MapViewMode::StoredGraphics)
         throw std::invalid_argument("textured preview uses terrain instances, not a debug raster");
     const auto cells = static_cast<std::size_t>(stored_grid_width) * stored_grid_height;
     if (interpreted.size() != cells || map.terrain_raw.values.size() != cells ||

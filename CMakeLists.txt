@@ -44,6 +44,7 @@ add_executable(openemperor
     src/renderer/ImagePreview.cpp
     src/renderer/SceneRenderer.cpp
     src/renderer/TerrainPreviewRenderer.cpp
+    src/renderer/StoredGraphicsRenderer.cpp
 )
 target_include_directories(openemperor PRIVATE src)
 target_link_libraries(openemperor PRIVATE SDL3::SDL3)
@@ -90,6 +91,7 @@ add_library(openemperor-maps STATIC
     src/maps/MapVisualization.cpp
     src/maps/TerrainBindings.cpp
     src/maps/TerrainRenderPlan.cpp
+    src/maps/StoredGraphicsPlan.cpp
 )
 target_include_directories(openemperor-maps PUBLIC src)
 target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohmann_json::nlohmann_json openemperor-scene)
@@ -124,10 +126,16 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-map-tests)
     add_test(NAME emperor-map-reader COMMAND openemperor-map-tests)
 
-    add_executable(openemperor-map-view-tests tests/MapDebugViewTests.cpp src/app/MapDebugView.cpp src/renderer/TerrainPreviewRenderer.cpp)
+    add_executable(openemperor-map-view-tests tests/MapDebugViewTests.cpp src/app/MapDebugView.cpp src/renderer/TerrainPreviewRenderer.cpp src/renderer/StoredGraphicsRenderer.cpp)
     target_link_libraries(openemperor-map-view-tests PRIVATE openemperor-maps SDL3::SDL3)
     openemperor_enable_warnings(openemperor-map-view-tests)
     add_test(NAME emperor-map-debug-view COMMAND openemperor-map-view-tests)
+    add_executable(openemperor-stored-graphics-tests tests/StoredGraphicsTests.cpp
+        src/app/MapDebugView.cpp src/renderer/TerrainPreviewRenderer.cpp
+        src/renderer/StoredGraphicsRenderer.cpp)
+    target_link_libraries(openemperor-stored-graphics-tests PRIVATE openemperor-maps SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-stored-graphics-tests)
+    add_test(NAME stored-graphics-map-preview COMMAND openemperor-stored-graphics-tests)
     add_executable(openemperor-terrain-preview-tests tests/TerrainPreviewTests.cpp src/renderer/TerrainPreviewRenderer.cpp)
     target_link_libraries(openemperor-terrain-preview-tests PRIVATE openemperor-maps SDL3::SDL3)
     openemperor_enable_warnings(openemperor-terrain-preview-tests)

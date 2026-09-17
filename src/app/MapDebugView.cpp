@@ -25,17 +25,25 @@ const char* layer_name(maps::RawLayer layer) {
 
 MapDebugView::MapDebugView(maps::ParsedEmperorMap map, maps::RawLayer initial_layer,
                            maps::MapViewMode initial_view,
-                           std::optional<maps::TerrainBindings> bindings)
+                           std::optional<maps::TerrainBindings> bindings,
+                           std::optional<maps::StoredGraphicsPlan> stored_plan)
     : map_(std::move(map)), layer_(initial_layer), view_(initial_view),
       geometry_(map_.declared_map_size), interpreted_(maps::interpret_map(map_)) {
-    if ((view_ == maps::MapViewMode::Projected || view_ == maps::MapViewMode::Textured) && !geometry_.supported)
-        throw std::invalid_argument("projected/textured view requires supported map geometry");
+    if ((view_ == maps::MapViewMode::Projected || view_ == maps::MapViewMode::Textured ||
+         view_ == maps::MapViewMode::StoredGraphics) && !geometry_.supported)
+        throw std::invalid_argument("projected/texture view requires supported map geometry");
     if (bindings) textured_renderer_ = std::make_unique<TerrainPreviewRenderer>(
         maps::make_terrain_render_plan(map_, geometry_, *bindings), std::move(*bindings));
+    if (stored_plan) stored_renderer_ = std::make_unique<StoredGraphicsRenderer>(std::move(*stored_plan));
     if (view_ == maps::MapViewMode::Textured && !textured_renderer_)
         throw std::invalid_argument("textured view requires --terrain-bindings");
+    if (view_ == maps::MapViewMode::StoredGraphics && !stored_renderer_)
+        throw std::invalid_argument("stored graphics view requires --graphics-profile");
 }
 MapDebugView::~MapDebugView() { shutdown(); }
+bool MapDebugView::is_texture_view() const {
+    return view_ == maps::MapViewMode::Textured || view_ == maps::MapViewMode::StoredGraphics;
+}
 
 void MapDebugView::initialize(SDL_Window* window, SDL_Renderer* renderer) {
     window_ = window;
@@ -55,30 +63,54 @@ void MapDebugView::initialize(SDL_Window* window, SDL_Renderer* renderer) {
         for (const auto& [id, count] : counts.by_binding)
             std::cout << "  binding " << id << "=" << count << '\n';
     }
+    if (stored_renderer_) {
+        stored_renderer_->initialize(renderer_);
+        const auto& plan = stored_renderer_->plan();
+        std::cout << "Stored graphics preview: profile=" << maps::stored_graphics_profile
+                  << " candidate=" << plan.cells.size() << " excluded=" << plan.excluded
+                  << " mask_mismatches=" << plan.mask_comparison.mismatches()
+                  << " distinct_referenced_assets=" << plan.assets.size()
+                  << " decoded_assets=" << plan.texture_uploads
+                  << " texture_uploads=" << plan.texture_uploads
+                  << " logical_texture_bytes=" << plan.logical_texture_bytes << '\n';
+        for (const auto& [status,count] : plan.status_counts())
+            std::cout << "  status " << status << '=' << count << '\n';
+    }
     camera_.grid_width = view_ == maps::MapViewMode::Projected ? geometry_.declared_size : maps::stored_grid_width;
     camera_.grid_height = camera_.grid_width;
     reset_camera();
-    if (view_ != maps::MapViewMode::Textured) upload_pixels();
+    if (!is_texture_view()) upload_pixels();
     else update_title();
 }
 void MapDebugView::shutdown() {
     if (textured_renderer_) textured_renderer_->shutdown();
+    if (stored_renderer_) stored_renderer_->shutdown();
     if (texture_) { SDL_DestroyTexture(texture_); texture_ = nullptr; }
     renderer_ = nullptr;
     window_ = nullptr;
 }
 void MapDebugView::reset_camera() {
-    if (view_ == maps::MapViewMode::Textured) {
-        const auto& instances = textured_renderer_->plan().instances;
-        if (instances.empty()) return;
-        double min_x = instances.front().image_origin.x, max_x = min_x + 78;
-        double min_y = instances.front().image_origin.y, max_y = min_y + 40;
-        for (const auto& instance : instances) {
-            min_x = std::min(min_x, instance.image_origin.x);
-            max_x = std::max(max_x, instance.image_origin.x + 78);
-            min_y = std::min(min_y, instance.image_origin.y);
-            max_y = std::max(max_y, instance.image_origin.y + 40);
+    if (is_texture_view()) {
+        double min_x=0,max_x=0,min_y=0,max_y=0;
+        bool first=true;
+        const auto include = [&](scene::Point origin,double width,double height) {
+            if (first) { min_x=origin.x; max_x=origin.x+width; min_y=origin.y; max_y=origin.y+height; first=false; }
+            else { min_x=std::min(min_x,origin.x); max_x=std::max(max_x,origin.x+width);
+                   min_y=std::min(min_y,origin.y); max_y=std::max(max_y,origin.y+height); }
+        };
+        if (view_ == maps::MapViewMode::Textured) {
+            for (const auto& instance : textured_renderer_->plan().instances)
+                include(instance.image_origin,78,40);
+        } else {
+            const auto& plan = stored_renderer_->plan();
+            for (const auto& cell : plan.cells) {
+                if (cell.status == maps::StoredStatus::Rendered && cell.asset_index) {
+                    const auto& record = plan.assets[*cell.asset_index].record;
+                    include(cell.image_origin,record.width,record.height);
+                } else include({cell.world.x-40,cell.world.y},80,40);
+            }
         }
+        if (first) return;
         textured_camera_.zoom = std::clamp(std::min(
             std::max(1, textured_camera_.viewport_width - 40) / (max_x - min_x),
             std::max(1, textured_camera_.viewport_height - 110) / (max_y - min_y)), 0.05, 8.0);
@@ -114,7 +146,7 @@ void MapDebugView::resize_camera() {
     }
 }
 void MapDebugView::upload_pixels() {
-    if (view_ == maps::MapViewMode::Textured) { update_title(); return; }
+    if (is_texture_view()) { update_title(); return; }
     const auto pixels = maps::make_map_debug_pixels(map_, interpreted_, geometry_, view_, layer_, mask_);
     if (!texture_ || texture_width_ != pixels.width || texture_height_ != pixels.height) {
         if (texture_) SDL_DestroyTexture(texture_);
@@ -139,13 +171,14 @@ void MapDebugView::set_layer(maps::RawLayer layer) {
 void MapDebugView::set_view(maps::MapViewMode view) {
     if (view == maps::MapViewMode::Projected && !geometry_.supported) return;
     if (view == maps::MapViewMode::Textured && !textured_renderer_) return;
+    if (view == maps::MapViewMode::StoredGraphics && !stored_renderer_) return;
     if (view_ == view) return;
     view_ = view;
     camera_.grid_width = view == maps::MapViewMode::Projected ? geometry_.declared_size : maps::stored_grid_width;
     camera_.grid_height = camera_.grid_width;
     reset_camera();
     if (selected_) {
-        if (view == maps::MapViewMode::Textured)
+        if (view == maps::MapViewMode::Textured || view == maps::MapViewMode::StoredGraphics)
             textured_camera_.center_on(maps::terrain_world(*selected_, geometry_.border));
         else if (view == maps::MapViewMode::Projected) {
             const auto pixel = geometry_.projected_origin(*selected_);
@@ -155,15 +188,20 @@ void MapDebugView::set_view(maps::MapViewMode view) {
     upload_pixels();
 }
 void MapDebugView::set_mask(maps::MaskMode mask) {
+    if (is_texture_view()) return;
     if (!geometry_.supported && (mask == maps::MaskMode::Candidate || mask == maps::MaskMode::Compare)) return;
     if (mask_ == mask) return;
     mask_ = mask;
     upload_pixels();
 }
 void MapDebugView::update_title() {
-    std::string title = (view_ == maps::MapViewMode::Textured ? "Curated terrain preview" : "OpenEmperor map debug") +
+    std::string title = (view_ == maps::MapViewMode::Textured ? "Curated terrain preview" :
+                         view_ == maps::MapViewMode::StoredGraphics ? "Stored graphics preview" :
+                         "OpenEmperor map debug") +
         std::string{" | "} + maps::view_name(view_) +
-        " | mask=" + maps::mask_name(mask_) + " | reference-derived categories";
+        " | mask=" + maps::mask_name(mask_) +
+        (view_ == maps::MapViewMode::StoredGraphics ? " | saved IDs, diagnostic placement" :
+         " | reference-derived categories");
     if (selected_) {
         const auto x = selected_->x, y = selected_->y;
         const auto& item = interpreted_[static_cast<std::size_t>(y) * maps::stored_grid_width + x];
@@ -174,6 +212,11 @@ void MapDebugView::update_title() {
             const auto status = textured_renderer_->plan().status_by_storage[
                 static_cast<std::size_t>(y) * maps::stored_grid_width + x];
             title += " " + std::string{maps::preview_status_name(status)};
+        }
+        if (view_ == maps::MapViewMode::StoredGraphics && stored_renderer_) {
+            const auto* cell = stored_renderer_->plan().at(*selected_);
+            title += cell ? " ID=" + hex32(cell->stored_id) + " " + maps::stored_status_name(cell->status)
+                          : " outside_candidate_mask";
         }
     }
     SDL_SetWindowTitle(window_, title.c_str());
@@ -212,6 +255,43 @@ void MapDebugView::show_selected() {
         }
         std::cout << '\n';
     }
+    if (view_ == maps::MapViewMode::StoredGraphics && stored_renderer_) {
+        const auto& plan = stored_renderer_->plan();
+        const auto* cell = plan.at(*selected_);
+        if (!cell) { std::cout << "stored_graphics_status=excluded\n"; return; }
+        std::cout << "stored_graphics_profile=" << maps::stored_graphics_profile
+                  << " stored_id=" << hex32(cell->stored_id) << " (" << cell->stored_id << ')'
+                  << " logical_offset=" << cell->logical_offset
+                  << " candidate_byte=" << static_cast<unsigned>(cell->candidate_byte)
+                  << " slot=" << cell->slot << " local_index=" << cell->local_index
+                  << " system_record_skip=" << cell->system_record_skip
+                  << " physical_record=";
+        if (cell->physical_record) std::cout << *cell->physical_record;
+        else std::cout << "unresolved";
+        std::cout << " lookup_status=" << maps::graphics_id_status_name(cell->lookup_status)
+                  << " record_present=" << cell->record_present
+                  << " source_ranges_valid=" << cell->source_ranges_valid
+                  << " footprint_supported=" << cell->footprint_supported
+                  << " render_status=" << maps::stored_status_name(cell->status);
+        if (cell->asset_index) {
+            const auto& asset = plan.assets[*cell->asset_index];
+            const auto& record = asset.record;
+            std::cout << " archive=" << record.id.archive_relative_path.generic_string()
+                      << " type=" << record.image_type << " size=" << record.width << 'x' << record.height;
+            if (cell->footprint_supported)
+                std::cout << " preview_anchor=(" << record.width / 2.0 << ',' << record.height - 40 << ')';
+            else std::cout << " preview_anchor=unverified";
+            std::cout << " omega_overlay=" << (record.image_type == 30 &&
+                record.uncompressed_length <= record.data_length ?
+                (record.data_length > record.uncompressed_length ? "yes" : "no") : "unverified")
+                      << " color_bounds=" << assets::asset_range_status_name(record.color_bounds)
+                      << " alpha_bounds=" << assets::asset_range_status_name(record.alpha_bounds)
+                      << " decode_attempted=" << asset.decode_attempted
+                      << " decode_success=" << asset.decode_succeeded;
+            if (!asset.error.empty()) std::cout << " decode_error=" << asset.error;
+        }
+        std::cout << '\n';
+    }
 }
 std::optional<maps::GridCell> MapDebugView::storage_from_display(
     std::optional<maps::DisplayCell> display) const {
@@ -234,7 +314,9 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
                 view_ == maps::MapViewMode::Semantic ?
                     (geometry_.supported ? maps::MapViewMode::Projected : maps::MapViewMode::Storage) :
                 view_ == maps::MapViewMode::Projected && textured_renderer_ ?
-                    maps::MapViewMode::Textured : maps::MapViewMode::Storage;
+                    maps::MapViewMode::Textured :
+                view_ == maps::MapViewMode::Projected && stored_renderer_ ?
+                    maps::MapViewMode::StoredGraphics : maps::MapViewMode::Storage;
             set_view(next);
         }
         if (event.key.key == SDLK_M) {
@@ -247,7 +329,7 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
         }
         if (event.key.key == SDLK_R) reset_camera();
         if (event.key.key == SDLK_RETURN) {
-            if (view_ == maps::MapViewMode::Textured)
+            if (is_texture_view())
                 selected_ = maps::pick_terrain_cell(textured_camera_.screen_to_world(
                     {textured_camera_.viewport_width * 0.5, textured_camera_.viewport_height * 0.5}), geometry_);
             else selected_ = storage_from_display(camera_.pick({camera_.viewport_width * 0.5,
@@ -259,14 +341,14 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
     if (event.type == SDL_EVENT_MOUSE_WHEEL) {
         float x = event.wheel.mouse_x, y = event.wheel.mouse_y;
         if (SDL_RenderCoordinatesFromWindow(renderer_, x, y, &x, &y)) {
-            if (view_ == maps::MapViewMode::Textured) zoom_textured({x,y}, std::pow(1.15, event.wheel.y));
+            if (is_texture_view()) zoom_textured({x,y}, std::pow(1.15, event.wheel.y));
             else camera_.zoom_at({x, y}, std::pow(1.15, event.wheel.y));
         }
     }
     if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
         float x = event.button.x, y = event.button.y;
         if (SDL_RenderCoordinatesFromWindow(renderer_, x, y, &x, &y)) {
-            if (view_ == maps::MapViewMode::Textured)
+            if (is_texture_view())
                 selected_ = maps::pick_terrain_cell(textured_camera_.screen_to_world({x,y}), geometry_);
             else selected_ = storage_from_display(camera_.pick({x, y}));
             update_title();
@@ -289,7 +371,7 @@ void MapDebugView::update(double seconds) {
     if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) dx -= movement;
     if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) dy += movement;
     if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) dy -= movement;
-    if (view_ == maps::MapViewMode::Textured) {
+    if (is_texture_view()) {
         textured_camera_.offset.x += dx;
         textured_camera_.offset.y += dy;
     } else {
@@ -300,8 +382,10 @@ void MapDebugView::update(double seconds) {
 bool MapDebugView::render() {
     resize_camera();
     if (!SDL_SetRenderDrawColor(renderer_, 22, 26, 32, 255) || !SDL_RenderClear(renderer_)) return false;
-    if (view_ == maps::MapViewMode::Textured) {
-        if (!textured_renderer_->render(textured_camera_, selected_)) return false;
+    if (is_texture_view()) {
+        if (view_ == maps::MapViewMode::Textured) {
+            if (!textured_renderer_->render(textured_camera_, selected_)) return false;
+        } else if (!stored_renderer_->render(textured_camera_,selected_)) return false;
     } else {
     const auto top_left = camera_.grid_to_screen({0, 0});
     const double scale = maps::StorageGridCamera::base_cell_pixels * camera_.zoom;
@@ -325,17 +409,23 @@ bool MapDebugView::render() {
     }
     const SDL_FRect legend{0, 0, static_cast<float>(camera_.viewport_width),
                            camera_.viewport_height < 200 ? 42.0F :
-                           (view_ == maps::MapViewMode::Textured ? 103.0F : 86.0F)};
+                           (is_texture_view() ? 103.0F : 86.0F)};
     if (!SDL_SetRenderDrawColor(renderer_, 12, 17, 23, 255) || !SDL_RenderFillRect(renderer_, &legend) ||
         !SDL_SetRenderDrawColor(renderer_, 235, 240, 245, 255)) return false;
     const std::string heading = std::string{"MAP "} + maps::view_name(view_) + " | MASK " + maps::mask_name(mask_) +
-        " | RAW " + layer_name(layer_) + " | REFERENCE-DERIVED | V VIEW M MASK 1/2 RAW LAYER";
+        " | RAW " + layer_name(layer_) +
+        (view_ == maps::MapViewMode::StoredGraphics ?
+         " | SAVED IDS / DIAGNOSTIC | V VIEW M MASK 1/2 RAW LAYER" :
+         " | REFERENCE-DERIVED | V VIEW M MASK 1/2 RAW LAYER");
     if (!SDL_RenderDebugText(renderer_, 8, 5, heading.c_str())) return false;
-    if (!SDL_RenderDebugText(renderer_, 8, 21, view_ == maps::MapViewMode::Textured ?
+    if (!SDL_RenderDebugText(renderer_, 8, 21,
+        view_ == maps::MapViewMode::StoredGraphics ?
+        "STORED GRAPHICS PREVIEW: SAVED IDS, DIAGNOSTIC PLACEMENT; PURPLE = UNRESOLVED" :
+        view_ == maps::MapViewMode::Textured ?
         "CURATED TERRAIN PREVIEW: ORIGINAL SG3 TILE FOR EXACT RAW PAIRS; PURPLE DIAMOND = UNMAPPED" :
         "SEMANTIC: WATER BLUE, VEGETATION GREEN, ROCK GRAY, ROAD TAN, FERTILE LIME, OTHER PURPLE, UNKNOWN MAGENTA")) return false;
-    if (!SDL_RenderDebugText(renderer_, 8, 37, view_ == maps::MapViewMode::Textured ?
-        "PREVIEW GEOMETRY IS NOT VERIFIED ORIGINAL WORLD GEOMETRY | WASD PAN WHEEL ZOOM R RESET" :
+    if (!SDL_RenderDebugText(renderer_, 8, 37, is_texture_view() ?
+        "PREVIEW PLACEMENT IS DIAGNOSTIC | WASD PAN WHEEL ZOOM R RESET" :
         "COMPARE: INSIDE+ON GREEN, INSIDE+OFF PINK, OUTSIDE+OFF BLUE, OUTSIDE+ON ORANGE | WASD PAN WHEEL ZOOM")) return false;
     if (selected_) {
         const auto x = selected_->x, y = selected_->y;
@@ -347,6 +437,9 @@ bool MapDebugView::render() {
             " OFF=" + ((item.terrain_raw & 0x80000U) ? "Y" : "N") +
             (view_ == maps::MapViewMode::Textured ?
              " STATUS=" + std::string{maps::preview_status_name(textured_renderer_->plan().status_by_storage[
+                 static_cast<std::size_t>(y) * maps::stored_grid_width + x])} :
+             view_ == maps::MapViewMode::StoredGraphics ?
+             " STATUS=" + std::string{maps::stored_status_name(stored_renderer_->plan().status_by_storage[
                  static_cast<std::size_t>(y) * maps::stored_grid_width + x])} : "");
         if (!SDL_RenderDebugText(renderer_, 8, 53, details.c_str())) return false;
         const std::string flags = "FLAGS T=" + hex32(item.recognized_terrain_flags) +
@@ -365,6 +458,16 @@ bool MapDebugView::render() {
                 const auto& asset = textured_renderer_->asset_for_alias(found->asset_alias);
                 const auto line = "BINDING " + found->binding_id + " ASSET=" +
                     asset.id.archive_relative_path.generic_string() + "#" + std::to_string(asset.id.image_index);
+                if (!SDL_RenderDebugText(renderer_, 8, 85, line.c_str())) return false;
+            }
+        }
+        if (view_ == maps::MapViewMode::StoredGraphics) {
+            const auto* cell = stored_renderer_->plan().at(*selected_);
+            if (cell) {
+                const auto line = "SAVED ID=" + hex32(cell->stored_id) + " SLOT=" +
+                    std::to_string(cell->slot) + " LOCAL=" + std::to_string(cell->local_index) +
+                    " PHYSICAL=" + (cell->physical_record ? std::to_string(*cell->physical_record) : "?") +
+                    " STATUS=" + maps::stored_status_name(cell->status);
                 if (!SDL_RenderDebugText(renderer_, 8, 85, line.c_str())) return false;
             }
         }

@@ -3,6 +3,7 @@
 #include "maps/MapVisualization.h"
 #include "maps/TerrainBindings.h"
 #include "renderer/TerrainPreviewRenderer.h"
+#include "renderer/StoredGraphicsRenderer.h"
 
 #include <memory>
 #include <optional>
@@ -19,7 +20,8 @@ public:
     explicit MapDebugView(maps::ParsedEmperorMap map,
                           maps::RawLayer initial_layer = maps::RawLayer::Terrain,
                           maps::MapViewMode initial_view = maps::MapViewMode::Storage,
-                          std::optional<maps::TerrainBindings> bindings = std::nullopt);
+                          std::optional<maps::TerrainBindings> bindings = std::nullopt,
+                          std::optional<maps::StoredGraphicsPlan> stored_plan = std::nullopt);
     ~MapDebugView();
     MapDebugView(const MapDebugView&) = delete;
     MapDebugView& operator=(const MapDebugView&) = delete;
@@ -45,6 +47,7 @@ private:
     void reset_camera();
     void resize_camera();
     void zoom_textured(scene::Point screen, double factor);
+    bool is_texture_view() const;
     maps::ParsedEmperorMap map_;
     maps::RawLayer layer_;
     maps::MapViewMode view_;
@@ -56,6 +59,7 @@ private:
     maps::StorageGridCamera camera_;
     scene::Camera2D textured_camera_;
     std::unique_ptr<TerrainPreviewRenderer> textured_renderer_;
+    std::unique_ptr<StoredGraphicsRenderer> stored_renderer_;
     std::optional<maps::GridCell> selected_;
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;

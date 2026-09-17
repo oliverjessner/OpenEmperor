@@ -205,3 +205,24 @@ The separate candidate byte is at logical `209471+cell_index`; no general meanin
 ./build/openemperor-map-graphics --data .local/gog-extracted/app --map Cities/Xia.map --profile exe-6373328b-v213-runtime-table --cell 114 114 --cell 115 114
 ./build/openemperor --sg3 .local/gog-extracted/app/DATA/China_Terrain.sg3 --image 240
 ```
+
+## Stored graphics map snapshot (implementation milestone)
+
+Starting repository commit `31016f17048869f646665125b04a1a553b25a948`. This milestone did not repeat EXE analysis or change the v213 table rule above. It connected the saved map-word layer to the explicit `RuntimeArchiveLayout` diagnostic in a new `--view stored-graphics` mode, without substituting the pre-read group-`0x603` writer or a curated terrain binding. The candidate mask and separate off-map bit are preserved. Only supported one-cell, 78-wide Type-30 images with a 3,200-byte base, height at least 40, valid source, and no unverified mirror are drawn. A full decoded RGBA image, including an Omega overlay, is positioned by the **preview** anchor `(width/2,height−40)` so its lower footprint aligns with the logical cell. This is not evidence of the original game's final placement or first-draw composition.
+
+The local GOG files were read without modification. Debug/headless software-render runs with the same implementation yielded the following final **render statuses**, rather than metadata-only candidate counts:
+
+| Original map | Candidate cells | Rendered cells | Multi-cell placement unverified | Excluded storage cells | Distinct referenced assets | Successfully decoded / uploaded assets | Logical RGBA texture bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `Cities/Xia.map` | 3,612 | 3,588 | 24 | 48,372 | 294 | 291 | 4,618,224 |
+| `Cities/Banpo.map` | 6,384 | 6,340 | 44 | 45,600 | 282 | 273 | 4,419,168 |
+| `Cities/Chengdu.map` | 14,620 | 14,616 | 4 | 37,364 | 341 | 340 | 5,159,232 |
+| `Cities/Anyi.map` | 14,620 | 14,560 | 60 | 37,364 | 396 | 393 | 6,043,128 |
+
+Each candidate cell has one final status. The currently examined four maps needed no other failure category, but the plan and renderer retain explicit unsupported-slot, out-of-range, empty, missing-source, unverified-mirror/layout, and decode-failed statuses. The previously selected IDs `0xc027`, `0xc02a`, and `0xc0c9` are resolved by the same layout to physical Terrain records 240, 243, and 402; they are not hardcoded bindings. No archive was decoded wholesale: the upload counts are distinct successful images, with a single texture reused by all referencing cells.
+
+An offscreen SDL software-render capture of the **whole Xia map** and a higher-zoom central excerpt was actually viewed locally under ignored `.local/re/stored-graphics/`. The first showed broad contiguous grassy and sandy areas, blue-gray water-like stretches, cliffs, detailed overlays, and purple diagnostic gaps for unsupported placement. The zoomed excerpt showed uncut taller overlays and aligned lower footprints. These observations describe OpenEmperor output only; there was no interactive desktop run or comparison with original-game pixels. Temporary captures and their helper source remain ignored locally, not in the repository. The exact remaining evidence gap is whether saved per-cell IDs survive later post-read writes to the original first draw, plus original multi-cell placement and compositing.
+
+```sh
+./build/openemperor --data .local/gog-extracted/app --map-debug Cities/Xia.map --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table
+```

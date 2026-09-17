@@ -9,6 +9,7 @@
 #include "maps/EmperorContainer.h"
 #include "maps/EmperorMap.h"
 #include "maps/TerrainBindings.h"
+#include "maps/StoredGraphicsPlan.h"
 
 #include <SDL3/SDL_main.h>
 
@@ -33,8 +34,9 @@ void print_usage(const char* executable) {
               << "       " << executable << " --data <directory> --scene <scene.json>\n"
               << "       " << executable << " --data <directory> --map-debug <relative.map>"
               << " [--part <index>] [--layer terrain_raw|objects_raw]"
-              << " [--view storage|semantic|projected|textured]"
-              << " [--terrain-bindings <preview.json>]\n";
+              << " [--view storage|semantic|projected|textured|stored-graphics]"
+              << " [--terrain-bindings <preview.json>]"
+              << " [--graphics-profile exe-6373328b-v213-runtime-table]\n";
 }
 
 std::filesystem::path resolve_map_path(const std::filesystem::path& root_path,
@@ -69,6 +71,7 @@ int main(int argc, char* argv[]) {
     bool layer_supplied = false;
     bool view_supplied = false;
     bool terrain_bindings_supplied = false;
+    bool graphics_profile_supplied = false;
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
@@ -115,6 +118,12 @@ int main(int argc, char* argv[]) {
         } else if (argument == "--terrain-bindings" && !terrain_bindings_supplied) {
             terrain_bindings_path = argv[++index];
             terrain_bindings_supplied = true;
+        } else if (argument == "--graphics-profile" && !graphics_profile_supplied) {
+            if (std::string_view{argv[++index]} != openemperor::maps::stored_graphics_profile) {
+                std::cerr << "Unsupported stored graphics profile\n";
+                return 2;
+            }
+            graphics_profile_supplied = true;
         } else if (argument == "--part" && !part_supplied) {
             const std::string_view value{argv[++index]};
             const auto parsed = std::from_chars(value.data(), value.data() + value.size(), map_part);
@@ -135,6 +144,7 @@ int main(int argc, char* argv[]) {
             else if (value == "semantic") map_view_mode = openemperor::maps::MapViewMode::Semantic;
             else if (value == "projected") map_view_mode = openemperor::maps::MapViewMode::Projected;
             else if (value == "textured") map_view_mode = openemperor::maps::MapViewMode::Textured;
+            else if (value == "stored-graphics") map_view_mode = openemperor::maps::MapViewMode::StoredGraphics;
             else { print_usage(argv[0]); return 2; }
             view_supplied = true;
         } else if (argument == "--image" && !image_supplied) {
@@ -164,9 +174,12 @@ int main(int argc, char* argv[]) {
                             ignore_alpha || diagnostic_alpha_addressing || browser_kind || map_debug_supplied)) ||
         (map_debug_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
                                 scene_supplied || ignore_alpha || diagnostic_alpha_addressing || browser_kind)) ||
-        ((part_supplied || layer_supplied || view_supplied || terrain_bindings_supplied) && !map_debug_supplied) ||
+        ((part_supplied || layer_supplied || view_supplied || terrain_bindings_supplied ||
+          graphics_profile_supplied) && !map_debug_supplied) ||
         (map_view_mode == openemperor::maps::MapViewMode::Textured && !terrain_bindings_supplied) ||
-        (terrain_bindings_supplied && map_view_mode != openemperor::maps::MapViewMode::Textured)) {
+        (terrain_bindings_supplied && map_view_mode != openemperor::maps::MapViewMode::Textured) ||
+        (map_view_mode == openemperor::maps::MapViewMode::StoredGraphics && !graphics_profile_supplied) ||
+        (graphics_profile_supplied && map_view_mode != openemperor::maps::MapViewMode::StoredGraphics)) {
         print_usage(argv[0]);
         return 2;
     }
@@ -239,8 +252,29 @@ int main(int argc, char* argv[]) {
             std::optional<openemperor::maps::TerrainBindings> bindings;
             if (terrain_bindings_supplied)
                 bindings = openemperor::maps::load_terrain_bindings(data_directory, terrain_bindings_path);
+            std::optional<openemperor::maps::StoredGraphicsPlan> stored_plan;
+            if (graphics_profile_supplied) {
+                namespace maps = openemperor::maps;
+                namespace assets = openemperor::assets;
+                const fs::path terrain_relative = "DATA/China_Terrain.sg3";
+                const fs::path elevation_relative = "DATA/China_Elevation.sg3";
+                const auto terrain_path = maps::validate_stored_archive_sources(data_directory,terrain_relative);
+                const auto elevation_path = maps::validate_stored_archive_sources(data_directory,elevation_relative);
+                const auto terrain_archive = assets::read_sg3_archive(terrain_path);
+                const auto elevation_archive = assets::read_sg3_archive(elevation_path);
+                const auto terrain_layout = maps::build_runtime_archive_layout(3,terrain_archive);
+                const auto elevation_layout = maps::build_runtime_archive_layout(16,elevation_archive);
+                if (!terrain_layout || !elevation_layout)
+                    throw std::runtime_error("unsupported v213 Terrain/Elevation runtime layout");
+                const auto terrain_catalog = assets::scan_asset_archive(data_directory,terrain_relative);
+                const auto elevation_catalog = assets::scan_asset_archive(data_directory,elevation_relative);
+                const auto candidates = maps::read_map_graphic_candidates(container,map_part);
+                const maps::MapGeometry geometry{map.declared_map_size};
+                stored_plan = maps::make_stored_graphics_plan(map,candidates,geometry,
+                    terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout);
+            }
             map_view = std::make_unique<openemperor::MapDebugView>(
-                std::move(map), map_layer, map_view_mode, std::move(bindings));
+                std::move(map), map_layer, map_view_mode, std::move(bindings),std::move(stored_plan));
         } catch (const std::exception& error_message) {
             std::cerr << "Map debug load failed: " << error_message.what() << '\n';
             return 1;
