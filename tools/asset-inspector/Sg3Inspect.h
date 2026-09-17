@@ -1,8 +1,11 @@
 #pragma once
 
+#include "assets/Sg3AlphaAudit.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <iosfwd>
+#include <optional>
 
 void inspect_sg3(const std::filesystem::path& path, std::ostream& output);
 void summarize_sg3(const std::filesystem::path& path, std::ostream& output);
@@ -11,4 +14,6 @@ void decode_one_sg3_image(const std::filesystem::path& path,
                           std::uint32_t image_index,
                           const std::filesystem::path& image_output_path,
                           ImageOutputFormat output_format,
-                          std::ostream& output);
+                          std::ostream& output,
+                          bool ignore_alpha = false,
+                          std::optional<openemperor::assets::AlphaAddressing> diagnostic_addressing = std::nullopt);

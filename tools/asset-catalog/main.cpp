@@ -1,10 +1,13 @@
 #include "assets/AssetCatalog.h"
+#include "assets/Sg3AlphaAudit.h"
 
 #include <charconv>
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <limits>
+#include <algorithm>
+#include <map>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -18,6 +21,7 @@ void usage() {
               << " [--kind plain|sprite|isometric|unsupported] [--type <number>]"
               << " [--archive <substring>] [--group <substring>]"
               << " [--with-alpha|--without-alpha] [--min-width <n>] [--min-height <n>]\n";
+    std::cerr << "       openemperor-assets --data <directory> --audit-alpha [--json]\n";
 }
 
 bool parse_u16(std::string_view text, std::uint16_t& value) {
@@ -145,17 +149,100 @@ void print_summary(const assets::AssetCatalog& catalog,
     }
 }
 
+void print_audit_counts(std::ostream& output, const std::string& label,
+                        const assets::AlphaAuditCounts& counts) {
+    output << label << " records=" << counts.records << '\n';
+    for (std::size_t index = 0; index < 3; ++index) {
+        output << "  " << assets::alpha_addressing_name(static_cast<assets::AlphaAddressing>(index))
+               << " in-bounds=" << counts.in_bounds[index]
+               << " valid=" << counts.valid[index]
+               << " complete=" << counts.complete[index]
+               << " malformed=" << counts.malformed[index]
+               << " unavailable=" << counts.source_unavailable[index]
+               << " out-of-bounds=" << counts.out_of_bounds[index]
+               << " overflow=" << counts.overflow[index]
+               << " negative=" << counts.negative[index] << '\n';
+    }
+}
+
+void print_deltas(std::ostream& output, const char* label,
+                  const std::map<std::int64_t, std::uint64_t>& values) {
+    std::vector<std::pair<std::int64_t, std::uint64_t>> ranked(values.begin(), values.end());
+    std::sort(ranked.begin(), ranked.end(), [](const auto& left, const auto& right) {
+        return left.second != right.second ? left.second > right.second : left.first < right.first;
+    });
+    output << label << " distinct=" << ranked.size() << '\n';
+    for (std::size_t index = 0; index < std::min<std::size_t>(10, ranked.size()); ++index) {
+        output << "  delta=" << ranked[index].first << " count=" << ranked[index].second << '\n';
+    }
+}
+
+void print_audit(const assets::AlphaAudit& audit, bool json, std::ostream& output) {
+    if (!json) {
+        print_audit_counts(output, "Alpha total", audit.total);
+        for (const auto& [source, counts] : audit.by_source) print_audit_counts(output, source, counts);
+        for (const auto& [type, counts] : audit.by_type) {
+            print_audit_counts(output, "type " + std::to_string(type), counts);
+        }
+        for (const auto& [archive, counts] : audit.by_archive) {
+            print_audit_counts(output, "archive " + archive, counts);
+        }
+        print_deltas(output, "alpha_offset - data_offset", audit.delta_from_data);
+        print_deltas(output, "alpha_offset - (data_offset + data_length)", audit.delta_from_contiguous);
+        print_deltas(output, "external: alpha_offset - (data_offset - 1 + data_length)",
+                     audit.delta_from_legacy_alpha);
+        output << "alpha_offset == data_offset + 2*data_length: "
+               << audit.alpha_offset_equals_data_plus_twice_length << '\n';
+        return;
+    }
+    // One JSON object per record keeps detailed diagnostics streamable without pixel bytes.
+    for (const auto& record : audit.records) {
+        output << "{\"archive\":";
+        json_string(output, record.id.archive_relative_path.generic_string());
+        output << ",\"image_index\":" << record.id.image_index
+               << ",\"type\":" << record.image_type
+               << ",\"external_flag\":" << static_cast<unsigned>(record.external_flag)
+               << ",\"width\":" << record.width << ",\"height\":" << record.height
+               << ",\"delta_data\":" << record.delta_from_data
+               << ",\"delta_contiguous\":" << record.delta_from_contiguous
+               << ",\"delta_legacy\":" << record.delta_from_legacy_alpha
+               << ",\"strategies\":[";
+        for (std::size_t index = 0; index < 3; ++index) {
+            if (index != 0) output << ',';
+            const auto& candidate = record.candidates[index];
+            output << "{\"name\":";
+            json_string(output, assets::alpha_addressing_name(static_cast<assets::AlphaAddressing>(index)));
+            output << ",\"color_start\":" << candidate.color_start
+                   << ",\"alpha_start\":" << candidate.alpha_start << ",\"color\":";
+            json_string(output, assets::audit_range_status_name(candidate.color));
+            output << ",\"alpha\":";
+            json_string(output, assets::audit_range_status_name(candidate.alpha));
+            output << ",\"valid\":" << (candidate.syntax.valid ? "true" : "false")
+                   << ",\"failure\":";
+            json_string(output, candidate.syntax.failure);
+            output << ",\"bytes_consumed\":" << candidate.syntax.bytes_consumed
+                   << ",\"pixels_advanced\":" << candidate.syntax.pixels_advanced
+                   << ",\"final_pixel_cursor\":" << candidate.syntax.final_pixel_cursor
+                   << ",\"image_pixel_count\":" << candidate.syntax.image_pixel_count << '}';
+        }
+        output << "]}\n";
+    }
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
     std::filesystem::path data_directory;
     bool data_supplied = false;
     bool json = false;
+    bool audit_alpha = false;
     assets::AssetFilter filter;
     for (int index = 1; index < argc; ++index) {
         const std::string_view option{argv[index]};
         if (option == "--json" && !json) {
             json = true;
+        } else if (option == "--audit-alpha" && !audit_alpha) {
+            audit_alpha = true;
         } else if (option == "--with-alpha" && !filter.with_alpha) {
             filter.with_alpha = true;
         } else if (option == "--without-alpha" && !filter.with_alpha) {
@@ -197,6 +284,14 @@ int main(int argc, char* argv[]) {
     if (!data_supplied) { usage(); return 2; }
     try {
         const assets::AssetCatalog catalog = assets::scan_asset_catalog(data_directory);
+        if (audit_alpha) {
+            if (filter.kind || filter.image_type || filter.archive_substring || filter.group_substring ||
+                filter.with_alpha || filter.min_width || filter.min_height) {
+                usage(); return 2;
+            }
+            print_audit(assets::audit_alpha_catalog(catalog), json, std::cout);
+            return 0;
+        }
         const auto indices = assets::matching_asset_indices(catalog, filter);
         if (json) print_json(catalog, indices, std::cout);
         else print_summary(catalog, indices, std::cout);

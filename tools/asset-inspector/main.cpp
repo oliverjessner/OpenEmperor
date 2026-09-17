@@ -14,8 +14,8 @@
 
 int main(int argc, char* argv[]) {
     namespace fs = std::filesystem;
-    if (argc != 2 && argc != 3 && argc != 6) {
-        std::cerr << "Usage: " << argv[0] << " <file.sg3> [--summary | --image <index> (--rgba <output.rgba> | --png <output.png>)]\n"
+    if (argc != 2 && argc != 3 && argc != 6 && argc != 7 && argc != 8) {
+        std::cerr << "Usage: " << argv[0] << " <file.sg3> [--summary | --image <index> (--rgba <output.rgba> | --png <output.png>) [--ignore-alpha | --alpha-addressing spec|contiguous|legacy]]\n"
                   << "       " << argv[0] << " <other-file>\n";
         return 2;
     }
@@ -62,9 +62,22 @@ int main(int argc, char* argv[]) {
                     std::cerr << "Image index must be a nonnegative integer\n";
                     return 2;
                 }
+                bool ignore_alpha = false;
+                std::optional<openemperor::assets::AlphaAddressing> addressing;
+                if (argc == 7) {
+                    if (std::string_view{argv[6]} != "--ignore-alpha") { return 2; }
+                    ignore_alpha = true;
+                } else if (argc == 8) {
+                    if (std::string_view{argv[6]} != "--alpha-addressing") { return 2; }
+                    const std::string_view value{argv[7]};
+                    if (value == "spec") addressing = openemperor::assets::AlphaAddressing::Spec;
+                    else if (value == "contiguous") addressing = openemperor::assets::AlphaAddressing::Contiguous;
+                    else if (value == "legacy") addressing = openemperor::assets::AlphaAddressing::Legacy;
+                    else { return 2; }
+                }
                 decode_one_sg3_image(absolute_path, image_index, argv[5],
                                      output_option == "--png" ? ImageOutputFormat::Png : ImageOutputFormat::Rgba,
-                                     std::cout);
+                                     std::cout, ignore_alpha, addressing);
             }
             return 0;
         } catch (const std::exception& error_message) {

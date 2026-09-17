@@ -20,6 +20,8 @@ namespace {
 void print_usage(const char* executable) {
     std::cerr << "Usage: " << executable << " [--data <directory>] [--preview <exported.png>]\n"
               << "       " << executable << " [--data <directory>] --sg3 <file.sg3> --image <index> [--ignore-alpha]\n"
+              << "       " << executable << " --sg3 <file.sg3> --image <index>"
+              << " --alpha-addressing spec|contiguous|legacy (diagnostic)\n"
               << "       " << executable << " --data <directory> --browse-assets"
               << " [--kind plain|sprite|isometric] [--ignore-alpha]\n";
 }
@@ -34,6 +36,7 @@ int main(int argc, char* argv[]) {
     bool image_supplied = false;
     bool browse_assets = false;
     bool ignore_alpha = false;
+    std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
     fs::path preview_path;
@@ -46,6 +49,12 @@ int main(int argc, char* argv[]) {
             browse_assets = true;
         } else if (argument == "--ignore-alpha" && !ignore_alpha) {
             ignore_alpha = true;
+        } else if (argument == "--alpha-addressing" && !diagnostic_alpha_addressing && index + 1 < argc) {
+            const std::string_view value{argv[++index]};
+            if (value == "spec") diagnostic_alpha_addressing = openemperor::assets::AlphaAddressing::Spec;
+            else if (value == "contiguous") diagnostic_alpha_addressing = openemperor::assets::AlphaAddressing::Contiguous;
+            else if (value == "legacy") diagnostic_alpha_addressing = openemperor::assets::AlphaAddressing::Legacy;
+            else { print_usage(argv[0]); return 2; }
         } else if (index + 1 >= argc) {
             print_usage(argv[0]);
             return 2;
@@ -79,7 +88,8 @@ int main(int argc, char* argv[]) {
     }
     if ((sg3_supplied != image_supplied) || (preview_supplied && sg3_supplied) ||
         (browse_assets && (!data_supplied || preview_supplied || sg3_supplied)) ||
-        (browser_kind && !browse_assets) || (ignore_alpha && !browse_assets && !sg3_supplied)) {
+        (browser_kind && !browse_assets) || (ignore_alpha && !browse_assets && !sg3_supplied) ||
+        (diagnostic_alpha_addressing && (!sg3_supplied || ignore_alpha || browse_assets))) {
         print_usage(argv[0]);
         return 2;
     }
@@ -107,7 +117,8 @@ int main(int argc, char* argv[]) {
                   << " (" << preview->width << 'x' << preview->height << ")\n";
     } else if (sg3_supplied) {
         try {
-            preview = openemperor::assets::load_sg3_image({sg3_path, image_index, ignore_alpha});
+            preview = openemperor::assets::load_sg3_image(
+                {sg3_path, image_index, ignore_alpha, diagnostic_alpha_addressing});
         } catch (const std::exception& error_message) {
             std::cerr << "SG3 image load failed: " << error_message.what() << '\n';
             return 1;

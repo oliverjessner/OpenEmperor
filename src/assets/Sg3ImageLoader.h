@@ -2,12 +2,15 @@
 
 #include "assets/Sg3Archive.h"
 #include "assets/Sg3RgbaDecoder.h"
+#include "assets/Sg3AlphaAudit.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <stdexcept>
 #include <string>
+#include <optional>
+#include <utility>
 
 namespace openemperor::assets {
 
@@ -20,6 +23,13 @@ struct Sg3ImageRequest {
     std::filesystem::path archive_path;
     std::uint32_t image_index = 0;
     bool ignore_alpha = false; // Diagnostic color-only view; not an SG3 interpretation.
+    std::optional<AlphaAddressing> diagnostic_alpha_addressing;
+
+    Sg3ImageRequest(std::filesystem::path path, std::uint32_t index,
+                    bool ignore = false,
+                    std::optional<AlphaAddressing> addressing = std::nullopt)
+        : archive_path(std::move(path)), image_index(index), ignore_alpha(ignore),
+          diagnostic_alpha_addressing(addressing) {}
 };
 
 enum class Sg3BitmapStatus {

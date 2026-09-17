@@ -421,8 +421,10 @@ void summarize_sg3(const fs::path& path, std::ostream& output) {
 void decode_one_sg3_image(const fs::path& path,
                           std::uint32_t image_index, const fs::path& image_output_path,
                           ImageOutputFormat output_format,
-                          std::ostream& output) {
-    const auto loaded = openemperor::assets::load_sg3_image_with_source({path, image_index});
+                          std::ostream& output, bool ignore_alpha,
+                          std::optional<openemperor::assets::AlphaAddressing> diagnostic_addressing) {
+    const auto loaded = openemperor::assets::load_sg3_image_with_source(
+        {path, image_index, ignore_alpha, diagnostic_addressing});
     const openemperor::assets::RgbaImage& rgba = loaded.rgba;
     const std::vector<std::uint8_t> png = output_format == ImageOutputFormat::Png
         ? openemperor::assets::encode_rgba_png(rgba) : std::vector<std::uint8_t>{};

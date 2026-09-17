@@ -42,6 +42,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/Sg3RgbaDecoder.cpp
     src/assets/Sg3OmegaDecoder.cpp
     src/assets/Sg3AlphaDecoder.cpp
+    src/assets/Sg3AlphaAudit.cpp
     src/assets/Sg3IsometricDecoder.cpp
     src/assets/Sg3ImageLoader.cpp
     src/assets/AssetCatalog.cpp
@@ -80,6 +81,11 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-sg3-alpha-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-sg3-alpha-tests)
     add_test(NAME sg3-alpha-decode COMMAND openemperor-sg3-alpha-tests)
+
+    add_executable(openemperor-sg3-alpha-audit-tests tests/Sg3AlphaAuditTests.cpp)
+    target_link_libraries(openemperor-sg3-alpha-audit-tests PRIVATE openemperor-sg3)
+    openemperor_enable_warnings(openemperor-sg3-alpha-audit-tests)
+    add_test(NAME sg3-alpha-audit COMMAND openemperor-sg3-alpha-audit-tests)
 
     add_executable(openemperor-sg3-isometric-tests tests/Sg3IsometricTests.cpp)
     target_link_libraries(openemperor-sg3-isometric-tests PRIVATE openemperor-sg3)
