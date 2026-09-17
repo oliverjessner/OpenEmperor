@@ -1,5 +1,7 @@
 #include "maps/EmperorContainer.h"
 #include "maps/EmperorMap.h"
+#include "maps/MapGraphicCandidates.h"
+#include "maps/DirectGraphicCandidate.h"
 
 #include <zlib.h>
 
@@ -85,6 +87,13 @@ Bytes map_bytes() {
     const std::array<std::uint8_t, 8> signature{5, 0, 0xfe, 0xca, 0, 0, 2, 0};
     std::copy(signature.begin(), signature.end(), bytes.begin());
     u32(bytes, 84, 112);
+    u32(bytes, static_cast<std::size_t>(maps::candidate_word_logical_offset), 0x12345678U);
+    u32(bytes, static_cast<std::size_t>(maps::candidate_word_logical_offset) + (2U * 228U + 3U) * 4U,
+        0xfedcba98U);
+    u32(bytes, static_cast<std::size_t>(maps::candidate_word_logical_offset) + (2U * 228U + 4U) * 4U,
+        2U);
+    bytes[static_cast<std::size_t>(maps::candidate_byte_logical_offset)] = 0xa5;
+    bytes[static_cast<std::size_t>(maps::candidate_byte_logical_offset) + 2U * 228U + 3U] = 0x5a;
     u32(bytes, static_cast<std::size_t>(maps::terrain_logical_offset) + 4U, 0x12345678U); // (1,0)
     u32(bytes, static_cast<std::size_t>(maps::terrain_logical_offset) + 228U * 4U, 0xdeadbeefU); // (0,1)
     u32(bytes, static_cast<std::size_t>(maps::objects_logical_offset) + (2U * 228U + 3U) * 4U, 0xaabbccddU);
@@ -128,6 +137,50 @@ int main() {
         check(parsed.terrain_cell_offset(1,0) == maps::terrain_logical_offset + 4 &&
               parsed.object_cell_offset(3,2) == maps::objects_logical_offset + (2 * 228 + 3) * 4,
               "cell logical offsets");
+        const auto diagnostic = maps::read_map_graphic_candidates(container, 0);
+        check(diagnostic.candidate_word_layer.size() == 51984 &&
+              diagnostic.candidate_byte_layer.size() == 51984 &&
+              diagnostic.word_at(0,0) == 0x12345678U &&
+              diagnostic.word_at(3,2) == 0xfedcba98U &&
+              diagnostic.byte_at(0,0) == 0xa5 && diagnostic.byte_at(3,2) == 0x5a,
+              "candidate layer little-endian and y*228+x without truncation");
+        check(diagnostic.word_offset(3,2) == maps::candidate_word_logical_offset + (2U*228U+3U)*4U &&
+              diagnostic.byte_offset(3,2) == maps::candidate_byte_logical_offset + 2U*228U+3U &&
+              parsed.terrain_at(1,0) == 0x12345678U &&
+              parsed.object_at(3,2) == 0xaabbccddU,
+              "candidate reads preserve raw production layers and exact offsets");
+        openemperor::assets::AssetCatalog synthetic_catalog;
+        synthetic_catalog.records.resize(3);
+        synthetic_catalog.records[2].width=1;
+        synthetic_catalog.records[2].height=1;
+        synthetic_catalog.records[2].data_length=2;
+        synthetic_catalog.records[2].color_bounds=openemperor::assets::AssetRangeStatus::InBounds;
+        synthetic_catalog.records[2].alpha_bounds=openemperor::assets::AssetRangeStatus::NotPresent;
+        synthetic_catalog.records[2].decoder_supported=true;
+        check(diagnostic.word_at(4,2)==2 &&
+              maps::resolve_direct_candidate(synthetic_catalog,diagnostic.word_at(4,2)).status==
+                  maps::DirectCandidateStatus::DecodeCandidate &&
+              maps::resolve_direct_candidate(synthetic_catalog,diagnostic.word_at(3,2)).status==
+                  maps::DirectCandidateStatus::IndexOutOfRange &&
+              diagnostic.word_offset(4,2)==maps::candidate_word_logical_offset+(2U*228U+4U)*4U,
+              "selected image index belongs to original storage coordinate without truncation");
+        rejects([&] { diagnostic.word_at(228,0); });
+        rejects([&] { diagnostic.byte_at(0,228); });
+        rejects([&] { (void)maps::decode_map_graphic_candidates(
+            std::span{data}.subspan(static_cast<std::size_t>(maps::candidate_word_logical_offset),
+                                    static_cast<std::size_t>(maps::candidate_word_byte_length)-1U),
+            std::span{data}.subspan(static_cast<std::size_t>(maps::candidate_byte_logical_offset),
+                                    static_cast<std::size_t>(maps::candidate_byte_byte_length))); });
+        rejects([&] { (void)maps::decode_map_graphic_candidates(
+            std::span{data}.subspan(static_cast<std::size_t>(maps::candidate_word_logical_offset),
+                                    static_cast<std::size_t>(maps::candidate_word_byte_length)),
+            std::span{data}.subspan(static_cast<std::size_t>(maps::candidate_byte_logical_offset),
+                                    static_cast<std::size_t>(maps::candidate_byte_byte_length)-1U)); });
+        write(file, single(data, 1537)); // First 32-bit word crosses a block boundary.
+        const auto crossed = maps::read_map_graphic_candidates(maps::EmperorContainer::open(file), 0);
+        check(crossed.word_at(0,0) == 0x12345678U &&
+              crossed.word_at(3,2) == 0xfedcba98U && crossed.byte_at(3,2) == 0x5a,
+              "candidate reads across compressed block boundaries");
         rejects([&] { parsed.terrain_at(228,0); });
         rejects([&] { parsed.object_at(0,228); });
 
@@ -148,6 +201,7 @@ int main() {
         write(file, single(invalid_size));
         container = maps::EmperorContainer::open(file);
         rejects([&] { maps::read_emperor_map(container, 0); });
+        rejects([&] { maps::read_map_graphic_candidates(container, 0); });
         auto invalid_signature = data; invalid_signature[0] = 0;
         write(file, single(invalid_signature));
         container = maps::EmperorContainer::open(file);

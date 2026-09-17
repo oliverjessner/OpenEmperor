@@ -1,8 +1,10 @@
 #include "assets/AssetCatalog.h"
 #include "assets/Sg3ImageLoader.h"
+#include "maps/DirectGraphicCandidate.h"
 #include "Sg3Inspect.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -192,6 +194,46 @@ bool run_checks(const fs::path& parent) {
         output.find("\"alpha_addressing_policy\":\"internal_v214_type256_contiguous\"") == std::string::npos ||
         output.find("\"raw_alpha_bounds\":\"out_of_bounds\"") == std::string::npos ||
         output.find("\"effective_alpha_bounds\":\"in_bounds\"") == std::string::npos) return false;
+
+    const fs::path probe_root = parent / "candidate-data";
+    fs::create_directory(probe_root);
+    Bytes probe = archive(4);
+    image(probe, 1, 13, 1, 1, 1000, 2); // Numerically reachable, missing payload.
+    image(probe, 2, 13, 1, 1, 4, 2); // Controlled decodable hit.
+    write(probe_root / "probe.sg3", probe);
+    write(probe_root / "probe.555", Bytes{0,0,0,0,0x00,0x7c});
+    write(probe_root / "other.sg3", archive(1)); // Never an implicit fallback.
+    Bytes missing_source = archive(1);
+    image(missing_source,0,13,1,1,4,2);
+    write(probe_root / "missing.sg3",missing_source); // No same-stem .555.
+    const auto one = assets::scan_asset_archive(probe_root, "probe.sg3");
+    namespace maps = openemperor::maps;
+    if (one.archive_count != 1 || one.records.size() != 4 ||
+        maps::resolve_direct_candidate(one,0).status != maps::DirectCandidateStatus::EmptyRecord ||
+        maps::resolve_direct_candidate(one,1).status != maps::DirectCandidateStatus::SourceUnavailable ||
+        maps::resolve_direct_candidate(one,2).status != maps::DirectCandidateStatus::DecodeCandidate ||
+        maps::resolve_direct_candidate(one,4).status != maps::DirectCandidateStatus::IndexOutOfRange ||
+        maps::resolve_direct_candidate(one,0xfedcba98U).status !=
+            maps::DirectCandidateStatus::IndexOutOfRange ||
+        one.records[2].id.archive_relative_path != "probe.sg3" ||
+        assets::load_sg3_image({probe_root / "probe.sg3",2}).pixels != Bytes{255,0,0,255} ||
+        maps::shifted_control_candidate(0) != 1024U ||
+        maps::shifted_control_candidate(0) != maps::shifted_control_candidate(0) ||
+        maps::shifted_control_candidate(UINT32_MAX).has_value()) return false;
+    const auto no_bitmap=assets::scan_asset_archive(probe_root,"missing.sg3");
+    if (no_bitmap.records.size()!=1 ||
+        maps::resolve_direct_candidate(no_bitmap,0).status !=
+            maps::DirectCandidateStatus::SourceUnavailable) return false;
+    const std::array<std::uint32_t,6> words{1,1,1,2,2,2};
+    const std::array<std::uint32_t,6> labels{1,1,1,2,2,2};
+    const auto control=maps::compare_candidate_structure(words,labels);
+    if (control.denominator!=6 || control.direct_majority_cells!=6 ||
+        control.permuted_majority_cells!=4 ||
+        maps::compare_candidate_structure(words,labels).permuted_majority_cells!=4) return false;
+    bool rejected_escape = false;
+    try { (void)assets::scan_asset_archive(probe_root, "../outside.sg3"); }
+    catch (const std::exception&) { rejected_escape = true; }
+    if (!rejected_escape) return false;
     return true;
 }
 

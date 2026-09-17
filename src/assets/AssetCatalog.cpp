@@ -217,6 +217,34 @@ AssetCatalog scan_asset_catalog(const fs::path& data_directory) {
     return catalog;
 }
 
+AssetCatalog scan_asset_archive(const fs::path& data_directory,
+                                const fs::path& archive_relative_path) {
+    std::error_code error;
+    const fs::path root = fs::canonical(data_directory, error);
+    if (error || !fs::is_directory(root))
+        throw Sg3LoadError("asset data directory is missing or inaccessible");
+    if (archive_relative_path.empty() || archive_relative_path.is_absolute() ||
+        !is_sg3(archive_relative_path))
+        throw Sg3LoadError("expected a relative .sg3 archive path");
+    for (const auto& component : archive_relative_path)
+        if (component == "..") throw Sg3LoadError("SG3 path escapes data directory");
+    fs::path cursor = root;
+    for (const auto& component : archive_relative_path) {
+        cursor /= component;
+        if (fs::is_symlink(fs::symlink_status(cursor, error)) || error)
+            throw Sg3LoadError("SG3 archive path uses a symlink or is inaccessible");
+    }
+    const fs::path candidate = fs::canonical(root / archive_relative_path, error);
+    if (error || !is_within(root, candidate) || !fs::is_regular_file(candidate))
+        throw Sg3LoadError("SG3 archive is missing or escapes data directory");
+    AssetCatalog catalog;
+    catalog.data_root = root;
+    catalog.archive_count = 1;
+    std::map<fs::path, std::optional<std::uint64_t>> size_cache;
+    append_archive(catalog, candidate, archive_relative_path.lexically_normal(), size_cache);
+    return catalog;
+}
+
 bool asset_matches_filter(const AssetRecord& record, const AssetFilter& filter) {
     if (filter.kind && record.image_kind != *filter.kind) return false;
     if (filter.image_type && record.image_type != *filter.image_type) return false;

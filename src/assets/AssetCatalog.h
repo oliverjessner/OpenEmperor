@@ -92,6 +92,9 @@ struct AssetCounts {
 };
 
 AssetCatalog scan_asset_catalog(const std::filesystem::path& data_directory);
+// Inspect exactly one archive with the same metadata/range logic as a full scan.
+AssetCatalog scan_asset_archive(const std::filesystem::path& data_directory,
+                                const std::filesystem::path& archive_relative_path);
 bool asset_matches_filter(const AssetRecord& record, const AssetFilter& filter);
 std::vector<std::size_t> matching_asset_indices(const AssetCatalog& catalog,
                                                  const AssetFilter& filter);

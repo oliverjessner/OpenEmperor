@@ -79,6 +79,8 @@ openemperor_enable_warnings(openemperor-scene)
 add_library(openemperor-maps STATIC
     src/maps/EmperorContainer.cpp
     src/maps/EmperorMap.cpp
+    src/maps/MapGraphicCandidates.cpp
+    src/maps/DirectGraphicCandidate.cpp
     src/maps/StorageGridView.cpp
     src/maps/MapGeometry.cpp
     src/maps/TerrainInterpretation.cpp
@@ -94,6 +96,10 @@ target_link_libraries(openemperor PRIVATE openemperor-maps)
 add_executable(openemperor-map-inspect tools/map-inspector/main.cpp)
 target_link_libraries(openemperor-map-inspect PRIVATE openemperor-maps nlohmann_json::nlohmann_json)
 openemperor_enable_warnings(openemperor-map-inspect)
+
+add_executable(openemperor-map-graphics tools/map-graphics/main.cpp)
+target_link_libraries(openemperor-map-graphics PRIVATE openemperor-maps nlohmann_json::nlohmann_json)
+openemperor_enable_warnings(openemperor-map-graphics)
 
 add_executable(openemperor-assets tools/asset-catalog/main.cpp)
 target_link_libraries(openemperor-assets PRIVATE openemperor-sg3)
@@ -173,7 +179,7 @@ if(BUILD_TESTING)
         tests/AssetCatalogTests.cpp
         tools/asset-inspector/Sg3Inspect.cpp)
     target_include_directories(openemperor-asset-catalog-tests PRIVATE tools/asset-inspector)
-    target_link_libraries(openemperor-asset-catalog-tests PRIVATE openemperor-sg3)
+    target_link_libraries(openemperor-asset-catalog-tests PRIVATE openemperor-maps)
     openemperor_enable_warnings(openemperor-asset-catalog-tests)
     add_test(NAME asset-catalog COMMAND openemperor-asset-catalog-tests)
 

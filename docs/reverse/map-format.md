@@ -32,6 +32,17 @@ The reference map reader checks an eight-byte prefix `05 00 FE CA 00 00 02 00`, 
 
 The terrain grid ends exactly where the object grid begins; the object grid ends at logical offset 677,327. Other bytes and layers are not interpreted. The `uint32_t` words are exposed unchanged, including unknown bits. A terrain word is **not** assumed to be an SG3 image index; an object word is **not** assumed to be a building ID. The map-size word is kept separately from the 228×228 stored dimensions. We do not know the active-cell mask, playable extent, orientation in the original game, or logical/isometric coordinate transform. `active=unknown` applies to every displayed storage cell. A `0x13 00` prefix is identified as a possible savegame part from the reference and rejected for this reader.
 
+### Skipped-region diagnostic split, not a verified layout
+
+The pinned public [`EmperorFile::getImage` revision](https://github.com/bvschaik/citybuilding-mappers/blob/bb97d7c7edf7c6608d5e9d3d6d5b63ba3686cda6/emperorfile.cpp) skips `1447 + 5 × 51984` bytes after reading the map-size word at logical offset 84. For a bounded read-only investigation, we split that skipped region as follows. This split is a **hypothesis**; multiple byte layers or another structure are still possible.
+
+| Neutral diagnostic name | Logical range in decompressed selected part | Tentative reading |
+| --- | ---: | --- |
+| `candidate_word_layer` | `[1535, 209471)` | 51,984 unchanged `uint32_le` values in storage-row order |
+| `candidate_byte_layer` | `[209471, 261455)` | 51,984 unchanged bytes in storage-row order |
+
+The separate diagnostic reader uses the existing container's bounded logical `read_range`, requires the supported map profile, and checks exact lengths. At storage `(x,y)`, index is `y*228+x`, word offset is `1535+4*index`, and byte offset is `209471+index`. It does not change the established terrain/object grids. These names do not claim image IDs, coast flags, or variants. `openemperor-map-graphics` tests one explicit **rejected** hypothesis: the unchanged word is a direct image index in the selected SG3 archive (default `DATA/China_Terrain.sg3`). It reports numeric range, nonempty metadata, source bounds, layout support, and selected decode separately; an out-of-range value is never masked or repaired. No graphics-candidate render view was added because the local direct-index evidence fails. The original-map textured view remains an independent curated preview.
+
 ## Local read-only validation
 
 The ignored user-supplied GOG tree under `.local/gog-extracted/app/` contained 167 standalone `Cities/*.map` candidates, 31 `Campaigns/*.pak` candidates, and no files with the scanned `.sav`, `.sve`, or `.gam` extensions. This is an inventory of that local installation, not a general claim about every distribution. A deterministic `openemperor-map-inspect --data ... --list --json` pass read all 167 standalone map parts completely through the current parser. All 167 had the outer marker, 58 blocks, the supported map signature, in-bounds terrain and object ranges, and the declared size distribution above (1, 16, 67, 72, 11 respectively). Their compressed file sizes ranged from 79,450 to 192,423 bytes. The same scan recognized 45 map-profile candidate parts in the campaign files, but did **not** fully read every campaign part. One campaign `.pak` was rejected because a declared compressed payload crossed its part boundary; this is reported per file, not silently repaired. Campaign part index is not assumed to have a universal meaning.

@@ -10,6 +10,8 @@ You must provide your own legally obtained original Emperor game data. The first
 
 The textured map preview reads original map cells but uses a small, explicit local binding table to choose original SG3 graphics for exact `(terrain_raw, objects_raw)` pairs. Unbound cells are purple diagnostic diamonds. The map-to-image assignments and the 80×40 isometric placement are preview conventions; the original game's graphic variant logic, coastlines, animation, heights, buildings, and simulation are not reconstructed.
 
+`openemperor-map-graphics` is a read-only research diagnostic for one previously skipped map region. It reports two neutrally named candidate layers, storage-cell values and logical offsets, reference-derived category comparisons, and a deliberately explicit test of whether an unchanged candidate word directly indexes `DATA/China_Terrain.sg3`. This direct-index hypothesis failed on the local Xia, Banpo, and held-out Chengdu maps: every candidate word exceeds that archive's 10,000 image records. The tool adds **no** original graphics mapping or texture mode; the separate curated preview remains unchanged.
+
 RGB555 decoding now follows the public SGReader's red-high/blue-low channel positions; the published sgfileio pixel table gives the opposite red/blue order. Fixed synthetic vectors cover the correction through decode, PNG export, and SDL software rendering. The previous local terrain-preview choice (image 655) was incorrectly described as sandy before this correction. The ignored local binding now uses a visually checked ochre tile (image 268) for one exact raw pair. Water remains unbound because the viewed blue candidates were not verified as water; no original-game pixel match has been established.
 
 - ✅ C++20/SDL3 application and macOS arm64 build
@@ -61,6 +63,7 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor --data /path/to/your/game-data --scene .local/scenes/first-scene.json
 ./build/openemperor-map-inspect --data /path/to/your/game-data --list --json
 ./build/openemperor-map-inspect /path/to/your/game-data/Cities/Xia.map --json
+./build/openemperor-map-graphics --data /path/to/your/game-data --map Cities/Xia.map --archive DATA/China_Terrain.sg3 --cell 114 114
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map --view semantic
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map --view projected
