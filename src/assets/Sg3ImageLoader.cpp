@@ -227,7 +227,7 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
     case Sg3ImageKind::Unsupported:
         throw Sg3DecodeError("unsupported SG3 image type " + std::to_string(image.image_type));
     }
-    if (image.alpha_length != 0) {
+    if (image.alpha_length != 0 && !request.ignore_alpha) {
         const std::vector<std::uint8_t> alpha = read_bitmap_range(
             input, bitmap_size, image.alpha_offset, image.alpha_length, "alpha");
         apply_omega_alpha_mask(alpha, rgba);

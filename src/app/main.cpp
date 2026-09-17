@@ -1,4 +1,6 @@
 #include "app/Application.h"
+#include "app/AssetBrowser.h"
+#include "assets/AssetCatalog.h"
 #include "assets/RgbaPngReader.h"
 #include "assets/Sg3ImageLoader.h"
 
@@ -8,6 +10,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -16,7 +19,9 @@ namespace {
 
 void print_usage(const char* executable) {
     std::cerr << "Usage: " << executable << " [--data <directory>] [--preview <exported.png>]\n"
-              << "       " << executable << " [--data <directory>] --sg3 <file.sg3> --image <index>\n";
+              << "       " << executable << " [--data <directory>] --sg3 <file.sg3> --image <index> [--ignore-alpha]\n"
+              << "       " << executable << " --data <directory> --browse-assets"
+              << " [--kind plain|sprite|isometric] [--ignore-alpha]\n";
 }
 
 } // namespace
@@ -27,6 +32,9 @@ int main(int argc, char* argv[]) {
     bool preview_supplied = false;
     bool sg3_supplied = false;
     bool image_supplied = false;
+    bool browse_assets = false;
+    bool ignore_alpha = false;
+    std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
     fs::path preview_path;
     fs::path sg3_path;
@@ -34,11 +42,14 @@ int main(int argc, char* argv[]) {
 
     for (int index = 1; index < argc; ++index) {
         const std::string_view argument{argv[index]};
-        if (index + 1 >= argc) {
+        if (argument == "--browse-assets" && !browse_assets) {
+            browse_assets = true;
+        } else if (argument == "--ignore-alpha" && !ignore_alpha) {
+            ignore_alpha = true;
+        } else if (index + 1 >= argc) {
             print_usage(argv[0]);
             return 2;
-        }
-        if (argument == "--data" && !data_supplied) {
+        } else if (argument == "--data" && !data_supplied) {
             data_directory = argv[++index];
             data_supplied = true;
         } else if (argument == "--preview" && !preview_supplied) {
@@ -55,12 +66,20 @@ int main(int argc, char* argv[]) {
                 return 2;
             }
             image_supplied = true;
+        } else if (argument == "--kind" && !browser_kind) {
+            const std::string_view kind{argv[++index]};
+            if (kind == "plain") browser_kind = openemperor::assets::Sg3ImageKind::Plain;
+            else if (kind == "sprite") browser_kind = openemperor::assets::Sg3ImageKind::Sprite;
+            else if (kind == "isometric") browser_kind = openemperor::assets::Sg3ImageKind::Isometric;
+            else { print_usage(argv[0]); return 2; }
         } else {
             print_usage(argv[0]);
             return 2;
         }
     }
-    if ((sg3_supplied != image_supplied) || (preview_supplied && sg3_supplied)) {
+    if ((sg3_supplied != image_supplied) || (preview_supplied && sg3_supplied) ||
+        (browse_assets && (!data_supplied || preview_supplied || sg3_supplied)) ||
+        (browser_kind && !browse_assets) || (ignore_alpha && !browse_assets && !sg3_supplied)) {
         print_usage(argv[0]);
         return 2;
     }
@@ -76,6 +95,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::optional<openemperor::assets::RgbaImage> preview;
+    std::unique_ptr<openemperor::AssetBrowser> browser;
     if (preview_supplied) {
         try {
             preview = openemperor::assets::read_exported_png(preview_path);
@@ -87,7 +107,7 @@ int main(int argc, char* argv[]) {
                   << " (" << preview->width << 'x' << preview->height << ")\n";
     } else if (sg3_supplied) {
         try {
-            preview = openemperor::assets::load_sg3_image({sg3_path, image_index});
+            preview = openemperor::assets::load_sg3_image({sg3_path, image_index, ignore_alpha});
         } catch (const std::exception& error_message) {
             std::cerr << "SG3 image load failed: " << error_message.what() << '\n';
             return 1;
@@ -96,9 +116,21 @@ int main(int argc, char* argv[]) {
         const fs::path absolute_path = fs::absolute(sg3_path, error);
         std::cout << "SG3 image: " << (error ? sg3_path : absolute_path).lexically_normal().string()
                   << " index " << image_index << " (" << preview->width << 'x' << preview->height << ")\n";
+    } else if (browse_assets) {
+        try {
+            auto catalog = openemperor::assets::scan_asset_catalog(data_directory);
+            std::cout << "Asset catalog: " << catalog.archive_count << " SG3 archives, "
+                      << catalog.records.size() << " image records, "
+                      << catalog.archive_errors.size() << " archive errors\n";
+            browser = std::make_unique<openemperor::AssetBrowser>(
+                std::move(catalog), ignore_alpha, browser_kind);
+        } catch (const std::exception& error_message) {
+            std::cerr << "Asset browser scan failed: " << error_message.what() << '\n';
+            return 1;
+        }
     }
 
-    openemperor::Application application{std::move(preview)};
+    openemperor::Application application{std::move(preview), std::move(browser)};
     if (!application.initialize()) {
         return 1;
     }

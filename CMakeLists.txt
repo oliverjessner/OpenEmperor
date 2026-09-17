@@ -25,6 +25,7 @@ include(cmake/OpenEmperorWarnings.cmake)
 add_executable(openemperor
     src/app/main.cpp
     src/app/Application.cpp
+    src/app/AssetBrowser.cpp
     src/renderer/TitleScreen.cpp
     src/renderer/ImagePreview.cpp
 )
@@ -43,6 +44,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/Sg3AlphaDecoder.cpp
     src/assets/Sg3IsometricDecoder.cpp
     src/assets/Sg3ImageLoader.cpp
+    src/assets/AssetCatalog.cpp
     src/assets/RgbaPngEncoder.cpp
     src/assets/RgbaPngReader.cpp
 )
@@ -52,6 +54,10 @@ target_include_directories(openemperor-inspect PRIVATE tools/asset-inspector)
 target_link_libraries(openemperor-inspect PRIVATE openemperor-sg3)
 openemperor_enable_warnings(openemperor-inspect)
 target_link_libraries(openemperor PRIVATE openemperor-sg3)
+
+add_executable(openemperor-assets tools/asset-catalog/main.cpp)
+target_link_libraries(openemperor-assets PRIVATE openemperor-sg3)
+openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
@@ -89,4 +95,17 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-png-preview-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-png-preview-tests)
     add_test(NAME png-preview-bounds COMMAND openemperor-png-preview-tests)
+
+    add_executable(openemperor-asset-catalog-tests tests/AssetCatalogTests.cpp)
+    target_link_libraries(openemperor-asset-catalog-tests PRIVATE openemperor-sg3)
+    openemperor_enable_warnings(openemperor-asset-catalog-tests)
+    add_test(NAME asset-catalog COMMAND openemperor-asset-catalog-tests)
+
+    add_executable(openemperor-asset-browser-tests
+        tests/AssetBrowserTests.cpp
+        src/app/AssetBrowser.cpp
+    )
+    target_link_libraries(openemperor-asset-browser-tests PRIVATE openemperor-sg3 SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-asset-browser-tests)
+    add_test(NAME asset-browser-cache COMMAND openemperor-asset-browser-tests)
 endif()

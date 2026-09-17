@@ -251,6 +251,7 @@ bool run_checks(const fs::path& root) {
         0, 0, 255, 132, 0, 0, 0, 0,
     };
     if (plain_masked.pixels != masked_expected) return false;
+    if (load_sg3_image({plain_alpha, 0, true}).pixels != expected) return false;
 
     auto alpha_at_zero = separated_record;
     u32(alpha_at_zero, image_offset + 64, 0);
@@ -276,6 +277,7 @@ bool run_checks(const fs::path& root) {
     if (!rejects_with([&] { load_sg3_image({bad_alpha_path, 0}); }, "alpha range exceeds")) {
         return false;
     }
+    if (load_sg3_image({bad_alpha_path, 0, true}).pixels != expected) return false;
     auto bad_color_range = separated_record;
     u32(bad_color_range, image_offset, 510);
     const fs::path bad_color_path = root / "bad-color.sg3";

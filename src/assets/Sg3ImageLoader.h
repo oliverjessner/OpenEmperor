@@ -19,6 +19,7 @@ public:
 struct Sg3ImageRequest {
     std::filesystem::path archive_path;
     std::uint32_t image_index = 0;
+    bool ignore_alpha = false; // Diagnostic color-only view; not an SG3 interpretation.
 };
 
 enum class Sg3BitmapStatus {
