@@ -226,3 +226,31 @@ An offscreen SDL software-render capture of the **whole Xia map** and a higher-z
 ```sh
 ./build/openemperor --data .local/gog-extracted/app --map-debug Cities/Xia.map --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table
 ```
+
+## Isolated multi-cell saved-ID preview (2026-09-17)
+
+Starting commit `b23e7e8fb36359db6b525379a4692f96e6f9f366`. This bounded check reused the corrected `RuntimeArchiveLayout`, normal Type-30 decoder, and existing saved-map reader. It did **not** execute or modify the Windows EXE, inspect a new general archive corpus, or establish the original draw path. The four previously unresolved Chengdu cells and their immediate x=53–58, y=131–136 neighborhood were read from the user's ignored GOG files:
+
+| Storage | Saved ID | `candidate_byte` | Terrain / object raw | Physical AssetId | Type / width×height | Base bytes / size flag | Prior status |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| `(55,133)` | `0xc10a` | 0 | `0x200082` / `0` | `DATA/China_Terrain.sg3#467` | 30 / 158×95 | 12,800 / 2 | `multi_tile_placement_unverified` |
+| `(56,133)` | `0xc10a` | 1 | `0x200082` / `0` | same | same | same | same |
+| `(55,134)` | `0xc10a` | 72 | `0x200082` / `0` | same | same | same | same |
+| `(56,134)` | `0xc10a` | 9 | `0x200082` / `0` | same | same | same | same |
+
+The four coordinates form one complete 2×2 candidate-mask block. The neighboring candidate cells have different saved IDs, so this is an isolated component of exact saved-ID references; all four records resolve to the same physical asset, whose color payload is in bounds and decodes with the existing 2×2 Type-30 geometry. No separate part records were found in these four references. The differing bytes `0,1,72,9` are **observations only**: their bit meanings, any original anchor/part-position meaning, and later draw-time use are unknown. The identical terrain/object values also do not identify an anchor.
+
+Our optional `--multi-tile-preview` therefore implements the **independent preview convention** “one isolated, complete four-neighbor 2×2 component of identical saved IDs and matching 158-wide/12,800-byte/size-flag-2 metadata → one placed image.” Its minimum `(x,y)` is merely the rear/top origin of our established 80×40 isometric projection. We use image anchor `(width/2,height−80)`, preserving the full overlay above the 80-pixel base. This rule does not assert which, if any, original cell is the draw anchor. Multiple touching components with the same saved ID are not partitioned. The renderer sorts by frontmost ground depth with projected-x/source-order ties; arbitrary interlocking buildings and original first-draw composition remain unknown.
+
+The same unchanged rule, run after the Chengdu check, gave **actual successful decodes/uploads** and covered cells as follows:
+
+| Map | Candidate | Covered by rendered instances | 1×1 / 2×2 placed | Decoded / uploaded distinct assets | Remaining diagnostics |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Chengdu | 14,620 | 14,620 | 14,616 / 1 | 341 / 341 | none |
+| Xia | 3,612 | 3,612 | 3,588 / 6 | 294 / 294 | none |
+| Banpo | 6,384 | 6,376 | 6,340 / 9 | 282 / 282 | 8 `ambiguous_footprint` |
+| Anyi | 14,620 | 14,620 | 14,560 / 15 | 396 / 396 | none |
+
+Banpo's eight unresolved cells form x=103–104, y=143–146, all saved ID `0x400a1` and physical `DATA/China_Elevation.sg3#362` (158×127, 12,800-byte base, flag 2). They look like two touching 2×2 squares and their bytes repeat `0,1,72,9`, but no independently verified anchor rule splits this 2×4 connected component, so all eight remain purple diagnostics. This avoids falsely reporting them as two drawn images.
+
+Headless SDL software rendering produced whole-map and targeted, 3× zoom views of each of the four maps; these ignored `.local/re/stored-graphics/multi-*` captures were actually viewed. Chengdu's isolated larger rock/cliff image appeared once and aligned plausibly with surrounding one-cell images. Banpo's ambiguous component stayed visibly purple. Those are observations of **our renderer**, not an original-game pixel comparison. There was no interactive desktop run. The saved-word versus original first-draw question remains open and does not block this diagnostic snapshot.

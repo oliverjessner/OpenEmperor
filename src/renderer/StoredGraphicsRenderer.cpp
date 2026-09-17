@@ -4,6 +4,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <stdexcept>
@@ -45,6 +46,8 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
             if (rgba.width != record.width || rgba.height != record.height ||
                 rgba.pixels.size() != bytes)
                 throw std::runtime_error("stored graphics decoded dimensions differ from metadata");
+            asset.decode_succeeded = true;
+            ++plan_.decoded_assets;
             SDL_Texture* texture = SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_RGBA32,
                 SDL_TEXTUREACCESS_STATIC,rgba.width,rgba.height);
             if (!texture) throw std::runtime_error(SDL_GetError());
@@ -54,7 +57,6 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
                 !SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST))
                 throw std::runtime_error(SDL_GetError());
             asset.status = maps::StoredStatus::Rendered;
-            asset.decode_succeeded = true;
             ++plan_.texture_uploads;
             plan_.logical_texture_bytes += bytes;
         } catch (const std::exception& error) {
@@ -69,6 +71,27 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
             plan_.status_by_storage[cell.cell_index] = cell.status;
         }
     }
+    for (auto& footprint : plan_.footprints)
+        footprint.status=plan_.assets[footprint.asset_index].status;
+    draw_order_.clear();
+    draw_order_.reserve(plan_.cells.size()+plan_.footprints.size());
+    for (const auto& footprint : plan_.footprints) {
+        const maps::GridCell front{footprint.origin.x+footprint.width_cells-1,
+                                   footprint.origin.y+footprint.height_cells-1};
+        const auto world=maps::terrain_world(front,plan_.border);
+        draw_order_.push_back({true,footprint.id,world.y,world.x,
+                               footprint.cell_indices.front()});
+    }
+    for (std::size_t i=0;i<plan_.cells.size();++i) {
+        const auto& cell=plan_.cells[i];
+        if (!cell.footprint_index)
+            draw_order_.push_back({false,i,cell.world.y,cell.world.x,i});
+    }
+    std::stable_sort(draw_order_.begin(),draw_order_.end(),[](const DrawItem& a,const DrawItem& b) {
+        if (a.depth!=b.depth) return a.depth<b.depth;
+        if (a.x!=b.x) return a.x<b.x;
+        return a.stable<b.stable;
+    });
 }
 
 void StoredGraphicsRenderer::shutdown() {
@@ -103,21 +126,36 @@ bool StoredGraphicsRenderer::draw_diagnostic(scene::Point world,
 bool StoredGraphicsRenderer::render(const scene::Camera2D& camera,
                                     std::optional<maps::GridCell> selected) {
     last_drawn_instances_=0;
-    for (const auto& cell : plan_.cells) {
-        if (cell.status == maps::StoredStatus::Rendered && cell.asset_index) {
-            const auto& record = plan_.assets[*cell.asset_index].record;
-            if (!maps::stored_rect_visible(cell.image_origin,
+    last_texture_draws_=0;
+    last_diagnostic_draws_=0;
+    for (const auto& item : draw_order_) {
+        if (item.footprint) {
+            const auto& footprint=plan_.footprints[item.index];
+            const auto& record=plan_.assets[footprint.asset_index].record;
+            if (footprint.status==maps::StoredStatus::Rendered) {
+                if (!maps::stored_rect_visible(footprint.image_origin,
                     static_cast<std::uint32_t>(record.width),
                     static_cast<std::uint32_t>(record.height),camera)) continue;
-            const auto top = camera.world_to_screen(cell.image_origin);
-            const SDL_FRect destination{static_cast<float>(top.x),static_cast<float>(top.y),
-                static_cast<float>(record.width*camera.zoom),
-                static_cast<float>(record.height*camera.zoom)};
-            if (!SDL_RenderTexture(renderer_,textures_[*cell.asset_index],nullptr,&destination)) return false;
+                const auto top=camera.world_to_screen(footprint.image_origin);
+                const SDL_FRect destination{static_cast<float>(top.x),static_cast<float>(top.y),
+                    static_cast<float>(record.width*camera.zoom),
+                    static_cast<float>(record.height*camera.zoom)};
+                if (!SDL_RenderTexture(renderer_,textures_[footprint.asset_index],nullptr,&destination)) return false;
+                ++last_texture_draws_;
+            } else {
+                for (const auto member : footprint.cell_indices) {
+                    const auto& cell=plan_.cells[member];
+                    if (!maps::stored_rect_visible({cell.world.x-40,cell.world.y},80,40,camera)) continue;
+                    if (!draw_diagnostic(cell.world,camera,false)) return false;
+                    ++last_diagnostic_draws_;
+                }
+            }
         } else {
+            const auto& cell=plan_.cells[item.index];
             const scene::Point origin{cell.world.x-40,cell.world.y};
             if (!maps::stored_rect_visible(origin,80,40,camera)) continue;
             if (!draw_diagnostic(cell.world,camera,false)) return false;
+            ++last_diagnostic_draws_;
         }
         ++last_drawn_instances_;
     }

@@ -12,9 +12,11 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace {
@@ -90,6 +92,19 @@ maps::MapGraphicCandidates candidates_fixture() {
     set(121,114,0xc007); // In-bounds payload with malformed overlay.
     return c;
 }
+void set_id(maps::MapGraphicCandidates& candidates,std::uint32_t x,std::uint32_t y,
+            std::uint32_t id,std::uint8_t marker=64) {
+    const auto at=static_cast<std::size_t>(y)*228U+x;
+    candidates.candidate_word_layer.at(at)=id;
+    candidates.candidate_byte_layer.at(at)=marker;
+}
+maps::MapGeometry sparse_geometry(std::initializer_list<maps::GridCell> cells) {
+    maps::MapGeometry geometry{84};
+    std::fill(geometry.candidate.begin(),geometry.candidate.end(),0);
+    for (const auto cell:cells)
+        geometry.candidate.at(static_cast<std::size_t>(cell.y)*228U+cell.x)=1;
+    return geometry;
+}
 std::array<std::uint8_t,4> pixel(SDL_Renderer* r,int x,int y) {
     SDL_Surface* s=SDL_RenderReadPixels(r,nullptr);
     check(s!=nullptr,"read software pixels");
@@ -103,7 +118,7 @@ std::array<std::uint8_t,4> pixel(SDL_Renderer* r,int x,int y) {
 int main() {
     try {
         Temp temp;
-        auto terrain=sg3(212,209);
+        auto terrain=sg3(212,211);
         auto red=tile(0x7c00), green=tile(0x03e0);
         const Bytes overlay{255,38,1,0x1f,0};
         Bytes bitmap=red;
@@ -117,13 +132,26 @@ int main() {
         const auto high_offset=static_cast<std::uint32_t>(bitmap.size());
         bitmap.insert(bitmap.end(),green.begin(),green.end());
         bitmap.insert(bitmap.end(),overlay.begin(),overlay.end());
+        const auto multi_offset=static_cast<std::uint32_t>(bitmap.size());
+        for (const auto color : {std::uint16_t{0x7c00},std::uint16_t{0x03e0},
+                                 std::uint16_t{0x001f},std::uint16_t{0x7fe0}}) {
+            const auto part=tile(color);
+            bitmap.insert(bitmap.end(),part.begin(),part.end());
+        }
+        const auto front_offset=static_cast<std::uint32_t>(bitmap.size());
+        bitmap.insert(bitmap.end(),green.begin(),green.end());
+        const Bytes front_overlay{255,38,1,0x00,0x7c}; // One red pixel above a green tile.
+        bitmap.insert(bitmap.end(),front_overlay.begin(),front_overlay.end());
         record(terrain,201,0,3200,30,78,40,3200);
         record(terrain,202,green_offset,3205,30,78,46,3200);
-        record(terrain,203,0,12800,30,158,80,12800,0,2);
+        record(terrain,203,multi_offset,12800,30,158,80,12800,0,2);
         record(terrain,204,0,3200,30,78,54,3200,8);
         record(terrain,206,100000,3200,30,78,40,3200);
         record(terrain,207,high_offset,3205,30,78,54,3200);
         record(terrain,208,malformed_offset,3201,30,78,40,3200);
+        record(terrain,209,multi_offset,12800,30,158,125,12800,0,2);
+        record(terrain,210,multi_offset,12800,30,160,80,12800,0,2);
+        record(terrain,211,front_offset,3205,30,78,54,3200);
         write(temp.path/"DATA/China_Terrain.sg3",terrain);
         write(temp.path/"DATA/China_Terrain.555",bitmap);
         auto elevation=sg3(205,201);
@@ -181,6 +209,98 @@ int main() {
               maps::stored_image_origin({100,100},78,48).y==92 &&
               maps::stored_image_origin({100,100},78,54).y==86,
               "independent fixed height anchors");
+        check(maps::stored_two_by_two_image_origin({100,100},158,80).x==21 &&
+              maps::stored_two_by_two_image_origin({100,100},158,80).y==100 &&
+              maps::stored_two_by_two_image_origin({100,100},158,125).x==21 &&
+              maps::stored_two_by_two_image_origin({100,100},158,125).y==55,
+              "fixed two-by-two anchors preserve the full upper image");
+        const auto multi_rgba=assets::load_sg3_image({terrain_path,203});
+        const auto multi_pixel=[&](std::size_t x,std::size_t y) {
+            const auto at=(y*multi_rgba.width+x)*4U;
+            return std::array<std::uint8_t,4>{multi_rgba.pixels.at(at),multi_rgba.pixels.at(at+1),
+                multi_rgba.pixels.at(at+2),multi_rgba.pixels.at(at+3)};
+        };
+        check(multi_pixel(79,0)==std::array<std::uint8_t,4>{255,0,0,255} &&
+              multi_pixel(39,20)==std::array<std::uint8_t,4>{0,255,0,255} &&
+              multi_pixel(119,20)==std::array<std::uint8_t,4>{0,0,255,255} &&
+              multi_pixel(79,40)==std::array<std::uint8_t,4>{255,255,0,255},
+              "asymmetric independent four-tile payload preserves orientation");
+        auto multi_candidates=candidates_fixture();
+        const auto set_square=[&](std::uint32_t x,std::uint32_t y,std::uint32_t id) {
+            set_id(multi_candidates,x,y,id,0);
+            set_id(multi_candidates,x+1,y,id,1);
+            set_id(multi_candidates,x,y+1,id,72);
+            set_id(multi_candidates,x+1,y+1,id,9);
+        };
+        set_square(100,100,0xc002);
+        set_square(104,100,0xc002);
+        set_square(108,100,0xc008); // Physical 209, 158x125.
+        set_id(multi_candidates,99,99,0xc000);
+        set_id(multi_candidates,102,102,0xc000);
+        const auto sparse=sparse_geometry({{100,100},{101,100},{100,101},{101,101},
+            {104,100},{105,100},{104,101},{105,101},
+            {108,100},{109,100},{108,101},{109,101},{99,99},{102,102}});
+        const auto default_plan=maps::make_stored_graphics_plan(map,multi_candidates,
+            sparse,terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout);
+        check(default_plan.footprint_count(2)==0 &&
+              default_plan.status_counts().at("multi_tile_placement_unverified")==12,
+              "default snapshot keeps complete multi-cell images diagnostic without opt-in");
+        auto two_plan=maps::make_stored_graphics_plan(map,multi_candidates,sparse,terrain_catalog,
+            *terrain_layout,elevation_catalog,*elevation_layout,true);
+        check(two_plan.cells.size()==14 && two_plan.footprint_count(2)==3 &&
+              two_plan.footprint_count(1)==2 && two_plan.covered_cells()==14 &&
+              two_plan.at({100,100})->footprint_index==two_plan.at({101,101})->footprint_index &&
+              two_plan.at({100,100})->footprint_index!=two_plan.at({104,100})->footprint_index &&
+              two_plan.at({100,100})->asset_index==two_plan.at({104,100})->asset_index,
+              "separate exact squares create two instances sharing one physical texture");
+        for (const auto where : {maps::GridCell{100,100},maps::GridCell{101,100},
+                                 maps::GridCell{100,101},maps::GridCell{101,101}}) {
+            const auto* cell=two_plan.at(where);
+            check(cell && cell->stored_id==0xc002 && cell->footprint_index &&
+                  cell->terrain_raw==0x80 && cell->logical_offset==
+                  1535U+4U*(static_cast<std::size_t>(where.y)*228U+where.x),
+                  "each owned storage cell retains its own saved values and offset");
+        }
+        set_square(112,100,0xc002);
+        auto ambiguous_candidates=multi_candidates;
+        set_id(ambiguous_candidates,114,100,0xc002);
+        set_id(ambiguous_candidates,114,101,0xc002);
+        const auto ambiguous_geometry=sparse_geometry({{112,100},{113,100},{114,100},
+            {112,101},{113,101},{114,101}});
+        const auto ambiguous=maps::make_stored_graphics_plan(map,ambiguous_candidates,
+            ambiguous_geometry,terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,true);
+        check(ambiguous.footprint_count(2)==0 &&
+              ambiguous.status_counts().at("ambiguous_footprint")==6,
+              "touching same-image footprints are not partitioned arbitrarily");
+        auto conflict_candidates=multi_candidates;
+        set_id(conflict_candidates,101,101,0xc000);
+        const auto conflict=maps::make_stored_graphics_plan(map,conflict_candidates,
+            sparse_geometry({{100,100},{101,100},{100,101},{101,101}}),terrain_catalog,
+            *terrain_layout,elevation_catalog,*elevation_layout,true);
+        check(conflict.footprint_count(2)==0 &&
+              conflict.status_counts().at("incomplete_footprint")==3 &&
+              conflict.at({101,101})->stored_id==0xc000 && conflict.at({101,101})->footprint_index,
+              "conflicting reference is never taken into a neighboring footprint");
+        const auto boundary=maps::make_stored_graphics_plan(map,multi_candidates,
+            sparse_geometry({{100,100},{101,100},{100,101}}),terrain_catalog,*terrain_layout,
+            elevation_catalog,*elevation_layout,true);
+        check(boundary.footprint_count(2)==0 && !boundary.at({101,101}) &&
+              boundary.status_counts().at("incomplete_footprint")==3,
+              "candidate mask boundary cannot complete a footprint by clipping");
+        auto edge_candidates=multi_candidates;
+        set_id(edge_candidates,102,100,0xc002); // Same saved ID immediately outside the mask.
+        const auto edge=maps::make_stored_graphics_plan(map,edge_candidates,
+            sparse_geometry({{100,100},{101,100},{100,101},{101,101}}),terrain_catalog,
+            *terrain_layout,elevation_catalog,*elevation_layout,true);
+        check(edge.footprint_count(2)==0 &&
+              edge.status_counts().at("anchor_unresolved")==4,
+              "a fifth matching storage cell outside the candidate mask is not silently trimmed");
+        set_id(multi_candidates,110,100,0xc009);
+        const auto unsupported=maps::make_stored_graphics_plan(map,multi_candidates,
+            sparse_geometry({{110,100}}),terrain_catalog,*terrain_layout,elevation_catalog,
+            *elevation_layout,true);
+        check(unsupported.at({110,100})->status==maps::StoredStatus::UnsupportedFootprintSize,
+              "inconsistent wider metadata stays a separate diagnostic");
         check(tall->world.y==plan.at({115,114})->world.y-20 &&
               tall->image_origin.y==tall->world.y-6,
               "neighbor ground position stays independent of image height");
@@ -191,6 +311,84 @@ int main() {
         check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL dummy init");
         SDL_Window* window=nullptr; SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("stored test",400,300,0,&window,&renderer),"software renderer");
+        {
+            auto isolated=maps::make_stored_graphics_plan(map,multi_candidates,
+                sparse_geometry({{100,100},{101,100},{100,101},{101,101}}),terrain_catalog,
+                *terrain_layout,elevation_catalog,*elevation_layout,true);
+            openemperor::StoredGraphicsRenderer preview{std::move(isolated)};
+            preview.initialize(renderer);
+            check(preview.upload_count()==1 && preview.plan().covered_cells()==4 &&
+                  preview.plan().footprint_count(2)==1 &&
+                  preview.plan().status_counts().at("rendered")==4,
+                  "one decoded texture covers four retained storage cells");
+            scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+            camera.center_on(maps::terrain_world({100,100},sparse.border));
+            check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                  preview.render(camera,std::nullopt) &&
+                  preview.last_texture_draws()==1 && preview.last_diagnostic_draws()==0,
+                  "four cells cause exactly one SDL texture draw and no covering diagnostics");
+            check(pixel(renderer,200,150)==std::array<std::uint8_t,4>{255,0,0,255} &&
+                  pixel(renderer,160,170)==std::array<std::uint8_t,4>{0,255,0,255} &&
+                  pixel(renderer,240,170)==std::array<std::uint8_t,4>{0,0,255,255} &&
+                  pixel(renderer,200,190)==std::array<std::uint8_t,4>{255,255,0,255} &&
+                  pixel(renderer,239,196)==std::array<std::uint8_t,4>{0,0,255,255},
+                  "software-rendered asymmetric footprint has correct orientation");
+            for (const auto where : {maps::GridCell{100,100},maps::GridCell{101,100},
+                                     maps::GridCell{100,101},maps::GridCell{101,101}}) {
+                const auto ground=maps::terrain_world(where,sparse.border);
+                const scene::Point inside{ground.x,ground.y+20};
+                const auto screen=camera.world_to_screen(inside);
+                check(maps::pick_terrain_cell(camera.screen_to_world(screen),sparse)==where,
+                      "each of the four source cells remains independently selectable");
+                camera.zoom_at(screen,1.4);
+                check(maps::pick_terrain_cell(camera.screen_to_world(camera.world_to_screen(inside)),
+                      sparse)==where,"selection survives camera zoom and reprojection");
+            }
+            preview.shutdown();
+        }
+        {
+            auto layered_candidates=multi_candidates;
+            set_id(layered_candidates,102,101,0xc00a);
+            auto layered=maps::make_stored_graphics_plan(map,layered_candidates,
+                sparse_geometry({{100,100},{101,100},{100,101},{101,101},{102,101}}),
+                terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,true);
+            openemperor::StoredGraphicsRenderer preview{std::move(layered)};
+            preview.initialize(renderer);
+            scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+            camera.center_on(maps::terrain_world({100,100},sparse.border));
+            check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                  preview.render(camera,std::nullopt) && preview.last_texture_draws()==2 &&
+                  pixel(renderer,239,196)==std::array<std::uint8_t,4>{255,0,0,255},
+                  "front one-cell overlay paints over the two-cell image at its ground depth");
+            preview.shutdown();
+        }
+        {
+            openemperor::StoredGraphicsRenderer preview{std::move(two_plan)};
+            preview.initialize(renderer);
+            check(preview.upload_count()==3 && preview.plan().footprint_count(2)==3 &&
+                  preview.plan().footprint_count(1)==2 && preview.plan().covered_cells()==14,
+                  "two same-asset footprints remain two placements but share one uploaded texture");
+            scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+            const auto first=maps::terrain_world({100,100},sparse.border);
+            camera.zoom=0.5; camera.center_on({first.x+160,first.y+80});
+            check(preview.render(camera,std::nullopt) && preview.last_texture_draws()==5 &&
+                  preview.last_diagnostic_draws()==0,
+                  "all five supported instances draw once in a wide viewport");
+            preview.shutdown();
+        }
+        {
+            auto tall_plan=maps::make_stored_graphics_plan(map,multi_candidates,
+                sparse_geometry({{108,100},{109,100},{108,101},{109,101}}),terrain_catalog,
+                *terrain_layout,elevation_catalog,*elevation_layout,true);
+            openemperor::StoredGraphicsRenderer preview{std::move(tall_plan)};
+            preview.initialize(renderer);
+            scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+            camera.center_on(maps::terrain_world({108,100},sparse.border));
+            camera.offset.y+=170; // Ground anchor is below the viewport; upper image rect intersects it.
+            check(preview.render(camera,std::nullopt) && preview.last_texture_draws()==1,
+                  "culling uses the whole 158x125 image despite an offscreen ground anchor");
+            preview.shutdown();
+        }
         {
             openemperor::StoredGraphicsRenderer preview{std::move(plan)};
             preview.initialize(renderer);
@@ -248,6 +446,38 @@ int main() {
             view.handle_event(select,running);
             check(view.selected_cell()==chosen,"stored logical selection survives resize");
             view.shutdown();
+        }
+        {
+            auto fresh=maps::make_stored_graphics_plan(map,multi_candidates,
+                sparse_geometry({{100,100},{101,100},{100,101},{101,101}}),terrain_catalog,
+                *terrain_layout,elevation_catalog,*elevation_layout,true);
+            openemperor::MapDebugView view{map,maps::RawLayer::Terrain,
+                maps::MapViewMode::StoredGraphics,std::nullopt,std::move(fresh)};
+            view.initialize(window,renderer);
+            bool running=true;
+            // Fixed 400x300 fit: rear/top ground (200,128), zoom 2; click
+            // inside each distinct 80x40 logical diamond, not its image pixels.
+            for (const auto [where,sx,sy] : std::array<std::tuple<maps::GridCell,float,float>,4>{
+                std::tuple{maps::GridCell{100,100},200.0F,168.0F},
+                std::tuple{maps::GridCell{101,100},280.0F,208.0F},
+                std::tuple{maps::GridCell{100,101},120.0F,208.0F},
+                std::tuple{maps::GridCell{101,101},200.0F,248.0F}}) {
+                SDL_Event click{}; click.type=SDL_EVENT_MOUSE_BUTTON_DOWN;
+                click.button.button=SDL_BUTTON_LEFT; click.button.x=sx; click.button.y=sy;
+                view.handle_event(click,running);
+                check(view.selected_cell()==where && view.render(),
+                      "SDL click selects the precise owned storage cell, not only the image instance");
+            }
+            SDL_Event wheel{}; wheel.type=SDL_EVENT_MOUSE_WHEEL;
+            wheel.wheel.mouse_x=200; wheel.wheel.mouse_y=150; wheel.wheel.y=2;
+            view.handle_event(wheel,running);
+            check(view.selected_cell()==maps::GridCell{101,101} && view.render(),
+                  "selected member persists after opt-in preview zoom");
+            check(SDL_SetWindowSize(window,500,350) && view.render() &&
+                  view.selected_cell()==maps::GridCell{101,101},
+                  "selected member persists after opt-in preview resize");
+            view.shutdown();
+            SDL_SetWindowSize(window,400,300);
         }
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
         {

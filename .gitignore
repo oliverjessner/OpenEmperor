@@ -9,6 +9,7 @@ screenshots/
 dist/
 build/
 build-pinned/
+build-release/
 .next/
 coverage/
 *.log

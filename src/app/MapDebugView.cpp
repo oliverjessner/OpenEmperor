@@ -70,8 +70,13 @@ void MapDebugView::initialize(SDL_Window* window, SDL_Renderer* renderer) {
                   << " candidate=" << plan.cells.size() << " excluded=" << plan.excluded
                   << " mask_mismatches=" << plan.mask_comparison.mismatches()
                   << " distinct_referenced_assets=" << plan.assets.size()
-                  << " decoded_assets=" << plan.texture_uploads
+                  << " decoded_assets=" << plan.decoded_assets
                   << " texture_uploads=" << plan.texture_uploads
+                  << " covered_cells=" << plan.covered_cells()
+                  << " one_by_one_instances=" << plan.footprint_count(1)
+                  << " two_by_two_instances=" << plan.footprint_count(2)
+                  << " distinct_textures=" << plan.texture_uploads
+                  << " multi_tile_preview=" << plan.multi_tile_preview
                   << " logical_texture_bytes=" << plan.logical_texture_bytes << '\n';
         for (const auto& [status,count] : plan.status_counts())
             std::cout << "  status " << status << '=' << count << '\n';
@@ -103,11 +108,14 @@ void MapDebugView::reset_camera() {
                 include(instance.image_origin,78,40);
         } else {
             const auto& plan = stored_renderer_->plan();
+            for (const auto& footprint : plan.footprints) {
+                if (footprint.status != maps::StoredStatus::Rendered) continue;
+                const auto& record=plan.assets[footprint.asset_index].record;
+                include(footprint.image_origin,record.width,record.height);
+            }
             for (const auto& cell : plan.cells) {
-                if (cell.status == maps::StoredStatus::Rendered && cell.asset_index) {
-                    const auto& record = plan.assets[*cell.asset_index].record;
-                    include(cell.image_origin,record.width,record.height);
-                } else include({cell.world.x-40,cell.world.y},80,40);
+                if (!cell.footprint_index || cell.status != maps::StoredStatus::Rendered)
+                    include({cell.world.x-40,cell.world.y},80,40);
             }
         }
         if (first) return;
@@ -279,7 +287,9 @@ void MapDebugView::show_selected() {
             std::cout << " archive=" << record.id.archive_relative_path.generic_string()
                       << " type=" << record.image_type << " size=" << record.width << 'x' << record.height;
             if (cell->footprint_supported)
-                std::cout << " preview_anchor=(" << record.width / 2.0 << ',' << record.height - 40 << ')';
+                std::cout << " preview_anchor=(" << record.width / 2.0 << ','
+                          << record.height - (cell->footprint_index &&
+                             plan.footprints[*cell->footprint_index].width_cells==2 ? 80 : 40) << ')';
             else std::cout << " preview_anchor=unverified";
             std::cout << " omega_overlay=" << (record.image_type == 30 &&
                 record.uncompressed_length <= record.data_length ?
@@ -289,6 +299,15 @@ void MapDebugView::show_selected() {
                       << " decode_attempted=" << asset.decode_attempted
                       << " decode_success=" << asset.decode_succeeded;
             if (!asset.error.empty()) std::cout << " decode_error=" << asset.error;
+        }
+        if (cell->footprint_index) {
+            const auto& footprint=plan.footprints[*cell->footprint_index];
+            std::cout << " footprint_instance=" << footprint.id
+                      << " footprint_origin=(" << footprint.origin.x << ',' << footprint.origin.y << ')'
+                      << " footprint_size=" << footprint.width_cells << 'x' << footprint.height_cells
+                      << " placement_rule=" << footprint.rule
+                      << " image_origin=(" << footprint.image_origin.x << ','
+                      << footprint.image_origin.y << ')';
         }
         std::cout << '\n';
     }
@@ -385,7 +404,15 @@ bool MapDebugView::render() {
     if (is_texture_view()) {
         if (view_ == maps::MapViewMode::Textured) {
             if (!textured_renderer_->render(textured_camera_, selected_)) return false;
-        } else if (!stored_renderer_->render(textured_camera_,selected_)) return false;
+        } else {
+            if (!stored_renderer_->render(textured_camera_,selected_)) return false;
+            if (!reported_stored_draws_) {
+                std::cout << "Stored graphics viewport: texture_draws="
+                          << stored_renderer_->last_texture_draws()
+                          << " diagnostic_draws=" << stored_renderer_->last_diagnostic_draws() << '\n';
+                reported_stored_draws_=true;
+            }
+        }
     } else {
     const auto top_left = camera_.grid_to_screen({0, 0});
     const double scale = maps::StorageGridCamera::base_cell_pixels * camera_.zoom;

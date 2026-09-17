@@ -36,7 +36,8 @@ void print_usage(const char* executable) {
               << " [--part <index>] [--layer terrain_raw|objects_raw]"
               << " [--view storage|semantic|projected|textured|stored-graphics]"
               << " [--terrain-bindings <preview.json>]"
-              << " [--graphics-profile exe-6373328b-v213-runtime-table]\n";
+              << " [--graphics-profile exe-6373328b-v213-runtime-table]"
+              << " [--multi-tile-preview]\n";
 }
 
 std::filesystem::path resolve_map_path(const std::filesystem::path& root_path,
@@ -72,6 +73,7 @@ int main(int argc, char* argv[]) {
     bool view_supplied = false;
     bool terrain_bindings_supplied = false;
     bool graphics_profile_supplied = false;
+    bool multi_tile_preview = false;
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
@@ -89,6 +91,8 @@ int main(int argc, char* argv[]) {
         const std::string_view argument{argv[index]};
         if (argument == "--browse-assets" && !browse_assets) {
             browse_assets = true;
+        } else if (argument == "--multi-tile-preview" && !multi_tile_preview) {
+            multi_tile_preview = true;
         } else if (argument == "--ignore-alpha" && !ignore_alpha) {
             ignore_alpha = true;
         } else if (argument == "--alpha-addressing" && !diagnostic_alpha_addressing && index + 1 < argc) {
@@ -179,7 +183,9 @@ int main(int argc, char* argv[]) {
         (map_view_mode == openemperor::maps::MapViewMode::Textured && !terrain_bindings_supplied) ||
         (terrain_bindings_supplied && map_view_mode != openemperor::maps::MapViewMode::Textured) ||
         (map_view_mode == openemperor::maps::MapViewMode::StoredGraphics && !graphics_profile_supplied) ||
-        (graphics_profile_supplied && map_view_mode != openemperor::maps::MapViewMode::StoredGraphics)) {
+        (graphics_profile_supplied && map_view_mode != openemperor::maps::MapViewMode::StoredGraphics) ||
+        (multi_tile_preview && (!graphics_profile_supplied ||
+            map_view_mode != openemperor::maps::MapViewMode::StoredGraphics))) {
         print_usage(argv[0]);
         return 2;
     }
@@ -271,7 +277,7 @@ int main(int argc, char* argv[]) {
                 const auto candidates = maps::read_map_graphic_candidates(container,map_part);
                 const maps::MapGeometry geometry{map.declared_map_size};
                 stored_plan = maps::make_stored_graphics_plan(map,candidates,geometry,
-                    terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout);
+                    terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,multi_tile_preview);
             }
             map_view = std::make_unique<openemperor::MapDebugView>(
                 std::move(map), map_layer, map_view_mode, std::move(bindings),std::move(stored_plan));
