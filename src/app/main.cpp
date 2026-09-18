@@ -56,10 +56,10 @@ void print_usage(const char* executable) {
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]"
               << " --render-check --report-json\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
-              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4]"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5]"
               << " [--sandbox-demo] [--sandbox-check [--sandbox-resume-check] --report-json]\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
-              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4]"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5]"
               << " [--sandbox-demo] [--sandbox-save <save.json>]\n"
               << "       " << executable << " --data <directory> --load-sandbox <save.json>\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
@@ -186,6 +186,8 @@ int main(int argc, char* argv[]) {
                 sandbox_rules=openemperor::simulation::RulesProfile::HouseholdV3;
             else if (value==openemperor::simulation::settlement_profile_name)
                 sandbox_rules=openemperor::simulation::RulesProfile::SettlementV4;
+            else if (value==openemperor::simulation::industry_profile_name)
+                sandbox_rules=openemperor::simulation::RulesProfile::IndustryV5;
             else if (value!=openemperor::simulation::profile_name) {
                 std::cerr << "Unknown sandbox rules profile: " << value << '\n'; return 2;
             }

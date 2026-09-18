@@ -11,14 +11,16 @@ namespace openemperor::simulation {
 
 inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
-enum class RulesProfile { LogisticsV1, ProductionV2, HouseholdV3, SettlementV4 };
+enum class RulesProfile { LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
+inline constexpr const char* industry_profile_name = "sandbox-industry-v5";
 inline constexpr std::uint8_t first_household_id=4;
 inline constexpr std::uint8_t household_limit=4;
 inline constexpr std::uint8_t household_id_end=first_household_id+household_limit;
 constexpr bool household_profile(RulesProfile profile) {
-    return profile==RulesProfile::HouseholdV3 || profile==RulesProfile::SettlementV4;
+    return profile==RulesProfile::HouseholdV3 || profile==RulesProfile::SettlementV4 ||
+           profile==RulesProfile::IndustryV5;
 }
 constexpr bool production_profile(RulesProfile profile) {
     return profile==RulesProfile::ProductionV2 || household_profile(profile);
@@ -63,6 +65,7 @@ struct Position { double x=0; double y=0; bool operator==(const Position&) const
 enum class Good { Goods, Clay, Pottery };
 enum class BuildingId : std::uint8_t { ClaySource=1, Pottery=2, Warehouse=3, Household=4 };
 enum class CourierId : std::uint8_t { Clay=1, Pottery=2, Household=3 };
+enum class CourierRole : std::uint8_t { None=0, Clay=1, Pottery=2, Household=3 };
 struct BuildingState {
     BuildingId id=BuildingId::ClaySource;
     Object kind=Object::Empty;
@@ -79,9 +82,11 @@ struct BuildingState {
     int demand_progress=0;
     std::uint64_t fulfilled_demand=0, missed_demand=0, consumed_total=0;
     int last_demand_status=0; // 0 none, 1 fulfilled, 2 missed.
+    std::uint64_t clay_extracted=0;
 };
 struct CourierState {
     CourierId id=CourierId::Clay;
+    CourierRole role=CourierRole::None;
     BuildingId owner=BuildingId::ClaySource;
     BuildingId target=BuildingId::Pottery;
     Good good=Good::Clay;
@@ -97,10 +102,13 @@ struct CourierState {
     std::uint64_t reroute_attempts=0;
     std::uint64_t cached_revision=UINT64_MAX;
     std::optional<std::vector<Cell>> cached_route;
+    std::optional<BuildingId> last_dispatched_pottery;
+    std::array<std::optional<std::vector<Cell>>,9> target_routes{};
 };
 // Only authoritative state. Occupancy and future route caches are rebuilt.
 struct CourierSnapshot {
     CourierId id=CourierId::Clay;
+    CourierRole role=CourierRole::None;
     BuildingId owner=BuildingId::ClaySource, target=BuildingId::Pottery;
     Good good=Good::Clay;
     bool enabled=false;
@@ -112,6 +120,7 @@ struct CourierSnapshot {
     bool route_pending=false;
     std::optional<std::uint64_t> route_checked_revision;
     std::uint64_t reroute_attempts=0;
+    std::optional<BuildingId> last_dispatched_pottery;
     bool operator==(const CourierSnapshot&) const = default;
 };
 struct BuildingSnapshot {
@@ -126,6 +135,7 @@ struct BuildingSnapshot {
     int demand_progress=0;
     std::uint64_t fulfilled_demand=0, missed_demand=0, consumed_total=0;
     int last_demand_status=0;
+    std::uint64_t clay_extracted=0;
     bool operator==(const BuildingSnapshot&) const = default;
 };
 struct WorldSnapshot {
@@ -142,9 +152,11 @@ struct WorldSnapshot {
     std::vector<Cell> path;
     std::size_t path_vertex=0;
     int edge_progress=0;
-    std::array<BuildingSnapshot,7> buildings{};
-    std::array<CourierSnapshot,3> couriers{};
+    std::array<BuildingSnapshot,9> buildings{};
+    std::array<CourierSnapshot,5> couriers{};
     std::uint8_t next_household_id=first_household_id;
+    std::uint8_t next_production_id=8;
+    std::uint8_t next_courier_id=4;
     std::optional<BuildingId> last_dispatched_household;
     bool operator==(const WorldSnapshot&) const = default;
 };
@@ -163,8 +175,11 @@ public:
     std::optional<BuildingId> building_owner_at(Cell cell) const;
     const BuildingState& building(BuildingId id) const;
     std::uint8_t next_household_id() const { return next_household_id_; }
+    std::uint8_t next_production_id() const { return next_production_id_; }
+    std::uint8_t next_courier_id() const { return next_courier_id_; }
     std::optional<BuildingId> last_dispatched_household() const { return last_dispatched_household_; }
     std::optional<BuildingId> next_household_candidate() const;
+    std::optional<BuildingId> next_pottery_candidate(CourierId id) const;
     bool household_route_available(BuildingId id) const;
     const CourierState& courier(CourierId id) const;
     std::optional<Position> courier_position(CourierId id) const;
@@ -205,6 +220,7 @@ private:
     const std::vector<Cell>* route_for_revision();
     void refresh_routes();
     void tick_production_v2();
+    bool industry_balance_valid() const;
     void dispatch_v2(CourierState& courier);
     void move_v2(CourierState& courier);
     bool valid_return_path(const CourierState& courier) const;
@@ -219,9 +235,11 @@ private:
     std::vector<std::uint8_t> buildable_;
     std::vector<Object> objects_;
     std::vector<std::uint8_t> owners_;
-    std::array<BuildingState,7> buildings_;
-    std::array<CourierState,3> couriers_;
+    std::array<BuildingState,9> buildings_;
+    std::array<CourierState,5> couriers_;
     std::uint8_t next_household_id_=first_household_id;
+    std::uint8_t next_production_id_=8;
+    std::uint8_t next_courier_id_=4;
     std::optional<BuildingId> last_dispatched_household_;
     std::array<std::optional<std::vector<Cell>>,household_limit> household_routes_{};
     std::uint64_t household_routes_revision_=UINT64_MAX;

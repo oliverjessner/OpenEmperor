@@ -47,7 +47,7 @@ struct Temp {
         std::filesystem::remove(path.parent_path()/(path.filename().string()+"-viewer-save.json"),error); }
 };
 openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=false,
-                                           bool household=false) {
+                                           bool household=false,bool industry=false) {
     Bytes sg3(40680U+64U,0);
     u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));
     u32(sg3,4,213); u32(sg3,12,1); u32(sg3,16,1); u32(sg3,20,1);
@@ -76,11 +76,13 @@ openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=fal
     maps::StoredAsset asset;
     asset.record=record;
     plan.assets.push_back(std::move(asset));
-    const std::uint32_t blocked=household ? 120U : production ? 117U : 116U;
+    const std::uint32_t blocked=industry ? 121U : household ? 120U :
+        production ? 117U : 116U;
+    for (std::uint32_t y=industry ? 112U:114U;y<=(industry ? 116U:114U);++y)
     for (std::uint32_t x=110;x<=blocked;++x) {
         maps::StoredCell cell;
-        cell.storage={x,114};
-        cell.cell_index=static_cast<std::size_t>(114)*228+x;
+        cell.storage={x,y};
+        cell.cell_index=static_cast<std::size_t>(y)*228+x;
         cell.terrain_raw=x==blocked ? 0 : 0x80;
         cell.objects_raw=0;
         cell.status=maps::StoredStatus::DecodePending;
@@ -405,6 +407,23 @@ int main() {
         check(!household_view.world().courier(simulation::CourierId::Household).route_pending &&
               household_view.render(),"v3 supplier did not resume after repair");
         household_view.shutdown();
+        openemperor::SandboxView industry_view(fixture(temp,true,true,true),true,
+            simulation::RulesProfile::IndustryV5);
+        industry_view.initialize(window,renderer);
+        check(industry_view.world().building(static_cast<simulation::BuildingId>(8)).kind==
+                  simulation::Object::ClaySource &&
+              industry_view.world().building(static_cast<simulation::BuildingId>(9)).kind==
+                  simulation::Object::Pottery && industry_view.tool()==5,
+              "v5 viewer did not place two production instances");
+        for (int i=0;i<700;++i) industry_view.tick_once();
+        check(industry_view.render() && industry_view.last_courier_draws()==5 &&
+              industry_view.world().building(static_cast<simulation::BuildingId>(9)).recipes_completed>0,
+              "v5 software frame did not draw five couriers and active second pottery");
+        industry_view.handle_event(key(SDLK_2),running);
+        check(industry_view.tool()==2 &&
+              !industry_view.preview({121,114}).accepted,
+              "v5 repeat Clay tool did not enforce the two-source limit");
+        industry_view.shutdown();
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
         std::cout << "Sandbox software view checks passed\n";
         return 0;
