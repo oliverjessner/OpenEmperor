@@ -84,6 +84,7 @@ void MapDebugView::initialize(SDL_Window* window, SDL_Renderer* renderer) {
                   << " covered_cells=" << plan.covered_cells()
                   << " one_by_one_instances=" << plan.footprint_count(1)
                   << " two_by_two_instances=" << plan.footprint_count(2)
+                  << " four_by_four_instances=" << plan.footprint_count(4)
                   << " distinct_textures=" << plan.texture_uploads
                   << " multi_tile_preview=" << plan.multi_tile_preview
                   << " footprint_policy=" << maps::footprint_policy_name(plan.footprint_policy)
@@ -295,7 +296,9 @@ void MapDebugView::show_selected() {
                   << " footprint_supported=" << cell->footprint_supported
                   << " render_status=" << maps::stored_status_name(cell->status);
         if (cell->subtile) {
-            std::cout << " subtile_profile=" << maps::edge_byte_profile
+            std::cout << " subtile_profile=" <<
+                (plan.footprint_policy==maps::FootprintPolicy::EdgeByte4x4Preview ?
+                 maps::edge_byte_4x4_profile : maps::edge_byte_profile)
                       << " part_x=" << static_cast<unsigned>(cell->subtile->part_x)
                       << " part_y=" << static_cast<unsigned>(cell->subtile->part_y)
                       << " draw_marker_candidate=" << cell->subtile->draw_marker_candidate
@@ -311,8 +314,8 @@ void MapDebugView::show_selected() {
                       << " type=" << record.image_type << " size=" << record.width << 'x' << record.height;
             if (cell->footprint_supported)
                 std::cout << " preview_anchor=(" << record.width / 2.0 << ','
-                          << record.height - (cell->footprint_index &&
-                             plan.footprints[*cell->footprint_index].width_cells==2 ? 80 : 40) << ')';
+                          << static_cast<int>(record.height) - 40 * static_cast<int>(cell->footprint_index ?
+                             plan.footprints[*cell->footprint_index].width_cells : 1) << ')';
             else std::cout << " preview_anchor=unverified";
             std::cout << " omega_overlay=" << (record.image_type == 30 &&
                 record.uncompressed_length <= record.data_length ?

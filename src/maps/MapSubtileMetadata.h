@@ -8,8 +8,9 @@
 namespace openemperor::maps {
 
 // Reference-derived interpretation of the saved candidate byte. The high bit
-// remains unknown; this profile is only used by the opt-in 2x2 preview.
+// remains unknown; these profiles are opt-in saved-graphics previews.
 inline constexpr const char* edge_byte_profile = "reference-edge-byte-2x2-preview";
+inline constexpr const char* edge_byte_4x4_profile = "reference-edge-byte-4x4-preview";
 struct MapSubtileMetadata {
     std::uint8_t raw_byte = 0;
     std::uint8_t part_x = 0;

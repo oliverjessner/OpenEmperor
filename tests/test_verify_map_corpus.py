@@ -44,8 +44,9 @@ class CorpusRunnerTests(unittest.TestCase):
                 "{'relative_path':'Cities/Bad.map'}], 'scan_errors':[]}))\n"
                 "elif any('One Map.map' in part for part in sys.argv):\n"
                 " profile=sys.argv[sys.argv.index('--graphics-profile')+1]\n"
+                " policy=sys.argv[sys.argv.index('--footprint-policy')+1]\n"
                 " print(json.dumps({'status':'snapshot_complete','candidate_cells':4,"
-                "'covered_cells':4,'graphics_profile':profile}))\n"
+                "'covered_cells':4,'graphics_profile':profile,'footprint_policy':policy}))\n"
                 "else:\n"
                 " print('broken output'); sys.exit(9)\n", encoding="utf-8")
             fake.chmod(0o755)
@@ -53,7 +54,8 @@ class CorpusRunnerTests(unittest.TestCase):
             result = subprocess.run([sys.executable, str(RUNNER), "--binary", str(fake),
                                      "--data", str(root / "data with spaces"),
                                      "--report", str(report), "--timeout", "2",
-                                     "--graphics-profile", "exe-6373328b-v213-slot8-runtime-table"],
+                                     "--graphics-profile", "exe-6373328b-v213-slot8-runtime-table",
+                                     "--footprint-policy", "edge-byte-4x4"],
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             saved = json.loads(report.read_text(encoding="utf-8"))
@@ -63,6 +65,7 @@ class CorpusRunnerTests(unittest.TestCase):
             self.assertEqual(saved["results"][0]["relative_path"], "Cities/One Map.map")
             self.assertEqual(saved["results"][0]["graphics_profile"],
                              "exe-6373328b-v213-slot8-runtime-table")
+            self.assertEqual(saved["results"][0]["footprint_policy"], "edge-byte-4x4")
 
     def test_timed_map_keeps_previous_result(self):
         with tempfile.TemporaryDirectory() as directory:

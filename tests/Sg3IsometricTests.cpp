@@ -87,6 +87,24 @@ bool run_checks() {
     if (decode_isometric_rgba(metadata(158, 80, 0, four_tiles.size()), four_tiles).pixels !=
         footprint.pixels) return false;
 
+    Bytes sixteen_tiles;
+    for (std::size_t i = 0; i < 16; ++i) {
+        const auto part = tile(i == 15 ? 0x001f : 0x7c00, 3200);
+        sixteen_tiles.insert(sixteen_tiles.end(), part.begin(), part.end());
+    }
+    Bytes wall = sixteen_tiles;
+    const Bytes wall_overlay{255, 158, 1, 0xe0, 0x03};
+    wall.insert(wall.end(), wall_overlay.begin(), wall_overlay.end());
+    const auto wall_image = decode_isometric_rgba(metadata(318, 167, 4,
+        sixteen_tiles.size(), wall_overlay.size()), wall);
+    if (wall_image.width != 318 || wall_image.height != 167 ||
+        pixel(wall_image, 158, 0) != green || pixel(wall_image, 158, 7) != red ||
+        pixel(wall_image, 158, 127) != blue || pixel(wall_image, 0, 0) != transparent ||
+        !rejects([&] { decode_isometric_rgba(metadata(318, 159, 4,
+            sixteen_tiles.size()), sixteen_tiles); }) ||
+        !rejects([&] { decode_isometric_rgba(metadata(318, 167, 2,
+            sixteen_tiles.size()), sixteen_tiles); })) return false;
+
     const auto lowered = decode_isometric_rgba(metadata(78, 50, 1, emperor.size()), emperor);
     if (pixel(lowered, 38, 0) != transparent || pixel(lowered, 38, 9) != transparent ||
         pixel(lowered, 38, 10) != green || pixel(lowered, 38, 49) != green) return false;

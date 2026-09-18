@@ -34,7 +34,7 @@ enum class StoredStatus { Excluded, DecodePending, Rendered, UnsupportedHighBit,
     SubtilePositionInvalid, ConflictingFootprint };
 const char* stored_status_name(StoredStatus status);
 
-enum class FootprintPolicy { Disabled, IsolatedPreview, EdgeBytePreview };
+enum class FootprintPolicy { Disabled, IsolatedPreview, EdgeBytePreview, EdgeByte4x4Preview };
 const char* footprint_policy_name(FootprintPolicy policy);
 
 struct StoredAsset {
@@ -107,6 +107,7 @@ struct StoredGraphicsPlan {
     std::map<std::string,std::size_t> status_counts() const;
     std::size_t covered_cells() const;
     std::size_t footprint_count(std::uint32_t side) const;
+    std::map<std::uint32_t,std::size_t> footprint_histogram() const;
 };
 
 // Each entry owns its metadata, physical catalog and runtime layout. A known
@@ -132,6 +133,8 @@ StoredGraphicsPlan make_stored_graphics_plan(
 scene::Point stored_image_origin(scene::Point world, std::uint32_t width, std::uint32_t height);
 scene::Point stored_two_by_two_image_origin(scene::Point rear_world, std::uint32_t width,
                                             std::uint32_t height);
+scene::Point stored_square_image_origin(scene::Point rear_world, std::uint32_t width,
+                                        std::uint32_t height, std::uint32_t side);
 bool stored_rect_visible(scene::Point origin, std::uint32_t width, std::uint32_t height,
                          const scene::Camera2D& camera);
 StoredGraphicsPlan make_stored_graphics_plan(

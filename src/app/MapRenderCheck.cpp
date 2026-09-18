@@ -41,7 +41,7 @@ int run_map_render_check(const std::filesystem::path& data_root,
                          const std::filesystem::path& relative_map,
                          maps::FootprintPolicy policy, maps::StoredGraphicsProfile profile) {
     Json report{
-        {"schema","openemperor-map-render-check-v1"},
+        {"schema","openemperor-map-render-check-v2"},
         {"relative_path",relative_map.generic_string()},
         {"status","not_checked"},
         {"graphics_profile",maps::stored_graphics_profile_name(profile)},
@@ -91,9 +91,25 @@ int run_map_render_check(const std::filesystem::path& data_root,
             std::size_t accounted=0;
             for (const auto& [status,count]:counts) { (void)status; accounted+=count; }
             const auto rendered=counts.contains("rendered") ? counts.at("rendered") : 0;
-            if (accounted!=plan.cells.size() || plan.covered_cells()>plan.cells.size() ||
-                rendered!=plan.covered_cells() ||
-                plan.footprint_count(1)+plan.footprint_count(2)!=plan.footprints.size())
+            const auto histogram=plan.footprint_histogram();
+            std::size_t counted_footprints=0, rendered_instances=0;
+            std::set<std::size_t> owned_cells;
+            for (const auto& [side,count]:histogram) { (void)side; counted_footprints+=count; }
+            for (const auto& footprint:plan.footprints) {
+                if (footprint.width_cells!=footprint.height_cells ||
+                    footprint.cell_indices.size()!=static_cast<std::size_t>(footprint.width_cells)*
+                                                   footprint.height_cells)
+                    throw std::runtime_error("stored graphics footprint shape disagrees");
+                if (footprint.status!=maps::StoredStatus::Rendered) continue;
+                ++rendered_instances;
+                for (const auto index:footprint.cell_indices)
+                    if (index>=plan.cells.size() || !owned_cells.insert(index).second ||
+                        plan.cells[index].footprint_index!=footprint.id ||
+                        plan.cells[index].status!=maps::StoredStatus::Rendered)
+                        throw std::runtime_error("stored graphics cell ownership disagrees");
+            }
+            if (accounted!=plan.cells.size() || counted_footprints!=plan.footprints.size() ||
+                rendered!=owned_cells.size() || rendered!=plan.covered_cells())
                 throw std::runtime_error("stored graphics report counters disagree");
             report["candidate_cells"]=plan.cells.size();
             report["covered_cells"]=plan.covered_cells();
@@ -133,6 +149,15 @@ int run_map_render_check(const std::filesystem::path& data_root,
             }
             report["one_by_one_instances"]=plan.footprint_count(1);
             report["two_by_two_instances"]=plan.footprint_count(2);
+            report["footprint_instances_planned"]=plan.footprints.size();
+            report["footprint_instances_rendered"]=rendered_instances;
+            Json size_histogram=Json::object();
+            for (const auto& [side,count]:histogram)
+                size_histogram[std::to_string(side)]=count;
+            report["footprint_size_histogram"]=std::move(size_histogram);
+            report["supported_footprint_sides"]=policy==maps::FootprintPolicy::EdgeByte4x4Preview ?
+                Json::array({1,2,4}) :
+                policy==maps::FootprintPolicy::Disabled ? Json::array({1}) : Json::array({1,2});
             report["distinct_referenced_assets"]=plan.assets.size();
             std::set<std::size_t> required_assets;
             for (const auto& footprint:plan.footprints) required_assets.insert(footprint.asset_index);

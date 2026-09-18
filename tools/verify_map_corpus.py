@@ -115,7 +115,7 @@ def main():
                         default=pathlib.Path(".local/reports/map-compatibility.json"))
     parser.add_argument("--timeout", type=float, default=30.0)
     parser.add_argument("--build-type", default="Debug")
-    parser.add_argument("--footprint-policy", choices=("disabled", "isolated", "edge-byte"),
+    parser.add_argument("--footprint-policy", choices=("disabled", "isolated", "edge-byte", "edge-byte-4x4"),
                         default="edge-byte")
     parser.add_argument("--graphics-profile", choices=(
         "exe-6373328b-v213-runtime-table",

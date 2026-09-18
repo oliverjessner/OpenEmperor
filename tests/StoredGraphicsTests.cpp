@@ -71,7 +71,7 @@ Bytes tile(std::uint16_t color) {
     return b;
 }
 Bytes stored_map_file(std::uint32_t marker,bool partial=false,std::uint32_t declared_size=84,
-                      bool slot8=false) {
+                      bool slot8=false,bool wall4=false) {
     Bytes raw(static_cast<std::size_t>(maps::objects_logical_offset+maps::grid_byte_length),0);
     const std::array<std::uint8_t,8> signature{5,0,0xfe,0xca,0,0,2,0};
     std::copy(signature.begin(),signature.end(),raw.begin());
@@ -85,6 +85,12 @@ Bytes stored_map_file(std::uint32_t marker,bool partial=false,std::uint32_t decl
                          4U*(114U*228U+114U),0xc002);
     if (slot8) u32(raw,static_cast<std::size_t>(maps::candidate_word_logical_offset)+
                        4U*(114U*228U+114U),0x20000);
+    if (wall4) for (std::uint32_t dy=0;dy<4;++dy) for (std::uint32_t dx=0;dx<4;++dx) {
+        const auto index=static_cast<std::size_t>(100U+dy)*228U+100U+dx;
+        u32(raw,static_cast<std::size_t>(maps::candidate_word_logical_offset)+4U*index,0x20001);
+        raw[static_cast<std::size_t>(maps::candidate_byte_logical_offset)+index]=
+            static_cast<std::uint8_t>((dy<<3U)|dx|((dx==0 && dy==3) ? 0x40U : 0U));
+    }
     Bytes file{0xaa,0xba,0xdc,0xfe};
     for (std::size_t at=0;at<raw.size();at+=32768) {
         const auto length=std::min<std::size_t>(32768,raw.size()-at);
@@ -342,6 +348,16 @@ int main() {
               maps::stored_two_by_two_image_origin({100,100},158,125).x==21 &&
               maps::stored_two_by_two_image_origin({100,100},158,125).y==55,
               "fixed two-by-two anchors preserve the full upper image");
+        check(maps::stored_square_image_origin({100,100},318,160,4).x==-59 &&
+              maps::stored_square_image_origin({100,100},318,160,4).y==100 &&
+              maps::stored_square_image_origin({100,100},318,167,4).x==-59 &&
+              maps::stored_square_image_origin({100,100},318,167,4).y==93 &&
+              maps::stored_square_image_origin({100,100},318,200,4).x==-59 &&
+              maps::stored_square_image_origin({100,100},318,200,4).y==60,
+              "fixed 4x4 anchors preserve full tall images");
+        scene::Camera2D tall_clip; tall_clip.viewport_width=100; tall_clip.viewport_height=100;
+        check(maps::stored_rect_visible({0,80},318,200,tall_clip),
+              "visible upper 4x4 image survives culling with offscreen footprint point");
         const auto multi_rgba=assets::load_sg3_image({terrain_path,203});
         const auto multi_pixel=[&](std::size_t x,std::size_t y) {
             const auto at=(y*multi_rgba.width+x)*4U;
@@ -843,7 +859,225 @@ int main() {
             view.shutdown();
             SDL_SetWindowSize(window,400,300);
         }
+        {
+            Bytes wall_bitmap=red;
+            for (std::uint32_t part=0;part<16;++part) {
+                const auto pixels=tile(part==15 ? 0x001f : 0x7c00);
+                wall_bitmap.insert(wall_bitmap.end(),pixels.begin(),pixels.end());
+            }
+            const Bytes wall_overlay{255,158,1,0xe0,0x03};
+            wall_bitmap.insert(wall_bitmap.end(),wall_overlay.begin(),wall_overlay.end());
+            record(slot8_sg3,202,3200,51205,30,318,167,51200,0,4);
+            write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3",slot8_sg3);
+            write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.555",wall_bitmap);
+            auto make_squares=[&](const std::vector<maps::GridCell>& origins) {
+                auto c=candidates_fixture();
+                std::vector<maps::GridCell> cells;
+                for (const auto origin:origins)
+                    for (std::uint32_t dy=0;dy<4;++dy) for (std::uint32_t dx=0;dx<4;++dx) {
+                        const auto x=origin.x+dx, y=origin.y+dy;
+                        const auto byte=static_cast<std::uint8_t>((dy<<3U)|dx|
+                            ((dx==0 && dy==3) ? 0x40U : 0U));
+                        set_id(c,x,y,0x20001,byte);
+                        cells.push_back({x,y});
+                    }
+                return std::pair{c,cells};
+            };
+            const auto make_wall_plan=[&](const maps::MapGraphicCandidates& c,
+                                          const std::vector<maps::GridCell>& cells,
+                                          maps::FootprintPolicy policy) {
+                const auto mask=sparse_geometry(cells);
+                const auto registrations=maps::load_stored_archive_registrations(
+                    temp.path,c,mask,maps::StoredGraphicsProfile::Slot8);
+                return maps::make_stored_graphics_plan(map,c,mask,registrations,policy,
+                    maps::StoredGraphicsProfile::Slot8);
+            };
+            auto [wall_candidates,wall_cells]=make_squares({{100,100},{104,100},{100,104}});
+            auto baseline=make_wall_plan(wall_candidates,wall_cells,maps::FootprintPolicy::EdgeBytePreview);
+            check(baseline.footprint_count(4)==0 && baseline.covered_cells()==0 &&
+                  baseline.status_counts().at("unsupported_footprint_size")==48,
+                  "unchanged edge-byte policy rejects 4x4 records");
+            auto walls=make_wall_plan(wall_candidates,wall_cells,maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(walls.footprint_count(4)==3 && walls.covered_cells()==48 &&
+                  walls.marker_deviations==0 && walls.footprint_histogram().at(4)==3 &&
+                  walls.at({100,100})->footprint_index!=walls.at({104,100})->footprint_index &&
+                  walls.at({100,100})->asset_index==walls.at({100,104})->asset_index,
+                  "adjacent horizontal and vertical 4x4 groups share only asset identity");
+            std::reverse(wall_cells.begin(),wall_cells.end());
+            auto reverse=make_wall_plan(wall_candidates,wall_cells,maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(reverse.footprint_count(4)==3 && reverse.covered_cells()==48 &&
+                  reverse.at({100,100})->footprint_index==walls.at({100,100})->footprint_index,
+                  "input order cannot change 4x4 ownership");
+            for (std::uint32_t dy=0;dy<4;++dy) for (std::uint32_t dx=0;dx<4;++dx) {
+                const auto* cell=walls.at({100+dx,100+dy});
+                check(cell && cell->subtile && cell->subtile->part_x==dx &&
+                      cell->subtile->part_y==dy && cell->subtile_origin==maps::GridCell{100,100} &&
+                      cell->physical_record==202 && cell->footprint_index==walls.at({100,100})->footprint_index,
+                      "all 16 original cells retain metadata and one footprint owner");
+            }
+            auto missing_wall_cells=wall_cells;
+            missing_wall_cells.erase(std::remove(missing_wall_cells.begin(),missing_wall_cells.end(),
+                maps::GridCell{103,103}),missing_wall_cells.end());
+            auto incomplete=make_wall_plan(wall_candidates,missing_wall_cells,
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(incomplete.footprint_count(4)==2 && incomplete.at({100,100})->status==
+                  maps::StoredStatus::AnchorUnresolved && incomplete.covered_cells()==32,
+                  "mask boundary never manufactures a missing sixteenth part");
+            auto wrong_wall_candidates=wall_candidates;
+            set_id(wrong_wall_candidates,103,103,0x20001,0x1c);
+            auto bad=make_wall_plan(wrong_wall_candidates,wall_cells,
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(bad.footprint_count(4)==2 && bad.at({100,100})->status==
+                  maps::StoredStatus::ConflictingFootprint && bad.covered_cells()==32,
+                  "wrong 4x4 part does not unlock the otherwise valid shared asset");
+            openemperor::StoredGraphicsRenderer partial_preview{std::move(bad)};
+            partial_preview.initialize(renderer);
+            check(partial_preview.upload_count()==1 && partial_preview.plan().covered_cells()==32 &&
+                  partial_preview.plan().at({100,100})->status==maps::StoredStatus::ConflictingFootprint &&
+                  partial_preview.plan().at({104,100})->status==maps::StoredStatus::Rendered,
+                  "one shared decoded texture cannot unlock an invalid 4x4 group");
+            partial_preview.shutdown();
+            auto different_wall_candidates=wall_candidates;
+            set_id(different_wall_candidates,103,103,0x20000,0x1b);
+            auto different_wall=make_wall_plan(different_wall_candidates,wall_cells,
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(different_wall.footprint_count(4)==2 &&
+                  different_wall.at({100,100})->status==maps::StoredStatus::ConflictingFootprint &&
+                  different_wall.at({103,103})->physical_record==201,
+                  "different saved ID and physical AssetId cannot complete a 4x4 group");
+            auto high_wall_candidates=wall_candidates;
+            set_id(high_wall_candidates,100,100,0x20001,0x80);
+            auto diagnostic=make_wall_plan(high_wall_candidates,wall_cells,
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(diagnostic.footprint_count(4)==3 && diagnostic.unknown_bit_cells==1 &&
+                  diagnostic.marker_deviations==0 && diagnostic.at({100,100})->candidate_byte==0x80,
+                  "unknown high bit is retained without changing placement");
+            auto marker_wall_candidates=wall_candidates;
+            set_id(marker_wall_candidates,100,103,0x20001,0x18);
+            auto marker_plan=make_wall_plan(marker_wall_candidates,wall_cells,
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(marker_plan.footprint_count(4)==3 && marker_plan.marker_deviations==1,
+                  "marker deviation stays visible without suppressing a complete group");
+            auto negative_candidates=wall_candidates;
+            set_id(negative_candidates,0,0,0x20001,3);
+            auto negative=make_wall_plan(negative_candidates,{{0,0}},
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(negative.at({0,0})->status==maps::StoredStatus::SubtilePositionInvalid &&
+                  !negative.at({0,0})->subtile_origin,
+                  "negative 4x4 origin is rejected before unsigned conversion");
+            auto mixed_candidates=wall_candidates;
+            auto mixed_cells=wall_cells;
+            for (std::uint32_t dy=0;dy<2;++dy) for (std::uint32_t dx=0;dx<2;++dx) {
+                const auto x=110+dx,y=100+dy;
+                set_id(mixed_candidates,x,y,0xc002,static_cast<std::uint8_t>((dy<<3U)|dx|
+                    ((dx==0 && dy==1) ? 0x40U : 0U)));
+                mixed_cells.push_back({x,y});
+            }
+            set_id(mixed_candidates,114,100,0xc000);
+            mixed_cells.push_back({114,100});
+            auto mixed=make_wall_plan(mixed_candidates,mixed_cells,
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(mixed.footprint_count(1)==1 && mixed.footprint_count(2)==1 &&
+                  mixed.footprint_count(4)==3 && mixed.covered_cells()==53,
+                  "one-, two-, and four-cell-sided previews coexist without fallback");
+            auto collision_candidates=wall_candidates;
+            std::vector<maps::GridCell> collision_cells;
+            for (std::uint32_t dy=0;dy<4;++dy) for (std::uint32_t dx=0;dx<4;++dx)
+                collision_cells.push_back({100+dx,100+dy});
+            for (std::uint32_t dy=0;dy<2;++dy) for (std::uint32_t dx=0;dx<2;++dx) {
+                const auto x=103+dx,y=103+dy;
+                set_id(collision_candidates,x,y,0xc002,
+                    static_cast<std::uint8_t>((dy<<3U)|dx|
+                        ((dx==0 && dy==1) ? 0x40U : 0U)));
+                if (x>103 || y>103) collision_cells.push_back({x,y});
+            }
+            auto collision=make_wall_plan(collision_candidates,collision_cells,
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            check(collision.footprint_count(4)==0 && collision.footprint_count(2)==0 &&
+                  collision.covered_cells()==0,
+                  "overlapping 2x2/4x4 claims invalidate both groups");
+            for (const auto [width,height,base,flag]:
+                 std::array<std::tuple<std::uint16_t,std::uint16_t,std::uint32_t,std::uint8_t>,3>{
+                     std::tuple{318,159,51200,4},std::tuple{318,167,51198,4},
+                     std::tuple{318,167,51200,3}}) {
+                auto invalid_sg3=slot8_sg3;
+                record(invalid_sg3,202,3200,51205,30,width,height,base,0,flag);
+                write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3",invalid_sg3);
+                auto invalid=make_wall_plan(wall_candidates,wall_cells,
+                    maps::FootprintPolicy::EdgeByte4x4Preview);
+                check(invalid.footprint_count(4)==0 && invalid.covered_cells()==0,
+                      "bad 4x4 base, height, or size flag remains diagnostic");
+            }
+            write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3",slot8_sg3);
+            auto [single_wall_candidates,single_wall_cells]=make_squares({{100,100}});
+            auto single_wall=make_wall_plan(single_wall_candidates,single_wall_cells,
+                maps::FootprintPolicy::EdgeByte4x4Preview);
+            openemperor::StoredGraphicsRenderer single_preview{std::move(single_wall)};
+            single_preview.initialize(renderer);
+            scene::Camera2D single_camera;
+            single_camera.viewport_width=400; single_camera.viewport_height=300;
+            single_camera.center_on(maps::terrain_world({100,100},single_preview.plan().border));
+            check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                  single_preview.render(single_camera,std::nullopt) &&
+                  single_preview.last_texture_draws()==1 &&
+                  single_preview.last_diagnostic_draws()==0 &&
+                  pixel(renderer,199,143)==std::array<std::uint8_t,4>{0,255,0,255} &&
+                  pixel(renderer,199,150)==std::array<std::uint8_t,4>{255,0,0,255} &&
+                  pixel(renderer,199,270)==std::array<std::uint8_t,4>{0,0,255,255},
+                  "full 318x167 image includes top Omega overlay and asymmetric base orientation");
+            single_preview.shutdown();
+            openemperor::StoredGraphicsRenderer preview{std::move(walls)};
+            preview.initialize(renderer);
+            check(preview.upload_count()==1 && preview.plan().covered_cells()==48 &&
+                  preview.plan().status_counts().at("rendered")==48,
+                  "three 4x4 placements use one decoded and uploaded texture");
+            scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+            camera.zoom=0.6; camera.center_on(maps::terrain_world({102,102},preview.plan().border));
+            check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                  preview.render(camera,std::nullopt) && preview.last_texture_draws()==3 &&
+                  preview.last_diagnostic_draws()==0,
+                  "4x4 previews draw once per instance with no owned-cell overpaint");
+            camera.zoom_at({200,150},1.1);
+            check(preview.render(camera,std::nullopt) && preview.upload_count()==1,
+                  "camera movement does not upload another large texture");
+            const auto mask=sparse_geometry(wall_cells);
+            for (std::uint32_t dy=0;dy<4;++dy) for (std::uint32_t dx=0;dx<4;++dx) {
+                const maps::GridCell at{100+dx,100+dy};
+                const auto ground=maps::terrain_world(at,mask.border);
+                const scene::Point inside{ground.x,ground.y+20};
+                check(maps::pick_terrain_cell(camera.screen_to_world(camera.world_to_screen(inside)),mask)==at,
+                      "each 4x4 member remains independently selectable");
+            }
+            preview.shutdown();
+            write(temp.path/"Cities/Wall4.map",stored_map_file(0x80,false,84,false,true));
+            auto wall_catalog=maps::discover_standalone_maps(temp.path);
+            std::erase_if(wall_catalog.entries,[](const auto& entry) {
+                return entry.relative_path!=fs::path{"Cities/Wall4.map"};
+            });
+            check(wall_catalog.entries.size()==1,"synthetic browser wall map discovered");
+            openemperor::MapBrowser wall_browser{std::move(wall_catalog),
+                maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8};
+            wall_browser.initialize(window,renderer);
+            check(wall_browser.open_selected() && wall_browser.render() &&
+                  wall_browser.statuses().front()=="snapshot_complete",
+                  "browser forwards 4x4 policy and resolves all synthetic wall parts");
+            wall_browser.shutdown();
+        }
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
+        {
+            std::ostringstream output;
+            auto* previous=std::cout.rdbuf(output.rdbuf());
+            const auto code=openemperor::run_map_render_check(temp.path,"Cities/Wall4.map",
+                maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8);
+            std::cout.rdbuf(previous);
+            const auto report=nlohmann::json::parse(output.str());
+            check(code==0 && report.at("schema")=="openemperor-map-render-check-v2" &&
+                  report.at("footprint_policy")=="edge-byte-4x4" &&
+                  report.at("footprint_size_histogram").at("4")==1 &&
+                  report.at("footprint_instances_planned")==report.at("footprint_instances_rendered") &&
+                  report.at("covered_cells")==report.at("candidate_cells"),
+                  "render-check report accounts for the synthetic 16-cell wall instance");
+        }
         const auto check_report=[&](const fs::path& relative) {
             std::ostringstream output;
             auto* previous=std::cout.rdbuf(output.rdbuf());

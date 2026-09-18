@@ -51,10 +51,19 @@ StoredStatus supported_footprint(const assets::AssetRecord& record) {
     return StoredStatus::DecodePending;
 }
 
+bool square_geometry(const assets::AssetRecord& record, std::uint32_t side) {
+    if (side != 1 && side != 2 && side != 4) return false;
+    const auto n=static_cast<std::uint64_t>(side);
+    const auto width=80U*n-2U, height=40U*n, bytes=3200U*n*n;
+    return record.image_type==30 && record.width>0 && record.height>0 &&
+           static_cast<std::uint64_t>(record.width)==width &&
+           static_cast<std::uint64_t>(record.height)>=height &&
+           record.uncompressed_length==bytes && record.isometric_size_flag==side &&
+           record.horizontal_mirror_offset==0;
+}
+
 bool two_by_two_geometry(const assets::AssetRecord& record) {
-    return record.image_type == 30 && record.width == 158 && record.height >= 80 &&
-           record.uncompressed_length == 12800 && record.isometric_size_flag == 2 &&
-           record.horizontal_mirror_offset == 0;
+    return square_geometry(record,2);
 }
 
 void set_status(StoredGraphicsPlan& plan, std::size_t member, StoredStatus status) {
@@ -63,13 +72,15 @@ void set_status(StoredGraphicsPlan& plan, std::size_t member, StoredStatus statu
 }
 
 void place_edge_byte_footprints(StoredGraphicsPlan& plan) {
-    using Key = std::tuple<std::uint32_t,std::uint32_t,std::uint32_t,std::size_t>;
+    using Key = std::tuple<std::uint32_t,std::uint32_t,std::uint32_t,std::uint32_t,std::size_t>;
     std::map<Key,std::vector<std::size_t>> groups;
+    const bool extended=plan.footprint_policy==FootprintPolicy::EdgeByte4x4Preview;
     for (std::size_t i=0;i<plan.cells.size();++i) {
         auto& cell=plan.cells[i];
         if (cell.status!=StoredStatus::MultiTilePlacementUnverified || !cell.asset_index) continue;
         const auto& record=plan.assets[*cell.asset_index].record;
-        if (!two_by_two_geometry(record)) {
+        const std::uint32_t side=record.isometric_size_flag==4 && extended ? 4U : 2U;
+        if (!square_geometry(record,side)) {
             set_status(plan,i,record.horizontal_mirror_offset ? StoredStatus::MirrorUnverified :
                        StoredStatus::UnsupportedFootprintSize);
             continue;
@@ -77,7 +88,7 @@ void place_edge_byte_footprints(StoredGraphicsPlan& plan) {
         const auto metadata=decode_map_subtile_byte(cell.candidate_byte);
         cell.subtile=metadata;
         if (metadata.unknown_bits) ++plan.unknown_bit_cells;
-        if (metadata.part_x>1 || metadata.part_y>1) {
+        if (metadata.part_x>=side || metadata.part_y>=side) {
             set_status(plan,i,StoredStatus::SubtilePositionInvalid);
             continue;
         }
@@ -86,23 +97,25 @@ void place_edge_byte_footprints(StoredGraphicsPlan& plan) {
             set_status(plan,i,StoredStatus::SubtilePositionInvalid);
             continue;
         }
-        groups[{cell.subtile_origin->x,cell.subtile_origin->y,cell.stored_id,*cell.asset_index}].push_back(i);
+        groups[{cell.subtile_origin->x,cell.subtile_origin->y,side,cell.stored_id,*cell.asset_index}].push_back(i);
     }
     struct CheckedGroup { Key key; std::vector<std::size_t> members; StoredStatus issue=StoredStatus::DecodePending; };
     std::vector<CheckedGroup> checked;
     for (const auto& [key,members] : groups) {
-        const auto [ox,oy,id,asset]=key;
+        const auto [ox,oy,side,id,asset]=key;
         (void)id; (void)asset;
         CheckedGroup group{key,members};
         std::set<std::pair<std::uint8_t,std::uint8_t>> parts;
-        if (members.size()!=4) group.issue=StoredStatus::IncompleteFootprint;
+        if (members.size()!=static_cast<std::size_t>(side)*side)
+            group.issue=StoredStatus::IncompleteFootprint;
         for (const auto i:members) {
             const auto& sub=*plan.cells[i].subtile;
             if (!parts.emplace(sub.part_x,sub.part_y).second)
                 group.issue=StoredStatus::ConflictingFootprint;
         }
-        for (std::uint32_t dy=0;dy<2;++dy) for (std::uint32_t dx=0;dx<2;++dx) {
-            if (ox+dx>=stored_grid_width || oy+dy>=stored_grid_height) {
+        for (std::uint32_t dy=0;dy<side;++dy) for (std::uint32_t dx=0;dx<side;++dx) {
+            if (static_cast<std::uint64_t>(ox)+dx>=stored_grid_width ||
+                static_cast<std::uint64_t>(oy)+dy>=stored_grid_height) {
                 group.issue=StoredStatus::AnchorUnresolved;
                 continue;
             }
@@ -125,10 +138,11 @@ void place_edge_byte_footprints(StoredGraphicsPlan& plan) {
             group_by_member[member]=group_index;
     for (std::size_t group_index=0;group_index<checked.size();++group_index) {
         auto& group=checked[group_index];
-        const auto [ox,oy,id,asset]=group.key;
+        const auto [ox,oy,side,id,asset]=group.key;
         (void)id; (void)asset;
-        for (std::uint32_t dy=0;dy<2;++dy) for (std::uint32_t dx=0;dx<2;++dx) {
-            if (ox+dx>=stored_grid_width || oy+dy>=stored_grid_height) continue;
+        for (std::uint32_t dy=0;dy<side;++dy) for (std::uint32_t dx=0;dx<side;++dx) {
+            if (static_cast<std::uint64_t>(ox)+dx>=stored_grid_width ||
+                static_cast<std::uint64_t>(oy)+dy>=stored_grid_height) continue;
             const auto other=plan.cell_by_storage[static_cast<std::size_t>(oy+dy)*stored_grid_width+ox+dx];
             if (!other) continue;
             if (group_by_member[*other] && *group_by_member[*other]!=group_index) {
@@ -142,20 +156,20 @@ void place_edge_byte_footprints(StoredGraphicsPlan& plan) {
             for (const auto i:group.members) set_status(plan,i,group.issue);
             continue;
         }
-        const auto [ox,oy,id,asset]=group.key;
+        const auto [ox,oy,side,id,asset]=group.key;
         (void)id;
         PlacedFootprint footprint;
         footprint.id=plan.footprints.size();
         footprint.asset_index=asset;
         footprint.origin={ox,oy};
-        footprint.width_cells=2; footprint.height_cells=2;
-        footprint.rule="edge_byte_origin_preview";
+        footprint.width_cells=side; footprint.height_cells=side;
+        footprint.rule=side==4 ? "edge_byte_4x4_origin_preview" : "edge_byte_origin_preview";
         footprint.cell_indices=group.members;
         const auto& record=plan.assets[asset].record;
         plan.assets[asset].status=StoredStatus::DecodePending;
-        footprint.image_origin=stored_two_by_two_image_origin(
+        footprint.image_origin=stored_square_image_origin(
             terrain_world(footprint.origin,plan.border),static_cast<std::uint32_t>(record.width),
-            static_cast<std::uint32_t>(record.height));
+            static_cast<std::uint32_t>(record.height),side);
         std::size_t markers=0;
         bool expected_marker=false;
         for (const auto i:group.members) {
@@ -163,7 +177,7 @@ void place_edge_byte_footprints(StoredGraphicsPlan& plan) {
             if (cell.subtile->draw_marker_candidate) {
                 ++markers;
                 footprint.draw_cell_candidate=cell.storage;
-                expected_marker=cell.subtile->part_x==0 && cell.subtile->part_y==1;
+                expected_marker=cell.subtile->part_x==0 && cell.subtile->part_y==side-1;
             }
         }
         if (markers!=1 || !expected_marker) ++plan.marker_deviations;
@@ -180,7 +194,8 @@ void place_edge_byte_footprints(StoredGraphicsPlan& plan) {
 }
 
 void place_footprints(StoredGraphicsPlan& plan, const MapGraphicCandidates& candidates) {
-    if (plan.footprint_policy==FootprintPolicy::EdgeBytePreview)
+    if (plan.footprint_policy==FootprintPolicy::EdgeBytePreview ||
+        plan.footprint_policy==FootprintPolicy::EdgeByte4x4Preview)
         place_edge_byte_footprints(plan);
     // A two-cell component is never expanded across a mask boundary. Only an
     // isolated, complete 2x2 component of identical saved IDs is a preview
@@ -348,6 +363,7 @@ const char* footprint_policy_name(FootprintPolicy policy) {
     case FootprintPolicy::Disabled: return "disabled";
     case FootprintPolicy::IsolatedPreview: return "isolated";
     case FootprintPolicy::EdgeBytePreview: return "edge-byte";
+    case FootprintPolicy::EdgeByte4x4Preview: return "edge-byte-4x4";
     }
     return "invalid";
 }
@@ -359,8 +375,15 @@ scene::Point stored_image_origin(scene::Point world, std::uint32_t width, std::u
 
 scene::Point stored_two_by_two_image_origin(scene::Point rear_world, std::uint32_t width,
                                             std::uint32_t height) {
+    return stored_square_image_origin(rear_world,width,height,2);
+}
+
+scene::Point stored_square_image_origin(scene::Point rear_world, std::uint32_t width,
+                                        std::uint32_t height, std::uint32_t side) {
+    if (side!=1 && side!=2 && side!=4)
+        throw std::invalid_argument("unsupported stored graphics footprint side");
     return {rear_world.x-static_cast<double>(width)/2.0,
-            rear_world.y-(static_cast<double>(height)-80.0)};
+            rear_world.y-(static_cast<double>(height)-40.0*side)};
 }
 
 bool stored_rect_visible(scene::Point origin, std::uint32_t width, std::uint32_t height,
@@ -383,14 +406,22 @@ std::map<std::string,std::size_t> StoredGraphicsPlan::status_counts() const {
 }
 std::size_t StoredGraphicsPlan::covered_cells() const {
     std::size_t count=0;
-    for (const auto& footprint : footprints)
-        if (footprint.status==StoredStatus::DecodePending || footprint.status==StoredStatus::Rendered)
-            count+=footprint.cell_indices.size();
+    for (const auto& cell:cells) {
+        if (!cell.footprint_index || *cell.footprint_index>=footprints.size()) continue;
+        const auto status=footprints[*cell.footprint_index].status;
+        if ((status==StoredStatus::DecodePending || status==StoredStatus::Rendered) &&
+            cell.status==status) ++count;
+    }
     return count;
 }
 std::size_t StoredGraphicsPlan::footprint_count(std::uint32_t side) const {
     return static_cast<std::size_t>(std::count_if(footprints.begin(),footprints.end(),
         [side](const auto& footprint) { return footprint.width_cells==side; }));
+}
+std::map<std::uint32_t,std::size_t> StoredGraphicsPlan::footprint_histogram() const {
+    std::map<std::uint32_t,std::size_t> counts;
+    for (const auto& footprint:footprints) ++counts[footprint.width_cells];
+    return counts;
 }
 
 namespace {

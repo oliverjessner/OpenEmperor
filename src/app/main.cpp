@@ -43,14 +43,14 @@ void print_usage(const char* executable) {
               << " [--view storage|semantic|projected|textured|stored-graphics]"
               << " [--terrain-bindings <preview.json>]"
               << " [--graphics-profile exe-6373328b-v213-runtime-table|exe-6373328b-v213-slot8-runtime-table]"
-              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]\n";
+              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]\n";
     std::cerr << "       " << executable << " --data <directory> --browse-maps --view stored-graphics"
               << " --graphics-profile <base-or-slot8-runtime-table>"
-              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]\n"
+              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]\n"
               << "       " << executable << " --data <directory> --list-maps --report-json\n"
               << "       " << executable << " --data <directory> --map-debug <relative.map>"
               << " --view stored-graphics --graphics-profile <base-or-slot8-runtime-table>"
-              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]"
+              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]"
               << " --render-check --report-json\n";
 }
 
@@ -110,6 +110,7 @@ int main(int argc, char* argv[]) {
             const std::string_view value{argv[++index]};
             if (value == "isolated") footprint_policy = openemperor::maps::FootprintPolicy::IsolatedPreview;
             else if (value == "edge-byte") footprint_policy = openemperor::maps::FootprintPolicy::EdgeBytePreview;
+            else if (value == "edge-byte-4x4") footprint_policy = openemperor::maps::FootprintPolicy::EdgeByte4x4Preview;
             else { print_usage(argv[0]); return 2; }
             footprint_policy_supplied = true;
         } else if (argument == "--ignore-alpha" && !ignore_alpha) {
