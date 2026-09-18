@@ -4,6 +4,10 @@ OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of t
 
 ## Current status
 
+Run `./build/openemperor` to open the main menu. On first start, choose a directory containing your own installed or extracted Emperor files (the GOG installer itself is not such a directory). Choose a supported standalone map and one of the five OpenEmperor sandbox rule profiles, then start an empty sandbox. Industry v5 is preselected in this menu; Demo arrangement is off unless selected. Escape or the visible Menu action retains the current World, camera, pause and speed state; Resume continues that same session. F5/Save writes a new OpenEmperor sandbox save under the application preferences folder. Load Save lists those files or opens an external OpenEmperor save through a native file dialog. Replacing a changed session or quitting asks whether to save, discard, or cancel. Direct CLI modes and their defaults remain available below.
+
+On macOS, SDL stores `settings.json` and `saves/` under `~/Library/Application Support/OpenEmperor/OpenEmperor/` (the actual directory comes from `SDL_GetPrefPath("OpenEmperor", "OpenEmperor")`). The settings format is separate from sandbox saves. Original files stay read-only; no original assets or decoded copies are stored with saves. A removed data folder must be selected again. Bad or newer settings require an explicit reset before preferences are rewritten.
+
 This repository contains an SDL3 application shell, read-only asset and map tools, and an interactive prototype sandbox. With `--data <directory> --sandbox Cities/Xia.map`, the app displays the user's original map as an unchanged background. The default `sandbox-logistics-v1` profile offers one workshop, one warehouse, and a courier. Explicit `--sandbox-rules sandbox-production-v2` offers a resource-dependent Clay source → Pottery → Warehouse chain with two couriers, plus protected road removal and live rerouting. `sandbox-household-v3` extends the same simulation with one House and periodic Pottery consumption. `sandbox-settlement-v4` permits up to four independent houses, supplied cyclically by the same single warehouse courier; limited production may leave needs unmet. `sandbox-industry-v5` adds a second Clay source and Pottery works, each with its own courier, while retaining one warehouse supplier and up to four houses. `--sandbox-demo` places a suitable arrangement through normal commands; without it the world starts empty. All profiles are self-defined prototypes, not Emperor's original economy. Existing `--map-debug`, browser, SG3 preview, and PNG export modes remain available. See [the sandbox guide](docs/gameplay-sandbox.md) for controls and rule boundaries.
 
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
@@ -53,6 +57,7 @@ Install Xcode Command Line Tools, CMake, and OpenSSL (for example `brew install 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=arm64
 cmake --build build --parallel
 file build/openemperor
+./build/openemperor
 ./build/openemperor
 ```
 

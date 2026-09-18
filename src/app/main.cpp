@@ -5,6 +5,7 @@
 #include "app/MapBrowser.h"
 #include "app/MapRenderCheck.h"
 #include "app/SandboxView.h"
+#include "app/MenuSession.h"
 #include "app/SandboxCheck.h"
 #include "assets/AssetCatalog.h"
 #include "assets/RgbaPngReader.h"
@@ -293,18 +294,25 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
+    const bool menu_start=!sandbox_supplied && !load_sandbox_supplied && !preview_supplied &&
+        !sg3_supplied && !browse_assets && !scene_supplied && !browse_maps && !map_debug_supplied &&
+        !list_maps && !render_check;
     if (data_supplied) {
         std::error_code error;
         const fs::path absolute_path = fs::absolute(data_directory, error);
         if (error || !fs::is_directory(absolute_path, error) || error) {
+            if (menu_start) {
+                std::cerr << "Data directory invalid; showing setup: " << data_directory.string() << '\n';
+            } else {
             if (render_check)
                 return openemperor::run_map_render_check(data_directory,map_debug_path,
                     multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
                     graphics_profile);
             std::cerr << "Data directory does not exist or cannot be accessed: " << data_directory.string() << '\n';
             return 2;
+            }
         }
-        if (!report_json)
+        if (!report_json && !error && fs::is_directory(absolute_path))
             std::cout << "Data directory: " << absolute_path.lexically_normal().string() << '\n';
     }
 
@@ -337,6 +345,11 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<openemperor::MapDebugView> map_view;
     std::unique_ptr<openemperor::MapBrowser> map_browser;
     std::unique_ptr<openemperor::SandboxView> sandbox_view;
+    std::unique_ptr<openemperor::menu::MenuSession> menu_session;
+    if (!sandbox_supplied && !load_sandbox_supplied && !preview_supplied && !sg3_supplied &&
+        !browse_assets && !scene_supplied && !browse_maps && !map_debug_supplied)
+        menu_session=std::make_unique<openemperor::menu::MenuSession>(
+            data_supplied ? data_directory : fs::path{});
     if (sandbox_supplied || load_sandbox_supplied) {
         try {
             std::optional<openemperor::persistence::SaveDocument> initial;
@@ -459,7 +472,7 @@ int main(int argc, char* argv[]) {
 
     openemperor::Application application{std::move(preview), std::move(browser),
                                        std::move(scene_view), std::move(map_view),std::move(map_browser),
-                                       std::move(sandbox_view)};
+                                       std::move(sandbox_view),std::move(menu_session)};
     if (!application.initialize()) {
         return 1;
     }

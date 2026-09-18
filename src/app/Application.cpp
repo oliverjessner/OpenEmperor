@@ -4,6 +4,7 @@
 #include "app/MapDebugView.h"
 #include "app/MapBrowser.h"
 #include "app/SandboxView.h"
+#include "app/MenuSession.h"
 
 #include "renderer/TitleScreen.h"
 #include "renderer/ImagePreview.h"
@@ -21,9 +22,11 @@ Application::Application(std::optional<assets::RgbaImage> preview,
                          std::unique_ptr<SceneView> scene,
                          std::unique_ptr<MapDebugView> map_debug,
                          std::unique_ptr<MapBrowser> map_browser,
-                         std::unique_ptr<SandboxView> sandbox)
+                         std::unique_ptr<SandboxView> sandbox,
+                         std::unique_ptr<menu::MenuSession> menu)
     : preview_(std::move(preview)), browser_(std::move(browser)), scene_(std::move(scene)),
-      map_debug_(std::move(map_debug)), map_browser_(std::move(map_browser)),sandbox_(std::move(sandbox)) {}
+      map_debug_(std::move(map_debug)), map_browser_(std::move(map_browser)),sandbox_(std::move(sandbox)),
+      menu_(std::move(menu)) {}
 
 Application::~Application() {
     shutdown();
@@ -36,14 +39,15 @@ bool Application::initialize() {
     }
     sdl_initialized_ = true;
 
-    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ ? 1100 : 800,
-                                     browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ ? 700 : 450,
-                                     scene_ || map_debug_ || map_browser_ || sandbox_ ? SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY : 0,
+    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ || menu_ ? 1100 : 800,
+                                     browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ || menu_ ? 700 : 450,
+                                     scene_ || map_debug_ || map_browser_ || sandbox_ || menu_ ? SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY : 0,
                                      &window_, &renderer_)) {
         std::cerr << "SDL window/renderer creation failed: " << SDL_GetError() << '\n';
         shutdown();
         return false;
     }
+    if (menu_) SDL_SetWindowMinimumSize(window_,900,600);
     if (browser_) browser_->initialize(window_, renderer_);
     if (map_browser_) map_browser_->initialize(window_,renderer_);
     if (scene_) {
@@ -69,6 +73,13 @@ bool Application::initialize() {
             std::cerr << "Sandbox initialization failed: " << error.what() << '\n';
             shutdown();
             return false;
+        }
+    }
+    if (menu_) {
+        try { menu_->initialize(window_,renderer_); }
+        catch (const std::exception& error) {
+            std::cerr << "Menu initialization failed: " << error.what() << '\n';
+            shutdown(); return false;
         }
     }
     if (preview_) {
@@ -101,7 +112,8 @@ int Application::run() {
         const auto sandbox_io=sandbox_ ? sandbox_->io_generation() : 0;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (sandbox_) {
+            if (menu_) menu_->handle_event(event);
+            else if (sandbox_) {
                 sandbox_->handle_event(event,running);
             } else if (map_browser_) {
                 map_browser_->handle_event(event,running);
@@ -121,6 +133,8 @@ int Application::run() {
             }
         }
 
+        if (menu_) { menu_->advance(); running=menu_->running(); }
+
         if (!running) {
             break;
         }
@@ -130,6 +144,7 @@ int Application::run() {
         if (map_debug_) map_debug_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
         if (map_browser_) map_browser_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
         if (sandbox_) sandbox_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
+        if (menu_) menu_->update(static_cast<double>(now-last_ticks)/1000000000.0);
         last_ticks = now;
         if (!render()) {
             std::cerr << "SDL rendering failed: " << SDL_GetError() << '\n';
@@ -150,6 +165,7 @@ int Application::run() {
 }
 
 bool Application::render() {
+    if (menu_) return menu_->render();
     if (sandbox_) return sandbox_->render();
     if (map_browser_) return map_browser_->render();
     if (map_debug_) {
@@ -168,6 +184,7 @@ bool Application::render() {
 }
 
 void Application::shutdown() {
+    if (menu_) menu_->shutdown();
     if (sandbox_) sandbox_->shutdown();
     if (map_browser_) map_browser_->shutdown();
     if (map_debug_) map_debug_->shutdown();

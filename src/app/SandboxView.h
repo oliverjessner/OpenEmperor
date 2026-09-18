@@ -48,6 +48,12 @@ public:
     void save_now();
     void load_now();
     std::uint64_t io_generation() const { return io_generation_; }
+    std::uint64_t save_generation() const { return save_generation_; }
+    bool dirty() const { return world_ && (world_->ticks()!=saved_tick_ ||
+        world_->command_sequence()!=saved_command_); }
+    void set_managed(bool managed) { managed_=managed; }
+    bool take_menu_request() { const bool value=menu_requested_; menu_requested_=false; return value; }
+    const std::filesystem::path& save_path() const { return save_path_; }
     bool paused() const { return clock_.paused(); }
     const sandbox_ui::Layout& layout() const { return layout_; }
     std::optional<simulation::BuildingId> selected_building() const;
@@ -101,6 +107,8 @@ private:
     std::optional<persistence::SaveDocument> initial_save_;
     std::vector<std::uint8_t> buildable_mask_;
     std::uint64_t io_generation_=0;
+    std::uint64_t save_generation_=0, saved_tick_=0, saved_command_=0;
+    bool managed_=false, menu_requested_=false, menu_pressed_=false;
 };
 
 } // namespace openemperor

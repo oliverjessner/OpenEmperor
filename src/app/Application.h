@@ -16,6 +16,7 @@ class SceneView;
 class MapDebugView;
 class MapBrowser;
 class SandboxView;
+namespace menu { class MenuSession; }
 
 class Application {
 public:
@@ -24,7 +25,8 @@ public:
                          std::unique_ptr<SceneView> scene = nullptr,
                          std::unique_ptr<MapDebugView> map_debug = nullptr,
                          std::unique_ptr<MapBrowser> map_browser = nullptr,
-                         std::unique_ptr<SandboxView> sandbox = nullptr);
+                         std::unique_ptr<SandboxView> sandbox = nullptr,
+                         std::unique_ptr<menu::MenuSession> menu = nullptr);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
     ~Application();
@@ -45,6 +47,7 @@ private:
     std::unique_ptr<MapDebugView> map_debug_;
     std::unique_ptr<MapBrowser> map_browser_;
     std::unique_ptr<SandboxView> sandbox_;
+    std::unique_ptr<menu::MenuSession> menu_;
     bool sdl_initialized_ = false;
 };
 

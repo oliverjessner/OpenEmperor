@@ -1,5 +1,13 @@
 # Logistics sandbox (`sandbox-logistics-v1`)
 
+## Start from the menu
+
+`./build/openemperor` opens the normal main menu. Choose a folder containing installed or extracted original Emperor files, then select **New sandbox**, a supported standalone map, and an OpenEmperor rules profile. The menu preselects `sandbox-industry-v5`; the demo arrangement is off by default. The GOG offline installer file alone is not a usable data folder. `--data <directory>` overrides the remembered folder for this launch without changing direct CLI mode semantics. The old `--sandbox` command below still starts directly with its historical v1 default.
+
+The menu creates a unique save target for each new session but writes no save until the Save button or F5 is used. Escape first cancels an active road or UI gesture; otherwise Escape or **Menu** retains the session without advancing simulation. **Resume session** continues the same World and camera, with its previous pause/speed state. **Load save** shows bounded, validated OpenEmperor save entries and can open an external OpenEmperor save file. It checks the original map hash and decoded buildability mask before replacing any existing World. Loading starts paused at the saved tick. A changed World prompts Save / Without saving / Cancel before replacement or exit; failed writes keep the session. Window close uses the same prompt. Direct `--sandbox` retains its existing Escape-to-exit behavior.
+
+SDL's user preference directory holds `settings.json` and `saves/`; on macOS the usual location is `~/Library/Application Support/OpenEmperor/OpenEmperor/`. `SDL_GetPrefPath("OpenEmperor", "OpenEmperor")` determines the actual path. Neither saves nor settings belong in the original data directory. These files contain no original game bytes. Settings version 1 stores the chosen data root, map, rules profile and most recent successful save path; it does not change the sandbox save schema.
+
 The sandbox is an independent prototype, not a reconstruction of Emperor's economy or building rules. Start an empty world with:
 
 ```sh

@@ -83,6 +83,8 @@ void SandboxView::save_now() {
     if (save_path_.empty()) throw std::runtime_error("No sandbox save path configured");
     const auto document=persistence::make_document(data_root_,map_relative_,buildable_mask_,*world_);
     persistence::write_save(save_path_,document,data_root_,buildable_mask_);
+    saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
+    ++save_generation_;
     last_message_="Saved tick "+std::to_string(world_->ticks());
 }
 
@@ -94,6 +96,7 @@ void SandboxView::load_now() {
         throw std::runtime_error("Save map or rules differ from current sandbox");
     auto replacement=persistence::restore_save(document,data_root_,buildable_mask_);
     world_=std::make_unique<simulation::World>(std::move(replacement));
+    saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     cancel_gesture();
     if (selected_ && !world_->building_owner_at(*selected_)) selected_.reset();
     clock_.pause_and_reset();
@@ -122,6 +125,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         buildable_mask_,rules_);
     reset_camera();
     if (demo_) place_demo();
+    if (initial_save_ == std::nullopt && !demo_) {
+        saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
+    }
     SDL_SetWindowTitle(window_,rules_==simulation::RulesProfile::IndustryV5 ?
         "OpenEmperor | Industry Sandbox - prototype rules" :
         rules_==simulation::RulesProfile::SettlementV4 ?
@@ -366,6 +372,7 @@ void SandboxView::cancel_gesture() {
     map_pressed_=false;
     road_start_.reset();
     road_preview_={};
+    menu_pressed_=false;
 }
 void SandboxView::perform_action(sandbox_ui::Action action) {
     using A=sandbox_ui::Action;
@@ -416,7 +423,7 @@ void SandboxView::refresh_hover() {
 }
 void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_QUIT || event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
-        cancel_gesture(); running=false; return;
+        cancel_gesture(); if (managed_) menu_requested_=true; else running=false; return;
     }
     if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST) { cancel_gesture(); pointer_.reset(); refresh_hover(); return; }
     if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED || event.type==SDL_EVENT_WINDOW_RESIZED) {
@@ -424,7 +431,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     }
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
         if (event.key.key==SDLK_ESCAPE) {
-            if (map_pressed_ || road_start_ || pressed_button_ || ui_pressed_) cancel_gesture();
+            if (map_pressed_ || road_start_ || pressed_button_ || ui_pressed_ || menu_pressed_)
+                cancel_gesture();
+            else if (managed_) menu_requested_=true;
             else running=false;
             return;
         }
@@ -470,6 +479,8 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
         if (event.button.button!=SDL_BUTTON_LEFT) return;
         pointer_=render_point(event.button.x,event.button.y);
+        if (managed_ && pointer_ && layout_.top.contains(pointer_->x,pointer_->y) &&
+            pointer_->x>=layout_.top.w-88*layout_.scale) { menu_pressed_=true; return; }
         refresh_hover();
         if (!pointer_) return;
         if (const auto button=layout_.button_at(pointer_->x,pointer_->y)) {
@@ -498,6 +509,11 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     }
     if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
         pointer_=render_point(event.button.x,event.button.y);
+        if (menu_pressed_) {
+            const bool hit=pointer_ && layout_.top.contains(pointer_->x,pointer_->y) &&
+                pointer_->x>=layout_.top.w-88*layout_.scale;
+            cancel_gesture(); if (hit) menu_requested_=true; return;
+        }
         refresh_hover();
         if (pressed_button_) {
             const auto action=*pressed_button_;
@@ -840,6 +856,8 @@ bool SandboxView::draw_hud() {
     else overview+=" | Goods "+std::to_string(world_->total_produced());
     if (!draw_text(8*layout_.scale,18*layout_.scale,overview,
         layout_.top.w-200*layout_.scale)) return false;
+    if (managed_ && !draw_text(layout_.top.w-82*layout_.scale,18*layout_.scale,
+                               "[ MENU ]",80*layout_.scale)) return false;
     const std::string status=road_start_ && !road_preview_.valid ? road_preview_.reason :
         last_message_.empty() ? "OpenEmperor sandbox | Select a tool, then click the map" :
         last_message_;

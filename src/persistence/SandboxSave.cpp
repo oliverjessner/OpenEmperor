@@ -311,6 +311,7 @@ SaveDocument parse_document(const json& j) {
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
+    d.source_schema_version=static_cast<std::uint32_t>(schema);
     d.map_relative=fs::path(str(field(m,"relative_path")));
     safe_relative(d.map_relative);
     d.map_sha256=str(field(m,"sha256"));

@@ -44,6 +44,7 @@ add_executable(openemperor
     src/app/MapBrowser.cpp
     src/app/MapRenderCheck.cpp
     src/app/SandboxView.cpp
+    src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MenuSession.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
     src/app/SandboxCheck.cpp
     src/app/SandboxRoutingCheck.cpp
@@ -150,6 +151,14 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
     set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 20)
+    add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
+        src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
+        src/app/SandboxView.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
+    target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-persistence SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-menu-session-tests)
+    add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
+    set_tests_properties(menu-session-flow PROPERTIES TIMEOUT 30)
     add_executable(openemperor-sandbox-save-tests tests/SandboxSaveTests.cpp)
     target_link_libraries(openemperor-sandbox-save-tests PRIVATE openemperor-persistence)
     openemperor_enable_warnings(openemperor-sandbox-save-tests)
