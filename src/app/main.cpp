@@ -55,6 +55,7 @@ void print_usage(const char* executable) {
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]"
               << " --render-check --report-json\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2]"
               << " [--sandbox-demo] [--sandbox-check --report-json]\n";
 }
 
@@ -73,6 +74,8 @@ int main(int argc, char* argv[]) {
     bool sandbox_supplied = false;
     bool sandbox_demo = false;
     bool sandbox_check = false;
+    bool sandbox_rules_supplied = false;
+    auto sandbox_rules = openemperor::simulation::RulesProfile::LogisticsV1;
     bool report_json = false;
     bool ignore_alpha = false;
     bool scene_supplied = false;
@@ -154,6 +157,14 @@ int main(int argc, char* argv[]) {
         } else if (argument == "--sandbox" && !sandbox_supplied) {
             sandbox_path = argv[++index];
             sandbox_supplied = true;
+        } else if (argument == "--sandbox-rules" && !sandbox_rules_supplied) {
+            const std::string_view value{argv[++index]};
+            if (value==openemperor::simulation::production_profile_name)
+                sandbox_rules=openemperor::simulation::RulesProfile::ProductionV2;
+            else if (value!=openemperor::simulation::profile_name) {
+                std::cerr << "Unknown sandbox rules profile: " << value << '\n'; return 2;
+            }
+            sandbox_rules_supplied=true;
         } else if (argument == "--terrain-bindings" && !terrain_bindings_supplied) {
             terrain_bindings_path = argv[++index];
             terrain_bindings_supplied = true;
@@ -234,6 +245,7 @@ int main(int argc, char* argv[]) {
             map_view_mode!=openemperor::maps::MapViewMode::StoredGraphics || !report_json)) ||
         (report_json && !render_check && !list_maps && !sandbox_check) ||
         (sandbox_demo && !sandbox_supplied) || (sandbox_check && (!sandbox_supplied || !report_json)) ||
+        (sandbox_rules_supplied && !sandbox_supplied) ||
         (sandbox_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
             browse_maps || list_maps || scene_supplied || map_debug_supplied || render_check ||
             part_supplied || layer_supplied || view_supplied || terrain_bindings_supplied ||
@@ -276,7 +288,7 @@ int main(int argc, char* argv[]) {
         return openemperor::run_map_render_check(data_directory,map_debug_path,
             multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
             graphics_profile);
-    if (sandbox_check) return openemperor::run_sandbox_check(data_directory,sandbox_path);
+    if (sandbox_check) return openemperor::run_sandbox_check(data_directory,sandbox_path,sandbox_rules);
 
     std::optional<openemperor::assets::RgbaImage> preview;
     std::unique_ptr<openemperor::AssetBrowser> browser;
@@ -289,11 +301,12 @@ int main(int argc, char* argv[]) {
             auto session=openemperor::maps::load_stored_map_session(data_directory,sandbox_path,
                 openemperor::maps::FootprintPolicy::EdgeByte4x4Preview,
                 openemperor::maps::StoredGraphicsProfile::Slot8);
-            sandbox_view=std::make_unique<openemperor::SandboxView>(std::move(session),sandbox_demo);
+            sandbox_view=std::make_unique<openemperor::SandboxView>(std::move(session),sandbox_demo,
+                                                                    sandbox_rules);
             std::cout << "Sandbox: " << sandbox_path.generic_string()
                       << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
                       << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"
-                      << " | rules=sandbox-logistics-v1\n";
+                      << " | rules=" << openemperor::simulation::rules_profile_name(sandbox_rules) << '\n';
         } catch (const std::exception& error) {
             std::cerr << "Sandbox load failed: " << error.what() << '\n'; return 1;
         }

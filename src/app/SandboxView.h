@@ -18,7 +18,8 @@ namespace openemperor {
 
 class SandboxView {
 public:
-    explicit SandboxView(maps::StoredMapSession session, bool demo);
+    explicit SandboxView(maps::StoredMapSession session, bool demo,
+                         simulation::RulesProfile rules=simulation::RulesProfile::LogisticsV1);
     ~SandboxView();
     void initialize(SDL_Window* window, SDL_Renderer* renderer);
     void shutdown();
@@ -34,6 +35,7 @@ public:
     const std::string& last_message() const { return last_message_; }
     std::optional<simulation::Cell> demo_origin() const { return demo_origin_; }
     scene::Camera2D camera() const { return camera_; }
+    int last_courier_draws() const { return last_courier_draws_; }
 private:
     void reset_camera();
     void resize_camera();
@@ -41,6 +43,8 @@ private:
     bool draw_diamond(scene::Point world, std::uint8_t r, std::uint8_t g, std::uint8_t b, bool fill);
     bool draw_world();
     bool draw_hud();
+    bool draw_hud_v2();
+    int hud_height() const;
     scene::Point world_for(simulation::Position cell) const;
     maps::MapGeometry geometry_;
     StoredGraphicsRenderer background_;
@@ -55,7 +59,8 @@ private:
     std::string last_message_;
     bool demo_=false;
     int tool_=4;
-    static constexpr int hud_height_=116;
+    simulation::RulesProfile rules_;
+    int last_courier_draws_=0;
 };
 
 } // namespace openemperor

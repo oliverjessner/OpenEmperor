@@ -40,7 +40,7 @@ struct Temp {
     Temp() { std::filesystem::create_directories(path/"DATA"); }
     ~Temp() { std::error_code error; std::filesystem::remove_all(path,error); }
 };
-openemperor::maps::StoredMapSession fixture(const Temp& temp) {
+openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=false) {
     Bytes sg3(40680U+64U,0);
     u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));
     u32(sg3,4,213); u32(sg3,12,1); u32(sg3,16,1); u32(sg3,20,1);
@@ -69,11 +69,11 @@ openemperor::maps::StoredMapSession fixture(const Temp& temp) {
     maps::StoredAsset asset;
     asset.record=record;
     plan.assets.push_back(std::move(asset));
-    for (std::uint32_t x=110;x<=116;++x) {
+    for (std::uint32_t x=110;x<=(production ? 117U : 116U);++x) {
         maps::StoredCell cell;
         cell.storage={x,114};
         cell.cell_index=static_cast<std::size_t>(114)*228+x;
-        cell.terrain_raw=x==116 ? 0 : 0x80;
+        cell.terrain_raw=x==(production ? 117U : 116U) ? 0 : 0x80;
         cell.objects_raw=0;
         cell.status=maps::StoredStatus::DecodePending;
         cell.asset_index=0;
@@ -110,6 +110,12 @@ SDL_Event click(float x,float y) {
     event.button.button=SDL_BUTTON_LEFT;
     event.button.x=x;
     event.button.y=y;
+    return event;
+}
+SDL_Event key(SDL_Keycode code) {
+    SDL_Event event{};
+    event.type=SDL_EVENT_KEY_DOWN;
+    event.key.key=code;
     return event;
 }
 }
@@ -177,6 +183,55 @@ int main() {
         check(marker_pixel[0]>235 && marker_pixel[1]>235 && marker_pixel[2]>235,
               "moving courier marker absent from composed frame");
         view.shutdown();
+
+        openemperor::SandboxView production_view(fixture(temp,true),false,
+            simulation::RulesProfile::ProductionV2);
+        production_view.initialize(window,renderer);
+        check(std::string(SDL_GetWindowTitle(window)).find("Production Sandbox")!=std::string::npos,
+              "v2 window profile label");
+        const auto v2_screen=[&](int x) {
+            auto point=maps::terrain_world({static_cast<std::uint32_t>(x),114},72);
+            point.y+=20;
+            return production_view.camera().world_to_screen(point);
+        };
+        auto v2_click=[&](SDL_Keycode tool,int x) {
+            production_view.handle_event(key(tool),running);
+            const auto at=v2_screen(x);
+            check(production_view.pick(at)==simulation::Cell{x,114},"v2 pick");
+            check(production_view.preview({x,114}).accepted,"v2 preview");
+            production_view.handle_event(click(static_cast<float>(at.x),static_cast<float>(at.y)),running);
+        };
+        v2_click(SDLK_2,110);
+        v2_click(SDLK_1,111);
+        v2_click(SDLK_1,112);
+        v2_click(SDLK_3,113);
+        v2_click(SDLK_1,114);
+        v2_click(SDLK_1,115);
+        v2_click(SDLK_4,116);
+        check(production_view.world().building(simulation::BuildingId::ClaySource).placed &&
+              production_view.world().building(simulation::BuildingId::Pottery).placed &&
+              production_view.world().building(simulation::BuildingId::Warehouse).placed,
+              "v2 keyboard tools did not place all buildings");
+        check(!production_view.preview({117,114}).accepted,"v2 invalid preview");
+        production_view.handle_event(key(SDLK_5),running);
+        check(production_view.tool()==5,"v2 select key");
+        for (int i=0;i<400;++i) production_view.tick_once();
+        check(production_view.world().pottery_completed_total()>0 &&
+              production_view.world().courier(simulation::CourierId::Pottery).cargo>0,
+              "v2 recipe/courier did not run in view");
+        check(production_view.render() && production_view.last_courier_draws()==2,
+              "software frame omitted a courier");
+        const auto sample_courier=[&](simulation::CourierId id,int shift) {
+            const auto position=*production_view.world().courier_position(id);
+            const double u=position.x-72,v=position.y-72;
+            const auto screen=production_view.camera().world_to_screen({(u-v)*40,(u+v)*20+20});
+            return pixel(renderer,static_cast<int>(screen.x+shift),static_cast<int>(screen.y));
+        };
+        const auto a_color=sample_courier(simulation::CourierId::Clay,-5);
+        const auto b_color=sample_courier(simulation::CourierId::Pottery,5);
+        check(a_color[2]>a_color[0] && b_color[0]>b_color[2],
+              "distinct courier body colors absent from composed frame");
+        production_view.shutdown();
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
         std::cout << "Sandbox software view checks passed\n";
         return 0;

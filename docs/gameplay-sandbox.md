@@ -21,3 +21,29 @@ The app feeds frame time to a bounded fixed-step accumulator, at most eight tick
 Use `1` for roads, `2` for workshop, `3` for warehouse, and `4` or right-click to select. Left-click applies the current tool. Space pauses, `.` steps, `+`/`-` changes speed, WASD/arrows pan, the wheel zooms around the pointer, `R` refits, and Escape exits. Green/red hover geometry comes from the same validation used by placement, and clicks in the HUD do not place objects. SDL primitive geometry draws roads, two distinct buildings, the courier, and a cargo indicator over the original background before one `SDL_RenderPresent` per frame. This overlay is a prototype visualization; it does not reproduce original terrain occlusion, original sprites, building sizes, or transport behavior.
 
 Later work may research the original game's economy, traversability, graphic choices, draw ordering, and walker behavior separately. No such assumptions are encoded in this sandbox profile.
+
+## Resource-dependent production (`sandbox-production-v2`)
+
+Select the second, explicitly authored profile with `--sandbox-rules sandbox-production-v2`. Without this option, `sandbox-logistics-v1` and its controls remain unchanged. Both profiles use the same read-only original-map background, `sandbox_buildable_v1` mask, simulation `World`, fixed-step `TickDriver`, stored-graphics renderer, camera, and picking. The v2 demo requires seven consecutive suitable cells and places Clay source, two roads, Pottery, two roads, and Warehouse through ordinary commands. It never changes the mask to make a demo fit.
+
+```sh
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-demo
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-check --report-json
+```
+
+Keys `1`–`5` select Road, Clay source, Pottery, Warehouse, and inspection. The existing pause, step, speed, pan, zoom, reset, mouse, and Escape controls still apply. SDL primitive geometry distinguishes the three one-cell buildings, courier A (Clay) and courier B (Pottery), including their loads. The HUD reads source output/progress, pottery input/active recipe/progress/output, both courier states, warehouse stock/reservations, and the two conservation totals from the simulation. It has no timer or inventory of its own.
+
+The v2 rules are deliberately unrelated to established Emperor gameplay. One Clay source creates 1 Clay per 100 active ticks and stores at most 8. One Pottery building accepts at most 8 Clay and holds at most 8 Pottery. A recipe transfers 2 actually delivered Clay into its active work state when it starts, waits 150 further ticks, and creates 1 Pottery. The start tick counts as **zero** processing ticks. Only one recipe can run; it starts only if its future output slot is available. A Warehouse accepts at most 32 Pottery, never Clay. Both couriers carry at most 4 units of one good and traverse each orthogonal edge in 10 ticks. Full outputs pause production without a backlog.
+
+Tick order is stable building IDs (Clay source, Pottery), stable courier IDs (A, B) for dispatch, then both courier movements and arrivals, then invariant checks. Consequently, Clay arriving at the end of a tick can first start a recipe on the next tick. Routes are bounded shortest-path BFS searches through **placed** roads only, with an owning building as start and its designated receiving building as end. A third building is never transit. Each courier caches its own start/goal/revision result. A placed road revises both caches; HUD and render queries never search paths or advance goods. A courier atomically moves source output into cargo and reserves the same amount of destination capacity at dispatch. Only at actual arrival is the reservation released and the good inserted; return is edge-by-edge without cargo. The two couriers may share a road without collision handling.
+
+After every tick, the core checks both balances and all buffer, cargo, and reservation bounds:
+
+```text
+clay_extracted_total = clay_in_source + clay_in_transport + clay_in_pottery_input
+                     + clay_in_active_recipe + 2 * pottery_completed_total
+pottery_completed_total = pottery_in_output + pottery_in_transport + pottery_in_warehouse
+```
+
+Reserved space does not count as produced goods. The original v1 Goods balance continues to be checked under its own profile. Headless v2 runs 3,000 ticks through the same `SandboxView` on a software renderer and requires processing, arrival in the warehouse, invariant validity, and frames that draw both couriers. No resource exhaustibility, original building dimensions, walker art, or original production schedule is inferred from map data. Those remain separate future research tasks.

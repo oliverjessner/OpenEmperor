@@ -4,7 +4,7 @@ OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of t
 
 ## Current status
 
-This repository contains an SDL3 application shell, read-only asset and map tools, and a small interactive logistics sandbox. With `--data <directory> --sandbox Cities/Xia.map`, the app displays the user's original map as an unchanged background while a separate prototype world allows roads, one workshop, one warehouse, and a working courier delivery loop. `--sandbox-demo` places a valid arrangement through normal commands; the default starts empty. The sandbox uses self-defined `sandbox-logistics-v1` rules, not Emperor's original economy. Existing `--map-debug`, browser, SG3 preview, and PNG export modes remain available. See [the sandbox guide](docs/gameplay-sandbox.md) for controls, constraints, and the precise separation from original game data.
+This repository contains an SDL3 application shell, read-only asset and map tools, and an interactive prototype sandbox. With `--data <directory> --sandbox Cities/Xia.map`, the app displays the user's original map as an unchanged background. The default `sandbox-logistics-v1` profile offers one workshop, one warehouse, and a courier. Explicit `--sandbox-rules sandbox-production-v2` offers a resource-dependent Clay source → Pottery → Warehouse chain with two couriers. `--sandbox-demo` places a suitable arrangement through normal commands; without it the world starts empty. Both profiles are self-defined prototypes, not Emperor's original economy. Existing `--map-debug`, browser, SG3 preview, and PNG export modes remain available. See [the sandbox guide](docs/gameplay-sandbox.md) for controls and rule boundaries.
 
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
@@ -37,6 +37,7 @@ RGB555 decoding now follows the public SGReader's red-high/blue-low channel posi
 - ✅ separately opted-in placement of isolated complete 2×2 Type-30 footprints (preview convention)
 - ✅ separately opted-in, reference-derived edge-byte grouping of touching 2×2 footprints
 - ✅ fixed-step, deterministic logistics sandbox with placed roads, production, routed delivery, and return
+- ✅ opt-in resource-dependent Clay → Pottery chain with two independent couriers and delivery reservations
 - ⚠️ external and other unobserved alpha profiles remain unverified; no pixel-exact game comparison
 - ❌ verified horizontal mirroring
 - ❌ original-game-verified active cells, world coordinates, or map-to-SG3 graphics mapping
@@ -90,6 +91,9 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-demo
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-check --report-json
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-demo
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-check --report-json
 ctest --test-dir build --output-on-failure
 ```
 
