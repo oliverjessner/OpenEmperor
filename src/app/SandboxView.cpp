@@ -117,6 +117,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     background_.initialize(renderer_);
     if (!walker_manifest_.empty()) set_walker_visuals(walker_manifest_);
     if (!building_manifest_.empty()) set_building_visuals(building_manifest_);
+    if (!road_manifest_.empty()) set_road_visuals(road_manifest_);
     buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
     if (initial_save_) {
         world_=std::make_unique<simulation::World>(persistence::restore_save(*initial_save_,data_root_,
@@ -149,6 +150,8 @@ void SandboxView::shutdown() {
     walker_profile_.reset();
     building_sprite_.reset();
     building_profile_.reset();
+    road_sprites_.reset();
+    road_profile_.reset();
     background_.shutdown();
     world_.reset();
     window_=nullptr;
@@ -221,6 +224,33 @@ SandboxView::BuildingDisplayStats SandboxView::building_display_stats() const {
     if (building_profile_)
         for (const auto role:assets::building_roles)
             stats.configured_roles[assets::role_index(role)]=building_profile_->find(role)!=nullptr;
+    return stats;
+}
+void SandboxView::set_road_visuals(const std::filesystem::path& manifest) {
+    if (manifest.empty()) {
+        road_sprites_.reset();road_profile_.reset();road_manifest_.clear();return;
+    }
+    if (!renderer_) { road_manifest_=manifest;return; }
+    auto profile=assets::load_road_visual_profile(data_root_,manifest);
+    auto sprites=std::make_unique<RoadSpriteSet>();
+    sprites->initialize(renderer_,profile);
+    road_sprites_=std::move(sprites);
+    road_profile_=std::move(profile);
+    road_manifest_=manifest;
+    road_enabled_=true;
+    road_masks_seen_.fill(false);road_draws_=road_fallbacks_current_=0;
+    last_message_="Curated road preview active";
+}
+SandboxView::RoadDisplayStats SandboxView::road_display_stats() const {
+    RoadDisplayStats stats;
+    stats.configured=road_profile_.has_value();
+    if (road_profile_) {
+        for (std::size_t i=0;i<16;++i) stats.configured_masks[i]=road_profile_->tiles[i].has_value();
+        stats.unique_assets=road_profile_->unique_images.size();
+    }
+    stats.texture_uploads=road_sprites_ ? road_sprites_->texture_count():0;
+    stats.draws=road_draws_;stats.fallback_draws=road_fallbacks_current_;
+    stats.masks_seen=road_masks_seen_;
     return stats;
 }
 void SandboxView::reset_camera() {
@@ -551,6 +581,12 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 last_message_=building_enabled_ ? "Building visuals ON":"Building visuals OFF";
             } else last_message_="No building visuals loaded";
         }
+        else if (event.key.key==SDLK_F6) {
+            if (road_profile_) {
+                road_enabled_=!road_enabled_;
+                last_message_=road_enabled_ ? "Road visuals ON":"Road visuals OFF";
+            } else last_message_="No road visuals loaded";
+        }
         else if (walker_diagnostic_open_ && walker_profile_) {
             if (event.key.key==SDLK_Q || event.key.key==SDLK_BACKSLASH) {
                 walker_diagnostic_direction_=(walker_diagnostic_direction_+1)%4;
@@ -706,6 +742,7 @@ bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,
 }
 bool SandboxView::draw_world() {
     last_courier_draws_=0;
+    road_fallbacks_current_=0;
     struct Instance {
         SandboxVisualKey key;
         simulation::Cell cell{};
@@ -725,11 +762,35 @@ bool SandboxView::draw_world() {
         instances.push_back({{ground.y,ground.x,object==simulation::Object::Road ?
             SandboxVisualKind::Road:SandboxVisualKind::Building,id},cell,object});
     }
+    if (road_start_ && road_preview_.valid) {
+        for (const auto cell:road_preview_.cells) {
+            if (world_->object_at(cell)==simulation::Object::Road) continue;
+            const auto ground=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
+            const auto id=static_cast<unsigned>(cell.y*world_->width()+cell.x);
+            instances.push_back({{ground.y,ground.x,SandboxVisualKind::Road,id},cell,
+                                 simulation::Object::Road});
+        }
+    }
     const auto draw_object=[&](simulation::Cell cell,simulation::Object object)->bool {
         const int x=cell.x,y=cell.y;
         const auto top=world_for({static_cast<double>(x),static_cast<double>(y)});
         const auto center=camera_.world_to_screen(top);
         if (object==simulation::Object::Road) {
+            const bool new_preview=road_start_ && road_preview_.valid &&
+                world_->object_at(cell)!=simulation::Object::Road;
+            const auto mask=road_start_ && road_preview_.valid ?
+                sandbox_ui::topology_for_preview(*world_,road_preview_.cells,cell):
+                sandbox_ui::topology_for_road(*world_,cell);
+            road_masks_seen_[mask]=true;
+            const auto* entry=road_profile_ ? road_profile_->find(mask):nullptr;
+            if (entry && road_visuals_active() && road_sprites_) {
+                if (!road_sprites_->draw(center,camera_.zoom,*road_profile_,*entry,new_preview))
+                    return false;
+                if (!new_preview) ++road_draws_;
+                return true;
+            }
+            if (!new_preview) ++road_fallbacks_current_;
+            if (new_preview) return draw_diamond({top.x,top.y-20},45,230,110,true);
             if (!draw_diamond({top.x,top.y-20},225,174,65,true)) return false;
             for (const simulation::Cell next : {simulation::Cell{x+1,y},simulation::Cell{x,y+1},
                                                 simulation::Cell{x-1,y},simulation::Cell{x,y-1}}) {
@@ -887,12 +948,9 @@ bool SandboxView::draw_world() {
         if (!draw_diamond({top.x,top.y-20},255,255,255,false)) return false;
     }
     if (road_start_) {
-        for (const auto cell:road_preview_.cells) {
+        if (!road_preview_.valid) for (const auto cell:road_preview_.cells) {
             const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
-            const bool okay=world_->object_at(cell)==simulation::Object::Road ||
-                world_->validate({simulation::CommandType::PlaceRoad,cell}).accepted;
-            if (!draw_diamond({top.x,top.y-20},okay ? 45:245,okay ? 230:60,
-                              okay ? 110:65,true)) return false;
+            if (!draw_diamond({top.x,top.y-20},245,60,65,true)) return false;
         }
         return true;
     }
@@ -1182,6 +1240,14 @@ bool SandboxView::draw_hud() {
             " | Commands "+std::to_string(world_->command_sequence())+
             " | Balance "+(world_->goods_balance_valid()?"OK":"ERROR");
         if (!draw_text(8*layout_.scale,layout_.map.y+8*layout_.scale,debug,
+                       layout_.map.w-16*layout_.scale)) return false;
+        const auto roads=road_display_stats();
+        const std::string road_line=std::string("Road visuals ")+
+            (road_visuals_active()?"ON":"OFF")+" | masks "+
+            std::to_string(road_profile_ ? road_profile_->configured_count():0)+
+            "/16 | assets "+std::to_string(roads.unique_assets)+
+            " | fallbacks "+std::to_string(roads.fallback_draws);
+        if (!draw_text(8*layout_.scale,layout_.map.y+22*layout_.scale,road_line,
                        layout_.map.w-16*layout_.scale)) return false;
     }
     return true;

@@ -29,7 +29,7 @@ public:
     const std::filesystem::path& app_root() const { return app_root_; }
 private:
     struct Inbox { std::mutex mutex; std::deque<std::pair<std::uint64_t,DialogResult>> results; };
-    enum class DialogKind { None, Folder, SaveFile, VisualsFile, BuildingVisualsFile };
+    enum class DialogKind { None, Folder, SaveFile, VisualsFile, BuildingVisualsFile, RoadVisualsFile };
     enum class AfterConfirm { None, Quit, Replace, ChangeData };
     struct Button { SDL_FRect rect; std::string label; int action; bool enabled=true; };
     void open_dialog(DialogKind kind);
@@ -52,6 +52,7 @@ private:
     std::filesystem::path candidate_map_;
     std::filesystem::path visual_profile_path_; // Session-only, never saved.
     std::filesystem::path building_profile_path_; // Session-only, never saved.
+    std::filesystem::path road_profile_path_; // Session-only, never saved.
     simulation::RulesProfile candidate_profile_=simulation::RulesProfile::IndustryV5;
     std::unique_ptr<DialogAdapter> dialog_;
     std::shared_ptr<Inbox> inbox_=std::make_shared<Inbox>();

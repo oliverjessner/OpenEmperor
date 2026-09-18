@@ -12,6 +12,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     MapPrev, MapNext, ProfilePrev, ProfileNext, Demo, Start, Back,
     SavePrev, SaveNext, OpenSave, ExternalSave, ConfirmSave, ConfirmDiscard, ConfirmCancel,
     ResetSettings, OpenMenu, VisualsFile, VisualsClear, BuildingVisualsFile, BuildingVisualsClear,
+    RoadVisualsFile, RoadVisualsClear,
     MapSelectBase=1000, SaveSelectBase=2000 };
 constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::LogisticsV1,
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
@@ -69,7 +70,7 @@ void MenuSession::persist_settings() {
 void MenuSession::accept_data(const fs::path& path) {
     const auto found=validate_data_root(path);
     if (!settings_.data_root.empty() && settings_.data_root!=found.data_root) {
-        visual_profile_path_.clear();building_profile_path_.clear();
+        visual_profile_path_.clear();building_profile_path_.clear();road_profile_path_.clear();
     }
     catalog_=found; settings_.data_root=found.data_root;
     auto it=std::find_if(catalog_.entries.begin(),catalog_.entries.end(),[&](const auto& e){
@@ -98,7 +99,8 @@ void MenuSession::open_dialog(DialogKind kind) {
     };
     try {
         if (kind==DialogKind::Folder) dialog_->open_folder(window_,std::move(callback));
-        else if (kind==DialogKind::VisualsFile || kind==DialogKind::BuildingVisualsFile)
+        else if (kind==DialogKind::VisualsFile || kind==DialogKind::BuildingVisualsFile ||
+                 kind==DialogKind::RoadVisualsFile)
             dialog_->open_visual_profile(window_,std::move(callback));
         else dialog_->open_file(window_,std::move(callback));
     } catch (const std::exception& e) { dialog_kind_=DialogKind::None; message_=e.what(); }
@@ -136,6 +138,7 @@ void MenuSession::finish_loading() {
         view->configure_save(settings_.data_root,map,save_path,std::move(document));
         if (!visual_profile_path_.empty()) view->set_walker_visuals(visual_profile_path_);
         if (!building_profile_path_.empty()) view->set_building_visuals(building_profile_path_);
+        if (!road_profile_path_.empty()) view->set_road_visuals(road_profile_path_);
         view->initialize(window_,renderer_);
         candidate_=std::move(view); candidate_map_=map; candidate_profile_=profile;
         if (sandbox_ && sandbox_->dirty()) confirm_or(AfterConfirm::Replace);
@@ -213,6 +216,9 @@ void MenuSession::perform(int action) {
         case BuildingVisualsFile: open_dialog(DialogKind::BuildingVisualsFile); break;
         case BuildingVisualsClear: building_profile_path_.clear();
             message_="Building visuals disabled for next session";rebuild_buttons();break;
+        case RoadVisualsFile: open_dialog(DialogKind::RoadVisualsFile);break;
+        case RoadVisualsClear: road_profile_path_.clear();
+            message_="Road visuals disabled for next session";rebuild_buttons();break;
         case ConfirmSave:
             if (sandbox_) { sandbox_->save_now(); record_save(); }
             [[fallthrough]];
@@ -303,14 +309,17 @@ void MenuSession::advance() {
         if (result.kind==DialogResult::Kind::Error) { message_=result.path; continue; }
         try {
             if (kind==DialogKind::Folder) accept_data(result.path);
-            else if (kind==DialogKind::VisualsFile || kind==DialogKind::BuildingVisualsFile) {
+            else if (kind==DialogKind::VisualsFile || kind==DialogKind::BuildingVisualsFile ||
+                     kind==DialogKind::RoadVisualsFile) {
                 if (fs::path(result.path).extension()!=".json")
                     throw std::runtime_error("visual profile must be a .json file");
                 if (kind==DialogKind::VisualsFile) visual_profile_path_=result.path;
-                else building_profile_path_=result.path;
+                else if (kind==DialogKind::BuildingVisualsFile) building_profile_path_=result.path;
+                else road_profile_path_=result.path;
                 message_=kind==DialogKind::VisualsFile ?
                     "Walker profile selected for this session":
-                    "Building profile selected for this session";
+                    kind==DialogKind::BuildingVisualsFile ?
+                    "Building profile selected for this session":"Road profile selected for this session";
                 rebuild_buttons();
             } else start_load(result.path);
         } catch (const std::exception& e) { message_=e.what(); }
@@ -348,6 +357,8 @@ void MenuSession::rebuild_buttons() {
         add(VisualsFile,"Walker JSON...",40,360); add(VisualsClear,"No walker visuals",230,360);
         add(BuildingVisualsFile,"Building JSON...",40,400);
         add(BuildingVisualsClear,"No building visuals",230,400);
+        add(RoadVisualsFile,"Road JSON...",40,440);
+        add(RoadVisualsClear,"No road visuals",230,440);
         const auto begin=map_index_>4?map_index_-4:0;
         map_scroll_=begin;
         for (std::size_t i=begin;i<catalog_.entries.size() && i<begin+11;++i) {
@@ -366,6 +377,8 @@ void MenuSession::rebuild_buttons() {
         add(VisualsFile,"Walker JSON...",40,360); add(VisualsClear,"No walker visuals",230,360);
         add(BuildingVisualsFile,"Building JSON...",40,400);
         add(BuildingVisualsClear,"No building visuals",230,400);
+        add(RoadVisualsFile,"Road JSON...",40,440);
+        add(RoadVisualsClear,"No road visuals",230,440);
         const auto begin=save_index_>4?save_index_-4:0;
         save_scroll_=begin;
         for (std::size_t i=begin;i<saves_.entries.size() && i<begin+11;++i) {

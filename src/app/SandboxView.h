@@ -7,9 +7,11 @@
 #include "persistence/SandboxSave.h"
 #include "app/SandboxUiLayout.h"
 #include "app/RoadDrag.h"
+#include "app/RoadTopology.h"
 #include "assets/WalkerVisualProfile.h"
 #include "renderer/WalkerSpriteSet.h"
 #include "renderer/BuildingSprite.h"
+#include "renderer/RoadSpriteSet.h"
 
 #include <memory>
 #include <array>
@@ -62,6 +64,15 @@ public:
     void load_now();
     void set_walker_visuals(const std::filesystem::path& manifest);
     void set_building_visuals(const std::filesystem::path& manifest);
+    void set_road_visuals(const std::filesystem::path& manifest);
+    bool road_visuals_active() const { return road_enabled_ && road_profile_.has_value(); }
+    struct RoadDisplayStats {
+        bool configured=false;
+        std::array<bool,16> configured_masks{},masks_seen{};
+        std::size_t unique_assets=0,texture_uploads=0;
+        std::uint64_t draws=0,fallback_draws=0;
+    };
+    RoadDisplayStats road_display_stats() const;
     bool building_visuals_active() const { return building_enabled_ && building_profile_.has_value(); }
     std::size_t building_texture_count() const { return building_sprite_ ? building_sprite_->texture_count():0; }
     struct BuildingDisplayStats {
@@ -148,6 +159,12 @@ private:
     bool building_enabled_=true;
     std::array<std::uint64_t,assets::building_role_count> building_drawn_instances_{};
     std::array<std::uint64_t,assets::building_role_count> building_placeholder_fallbacks_{};
+    std::filesystem::path road_manifest_;
+    std::optional<assets::RoadVisualProfile> road_profile_;
+    std::unique_ptr<RoadSpriteSet> road_sprites_;
+    bool road_enabled_=true;
+    std::array<bool,16> road_masks_seen_{};
+    std::uint64_t road_draws_=0,road_fallbacks_current_=0;
     std::optional<persistence::SaveDocument> initial_save_;
     std::vector<std::uint8_t> buildable_mask_;
     std::uint64_t io_generation_=0;

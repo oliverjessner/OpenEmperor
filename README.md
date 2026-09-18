@@ -16,6 +16,8 @@ The current ignored local profile uses four visually checked Storage-direction c
 
 An optional `curated_building_preview` JSON profile displays locally selected original Type-30 images for ClaySource, Pottery, Warehouse and Household; any omitted role keeps its marker. Use `--building-visuals .local/visuals/buildings.json` or **Building JSON...** in the menu. F4 switches all configured building images and markers independently of F2, and valid placement previews use a translucent original image. All prototype buildings still occupy one sandbox cell and retain the same simulation and save data, even when their images appear larger. See [building visual profiles](docs/building-visual-profile.md) for the separate manifest, anchors and depth limits.
 
+The optional `curated_road_preview` displays selected original Type-30 road-like tiles according to the current sandbox road neighborhood. Use `--road-visuals .local/visuals/roads.json` or **Road JSON...** in the menu; F6 independently returns to yellow diamond roads. Missing topology assignments also use diamonds. Road placement, removal and drag preview recalculate appearances without changing BFS, commands, revisions or saves. The explicit 4-bit storage-neighbor convention and local manifest are documented in [road visual profiles](docs/road-visual-profile.md). This is a visual OpenEmperor mapping, not a recovered original Emperor road-selection rule.
+
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
 The textured map preview reads original map cells but uses a small, explicit local binding table to choose original SG3 graphics for exact `(terrain_raw, objects_raw)` pairs. Unbound cells are purple diagnostic diamonds. The map-to-image assignments and the 80×40 isometric placement are preview conventions; the original game's graphic variant logic, coastlines, animation, heights, buildings, and simulation are not reconstructed.
@@ -145,6 +147,7 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo --sandbox-visuals .local/visuals/clay-walker.json
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo --sandbox-visuals .local/visuals/clay-walker.json --building-visuals .local/visuals/buildings.json
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo --sandbox-visuals .local/visuals/clay-walker.json --building-visuals .local/visuals/buildings.json --road-visuals .local/visuals/roads.json
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo --sandbox-check --sandbox-resume-check --report-json
 ctest --test-dir build --output-on-failure
 ```

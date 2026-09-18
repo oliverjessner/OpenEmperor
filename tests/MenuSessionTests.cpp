@@ -179,6 +179,15 @@ int main(int argc,char* argv[]) {
                   menu.message().find("building manifest")!=std::string::npos,
                   "missing building profile did not reject activation");
             click(menu,500,830); // Clear the building profile without persisting it.
+            click(menu,90,910); // Road JSON via the same visual-profile dialog adapter.
+            check(static_cast<bool>(dialog->callback),"road dialog not opened");
+            dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
+                (t.root/"missing-roads.json").string()}); menu.advance();
+            click(menu,90,650); finish_load(menu);
+            check(menu.state()==Menu::State::NewSandbox &&
+                  menu.message().find("road manifest")!=std::string::npos,
+                  "missing road profile did not reject activation");
+            click(menu,500,910); // Clear the independent road selection.
             click(menu,90,650); // Start
             finish_load(menu);
             if (!(menu.state()==Menu::State::Playing && menu.sandbox()))

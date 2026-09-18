@@ -1,9 +1,11 @@
 #include "app/SandboxView.h"
 #include "app/WalkerPose.h"
 #include "app/SandboxVisualOrder.h"
+#include "app/RoadTopology.h"
 #include "maps/TerrainRenderPlan.h"
 
 #include <SDL3/SDL.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <array>
@@ -105,6 +107,34 @@ std::filesystem::path building_fixture(const Temp& temp) {
 "household":{"archive":"DATA/house.sg3","image_index":3,"ground_anchor":[79,70],"evidence":"Synthetic green"}}})";
     check(static_cast<bool>(output),"building manifest write");
     return path;
+}
+std::filesystem::path road_fixture(const Temp& temp) {
+    Bytes sg3(40680U+17U*72U,0);
+    u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,214);
+    u32(sg3,12,17);u32(sg3,16,17);u32(sg3,20,1);
+    const std::string name="synthetic.bmp";
+    std::copy(name.begin(),name.end(),sg3.begin()+680);u32(sg3,680+124,17);
+    Bytes bitmap(4U+16U*3200U,0);
+    for (int mask=0;mask<16;++mask) {
+        const auto at=40680U+static_cast<unsigned>(mask+1)*72U;
+        const auto offset=4U+static_cast<unsigned>(mask)*3200U;
+        u32(sg3,at,offset);u32(sg3,at+4,3200);u32(sg3,at+8,3200);
+        u16(sg3,at+20,78);u16(sg3,at+22,40);u16(sg3,at+50,30);sg3[at+55]=1;
+        const auto color=static_cast<std::uint16_t>(((mask+1)<<10)|((mask+1)<<5));
+        for (unsigned p=0;p<3200;p+=2) u16(bitmap,offset+p,color);
+    }
+    write(temp.path/"DATA/roads.sg3",sg3);write(temp.path/"DATA/roads.555",bitmap);
+    nlohmann::json tiles=nlohmann::json::object();
+    constexpr char hex[]="0123456789abcdef";
+    for (int mask=0;mask<16;++mask)
+        tiles[std::string("0x")+hex[mask]]={{"archive","DATA/roads.sg3"},
+            {"image_index",mask+1},{"ground_anchor",{39,20}},
+            {"evidence","Synthetic road viewer pixel"}};
+    const auto path=temp.path/"roads.json";
+    std::ofstream out(path);
+    out<<nlohmann::json{{"schema_version",1},{"mode","curated_road_preview"},
+                        {"tiles",tiles}}.dump();
+    check(bool(out),"road fixture manifest write");return path;
 }
 openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=false,
                                            bool household=false,bool industry=false) {
@@ -649,7 +679,9 @@ int main() {
         industry_view.configure_save(temp.path,"Cities/Synthetic.map",save_path);
         industry_view.set_walker_visuals(walker_manifest);
         const auto building_manifest=building_fixture(temp);
+        const auto road_manifest=road_fixture(temp);
         industry_view.set_building_visuals(building_manifest);
+        industry_view.set_road_visuals(road_manifest);
         industry_view.initialize(window,renderer);
         check(industry_view.walker_texture_count()==2,"second clay courier duplicated textures");
         check(industry_view.building_texture_count()==4 &&
@@ -668,14 +700,16 @@ int main() {
             if (i%25==0) {
                 industry_view.handle_event(key(SDLK_F2),running);
                 industry_view.handle_event(key(SDLK_F4),running);
+                industry_view.handle_event(key(SDLK_F6),running);
                 check(industry_view.render() && industry_view.render() && marker_control.render(),
                       "frequent sprite/marker/building render failed");
             }
             check(industry_view.world().snapshot()==marker_control.world().snapshot(),
-                  "visual preview or F2/F4 changed an authoritative Industry World tick");
+                  "visual preview or F2/F4/F6 changed an authoritative Industry World tick");
         }
         if (!industry_view.walker_visuals_active()) industry_view.handle_event(key(SDLK_F2),running);
         if (!industry_view.building_visuals_active()) industry_view.handle_event(key(SDLK_F4),running);
+        if (!industry_view.road_visuals_active()) industry_view.handle_event(key(SDLK_F6),running);
         check(industry_view.render() && industry_view.last_courier_draws()==5 &&
               industry_view.world().building(static_cast<simulation::BuildingId>(9)).recipes_completed>0,
               "v5 software frame did not draw five couriers and active second pottery");
@@ -744,13 +778,17 @@ int main() {
               "walker textures survived industry session shutdown");
         check(openemperor::BuildingSprite::live_texture_count()==0,
               "building texture survived industry session shutdown");
+        check(openemperor::RoadSpriteSet::live_texture_count()==0,
+              "road texture survived industry session shutdown");
 
         check(SDL_SetWindowSize(window,1100,700),"resize end-to-end window");
         openemperor::SandboxView ui(fixture(temp,true,true,true),false,
             simulation::RulesProfile::IndustryV5);
         ui.configure_save(temp.path,"Cities/Synthetic.map",save_path);
         ui.set_building_visuals(building_manifest);
+        ui.set_road_visuals(road_manifest);
         ui.initialize(window,renderer);
+        check(ui.road_display_stats().texture_uploads==16,"road set upload");
         check(ui.layout().map.w==796 && ui.layout().map.h==552,"end-to-end viewport");
         const auto button_point=[&](openemperor::sandbox_ui::Action action) {
             for (const auto& button:ui.layout().buttons) if (button.action==action)
@@ -805,11 +843,29 @@ int main() {
               "road drag mutated world before release");
         check(ui.render() && ui.world().snapshot()==before_drag,
               "rendered held road changed simulation");
+        check(ui.road_display_stats().draws==0 &&
+              openemperor::sandbox_ui::topology_for_preview(ui.world(),ui.road_preview().cells,
+                                                             {111,114})==0xa,
+              "drag preview did not use hypothetical building/road entrance mask");
         ui.handle_event(release(static_cast<float>(first_end.x),static_cast<float>(first_end.y)),running);
         check(ui.world().command_sequence()==before_drag.command_sequence+2 &&
               ui.world().object_at({111,114})==simulation::Object::Road &&
               ui.world().object_at({112,114})==simulation::Object::Road,
               "road drag did not commit exactly two commands");
+        check(ui.render() && ui.road_display_stats().draws>=2 &&
+              ui.road_display_stats().masks_seen[0xa],"committed road visual did not render");
+        const auto road_center=map_point(111,114);
+        const auto road_pixel=pixel(renderer,static_cast<int>(road_center.x),
+                                            static_cast<int>(road_center.y));
+        const auto before_road_toggle=ui.world().snapshot();
+        const auto road_dirty=ui.dirty();
+        ui.handle_event(key(SDLK_F6),running);
+        check(!ui.road_visuals_active() && ui.render() &&
+              ui.world().snapshot()==before_road_toggle && ui.dirty()==road_dirty &&
+              pixel(renderer,static_cast<int>(road_center.x),static_cast<int>(road_center.y))!=road_pixel,
+              "F6 did not change only road pixels");
+        ui.handle_event(key(SDLK_F6),running);
+        check(ui.road_visuals_active() && ui.render(),"F6 did not restore road tiles");
         drag(114,114,115,114);
         press_action(openemperor::sandbox_ui::Action::Warehouse); map_click(116,114);
         press_action(openemperor::sandbox_ui::Action::Road); drag(117,114,119,114);
@@ -954,6 +1010,64 @@ int main() {
               ui.selected_building()==static_cast<simulation::BuildingId>(9),
               "button save/load or instance selection");
         check(ui.render(),"saved UI software frame");
+        press_action(openemperor::sandbox_ui::Action::Road);
+        const auto l_start=map_point(117,112),l_end=map_point(119,113);
+        const auto before_l=ui.world().snapshot();
+        ui.handle_event(click(static_cast<float>(l_start.x),static_cast<float>(l_start.y)),running);
+        ui.handle_event(motion(static_cast<float>(l_end.x),static_cast<float>(l_end.y)),running);
+        check(ui.road_preview().valid && ui.road_preview().cells.size()==4 &&
+              openemperor::sandbox_ui::topology_for_preview(ui.world(),ui.road_preview().cells,
+                                                             {119,112})==0xc &&
+              ui.world().snapshot()==before_l && ui.render(),
+              "L drag preview missing future corner or changed World");
+        const auto corner_screen=map_point(119,112);
+        const auto preview_corner_pixel=pixel(renderer,static_cast<int>(corner_screen.x),
+                                               static_cast<int>(corner_screen.y));
+        ui.handle_event(release(static_cast<float>(l_end.x),static_cast<float>(l_end.y)),running);
+        check(ui.world().command_sequence()==before_l.command_sequence+4 &&
+              openemperor::sandbox_ui::topology_for_road(ui.world(),{119,112})==0xc &&
+              ui.render() &&
+              pixel(renderer,static_cast<int>(corner_screen.x),static_cast<int>(corner_screen.y))!=
+                  preview_corner_pixel,
+              "L drag corner did not commit its opaque road pixel");
+        const auto committed_corner_pixel=pixel(renderer,static_cast<int>(corner_screen.x),
+                                                 static_cast<int>(corner_screen.y));
+        check(ui.execute({simulation::CommandType::PlaceRoad,{120,112}}).accepted &&
+              openemperor::sandbox_ui::topology_for_road(ui.world(),{119,112})==0xe &&
+              ui.render() &&
+              pixel(renderer,static_cast<int>(corner_screen.x),static_cast<int>(corner_screen.y))!=
+                  committed_corner_pixel,"new arm did not change live road pixel to T");
+        check(ui.execute({simulation::CommandType::RemoveRoad,{120,112}}).accepted &&
+              openemperor::sandbox_ui::topology_for_road(ui.world(),{119,112})==0xc &&
+              ui.render() &&
+              pixel(renderer,static_cast<int>(corner_screen.x),static_cast<int>(corner_screen.y))==
+                  committed_corner_pixel,"road removal did not restore corner pixel");
+        const auto junction=map_point(118,113);
+        const auto junction_pixel=[&]{return pixel(renderer,static_cast<int>(junction.x),
+                                                    static_cast<int>(junction.y));};
+        check(ui.execute({simulation::CommandType::PlaceRoad,{118,113}}).accepted &&
+              openemperor::sandbox_ui::topology_for_road(ui.world(),{118,113})==0x7 &&
+              ui.render(),"new road did not form T");
+        const auto t_pixel=junction_pixel();
+        check(ui.execute({simulation::CommandType::PlaceRoad,{117,113}}).accepted &&
+              openemperor::sandbox_ui::topology_for_road(ui.world(),{118,113})==0xf &&
+              ui.render() && junction_pixel()!=t_pixel,
+              "added arm did not render a crossing pixel");
+        check(ui.execute({simulation::CommandType::RemoveRoad,{117,113}}).accepted &&
+              openemperor::sandbox_ui::topology_for_road(ui.world(),{118,113})==0x7 &&
+              ui.render() && junction_pixel()==t_pixel,
+              "removed arm did not restore T pixel");
+        check(ui.execute({simulation::CommandType::RemoveRoad,{119,113}}).accepted &&
+              openemperor::sandbox_ui::topology_for_road(ui.world(),{118,113})==0x5 &&
+              ui.render() && junction_pixel()!=t_pixel,
+              "second removal did not render straight pixel");
+        const auto before_bad_profile=ui.road_display_stats().texture_uploads;
+        bool bad_road_rejected=false;
+        try { ui.set_road_visuals(temp.path/"missing-roads.json"); }
+        catch (const std::exception&) { bad_road_rejected=true; }
+        check(bad_road_rejected && ui.road_visuals_active() &&
+              ui.road_display_stats().texture_uploads==before_bad_profile,
+              "invalid road profile partially replaced active sprites");
         const auto previous_zoom=ui.camera().zoom;
         const auto at=map_point(113,116);
         ui.handle_event(motion(static_cast<float>(at.x),static_cast<float>(at.y)),running);
@@ -988,6 +1102,7 @@ int main() {
               render_scale_x==1 && render_scale_y==1,
               "renderer viewport/clip/scale leaked after passes");
         ui.shutdown();
+        check(openemperor::RoadSpriteSet::live_texture_count()==0,"road textures survived session");
 
         const auto scaled=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
         const auto scaled_button=std::find_if(scaled.buttons.begin(),scaled.buttons.end(),

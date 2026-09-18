@@ -61,6 +61,7 @@ void print_usage(const char* executable) {
               << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5]"
               << " [--sandbox-demo] [--sandbox-visuals <walker-profile.json>]"
               << " [--building-visuals <building-profile.json>]"
+              << " [--road-visuals <road-profile.json>]"
               << " [--sandbox-check [--sandbox-resume-check] --report-json]\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
               << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5]"
@@ -87,6 +88,7 @@ int main(int argc, char* argv[]) {
     bool sandbox_supplied = false;
     bool sandbox_visuals_supplied = false;
     bool building_visuals_supplied = false;
+    bool road_visuals_supplied = false;
     bool sandbox_demo = false;
     bool sandbox_check = false;
     bool sandbox_resume_check = false;
@@ -119,6 +121,7 @@ int main(int argc, char* argv[]) {
     fs::path sandbox_path;
     fs::path sandbox_visuals_path;
     fs::path building_visuals_path;
+    fs::path road_visuals_path;
     fs::path sandbox_save_path;
     fs::path load_sandbox_path;
     fs::path terrain_bindings_path;
@@ -192,6 +195,8 @@ int main(int argc, char* argv[]) {
             sandbox_visuals_path=argv[++index]; sandbox_visuals_supplied=true;
         } else if (argument == "--building-visuals" && !building_visuals_supplied) {
             building_visuals_path=argv[++index]; building_visuals_supplied=true;
+        } else if (argument == "--road-visuals" && !road_visuals_supplied) {
+            road_visuals_path=argv[++index]; road_visuals_supplied=true;
         } else if (argument == "--sandbox-save" && !sandbox_save_supplied) {
             sandbox_save_path=argv[++index]; sandbox_save_supplied=true;
         } else if (argument == "--load-sandbox" && !load_sandbox_supplied) {
@@ -293,6 +298,8 @@ int main(int argc, char* argv[]) {
         (sandbox_visuals_supplied && (!sandbox_supplied || sandbox_routing_check)) ||
         (building_visuals_supplied && ((!sandbox_supplied && !load_sandbox_supplied) ||
                                        sandbox_routing_check)) ||
+        (road_visuals_supplied && ((!sandbox_supplied && !load_sandbox_supplied) ||
+                                   sandbox_routing_check)) ||
         (sandbox_resume_check && !sandbox_check) ||
         (sandbox_routing_check && (!sandbox_supplied || !report_json || !sandbox_rules_supplied ||
             sandbox_rules!=openemperor::simulation::RulesProfile::ProductionV2 ||
@@ -359,7 +366,8 @@ int main(int argc, char* argv[]) {
             multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
             graphics_profile);
     if (sandbox_check) return openemperor::run_sandbox_check(data_directory,sandbox_path,
-        sandbox_rules,sandbox_resume_check,sandbox_visuals_path,building_visuals_path);
+        sandbox_rules,sandbox_resume_check,sandbox_visuals_path,building_visuals_path,
+        road_visuals_path);
     if (sandbox_routing_check)
         return openemperor::run_sandbox_routing_check(data_directory,sandbox_path);
 
@@ -394,6 +402,7 @@ int main(int argc, char* argv[]) {
             sandbox_view->configure_save(data_directory,sandbox_path,sandbox_save_path,std::move(initial));
             if (sandbox_visuals_supplied) sandbox_view->set_walker_visuals(sandbox_visuals_path);
             if (building_visuals_supplied) sandbox_view->set_building_visuals(building_visuals_path);
+            if (road_visuals_supplied) sandbox_view->set_road_visuals(road_visuals_path);
             std::cout << "Sandbox: " << sandbox_path.generic_string()
                       << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
                       << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"

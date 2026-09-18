@@ -54,7 +54,7 @@ add_executable(openemperor
     src/app/SandboxView.cpp
     src/app/WalkerPose.cpp
     src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MenuSession.cpp
-    src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
+    src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/app/SandboxCheck.cpp
     src/app/SandboxRoutingCheck.cpp
     src/app/MenuCheck.cpp
@@ -66,6 +66,7 @@ add_executable(openemperor
     src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp
     src/renderer/BuildingSprite.cpp
+    src/renderer/RoadSpriteSet.cpp
 )
 target_include_directories(openemperor PRIVATE src)
 target_link_libraries(openemperor PRIVATE SDL3::SDL3)
@@ -97,6 +98,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/AssetCatalog.cpp
     src/assets/WalkerVisualProfile.cpp
     src/assets/BuildingVisualProfile.cpp
+    src/assets/RoadVisualProfile.cpp
     src/assets/RgbaPngEncoder.cpp
     src/assets/RgbaPngReader.cpp
 )
@@ -170,20 +172,20 @@ if(BUILD_TESTING)
     add_test(NAME sandbox-production-chain COMMAND openemperor-sandbox-production-tests)
     set_tests_properties(sandbox-production-chain PROPERTIES TIMEOUT 20)
     add_executable(openemperor-sandbox-view-tests tests/SandboxViewTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
-    target_sources(openemperor-sandbox-view-tests PRIVATE src/renderer/BuildingSprite.cpp)
+    target_sources(openemperor-sandbox-view-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
     set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 20)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
-        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
-    target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp)
+    target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp)
     target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
@@ -218,6 +220,7 @@ if(BUILD_TESTING)
         add_test(NAME map-corpus-runner COMMAND ${Python3_EXECUTABLE} -m unittest discover
             -s ${CMAKE_SOURCE_DIR}/tests -p test_verify_map_corpus.py)
         set_tests_properties(map-corpus-runner PROPERTIES TIMEOUT 20
+            RUN_SERIAL TRUE
             ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
     endif()
     add_executable(openemperor-resource-group-tests tests/ResourceGroupLookupTests.cpp)
@@ -307,6 +310,18 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-building-visual-tests PRIVATE openemperor-sg3 SDL3::SDL3)
     openemperor_enable_warnings(openemperor-building-visual-tests)
     add_test(NAME building-visual-profile-depth COMMAND openemperor-building-visual-tests)
+
+    add_executable(openemperor-road-topology-tests tests/RoadTopologyTests.cpp
+        src/app/RoadTopology.cpp src/app/RoadDrag.cpp)
+    target_link_libraries(openemperor-road-topology-tests PRIVATE openemperor-simulation)
+    openemperor_enable_warnings(openemperor-road-topology-tests)
+    add_test(NAME road-topology-live-preview COMMAND openemperor-road-topology-tests)
+
+    add_executable(openemperor-road-visual-tests tests/RoadVisualTests.cpp
+        src/renderer/RoadSpriteSet.cpp)
+    target_link_libraries(openemperor-road-visual-tests PRIVATE openemperor-sg3 SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-road-visual-tests)
+    add_test(NAME road-visual-profile-pixels COMMAND openemperor-road-visual-tests)
 
     add_executable(openemperor-png-preview-tests tests/RgbaPngReaderTests.cpp)
     target_link_libraries(openemperor-png-preview-tests PRIVATE openemperor-sg3)
