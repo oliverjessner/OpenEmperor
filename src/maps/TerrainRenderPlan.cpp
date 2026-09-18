@@ -20,6 +20,10 @@ scene::Point terrain_world(GridCell cell, std::uint32_t border) {
     const auto v = static_cast<double>(cell.y) - static_cast<double>(border);
     return {(u - v) * 40.0, (u + v) * 20.0};
 }
+scene::Point terrain_ground(GridCell cell, std::uint32_t border) {
+    const auto top = terrain_world(cell, border);
+    return {top.x, top.y + 20.0};
+}
 scene::Point terrain_image_origin(scene::Point world) { return {world.x - 39.0, world.y}; }
 
 std::optional<GridCell> pick_terrain_cell(scene::Point world, const MapGeometry& geometry) {

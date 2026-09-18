@@ -179,7 +179,7 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
-    set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 20)
+    set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 45)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
@@ -322,6 +322,11 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-road-visual-tests PRIVATE openemperor-sg3 SDL3::SDL3)
     openemperor_enable_warnings(openemperor-road-visual-tests)
     add_test(NAME road-visual-profile-pixels COMMAND openemperor-road-visual-tests)
+    add_executable(openemperor-unified-painter-tests tests/UnifiedPainterTests.cpp
+        src/renderer/StoredGraphicsRenderer.cpp)
+    target_link_libraries(openemperor-unified-painter-tests PRIVATE openemperor-maps SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-unified-painter-tests)
+    add_test(NAME unified-map-sandbox-pixels COMMAND openemperor-unified-painter-tests)
 
     add_executable(openemperor-png-preview-tests tests/RgbaPngReaderTests.cpp)
     target_link_libraries(openemperor-png-preview-tests PRIVATE openemperor-sg3)

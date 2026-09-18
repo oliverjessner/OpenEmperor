@@ -41,6 +41,7 @@ struct TerrainRenderPlan {
 };
 
 scene::Point terrain_world(GridCell cell, std::uint32_t border);
+scene::Point terrain_ground(GridCell cell, std::uint32_t border);
 scene::Point terrain_image_origin(scene::Point world);
 std::optional<GridCell> pick_terrain_cell(scene::Point world, const MapGeometry& geometry);
 TerrainRenderPlan make_terrain_render_plan(const ParsedEmperorMap& map,

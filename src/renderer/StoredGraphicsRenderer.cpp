@@ -83,25 +83,29 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
     for (const auto& footprint : plan_.footprints) {
         const maps::GridCell front{footprint.origin.x+footprint.width_cells-1,
                                    footprint.origin.y+footprint.height_cells-1};
-        const auto world=maps::terrain_world(front,plan_.border);
-        draw_order_.push_back({true,footprint.id,world.y,world.x,
-                               footprint.cell_indices.front()});
+        const auto ground=maps::terrain_ground(front,plan_.border);
+        draw_order_.push_back({{ground.y,ground.x,scene::WorldVisualLayer::StoredMap,
+                               footprint.cell_indices.front()},true,footprint.id});
     }
     for (std::size_t i=0;i<plan_.cells.size();++i) {
         const auto& cell=plan_.cells[i];
-        if (!cell.footprint_index)
-            draw_order_.push_back({false,i,cell.world.y,cell.world.x,i});
+        if (!cell.footprint_index) {
+            const auto ground=maps::terrain_ground(cell.storage,plan_.border);
+            draw_order_.push_back({{ground.y,ground.x,scene::WorldVisualLayer::StoredMap,i},
+                                   false,i});
+        }
     }
-    std::stable_sort(draw_order_.begin(),draw_order_.end(),[](const DrawItem& a,const DrawItem& b) {
-        if (a.depth!=b.depth) return a.depth<b.depth;
-        if (a.x!=b.x) return a.x<b.x;
-        return a.stable<b.stable;
+    std::stable_sort(draw_order_.begin(),draw_order_.end(),[](const StoredDrawItem& a,
+                                                                const StoredDrawItem& b) {
+        return a.key<b.key;
     });
+    ++stored_order_builds_;
 }
 
 void StoredGraphicsRenderer::shutdown() {
     for (auto* texture : textures_) if (texture) { SDL_DestroyTexture(texture); --live_textures; }
     textures_.clear();
+    draw_order_.clear();
     renderer_ = nullptr;
 }
 
@@ -128,45 +132,61 @@ bool StoredGraphicsRenderer::draw_diagnostic(scene::Point world,
     return true;
 }
 
-bool StoredGraphicsRenderer::render(const scene::Camera2D& camera,
-                                    std::optional<maps::GridCell> selected) {
+void StoredGraphicsRenderer::begin_frame() {
     last_drawn_instances_=0;
     last_texture_draws_=0;
     last_diagnostic_draws_=0;
-    for (const auto& item : draw_order_) {
-        if (item.footprint) {
-            const auto& footprint=plan_.footprints[item.index];
-            const auto& record=plan_.assets[footprint.asset_index].record;
-            if (footprint.status==maps::StoredStatus::Rendered) {
-                if (!maps::stored_rect_visible(footprint.image_origin,
-                    static_cast<std::uint32_t>(record.width),
-                    static_cast<std::uint32_t>(record.height),camera)) continue;
-                const auto top=camera.world_to_screen(footprint.image_origin);
-                const SDL_FRect destination{static_cast<float>(top.x),static_cast<float>(top.y),
-                    static_cast<float>(record.width*camera.zoom),
-                    static_cast<float>(record.height*camera.zoom)};
-                if (!SDL_RenderTexture(renderer_,textures_[footprint.asset_index],nullptr,&destination)) return false;
-                ++last_texture_draws_;
-            } else {
-                for (const auto member : footprint.cell_indices) {
-                    const auto& cell=plan_.cells[member];
-                    if (!maps::stored_rect_visible({cell.world.x-40,cell.world.y},80,40,camera)) continue;
-                    if (!draw_diagnostic(cell.world,camera,false)) return false;
-                    ++last_diagnostic_draws_;
-                }
-            }
+}
+
+bool StoredGraphicsRenderer::draw_item(std::size_t renderer_index,
+                                      const scene::Camera2D& camera) {
+    const auto& item=draw_order_.at(renderer_index);
+    if (item.footprint) {
+        const auto& footprint=plan_.footprints[item.plan_index];
+        const auto& record=plan_.assets[footprint.asset_index].record;
+        if (footprint.status==maps::StoredStatus::Rendered) {
+            if (!maps::stored_rect_visible(footprint.image_origin,
+                static_cast<std::uint32_t>(record.width),
+                static_cast<std::uint32_t>(record.height),camera)) return true;
+            const auto top=camera.world_to_screen(footprint.image_origin);
+            const SDL_FRect destination{static_cast<float>(top.x),static_cast<float>(top.y),
+                static_cast<float>(record.width*camera.zoom),
+                static_cast<float>(record.height*camera.zoom)};
+            if (!SDL_RenderTexture(renderer_,textures_[footprint.asset_index],nullptr,&destination))
+                return false;
+            ++last_texture_draws_;
         } else {
-            const auto& cell=plan_.cells[item.index];
-            const scene::Point origin{cell.world.x-40,cell.world.y};
-            if (!maps::stored_rect_visible(origin,80,40,camera)) continue;
-            if (!draw_diagnostic(cell.world,camera,false)) return false;
-            ++last_diagnostic_draws_;
+            for (const auto member : footprint.cell_indices) {
+                const auto& cell=plan_.cells[member];
+                if (!maps::stored_rect_visible({cell.world.x-40,cell.world.y},80,40,camera)) continue;
+                if (!draw_diagnostic(cell.world,camera,false)) return false;
+                ++last_diagnostic_draws_;
+            }
         }
-        ++last_drawn_instances_;
+    } else {
+        const auto& cell=plan_.cells[item.plan_index];
+        const scene::Point origin{cell.world.x-40,cell.world.y};
+        if (!maps::stored_rect_visible(origin,80,40,camera)) return true;
+        if (!draw_diagnostic(cell.world,camera,false)) return false;
+        ++last_diagnostic_draws_;
     }
+    ++last_drawn_instances_;
+    return true;
+}
+
+bool StoredGraphicsRenderer::draw_selection(const scene::Camera2D& camera,
+                                            std::optional<maps::GridCell> selected) {
     if (selected && !draw_diagnostic(maps::terrain_world(*selected,plan_.border),camera,true))
         return false;
     return true;
+}
+
+bool StoredGraphicsRenderer::render(const scene::Camera2D& camera,
+                                    std::optional<maps::GridCell> selected) {
+    begin_frame();
+    for (std::size_t i=0;i<draw_order_.size();++i)
+        if (!draw_item(i,camera)) return false;
+    return draw_selection(camera,selected);
 }
 
 } // namespace openemperor

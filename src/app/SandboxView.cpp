@@ -587,6 +587,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 last_message_=road_enabled_ ? "Road visuals ON":"Road visuals OFF";
             } else last_message_="No road visuals loaded";
         }
+        else if (event.key.key==SDLK_F7) {
+            unified_depth_=!unified_depth_;
+            last_message_=unified_depth_ ? "Depth painter: unified":"Depth painter: legacy";
+        }
         else if (walker_diagnostic_open_ && walker_profile_) {
             if (event.key.key==SDLK_Q || event.key.key==SDLK_BACKSLASH) {
                 walker_diagnostic_direction_=(walker_diagnostic_direction_+1)%4;
@@ -740,15 +744,16 @@ bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,
                             points[(i+1)%4].x,points[(i+1)%4].y)) return false;
     return true;
 }
-bool SandboxView::draw_world() {
+bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     last_courier_draws_=0;
     road_fallbacks_current_=0;
     struct Instance {
-        SandboxVisualKey key;
+        scene::WorldDrawKey key;
         simulation::Cell cell{};
         simulation::Object object=simulation::Object::Empty;
         simulation::CourierId courier=simulation::CourierId::Clay;
         simulation::Position position{};
+        bool placement_preview=false;
     };
     std::vector<Instance> instances;
     for (int y=0;y<world_->height();++y) for (int x=0;x<world_->width();++x) {
@@ -760,18 +765,20 @@ bool SandboxView::draw_world() {
         const auto id=owner ? static_cast<unsigned>(*owner):
             static_cast<unsigned>(y*world_->width()+x);
         instances.push_back({{ground.y,ground.x,object==simulation::Object::Road ?
-            SandboxVisualKind::Road:SandboxVisualKind::Building,id},cell,object});
+            scene::WorldVisualLayer::SandboxRoad:scene::WorldVisualLayer::SandboxBuilding,id},
+            cell,object});
     }
     if (road_start_ && road_preview_.valid) {
         for (const auto cell:road_preview_.cells) {
             if (world_->object_at(cell)==simulation::Object::Road) continue;
             const auto ground=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
             const auto id=static_cast<unsigned>(cell.y*world_->width()+cell.x);
-            instances.push_back({{ground.y,ground.x,SandboxVisualKind::Road,id},cell,
+            instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxRoad,id},cell,
                                  simulation::Object::Road});
         }
     }
-    const auto draw_object=[&](simulation::Cell cell,simulation::Object object)->bool {
+    const auto draw_object=[&](simulation::Cell cell,simulation::Object object,
+                               bool placement_preview)->bool {
         const int x=cell.x,y=cell.y;
         const auto top=world_for({static_cast<double>(x),static_cast<double>(y)});
         const auto center=camera_.world_to_screen(top);
@@ -808,11 +815,13 @@ bool SandboxView::draw_world() {
             if (role && building_profile_) {
                 const auto* entry=building_profile_->find(*role);
                 if (entry && building_visuals_active() && building_sprite_) {
-                    if (!building_sprite_->draw(center,camera_.zoom,*building_profile_,*entry))
+                    if (!building_sprite_->draw(center,camera_.zoom,*building_profile_,*entry,
+                                                placement_preview))
                         return false;
-                    ++building_drawn_instances_[assets::role_index(*role)];
+                    if (!placement_preview) ++building_drawn_instances_[assets::role_index(*role)];
                     return true;
                 }
+                if (placement_preview) return true;
                 ++building_placeholder_fallbacks_[assets::role_index(*role)];
             }
             SDL_Color color{255,105,100,255};
@@ -908,23 +917,38 @@ bool SandboxView::draw_world() {
             world_->courier_position(courier):world_->courier_position();
         if (!position) continue;
         const auto ground=world_for(*position);
-        instances.push_back({{ground.y,ground.x,SandboxVisualKind::Walker,id},{},
+        instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxWalker,id},{},
                              simulation::Object::Empty,courier,*position});
+    }
+    if (!road_start_ && hovered_ && tool_!=(simulation::production_profile(rules_) ? 5:4)) {
+        const auto result=preview(*hovered_);
+        const auto object=tool_==2 ? simulation::Object::ClaySource:
+            tool_==3 ? simulation::Object::Pottery:
+            tool_==4 ? simulation::Object::Warehouse:
+            tool_==7 ? simulation::Object::Household:simulation::Object::Empty;
+        const auto role=simulation::production_profile(rules_) ?
+            building_visual_role(object):std::nullopt;
+        if (result.accepted && role && building_visuals_active() && building_sprite_ &&
+            building_profile_ && building_profile_->find(*role)) {
+            const auto ground=world_for({static_cast<double>(hovered_->x),
+                                         static_cast<double>(hovered_->y)});
+            instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxBuilding,
+                                  std::numeric_limits<unsigned>::max()},*hovered_,object,
+                                 simulation::CourierId::Clay,{},true});
+        }
     }
     std::sort(instances.begin(),instances.end(),[](const Instance& a,const Instance& b) {
         return a.key<b.key;
     });
-    for (const auto& instance:instances) {
-        if (instance.key.kind!=SandboxVisualKind::Walker) {
-            if (!draw_object(instance.cell,instance.object)) return false;
-            continue;
-        }
+    const auto draw_instance=[&](std::size_t index)->bool {
+        const auto& instance=instances[index];
+        if (instance.key.layer!=scene::WorldVisualLayer::SandboxWalker)
+            return draw_object(instance.cell,instance.object,instance.placement_preview);
         const auto id=static_cast<unsigned>(instance.courier);
         const auto position=instance.position;
         if (!simulation::production_profile(rules_)) {
-            if (!draw_agent(position,{255,255,255,255},{255,215,20,255},
-                            world_->courier_cargo(),0)) return false;
-            continue;
+            return draw_agent(position,{255,255,255,255},{255,215,20,255},
+                              world_->courier_cargo(),0);
         }
         const auto& courier=world_->courier(instance.courier);
         const auto pending=courier.route_pending;
@@ -942,6 +966,21 @@ bool SandboxView::draw_world() {
             const int shift=id==2 ? 5:id==3 ? 0:id==4 ? -10:10;
             if (!draw_agent(position,color,cargo,courier.cargo,shift)) return false;
         }
+        return true;
+    };
+    painter_stats_={};
+    painter_stats_.stored_order_builds=background_.stored_order_builds();
+    if (unified_depth_) {
+        background_.begin_frame();
+        scene::WorldMergeStats stats;
+        if (!scene::merge_world_draw_streams(background_.draw_items(),instances,
+            [&](std::size_t i) { return background_.draw_item(i,render_camera); },
+            draw_instance,stats)) return false;
+        static_cast<scene::WorldMergeStats&>(painter_stats_)=stats;
+    } else {
+        painter_stats_.sandbox_items=instances.size();
+        for (std::size_t i=0;i<instances.size();++i)
+            if (!draw_instance(i)) return false;
     }
     if (selected_) {
         const auto top=world_for({static_cast<double>(selected_->x),static_cast<double>(selected_->y)});
@@ -965,9 +1004,7 @@ bool SandboxView::draw_world() {
             building_visual_role(object):std::nullopt;
         const auto* entry=role && building_profile_ ? building_profile_->find(*role):nullptr;
         if (result.accepted && entry && building_visuals_active() && building_sprite_) {
-            if (!building_sprite_->draw(camera_.world_to_screen(top),camera_.zoom,
-                                        *building_profile_,*entry,true) ||
-                !draw_diamond({top.x,top.y-20},70,245,100,false)) return false;
+            if (!draw_diamond({top.x,top.y-20},70,245,100,false)) return false;
         } else if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
             result.accepted?245:65,result.accepted?100:65,true)) return false;
     }
@@ -1249,6 +1286,12 @@ bool SandboxView::draw_hud() {
             " | fallbacks "+std::to_string(roads.fallback_draws);
         if (!draw_text(8*layout_.scale,layout_.map.y+22*layout_.scale,road_line,
                        layout_.map.w-16*layout_.scale)) return false;
+        const std::string depth_line=std::string("Depth painter: ")+
+            (unified_depth_ ? "unified":"legacy")+" | stored "+
+            std::to_string(painter_stats_.stored_items_visited)+" | sandbox "+
+            std::to_string(painter_stats_.sandbox_items);
+        if (!draw_text(8*layout_.scale,layout_.map.y+36*layout_.scale,depth_line,
+                       layout_.map.w-16*layout_.scale)) return false;
     }
     return true;
 }
@@ -1313,7 +1356,8 @@ bool SandboxView::render() {
         auto render_camera=camera_;
         render_camera.viewport_width=layout_.map.x+layout_.map.w;
         render_camera.viewport_height=layout_.map.y+layout_.map.h;
-        const bool map_ok=background_.render(render_camera,std::nullopt) && draw_world();
+        const bool map_ok=(!unified_depth_ ? background_.render(render_camera,std::nullopt):true) &&
+            draw_world(render_camera);
         if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
     }
     const bool ui_ok=draw_hud() && draw_walker_diagnostic();

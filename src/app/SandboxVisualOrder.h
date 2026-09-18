@@ -1,5 +1,6 @@
 #pragma once
 #include "assets/BuildingVisualProfile.h"
+#include "scene/WorldDrawOrder.h"
 #include "simulation/World.h"
 #include <cstdint>
 #include <optional>
@@ -13,9 +14,19 @@ struct SandboxVisualKey {
     SandboxVisualKind kind=SandboxVisualKind::Road;
     unsigned stable_id=0;
 };
+inline scene::WorldVisualLayer world_layer(SandboxVisualKind kind) {
+    switch (kind) {
+    case SandboxVisualKind::Road: return scene::WorldVisualLayer::SandboxRoad;
+    case SandboxVisualKind::Building: return scene::WorldVisualLayer::SandboxBuilding;
+    case SandboxVisualKind::Walker: return scene::WorldVisualLayer::SandboxWalker;
+    }
+    return scene::WorldVisualLayer::SandboxRoad;
+}
+inline scene::WorldDrawKey world_key(const SandboxVisualKey& key) {
+    return {key.depth,key.ground_x,world_layer(key.kind),key.stable_id};
+}
 inline bool operator<(const SandboxVisualKey& a,const SandboxVisualKey& b) {
-    return std::tie(a.depth,a.ground_x,a.kind,a.stable_id)<
-           std::tie(b.depth,b.ground_x,b.kind,b.stable_id);
+    return world_key(a)<world_key(b);
 }
 inline std::optional<assets::BuildingVisualRole> building_visual_role(simulation::Object object) {
     using O=simulation::Object;

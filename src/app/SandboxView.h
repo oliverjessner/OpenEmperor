@@ -12,6 +12,7 @@
 #include "renderer/WalkerSpriteSet.h"
 #include "renderer/BuildingSprite.h"
 #include "renderer/RoadSpriteSet.h"
+#include "scene/WorldDrawOrder.h"
 
 #include <memory>
 #include <array>
@@ -73,6 +74,9 @@ public:
         std::uint64_t draws=0,fallback_draws=0;
     };
     RoadDisplayStats road_display_stats() const;
+    struct PainterStats : scene::WorldMergeStats { std::size_t stored_order_builds=0; };
+    PainterStats painter_stats() const { return painter_stats_; }
+    bool unified_depth() const { return unified_depth_; }
     bool building_visuals_active() const { return building_enabled_ && building_profile_.has_value(); }
     std::size_t building_texture_count() const { return building_sprite_ ? building_sprite_->texture_count():0; }
     struct BuildingDisplayStats {
@@ -105,7 +109,7 @@ private:
     void resize_camera();
     void place_demo();
     bool draw_diamond(scene::Point world, std::uint8_t r, std::uint8_t g, std::uint8_t b, bool fill);
-    bool draw_world();
+    bool draw_world(const scene::Camera2D& render_camera);
     bool draw_walker_diagnostic();
     bool draw_hud();
     bool draw_text(double x,double y,const std::string& text,int max_width);
@@ -165,6 +169,8 @@ private:
     bool road_enabled_=true;
     std::array<bool,16> road_masks_seen_{};
     std::uint64_t road_draws_=0,road_fallbacks_current_=0;
+    bool unified_depth_=true;
+    PainterStats painter_stats_{};
     std::optional<persistence::SaveDocument> initial_save_;
     std::vector<std::uint8_t> buildable_mask_;
     std::uint64_t io_generation_=0;

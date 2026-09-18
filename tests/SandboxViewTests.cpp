@@ -769,6 +769,33 @@ int main() {
         check(industry_view.world().snapshot()==saved_building_world &&
               industry_view.building_visuals_active() && industry_view.render(),
               "building preview altered save/load World or lost session visual");
+        check(industry_view.unified_depth() &&
+              industry_view.painter_stats().stored_items_visited>0 &&
+              industry_view.painter_stats().sandbox_items>0 &&
+              industry_view.painter_stats().stored_order_builds==1,
+              "unified view did not merge static map and dynamic sandbox items");
+        for (int i=0;i<2001;++i) {
+            if (i%200==0) {
+                const auto snapshot=industry_view.world().snapshot();
+                const auto dirty=industry_view.dirty();
+                industry_view.handle_event(key(SDLK_F7),running);
+                check(industry_view.world().snapshot()==snapshot &&
+                      industry_view.dirty()==dirty && industry_view.render(),
+                      "F7 changed authoritative state or failed to render");
+                if (industry_view.unified_depth())
+                    check(industry_view.painter_stats().stored_items_visited>0 &&
+                          industry_view.painter_stats().stored_order_builds==1,
+                          "unified painter rebuilt static order");
+                else check(industry_view.painter_stats().stored_items_visited==0,
+                           "legacy painter visited merged items");
+            }
+            industry_view.tick_once();marker_control.tick_once();
+            check(industry_view.world().snapshot()==marker_control.world().snapshot(),
+                  "legacy/unified painter changed Industry World during 2001 ticks");
+        }
+        industry_view.handle_event(key(SDLK_F7),running);
+        check(industry_view.unified_depth() && industry_view.render(),
+              "F7 did not restore unified default after regression run");
         industry_view.handle_event(key(SDLK_2),running);
         check(industry_view.tool()==5,
               "v5 full Clay tool remained selectable");

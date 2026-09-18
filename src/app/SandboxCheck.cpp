@@ -214,6 +214,14 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
                                {"fresh_world",fresh_world},{"direct_equal",direct_equal},
                                {"continued_equal",continued_equal}}}};
+                const auto painter=view.painter_stats();
+                report["depth_painter"]={{"mode",view.unified_depth() ? "unified":"legacy"},
+                    {"stored_items_visited",painter.stored_items_visited},
+                    {"sandbox_items",painter.sandbox_items},
+                    {"stored_before_sandbox_count",painter.stored_before_sandbox_count},
+                    {"sandbox_before_stored_count",painter.sandbox_before_stored_count},
+                    {"stored_order_builds",painter.stored_order_builds},
+                    {"manual_visual_review",false}};
                 if (!walker_visuals.empty()) report["walker"]=walker_report();
                 if (!building_visuals.empty()) {
                     const auto stats=view.building_display_stats();
