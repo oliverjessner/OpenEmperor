@@ -65,6 +65,7 @@ add_executable(openemperor
     src/renderer/StoredGraphicsRenderer.cpp
     src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp
+    src/renderer/BuildingSprite.cpp
 )
 target_include_directories(openemperor PRIVATE src)
 target_link_libraries(openemperor PRIVATE SDL3::SDL3)
@@ -95,6 +96,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/Sg3ImageLoader.cpp
     src/assets/AssetCatalog.cpp
     src/assets/WalkerVisualProfile.cpp
+    src/assets/BuildingVisualProfile.cpp
     src/assets/RgbaPngEncoder.cpp
     src/assets/RgbaPngReader.cpp
 )
@@ -171,6 +173,7 @@ if(BUILD_TESTING)
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
+    target_sources(openemperor-sandbox-view-tests PRIVATE src/renderer/BuildingSprite.cpp)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
@@ -180,6 +183,7 @@ if(BUILD_TESTING)
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
+    target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp)
     target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
@@ -297,6 +301,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-walker-visual-tests)
     add_test(NAME walker-visual-profile-pose-render COMMAND openemperor-walker-visual-tests)
     set_tests_properties(walker-visual-profile-pose-render PROPERTIES TIMEOUT 30)
+
+    add_executable(openemperor-building-visual-tests tests/BuildingVisualTests.cpp
+        src/renderer/BuildingSprite.cpp)
+    target_link_libraries(openemperor-building-visual-tests PRIVATE openemperor-sg3 SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-building-visual-tests)
+    add_test(NAME building-visual-profile-depth COMMAND openemperor-building-visual-tests)
 
     add_executable(openemperor-png-preview-tests tests/RgbaPngReaderTests.cpp)
     target_link_libraries(openemperor-png-preview-tests PRIVATE openemperor-sg3)

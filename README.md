@@ -14,6 +14,8 @@ An optional `curated_walker_preview` JSON profile draws the existing Clay courie
 
 The current ignored local profile uses four visually checked Storage-direction clips from `DATA/SprMain.sg3`. F3 opens an in-sandbox 1×/4× frame inspector with step, direction, anchor, frame bounds, ground point, and dark/light backgrounds. The selected figure has opaque red pixels already present in its Omega color payload; their original-game meaning is unresolved, so no color-key or alpha rule was added. The machine-readable Industry-v5 check distinguishes configured, decoded, and actually drawn directions, compares a separate control World, and never claims a manual review. See [the bounded research record](docs/reverse/research-log.md).
 
+An optional `curated_building_preview` JSON profile displays one locally selected original Type-30 image over each existing Pottery building. Use `--building-visuals .local/visuals/buildings.json` or **Building JSON...** in the menu; F4 switches between that image and the diagnostic Pottery marker independently of F2. The prototype Pottery still occupies one sandbox cell and keeps the same simulation and save data, even though the image appears larger. See [building visual profiles](docs/building-visual-profile.md) for the separate manifest, anchor and depth limits.
+
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
 The textured map preview reads original map cells but uses a small, explicit local binding table to choose original SG3 graphics for exact `(terrain_raw, objects_raw)` pairs. Unbound cells are purple diagnostic diamonds. The map-to-image assignments and the 80×40 isometric placement are preview conventions; the original game's graphic variant logic, coastlines, animation, heights, buildings, and simulation are not reconstructed.
@@ -142,6 +144,7 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo --sandbox-visuals .local/visuals/clay-walker.json
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo --sandbox-visuals .local/visuals/clay-walker.json --building-visuals .local/visuals/buildings.json
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-industry-v5 --sandbox-demo --sandbox-check --sandbox-resume-check --report-json
 ctest --test-dir build --output-on-failure
 ```

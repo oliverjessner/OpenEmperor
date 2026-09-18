@@ -170,6 +170,15 @@ int main(int argc,char* argv[]) {
                   menu.message().find("walker manifest")!=std::string::npos,
                   "missing walker profile did not reject activation");
             click(menu,500,750); // Clear the session-only profile selection.
+            click(menu,90,830); // Building JSON through the same session-only dialog.
+            check(static_cast<bool>(dialog->callback),"building dialog not opened");
+            dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
+                (t.root/"missing-building.json").string()}); menu.advance();
+            click(menu,90,650); finish_load(menu);
+            check(menu.state()==Menu::State::NewSandbox &&
+                  menu.message().find("building manifest")!=std::string::npos,
+                  "missing building profile did not reject activation");
+            click(menu,500,830); // Clear the building profile without persisting it.
             click(menu,90,650); // Start
             finish_load(menu);
             if (!(menu.state()==Menu::State::Playing && menu.sandbox()))

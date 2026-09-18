@@ -3,6 +3,7 @@
 #include "maps/SandboxPlacement.h"
 #include "renderer/StoredCamera.h"
 #include "app/WalkerPose.h"
+#include "app/SandboxVisualOrder.h"
 
 #include <SDL3/SDL.h>
 
@@ -115,6 +116,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     update_layout(false);
     background_.initialize(renderer_);
     if (!walker_manifest_.empty()) set_walker_visuals(walker_manifest_);
+    if (!building_manifest_.empty()) set_building_visuals(building_manifest_);
     buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
     if (initial_save_) {
         world_=std::make_unique<simulation::World>(persistence::restore_save(*initial_save_,data_root_,
@@ -145,6 +147,8 @@ void SandboxView::shutdown() {
     walker_diagnostic_open_=false;
     walker_sprites_.reset();
     walker_profile_.reset();
+    building_sprite_.reset();
+    building_profile_.reset();
     background_.shutdown();
     world_.reset();
     window_=nullptr;
@@ -188,6 +192,28 @@ SandboxView::WalkerDisplayStats SandboxView::walker_display_stats() const {
     stats.unmapped_fallbacks=walker_unmapped_fallbacks_;
     stats.invalid_edge_fallbacks=walker_invalid_edge_fallbacks_;
     return stats;
+}
+void SandboxView::set_building_visuals(const std::filesystem::path& manifest) {
+    if (manifest.empty()) {
+        building_sprite_.reset();building_profile_.reset();building_manifest_.clear();
+        return;
+    }
+    if (!renderer_) { building_manifest_=manifest;return; }
+    if (!simulation::production_profile(rules_))
+        throw std::runtime_error("Pottery visuals require a production sandbox profile");
+    auto profile=assets::load_building_visual_profile(data_root_,manifest);
+    auto texture=std::make_unique<BuildingSprite>();
+    texture->initialize(renderer_,profile);
+    building_sprite_=std::move(texture);
+    building_profile_=std::move(profile);
+    building_manifest_=manifest;
+    building_enabled_=true;
+    building_drawn_instances_=building_placeholder_fallbacks_=0;
+    last_message_="Curated Pottery preview active";
+}
+SandboxView::BuildingDisplayStats SandboxView::building_display_stats() const {
+    return {building_profile_.has_value(),building_profile_ ? 1U:0U,
+            building_texture_count(),building_drawn_instances_,building_placeholder_fallbacks_};
 }
 void SandboxView::reset_camera() {
     fit_stored_camera(background_.plan(),camera_);
@@ -494,6 +520,13 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_R) perform_action(sandbox_ui::Action::Reset);
         else if (event.key.key==SDLK_F5) perform_action(sandbox_ui::Action::Save);
         else if (event.key.key==SDLK_F9) perform_action(sandbox_ui::Action::Load);
+        else if (event.key.key==SDLK_Z) {
+            const double target=camera_.zoom<1.5 ? 2.0:camera_.zoom<3.0 ? 4.0:1.0;
+            camera_.zoom_at({static_cast<double>(layout_.map.x+layout_.map.w/2),
+                             static_cast<double>(layout_.map.y+layout_.map.h/2)},
+                            target/camera_.zoom);
+            refresh_hover();
+        }
         else if (event.key.key==SDLK_TAB) perform_action(sandbox_ui::Action::TogglePanel);
         else if (event.key.key==SDLK_F1) perform_action(sandbox_ui::Action::ToggleDebug);
         else if (event.key.key==SDLK_F2 && walker_profile_) {
@@ -503,6 +536,12 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_F3 && walker_profile_) {
             walker_diagnostic_open_=!walker_diagnostic_open_;
             last_message_=walker_diagnostic_open_ ? "Walker clip inspection ON":"Walker clip inspection OFF";
+        }
+        else if (event.key.key==SDLK_F4) {
+            if (building_profile_) {
+                building_enabled_=!building_enabled_;
+                last_message_=building_enabled_ ? "Pottery visual ON":"Pottery placeholder ON";
+            } else last_message_="No building visuals loaded";
         }
         else if (walker_diagnostic_open_ && walker_profile_) {
             if (event.key.key==SDLK_Q || event.key.key==SDLK_BACKSLASH) {
@@ -659,14 +698,29 @@ bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,
 }
 bool SandboxView::draw_world() {
     last_courier_draws_=0;
+    struct Instance {
+        SandboxVisualKey key;
+        simulation::Cell cell{};
+        simulation::Object object=simulation::Object::Empty;
+        simulation::CourierId courier=simulation::CourierId::Clay;
+        simulation::Position position{};
+    };
+    std::vector<Instance> instances;
     for (int y=0;y<world_->height();++y) for (int x=0;x<world_->width();++x) {
-        const auto object=world_->object_at({x,y});
+        const simulation::Cell cell{x,y};
+        const auto object=world_->object_at(cell);
         if (object==simulation::Object::Empty) continue;
+        const auto ground=world_for({static_cast<double>(x),static_cast<double>(y)});
+        const auto owner=world_->building_owner_at(cell);
+        const auto id=owner ? static_cast<unsigned>(*owner):
+            static_cast<unsigned>(y*world_->width()+x);
+        instances.push_back({{ground.y,ground.x,object==simulation::Object::Road ?
+            SandboxVisualKind::Road:SandboxVisualKind::Building,id},cell,object});
+    }
+    const auto draw_object=[&](simulation::Cell cell,simulation::Object object)->bool {
+        const int x=cell.x,y=cell.y;
         const auto top=world_for({static_cast<double>(x),static_cast<double>(y)});
         const auto center=camera_.world_to_screen(top);
-        if (center.x<layout_.map.x-90 || center.y<layout_.map.y-90 ||
-            center.x>layout_.map.x+layout_.map.w+90 ||
-            center.y>layout_.map.y+layout_.map.h+90) continue;
         if (object==simulation::Object::Road) {
             if (!draw_diamond({top.x,top.y-20},225,174,65,true)) return false;
             for (const simulation::Cell next : {simulation::Cell{x+1,y},simulation::Cell{x,y+1},
@@ -681,6 +735,13 @@ bool SandboxView::draw_world() {
                         static_cast<float>(screen.x),static_cast<float>(screen.y))) return false;
             }
         } else {
+            if (object==simulation::Object::Pottery && building_visuals_active() && building_sprite_) {
+                if (!building_sprite_->draw(center,camera_.zoom,*building_profile_)) return false;
+                ++building_drawn_instances_;
+                return true;
+            }
+            if (object==simulation::Object::Pottery && building_profile_)
+                ++building_placeholder_fallbacks_;
             SDL_Color color{255,105,100,255};
             if (object==simulation::Object::Workshop || object==simulation::Object::ClaySource)
                 color={50,210,245,255};
@@ -705,7 +766,8 @@ bool SandboxView::draw_world() {
                         static_cast<float>(center.y)-16,label.c_str())) return false;
             }
         }
-    }
+        return true;
+    };
     const auto draw_agent=[&](simulation::Position position,SDL_Color body,SDL_Color cargo_color,
                               int cargo,int shift)->bool {
         const auto screen=camera_.world_to_screen(world_for(position));
@@ -764,36 +826,49 @@ bool SandboxView::draw_world() {
         }
         return draw_agent(position,marker_color,{25,95,255,255},courier.cargo,marker_shift);
     };
-    if (simulation::production_profile(rules_)) {
-        if (const auto a=world_->courier_position(simulation::CourierId::Clay))
-            if (!draw_clay(simulation::CourierId::Clay,*a,
-                world_->courier(simulation::CourierId::Clay).route_pending ?
-                SDL_Color{255,120,40,255}:SDL_Color{100,240,255,255},-5)) return false;
-        if (const auto b=world_->courier_position(simulation::CourierId::Pottery))
-            if (!draw_agent(*b,world_->courier(simulation::CourierId::Pottery).route_pending ?
-                SDL_Color{255,120,40,255}:SDL_Color{255,225,130,255},{240,45,190,255},
-                world_->courier(simulation::CourierId::Pottery).cargo,5)) return false;
-        if (simulation::household_profile(rules_))
-            if (const auto c=world_->courier_position(simulation::CourierId::Household))
-                if (!draw_agent(*c,world_->courier(simulation::CourierId::Household).route_pending ?
-                    SDL_Color{255,120,40,255}:SDL_Color{110,255,130,255},
-                    {255,90,150,255},world_->courier(simulation::CourierId::Household).cargo,0)) return false;
-        if (rules_==simulation::RulesProfile::IndustryV5)
-            for (unsigned id=4;id<=5;++id) {
-                const auto courier_id=static_cast<simulation::CourierId>(id);
-                const auto& courier=world_->courier(courier_id);
-                if (const auto position=world_->courier_position(courier_id))
-                    if (courier.role==simulation::CourierRole::Clay ?
-                        !draw_clay(courier_id,*position,courier.route_pending ?
-                            SDL_Color{255,120,40,255}:SDL_Color{50,175,255,255},
-                            static_cast<int>(id==4 ? -10:10)) :
-                        !draw_agent(*position,courier.route_pending ? SDL_Color{255,120,40,255}:
-                            SDL_Color{225,145,255,255},{240,45,190,255},courier.cargo,
-                            static_cast<int>(id==4 ? -10:10))) return false;
-            }
-    } else if (const auto agent=world_->courier_position()) {
-        if (!draw_agent(*agent,{255,255,255,255},{255,215,20,255},
-            world_->courier_cargo(),0)) return false;
+    const unsigned courier_count=!simulation::production_profile(rules_) ? 1U:
+        rules_==simulation::RulesProfile::IndustryV5 ? 5U:
+        simulation::household_profile(rules_) ? 3U:2U;
+    for (unsigned id=1;id<=courier_count;++id) {
+        const auto courier=static_cast<simulation::CourierId>(id);
+        const auto position=simulation::production_profile(rules_) ?
+            world_->courier_position(courier):world_->courier_position();
+        if (!position) continue;
+        const auto ground=world_for(*position);
+        instances.push_back({{ground.y,ground.x,SandboxVisualKind::Walker,id},{},
+                             simulation::Object::Empty,courier,*position});
+    }
+    std::sort(instances.begin(),instances.end(),[](const Instance& a,const Instance& b) {
+        return a.key<b.key;
+    });
+    for (const auto& instance:instances) {
+        if (instance.key.kind!=SandboxVisualKind::Walker) {
+            if (!draw_object(instance.cell,instance.object)) return false;
+            continue;
+        }
+        const auto id=static_cast<unsigned>(instance.courier);
+        const auto position=instance.position;
+        if (!simulation::production_profile(rules_)) {
+            if (!draw_agent(position,{255,255,255,255},{255,215,20,255},
+                            world_->courier_cargo(),0)) return false;
+            continue;
+        }
+        const auto& courier=world_->courier(instance.courier);
+        const auto pending=courier.route_pending;
+        if (courier.role==simulation::CourierRole::Clay) {
+            const SDL_Color color=pending ? SDL_Color{255,120,40,255}:
+                id==1 ? SDL_Color{100,240,255,255}:SDL_Color{50,175,255,255};
+            const int shift=id==1 ? -5:id==4 ? -10:10;
+            if (!draw_clay(instance.courier,position,color,shift)) return false;
+        } else {
+            const SDL_Color color=pending ? SDL_Color{255,120,40,255}:
+                id==2 ? SDL_Color{255,225,130,255}:
+                id==3 ? SDL_Color{110,255,130,255}:SDL_Color{225,145,255,255};
+            const SDL_Color cargo=id==3 ? SDL_Color{255,90,150,255}:
+                SDL_Color{240,45,190,255};
+            const int shift=id==2 ? 5:id==3 ? 0:id==4 ? -10:10;
+            if (!draw_agent(position,color,cargo,courier.cargo,shift)) return false;
+        }
     }
     if (selected_) {
         const auto top=world_for({static_cast<double>(selected_->x),static_cast<double>(selected_->y)});
@@ -862,6 +937,16 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back(b.active_recipe_clay>0 ? "Processing" :
             b.output>=simulation::Rules::pottery_output_capacity ? "Output full" :
             b.input_clay<simulation::Rules::pottery_recipe_clay ? "No Clay input" : "Ready");
+        if (building_profile_) {
+            lines.push_back(std::string("Visual ")+(building_enabled_ ? "active":"placeholder"));
+            lines.push_back("SG3 "+building_profile_->pottery_id.archive_relative_path.generic_string()+
+                " #"+std::to_string(building_profile_->pottery_id.image_index));
+            lines.push_back("Image "+std::to_string(building_profile_->pottery_image.width)+"x"+
+                std::to_string(building_profile_->pottery_image.height));
+            lines.push_back("Anchor "+std::to_string(building_profile_->ground_x)+","+
+                std::to_string(building_profile_->ground_y));
+            lines.push_back("Evidence: curated preview");
+        }
     } else if (b.kind==simulation::Object::Warehouse) {
         const int stock=simulation::production_profile(rules_) ? b.pottery_stock :
             world_->warehouse_stock();

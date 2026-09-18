@@ -9,6 +9,7 @@
 #include "app/RoadDrag.h"
 #include "assets/WalkerVisualProfile.h"
 #include "renderer/WalkerSpriteSet.h"
+#include "renderer/BuildingSprite.h"
 
 #include <memory>
 #include <array>
@@ -60,6 +61,15 @@ public:
     void save_now();
     void load_now();
     void set_walker_visuals(const std::filesystem::path& manifest);
+    void set_building_visuals(const std::filesystem::path& manifest);
+    bool building_visuals_active() const { return building_enabled_ && building_profile_.has_value(); }
+    std::size_t building_texture_count() const { return building_sprite_ ? building_sprite_->texture_count():0; }
+    struct BuildingDisplayStats {
+        bool configured=false;
+        std::size_t decoded_assets=0,texture_uploads=0;
+        std::uint64_t drawn_instances=0,placeholder_fallbacks=0;
+    };
+    BuildingDisplayStats building_display_stats() const;
     bool walker_visuals_active() const { return walker_visuals_enabled_ && walker_profile_.has_value(); }
     std::size_t walker_texture_count() const { return walker_sprites_ ? walker_sprites_->texture_count():0; }
     WalkerDisplayStats walker_display_stats() const;
@@ -130,6 +140,11 @@ private:
     std::size_t walker_diagnostic_direction_=0, walker_diagnostic_step_=0;
     std::array<bool,4> walker_moving_drawn_{};
     std::uint64_t walker_unmapped_fallbacks_=0, walker_invalid_edge_fallbacks_=0;
+    std::filesystem::path building_manifest_;
+    std::optional<assets::BuildingVisualProfile> building_profile_;
+    std::unique_ptr<BuildingSprite> building_sprite_;
+    bool building_enabled_=true;
+    std::uint64_t building_drawn_instances_=0,building_placeholder_fallbacks_=0;
     std::optional<persistence::SaveDocument> initial_save_;
     std::vector<std::uint8_t> buildable_mask_;
     std::uint64_t io_generation_=0;

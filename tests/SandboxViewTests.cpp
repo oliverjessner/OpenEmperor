@@ -77,6 +77,28 @@ std::filesystem::path walker_fixture(const Temp& temp) {
     check(static_cast<bool>(out),"walker manifest write");
     return path;
 }
+std::filesystem::path building_fixture(const Temp& temp) {
+    Bytes sg3(40680U+4U*72U,0);
+    u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,214);
+    u32(sg3,12,4);u32(sg3,16,4);u32(sg3,20,1);
+    const std::string name="synthetic.bmp";
+    std::copy(name.begin(),name.end(),sg3.begin()+680);
+    u32(sg3,680+124,4);
+    const auto at=40680U+3U*72U;
+    u32(sg3,at,4);u32(sg3,at+4,12800);u32(sg3,at+8,12800);
+    u16(sg3,at+20,158);u16(sg3,at+22,90);u16(sg3,at+50,30);sg3[at+55]=2;
+    write(temp.path/"DATA/building.sg3",sg3);
+    Bytes bitmap(12804,0);
+    for (std::size_t i=4;i<bitmap.size();i+=2) u16(bitmap,i,0x7c00);
+    write(temp.path/"DATA/building.555",bitmap);
+    const auto path=temp.path/"building.json";
+    std::ofstream output(path);
+    output<<R"({"schema_version":1,"mode":"curated_building_preview",
+"buildings":{"pottery":{"archive":"DATA/building.sg3","image_index":3,
+"ground_anchor":[79,70],"evidence":"Synthetic red Type-30 building"}}})";
+    check(static_cast<bool>(output),"building manifest write");
+    return path;
+}
 openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=false,
                                            bool household=false,bool industry=false) {
     Bytes sg3(40680U+64U,0);
@@ -292,6 +314,10 @@ int main() {
         check(view.last_message().find("No sandbox save path configured")!=std::string::npos,
               "unconfigured F5 did not report missing path");
         const auto before_disabled_v1=view.world().snapshot();
+        view.handle_event(key(SDLK_F4),running);
+        check(view.world().snapshot()==before_disabled_v1 &&
+              view.last_message()=="No building visuals loaded",
+              "F4 without a building profile changed World or hid missing profile");
         for (const auto& item:view.layout().buttons)
             if (item.action==openemperor::sandbox_ui::Action::Household)
                 mouse_click(view,static_cast<float>(item.rect.x+item.rect.w/2),
@@ -615,8 +641,13 @@ int main() {
             simulation::RulesProfile::IndustryV5);
         industry_view.configure_save(temp.path,"Cities/Synthetic.map",save_path);
         industry_view.set_walker_visuals(walker_manifest);
+        const auto building_manifest=building_fixture(temp);
+        industry_view.set_building_visuals(building_manifest);
         industry_view.initialize(window,renderer);
         check(industry_view.walker_texture_count()==2,"second clay courier duplicated textures");
+        check(industry_view.building_texture_count()==1 &&
+              openemperor::BuildingSprite::live_texture_count()==1,
+              "two Pottery instances did not share one texture");
         openemperor::SandboxView marker_control(fixture(temp,true,true,true),true,
             simulation::RulesProfile::IndustryV5);
         marker_control.initialize(window,renderer);
@@ -629,16 +660,47 @@ int main() {
             industry_view.tick_once();marker_control.tick_once();
             if (i%25==0) {
                 industry_view.handle_event(key(SDLK_F2),running);
+                industry_view.handle_event(key(SDLK_F4),running);
                 check(industry_view.render() && industry_view.render() && marker_control.render(),
-                      "frequent sprite/marker render failed");
+                      "frequent sprite/marker/building render failed");
             }
             check(industry_view.world().snapshot()==marker_control.world().snapshot(),
-                  "sprite preview or F2 changed an authoritative Industry World tick");
+                  "visual preview or F2/F4 changed an authoritative Industry World tick");
         }
         if (!industry_view.walker_visuals_active()) industry_view.handle_event(key(SDLK_F2),running);
+        if (!industry_view.building_visuals_active()) industry_view.handle_event(key(SDLK_F4),running);
         check(industry_view.render() && industry_view.last_courier_draws()==5 &&
               industry_view.world().building(static_cast<simulation::BuildingId>(9)).recipes_completed>0,
               "v5 software frame did not draw five couriers and active second pottery");
+        const auto building_stats=industry_view.building_display_stats();
+        check(building_stats.configured && building_stats.decoded_assets==1 &&
+              building_stats.texture_uploads==1 && building_stats.drawn_instances>=2,
+              "both Pottery instances not drawn with one texture");
+        const auto before_building_toggle=industry_view.world().snapshot();
+        const auto before_dirty=industry_view.dirty();
+        industry_view.handle_event(key(SDLK_F4),running);
+        check(!industry_view.building_visuals_active() && industry_view.render() &&
+              industry_view.world().snapshot()==before_building_toggle &&
+              industry_view.dirty()==before_dirty,"F4 changed authoritative World or dirty state");
+        industry_view.handle_event(key(SDLK_F4),running);
+        check(industry_view.building_visuals_active() && industry_view.render(),
+              "F4 did not restore selected building visual");
+        bool bad_building_rejected=false;
+        try { industry_view.set_building_visuals(temp.path/"missing-building.json"); }
+        catch (const std::exception&) { bad_building_rejected=true; }
+        check(bad_building_rejected && industry_view.building_visuals_active() &&
+              industry_view.building_texture_count()==1 && industry_view.render(),
+              "failed building profile replaced working texture");
+        industry_view.set_building_visuals(building_manifest);
+        check(openemperor::BuildingSprite::live_texture_count()==1,
+              "building profile reload leaked texture");
+        industry_view.save_now();
+        const auto saved_building_world=industry_view.world().snapshot();
+        for (int i=0;i<7;++i) industry_view.tick_once();
+        industry_view.load_now();
+        check(industry_view.world().snapshot()==saved_building_world &&
+              industry_view.building_visuals_active() && industry_view.render(),
+              "building preview altered save/load World or lost session visual");
         industry_view.handle_event(key(SDLK_2),running);
         check(industry_view.tool()==5,
               "v5 full Clay tool remained selectable");
@@ -646,6 +708,8 @@ int main() {
         marker_control.shutdown();
         check(openemperor::WalkerSpriteSet::live_texture_count()==0,
               "walker textures survived industry session shutdown");
+        check(openemperor::BuildingSprite::live_texture_count()==0,
+              "building texture survived industry session shutdown");
 
         check(SDL_SetWindowSize(window,1100,700),"resize end-to-end window");
         openemperor::SandboxView ui(fixture(temp,true,true,true),false,
