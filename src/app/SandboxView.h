@@ -67,7 +67,9 @@ public:
     struct BuildingDisplayStats {
         bool configured=false;
         std::size_t decoded_assets=0,texture_uploads=0;
-        std::uint64_t drawn_instances=0,placeholder_fallbacks=0;
+        std::array<bool,assets::building_role_count> configured_roles{};
+        std::array<std::uint64_t,assets::building_role_count> drawn_instances{};
+        std::array<std::uint64_t,assets::building_role_count> placeholder_fallbacks{};
     };
     BuildingDisplayStats building_display_stats() const;
     bool walker_visuals_active() const { return walker_visuals_enabled_ && walker_profile_.has_value(); }
@@ -144,7 +146,8 @@ private:
     std::optional<assets::BuildingVisualProfile> building_profile_;
     std::unique_ptr<BuildingSprite> building_sprite_;
     bool building_enabled_=true;
-    std::uint64_t building_drawn_instances_=0,building_placeholder_fallbacks_=0;
+    std::array<std::uint64_t,assets::building_role_count> building_drawn_instances_{};
+    std::array<std::uint64_t,assets::building_role_count> building_placeholder_fallbacks_{};
     std::optional<persistence::SaveDocument> initial_save_;
     std::vector<std::uint8_t> buildable_mask_;
     std::uint64_t io_generation_=0;

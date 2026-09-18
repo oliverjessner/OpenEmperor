@@ -79,13 +79,48 @@ std::array<std::uint8_t,4> pixel(SDL_Renderer* renderer,int x,int y) {
 void profile_checks(Fixture& fixture) {
     fixture.save(fixture.valid());
     const auto loaded=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
-    check(loaded.pottery_id.image_index==3 && loaded.pottery_image.width==158 &&
-          loaded.pottery_image.height==90 && loaded.ground_x==79 && loaded.ground_y==70,
+    const auto* pottery=loaded.find(openemperor::assets::BuildingVisualRole::Pottery);
+    check(pottery && pottery->id.image_index==3 && loaded.unique_images.size()==1 &&
+          loaded.unique_images[pottery->image_index].width==158 &&
+          loaded.unique_images[pottery->image_index].height==90 &&
+          pottery->ground_x==79 && pottery->ground_y==70,
           "physical Type-30 building load");
+    auto shared=fixture.valid();
+    shared["buildings"]["warehouse"]=shared["buildings"]["pottery"];
+    fixture.save(shared);
+    const auto dedup=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    check(dedup.unique_images.size()==1 &&
+          dedup.find(openemperor::assets::BuildingVisualRole::Warehouse)->image_index==
+          dedup.find(openemperor::assets::BuildingVisualRole::Pottery)->image_index,
+          "two roles did not deduplicate one physical asset");
+    const auto make_copy=[&](const char* name,std::uint16_t color) {
+        fs::copy_file(fixture.data/"DATA/building.sg3",fixture.data/(std::string("DATA/")+name+".sg3"));
+        auto bitmap=fixture.bitmap;
+        for (std::size_t at=4;at<bitmap.size();at+=2) u16(bitmap,at,color);
+        write(fixture.data/(std::string("DATA/")+name+".555"),bitmap);
+    };
+    make_copy("clay",0x03ff);make_copy("warehouse",0x7fe0);make_copy("house",0x03e0);
+    auto all=fixture.valid();
+    for (const auto& [role,name]:std::array<std::pair<const char*,const char*>,3>{{
+            {"clay_source","clay"},{"warehouse","warehouse"},{"household","house"}}}) {
+        all["buildings"][role]=all["buildings"]["pottery"];
+        all["buildings"][role]["archive"]=std::string("DATA/")+name+".sg3";
+    }
+    fixture.save(all);
+    const auto four=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    check(four.unique_images.size()==4 &&
+          std::all_of(openemperor::assets::building_roles.begin(),
+                      openemperor::assets::building_roles.end(),
+                      [&](auto role){return four.find(role)!=nullptr;}),
+          "four distinct building assets failed");
+    const auto raw_duplicate=R"({"schema_version":1,"mode":"curated_building_preview","buildings":{"pottery":{},"pottery":{}}})";
+    { std::ofstream out(fixture.manifest);out<<raw_duplicate; }
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "duplicate semantic role accepted");
     auto bad=fixture.valid();bad["schema_version"]=2;fixture.save(bad);
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
             "unknown schema accepted");
-    bad=fixture.valid();bad["buildings"]["warehouse"]=bad["buildings"]["pottery"];
+    bad=fixture.valid();bad["buildings"]["unsupported"]=bad["buildings"]["pottery"];
     fixture.save(bad);
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
             "unknown role accepted");
@@ -149,8 +184,9 @@ void pixels_and_depth() {
     check(SDL_CreateWindowAndRenderer("building software",600,600,SDL_WINDOW_HIDDEN,
                                       &window,&renderer),"software renderer");
     assets::BuildingVisualProfile profile;
-    profile.ground_x=60;profile.ground_y=70;
-    auto& image=profile.pottery_image;image.width=120;image.height=90;
+    assets::BuildingVisualEntry entry;entry.ground_x=60;entry.ground_y=70;
+    profile.unique_images.emplace_back();
+    auto& image=profile.unique_images.front();image.width=120;image.height=90;
     image.pixels.assign(120U*90U*4U,255);
     for (std::size_t at=0;at<image.pixels.size();at+=4) {
         image.pixels[at]=0;image.pixels[at+1]=255;image.pixels[at+2]=0;
@@ -160,19 +196,26 @@ void pixels_and_depth() {
     check(sprite.texture_count()==1 && BuildingSprite::live_texture_count()==1,
           "building texture upload count");
     check(SDL_SetRenderDrawColor(renderer,20,30,40,255) && SDL_RenderClear(renderer) &&
-          sprite.draw({100,100},1,profile),"1x building draw");
+          sprite.draw({100,100},1,profile,entry),"1x building draw");
     check(pixel(renderer,40,30)[0]==255 && pixel(renderer,100,100)[1]==255,
           "explicit 1x anchor or full image size changed");
-    check(SDL_RenderClear(renderer) && sprite.draw({300,300},4,profile),"4x building draw");
+    check(SDL_RenderClear(renderer) && sprite.draw({300,300},4,profile,entry),"4x building draw");
     check(pixel(renderer,60,20)[0]==255 && pixel(renderer,300,300)[1]==255,
           "4x anchor or nearest pixel changed");
-    check(SDL_RenderClear(renderer) && sprite.draw({320,330},4,profile),"panned draw");
+    check(SDL_RenderClear(renderer) && sprite.draw({320,330},4,profile,entry),"panned draw");
     check(pixel(renderer,80,50)[0]==255 && pixel(renderer,320,330)[1]==255,
           "camera pan changed relative anchor");
-    check(SDL_RenderClear(renderer) && sprite.draw({100,100},1,profile) &&
-          sprite.draw({300,300},1,profile),"two building instances");
+    check(SDL_RenderClear(renderer) && sprite.draw({100,100},1,profile,entry) &&
+          sprite.draw({300,300},1,profile,entry),"two building instances");
     check(sprite.texture_count()==1 && pixel(renderer,300,300)[1]==255,
           "two instances did not share one texture");
+    check(SDL_SetRenderDrawColor(renderer,20,30,40,255) && SDL_RenderClear(renderer) &&
+          sprite.draw({100,100},1,profile,entry,true),"translucent placement draw");
+    const auto preview_corner=pixel(renderer,40,30);
+    check(preview_corner[0]>100 && preview_corner[0]<200 &&
+          SDL_RenderClear(renderer) && sprite.draw({100,100},1,profile,entry) &&
+          pixel(renderer,40,30)[0]==255,
+          "placement preview and final image used different anchors");
     struct Layer { SandboxVisualKey key;int kind; };
     std::array<Layer,3> layers{{{{90,100,SandboxVisualKind::Walker,1},0},
                                  {{100,100,SandboxVisualKind::Building,2},1},
@@ -182,7 +225,7 @@ void pixels_and_depth() {
           "ground-depth sort order");
     check(SDL_SetRenderDrawColor(renderer,20,30,40,255) && SDL_RenderClear(renderer),"depth clear");
     for (const auto& layer:layers) {
-        if (layer.kind==1) check(sprite.draw({100,100},1,profile),"depth building");
+        if (layer.kind==1) check(sprite.draw({100,100},1,profile,entry),"depth building");
         else {
             const SDL_FRect rect=layer.kind==0 ? SDL_FRect{85,70,20,20}:
                                                   SDL_FRect{100,85,20,20};
@@ -197,6 +240,50 @@ void pixels_and_depth() {
     check(SandboxVisualKey{100,100,SandboxVisualKind::Building,1}<
           SandboxVisualKey{100,100,SandboxVisualKind::Walker,1},"tie breaker order");
     sprite.shutdown();check(BuildingSprite::live_texture_count()==0,"texture leaked");
+    assets::BuildingVisualProfile four;
+    const std::array<std::array<std::uint8_t,4>,4> colors{{
+        {{0,255,255,255}},{{255,0,255,255}},{{255,255,0,255}},{{0,255,0,255}}}};
+    for (std::size_t i=0;i<colors.size();++i) {
+        assets::BuildingVisualEntry item;item.image_index=i;item.ground_x=10;item.ground_y=10;
+        four.entries[i]=item;
+        assets::RgbaImage colored;colored.width=20;colored.height=20;
+        for (int p=0;p<400;++p)
+            colored.pixels.insert(colored.pixels.end(),colors[i].begin(),colors[i].end());
+        four.unique_images.push_back(std::move(colored));
+    }
+    sprite.initialize(renderer,four);
+    check(sprite.texture_count()==4,"four unique assets did not upload four textures");
+    check(SDL_SetRenderDrawColor(renderer,20,30,40,255) && SDL_RenderClear(renderer) &&
+          sprite.draw({100,200},1,four,*four.find(assets::BuildingVisualRole::ClaySource),true),
+          "building hover preview draw");
+    const auto translucent=pixel(renderer,100,200);
+    check(translucent[0]<20 && translucent[1]>100 && translucent[1]<200 &&
+          translucent[2]>100 && translucent[2]<200,
+          "hover preview did not use translucent original sprite");
+    check(SDL_SetRenderDrawColor(renderer,20,30,40,255) && SDL_RenderClear(renderer),
+          "role color clear");
+    for (std::size_t i=0;i<colors.size();++i) {
+        const auto* selected=four.find(assets::building_roles[i]);
+        check(selected && sprite.draw({50.0+50.0*i,300},1,four,*selected),"role sprite draw");
+        check(pixel(renderer,50+static_cast<int>(50*i),300)==colors[i],
+              "role chose wrong uploaded texture");
+    }
+    for (std::size_t i=0;i<colors.size();++i) {
+        const auto* selected=four.find(assets::building_roles[i]);
+        check(SDL_SetRenderDrawColor(renderer,20,30,40,255) && SDL_RenderClear(renderer),
+              "depth role clear");
+        // A farther blue walker, one shared building draw, then a nearer red walker.
+        const SDL_FRect back{90,90,20,20},front{100,100,20,20};
+        check(SDL_SetRenderDrawColor(renderer,0,0,255,255) &&
+              SDL_RenderFillRect(renderer,&back) &&
+              sprite.draw({100,100},1,four,*selected) &&
+              SDL_SetRenderDrawColor(renderer,255,0,0,255) &&
+              SDL_RenderFillRect(renderer,&front),"role depth draw");
+        check(pixel(renderer,95,95)==colors[i] &&
+              pixel(renderer,105,105)==std::array<std::uint8_t,4>{255,0,0,255},
+              "shared depth path did not occlude walkers by ground order");
+    }
+    sprite.shutdown();check(BuildingSprite::live_texture_count()==0,"four textures leaked");
     SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
 }
 }

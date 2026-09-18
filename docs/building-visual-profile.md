@@ -1,26 +1,33 @@
-# Curated Pottery building preview
+# Curated core building previews
 
-`--building-visuals <profile.json>` optionally replaces only the existing sandbox Pottery marker with one selected image from the user's SG3/.555 files. The menu's **Building JSON...** choice is session-only. This JSON is an OpenEmperor display convention, not an Emperor building table or a save format. Keep the real profile under ignored `.local/visuals/`; the repository and app bundle contain no original pixels or private manifest.
+`--building-visuals <profile.json>` supplies one optional, session-local display profile for the Industry-v5 `ClaySource`, `Pottery`, `Warehouse`, and `Household` objects. The menu uses the same **Building JSON...** picker. Missing roles retain diagnostic markers. An existing Pottery-only schema-1 profile remains valid. F4 switches all configured building visuals on or off; F2 still controls Clay walkers independently. Neither switch changes the World or a save.
+
+The manifest belongs under ignored `.local/visuals/` and contains only references and preview choices, never pixels:
 
 ```json
 {
   "schema_version": 1,
   "mode": "curated_building_preview",
   "buildings": {
-    "pottery": {
-      "archive": "DATA/your-building-archive.sg3",
-      "image_index": 123,
-      "ground_anchor": [79, 120],
-      "evidence": "Local visual selection; original building ID and pivot unverified"
-    }
+    "clay_source": {"archive":"DATA/example.sg3","image_index":10,"ground_anchor":[79,76],"evidence":"Local visual choice; identity unverified"},
+    "pottery": {"archive":"DATA/example.sg3","image_index":11,"ground_anchor":[79,120],"evidence":"Local visual choice; identity unverified"},
+    "warehouse": {"archive":"DATA/example.sg3","image_index":12,"ground_anchor":[79,116],"evidence":"Local visual choice; identity unverified"},
+    "household": {"archive":"DATA/example.sg3","image_index":13,"ground_anchor":[79,79],"evidence":"Local visual choice; identity unverified"}
   }
 }
 ```
 
-`image_index` is a **physical SG3 record**, with no runtime-table translation. Only the `pottery` role and a supported, unmirrored Type-30 record are accepted. The loader checks the canonical data-root-relative SG3 and resolved `.555` paths, metadata, the ordinary decoder result, a 1 MiB manifest limit, finite anchor coordinates within ±4096, and a 16 MiB decoded RGBA limit. It loads and uploads the selected image once per active profile. A bad replacement profile leaves an already running view and texture intact.
+Each `image_index` is a physical SG3 record, with no runtime-table translation. The parser rejects duplicate keys, unknown roles, unsafe SG3 or resolved `.555` paths, unsupported or mirrored layouts, bad decodes, and anchors outside finite ±4096. The manifest limit is 1 MiB and deduplicated RGBA data is capped at 64 MiB. Each distinct selected asset decodes and uploads once per active profile; multiple buildings of one role share its texture. Replacing a live profile publishes the new texture set only after all assets have decoded and uploaded. A failed replacement keeps the current set.
 
-The projected reference point is `world_for(BuildingState.cell)`. At zoom `z`, the image origin is `screen(reference) − z × ground_anchor`; no SG3 animation offset, image center, or image edge is interpreted as an original pivot. The image retains its decoded dimensions and straight alpha. The logical Pottery placement remains **one sandbox cell**, even when the visible image covers several tiles. Clicking or selecting a building still uses that one cell and its stable `BuildingId`; no transparent-pixel picking or extra collision footprint is added.
+`BuildingState.kind` determines the visual role; `BuildingId` is only a stable instance ID. All four roles use the same projected ground point `world_for(BuildingState.cell)` and the same formula: `image_origin = screen(ground) − zoom × ground_anchor`. A valid hover preview draws that image at the same anchor with partial alpha and a cell outline; an invalid hover retains the red diagnostic marker. Hover creates no building and does not change World state. Picking and selection stay on the one logical sandbox cell. Images can visibly cover neighboring cells without blocking them. The same ground-depth sort mixes roads, buildings and walkers, with projected x, kind and stable ID tie-breaks. The original `StoredGraphicsRenderer` remains a separate background pass, so tall saved map objects cannot yet occlude these sandbox buildings correctly.
 
-F4 switches only Pottery between the original image preview and its previous diagnostic marker. F2 independently switches the Clay walker display. Neither switch advances simulation, changes the dirty state, or enters a save. The map's `StoredGraphicsRenderer` remains an earlier background pass. Within the sandbox overlay, roads, buildings and walkers are ordered by projected ground depth, then projected x, kind and stable ID. This supports a walker being covered by the building when behind it and appearing in front when closer, but tall objects already drawn by the separate map background cannot occlude the building correctly. No original draw-order fidelity is claimed.
+The locally selected first visual set (all `DATA/China_General.sg3`) is a **preview convention**:
 
-The locally examined `DATA/China_General.sg3` physical record 2810 is a visible domed kiln with vessels: v213, group 17 `China_Industry_2.bmp` (generic description `A new bitmap.`), Type 30, 158×140, size flag 2, 12,800 base bytes plus 9,482 color-overlay bytes, no alpha stream, no mirror. The chosen local ground anchor `[79,120]` is a preview placement by eye. The motif and archive group are search evidence, not proof of the original Emperor Pottery building ID, building footprint, animation state, or pivot. Other plausible industry images were retained as research observations in [the research log](reverse/research-log.md).
+| Sandbox role | Physical record | Type / image | Group | Ground anchor | Visible motif / evidence |
+|---|---:|---|---|---|---|
+| ClaySource | 2789 | Type 30, 158×92 | 17, `China_Industry_2.bmp` | `[79,76]` | Earth excavation with a lifting structure; plausible raw-material source, moderate visual evidence |
+| Pottery | 2810 | Type 30, 158×140 | 17, `China_Industry_2.bmp` | `[79,120]` | Domed kiln and ceramic vessels; visually strong preview, existing choice retained |
+| Warehouse | 637 | Type 30, 158×135 | 3, `China_StorNDist.bmp` | `[79,116]` | Roofed store with containers and loading platforms; visual and group-name evidence |
+| Household | 1512 | Type 30, 158×96 | 7, `China_Housing.bmp` | `[79,79]` | Small inhabited thatched house; visual and group-name evidence, one static stage |
+
+All four are version-213, size-flag-2 records with 12,800-byte base footprints, in-bounds internal color data, no alpha payload and zero mirror offset. Their overlay byte counts are respectively 3,231, 9,482, 13,130, and 3,960. The local Asset Browser showed each full image and the normal decoder succeeded. The group names are search evidence, not original building IDs. Original Emperor identity, building size, stage, animation and pivot remain unproven. The sandbox's one-cell occupancy, goods, routes, recipes, limits and save schema are unchanged. See [the research log](reverse/research-log.md) for observations and limits.

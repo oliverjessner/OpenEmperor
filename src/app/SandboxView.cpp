@@ -208,12 +208,20 @@ void SandboxView::set_building_visuals(const std::filesystem::path& manifest) {
     building_profile_=std::move(profile);
     building_manifest_=manifest;
     building_enabled_=true;
-    building_drawn_instances_=building_placeholder_fallbacks_=0;
-    last_message_="Curated Pottery preview active";
+    building_drawn_instances_.fill(0);building_placeholder_fallbacks_.fill(0);
+    last_message_="Curated building preview active";
 }
 SandboxView::BuildingDisplayStats SandboxView::building_display_stats() const {
-    return {building_profile_.has_value(),building_profile_ ? 1U:0U,
-            building_texture_count(),building_drawn_instances_,building_placeholder_fallbacks_};
+    BuildingDisplayStats stats;
+    stats.configured=building_profile_.has_value();
+    stats.decoded_assets=building_profile_ ? building_profile_->unique_images.size():0;
+    stats.texture_uploads=building_texture_count();
+    stats.drawn_instances=building_drawn_instances_;
+    stats.placeholder_fallbacks=building_placeholder_fallbacks_;
+    if (building_profile_)
+        for (const auto role:assets::building_roles)
+            stats.configured_roles[assets::role_index(role)]=building_profile_->find(role)!=nullptr;
+    return stats;
 }
 void SandboxView::reset_camera() {
     fit_stored_camera(background_.plan(),camera_);
@@ -540,7 +548,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_F4) {
             if (building_profile_) {
                 building_enabled_=!building_enabled_;
-                last_message_=building_enabled_ ? "Pottery visual ON":"Pottery placeholder ON";
+                last_message_=building_enabled_ ? "Building visuals ON":"Building visuals OFF";
             } else last_message_="No building visuals loaded";
         }
         else if (walker_diagnostic_open_ && walker_profile_) {
@@ -735,13 +743,17 @@ bool SandboxView::draw_world() {
                         static_cast<float>(screen.x),static_cast<float>(screen.y))) return false;
             }
         } else {
-            if (object==simulation::Object::Pottery && building_visuals_active() && building_sprite_) {
-                if (!building_sprite_->draw(center,camera_.zoom,*building_profile_)) return false;
-                ++building_drawn_instances_;
-                return true;
+            const auto role=building_visual_role(object);
+            if (role && building_profile_) {
+                const auto* entry=building_profile_->find(*role);
+                if (entry && building_visuals_active() && building_sprite_) {
+                    if (!building_sprite_->draw(center,camera_.zoom,*building_profile_,*entry))
+                        return false;
+                    ++building_drawn_instances_[assets::role_index(*role)];
+                    return true;
+                }
+                ++building_placeholder_fallbacks_[assets::role_index(*role)];
             }
-            if (object==simulation::Object::Pottery && building_profile_)
-                ++building_placeholder_fallbacks_;
             SDL_Color color{255,105,100,255};
             if (object==simulation::Object::Workshop || object==simulation::Object::ClaySource)
                 color={50,210,245,255};
@@ -887,7 +899,18 @@ bool SandboxView::draw_world() {
     if (hovered_ && tool_!=(simulation::production_profile(rules_) ? 5 : 4)) {
         const auto top=world_for({static_cast<double>(hovered_->x),static_cast<double>(hovered_->y)});
         const auto result=preview(*hovered_);
-        if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
+        const auto object=tool_==2 ? simulation::Object::ClaySource:
+            tool_==3 ? simulation::Object::Pottery:
+            tool_==4 ? simulation::Object::Warehouse:
+            tool_==7 ? simulation::Object::Household:simulation::Object::Empty;
+        const auto role=simulation::production_profile(rules_) ?
+            building_visual_role(object):std::nullopt;
+        const auto* entry=role && building_profile_ ? building_profile_->find(*role):nullptr;
+        if (result.accepted && entry && building_visuals_active() && building_sprite_) {
+            if (!building_sprite_->draw(camera_.world_to_screen(top),camera_.zoom,
+                                        *building_profile_,*entry,true) ||
+                !draw_diamond({top.x,top.y-20},70,245,100,false)) return false;
+        } else if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
             result.accepted?245:65,result.accepted?100:65,true)) return false;
     }
     return true;
@@ -937,16 +960,6 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back(b.active_recipe_clay>0 ? "Processing" :
             b.output>=simulation::Rules::pottery_output_capacity ? "Output full" :
             b.input_clay<simulation::Rules::pottery_recipe_clay ? "No Clay input" : "Ready");
-        if (building_profile_) {
-            lines.push_back(std::string("Visual ")+(building_enabled_ ? "active":"placeholder"));
-            lines.push_back("SG3 "+building_profile_->pottery_id.archive_relative_path.generic_string()+
-                " #"+std::to_string(building_profile_->pottery_id.image_index));
-            lines.push_back("Image "+std::to_string(building_profile_->pottery_image.width)+"x"+
-                std::to_string(building_profile_->pottery_image.height));
-            lines.push_back("Anchor "+std::to_string(building_profile_->ground_x)+","+
-                std::to_string(building_profile_->ground_y));
-            lines.push_back("Evidence: curated preview");
-        }
     } else if (b.kind==simulation::Object::Warehouse) {
         const int stock=simulation::production_profile(rules_) ? b.pottery_stock :
             world_->warehouse_stock();
@@ -963,6 +976,22 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Consumed "+std::to_string(b.consumed_total));
         lines.push_back(b.last_demand_status==0 ? "Demand: not due" :
             b.last_demand_status==1 ? "Demand: supplied" : "Demand: unmet");
+    }
+    if (const auto role=building_visual_role(b.kind)) {
+        lines.push_back(std::string("Building visuals ")+(building_enabled_ ? "ON":"OFF"));
+        lines.push_back(std::string("Visual role ")+assets::building_role_name(*role));
+        const auto* entry=building_profile_ ? building_profile_->find(*role):nullptr;
+        lines.push_back(std::string("Visual configured ")+(entry ? "yes":"no"));
+        if (entry) {
+            const auto& image=building_profile_->unique_images.at(entry->image_index);
+            lines.push_back("SG3 "+entry->id.archive_relative_path.generic_string()+
+                " #"+std::to_string(entry->id.image_index));
+            lines.push_back("Image "+std::to_string(image.width)+"x"+
+                std::to_string(image.height));
+            lines.push_back("Anchor "+std::to_string(entry->ground_x)+","+
+                std::to_string(entry->ground_y));
+            lines.push_back("Evidence: curated preview");
+        }
     }
     if (simulation::production_profile(rules_)) {
         for (unsigned courier_id=1;courier_id<=5;++courier_id) {

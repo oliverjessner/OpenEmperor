@@ -2,6 +2,7 @@
 #include "assets/BuildingVisualProfile.h"
 #include "scene/IsoProjection.h"
 #include <cstddef>
+#include <vector>
 struct SDL_Renderer;
 struct SDL_Texture;
 
@@ -14,11 +15,12 @@ public:
     ~BuildingSprite();
     void initialize(SDL_Renderer* renderer,const assets::BuildingVisualProfile& profile);
     void shutdown();
-    bool draw(scene::Point ground,double zoom,const assets::BuildingVisualProfile& profile) const;
-    std::size_t texture_count() const { return texture_ ? 1U:0U; }
+    bool draw(scene::Point ground,double zoom,const assets::BuildingVisualProfile& profile,
+              const assets::BuildingVisualEntry& entry,bool preview=false) const;
+    std::size_t texture_count() const { return textures_.size(); }
     static std::size_t live_texture_count();
 private:
     SDL_Renderer* renderer_=nullptr;
-    SDL_Texture* texture_=nullptr;
+    std::vector<SDL_Texture*> textures_;
 };
 }

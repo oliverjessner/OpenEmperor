@@ -215,13 +215,22 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 if (!walker_visuals.empty()) report["walker"]=walker_report();
                 if (!building_visuals.empty()) {
                     const auto stats=view.building_display_stats();
-                    report["building_visual"]={{"configured",stats.configured},
-                        {"decoded_asset_count",stats.decoded_assets},
+                    nlohmann::json roles=nlohmann::json::array();
+                    nlohmann::json draws=nlohmann::json::object(),fallbacks=nlohmann::json::object();
+                    for (const auto role:assets::building_roles) {
+                        const auto index=assets::role_index(role);
+                        const auto name=assets::building_role_name(role);
+                        if (stats.configured_roles[index]) roles.push_back(name);
+                        draws[name]=stats.drawn_instances[index];
+                        fallbacks[name]=stats.placeholder_fallbacks[index];
+                    }
+                    report["building_visuals"]={{"configured_roles",roles},
+                        {"decoded_unique_assets",stats.decoded_assets},
                         {"texture_uploads",stats.texture_uploads},
-                        {"drawn_pottery_instances",stats.drawn_instances},
-                        {"placeholder_fallbacks",stats.placeholder_fallbacks},
-                        {"simulation_neutral",simulation_neutral},
-                        {"visual_correctness_claimed",false}};
+                        {"draws_by_role",draws},
+                        {"placeholder_fallbacks_by_role",fallbacks},
+                        {"simulation_equal_to_control",simulation_neutral},
+                        {"manual_visual_review",false}};
                 }
                 std::cout<<report.dump()<<'\n';
                 view.shutdown(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();

@@ -1,5 +1,6 @@
 #include "app/SandboxView.h"
 #include "app/WalkerPose.h"
+#include "app/SandboxVisualOrder.h"
 #include "maps/TerrainRenderPlan.h"
 
 #include <SDL3/SDL.h>
@@ -87,15 +88,21 @@ std::filesystem::path building_fixture(const Temp& temp) {
     const auto at=40680U+3U*72U;
     u32(sg3,at,4);u32(sg3,at+4,12800);u32(sg3,at+8,12800);
     u16(sg3,at+20,158);u16(sg3,at+22,90);u16(sg3,at+50,30);sg3[at+55]=2;
-    write(temp.path/"DATA/building.sg3",sg3);
-    Bytes bitmap(12804,0);
-    for (std::size_t i=4;i<bitmap.size();i+=2) u16(bitmap,i,0x7c00);
-    write(temp.path/"DATA/building.555",bitmap);
+    for (const auto& [asset_name,color]:std::array<std::pair<const char*,std::uint16_t>,4>{{
+            {"clay",0x03ff},{"pottery",0x7c1f},{"warehouse",0x7fe0},{"house",0x03e0}}}) {
+        write(temp.path/(std::string("DATA/")+asset_name+".sg3"),sg3);
+        Bytes bitmap(12804,0);
+        for (std::size_t i=4;i<bitmap.size();i+=2) u16(bitmap,i,color);
+        write(temp.path/(std::string("DATA/")+asset_name+".555"),bitmap);
+    }
     const auto path=temp.path/"building.json";
     std::ofstream output(path);
     output<<R"({"schema_version":1,"mode":"curated_building_preview",
-"buildings":{"pottery":{"archive":"DATA/building.sg3","image_index":3,
-"ground_anchor":[79,70],"evidence":"Synthetic red Type-30 building"}}})";
+"buildings":{
+"clay_source":{"archive":"DATA/clay.sg3","image_index":3,"ground_anchor":[79,70],"evidence":"Synthetic cyan"},
+"pottery":{"archive":"DATA/pottery.sg3","image_index":3,"ground_anchor":[79,70],"evidence":"Synthetic magenta"},
+"warehouse":{"archive":"DATA/warehouse.sg3","image_index":3,"ground_anchor":[79,70],"evidence":"Synthetic yellow"},
+"household":{"archive":"DATA/house.sg3","image_index":3,"ground_anchor":[79,70],"evidence":"Synthetic green"}}})";
     check(static_cast<bool>(output),"building manifest write");
     return path;
 }
@@ -645,9 +652,9 @@ int main() {
         industry_view.set_building_visuals(building_manifest);
         industry_view.initialize(window,renderer);
         check(industry_view.walker_texture_count()==2,"second clay courier duplicated textures");
-        check(industry_view.building_texture_count()==1 &&
-              openemperor::BuildingSprite::live_texture_count()==1,
-              "two Pottery instances did not share one texture");
+        check(industry_view.building_texture_count()==4 &&
+              openemperor::BuildingSprite::live_texture_count()==4,
+              "four roles did not share four textures");
         openemperor::SandboxView marker_control(fixture(temp,true,true,true),true,
             simulation::RulesProfile::IndustryV5);
         marker_control.initialize(window,renderer);
@@ -673,9 +680,36 @@ int main() {
               industry_view.world().building(static_cast<simulation::BuildingId>(9)).recipes_completed>0,
               "v5 software frame did not draw five couriers and active second pottery");
         const auto building_stats=industry_view.building_display_stats();
-        check(building_stats.configured && building_stats.decoded_assets==1 &&
-              building_stats.texture_uploads==1 && building_stats.drawn_instances>=2,
+        check(building_stats.configured && building_stats.decoded_assets==4 &&
+              building_stats.texture_uploads==4 &&
+              building_stats.drawn_instances[openemperor::assets::role_index(
+                  openemperor::assets::BuildingVisualRole::Pottery)]>=2,
               "both Pottery instances not drawn with one texture");
+        const auto& draws=building_stats.drawn_instances;
+        check(draws[0]>=2 && draws[1]>=2 && draws[2]>=1 && draws[3]>=4,
+              "all Industry-v5 roles were not drawn through the shared path");
+        check(openemperor::building_visual_role(industry_view.world().building(
+                  static_cast<simulation::BuildingId>(8)).kind)==
+                  openemperor::assets::BuildingVisualRole::ClaySource &&
+              openemperor::building_visual_role(industry_view.world().building(
+                  static_cast<simulation::BuildingId>(9)).kind)==
+                  openemperor::assets::BuildingVisualRole::Pottery &&
+              !openemperor::building_visual_role(simulation::Object::Workshop) &&
+              !openemperor::building_visual_role(simulation::Object::Road),
+              "second producer mapped from ID rather than Object kind");
+        std::optional<simulation::Cell> fourth_house;
+        for (int y=0;y<industry_view.world().height() && !fourth_house;++y)
+            for (int x=0;x<industry_view.world().width();++x)
+                if (industry_view.world().validate({simulation::CommandType::PlaceHousehold,{x,y}}).accepted) {
+                    fourth_house=simulation::Cell{x,y};break;
+                }
+        check(fourth_house.has_value(),"no valid fourth-house test cell");
+        check(industry_view.execute({simulation::CommandType::PlaceHousehold,*fourth_house}).accepted &&
+              marker_control.execute({simulation::CommandType::PlaceHousehold,*fourth_house}).accepted &&
+              industry_view.world().snapshot()==marker_control.world().snapshot() &&
+              industry_view.render() && industry_view.building_texture_count()==4 &&
+              industry_view.building_display_stats().drawn_instances[3]>=4,
+              "fourth Household uploaded another texture or altered World");
         const auto before_building_toggle=industry_view.world().snapshot();
         const auto before_dirty=industry_view.dirty();
         industry_view.handle_event(key(SDLK_F4),running);
@@ -689,10 +723,10 @@ int main() {
         try { industry_view.set_building_visuals(temp.path/"missing-building.json"); }
         catch (const std::exception&) { bad_building_rejected=true; }
         check(bad_building_rejected && industry_view.building_visuals_active() &&
-              industry_view.building_texture_count()==1 && industry_view.render(),
+              industry_view.building_texture_count()==4 && industry_view.render(),
               "failed building profile replaced working texture");
         industry_view.set_building_visuals(building_manifest);
-        check(openemperor::BuildingSprite::live_texture_count()==1,
+        check(openemperor::BuildingSprite::live_texture_count()==4,
               "building profile reload leaked texture");
         industry_view.save_now();
         const auto saved_building_world=industry_view.world().snapshot();
@@ -715,6 +749,7 @@ int main() {
         openemperor::SandboxView ui(fixture(temp,true,true,true),false,
             simulation::RulesProfile::IndustryV5);
         ui.configure_save(temp.path,"Cities/Synthetic.map",save_path);
+        ui.set_building_visuals(building_manifest);
         ui.initialize(window,renderer);
         check(ui.layout().map.w==796 && ui.layout().map.h==552,"end-to-end viewport");
         const auto button_point=[&](openemperor::sandbox_ui::Action action) {
@@ -744,7 +779,22 @@ int main() {
             ui.handle_event(motion(static_cast<float>(end.x),static_cast<float>(end.y)),running);
             ui.handle_event(release(static_cast<float>(end.x),static_cast<float>(end.y)),running);
         };
-        press_action(openemperor::sandbox_ui::Action::Clay); map_click(110,114);
+        press_action(openemperor::sandbox_ui::Action::Clay);
+        const auto clay_hover=map_point(110,114);
+        const auto before_hover=ui.world().snapshot();
+        ui.handle_event(motion(static_cast<float>(clay_hover.x),
+                               static_cast<float>(clay_hover.y)),running);
+        check(ui.hovered_cell()==simulation::Cell{110,114} &&
+              ui.preview({110,114}).accepted && ui.render() &&
+              ui.world().snapshot()==before_hover && ui.building_texture_count()==4,
+              "valid original building hover changed World or uploaded texture");
+        map_click(110,114);
+        const auto after_clay=ui.world().snapshot();
+        ui.handle_event(motion(static_cast<float>(clay_hover.x),
+                               static_cast<float>(clay_hover.y)),running);
+        check(!ui.preview({110,114}).accepted && ui.render() &&
+              ui.world().snapshot()==after_clay,
+              "invalid building hover changed World");
         press_action(openemperor::sandbox_ui::Action::Pottery); map_click(113,114);
         press_action(openemperor::sandbox_ui::Action::Road);
         const auto first_start=map_point(111,114),first_end=map_point(112,114);
