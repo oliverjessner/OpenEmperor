@@ -4,9 +4,11 @@
 #include "maps/MapGeometry.h"
 #include "renderer/StoredGraphicsRenderer.h"
 #include "simulation/World.h"
+#include "persistence/SandboxSave.h"
 
 #include <memory>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
 
@@ -36,6 +38,14 @@ public:
     std::optional<simulation::Cell> demo_origin() const { return demo_origin_; }
     scene::Camera2D camera() const { return camera_; }
     int last_courier_draws() const { return last_courier_draws_; }
+    void configure_save(std::filesystem::path data_root,std::filesystem::path map_relative,
+                        std::filesystem::path save_path,
+                        std::optional<persistence::SaveDocument> initial=std::nullopt);
+    void save_now();
+    void load_now();
+    std::uint64_t io_generation() const { return io_generation_; }
+    bool paused() const { return clock_.paused(); }
+    const std::vector<std::uint8_t>& buildable_mask() const { return buildable_mask_; }
 private:
     void reset_camera();
     void resize_camera();
@@ -61,6 +71,10 @@ private:
     int tool_=4;
     simulation::RulesProfile rules_;
     int last_courier_draws_=0;
+    std::filesystem::path data_root_,map_relative_,save_path_;
+    std::optional<persistence::SaveDocument> initial_save_;
+    std::vector<std::uint8_t> buildable_mask_;
+    std::uint64_t io_generation_=0;
 };
 
 } // namespace openemperor

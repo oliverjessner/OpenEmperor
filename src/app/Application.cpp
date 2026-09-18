@@ -98,6 +98,7 @@ int Application::run() {
     bool running = true;
     std::uint64_t last_ticks = SDL_GetTicksNS();
     while (running) {
+        const auto sandbox_io=sandbox_ ? sandbox_->io_generation() : 0;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (sandbox_) {
@@ -123,6 +124,7 @@ int Application::run() {
         if (!running) {
             break;
         }
+        if (sandbox_ && sandbox_->io_generation()!=sandbox_io) last_ticks=SDL_GetTicksNS();
         const std::uint64_t now = SDL_GetTicksNS();
         if (scene_) scene_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
         if (map_debug_) map_debug_->update(static_cast<double>(now - last_ticks) / 1000000000.0);

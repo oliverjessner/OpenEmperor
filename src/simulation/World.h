@@ -45,7 +45,7 @@ struct CommandResult {
 };
 enum class CourierPhase { IdleAtWorkshop, ToWarehouse, Returning };
 const char* courier_phase_name(CourierPhase phase);
-struct Position { double x=0; double y=0; };
+struct Position { double x=0; double y=0; bool operator==(const Position&) const = default; };
 enum class Good { Goods, Clay, Pottery };
 enum class BuildingId : std::uint8_t { ClaySource=1, Pottery=2, Warehouse=3 };
 enum class CourierId : std::uint8_t { Clay=1, Pottery=2 };
@@ -77,6 +77,46 @@ struct CourierState {
     std::uint64_t cached_revision=UINT64_MAX;
     std::optional<std::vector<Cell>> cached_route;
 };
+// Only authoritative state. Occupancy and future route caches are rebuilt.
+struct CourierSnapshot {
+    CourierId id=CourierId::Clay;
+    BuildingId owner=BuildingId::ClaySource, target=BuildingId::Pottery;
+    Good good=Good::Clay;
+    bool enabled=false;
+    CourierPhase phase=CourierPhase::IdleAtWorkshop;
+    int cargo=0, reserved=0;
+    std::vector<Cell> path;
+    std::size_t path_vertex=0;
+    int edge_progress=0;
+    bool operator==(const CourierSnapshot&) const = default;
+};
+struct BuildingSnapshot {
+    BuildingId id=BuildingId::ClaySource;
+    Object kind=Object::Empty;
+    Cell cell{};
+    bool placed=false;
+    int input_clay=0, output=0, pottery_stock=0, reserved_incoming=0;
+    int progress=0, active_recipe_clay=0;
+    std::uint64_t recipes_completed=0;
+    bool operator==(const BuildingSnapshot&) const = default;
+};
+struct WorldSnapshot {
+    int width=0, height=0;
+    RulesProfile profile=RulesProfile::LogisticsV1;
+    std::uint32_t rule_version=1;
+    std::uint64_t ticks=0, command_sequence=0, road_revision=0;
+    std::vector<Cell> roads;
+    std::optional<Cell> workshop, warehouse;
+    std::uint64_t total_produced=0, clay_extracted_total=0, pottery_completed_total=0;
+    int workshop_stock=0, production_progress=0, courier_cargo=0, warehouse_stock=0;
+    CourierPhase phase=CourierPhase::IdleAtWorkshop;
+    std::vector<Cell> path;
+    std::size_t path_vertex=0;
+    int edge_progress=0;
+    std::array<BuildingSnapshot,3> buildings{};
+    std::array<CourierSnapshot,2> couriers{};
+    bool operator==(const WorldSnapshot&) const = default;
+};
 const char* delivery_phase_name(CourierPhase phase);
 
 class World {
@@ -99,6 +139,9 @@ public:
     std::uint64_t pottery_completed_total() const { return pottery_completed_total_; }
     bool production_balance_valid() const;
     std::string canonical_state() const;
+    WorldSnapshot snapshot() const;
+    static World restore(const WorldSnapshot& snapshot,std::vector<std::uint8_t> buildable);
+    void import_snapshot(const WorldSnapshot& snapshot);
     CommandResult validate(Command command) const;
     CommandResult execute(Command command);
     void tick();
@@ -162,6 +205,7 @@ class TickDriver {
 public:
     void update(double frame_seconds,World& world);
     void toggle_pause();
+    void pause_and_reset() { paused_=true; accumulator_=0; }
     void set_speed(int speed);
     void step_once(World& world);
     bool paused() const { return paused_; }

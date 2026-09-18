@@ -98,6 +98,7 @@ CourierState& World::mutable_courier(CourierId id) {
     return couriers_[value-1];
 }
 CommandResult World::validate(Command command) const {
+    if (command_sequence_==UINT64_MAX) throw std::overflow_error("sandbox command counter exhausted");
     CommandResult result{false,false,"",command_sequence_+1,ticks_};
     if (command.type!=CommandType::PlaceRoad && command.type!=CommandType::PlaceWorkshop &&
         command.type!=CommandType::PlaceWarehouse && command.type!=CommandType::PlaceClaySource &&
@@ -242,6 +243,7 @@ void World::refresh_routes() {
 }
 
 void World::tick_production_v2() {
+    if (ticks_==UINT64_MAX) throw std::overflow_error("sandbox tick counter exhausted");
     ++ticks_;
     auto& source=mutable_building(BuildingId::ClaySource);
     auto& pottery=mutable_building(BuildingId::Pottery);
@@ -348,6 +350,7 @@ void World::move_courier() {
 
 void World::tick() {
     if (profile_==RulesProfile::ProductionV2) { tick_production_v2(); return; }
+    if (ticks_==UINT64_MAX) throw std::overflow_error("sandbox tick counter exhausted");
     ++ticks_;
     if (workshop_) {
         if (workshop_stock_<Rules::workshop_capacity) {
@@ -498,6 +501,200 @@ bool World::goods_balance_valid() const {
         courier_cargo_>=0 && courier_cargo_<=Rules::courier_capacity &&
         warehouse_stock_>=0 && warehouse_stock_<=Rules::warehouse_capacity &&
         total_produced_==static_cast<std::uint64_t>(workshop_stock_+courier_cargo_+warehouse_stock_);
+}
+
+WorldSnapshot World::snapshot() const {
+    WorldSnapshot s;
+    s.width=width_; s.height=height_; s.profile=profile_;
+    s.ticks=ticks_; s.command_sequence=command_sequence_; s.road_revision=road_revision_;
+    for (int y=0;y<height_;++y) for (int x=0;x<width_;++x)
+        if (object_at({x,y})==Object::Road) s.roads.push_back({x,y});
+    s.workshop=workshop_; s.warehouse=warehouse_;
+    s.total_produced=total_produced_; s.clay_extracted_total=clay_extracted_total_;
+    s.pottery_completed_total=pottery_completed_total_;
+    s.workshop_stock=workshop_stock_; s.production_progress=production_progress_;
+    s.courier_cargo=courier_cargo_; s.warehouse_stock=warehouse_stock_;
+    s.phase=phase_; s.path=path_; s.path_vertex=path_vertex_; s.edge_progress=edge_progress_;
+    for (std::size_t i=0;i<buildings_.size();++i) {
+        const auto& b=buildings_[i];
+        s.buildings[i]={b.id,b.kind,b.cell,b.placed,b.input_clay,b.output,b.pottery_stock,
+                        b.reserved_incoming,b.progress,b.active_recipe_clay,b.recipes_completed};
+    }
+    for (std::size_t i=0;i<couriers_.size();++i) {
+        const auto& c=couriers_[i];
+        s.couriers[i]={c.id,c.owner,c.target,c.good,c.enabled,c.phase,c.cargo,c.reserved,
+                       c.path,c.path_vertex,c.edge_progress};
+    }
+    return s;
+}
+
+World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
+    if (s.rule_version!=1) throw std::invalid_argument("unsupported sandbox rule version");
+    World w(s.width,s.height,std::move(mask),s.profile);
+    const auto fail=[](const char* message)->void { throw std::invalid_argument(message); };
+    if (s.ticks==UINT64_MAX || s.command_sequence==UINT64_MAX || s.road_revision>s.command_sequence ||
+        s.roads.size()>w.objects_.size() || s.command_sequence<s.roads.size())
+        fail("invalid sandbox counters or road count");
+    const auto put=[&](Cell cell,Object object,BuildingId owner) {
+        if (!w.buildable(cell)) fail("saved object outside buildable mask");
+        const auto i=w.index(cell);
+        if (w.objects_[i]!=Object::Empty) fail("overlapping or duplicate saved objects");
+        w.objects_[i]=object;
+        if (object!=Object::Road) w.owners_[i]=static_cast<std::uint8_t>(owner);
+    };
+    for (const auto cell:s.roads) put(cell,Object::Road,BuildingId::ClaySource);
+    w.ticks_=s.ticks; w.command_sequence_=s.command_sequence; w.road_revision_=s.road_revision;
+    const auto route=[&](const std::vector<Cell>& path,std::size_t vertex,int edge,
+                         CourierPhase phase,Cell source,Cell target) {
+        if (phase==CourierPhase::IdleAtWorkshop) {
+            if (!path.empty() || vertex!=0 || edge!=0) fail("idle courier has active route");
+            return;
+        }
+        if (path.size()<3 || path.size()>w.objects_.size() || vertex>=path.size()-1 ||
+            edge<0 || edge>=Rules::edge_ticks ||
+            path.front()!=(phase==CourierPhase::ToWarehouse ? source:target) ||
+            path.back()!=(phase==CourierPhase::ToWarehouse ? target:source))
+            fail("invalid active courier route endpoints or progress");
+        std::vector<std::uint8_t> visited(w.objects_.size(),0);
+        for (std::size_t i=0;i<path.size();++i) {
+            if (!w.in_bounds(path[i])) fail("route waypoint outside grid");
+            if (visited[w.index(path[i])]++) fail("route repeats a waypoint");
+            if (i>0) {
+                const auto dx=std::abs(path[i].x-path[i-1].x);
+                const auto dy=std::abs(path[i].y-path[i-1].y);
+                if (dx+dy!=1) fail("route has nonorthogonal edge");
+            }
+            if (i>0 && i+1<path.size() && w.object_at(path[i])!=Object::Road)
+                fail("route interior is not a placed road");
+        }
+    };
+    if (s.profile==RulesProfile::LogisticsV1) {
+        if (s.workshop) put(*s.workshop,Object::Workshop,BuildingId::ClaySource);
+        if (s.warehouse) put(*s.warehouse,Object::Warehouse,BuildingId::Warehouse);
+        if (s.road_revision!=s.roads.size()+static_cast<unsigned>(s.workshop.has_value())+
+            static_cast<unsigned>(s.warehouse.has_value()) ||
+            (!s.warehouse && s.warehouse_stock!=0))
+            fail("logistics placement revision or warehouse state mismatch");
+        if (s.total_produced>s.ticks/static_cast<std::uint64_t>(Rules::production_ticks) ||
+            s.workshop_stock<0 || s.workshop_stock>Rules::workshop_capacity ||
+            s.warehouse_stock<0 || s.warehouse_stock>Rules::warehouse_capacity ||
+            s.courier_cargo<0 || s.courier_cargo>Rules::courier_capacity ||
+            s.production_progress<0 || s.production_progress>=Rules::production_ticks ||
+            (!s.workshop && (s.total_produced || s.workshop_stock || s.production_progress)) ||
+            s.total_produced!=static_cast<std::uint64_t>(s.workshop_stock+s.courier_cargo+s.warehouse_stock) ||
+            s.clay_extracted_total || s.pottery_completed_total)
+            fail("invalid logistics stocks, progress or goods balance");
+        for (std::size_t i=0;i<s.buildings.size();++i) {
+            const BuildingSnapshot zero{static_cast<BuildingId>(i+1)};
+            if (s.buildings[i]!=zero) fail("v1 contains production building state");
+        }
+        for (std::size_t i=0;i<s.couriers.size();++i) {
+            CourierSnapshot zero;
+            zero.id=static_cast<CourierId>(i+1);
+            zero.owner=i==0 ? BuildingId::ClaySource:BuildingId::Pottery;
+            zero.target=i==0 ? BuildingId::Pottery:BuildingId::Warehouse;
+            zero.good=i==0 ? Good::Clay:Good::Pottery;
+            if (s.couriers[i]!=zero) fail("v1 contains production courier state");
+        }
+        if (s.phase!=CourierPhase::IdleAtWorkshop && s.phase!=CourierPhase::ToWarehouse &&
+            s.phase!=CourierPhase::Returning) fail("invalid logistics courier phase");
+        if (s.phase!=CourierPhase::IdleAtWorkshop && (!s.workshop || !s.warehouse))
+            fail("active logistics courier has missing building");
+        if (s.phase==CourierPhase::ToWarehouse && (s.courier_cargo==0 ||
+            s.warehouse_stock+s.courier_cargo>Rules::warehouse_capacity))
+            fail("invalid outbound logistics cargo");
+        if (s.phase!=CourierPhase::ToWarehouse && s.courier_cargo!=0)
+            fail("idle or returning logistics courier has cargo");
+        route(s.path,s.path_vertex,s.edge_progress,s.phase,s.workshop.value_or(Cell{}),
+              s.warehouse.value_or(Cell{}));
+        w.workshop_=s.workshop; w.warehouse_=s.warehouse;
+        w.total_produced_=s.total_produced; w.workshop_stock_=s.workshop_stock;
+        w.production_progress_=s.production_progress; w.courier_cargo_=s.courier_cargo;
+        w.warehouse_stock_=s.warehouse_stock; w.phase_=s.phase;
+        w.path_=s.path; w.path_vertex_=s.path_vertex; w.edge_progress_=s.edge_progress;
+    } else {
+        if (s.workshop || s.warehouse || s.total_produced || s.workshop_stock ||
+            s.production_progress || s.courier_cargo || s.warehouse_stock ||
+            s.phase!=CourierPhase::IdleAtWorkshop || !s.path.empty() || s.path_vertex || s.edge_progress)
+            fail("v2 contains logistics state");
+        const std::array<Object,3> kinds{Object::ClaySource,Object::Pottery,Object::Warehouse};
+        for (std::size_t i=0;i<s.buildings.size();++i) {
+            const auto& b=s.buildings[i];
+            if (b.id!=static_cast<BuildingId>(i+1)) fail("duplicate or invalid building identity");
+            if (b.placed) {
+                if (b.kind!=kinds[i]) fail("building kind does not match identity");
+                put(b.cell,b.kind,b.id);
+            } else if (b.kind!=Object::Empty || b.cell!=Cell{} || b.input_clay || b.output ||
+                       b.pottery_stock || b.reserved_incoming || b.progress ||
+                       b.active_recipe_clay || b.recipes_completed)
+                fail("unplaced building has state");
+            auto& out=w.buildings_[i];
+            out={b.id,b.kind,b.cell,b.placed,b.input_clay,b.output,b.pottery_stock,
+                 b.reserved_incoming,b.progress,b.active_recipe_clay,b.recipes_completed};
+        }
+        const auto placed=static_cast<unsigned>(s.buildings[0].placed)+
+            static_cast<unsigned>(s.buildings[1].placed)+
+            static_cast<unsigned>(s.buildings[2].placed);
+        if (s.road_revision!=s.roads.size()+placed)
+            fail("production placement revision mismatch");
+        const auto& source=s.buildings[0];
+        const auto& pots=s.buildings[1];
+        const auto& warehouse=s.buildings[2];
+        if (source.input_clay || source.pottery_stock || source.reserved_incoming ||
+            source.active_recipe_clay || source.recipes_completed ||
+            source.output<0 || source.output>Rules::clay_output_capacity ||
+            source.progress<0 || source.progress>=Rules::clay_ticks ||
+            (source.output==Rules::clay_output_capacity && source.progress!=0) ||
+            pots.pottery_stock || pots.input_clay<0 || pots.input_clay>Rules::pottery_input_capacity ||
+            pots.output<0 || pots.output>Rules::pottery_output_capacity ||
+            pots.reserved_incoming<0 || pots.reserved_incoming>Rules::pottery_input_capacity ||
+            pots.progress<0 || pots.progress>=Rules::pottery_recipe_ticks ||
+            (pots.active_recipe_clay!=0 && pots.active_recipe_clay!=Rules::pottery_recipe_clay) ||
+            (pots.active_recipe_clay==0 && pots.progress!=0) ||
+            (pots.active_recipe_clay!=0 && pots.output>=Rules::pottery_output_capacity) ||
+            warehouse.input_clay || warehouse.output || warehouse.progress ||
+            warehouse.active_recipe_clay || warehouse.recipes_completed ||
+            warehouse.pottery_stock<0 || warehouse.pottery_stock>Rules::warehouse_capacity ||
+            warehouse.reserved_incoming<0 || warehouse.reserved_incoming>Rules::warehouse_capacity)
+            fail("invalid production building state");
+        for (std::size_t i=0;i<s.couriers.size();++i) {
+            const auto& c=s.couriers[i];
+            const auto owner=i==0 ? BuildingId::ClaySource:BuildingId::Pottery;
+            const auto target=i==0 ? BuildingId::Pottery:BuildingId::Warehouse;
+            const auto good=i==0 ? Good::Clay:Good::Pottery;
+            if (c.id!=static_cast<CourierId>(i+1) || c.owner!=owner || c.target!=target ||
+                c.good!=good || c.enabled!=s.buildings[i].placed ||
+                c.cargo<0 || c.cargo>Rules::courier_capacity ||
+                c.reserved<0 || c.reserved>Rules::courier_capacity ||
+                (c.phase!=CourierPhase::IdleAtWorkshop && c.phase!=CourierPhase::ToWarehouse &&
+                 c.phase!=CourierPhase::Returning)) fail("invalid courier identity or cargo");
+            if (c.phase!=CourierPhase::IdleAtWorkshop && (!s.buildings[i].placed ||
+                !s.buildings[static_cast<std::size_t>(target)-1].placed))
+                fail("active courier has missing source or target");
+            if ((c.phase==CourierPhase::ToWarehouse && (c.cargo==0 || c.reserved!=c.cargo)) ||
+                (c.phase!=CourierPhase::ToWarehouse && (c.cargo || c.reserved)))
+                fail("invalid courier cargo reservation");
+            route(c.path,c.path_vertex,c.edge_progress,c.phase,s.buildings[i].cell,
+                  s.buildings[static_cast<std::size_t>(target)-1].cell);
+            auto& out=w.couriers_[i];
+            out.id=c.id; out.owner=c.owner; out.target=c.target; out.good=c.good;
+            out.enabled=c.enabled; out.phase=c.phase; out.cargo=c.cargo; out.reserved=c.reserved;
+            out.path=c.path; out.path_vertex=c.path_vertex; out.edge_progress=c.edge_progress;
+        }
+        w.clay_extracted_total_=s.clay_extracted_total;
+        w.pottery_completed_total_=s.pottery_completed_total;
+        if (s.clay_extracted_total>s.ticks/static_cast<std::uint64_t>(Rules::clay_ticks) ||
+            s.pottery_completed_total>s.ticks/static_cast<std::uint64_t>(Rules::pottery_recipe_ticks) ||
+            s.pottery_completed_total>UINT64_MAX/Rules::pottery_recipe_clay ||
+            !w.production_balance_valid()) fail("invalid production totals, reservations or balances");
+        w.refresh_routes(); // Future dispatch only; active paths remain untouched.
+    }
+    return w;
+}
+
+void World::import_snapshot(const WorldSnapshot& s) {
+    World replacement=restore(s,buildable_);
+    *this=std::move(replacement);
 }
 
 void TickDriver::update(double frame_seconds,World& world) {

@@ -31,6 +31,7 @@ if(NOT nlohmann_json_FOUND)
 endif()
 
 find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
 include(cmake/OpenEmperorWarnings.cmake)
 
@@ -109,7 +110,13 @@ openemperor_enable_warnings(openemperor-maps)
 add_library(openemperor-simulation STATIC src/simulation/World.cpp)
 target_include_directories(openemperor-simulation PUBLIC src)
 openemperor_enable_warnings(openemperor-simulation)
-target_link_libraries(openemperor PRIVATE openemperor-maps openemperor-simulation)
+add_library(openemperor-persistence STATIC src/persistence/SandboxSave.cpp
+    src/platform/AtomicReplace.cpp)
+target_include_directories(openemperor-persistence PUBLIC src)
+target_link_libraries(openemperor-persistence PUBLIC openemperor-maps openemperor-simulation
+    nlohmann_json::nlohmann_json OpenSSL::Crypto)
+openemperor_enable_warnings(openemperor-persistence)
+target_link_libraries(openemperor PRIVATE openemperor-persistence)
 
 add_executable(openemperor-map-inspect tools/map-inspector/main.cpp)
 target_link_libraries(openemperor-map-inspect PRIVATE openemperor-maps nlohmann_json::nlohmann_json)
@@ -136,10 +143,15 @@ if(BUILD_TESTING)
     set_tests_properties(sandbox-production-chain PROPERTIES TIMEOUT 20)
     add_executable(openemperor-sandbox-view-tests tests/SandboxViewTests.cpp
         src/app/SandboxView.cpp src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
-    target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-maps openemperor-simulation SDL3::SDL3)
+    target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
     set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 20)
+    add_executable(openemperor-sandbox-save-tests tests/SandboxSaveTests.cpp)
+    target_link_libraries(openemperor-sandbox-save-tests PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-sandbox-save-tests)
+    add_test(NAME sandbox-save-resume COMMAND openemperor-sandbox-save-tests)
+    set_tests_properties(sandbox-save-resume PROPERTIES TIMEOUT 30)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(NAME map-corpus-runner COMMAND ${Python3_EXECUTABLE} -m unittest discover

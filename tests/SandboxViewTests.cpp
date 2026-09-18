@@ -35,10 +35,16 @@ void write(const std::filesystem::path& path,const Bytes& bytes) {
     check(static_cast<bool>(out),"synthetic write");
 }
 struct Temp {
-    std::filesystem::path path=std::filesystem::temp_directory_path()/
+    std::filesystem::path path=std::filesystem::canonical(std::filesystem::temp_directory_path())/
         ("openemperor-sandbox-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-    Temp() { std::filesystem::create_directories(path/"DATA"); }
-    ~Temp() { std::error_code error; std::filesystem::remove_all(path,error); }
+    Temp() {
+        std::filesystem::create_directories(path/"DATA");
+        std::filesystem::create_directories(path/"Cities");
+        std::ofstream out(path/"Cities/Synthetic.map",std::ios::binary);
+        out<<"synthetic viewer map identity";
+    }
+    ~Temp() { std::error_code error; std::filesystem::remove_all(path,error);
+        std::filesystem::remove(path.parent_path()/(path.filename().string()+"-viewer-save.json"),error); }
 };
 openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=false) {
     Bytes sg3(40680U+64U,0);
@@ -182,10 +188,16 @@ int main() {
             static_cast<int>(marker_screen.y));
         check(marker_pixel[0]>235 && marker_pixel[1]>235 && marker_pixel[2]>235,
               "moving courier marker absent from composed frame");
+        view.handle_event(key(SDLK_F5),running);
+        check(view.last_message().find("No sandbox save path configured")!=std::string::npos,
+              "unconfigured F5 did not report missing path");
         view.shutdown();
 
         openemperor::SandboxView production_view(fixture(temp,true),false,
             simulation::RulesProfile::ProductionV2);
+        const auto save_path=temp.path.parent_path()/
+            (temp.path.filename().string()+"-viewer-save.json");
+        production_view.configure_save(temp.path,"Cities/Synthetic.map",save_path);
         production_view.initialize(window,renderer);
         check(std::string(SDL_GetWindowTitle(window)).find("Production Sandbox")!=std::string::npos,
               "v2 window profile label");
@@ -231,7 +243,50 @@ int main() {
         const auto b_color=sample_courier(simulation::CourierId::Pottery,5);
         check(a_color[2]>a_color[0] && b_color[0]>b_color[2],
               "distinct courier body colors absent from composed frame");
+        const auto before_save=production_view.world().snapshot();
+        const auto before_position=production_view.world().courier_position(simulation::CourierId::Pottery);
+        production_view.handle_event(key(SDLK_F5),running);
+        check(production_view.last_message().find("Saved tick ")!=std::string::npos,
+              "F5 did not report saved tick in HUD state");
+        check(production_view.world().snapshot()==before_save,"F5 advanced simulation");
+        for (int i=0;i<13;++i) production_view.tick_once();
+        production_view.handle_event(key(SDLK_F9),running);
+        check(production_view.world().snapshot()==before_save && production_view.paused(),
+              "F9 did not restore and pause world");
+        check(production_view.last_message().find("Loaded tick ")!=std::string::npos,
+              "F9 did not report loaded tick in HUD state");
+        check(production_view.world().courier_position(simulation::CourierId::Pottery)==before_position,
+              "loaded courier marker position changed");
+        check(production_view.render() && production_view.last_courier_draws()==2,
+              "loaded software frame omitted couriers");
+        const auto loaded_b=sample_courier(simulation::CourierId::Pottery,5);
+        const auto position=*production_view.world().courier_position(simulation::CourierId::Pottery);
+        const double u=position.x-72,v=position.y-72;
+        const auto center=production_view.camera().world_to_screen({(u-v)*40,(u+v)*20+20});
+        const double marker_size=std::max(5.0,10.0*production_view.camera().zoom);
+        const auto cargo_pixel=pixel(renderer,
+            static_cast<int>(center.x+5+marker_size*0.25),
+            static_cast<int>(center.y-marker_size*0.75));
+        check(loaded_b[0]>loaded_b[2] && cargo_pixel[0]>200 && cargo_pixel[1]<100 &&
+              cargo_pixel[2]>150 && production_view.world().courier(simulation::CourierId::Pottery).cargo>0,
+              "loaded courier marker or cargo indicator absent");
         production_view.shutdown();
+        openemperor::SandboxView fresh_view(fixture(temp,true),false,
+            simulation::RulesProfile::ProductionV2);
+        fresh_view.configure_save(temp.path,"Cities/Synthetic.map",save_path,
+                                  openemperor::persistence::read_save(save_path));
+        fresh_view.initialize(window,renderer);
+        check(fresh_view.world().snapshot()==before_save && fresh_view.paused(),
+              "startup load did not publish exact paused world");
+        check(fresh_view.render() && fresh_view.last_courier_draws()==2,
+              "startup loaded world did not render both couriers");
+        { std::ofstream bad(save_path,std::ios::trunc); bad<<"{broken"; }
+        const auto before_failed_load=fresh_view.world().snapshot();
+        fresh_view.handle_event(key(SDLK_F9),running);
+        check(fresh_view.world().snapshot()==before_failed_load &&
+              fresh_view.last_message().find("parse error")!=std::string::npos,
+              "failed F9 replaced world or concealed error");
+        fresh_view.shutdown();
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
         std::cout << "Sandbox software view checks passed\n";
         return 0;

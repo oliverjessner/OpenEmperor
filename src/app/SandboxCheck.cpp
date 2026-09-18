@@ -2,20 +2,28 @@
 
 #include "app/SandboxView.h"
 #include "maps/StoredMapSession.h"
+#include "persistence/SandboxSave.h"
 
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
 
 #include <iostream>
+#include <optional>
+#include <random>
 #include <stdexcept>
 #include <utility>
 
 namespace openemperor {
 int run_sandbox_check(const std::filesystem::path& data_root,
                       const std::filesystem::path& map_relative,
-                      simulation::RulesProfile rules) {
+                      simulation::RulesProfile rules,bool resume_check) {
     SDL_Window* window=nullptr;
     SDL_Renderer* renderer=nullptr;
+    struct TempCleanup {
+        std::filesystem::path path;
+        ~TempCleanup() { if (!path.empty()) { std::error_code ignored;
+            std::filesystem::remove_all(path,ignored); } }
+    } temporary;
     try {
         auto session=maps::load_stored_map_session(data_root,map_relative,
             maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8);
@@ -25,7 +33,15 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         if (!SDL_CreateWindowAndRenderer("Sandbox check",1100,700,SDL_WINDOW_HIDDEN,
                                          &window,&renderer)) throw std::runtime_error(SDL_GetError());
         SandboxView view(std::move(session),true,rules);
+        if (resume_check) {
+            temporary.path=std::filesystem::canonical(std::filesystem::temp_directory_path())/
+                ("openemperor-resume-check-"+std::to_string(std::random_device{}()));
+            std::filesystem::create_directories(temporary.path);
+            view.configure_save(data_root,map_relative,temporary.path/"resume.json");
+        }
         view.initialize(window,renderer);
+        bool saved=false,reparsed=false,fresh_world=false,direct_equal=false,continued_equal=true;
+        std::optional<simulation::World> resumed;
         bool delivered=false,returning=false,returned=false,balanced=true,rendered=true;
         bool pottery_processed=false,clay_delivered=false;
         int frames_with_both=0;
@@ -33,6 +49,19 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         for (int i=0;i<limit;++i) {
             view.tick_once();
             const auto& world=view.world();
+            if (resume_check && i==(rules==simulation::RulesProfile::ProductionV2 ? 1000:200)) {
+                view.save_now(); saved=true;
+                const auto parsed=persistence::read_save(temporary.path/"resume.json");
+                reparsed=true;
+                resumed.emplace(persistence::restore_save(parsed,data_root,view.buildable_mask()));
+                fresh_world=true;
+                direct_equal=resumed->snapshot()==world.snapshot();
+            } else if (resumed) {
+                resumed->tick();
+                continued_equal=continued_equal && resumed->snapshot()==world.snapshot();
+                balanced=balanced && (rules==simulation::RulesProfile::ProductionV2 ?
+                    resumed->production_balance_valid():resumed->goods_balance_valid());
+            }
             if (rules==simulation::RulesProfile::ProductionV2) {
                 balanced=balanced && world.production_balance_valid();
                 const auto& p=world.building(simulation::BuildingId::Pottery);
@@ -84,12 +113,16 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 {"clay_delivered",clay_delivered},{"pottery_processed",pottery_processed},
                 {"pottery_delivered",delivered},{"pottery_courier_returned",returned},
                 {"goods_balance_valid",balanced},{"frames_rendered",rendered},
-                {"frames_with_two_couriers",frames_with_both}}.dump()<<'\n';
+                {"frames_with_two_couriers",frames_with_both},
+                {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
+                           {"fresh_world",fresh_world},{"direct_equal",direct_equal},
+                           {"continued_equal",continued_equal}}}}.dump()<<'\n';
             view.shutdown();
             SDL_DestroyRenderer(renderer);
             SDL_DestroyWindow(window);
             SDL_Quit();
-            return clay_delivered && pottery_processed && delivered && balanced && rendered &&
+            return (!resume_check || (saved && reparsed && fresh_world && direct_equal && continued_equal)) &&
+                clay_delivered && pottery_processed && delivered && balanced && rendered &&
                 frames_with_both>0 ? 0 : 1;
         }
         std::cout << nlohmann::json{{"schema","openemperor-sandbox-check-v1"},
@@ -99,12 +132,16 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             {"workshop_stock",world.workshop_stock()},{"courier_cargo",world.courier_cargo()},
             {"warehouse_stock",world.warehouse_stock()},
             {"delivered",delivered},{"returning",returning},{"returned",returned},
-            {"goods_balance_valid",balanced},{"frames_rendered",rendered}}.dump()<<'\n';
+            {"goods_balance_valid",balanced},{"frames_rendered",rendered},
+            {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
+                       {"fresh_world",fresh_world},{"direct_equal",direct_equal},
+                       {"continued_equal",continued_equal}}}}.dump()<<'\n';
         view.shutdown();
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
-        return delivered && returned && balanced && rendered ? 0 : 1;
+        return (!resume_check || (saved && reparsed && fresh_world && direct_equal && continued_equal)) &&
+            delivered && returned && balanced && rendered ? 0 : 1;
     } catch (const std::exception& error) {
         std::cerr << "Sandbox check failed: " << error.what() << '\n';
         if (renderer) SDL_DestroyRenderer(renderer);

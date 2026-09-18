@@ -66,14 +66,48 @@ SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::Ru
 }
 SandboxView::~SandboxView() { shutdown(); }
 
+void SandboxView::configure_save(std::filesystem::path root,std::filesystem::path map,
+                                 std::filesystem::path save,
+                                 std::optional<persistence::SaveDocument> initial) {
+    data_root_=std::move(root); map_relative_=std::move(map); save_path_=std::move(save);
+    initial_save_=std::move(initial);
+}
+
+void SandboxView::save_now() {
+    if (save_path_.empty()) throw std::runtime_error("No sandbox save path configured");
+    const auto document=persistence::make_document(data_root_,map_relative_,buildable_mask_,*world_);
+    persistence::write_save(save_path_,document,data_root_,buildable_mask_);
+    last_message_="Saved tick "+std::to_string(world_->ticks());
+}
+
+void SandboxView::load_now() {
+    if (save_path_.empty()) throw std::runtime_error("No sandbox save path configured");
+    persistence::validate_save_target(save_path_,data_root_);
+    const auto document=persistence::read_save(save_path_);
+    if (document.map_relative!=map_relative_ || document.world.profile!=rules_)
+        throw std::runtime_error("Save map or rules differ from current sandbox");
+    auto replacement=persistence::restore_save(document,data_root_,buildable_mask_);
+    world_=std::make_unique<simulation::World>(std::move(replacement));
+    clock_.pause_and_reset();
+    demo_origin_.reset();
+    last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)";
+}
+
 void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     window_=window;
     renderer_=renderer;
     if (!SDL_GetCurrentRenderOutputSize(renderer_,&camera_.viewport_width,&camera_.viewport_height))
         throw std::runtime_error(SDL_GetError());
     background_.initialize(renderer_);
-    world_=std::make_unique<simulation::World>(maps::stored_grid_width,maps::stored_grid_height,
-        maps::make_sandbox_buildable_mask(background_.plan(),geometry_),rules_);
+    buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
+    if (initial_save_) {
+        world_=std::make_unique<simulation::World>(persistence::restore_save(*initial_save_,data_root_,
+            buildable_mask_));
+        clock_.pause_and_reset();
+        last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)";
+        initial_save_.reset();
+    } else world_=std::make_unique<simulation::World>(maps::stored_grid_width,maps::stored_grid_height,
+        buildable_mask_,rules_);
     reset_camera();
     if (demo_) place_demo();
     SDL_SetWindowTitle(window_,rules_==simulation::RulesProfile::ProductionV2 ?
@@ -173,6 +207,12 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_MINUS || event.key.key==SDLK_KP_MINUS)
             clock_.set_speed(clock_.speed()==4 ? 2 : 1);
         else if (event.key.key==SDLK_R) reset_camera();
+        else if (event.key.key==SDLK_F5 || event.key.key==SDLK_F9) {
+            ++io_generation_;
+            try {
+                if (event.key.key==SDLK_F5) save_now(); else load_now();
+            } catch (const std::exception& error) { last_message_=error.what(); }
+        }
     }
     if (event.type==SDL_EVENT_MOUSE_WHEEL) {
         float x=event.wheel.mouse_x,y=event.wheel.mouse_y;

@@ -16,6 +16,7 @@
 #include "maps/StoredGraphicsPlan.h"
 #include "maps/MapCatalog.h"
 #include "maps/StoredMapSession.h"
+#include "persistence/SandboxSave.h"
 
 #include <nlohmann/json.hpp>
 
@@ -56,7 +57,11 @@ void print_usage(const char* executable) {
               << " --render-check --report-json\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
               << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2]"
-              << " [--sandbox-demo] [--sandbox-check --report-json]\n";
+              << " [--sandbox-demo] [--sandbox-check [--sandbox-resume-check] --report-json]\n";
+    std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2]"
+              << " [--sandbox-demo] [--sandbox-save <save.json>]\n"
+              << "       " << executable << " --data <directory> --load-sandbox <save.json>\n";
 }
 
 } // namespace
@@ -74,7 +79,10 @@ int main(int argc, char* argv[]) {
     bool sandbox_supplied = false;
     bool sandbox_demo = false;
     bool sandbox_check = false;
+    bool sandbox_resume_check = false;
     bool sandbox_rules_supplied = false;
+    bool sandbox_save_supplied = false;
+    bool load_sandbox_supplied = false;
     auto sandbox_rules = openemperor::simulation::RulesProfile::LogisticsV1;
     bool report_json = false;
     bool ignore_alpha = false;
@@ -97,6 +105,8 @@ int main(int argc, char* argv[]) {
     fs::path scene_path;
     fs::path map_debug_path;
     fs::path sandbox_path;
+    fs::path sandbox_save_path;
+    fs::path load_sandbox_path;
     fs::path terrain_bindings_path;
     std::uint32_t image_index = 0;
     std::uint32_t map_part = 0;
@@ -117,6 +127,8 @@ int main(int argc, char* argv[]) {
             sandbox_demo = true;
         } else if (argument == "--sandbox-check" && !sandbox_check) {
             sandbox_check = true;
+        } else if (argument == "--sandbox-resume-check" && !sandbox_resume_check) {
+            sandbox_resume_check=true;
         } else if (argument == "--report-json" && !report_json) {
             report_json = true;
         } else if (argument == "--multi-tile-preview" && !multi_tile_preview) {
@@ -157,6 +169,10 @@ int main(int argc, char* argv[]) {
         } else if (argument == "--sandbox" && !sandbox_supplied) {
             sandbox_path = argv[++index];
             sandbox_supplied = true;
+        } else if (argument == "--sandbox-save" && !sandbox_save_supplied) {
+            sandbox_save_path=argv[++index]; sandbox_save_supplied=true;
+        } else if (argument == "--load-sandbox" && !load_sandbox_supplied) {
+            load_sandbox_path=argv[++index]; load_sandbox_supplied=true;
         } else if (argument == "--sandbox-rules" && !sandbox_rules_supplied) {
             const std::string_view value{argv[++index]};
             if (value==openemperor::simulation::production_profile_name)
@@ -245,7 +261,14 @@ int main(int argc, char* argv[]) {
             map_view_mode!=openemperor::maps::MapViewMode::StoredGraphics || !report_json)) ||
         (report_json && !render_check && !list_maps && !sandbox_check) ||
         (sandbox_demo && !sandbox_supplied) || (sandbox_check && (!sandbox_supplied || !report_json)) ||
+        (sandbox_resume_check && !sandbox_check) ||
         (sandbox_rules_supplied && !sandbox_supplied) ||
+        (sandbox_save_supplied && (!sandbox_supplied || sandbox_check)) ||
+        (load_sandbox_supplied && (sandbox_supplied || sandbox_demo || sandbox_rules_supplied ||
+            sandbox_check || sandbox_save_supplied || !data_supplied || preview_supplied || sg3_supplied ||
+            browse_assets || browse_maps || list_maps || scene_supplied || map_debug_supplied ||
+            render_check || part_supplied || layer_supplied || view_supplied ||
+            graphics_profile_supplied || multi_tile_preview || footprint_policy_supplied)) ||
         (sandbox_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
             browse_maps || list_maps || scene_supplied || map_debug_supplied || render_check ||
             part_supplied || layer_supplied || view_supplied || terrain_bindings_supplied ||
@@ -288,7 +311,8 @@ int main(int argc, char* argv[]) {
         return openemperor::run_map_render_check(data_directory,map_debug_path,
             multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
             graphics_profile);
-    if (sandbox_check) return openemperor::run_sandbox_check(data_directory,sandbox_path,sandbox_rules);
+    if (sandbox_check) return openemperor::run_sandbox_check(data_directory,sandbox_path,
+                                                              sandbox_rules,sandbox_resume_check);
 
     std::optional<openemperor::assets::RgbaImage> preview;
     std::unique_ptr<openemperor::AssetBrowser> browser;
@@ -296,13 +320,24 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<openemperor::MapDebugView> map_view;
     std::unique_ptr<openemperor::MapBrowser> map_browser;
     std::unique_ptr<openemperor::SandboxView> sandbox_view;
-    if (sandbox_supplied) {
+    if (sandbox_supplied || load_sandbox_supplied) {
         try {
+            std::optional<openemperor::persistence::SaveDocument> initial;
+            if (load_sandbox_supplied) {
+                openemperor::persistence::validate_save_target(load_sandbox_path,data_directory);
+                initial=openemperor::persistence::read_save(load_sandbox_path);
+                sandbox_path=initial->map_relative;
+                sandbox_rules=initial->world.profile;
+                sandbox_save_path=load_sandbox_path;
+            }
+            if (sandbox_save_supplied || load_sandbox_supplied)
+                openemperor::persistence::validate_save_target(sandbox_save_path,data_directory);
             auto session=openemperor::maps::load_stored_map_session(data_directory,sandbox_path,
                 openemperor::maps::FootprintPolicy::EdgeByte4x4Preview,
                 openemperor::maps::StoredGraphicsProfile::Slot8);
             sandbox_view=std::make_unique<openemperor::SandboxView>(std::move(session),sandbox_demo,
                                                                     sandbox_rules);
+            sandbox_view->configure_save(data_directory,sandbox_path,sandbox_save_path,std::move(initial));
             std::cout << "Sandbox: " << sandbox_path.generic_string()
                       << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
                       << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"
