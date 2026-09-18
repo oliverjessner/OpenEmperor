@@ -117,6 +117,10 @@ def main():
     parser.add_argument("--build-type", default="Debug")
     parser.add_argument("--footprint-policy", choices=("disabled", "isolated", "edge-byte"),
                         default="edge-byte")
+    parser.add_argument("--graphics-profile", choices=(
+        "exe-6373328b-v213-runtime-table",
+        "exe-6373328b-v213-slot8-runtime-table"),
+        default="exe-6373328b-v213-runtime-table")
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
@@ -140,7 +144,7 @@ def main():
         commit = "unknown"
     report = {"schema": "openemperor-map-corpus-v1", "starting_commit": commit,
               "binary": str(binary), "build_type": args.build_type,
-              "graphics_profile": "exe-6373328b-v213-runtime-table",
+              "graphics_profile": args.graphics_profile,
               "footprint_policy": args.footprint_policy, "sdl_backend": "software/dummy",
               "render_width": 1280, "render_height": 720,
               "catalog_exit_code": listing["exit_code"],
@@ -156,7 +160,7 @@ def main():
             relative = entry["relative_path"]
             command = [str(binary), "--data", str(data), "--map-debug", relative,
                        "--view", "stored-graphics", "--graphics-profile",
-                       "exe-6373328b-v213-runtime-table", "--render-check", "--report-json"]
+                       args.graphics_profile, "--render-check", "--report-json"]
             if args.footprint_policy != "disabled":
                 command += ["--multi-tile-preview", "--footprint-policy", args.footprint_policy]
             started = time.monotonic()
@@ -174,6 +178,7 @@ def main():
             summary = {}
             problems = {}
             warnings = {}
+            slots = {}
             for item in report["results"]:
                 summary[item["status"]] = summary.get(item["status"], 0) + 1
                 for reason, cells in item.get("status_counts", {}).items():
@@ -188,9 +193,31 @@ def main():
                         bucket = warnings.setdefault(warning, {"maps": 0, "occurrences": 0})
                         bucket["maps"] += 1
                         bucket["occurrences"] += amount
+                for evidence in item.get("unregistered_slots", []):
+                    bucket = slots.setdefault(str(evidence["slot"]),
+                                              {"maps": 0, "candidate_cells": 0,
+                                               "stored_ids": set(), "ids_complete": True,
+                                               "min_local_index": evidence["min_local_index"],
+                                               "max_local_index": evidence["max_local_index"],
+                                               "example_maps": []})
+                    bucket["maps"] += 1
+                    bucket["candidate_cells"] += evidence["candidate_cells"]
+                    bucket["stored_ids"].update(evidence.get("stored_ids", []))
+                    bucket["ids_complete"] &= not evidence.get("stored_ids_truncated", True)
+                    bucket["min_local_index"] = min(bucket["min_local_index"],
+                                                      evidence["min_local_index"])
+                    bucket["max_local_index"] = max(bucket["max_local_index"],
+                                                      evidence["max_local_index"])
+                    if len(bucket["example_maps"]) < 4:
+                        bucket["example_maps"].append({"relative_path": item["relative_path"],
+                                                       "storage": evidence["examples"][0]})
             report["summary"] = summary
             report["problem_classes"] = problems
             report["warning_classes"] = warnings
+            report["unregistered_slots"] = {slot: {
+                **{key: value for key, value in bucket.items() if key != "stored_ids"},
+                "distinct_stored_ids": len(bucket["stored_ids"])}
+                for slot, bucket in slots.items()}
             save_report(args.report, report)
             print(f"{report['checked_files']}/{len(entries)} {relative}: {result['status']}", flush=True)
     except KeyboardInterrupt:

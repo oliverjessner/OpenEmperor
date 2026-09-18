@@ -16,13 +16,18 @@
 namespace openemperor::maps {
 
 inline constexpr const char* stored_graphics_profile = "exe-6373328b-v213-runtime-table";
+inline constexpr const char* stored_graphics_slot8_profile = "exe-6373328b-v213-slot8-runtime-table";
+enum class StoredGraphicsProfile { Base, Slot8 };
+const char* stored_graphics_profile_name(StoredGraphicsProfile profile);
+std::optional<std::filesystem::path> stored_registered_archive_path(
+    std::uint32_t slot, StoredGraphicsProfile profile);
 inline constexpr std::size_t stored_max_assets = 2048;
 inline constexpr std::uint64_t stored_max_image_bytes = 16U * 1024U * 1024U;
 inline constexpr std::uint64_t stored_max_payload_bytes = 16U * 1024U * 1024U;
 inline constexpr std::uint64_t stored_max_texture_bytes = 64U * 1024U * 1024U;
 
 enum class StoredStatus { Excluded, DecodePending, Rendered, UnsupportedHighBit,
-    UnregisteredSlot, UnverifiedRegistration, IndexOutOfRange, EmptyRecord,
+    UnregisteredSlot, UnverifiedRegistration, ArchiveMissing, IndexOutOfRange, EmptyRecord,
     SourceUnavailable, UnsupportedLayout, MultiTilePlacementUnverified,
     AmbiguousFootprint, IncompleteFootprint, AnchorUnresolved,
     UnsupportedFootprintSize, MirrorUnverified, DecodeFailed,
@@ -82,6 +87,7 @@ struct PlacedFootprint {
 
 struct StoredGraphicsPlan {
     std::filesystem::path data_root;
+    StoredGraphicsProfile profile = StoredGraphicsProfile::Base;
     std::vector<StoredCell> cells; // Exactly one per candidate, in painter order.
     std::vector<StoredAsset> assets; // Distinct physical AssetIds.
     std::vector<PlacedFootprint> footprints;
@@ -102,6 +108,26 @@ struct StoredGraphicsPlan {
     std::size_t covered_cells() const;
     std::size_t footprint_count(std::uint32_t side) const;
 };
+
+// Each entry owns its metadata, physical catalog and runtime layout. A known
+// optional registration may lack its local archive; it is never substituted.
+struct StoredArchiveRegistration {
+    std::uint32_t slot = 0;
+    std::filesystem::path relative_path;
+    std::optional<assets::Sg3Archive> metadata;
+    std::optional<assets::AssetCatalog> catalog;
+    std::optional<RuntimeArchiveLayout> layout;
+    bool archive_missing = false;
+};
+using StoredArchiveRegistrations = std::map<std::uint32_t,StoredArchiveRegistration>;
+
+StoredArchiveRegistrations load_stored_archive_registrations(
+    const std::filesystem::path& data_root, const MapGraphicCandidates& candidates,
+    const MapGeometry& geometry, StoredGraphicsProfile profile);
+StoredGraphicsPlan make_stored_graphics_plan(
+    const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
+    const MapGeometry& geometry, const StoredArchiveRegistrations& registrations,
+    FootprintPolicy policy, StoredGraphicsProfile profile);
 
 scene::Point stored_image_origin(scene::Point world, std::uint32_t width, std::uint32_t height);
 scene::Point stored_two_by_two_image_origin(scene::Point rear_world, std::uint32_t width,

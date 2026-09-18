@@ -7,6 +7,7 @@ const char* graphics_id_status_name(GraphicsIdStatus status) {
     case GraphicsIdStatus::UnsupportedHighBit: return "unsupported_high_bit";
     case GraphicsIdStatus::UnregisteredSlot: return "unregistered_slot";
     case GraphicsIdStatus::UnverifiedRegistration: return "unverified_registration";
+    case GraphicsIdStatus::ArchiveMissing: return "archive_missing";
     case GraphicsIdStatus::IndexOutOfRange: return "index_out_of_range";
     case GraphicsIdStatus::EmptyRecord: return "empty_record";
     case GraphicsIdStatus::SourceUnavailable: return "source_unavailable";
@@ -29,8 +30,13 @@ GraphicsIdResolution resolve_graphics_id_hypothesis(
     const auto found = registrations.find(result.slot);
     if (found == registrations.end()) return result;
     const auto& registration = found->second;
+    if (registration.archive_missing) {
+        result.status = GraphicsIdStatus::ArchiveMissing;
+        return result;
+    }
     const auto* layout = registration.layout;
-    if (registration.catalog == nullptr || layout == nullptr || layout->slot != result.slot ||
+    if (registration.catalog == nullptr || layout == nullptr || !layout->verified_registration ||
+        layout->slot != result.slot ||
         layout->sg3_version != 213 ||
         layout->image_capacity != registration.catalog->records.size()) {
         result.status = GraphicsIdStatus::UnverifiedRegistration;

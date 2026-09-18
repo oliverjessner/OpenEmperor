@@ -42,14 +42,14 @@ void print_usage(const char* executable) {
               << " [--part <index>] [--layer terrain_raw|objects_raw]"
               << " [--view storage|semantic|projected|textured|stored-graphics]"
               << " [--terrain-bindings <preview.json>]"
-              << " [--graphics-profile exe-6373328b-v213-runtime-table]"
+              << " [--graphics-profile exe-6373328b-v213-runtime-table|exe-6373328b-v213-slot8-runtime-table]"
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]\n";
     std::cerr << "       " << executable << " --data <directory> --browse-maps --view stored-graphics"
-              << " --graphics-profile exe-6373328b-v213-runtime-table"
+              << " --graphics-profile <base-or-slot8-runtime-table>"
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]\n"
               << "       " << executable << " --data <directory> --list-maps --report-json\n"
               << "       " << executable << " --data <directory> --map-debug <relative.map>"
-              << " --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table"
+              << " --view stored-graphics --graphics-profile <base-or-slot8-runtime-table>"
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]"
               << " --render-check --report-json\n";
 }
@@ -75,6 +75,7 @@ int main(int argc, char* argv[]) {
     bool view_supplied = false;
     bool terrain_bindings_supplied = false;
     bool graphics_profile_supplied = false;
+    auto graphics_profile = openemperor::maps::StoredGraphicsProfile::Base;
     bool multi_tile_preview = false;
     bool footprint_policy_supplied = false;
     auto footprint_policy = openemperor::maps::FootprintPolicy::IsolatedPreview;
@@ -141,7 +142,10 @@ int main(int argc, char* argv[]) {
             terrain_bindings_path = argv[++index];
             terrain_bindings_supplied = true;
         } else if (argument == "--graphics-profile" && !graphics_profile_supplied) {
-            if (std::string_view{argv[++index]} != openemperor::maps::stored_graphics_profile) {
+            const std::string_view selected{argv[++index]};
+            if (selected==openemperor::maps::stored_graphics_slot8_profile)
+                graphics_profile=openemperor::maps::StoredGraphicsProfile::Slot8;
+            else if (selected!=openemperor::maps::stored_graphics_profile) {
                 std::cerr << "Unsupported stored graphics profile\n";
                 return 2;
             }
@@ -223,7 +227,8 @@ int main(int argc, char* argv[]) {
         if (error || !fs::is_directory(absolute_path, error) || error) {
             if (render_check)
                 return openemperor::run_map_render_check(data_directory,map_debug_path,
-                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
+                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
+                    graphics_profile);
             std::cerr << "Data directory does not exist or cannot be accessed: " << data_directory.string() << '\n';
             return 2;
         }
@@ -247,7 +252,8 @@ int main(int argc, char* argv[]) {
     }
     if (render_check)
         return openemperor::run_map_render_check(data_directory,map_debug_path,
-            multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
+            multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
+            graphics_profile);
 
     std::optional<openemperor::assets::RgbaImage> preview;
     std::unique_ptr<openemperor::AssetBrowser> browser;
@@ -299,7 +305,8 @@ int main(int argc, char* argv[]) {
         try {
             map_browser=std::make_unique<openemperor::MapBrowser>(
                 openemperor::maps::discover_standalone_maps(data_directory),
-                multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
+                multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
+                graphics_profile);
         } catch (const std::exception& error) {
             std::cerr<<"Map browser scan failed: "<<error.what()<<'\n'; return 1;
         }
@@ -307,7 +314,8 @@ int main(int argc, char* argv[]) {
         try {
             if (graphics_profile_supplied && !part_supplied) {
                 auto session=openemperor::maps::load_stored_map_session(data_directory,map_debug_path,
-                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
+                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
+                    graphics_profile);
                 std::cout << "Original map: " << map_debug_path << " part 0 storage "
                           << session.map.stored_width << 'x' << session.map.stored_height
                           << " declared size " << session.map.declared_map_size
@@ -330,23 +338,13 @@ int main(int argc, char* argv[]) {
             if (graphics_profile_supplied) {
                 namespace maps = openemperor::maps;
                 namespace assets = openemperor::assets;
-                const fs::path terrain_relative = "DATA/China_Terrain.sg3";
-                const fs::path elevation_relative = "DATA/China_Elevation.sg3";
-                const auto terrain_path = maps::validate_stored_archive_sources(data_directory,terrain_relative);
-                const auto elevation_path = maps::validate_stored_archive_sources(data_directory,elevation_relative);
-                const auto terrain_archive = assets::read_sg3_archive(terrain_path);
-                const auto elevation_archive = assets::read_sg3_archive(elevation_path);
-                const auto terrain_layout = maps::build_runtime_archive_layout(3,terrain_archive);
-                const auto elevation_layout = maps::build_runtime_archive_layout(16,elevation_archive);
-                if (!terrain_layout || !elevation_layout)
-                    throw std::runtime_error("unsupported v213 Terrain/Elevation runtime layout");
-                const auto terrain_catalog = assets::scan_asset_archive(data_directory,terrain_relative);
-                const auto elevation_catalog = assets::scan_asset_archive(data_directory,elevation_relative);
                 const auto candidates = maps::read_map_graphic_candidates(container,map_part);
                 const maps::MapGeometry geometry{map.declared_map_size};
-                stored_plan = maps::make_stored_graphics_plan(map,candidates,geometry,
-                    terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,
-                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
+                const auto registrations=maps::load_stored_archive_registrations(
+                    data_directory,candidates,geometry,graphics_profile);
+                stored_plan = maps::make_stored_graphics_plan(map,candidates,geometry,registrations,
+                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
+                    graphics_profile);
             }
             map_view = std::make_unique<openemperor::MapDebugView>(
                 std::move(map), map_layer, map_view_mode, std::move(bindings),std::move(stored_plan));

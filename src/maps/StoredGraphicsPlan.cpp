@@ -31,6 +31,7 @@ StoredStatus from_resolution(GraphicsIdStatus status) {
     case GraphicsIdStatus::UnsupportedHighBit: return StoredStatus::UnsupportedHighBit;
     case GraphicsIdStatus::UnregisteredSlot: return StoredStatus::UnregisteredSlot;
     case GraphicsIdStatus::UnverifiedRegistration: return StoredStatus::UnverifiedRegistration;
+    case GraphicsIdStatus::ArchiveMissing: return StoredStatus::ArchiveMissing;
     case GraphicsIdStatus::IndexOutOfRange: return StoredStatus::IndexOutOfRange;
     case GraphicsIdStatus::EmptyRecord: return StoredStatus::EmptyRecord;
     case GraphicsIdStatus::SourceUnavailable: return StoredStatus::SourceUnavailable;
@@ -324,6 +325,7 @@ const char* stored_status_name(StoredStatus status) {
     case StoredStatus::UnsupportedHighBit: return "unsupported_high_bit";
     case StoredStatus::UnregisteredSlot: return "unregistered_slot";
     case StoredStatus::UnverifiedRegistration: return "unverified_registration";
+    case StoredStatus::ArchiveMissing: return "archive_missing";
     case StoredStatus::IndexOutOfRange: return "index_out_of_range";
     case StoredStatus::EmptyRecord: return "empty_record";
     case StoredStatus::SourceUnavailable: return "source_unavailable";
@@ -391,30 +393,31 @@ std::size_t StoredGraphicsPlan::footprint_count(std::uint32_t side) const {
         [side](const auto& footprint) { return footprint.width_cells==side; }));
 }
 
-StoredGraphicsPlan make_stored_graphics_plan(
+namespace {
+StoredGraphicsPlan make_plan_impl(
     const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
-    const MapGeometry& geometry, const assets::AssetCatalog& terrain,
-    const RuntimeArchiveLayout& terrain_layout, const assets::AssetCatalog& elevation,
-    const RuntimeArchiveLayout& elevation_layout, FootprintPolicy policy) {
+    const MapGeometry& geometry,
+    const std::map<std::uint32_t,GraphicsArchiveRegistration>& registrations,
+    const fs::path& data_root, FootprintPolicy policy, StoredGraphicsProfile profile) {
     constexpr auto storage_count = static_cast<std::size_t>(stored_grid_width) * stored_grid_height;
     if (!geometry.supported || geometry.candidate.size() != storage_count ||
         map.terrain_raw.values.size() != storage_count || map.objects_raw.values.size() != storage_count ||
         candidates.candidate_word_layer.size() != storage_count ||
         candidates.candidate_byte_layer.size() != storage_count)
         throw std::invalid_argument("stored graphics require complete supported map grids");
-    if (terrain.data_root.empty() || terrain.data_root != elevation.data_root ||
-        terrain_layout.slot != 3 || elevation_layout.slot != 16)
+    if (data_root.empty() || !registrations.contains(3U) || !registrations.contains(16U) ||
+        !registrations.at(3U).catalog || !registrations.at(3U).layout ||
+        !registrations.at(16U).catalog || !registrations.at(16U).layout)
         throw std::invalid_argument("stored graphics require verified Terrain/Elevation registrations");
     StoredGraphicsPlan plan;
-    plan.data_root = terrain.data_root;
+    plan.data_root = data_root;
+    plan.profile = profile;
     plan.multi_tile_preview = policy!=FootprintPolicy::Disabled;
     plan.footprint_policy = policy;
     plan.border = geometry.border;
     plan.mask_comparison = compare_masks(map,geometry);
     plan.status_by_storage.assign(storage_count, StoredStatus::Excluded);
     plan.cell_by_storage.resize(storage_count);
-    const std::map<std::uint32_t,GraphicsArchiveRegistration> registrations{
-        {3,{&terrain,&terrain_layout}}, {16,{&elevation,&elevation_layout}}};
     std::map<std::tuple<std::string,std::uint32_t>,std::size_t> distinct;
     for (std::uint32_t y=0; y<stored_grid_height; ++y) {
         for (std::uint32_t x=0; x<stored_grid_width; ++x) {
@@ -438,8 +441,9 @@ StoredGraphicsPlan make_stored_graphics_plan(
             cell.physical_record = resolved.physical_record_index;
             cell.lookup_status = resolved.status;
             cell.record_present = resolved.record != nullptr;
-            if (resolved.slot == 3) cell.system_record_skip = terrain_layout.system_record_skip;
-            if (resolved.slot == 16) cell.system_record_skip = elevation_layout.system_record_skip;
+            const auto registration=registrations.find(resolved.slot);
+            if (registration!=registrations.end() && registration->second.layout)
+                cell.system_record_skip=registration->second.layout->system_record_skip;
             cell.status = from_resolution(resolved.status);
             if (resolved.record) {
                 const auto& record = *resolved.record;
@@ -485,6 +489,43 @@ StoredGraphicsPlan make_stored_graphics_plan(
     if (plan.cells.size() + plan.excluded != storage_count)
         throw std::logic_error("stored graphics candidate accounting mismatch");
     return plan;
+}
+} // namespace
+
+StoredGraphicsPlan make_stored_graphics_plan(
+    const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
+    const MapGeometry& geometry, const StoredArchiveRegistrations& owned,
+    FootprintPolicy policy, StoredGraphicsProfile profile) {
+    std::map<std::uint32_t,GraphicsArchiveRegistration> registrations;
+    fs::path root;
+    for (const auto& [slot,entry]:owned) {
+        if (slot!=entry.slot || (slot!=3U && slot!=16U &&
+            !(slot==8U && profile==StoredGraphicsProfile::Slot8)))
+            throw std::invalid_argument("unverified stored graphics registration");
+        if (entry.catalog) {
+            if (!root.empty() && root!=entry.catalog->data_root)
+                throw std::invalid_argument("stored graphics catalogs have different roots");
+            root=entry.catalog->data_root;
+        }
+        registrations.emplace(slot,GraphicsArchiveRegistration{
+            entry.catalog ? &*entry.catalog : nullptr,
+            entry.layout ? &*entry.layout : nullptr,entry.archive_missing});
+    }
+    return make_plan_impl(map,candidates,geometry,registrations,root,policy,profile);
+}
+
+StoredGraphicsPlan make_stored_graphics_plan(
+    const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
+    const MapGeometry& geometry, const assets::AssetCatalog& terrain,
+    const RuntimeArchiveLayout& terrain_layout, const assets::AssetCatalog& elevation,
+    const RuntimeArchiveLayout& elevation_layout, FootprintPolicy policy) {
+    if (terrain.data_root.empty() || terrain.data_root!=elevation.data_root ||
+        terrain_layout.slot!=3U || elevation_layout.slot!=16U)
+        throw std::invalid_argument("stored graphics require verified Terrain/Elevation registrations");
+    const std::map<std::uint32_t,GraphicsArchiveRegistration> registrations{
+        {3,{&terrain,&terrain_layout,false}}, {16,{&elevation,&elevation_layout,false}}};
+    return make_plan_impl(map,candidates,geometry,registrations,terrain.data_root,policy,
+                          StoredGraphicsProfile::Base);
 }
 
 StoredGraphicsPlan make_stored_graphics_plan(

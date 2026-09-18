@@ -70,7 +70,8 @@ Bytes tile(std::uint16_t color) {
     for (std::size_t i=0;i<b.size();i+=2) u16(b,i,color);
     return b;
 }
-Bytes stored_map_file(std::uint32_t marker,bool partial=false,std::uint32_t declared_size=84) {
+Bytes stored_map_file(std::uint32_t marker,bool partial=false,std::uint32_t declared_size=84,
+                      bool slot8=false) {
     Bytes raw(static_cast<std::size_t>(maps::objects_logical_offset+maps::grid_byte_length),0);
     const std::array<std::uint8_t,8> signature{5,0,0xfe,0xca,0,0,2,0};
     std::copy(signature.begin(),signature.end(),raw.begin());
@@ -82,6 +83,8 @@ Bytes stored_map_file(std::uint32_t marker,bool partial=false,std::uint32_t decl
     }
     if (partial) u32(raw,static_cast<std::size_t>(maps::candidate_word_logical_offset)+
                          4U*(114U*228U+114U),0xc002);
+    if (slot8) u32(raw,static_cast<std::size_t>(maps::candidate_word_logical_offset)+
+                       4U*(114U*228U+114U),0x20000);
     Bytes file{0xaa,0xba,0xdc,0xfe};
     for (std::size_t at=0;at<raw.size();at+=32768) {
         const auto length=std::min<std::size_t>(32768,raw.size()-at);
@@ -208,6 +211,92 @@ int main() {
         const auto map=map_fixture();
         const auto candidates=candidates_fixture();
         const maps::MapGeometry geometry{map.declared_map_size};
+        auto extra_candidates=candidates_fixture();
+        set_id(extra_candidates,110,110,0x20000);
+        set_id(extra_candidates,111,110,0x20001);
+        set_id(extra_candidates,112,110,0xc000);
+        const auto extra_geometry=sparse_geometry({{110,110},{111,110},{112,110}});
+        const auto base_registrations=maps::load_stored_archive_registrations(
+            temp.path,extra_candidates,extra_geometry,maps::StoredGraphicsProfile::Base);
+        check(!base_registrations.contains(8U),"base profile retains its two registrations");
+        const auto missing_registrations=maps::load_stored_archive_registrations(
+            temp.path,extra_candidates,extra_geometry,maps::StoredGraphicsProfile::Slot8);
+        check(missing_registrations.at(8U).archive_missing &&
+              !missing_registrations.at(8U).catalog,"known optional archive is missing");
+        const auto missing_plan=maps::make_stored_graphics_plan(
+            map,extra_candidates,extra_geometry,missing_registrations,
+            maps::FootprintPolicy::EdgeBytePreview,maps::StoredGraphicsProfile::Slot8);
+        check(missing_plan.at({110,110})->status==maps::StoredStatus::ArchiveMissing &&
+              missing_plan.at({112,110})->physical_record==201,
+              "missing optional archive does not block required terrain");
+        const auto unused_registrations=maps::load_stored_archive_registrations(
+            temp.path,candidates,geometry,maps::StoredGraphicsProfile::Slot8);
+        check(!unused_registrations.contains(8U),"unused optional archive is not loaded");
+        auto slot8_sg3=sg3(205,202);
+        record(slot8_sg3,201,0,3200,30,78,40,3200);
+        record(slot8_sg3,202,0,3200,30,318,160,51200,0,4);
+        write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3",slot8_sg3);
+        write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.555",red);
+        const auto extra_registrations=maps::load_stored_archive_registrations(
+            temp.path,extra_candidates,extra_geometry,maps::StoredGraphicsProfile::Slot8);
+        check(extra_registrations.at(8U).layout &&
+              extra_registrations.at(8U).layout->first_physical_record==201 &&
+              extra_registrations.at(8U).catalog,
+              "extra archive owns metadata, catalog and verified layout");
+        auto extra_plan=maps::make_stored_graphics_plan(
+            map,extra_candidates,extra_geometry,extra_registrations,
+            maps::FootprintPolicy::EdgeBytePreview,maps::StoredGraphicsProfile::Slot8);
+        check(extra_plan.profile==maps::StoredGraphicsProfile::Slot8 &&
+              extra_plan.at({110,110})->physical_record==201 &&
+              extra_plan.at({110,110})->status==maps::StoredStatus::DecodePending &&
+              extra_plan.at({111,110})->status==maps::StoredStatus::UnsupportedFootprintSize &&
+              extra_plan.at({112,110})->physical_record==201 &&
+              extra_plan.at({110,110})->asset_index!=extra_plan.at({112,110})->asset_index,
+              "slot8 and terrain keep separate physical contexts and unchanged footprint rules");
+        const auto extra_image=assets::load_sg3_image(
+            {temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3",201});
+        check(extra_image.width==78 && extra_image.height==40 &&
+              extra_image.pixels[38U*4U]==255,
+              "resolved synthetic slot8 image decodes through the normal loader");
+        auto unsupported_sg3=slot8_sg3;
+        const std::string other_name="Other_system.bmp";
+        std::fill(unsupported_sg3.begin()+680,unsupported_sg3.begin()+744,0);
+        std::copy(other_name.begin(),other_name.end(),unsupported_sg3.begin()+680);
+        write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3",unsupported_sg3);
+        const auto unsupported_registrations=maps::load_stored_archive_registrations(
+            temp.path,extra_candidates,extra_geometry,maps::StoredGraphicsProfile::Slot8);
+        check(!unsupported_registrations.at(8U).layout &&
+              maps::make_stored_graphics_plan(map,extra_candidates,extra_geometry,
+                  unsupported_registrations,maps::FootprintPolicy::EdgeBytePreview,
+                  maps::StoredGraphicsProfile::Slot8).at({110,110})->status==
+                  maps::StoredStatus::UnverifiedRegistration,
+              "present archive with unsupported layout remains unverified");
+        write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3",slot8_sg3);
+        {
+            Temp outside;
+            write(outside.path/"DATA/escape.sg3",slot8_sg3);
+            fs::remove(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3");
+            fs::create_symlink(outside.path/"DATA/escape.sg3",
+                               temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3");
+            bool rejected=false;
+            try { (void)maps::load_stored_archive_registrations(
+                    temp.path,extra_candidates,extra_geometry,maps::StoredGraphicsProfile::Slot8); }
+            catch (const std::exception&) { rejected=true; }
+            check(rejected,"optional archive symlink cannot escape data root");
+            fs::remove(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3");
+            write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.sg3",slot8_sg3);
+            write(outside.path/"DATA/escape.555",red);
+            fs::remove(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.555");
+            fs::create_symlink(outside.path/"DATA/escape.555",
+                               temp.path/"DATA/China_Mon_Earthen_Greatwall_1.555");
+            rejected=false;
+            try { (void)maps::load_stored_archive_registrations(
+                    temp.path,extra_candidates,extra_geometry,maps::StoredGraphicsProfile::Slot8); }
+            catch (const std::exception&) { rejected=true; }
+            check(rejected,"optional bitmap symlink cannot escape data root");
+            fs::remove(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.555");
+            write(temp.path/"DATA/China_Mon_Earthen_Greatwall_1.555",red);
+        }
         auto plan=maps::make_stored_graphics_plan(map,candidates,geometry,terrain_catalog,*terrain_layout,
                                                   elevation_catalog,*elevation_layout);
         check(plan.cells.size()==3612 && plan.excluded==48372 &&
@@ -542,6 +631,22 @@ int main() {
             check(openemperor::StoredGraphicsRenderer::live_texture_count()==0,
                   "failed-session recovery releases good map resources");
         }
+        write(temp.path/"Cities/Slot8.map",stored_map_file(0x80,false,84,true));
+        {
+            openemperor::MapBrowser browser{maps::discover_standalone_maps(temp.path),
+                maps::FootprintPolicy::EdgeBytePreview,maps::StoredGraphicsProfile::Slot8};
+            browser.initialize(window,renderer);
+            bool running=true;
+            SDL_Event down{}; down.type=SDL_EVENT_KEY_DOWN; down.key.key=SDLK_DOWN;
+            for (int i=0;i<4;++i) browser.handle_event(down,running);
+            check(browser.open_selected() && browser.render() &&
+                  browser.statuses()[4]=="snapshot_complete" &&
+                  openemperor::StoredGraphicsRenderer::live_texture_count()==2,
+                  "extended browser resolves and decodes synthetic slot8 image");
+            browser.shutdown();
+            check(openemperor::StoredGraphicsRenderer::live_texture_count()==0,
+                  "extended browser releases both slot textures");
+        }
         write(temp.path/"Cities/C.map",stored_map_file(0x80,true));
         {
             auto adjacent=edge_plan(vertical_candidates,vertical_cells);
@@ -750,6 +855,18 @@ int main() {
         };
         const auto full_report=check_report("Cities/A.map");
         const auto partial_report=check_report("Cities/C.map");
+        {
+            std::ostringstream output;
+            auto* previous=std::cout.rdbuf(output.rdbuf());
+            const auto code=openemperor::run_map_render_check(temp.path,"Cities/Slot8.map",
+                maps::FootprintPolicy::EdgeBytePreview,maps::StoredGraphicsProfile::Slot8);
+            std::cout.rdbuf(previous);
+            const auto selected=nlohmann::json::parse(output.str());
+            check(code==0 && selected.at("graphics_profile")==maps::stored_graphics_slot8_profile &&
+                  selected.at("status")=="snapshot_complete" &&
+                  selected.at("decoded_assets")==2 && selected.at("texture_uploads")==2,
+                  "headless check uses same extended registration and actual decode");
+        }
         check(full_report.at("status")=="snapshot_complete" &&
               full_report.at("stages").at("render_frames")==true &&
               full_report.at("decoded_assets")==1 && full_report.at("texture_uploads")==1 &&
@@ -758,6 +875,17 @@ int main() {
               partial_report.at("diagnostic_cells")==1 &&
               partial_report.at("stages").at("render_frames")==true,
               "render-check JSON distinguishes full and partial actual decoder/renderer runs");
+        {
+            std::ostringstream output;
+            auto* previous=std::cout.rdbuf(output.rdbuf());
+            const auto code=openemperor::run_map_render_check(temp.path,"Cities/A.map",
+                maps::FootprintPolicy::EdgeBytePreview,maps::StoredGraphicsProfile::Slot8);
+            std::cout.rdbuf(previous);
+            const auto selected=nlohmann::json::parse(output.str());
+            check(code==0 && selected.at("graphics_profile")==maps::stored_graphics_slot8_profile &&
+                  selected.at("covered_cells")==full_report.at("covered_cells"),
+                  "headless report states the selected profile and unused extra archive is harmless");
+        }
         {
             std::ostringstream output;
             auto* previous=std::cout.rdbuf(output.rdbuf());

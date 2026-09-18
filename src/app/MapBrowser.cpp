@@ -22,8 +22,10 @@ std::string ascii_label(const std::string& original) {
 }
 } // namespace
 
-MapBrowser::MapBrowser(maps::MapCatalog catalog,maps::FootprintPolicy policy)
-    : catalog_(std::move(catalog)),policy_(policy),statuses_(catalog_.entries.size(),"not_checked") {}
+MapBrowser::MapBrowser(maps::MapCatalog catalog,maps::FootprintPolicy policy,
+                       maps::StoredGraphicsProfile profile)
+    : catalog_(std::move(catalog)),policy_(policy),profile_(profile),
+      statuses_(catalog_.entries.size(),"not_checked") {}
 MapBrowser::~MapBrowser() { shutdown(); }
 void MapBrowser::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     window_=window; renderer_=renderer;
@@ -44,7 +46,8 @@ bool MapBrowser::open_selected() {
         return false;
     }
     try {
-        auto session=maps::load_stored_map_session(catalog_.data_root,entry.relative_path,policy_);
+        auto session=maps::load_stored_map_session(catalog_.data_root,entry.relative_path,
+                                                   policy_,profile_);
         auto view=std::make_unique<MapDebugView>(std::move(session.map),maps::RawLayer::Terrain,
             maps::MapViewMode::StoredGraphics,std::nullopt,std::move(session.plan));
         view->initialize(window_,renderer_);
@@ -122,7 +125,7 @@ bool MapBrowser::render() {
     if (!SDL_GetCurrentRenderOutputSize(renderer_,&width,&height) ||
         !SDL_SetRenderDrawColor(renderer_,17,21,28,255) || !SDL_RenderClear(renderer_) ||
         !SDL_SetRenderDrawColor(renderer_,235,240,245,255)) return false;
-    const auto heading=std::string{"OPENEMPEROR MAPS | PROFILE "}+maps::stored_graphics_profile+
+    const auto heading=std::string{"OPENEMPEROR MAPS | PROFILE "}+maps::stored_graphics_profile_name(profile_)+
         " | POLICY "+maps::footprint_policy_name(policy_);
     if (!SDL_RenderDebugText(renderer_,16,12,heading.c_str()) ||
         !SDL_RenderDebugText(renderer_,16,36,"ARROWS / PAGE UP-DOWN SELECT | ENTER OR DOUBLE CLICK OPEN | ESC QUIT")) return false;

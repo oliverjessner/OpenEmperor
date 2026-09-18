@@ -9,7 +9,7 @@
 
 namespace openemperor::maps {
 
-// The examined EXE's v213 loader for explicitly registered Terrain/Elevation.
+// The examined EXE's v213 loader for explicitly evidenced registrations.
 // Asset catalog IDs remain physical SG3 record positions.
 struct RuntimeGroupEntry {
     std::uint32_t sg3_index_position = 0;
@@ -20,6 +20,7 @@ struct RuntimeGroupEntry {
 
 struct RuntimeArchiveLayout {
     std::uint32_t slot = 0;
+    bool verified_registration = false;
     std::uint32_t sg3_version = 0;
     std::uint32_t image_capacity = 0;
     std::uint32_t reported_images_in_use = 0;
@@ -33,10 +34,13 @@ struct RuntimeArchiveLayout {
     std::optional<std::uint32_t> physical_record_for_local(std::uint32_t local) const;
 };
 
-// Returns null for unsupported slot/version or inconsistent metadata. The
+enum class RuntimeLayoutEvidence { TerrainElevation, TerrainElevationAndSlot8 };
+
+// Returns null for unsupported slot/evidence/version or inconsistent metadata. The
 // first SG3 bitmap-group filename, not the outer archive name, selects the
 // studied 200-record branch. Retained index words keep file order.
 std::optional<RuntimeArchiveLayout> build_runtime_archive_layout(
-    std::uint32_t slot, const assets::Sg3Archive& archive);
+    std::uint32_t slot, const assets::Sg3Archive& archive,
+    RuntimeLayoutEvidence evidence = RuntimeLayoutEvidence::TerrainElevation);
 
 } // namespace openemperor::maps

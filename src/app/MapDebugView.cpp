@@ -75,7 +75,7 @@ void MapDebugView::initialize(SDL_Window* window, SDL_Renderer* renderer) {
     if (stored_renderer_) {
         stored_renderer_->initialize(renderer_);
         const auto& plan = stored_renderer_->plan();
-        std::cout << "Stored graphics preview: profile=" << maps::stored_graphics_profile
+        std::cout << "Stored graphics preview: profile=" << maps::stored_graphics_profile_name(plan.profile)
                   << " candidate=" << plan.cells.size() << " excluded=" << plan.excluded
                   << " mask_mismatches=" << plan.mask_comparison.mismatches()
                   << " distinct_referenced_assets=" << plan.assets.size()
@@ -279,7 +279,7 @@ void MapDebugView::show_selected() {
         const auto& plan = stored_renderer_->plan();
         const auto* cell = plan.at(*selected_);
         if (!cell) { std::cout << "stored_graphics_status=excluded\n"; return; }
-        std::cout << "stored_graphics_profile=" << maps::stored_graphics_profile
+        std::cout << "stored_graphics_profile=" << maps::stored_graphics_profile_name(plan.profile)
                   << " stored_id=" << hex32(cell->stored_id) << " (" << cell->stored_id << ')'
                   << " logical_offset=" << cell->logical_offset
                   << " candidate_byte=" << static_cast<unsigned>(cell->candidate_byte)

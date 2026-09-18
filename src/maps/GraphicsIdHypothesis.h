@@ -12,7 +12,7 @@ namespace openemperor::maps {
 // Version-specific diagnostic hypothesis, not a proven map-layer interpretation.
 // The examined PE's generic graphic lookup divides nonnegative IDs by 16384.
 enum class GraphicsIdStatus { UnsupportedHighBit, UnregisteredSlot, UnverifiedRegistration,
-                              IndexOutOfRange,
+                              ArchiveMissing, IndexOutOfRange,
                               EmptyRecord, SourceUnavailable, UnsupportedLayout, DecodeCandidate };
 const char* graphics_id_status_name(GraphicsIdStatus status);
 
@@ -30,6 +30,7 @@ struct GraphicsIdResolution {
 struct GraphicsArchiveRegistration {
     const assets::AssetCatalog* catalog = nullptr;
     const RuntimeArchiveLayout* layout = nullptr;
+    bool archive_missing = false;
 };
 
 // Callers provide an explicit registration snapshot. No filesystem-order or

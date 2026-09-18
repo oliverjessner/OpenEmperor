@@ -128,6 +128,47 @@ int main() {
         check(!maps::build_runtime_archive_layout(3,bad) &&
               !maps::build_runtime_archive_layout(4,system),
               "unverified version and registration rejected");
+        check(!maps::build_runtime_archive_layout(8,system),
+              "base profile does not silently acquire slot 8");
+        auto slot8=system;
+        slot8.groups[0].image_count=200;
+        slot8.groups[0].first_image_index=1;
+        slot8.groups[0].last_image_index=200;
+        const auto slot8_layout=maps::build_runtime_archive_layout(
+            8,slot8,maps::RuntimeLayoutEvidence::TerrainElevationAndSlot8);
+        check(slot8_layout && slot8_layout->physical_record_for_local(0)==201 &&
+              slot8_layout->physical_record_for_local(3)==204 &&
+              !slot8_layout->physical_record_for_local(200),
+              "slot 8 uses the verified v213 system and dummy skip once");
+        const auto slot8_group=maps::resolve_resource_group(
+            {0x1001},{{8,{&*slot8_layout}}});
+        check(slot8_group.status==maps::GroupLookupStatus::Resolved &&
+              slot8_group.local_base==0 && slot8_group.packed_base &&
+              slot8_group.packed_base->value==0x20000,
+              "group and image resolvers share slot8 registration layout");
+        auto wrong_group=slot8;
+        wrong_group.groups[0].filename="Other.bmp";
+        check(!maps::build_runtime_archive_layout(
+            8,wrong_group,maps::RuntimeLayoutEvidence::TerrainElevationAndSlot8),
+            "slot 8 requires the observed system bitmap group");
+        auto wrong_version=slot8;
+        wrong_version.header.version=214;
+        check(!maps::build_runtime_archive_layout(
+            8,wrong_version,maps::RuntimeLayoutEvidence::TerrainElevationAndSlot8),
+            "slot 8 does not enable another SG3 version");
+        const std::map<std::uint32_t,maps::GraphicsArchiveRegistration> both{
+            {3,{&catalog,&*system_layout}}, {8,{&catalog,&*slot8_layout}}};
+        const auto slot8_image=maps::resolve_graphics_id_hypothesis(0x20003,both);
+        check(slot8_image.slot==8 && slot8_image.local_index==3 &&
+              slot8_image.physical_record_index==204 &&
+              maps::resolve_graphics_id_hypothesis(0xc003,both).slot==3,
+              "same local index remains scoped to its registered slot");
+        check(maps::resolve_graphics_id_hypothesis(0x20003,{{3,{&catalog,&*system_layout}}}).status==
+                  maps::GraphicsIdStatus::UnregisteredSlot,
+              "no implicit archive or filesystem fallback");
+        check(maps::resolve_graphics_id_hypothesis(0x20003,{{8,{nullptr,nullptr,true}}}).status==
+                  maps::GraphicsIdStatus::ArchiveMissing,
+              "known missing optional archive differs from unknown slot");
         bad=system;
         bad.header.reported_images_in_use=199;
         check(!maps::build_runtime_archive_layout(3,bad),"skip beyond reported count rejected");

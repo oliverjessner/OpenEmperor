@@ -14,6 +14,7 @@ struct StoredMapSession {
 
 StoredMapSession load_stored_map_session(const std::filesystem::path& data_root,
                                         const std::filesystem::path& map_relative,
-                                        FootprintPolicy policy);
+                                        FootprintPolicy policy,
+                                        StoredGraphicsProfile profile = StoredGraphicsProfile::Base);
 
 } // namespace openemperor::maps

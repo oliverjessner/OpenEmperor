@@ -32,10 +32,11 @@ GroupResolution resolve_resource_group(
     }
     result.group_position = one_based_position - 1U;
     const auto found = registrations.find(result.slot);
-    if (found == registrations.end() || (result.slot != 3U && result.slot != 16U))
+    if (found == registrations.end())
         return result;
     const auto* layout = found->second.layout;
-    if (layout == nullptr || layout->slot != result.slot || layout->sg3_version != 213) {
+    if (layout == nullptr || !layout->verified_registration ||
+        layout->slot != result.slot || layout->sg3_version != 213) {
         result.status = GroupLookupStatus::UnverifiedRegistration;
         return result;
     }

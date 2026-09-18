@@ -43,14 +43,17 @@ class CorpusRunnerTests(unittest.TestCase):
                 " print(json.dumps({'entries':[{'relative_path':'Cities/One Map.map'},"
                 "{'relative_path':'Cities/Bad.map'}], 'scan_errors':[]}))\n"
                 "elif any('One Map.map' in part for part in sys.argv):\n"
-                " print(json.dumps({'status':'snapshot_complete','candidate_cells':4,'covered_cells':4}))\n"
+                " profile=sys.argv[sys.argv.index('--graphics-profile')+1]\n"
+                " print(json.dumps({'status':'snapshot_complete','candidate_cells':4,"
+                "'covered_cells':4,'graphics_profile':profile}))\n"
                 "else:\n"
                 " print('broken output'); sys.exit(9)\n", encoding="utf-8")
             fake.chmod(0o755)
             report = root / "reports" / "results.json"
             result = subprocess.run([sys.executable, str(RUNNER), "--binary", str(fake),
                                      "--data", str(root / "data with spaces"),
-                                     "--report", str(report), "--timeout", "2"],
+                                     "--report", str(report), "--timeout", "2",
+                                     "--graphics-profile", "exe-6373328b-v213-slot8-runtime-table"],
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             saved = json.loads(report.read_text(encoding="utf-8"))
@@ -58,6 +61,8 @@ class CorpusRunnerTests(unittest.TestCase):
             self.assertEqual(saved["checked_files"], 2)
             self.assertEqual(saved["summary"], {"snapshot_complete": 1, "process_failed": 1})
             self.assertEqual(saved["results"][0]["relative_path"], "Cities/One Map.map")
+            self.assertEqual(saved["results"][0]["graphics_profile"],
+                             "exe-6373328b-v213-slot8-runtime-table")
 
     def test_timed_map_keeps_previous_result(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -76,7 +81,7 @@ class CorpusRunnerTests(unittest.TestCase):
             report = root / "report.json"
             result = subprocess.run([sys.executable, str(RUNNER), "--binary", str(fake),
                                      "--data", str(root), "--report", str(report),
-                                     "--timeout", "0.3"], capture_output=True,
+                                     "--timeout", "1"], capture_output=True,
                                     text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             saved = json.loads(report.read_text(encoding="utf-8"))

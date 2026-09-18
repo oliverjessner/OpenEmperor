@@ -17,7 +17,8 @@ class MapDebugView;
 
 class MapBrowser {
 public:
-    MapBrowser(maps::MapCatalog catalog,maps::FootprintPolicy policy);
+    MapBrowser(maps::MapCatalog catalog,maps::FootprintPolicy policy,
+               maps::StoredGraphicsProfile profile = maps::StoredGraphicsProfile::Base);
     ~MapBrowser();
     void initialize(SDL_Window* window,SDL_Renderer* renderer);
     void shutdown();
@@ -32,6 +33,7 @@ public:
 private:
     maps::MapCatalog catalog_;
     maps::FootprintPolicy policy_;
+    maps::StoredGraphicsProfile profile_;
     std::vector<std::string> statuses_;
     std::size_t selected_=0;
     std::string message_;

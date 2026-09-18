@@ -10,7 +10,9 @@
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -37,12 +39,12 @@ struct SdlCheck {
 
 int run_map_render_check(const std::filesystem::path& data_root,
                          const std::filesystem::path& relative_map,
-                         maps::FootprintPolicy policy) {
+                         maps::FootprintPolicy policy, maps::StoredGraphicsProfile profile) {
     Json report{
         {"schema","openemperor-map-render-check-v1"},
         {"relative_path",relative_map.generic_string()},
         {"status","not_checked"},
-        {"graphics_profile",maps::stored_graphics_profile},
+        {"graphics_profile",maps::stored_graphics_profile_name(profile)},
         {"footprint_policy",maps::footprint_policy_name(policy)},
         {"original_game_comparison",false},
         {"stages",{{"file_discovered",false},{"container_valid",false},
@@ -65,7 +67,7 @@ int run_map_render_check(const std::filesystem::path& data_root,
             report["status"]="unsupported_profile";
             throw std::runtime_error("unsupported map geometry");
         }
-        auto session=maps::load_stored_map_session(data_root,relative_map,policy);
+        auto session=maps::load_stored_map_session(data_root,relative_map,policy,profile);
         report["stages"]["graphics_plan_created"]=true;
         SdlCheck sdl;
         if (!SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER,"dummy",SDL_HINT_OVERRIDE))
@@ -97,6 +99,38 @@ int run_map_render_check(const std::filesystem::path& data_root,
             report["covered_cells"]=plan.covered_cells();
             report["diagnostic_cells"]=plan.cells.size()-plan.covered_cells();
             report["status_counts"]=counts;
+            struct SlotEvidence {
+                std::size_t cells=0;
+                std::set<std::uint32_t> ids;
+                std::uint32_t min_local=std::numeric_limits<std::uint32_t>::max();
+                std::uint32_t max_local=0;
+                Json examples=Json::array();
+            };
+            std::map<std::uint32_t,SlotEvidence> missing_slots;
+            for (const auto& cell:plan.cells) {
+                if (cell.lookup_status!=maps::GraphicsIdStatus::UnregisteredSlot) continue;
+                auto& evidence=missing_slots[cell.slot];
+                ++evidence.cells;
+                evidence.ids.insert(cell.stored_id);
+                evidence.min_local=std::min(evidence.min_local,cell.local_index);
+                evidence.max_local=std::max(evidence.max_local,cell.local_index);
+                if (evidence.examples.size()<4)
+                    evidence.examples.push_back({{"x",cell.storage.x},{"y",cell.storage.y},
+                                                 {"raw",cell.stored_id}});
+            }
+            report["unregistered_slots"]=Json::array();
+            for (const auto& [slot,evidence]:missing_slots) {
+                Json ids=Json::array();
+                for (const auto id:evidence.ids) {
+                    if (ids.size()>=256) break;
+                    ids.push_back(id);
+                }
+                report["unregistered_slots"].push_back({{"slot",slot},{"candidate_cells",evidence.cells},
+                    {"distinct_stored_ids",evidence.ids.size()},{"min_local_index",evidence.min_local},
+                    {"max_local_index",evidence.max_local},{"stored_ids",ids},
+                    {"stored_ids_truncated",evidence.ids.size()>ids.size()},
+                    {"examples",evidence.examples}});
+            }
             report["one_by_one_instances"]=plan.footprint_count(1);
             report["two_by_two_instances"]=plan.footprint_count(2);
             report["distinct_referenced_assets"]=plan.assets.size();

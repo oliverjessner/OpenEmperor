@@ -94,6 +94,7 @@ add_library(openemperor-maps STATIC
     src/maps/TerrainBindings.cpp
     src/maps/TerrainRenderPlan.cpp
     src/maps/StoredGraphicsPlan.cpp
+    src/maps/StoredArchiveRegistrations.cpp
     src/maps/MapSubtileMetadata.cpp
     src/maps/MapCatalog.cpp
     src/maps/StoredMapSession.cpp

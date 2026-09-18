@@ -11,14 +11,22 @@ std::optional<std::uint32_t> RuntimeArchiveLayout::physical_record_for_local(
 }
 
 std::optional<RuntimeArchiveLayout> build_runtime_archive_layout(
-    std::uint32_t slot, const assets::Sg3Archive& archive) {
-    if ((slot != 3U && slot != 16U) || archive.header.version != 213 ||
+    std::uint32_t slot, const assets::Sg3Archive& archive, RuntimeLayoutEvidence evidence) {
+    if ((slot != 3U && slot != 16U &&
+         !(slot == 8U && evidence == RuntimeLayoutEvidence::TerrainElevationAndSlot8)) ||
+        archive.header.version != 213 ||
         archive.header.image_capacity != archive.images.size() ||
         archive.header.reported_images_in_use >= archive.header.image_capacity)
         return std::nullopt;
+    if (slot == 8U && (archive.groups.empty() ||
+        archive.groups.front().filename != "Zeus_system.bmp" ||
+        archive.groups.front().image_count != 200U ||
+        archive.groups.front().first_image_index != 1U ||
+        archive.groups.front().last_image_index != 200U)) return std::nullopt;
 
     RuntimeArchiveLayout layout;
     layout.slot = slot;
+    layout.verified_registration = true;
     layout.sg3_version = archive.header.version;
     layout.image_capacity = archive.header.image_capacity;
     layout.reported_images_in_use = archive.header.reported_images_in_use;
