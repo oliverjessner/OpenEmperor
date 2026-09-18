@@ -2,6 +2,14 @@ cmake_minimum_required(VERSION 3.24)
 
 project(OpenEmperor VERSION 0.1.0 LANGUAGES C CXX)
 
+option(OPENEMPEROR_BUILD_MACOS_APP "Build the opt-in macOS application bundle" OFF)
+if(OPENEMPEROR_BUILD_MACOS_APP AND NOT APPLE)
+    message(FATAL_ERROR "OPENEMPEROR_BUILD_MACOS_APP requires macOS")
+endif()
+if(OPENEMPEROR_BUILD_MACOS_APP AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    message(FATAL_ERROR "Set CMAKE_OSX_DEPLOYMENT_TARGET explicitly for the macOS app")
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -48,6 +56,7 @@ add_executable(openemperor
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
     src/app/SandboxCheck.cpp
     src/app/SandboxRoutingCheck.cpp
+    src/app/MenuCheck.cpp
     src/renderer/TitleScreen.cpp
     src/renderer/ImagePreview.cpp
     src/renderer/SceneRenderer.cpp
@@ -58,6 +67,16 @@ add_executable(openemperor
 target_include_directories(openemperor PRIVATE src)
 target_link_libraries(openemperor PRIVATE SDL3::SDL3)
 openemperor_enable_warnings(openemperor)
+if(OPENEMPEROR_BUILD_MACOS_APP)
+    set_target_properties(openemperor PROPERTIES
+        MACOSX_BUNDLE TRUE
+        OUTPUT_NAME OpenEmperor
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/cmake/OpenEmperorInfo.plist.in"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "org.openemperor.OpenEmperor"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}")
+    install(TARGETS openemperor BUNDLE DESTINATION .)
+endif()
 
 add_executable(openemperor-inspect
     tools/asset-inspector/main.cpp

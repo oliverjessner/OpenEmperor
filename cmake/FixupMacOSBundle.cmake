@@ -1,0 +1,7 @@
+if(NOT DEFINED APP_PATH OR NOT DEFINED LIBRARY_DIRS)
+    message(FATAL_ERROR "APP_PATH and LIBRARY_DIRS required")
+endif()
+include(BundleUtilities)
+set(BU_CHMOD_BUNDLE_ITEMS ON)
+fixup_bundle("${APP_PATH}" "" "${LIBRARY_DIRS}")
+verify_app("${APP_PATH}")

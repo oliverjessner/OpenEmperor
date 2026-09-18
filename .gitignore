@@ -10,6 +10,7 @@ dist/
 build/
 build-pinned/
 build-release/
+build-macos-app/
 .next/
 coverage/
 *.log

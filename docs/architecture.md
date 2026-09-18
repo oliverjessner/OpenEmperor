@@ -1,5 +1,24 @@
 # Architecture
 
+The optional macOS package changes the existing `openemperor` CMake target to
+`MACOSX_BUNDLE` only in a separate Release configuration. The same `main.cpp`,
+`Application`, `MenuSession`, map reader, renderer, `World`, and persistence
+code run in both forms. A finite `--menu-check --app-root <fresh path>` mode
+uses the real `MenuSession` with a dummy SDL renderer and injected temporary
+storage for packaging tests; an optional `--data <path> --industry` exercises
+the menu's Industry-v5 start, save, menu transition, load and resumed tick.
+The ordinary app never selects that dummy driver or test storage. The normal
+preference path remains SDL's `OpenEmperor/OpenEmperor` user folder.
+
+`tools/package_macos.sh` builds and tests Release, stages only the installed
+bundle, applies CMake BundleUtilities to its copied libraries, removes
+absolute development RPATHs, adds dependency license notices, signs embedded
+Mach-O files before the app, then verifies the recursive dependency graph and
+relocated execution. `tools/verify_macos_bundle.py` is a fail-closed positive
+file allowlist and dependency/signature checker. Synthetic fixtures and local
+original-data smoke tests live outside the bundle. See
+[macOS packaging](macos-packaging.md).
+
 The application shell keeps command-line validation in `src/app/main.cpp`, SDL initialization and lifecycle in `src/app/Application.cpp`, and rendering in `src/renderer/TitleScreen.cpp` and `src/renderer/ImagePreview.cpp`. The shared asset library uses `src/assets/Sg3Archive.cpp` for independent, bounds-checked SG3 metadata parsing and type classification; `src/assets/Sg3ImageLoader.cpp` reads the metadata table, resolves safe `.555` paths, and independently validates and reads the selected color and alpha ranges. It dispatches plain RGB555 images to `Sg3RgbaDecoder.cpp`, Sprite types 256/257/276 to `Sg3OmegaDecoder.cpp`, and Type 30 to `Sg3IsometricDecoder.cpp`. The latter draws the validated diamond-tile base and applies an optional Omega color overlay into the same RGBA buffer. After color decoding, the loader applies an optional version-214 Omega alpha stream using `Sg3AlphaDecoder.cpp`; skips retain existing alpha and literals replace only the A channel. This library has no SDL dependency. The inspector uses `tools/asset-inspector/main.cpp` for command dispatch and `tools/asset-inspector/Sg3Inspect.cpp` for metadata JSON, compact summary, separate bitmap range reports, and optional exports; it calls the shared loader rather than owning runtime file-loading logic. `src/assets/RgbaPngEncoder.cpp` writes PNGs for inspection, and `src/assets/RgbaPngReader.cpp` reads this project's exported PNG subset for debugging preview.
 
 Future game-data discovery and importing belong in `src/assets/` and `tools/importer/`. General reusable types belong in `src/core/`; platform-specific integrations belong in `src/platform/`. None of those modules contain game logic yet.

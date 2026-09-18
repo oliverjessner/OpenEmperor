@@ -6,6 +6,7 @@
 #include "app/MapRenderCheck.h"
 #include "app/SandboxView.h"
 #include "app/MenuSession.h"
+#include "app/MenuCheck.h"
 #include "app/SandboxCheck.h"
 #include "assets/AssetCatalog.h"
 #include "assets/RgbaPngReader.h"
@@ -35,7 +36,7 @@
 namespace {
 
 void print_usage(const char* executable) {
-    std::cerr << "Usage: " << executable << " [--data <directory>] [--preview <exported.png>]\n"
+    std::cerr << "Usage: " << executable << " [--data <directory>] [--app-root <test-directory>] [--preview <exported.png>]\n"
               << "       " << executable << " [--data <directory>] --sg3 <file.sg3> --image <index> [--ignore-alpha]\n"
               << "       " << executable << " --sg3 <file.sg3> --image <index>"
               << " --alpha-addressing spec|contiguous|legacy (diagnostic)\n"
@@ -70,8 +71,10 @@ void print_usage(const char* executable) {
 } // namespace
 
 int main(int argc, char* argv[]) {
+    if (argc>1 && std::string_view(argv[1])=="--menu-check") return run_menu_check(argc,argv);
     namespace fs = std::filesystem;
     bool data_supplied = false;
+    bool app_root_supplied = false;
     bool preview_supplied = false;
     bool sg3_supplied = false;
     bool image_supplied = false;
@@ -104,6 +107,7 @@ int main(int argc, char* argv[]) {
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
+    fs::path app_root_path;
     fs::path preview_path;
     fs::path sg3_path;
     fs::path scene_path;
@@ -160,6 +164,9 @@ int main(int argc, char* argv[]) {
         } else if (argument == "--data" && !data_supplied) {
             data_directory = argv[++index];
             data_supplied = true;
+        } else if (argument == "--app-root" && !app_root_supplied) {
+            app_root_path = argv[++index];
+            app_root_supplied = true;
         } else if (argument == "--preview" && !preview_supplied) {
             preview_path = argv[++index];
             preview_supplied = true;
@@ -297,6 +304,10 @@ int main(int argc, char* argv[]) {
     const bool menu_start=!sandbox_supplied && !load_sandbox_supplied && !preview_supplied &&
         !sg3_supplied && !browse_assets && !scene_supplied && !browse_maps && !map_debug_supplied &&
         !list_maps && !render_check;
+    if (app_root_supplied && (!menu_start || app_root_path.empty())) {
+        print_usage(argv[0]);
+        return 2;
+    }
     if (data_supplied) {
         std::error_code error;
         const fs::path absolute_path = fs::absolute(data_directory, error);
@@ -349,7 +360,7 @@ int main(int argc, char* argv[]) {
     if (!sandbox_supplied && !load_sandbox_supplied && !preview_supplied && !sg3_supplied &&
         !browse_assets && !scene_supplied && !browse_maps && !map_debug_supplied)
         menu_session=std::make_unique<openemperor::menu::MenuSession>(
-            data_supplied ? data_directory : fs::path{});
+            data_supplied ? data_directory : fs::path{}, app_root_path);
     if (sandbox_supplied || load_sandbox_supplied) {
         try {
             std::optional<openemperor::persistence::SaveDocument> initial;

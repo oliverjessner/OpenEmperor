@@ -51,6 +51,30 @@ RGB555 decoding now follows the public SGReader's red-high/blue-low channel posi
 
 ## Build on macOS
 
+For a local arm64 development app, install Xcode Command Line Tools, CMake,
+SDL3, OpenSSL 3 and nlohmann/json, then run:
+
+```sh
+tools/package_macos.sh
+open dist/OpenEmperor.app
+```
+
+The script uses a separate `build-macos-app/` Release build and writes the
+verified bundle, ZIP, `package-report.json` and `SHA256SUMS` under `dist/`.
+The app's normal Finder launch enters the same main menu as the CLI build.
+Choose your own legally obtained installed/extracted Emperor data directory
+on first launch. The bundle contains no original game files. Settings and
+saves continue to use SDL's existing per-user OpenEmperor preference folder.
+The ZIP is a local ad-hoc-signed developer preview, without Developer ID
+signature or Apple notarization; downloaded copies may trigger Gatekeeper.
+See [macOS packaging](docs/macos-packaging.md) for verification and limits.
+
+The ordinary source build and direct `./build/openemperor` commands below
+remain available and do not require the bundle option.
+For GUI testing with disposable settings, pass `--app-root <temporary-directory>`
+to the menu executable; a normal Finder launch continues to use the existing
+per-user preference directory.
+
 Install Xcode Command Line Tools, CMake, and OpenSSL (for example `brew install openssl@3`). The map reader also uses the system zlib library through CMake's `find_package(ZLIB REQUIRED)`. The default CMake configuration fetches a fixed SDL3 source commit and the checksum-pinned nlohmann/json 3.12.0 release if no exact system package exists; network access may be needed the first time.
 
 ```sh
