@@ -15,6 +15,7 @@ class AssetBrowser;
 class SceneView;
 class MapDebugView;
 class MapBrowser;
+class SandboxView;
 
 class Application {
 public:
@@ -22,7 +23,8 @@ public:
                          std::unique_ptr<AssetBrowser> browser = nullptr,
                          std::unique_ptr<SceneView> scene = nullptr,
                          std::unique_ptr<MapDebugView> map_debug = nullptr,
-                         std::unique_ptr<MapBrowser> map_browser = nullptr);
+                         std::unique_ptr<MapBrowser> map_browser = nullptr,
+                         std::unique_ptr<SandboxView> sandbox = nullptr);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
     ~Application();
@@ -42,6 +44,7 @@ private:
     std::unique_ptr<SceneView> scene_;
     std::unique_ptr<MapDebugView> map_debug_;
     std::unique_ptr<MapBrowser> map_browser_;
+    std::unique_ptr<SandboxView> sandbox_;
     bool sdl_initialized_ = false;
 };
 

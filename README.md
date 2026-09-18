@@ -4,7 +4,7 @@ OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of t
 
 ## Current status
 
-This repository contains an SDL3 application shell, a read-only SG3 metadata inspector, a metadata-only asset catalog, a visual asset browser, a one-image RGBA/PNG exporter, a small isometric test-scene viewer, and a read-only original-map debug view. With `--sg3 <file.sg3> --image <index>`, the app loads one supported image directly from the user's SG3/.555 files and renders it in an SDL3 texture. With `--data <directory> --browse-assets`, it inventories SG3 files recursively and shows lazily decoded thumbnails. With `--data <directory> --scene <scene.json>`, it composes a locally defined still scene from selected images. With `--data <directory> --map-debug <relative.map>`, it reads one supported original map and can show raw storage values, coarse reference-derived terrain categories, a diagnostic bitmap projection, a curated textured preview, or an explicitly profiled snapshot of saved graphics IDs. Supported color layouts are plain RGB555, Omega sprite streams, and Type-30 isometric footprints (classic 58×30 and Emperor 78×40 tiles, with optional Omega color overlay). The observed internal version-214 Type-256 alpha profile is supported; other alpha profiles remain unverified. `--preview <exported.png>` remains available for debugging. There is no game simulation.
+This repository contains an SDL3 application shell, read-only asset and map tools, and a small interactive logistics sandbox. With `--data <directory> --sandbox Cities/Xia.map`, the app displays the user's original map as an unchanged background while a separate prototype world allows roads, one workshop, one warehouse, and a working courier delivery loop. `--sandbox-demo` places a valid arrangement through normal commands; the default starts empty. The sandbox uses self-defined `sandbox-logistics-v1` rules, not Emperor's original economy. Existing `--map-debug`, browser, SG3 preview, and PNG export modes remain available. See [the sandbox guide](docs/gameplay-sandbox.md) for controls, constraints, and the precise separation from original game data.
 
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
@@ -36,10 +36,11 @@ RGB555 decoding now follows the public SGReader's red-high/blue-low channel posi
 - ✅ opt-in stored-graphics map snapshot from saved IDs and the corrected v213 runtime layout
 - ✅ separately opted-in placement of isolated complete 2×2 Type-30 footprints (preview convention)
 - ✅ separately opted-in, reference-derived edge-byte grouping of touching 2×2 footprints
+- ✅ fixed-step, deterministic logistics sandbox with placed roads, production, routed delivery, and return
 - ⚠️ external and other unobserved alpha profiles remain unverified; no pixel-exact game comparison
 - ❌ verified horizontal mirroring
 - ❌ original-game-verified active cells, world coordinates, or map-to-SG3 graphics mapping
-- ❌ original coastline/variant/animation logic, heights, buildings, and simulation
+- ❌ original coastline/variant/animation logic, heights, buildings, and original-game simulation
 
 ## Build on macOS
 
@@ -86,6 +87,9 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Banpo.map --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table --multi-tile-preview --footprint-policy edge-byte
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Badaling.map --view stored-graphics --graphics-profile exe-6373328b-v213-slot8-runtime-table --multi-tile-preview --footprint-policy edge-byte
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Badaling.map --view stored-graphics --graphics-profile exe-6373328b-v213-slot8-runtime-table --multi-tile-preview --footprint-policy edge-byte-4x4
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-demo
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-check --report-json
 ctest --test-dir build --output-on-failure
 ```
 

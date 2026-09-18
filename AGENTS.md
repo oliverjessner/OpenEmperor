@@ -1,5 +1,7 @@
 # OpenEmperor clean-room rules
 
+- The explicitly scoped `sandbox-logistics-v1` mode is now permitted gameplay. Its SDL-free `src/simulation/` core owns mutable prototype roads, buildings, goods, and courier state independently from read-only original map/SG3 data. `sandbox_buildable_v1` admits only candidate, on-map, exact `terrain_raw==0x80`, `objects_raw==0`, successfully rendered 1×1 footprint cells. This is a conservative local rule, not an original Emperor rule. Keep profile-specific constants, fixed tick order, BFS road routes, and the goods-balance invariant documented in `docs/gameplay-sandbox.md`; use synthetic fixtures in tests. Do not extend the sandbox into inferred original economy, additional file semantics, or mutation of user data.
+
 - This is an independently written open-source reimplementation. Never commit or distribute original Emperor game assets, the GOG installer, extracted game files, or proprietary Sierra/Impressions source code.
 - Users must supply their own legally obtained Emperor game files. The first targeted distribution is the GOG offline installer; this repository does not ship or decode the installer.
 - Keep local game files under `.local/` when practical. That directory is ignored by Git. Do not add test fixtures copied from proprietary files.

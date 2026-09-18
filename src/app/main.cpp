@@ -4,6 +4,8 @@
 #include "app/MapDebugView.h"
 #include "app/MapBrowser.h"
 #include "app/MapRenderCheck.h"
+#include "app/SandboxView.h"
+#include "app/SandboxCheck.h"
 #include "assets/AssetCatalog.h"
 #include "assets/RgbaPngReader.h"
 #include "assets/Sg3ImageLoader.h"
@@ -52,6 +54,8 @@ void print_usage(const char* executable) {
               << " --view stored-graphics --graphics-profile <base-or-slot8-runtime-table>"
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]"
               << " --render-check --report-json\n";
+    std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
+              << " [--sandbox-demo] [--sandbox-check --report-json]\n";
 }
 
 } // namespace
@@ -66,6 +70,9 @@ int main(int argc, char* argv[]) {
     bool browse_maps = false;
     bool list_maps = false;
     bool render_check = false;
+    bool sandbox_supplied = false;
+    bool sandbox_demo = false;
+    bool sandbox_check = false;
     bool report_json = false;
     bool ignore_alpha = false;
     bool scene_supplied = false;
@@ -86,6 +93,7 @@ int main(int argc, char* argv[]) {
     fs::path sg3_path;
     fs::path scene_path;
     fs::path map_debug_path;
+    fs::path sandbox_path;
     fs::path terrain_bindings_path;
     std::uint32_t image_index = 0;
     std::uint32_t map_part = 0;
@@ -102,6 +110,10 @@ int main(int argc, char* argv[]) {
             list_maps = true;
         } else if (argument == "--render-check" && !render_check) {
             render_check = true;
+        } else if (argument == "--sandbox-demo" && !sandbox_demo) {
+            sandbox_demo = true;
+        } else if (argument == "--sandbox-check" && !sandbox_check) {
+            sandbox_check = true;
         } else if (argument == "--report-json" && !report_json) {
             report_json = true;
         } else if (argument == "--multi-tile-preview" && !multi_tile_preview) {
@@ -139,6 +151,9 @@ int main(int argc, char* argv[]) {
         } else if (argument == "--map-debug" && !map_debug_supplied) {
             map_debug_path = argv[++index];
             map_debug_supplied = true;
+        } else if (argument == "--sandbox" && !sandbox_supplied) {
+            sandbox_path = argv[++index];
+            sandbox_supplied = true;
         } else if (argument == "--terrain-bindings" && !terrain_bindings_supplied) {
             terrain_bindings_path = argv[++index];
             terrain_bindings_supplied = true;
@@ -217,7 +232,13 @@ int main(int argc, char* argv[]) {
             scene_supplied || preview_supplied || sg3_supplied || view_supplied || graphics_profile_supplied)) ||
         (render_check && (!map_debug_supplied || !data_supplied || part_supplied ||
             map_view_mode!=openemperor::maps::MapViewMode::StoredGraphics || !report_json)) ||
-        (report_json && !render_check && !list_maps)) {
+        (report_json && !render_check && !list_maps && !sandbox_check) ||
+        (sandbox_demo && !sandbox_supplied) || (sandbox_check && (!sandbox_supplied || !report_json)) ||
+        (sandbox_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
+            browse_maps || list_maps || scene_supplied || map_debug_supplied || render_check ||
+            part_supplied || layer_supplied || view_supplied || terrain_bindings_supplied ||
+            graphics_profile_supplied || multi_tile_preview || footprint_policy_supplied ||
+            ignore_alpha || diagnostic_alpha_addressing || browser_kind))) {
         print_usage(argv[0]);
         return 2;
     }
@@ -255,13 +276,28 @@ int main(int argc, char* argv[]) {
         return openemperor::run_map_render_check(data_directory,map_debug_path,
             multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
             graphics_profile);
+    if (sandbox_check) return openemperor::run_sandbox_check(data_directory,sandbox_path);
 
     std::optional<openemperor::assets::RgbaImage> preview;
     std::unique_ptr<openemperor::AssetBrowser> browser;
     std::unique_ptr<openemperor::SceneView> scene_view;
     std::unique_ptr<openemperor::MapDebugView> map_view;
     std::unique_ptr<openemperor::MapBrowser> map_browser;
-    if (preview_supplied) {
+    std::unique_ptr<openemperor::SandboxView> sandbox_view;
+    if (sandbox_supplied) {
+        try {
+            auto session=openemperor::maps::load_stored_map_session(data_directory,sandbox_path,
+                openemperor::maps::FootprintPolicy::EdgeByte4x4Preview,
+                openemperor::maps::StoredGraphicsProfile::Slot8);
+            sandbox_view=std::make_unique<openemperor::SandboxView>(std::move(session),sandbox_demo);
+            std::cout << "Sandbox: " << sandbox_path.generic_string()
+                      << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
+                      << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"
+                      << " | rules=sandbox-logistics-v1\n";
+        } catch (const std::exception& error) {
+            std::cerr << "Sandbox load failed: " << error.what() << '\n'; return 1;
+        }
+    } else if (preview_supplied) {
         try {
             preview = openemperor::assets::read_exported_png(preview_path);
         } catch (const std::exception& error_message) {
@@ -357,7 +393,8 @@ int main(int argc, char* argv[]) {
     }
 
     openemperor::Application application{std::move(preview), std::move(browser),
-                                       std::move(scene_view), std::move(map_view),std::move(map_browser)};
+                                       std::move(scene_view), std::move(map_view),std::move(map_browser),
+                                       std::move(sandbox_view)};
     if (!application.initialize()) {
         return 1;
     }

@@ -3,6 +3,7 @@
 #include "app/SceneView.h"
 #include "app/MapDebugView.h"
 #include "app/MapBrowser.h"
+#include "app/SandboxView.h"
 
 #include "renderer/TitleScreen.h"
 #include "renderer/ImagePreview.h"
@@ -19,9 +20,10 @@ Application::Application(std::optional<assets::RgbaImage> preview,
                          std::unique_ptr<AssetBrowser> browser,
                          std::unique_ptr<SceneView> scene,
                          std::unique_ptr<MapDebugView> map_debug,
-                         std::unique_ptr<MapBrowser> map_browser)
+                         std::unique_ptr<MapBrowser> map_browser,
+                         std::unique_ptr<SandboxView> sandbox)
     : preview_(std::move(preview)), browser_(std::move(browser)), scene_(std::move(scene)),
-      map_debug_(std::move(map_debug)), map_browser_(std::move(map_browser)) {}
+      map_debug_(std::move(map_debug)), map_browser_(std::move(map_browser)),sandbox_(std::move(sandbox)) {}
 
 Application::~Application() {
     shutdown();
@@ -34,9 +36,9 @@ bool Application::initialize() {
     }
     sdl_initialized_ = true;
 
-    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ || scene_ || map_debug_ || map_browser_ ? 1100 : 800,
-                                     browser_ || scene_ || map_debug_ || map_browser_ ? 700 : 450,
-                                     scene_ || map_debug_ || map_browser_ ? SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY : 0,
+    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ ? 1100 : 800,
+                                     browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ ? 700 : 450,
+                                     scene_ || map_debug_ || map_browser_ || sandbox_ ? SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY : 0,
                                      &window_, &renderer_)) {
         std::cerr << "SDL window/renderer creation failed: " << SDL_GetError() << '\n';
         shutdown();
@@ -57,6 +59,14 @@ bool Application::initialize() {
         try { map_debug_->initialize(window_, renderer_); }
         catch (const std::exception& error) {
             std::cerr << "Map debug initialization failed: " << error.what() << '\n';
+            shutdown();
+            return false;
+        }
+    }
+    if (sandbox_) {
+        try { sandbox_->initialize(window_,renderer_); }
+        catch (const std::exception& error) {
+            std::cerr << "Sandbox initialization failed: " << error.what() << '\n';
             shutdown();
             return false;
         }
@@ -90,7 +100,9 @@ int Application::run() {
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (map_browser_) {
+            if (sandbox_) {
+                sandbox_->handle_event(event,running);
+            } else if (map_browser_) {
                 map_browser_->handle_event(event,running);
             } else if (map_debug_) {
                 try { map_debug_->handle_event(event, running); }
@@ -115,6 +127,7 @@ int Application::run() {
         if (scene_) scene_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
         if (map_debug_) map_debug_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
         if (map_browser_) map_browser_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
+        if (sandbox_) sandbox_->update(static_cast<double>(now - last_ticks) / 1000000000.0);
         last_ticks = now;
         if (!render()) {
             std::cerr << "SDL rendering failed: " << SDL_GetError() << '\n';
@@ -135,6 +148,7 @@ int Application::run() {
 }
 
 bool Application::render() {
+    if (sandbox_) return sandbox_->render();
     if (map_browser_) return map_browser_->render();
     if (map_debug_) {
         try { return map_debug_->render(); }
@@ -152,6 +166,7 @@ bool Application::render() {
 }
 
 void Application::shutdown() {
+    if (sandbox_) sandbox_->shutdown();
     if (map_browser_) map_browser_->shutdown();
     if (map_debug_) map_debug_->shutdown();
     if (scene_) scene_->shutdown();
