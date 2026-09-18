@@ -17,7 +17,8 @@
 namespace openemperor {
 int run_sandbox_check(const std::filesystem::path& data_root,
                       const std::filesystem::path& map_relative,
-                      simulation::RulesProfile rules,bool resume_check) {
+                      simulation::RulesProfile rules,bool resume_check,
+                      const std::filesystem::path& walker_visuals) {
     SDL_Window* window=nullptr;
     SDL_Renderer* renderer=nullptr;
     struct TempCleanup {
@@ -34,6 +35,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         if (!SDL_CreateWindowAndRenderer("Sandbox check",1100,700,SDL_WINDOW_HIDDEN,
                                          &window,&renderer)) throw std::runtime_error(SDL_GetError());
         SandboxView view(std::move(session),true,rules);
+        if (!walker_visuals.empty()) view.set_walker_visuals(walker_visuals);
         if (resume_check) {
             temporary.path=std::filesystem::canonical(std::filesystem::temp_directory_path())/
                 ("openemperor-resume-check-"+std::to_string(std::random_device{}()));

@@ -161,6 +161,15 @@ int main(int argc,char* argv[]) {
             check(fs::exists(t.root/"app/settings.json"),"settings not stored");
             click(menu,90,220); // New sandbox
             check(menu.state()==Menu::State::NewSandbox,"new sandbox menu");
+            click(menu,90,750); // Walker JSON through the existing dialog adapter.
+            check(static_cast<bool>(dialog->callback),"walker dialog not opened");
+            dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
+                (t.root/"missing-walker.json").string()}); menu.advance();
+            click(menu,90,650); finish_load(menu);
+            check(menu.state()==Menu::State::NewSandbox &&
+                  menu.message().find("walker manifest")!=std::string::npos,
+                  "missing walker profile did not reject activation");
+            click(menu,500,750); // Clear the session-only profile selection.
             click(menu,90,650); // Start
             finish_load(menu);
             if (!(menu.state()==Menu::State::Playing && menu.sandbox()))

@@ -47,6 +47,13 @@ void NativeDialog::open_file(SDL_Window* window,Callback callback) {
     static constexpr SDL_DialogFileFilter filter[]{ {"OpenEmperor sandbox JSON","json"} };
     SDL_ShowOpenFileDialog(completed,reinterpret_cast<void*>(token_),window,filter,1,nullptr,false);
 }
+void NativeDialog::open_visual_profile(SDL_Window* window,Callback callback) {
+    { std::lock_guard lock(mutex); if (token_ && callbacks.contains(token_))
+        throw std::runtime_error("dialog already active"); }
+    token_=register_callback(std::move(callback));
+    static constexpr SDL_DialogFileFilter filter[]{ {"OpenEmperor walker profile JSON","json"} };
+    SDL_ShowOpenFileDialog(completed,reinterpret_cast<void*>(token_),window,filter,1,nullptr,false);
+}
 void NativeDialog::cancel_pending() {
     if (!token_) return;
     std::lock_guard lock(mutex); callbacks.erase(token_); token_=0;

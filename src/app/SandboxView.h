@@ -7,6 +7,8 @@
 #include "persistence/SandboxSave.h"
 #include "app/SandboxUiLayout.h"
 #include "app/RoadDrag.h"
+#include "assets/WalkerVisualProfile.h"
+#include "renderer/WalkerSpriteSet.h"
 
 #include <memory>
 #include <cstdint>
@@ -47,6 +49,9 @@ public:
                         std::optional<persistence::SaveDocument> initial=std::nullopt);
     void save_now();
     void load_now();
+    void set_walker_visuals(const std::filesystem::path& manifest);
+    bool walker_visuals_active() const { return walker_visuals_enabled_ && walker_profile_.has_value(); }
+    std::size_t walker_texture_count() const { return walker_sprites_ ? walker_sprites_->texture_count():0; }
     std::uint64_t io_generation() const { return io_generation_; }
     std::uint64_t save_generation() const { return save_generation_; }
     bool dirty() const { return world_ && (world_->ticks()!=saved_tick_ ||
@@ -104,6 +109,10 @@ private:
     simulation::RulesProfile rules_;
     int last_courier_draws_=0;
     std::filesystem::path data_root_,map_relative_,save_path_;
+    std::filesystem::path walker_manifest_;
+    std::optional<assets::WalkerVisualProfile> walker_profile_;
+    std::unique_ptr<WalkerSpriteSet> walker_sprites_;
+    bool walker_visuals_enabled_=true;
     std::optional<persistence::SaveDocument> initial_save_;
     std::vector<std::uint8_t> buildable_mask_;
     std::uint64_t io_generation_=0;

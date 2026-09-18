@@ -52,6 +52,7 @@ add_executable(openemperor
     src/app/MapBrowser.cpp
     src/app/MapRenderCheck.cpp
     src/app/SandboxView.cpp
+    src/app/WalkerPose.cpp
     src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MenuSession.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
     src/app/SandboxCheck.cpp
@@ -63,6 +64,7 @@ add_executable(openemperor
     src/renderer/TerrainPreviewRenderer.cpp
     src/renderer/StoredGraphicsRenderer.cpp
     src/renderer/StoredCamera.cpp
+    src/renderer/WalkerSpriteSet.cpp
 )
 target_include_directories(openemperor PRIVATE src)
 target_link_libraries(openemperor PRIVATE SDL3::SDL3)
@@ -92,10 +94,12 @@ add_library(openemperor-sg3 STATIC
     src/assets/Sg3IsometricDecoder.cpp
     src/assets/Sg3ImageLoader.cpp
     src/assets/AssetCatalog.cpp
+    src/assets/WalkerVisualProfile.cpp
     src/assets/RgbaPngEncoder.cpp
     src/assets/RgbaPngReader.cpp
 )
 target_include_directories(openemperor-sg3 PUBLIC src)
+target_link_libraries(openemperor-sg3 PUBLIC nlohmann_json::nlohmann_json)
 openemperor_enable_warnings(openemperor-sg3)
 target_include_directories(openemperor-inspect PRIVATE tools/asset-inspector)
 target_link_libraries(openemperor-inspect PRIVATE openemperor-sg3)
@@ -164,16 +168,18 @@ if(BUILD_TESTING)
     add_test(NAME sandbox-production-chain COMMAND openemperor-sandbox-production-tests)
     set_tests_properties(sandbox-production-chain PROPERTIES TIMEOUT 20)
     add_executable(openemperor-sandbox-view-tests tests/SandboxViewTests.cpp
-        src/app/SandboxView.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
-        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
     set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 20)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
-        src/app/SandboxView.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
-        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp)
     target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
@@ -284,6 +290,13 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-sg3-loader-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-sg3-loader-tests)
     add_test(NAME sg3-image-loader COMMAND openemperor-sg3-loader-tests)
+    add_executable(openemperor-walker-visual-tests tests/WalkerVisualTests.cpp
+        src/app/WalkerPose.cpp src/renderer/WalkerSpriteSet.cpp)
+    target_link_libraries(openemperor-walker-visual-tests PRIVATE
+        openemperor-sg3 openemperor-simulation SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-walker-visual-tests)
+    add_test(NAME walker-visual-profile-pose-render COMMAND openemperor-walker-visual-tests)
+    set_tests_properties(walker-visual-profile-pose-render PROPERTIES TIMEOUT 30)
 
     add_executable(openemperor-png-preview-tests tests/RgbaPngReaderTests.cpp)
     target_link_libraries(openemperor-png-preview-tests PRIVATE openemperor-sg3)

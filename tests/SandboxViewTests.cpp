@@ -1,4 +1,5 @@
 #include "app/SandboxView.h"
+#include "app/WalkerPose.h"
 #include "maps/TerrainRenderPlan.h"
 
 #include <SDL3/SDL.h>
@@ -47,6 +48,35 @@ struct Temp {
     ~Temp() { std::error_code error; std::filesystem::remove_all(path,error);
         std::filesystem::remove(path.parent_path()/(path.filename().string()+"-viewer-save.json"),error); }
 };
+std::filesystem::path walker_fixture(const Temp& temp) {
+    Bytes sg3(40680U+4U*72U,0);
+    u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,214);
+    u32(sg3,12,4);u32(sg3,16,4);u32(sg3,20,1);
+    const std::string name="synthetic.bmp";
+    std::copy(name.begin(),name.end(),sg3.begin()+680);
+    u32(sg3,680+124,4);
+    const Bytes red{2,0x00,0x7c,0x00,0x7c,2,0x00,0x7c,0x00,0x7c};
+    const Bytes green{2,0xe0,0x03,0xe0,0x03,2,0xe0,0x03,0xe0,0x03};
+    for (const auto [index,offset]:{std::pair{1U,4U},std::pair{3U,14U}}) {
+        const auto at=40680U+index*72U;
+        u32(sg3,at,offset);u32(sg3,at+4,10);
+        u16(sg3,at+20,2);u16(sg3,at+22,2);u16(sg3,at+50,256);
+    }
+    write(temp.path/"DATA/walker.sg3",sg3);
+    Bytes bitmap{0,0,0,0};bitmap.insert(bitmap.end(),red.begin(),red.end());
+    bitmap.insert(bitmap.end(),green.begin(),green.end());
+    write(temp.path/"DATA/walker.555",bitmap);
+    const auto path=temp.path/"walker.json";
+    std::ofstream out(path);
+    out<<R"({"schema_version":1,"mode":"curated_walker_preview","role":"clay",
+"ticks_per_frame":1,"evidence":"Synthetic software viewer frames",
+"frames":[
+{"alias":"red","archive":"DATA/walker.sg3","image_index":1,"foot_anchor":[1,1]},
+{"alias":"green","archive":"DATA/walker.sg3","image_index":3,"foot_anchor":[1,1]}],
+"clips":{"pos_x":["red","green"],"neg_x":["green","red"]},"idle":"red"})";
+    check(static_cast<bool>(out),"walker manifest write");
+    return path;
+}
 openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=false,
                                            bool household=false,bool industry=false) {
     Bytes sg3(40680U+64U,0);
@@ -398,6 +428,67 @@ int main() {
         check(production_view.render(),"viewer resumed frame failed");
         const auto cyan=sample_courier(simulation::CourierId::Clay,-5);
         check(cyan[1]>200 && cyan[2]>200,"resumed courier marker did not return to moving color");
+        const auto walker_manifest=walker_fixture(temp);
+        production_view.set_walker_visuals(walker_manifest);
+        check(production_view.walker_visuals_active() && production_view.walker_texture_count()==2,
+              "walker textures were not shared by physical image");
+        const auto profile=openemperor::assets::load_walker_visual_profile(temp.path,walker_manifest);
+        bool saw_red=false,saw_green=false;
+        for (int i=0;i<80 && !(saw_red && saw_green);++i) {
+            production_view.tick_once();
+            const auto& clay=production_view.world().courier(simulation::CourierId::Clay);
+            const auto pose=openemperor::walker_pose(clay,production_view.world().ticks(),profile);
+            if (!pose.moving || !pose.frame || !pose.direction ||
+                (*pose.direction!=openemperor::assets::StorageDirection::PosX &&
+                 *pose.direction!=openemperor::assets::StorageDirection::NegX)) continue;
+            const auto clay_position=*production_view.world().courier_position(simulation::CourierId::Clay);
+            const double clay_u=clay_position.x-72.0,clay_v=clay_position.y-72.0;
+            const auto screen=production_view.camera().world_to_screen(
+                {(clay_u-clay_v)*40,(clay_u+clay_v)*20+20});
+            check(production_view.render(),"walker software frame failed");
+            bool found_color=false;
+            for (int yy=-4;yy<=4;++yy) for (int xx=-4;xx<=4;++xx) {
+                const auto color=pixel(renderer,static_cast<int>(screen.x)+xx,
+                                        static_cast<int>(screen.y)+yy);
+                if (profile.frames[*pose.frame].alias=="red")
+                    found_color|=color[0]>220 && color[1]<80 && color[2]<80;
+                else found_color|=color[1]>220 && color[0]<80 && color[2]<80;
+            }
+            if (profile.frames[*pose.frame].alias=="red") {
+                check(found_color,"red walker pixel missing");
+                saw_red=true;
+            } else {
+                check(found_color,"green walker pixel missing");
+                saw_green=true;
+            }
+        }
+        check(saw_red && saw_green,"real courier path did not animate both synthetic frames");
+        const auto before_toggle=production_view.world().snapshot();
+        const auto paused_pose=openemperor::walker_pose(
+            production_view.world().courier(simulation::CourierId::Clay),
+            production_view.world().ticks(),profile);
+        check(production_view.paused(),"viewer should remain paused during explicit tick test");
+        production_view.update(1.0);
+        check(production_view.render() && production_view.render() &&
+              production_view.world().snapshot()==before_toggle &&
+              openemperor::walker_pose(production_view.world().courier(simulation::CourierId::Clay),
+                                       production_view.world().ticks(),profile).frame==paused_pose.frame,
+              "paused or repeated rendering advanced walker animation");
+        production_view.handle_event(key(SDLK_F2),running);
+        check(!production_view.walker_visuals_active() &&
+              production_view.world().snapshot()==before_toggle && production_view.render(),
+              "F2 marker toggle changed simulation");
+        production_view.handle_event(key(SDLK_F2),running);
+        check(production_view.walker_visuals_active() &&
+              production_view.world().snapshot()==before_toggle && production_view.render(),
+              "F2 sprite toggle changed simulation");
+        const auto prior_textures=production_view.walker_texture_count();
+        bool rejected=false;
+        try { production_view.set_walker_visuals(temp.path/"missing-walker.json"); }
+        catch (const std::exception&) { rejected=true; }
+        check(rejected && production_view.walker_texture_count()==prior_textures &&
+              production_view.world().snapshot()==before_toggle && production_view.render(),
+              "failed walker activation destroyed running world or textures");
         production_view.shutdown();
         openemperor::SandboxView fresh_view(fixture(temp,true),false,
             simulation::RulesProfile::ProductionV2);
@@ -489,7 +580,10 @@ int main() {
         household_view.shutdown();
         openemperor::SandboxView industry_view(fixture(temp,true,true,true),true,
             simulation::RulesProfile::IndustryV5);
+        industry_view.configure_save(temp.path,"Cities/Synthetic.map",save_path);
+        industry_view.set_walker_visuals(walker_manifest);
         industry_view.initialize(window,renderer);
+        check(industry_view.walker_texture_count()==2,"second clay courier duplicated textures");
         check(industry_view.world().building(static_cast<simulation::BuildingId>(8)).kind==
                   simulation::Object::ClaySource &&
               industry_view.world().building(static_cast<simulation::BuildingId>(9)).kind==
