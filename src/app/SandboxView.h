@@ -5,12 +5,15 @@
 #include "renderer/StoredGraphicsRenderer.h"
 #include "simulation/World.h"
 #include "persistence/SandboxSave.h"
+#include "app/SandboxUiLayout.h"
+#include "app/RoadDrag.h"
 
 #include <memory>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 union SDL_Event;
 struct SDL_Renderer;
@@ -46,6 +49,11 @@ public:
     void load_now();
     std::uint64_t io_generation() const { return io_generation_; }
     bool paused() const { return clock_.paused(); }
+    const sandbox_ui::Layout& layout() const { return layout_; }
+    std::optional<simulation::BuildingId> selected_building() const;
+    std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
+    std::vector<std::string> inspection_lines() const;
+    const sandbox_ui::RoadPlan& road_preview() const { return road_preview_; }
     const std::vector<std::uint8_t>& buildable_mask() const { return buildable_mask_; }
 private:
     void reset_camera();
@@ -54,8 +62,14 @@ private:
     bool draw_diamond(scene::Point world, std::uint8_t r, std::uint8_t g, std::uint8_t b, bool fill);
     bool draw_world();
     bool draw_hud();
-    bool draw_hud_v2();
-    int hud_height() const;
+    bool draw_text(double x,double y,const std::string& text,int max_width);
+    bool action_enabled(sandbox_ui::Action action) const;
+    void perform_action(sandbox_ui::Action action);
+    void cancel_gesture();
+    void refresh_hover();
+    std::optional<scene::Point> render_point(float x,float y) const;
+    void update_layout(bool preserve_center);
+    std::vector<simulation::BuildingId> placed_buildings() const;
     scene::Point world_for(simulation::Position cell) const;
     maps::MapGeometry geometry_;
     StoredGraphicsRenderer background_;
@@ -67,6 +81,17 @@ private:
     std::optional<simulation::Cell> hovered_;
     std::optional<simulation::Cell> selected_;
     std::optional<simulation::Cell> demo_origin_;
+    sandbox_ui::Layout layout_;
+    sandbox_ui::RoadPlan road_preview_;
+    std::optional<simulation::Cell> road_start_;
+    std::optional<sandbox_ui::Action> pressed_button_;
+    std::optional<simulation::BuildingId> pressed_building_;
+    bool ui_pressed_=false;
+    bool map_pressed_=false;
+    bool panel_open_=true;
+    bool debug_open_=false;
+    int panel_scroll_=0;
+    std::optional<scene::Point> pointer_;
     std::string last_message_;
     bool demo_=false;
     int tool_=4;

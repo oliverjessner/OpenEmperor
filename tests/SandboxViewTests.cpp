@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -122,6 +123,21 @@ SDL_Event click(float x,float y) {
     event.button.y=y;
     return event;
 }
+SDL_Event release(float x,float y) {
+    auto event=click(x,y);
+    event.type=SDL_EVENT_MOUSE_BUTTON_UP;
+    return event;
+}
+SDL_Event motion(float x,float y) {
+    SDL_Event event{};
+    event.type=SDL_EVENT_MOUSE_MOTION;
+    event.motion.x=x; event.motion.y=y;
+    return event;
+}
+void mouse_click(openemperor::SandboxView& view,float x,float y,bool& running) {
+    view.handle_event(click(x,y),running);
+    view.handle_event(release(x,y),running);
+}
 SDL_Event key(SDL_Keycode code) {
     SDL_Event event{};
     event.type=SDL_EVENT_KEY_DOWN;
@@ -131,6 +147,56 @@ SDL_Event key(SDL_Keycode code) {
 }
 int main() {
     try {
+        {
+            const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
+            check(layout.top.h==52 && layout.map.w==796 && layout.map.h==552 &&
+                  layout.toolbar.h==72 && layout.panel.w==304,
+                  "1100x700 map area/layout");
+            check(layout.ui_at(900,200) && !layout.ui_at(400,200) &&
+                  layout.button_at(1050,20)==openemperor::sandbox_ui::Action::TogglePanel,
+                  "layout hit regions");
+            const auto hidpi=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
+            check(hidpi.scale==2 && hidpi.map.w==1592 && hidpi.map.h==1104,
+                  "2x display layout");
+            const auto small=openemperor::sandbox_ui::make_layout(600,400,600,400,true);
+            check(!small.panel_open && small.map.w==600 && small.map.h==252,
+                  "small display map area");
+            const auto closed=openemperor::sandbox_ui::make_layout(1100,700,1100,700,false);
+            check(!closed.ui_at(900,200) && closed.map.w==1100,
+                  "closed panel still blocks map");
+            simulation::World world(20,20,std::vector<std::uint8_t>(400,1),
+                                    simulation::RulesProfile::ProductionV2);
+            auto path=openemperor::sandbox_ui::plan_road(world,{2,5},{6,7});
+            check(path.valid && path.cells.size()==7 && path.cells[4]==simulation::Cell{6,5} &&
+                  path.cells.back()==simulation::Cell{6,7},"X-then-Y road layout");
+            const auto before=world.snapshot();
+            std::string reason;
+            check(openemperor::sandbox_ui::commit_road(world,path,reason),"road commit");
+            check(openemperor::sandbox_ui::plan_road(world,{2,5},{6,7}).valid,
+                  "existing roads not allowed in preview");
+            simulation::World individual=simulation::World::restore(before,std::vector<std::uint8_t>(400,1));
+            for (const auto cell:path.cells)
+                check(individual.execute({simulation::CommandType::PlaceRoad,cell}).accepted,
+                      "individual road command");
+            check(world.snapshot()==individual.snapshot(),"drag differs from individual commands");
+            const auto unchanged=world.snapshot();
+            check(openemperor::sandbox_ui::commit_road(world,path,reason) &&
+                  world.snapshot()==unchanged,"existing roads changed command sequence");
+            check(!openemperor::sandbox_ui::plan_road(world,{0,0},{300,0}).valid,
+                  "road length cap");
+            const auto single=openemperor::sandbox_ui::plan_road(world,{9,9},{9,9});
+            const auto old_sequence=world.command_sequence();
+            check(single.valid && single.cells.size()==1 &&
+                  openemperor::sandbox_ui::commit_road(world,single,reason) &&
+                  world.command_sequence()==old_sequence+1,
+                  "single-cell road click");
+            check(world.execute({simulation::CommandType::PlacePottery,{10,5}}).accepted,
+                  "road obstacle placement");
+            const auto blocked=world.snapshot();
+            const auto bad=openemperor::sandbox_ui::plan_road(world,{8,5},{12,5});
+            check(!bad.valid && !openemperor::sandbox_ui::commit_road(world,bad,reason) &&
+                  world.snapshot()==blocked,"obstacle partially committed road");
+        }
         Temp temp;
         check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy"),"dummy driver");
         check(SDL_SetHint(SDL_HINT_RENDER_DRIVER,"software"),"software renderer");
@@ -151,7 +217,7 @@ int main() {
         check(view.preview({110,114}).accepted,"valid preview");
         check(!view.preview({116,114}).accepted,"invalid preview");
         bool running=true;
-        view.handle_event(click(static_cast<float>(workshop.x),static_cast<float>(workshop.y)),running);
+        mouse_click(view,static_cast<float>(workshop.x),static_cast<float>(workshop.y),running);
         check(view.world().workshop()==simulation::Cell{110,114},"click did not place workshop");
         const auto before_zoom=view.camera().screen_to_world(workshop);
         SDL_Event wheel{}; wheel.type=SDL_EVENT_MOUSE_WHEEL;
@@ -167,11 +233,11 @@ int main() {
             const auto at=screen_for(x);
             check(view.pick(at)==simulation::Cell{x,114},"pick after zoom");
             check(view.preview({x,114}).accepted,"road preview differs from validation");
-            view.handle_event(click(static_cast<float>(at.x),static_cast<float>(at.y)),running);
+            mouse_click(view,static_cast<float>(at.x),static_cast<float>(at.y),running);
         }
         view.set_tool(3);
         const auto warehouse=screen_for(115);
-        view.handle_event(click(static_cast<float>(warehouse.x),static_cast<float>(warehouse.y)),running);
+        mouse_click(view,static_cast<float>(warehouse.x),static_cast<float>(warehouse.y),running);
         check(view.world().warehouse()==simulation::Cell{115,114},"warehouse click");
         const auto status_before=view.world().warehouse_stock();
         check(view.render(),"render frame with overlay");
@@ -195,6 +261,20 @@ int main() {
         view.handle_event(key(SDLK_F5),running);
         check(view.last_message().find("No sandbox save path configured")!=std::string::npos,
               "unconfigured F5 did not report missing path");
+        const auto before_disabled_v1=view.world().snapshot();
+        for (const auto& item:view.layout().buttons)
+            if (item.action==openemperor::sandbox_ui::Action::Household)
+                mouse_click(view,static_cast<float>(item.rect.x+item.rect.w/2),
+                            static_cast<float>(item.rect.y+item.rect.h/2),running);
+        check(view.world().snapshot()==before_disabled_v1,
+              "disabled old-profile house button placed a building");
+        for (const auto& item:view.layout().buttons)
+            if (item.action==openemperor::sandbox_ui::Action::Save)
+                mouse_click(view,static_cast<float>(item.rect.x+item.rect.w/2),
+                            static_cast<float>(item.rect.y+item.rect.h/2),running);
+        check(view.world().snapshot()==before_disabled_v1 &&
+              view.last_message().find("No sandbox save path configured")!=std::string::npos,
+              "disabled Save button gave no explanation");
         view.shutdown();
 
         openemperor::SandboxView production_view(fixture(temp,true),false,
@@ -215,7 +295,7 @@ int main() {
             const auto at=v2_screen(x);
             check(production_view.pick(at)==simulation::Cell{x,114},"v2 pick");
             check(production_view.preview({x,114}).accepted,"v2 preview");
-            production_view.handle_event(click(static_cast<float>(at.x),static_cast<float>(at.y)),running);
+            mouse_click(production_view,static_cast<float>(at.x),static_cast<float>(at.y),running);
         };
         v2_click(SDLK_2,110);
         v2_click(SDLK_1,111);
@@ -420,10 +500,284 @@ int main() {
               industry_view.world().building(static_cast<simulation::BuildingId>(9)).recipes_completed>0,
               "v5 software frame did not draw five couriers and active second pottery");
         industry_view.handle_event(key(SDLK_2),running);
-        check(industry_view.tool()==2 &&
-              !industry_view.preview({121,114}).accepted,
-              "v5 repeat Clay tool did not enforce the two-source limit");
+        check(industry_view.tool()==5,
+              "v5 full Clay tool remained selectable");
         industry_view.shutdown();
+
+        check(SDL_SetWindowSize(window,1100,700),"resize end-to-end window");
+        openemperor::SandboxView ui(fixture(temp,true,true,true),false,
+            simulation::RulesProfile::IndustryV5);
+        ui.configure_save(temp.path,"Cities/Synthetic.map",save_path);
+        ui.initialize(window,renderer);
+        check(ui.layout().map.w==796 && ui.layout().map.h==552,"end-to-end viewport");
+        const auto button_point=[&](openemperor::sandbox_ui::Action action) {
+            for (const auto& button:ui.layout().buttons) if (button.action==action)
+                return openemperor::scene::Point{button.rect.x+button.rect.w/2.0,
+                                                  button.rect.y+button.rect.h/2.0};
+            throw std::runtime_error("missing UI button");
+        };
+        const auto press_action=[&](openemperor::sandbox_ui::Action action) {
+            const auto p=button_point(action);
+            mouse_click(ui,static_cast<float>(p.x),static_cast<float>(p.y),running);
+        };
+        const auto map_point=[&](int x,int y) {
+            auto p=maps::terrain_world({static_cast<std::uint32_t>(x),
+                                        static_cast<std::uint32_t>(y)},72);
+            p.y+=20;
+            return ui.camera().world_to_screen(p);
+        };
+        const auto map_click=[&](int x,int y) {
+            const auto p=map_point(x,y);
+            check(ui.pick(p)==simulation::Cell{x,y},"end-to-end map point");
+            mouse_click(ui,static_cast<float>(p.x),static_cast<float>(p.y),running);
+        };
+        const auto drag=[&](int x0,int y0,int x1,int y1) {
+            const auto start=map_point(x0,y0),end=map_point(x1,y1);
+            ui.handle_event(click(static_cast<float>(start.x),static_cast<float>(start.y)),running);
+            ui.handle_event(motion(static_cast<float>(end.x),static_cast<float>(end.y)),running);
+            ui.handle_event(release(static_cast<float>(end.x),static_cast<float>(end.y)),running);
+        };
+        press_action(openemperor::sandbox_ui::Action::Clay); map_click(110,114);
+        press_action(openemperor::sandbox_ui::Action::Pottery); map_click(113,114);
+        press_action(openemperor::sandbox_ui::Action::Road);
+        const auto first_start=map_point(111,114),first_end=map_point(112,114);
+        const auto before_drag=ui.world().snapshot();
+        ui.handle_event(click(static_cast<float>(first_start.x),static_cast<float>(first_start.y)),running);
+        ui.handle_event(motion(static_cast<float>(first_end.x),static_cast<float>(first_end.y)),running);
+        check(ui.world().snapshot()==before_drag && ui.road_preview().cells.size()==2,
+              "road drag mutated world before release");
+        check(ui.render() && ui.world().snapshot()==before_drag,
+              "rendered held road changed simulation");
+        ui.handle_event(release(static_cast<float>(first_end.x),static_cast<float>(first_end.y)),running);
+        check(ui.world().command_sequence()==before_drag.command_sequence+2 &&
+              ui.world().object_at({111,114})==simulation::Object::Road &&
+              ui.world().object_at({112,114})==simulation::Object::Road,
+              "road drag did not commit exactly two commands");
+        drag(114,114,115,114);
+        press_action(openemperor::sandbox_ui::Action::Warehouse); map_click(116,114);
+        press_action(openemperor::sandbox_ui::Action::Road); drag(117,114,119,114);
+        press_action(openemperor::sandbox_ui::Action::Household); map_click(120,114);
+        check(ui.world().building(simulation::BuildingId::Household).placed,
+              "house UI placement");
+        const auto before_disabled=ui.world().snapshot();
+        press_action(openemperor::sandbox_ui::Action::Warehouse);
+        check(ui.world().snapshot()==before_disabled &&
+              ui.last_message().find("limit")!=std::string::npos,
+              "disabled building button changed world");
+        const auto before_rejected=ui.world().snapshot();
+        press_action(openemperor::sandbox_ui::Action::Road);
+        drag(111,114,115,114); // The Pottery at 113 is an obstacle.
+        check(ui.world().snapshot()==before_rejected &&
+              ui.last_message().find("occupied")!=std::string::npos,
+              "obstructed road drag partially changed world");
+        const auto start_cancel=map_point(117,115);
+        const auto end_cancel=map_point(119,115);
+        ui.handle_event(click(static_cast<float>(start_cancel.x),
+                              static_cast<float>(start_cancel.y)),running);
+        ui.handle_event(motion(static_cast<float>(end_cancel.x),
+                               static_cast<float>(end_cancel.y)),running);
+        check(ui.world().snapshot()==before_rejected,"held road changed world");
+        SDL_Event focus{}; focus.type=SDL_EVENT_WINDOW_FOCUS_LOST;
+        ui.handle_event(focus,running);
+        ui.handle_event(release(static_cast<float>(end_cancel.x),
+                                static_cast<float>(end_cancel.y)),running);
+        check(ui.world().snapshot()==before_rejected,"focus loss committed road");
+        const auto button=button_point(openemperor::sandbox_ui::Action::Clay);
+        ui.handle_event(click(static_cast<float>(button.x),static_cast<float>(button.y)),running);
+        ui.handle_event(release(static_cast<float>(end_cancel.x),
+                                static_cast<float>(end_cancel.y)),running);
+        check(ui.tool()==1 && ui.world().snapshot()==before_rejected,
+              "button press/map release leaked action");
+        ui.handle_event(click(static_cast<float>(start_cancel.x),
+                              static_cast<float>(start_cancel.y)),running);
+        ui.handle_event(release(static_cast<float>(button.x),
+                                static_cast<float>(button.y)),running);
+        check(ui.world().snapshot()==before_rejected,"map press/UI release committed road");
+        ui.handle_event(click(static_cast<float>(start_cancel.x),
+                              static_cast<float>(start_cancel.y)),running);
+        SDL_Event right{}; right.type=SDL_EVENT_MOUSE_BUTTON_DOWN;
+        right.button.button=SDL_BUTTON_RIGHT;
+        ui.handle_event(right,running);
+        ui.handle_event(release(static_cast<float>(end_cancel.x),
+                                static_cast<float>(end_cancel.y)),running);
+        check(ui.world().snapshot()==before_rejected,"right-click did not cancel road");
+        ui.handle_event(click(static_cast<float>(start_cancel.x),
+                              static_cast<float>(start_cancel.y)),running);
+        ui.handle_event(key(SDLK_ESCAPE),running);
+        ui.handle_event(release(static_cast<float>(end_cancel.x),
+                                static_cast<float>(end_cancel.y)),running);
+        check(running && ui.world().snapshot()==before_rejected,
+              "Escape did not cancel road before exit");
+        ui.handle_event(click(static_cast<float>(start_cancel.x),
+                              static_cast<float>(start_cancel.y)),running);
+        SDL_Event resize{}; resize.type=SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED;
+        ui.handle_event(resize,running);
+        ui.handle_event(release(static_cast<float>(end_cancel.x),
+                                static_cast<float>(end_cancel.y)),running);
+        check(ui.world().snapshot()==before_rejected,"resize did not cancel road");
+        ui.handle_event(click(static_cast<float>(start_cancel.x),
+                              static_cast<float>(start_cancel.y)),running);
+        ui.handle_event(key(SDLK_5),running);
+        ui.handle_event(release(static_cast<float>(end_cancel.x),
+                                static_cast<float>(end_cancel.y)),running);
+        check(ui.tool()==5 && ui.world().snapshot()==before_rejected,
+              "tool switch did not cancel road");
+        // Additional producers use ordinary Commands; their UI selection remains instance-specific.
+        check(ui.execute({simulation::CommandType::PlaceClaySource,{110,116}}).accepted &&
+              ui.execute({simulation::CommandType::PlacePottery,{113,116}}).accepted,
+              "second branch normal commands");
+        press_action(openemperor::sandbox_ui::Action::Road);
+        drag(111,116,112,116); drag(112,115,112,115);
+        drag(114,116,116,116); drag(116,115,116,115);
+        for (int i=0;i<2500;++i) ui.tick_once();
+        check(ui.world().building(simulation::BuildingId::Pottery).recipes_completed>0 &&
+              ui.world().building(static_cast<simulation::BuildingId>(9)).recipes_completed>0 &&
+              ui.world().building(simulation::BuildingId::Household).consumed_total>0,
+              "UI-built chain did not produce, deliver and consume");
+        const auto capture=[&](const char* name) {
+            if (const char* folder=std::getenv("OPENEMPEROR_UI_CAPTURE_DIR")) {
+                std::filesystem::create_directories(folder);
+                SDL_Surface* image=SDL_RenderReadPixels(renderer,nullptr);
+                check(image!=nullptr,"capture UI frame");
+                const auto path=std::filesystem::path(folder)/name;
+                const bool saved=SDL_SaveBMP(image,path.string().c_str());
+                SDL_DestroySurface(image);
+                check(saved,"write UI capture");
+            }
+        };
+        check(ui.render(),"UI overview frame");
+        capture("overview.bmp");
+        press_action(openemperor::sandbox_ui::Action::Select); map_click(113,116);
+        check(ui.selected_building()==static_cast<simulation::BuildingId>(9),
+              "second Pottery selection resolved first instance");
+        const auto details=ui.inspection_lines();
+        check(std::find(details.begin(),details.end(),"Pottery #9")!=details.end(),
+              "second Pottery inspection missing own ID");
+        check(ui.render(),"UI inspector frame");
+        capture("inspector.bmp");
+        const auto panel_x=ui.layout().panel.x+20;
+        const auto source_row_y=ui.layout().panel.y+46+4*18+4;
+        mouse_click(ui,static_cast<float>(panel_x),static_cast<float>(source_row_y),running);
+        check(ui.selected_building()==static_cast<simulation::BuildingId>(8),
+              "building list did not select second Clay instance");
+        map_click(113,116);
+        const auto zoom_before_panel=ui.camera().zoom;
+        SDL_Event panel_wheel{}; panel_wheel.type=SDL_EVENT_MOUSE_WHEEL;
+        panel_wheel.wheel.mouse_x=static_cast<float>(panel_x);
+        panel_wheel.wheel.mouse_y=static_cast<float>(source_row_y);
+        panel_wheel.wheel.y=-1;
+        ui.handle_event(panel_wheel,running);
+        check(ui.camera().zoom==zoom_before_panel,"panel wheel zoomed map");
+        const auto stable=ui.world().snapshot();
+        for (int i=0;i<10;++i) {
+            ui.handle_event(motion(static_cast<float>(map_point(113,116).x),
+                                   static_cast<float>(map_point(113,116).y)),running);
+            check(ui.render(),"UI interaction frame");
+            (void)ui.inspection_lines();
+        }
+        check(ui.world().snapshot()==stable,"hover/panel/render changed simulation");
+        press_action(openemperor::sandbox_ui::Action::Pause);
+        check(ui.paused(),"pause button");
+        const auto tick_before=ui.world().ticks();
+        press_action(openemperor::sandbox_ui::Action::Step);
+        check(ui.world().ticks()==tick_before+1 && ui.paused(),"step button");
+        press_action(openemperor::sandbox_ui::Action::Pause);
+        check(!ui.paused(),"continue button");
+        const auto saved=ui.world().snapshot();
+        press_action(openemperor::sandbox_ui::Action::Save);
+        press_action(openemperor::sandbox_ui::Action::Road);
+        const auto future=map_point(117,115);
+        ui.handle_event(click(static_cast<float>(future.x),static_cast<float>(future.y)),running);
+        ui.handle_event(key(SDLK_F5),running);
+        ui.handle_event(release(static_cast<float>(future.x),static_cast<float>(future.y)),running);
+        check(ui.world().snapshot()==saved,"F5 committed unfinished road");
+        ui.tick_once();
+        press_action(openemperor::sandbox_ui::Action::Load);
+        check(ui.world().snapshot()==saved && ui.paused() &&
+              ui.selected_building()==static_cast<simulation::BuildingId>(9),
+              "button save/load or instance selection");
+        check(ui.render(),"saved UI software frame");
+        const auto previous_zoom=ui.camera().zoom;
+        const auto at=map_point(113,116);
+        ui.handle_event(motion(static_cast<float>(at.x),static_cast<float>(at.y)),running);
+        SDL_Event extreme{}; extreme.type=SDL_EVENT_MOUSE_WHEEL;
+        extreme.wheel.mouse_x=static_cast<float>(at.x);
+        extreme.wheel.mouse_y=static_cast<float>(at.y);
+        extreme.wheel.y=100;
+        const auto anchored=ui.camera().screen_to_world(at);
+        ui.handle_event(extreme,running);
+        const auto after=ui.camera().screen_to_world(at);
+        check(ui.camera().zoom==4 && std::abs(anchored.x-after.x)<1e-5 &&
+              std::abs(anchored.y-after.y)<1e-5 && previous_zoom<=4,
+              "zoom max changed pointer anchor");
+        extreme.wheel.y=-100;
+        ui.handle_event(extreme,running);
+        check(ui.camera().zoom==0.5,"zoom minimum clamp");
+        ui.handle_event(key(SDLK_R),running);
+        check(ui.hovered_cell()==ui.pick(at),"hover not recomputed after camera reset");
+        const auto panel_button=button_point(openemperor::sandbox_ui::Action::TogglePanel);
+        mouse_click(ui,static_cast<float>(panel_button.x),
+                    static_cast<float>(panel_button.y),running);
+        check(!ui.layout().panel_open && ui.layout().map.w==1100 &&
+              !ui.layout().ui_at(900,200),"collapsed panel retained hidden hit area");
+        check(ui.render(),"collapsed panel frame");
+        SDL_Rect viewport{},clip{};
+        float render_scale_x=0,render_scale_y=0;
+        check(SDL_GetRenderViewport(renderer,&viewport) &&
+              SDL_GetRenderClipRect(renderer,&clip) &&
+              SDL_GetRenderScale(renderer,&render_scale_x,&render_scale_y) &&
+              !SDL_RenderClipEnabled(renderer) &&
+              viewport.x==0 && viewport.y==0 && viewport.w==1100 && viewport.h==700 &&
+              render_scale_x==1 && render_scale_y==1,
+              "renderer viewport/clip/scale leaked after passes");
+        ui.shutdown();
+
+        const auto scaled=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
+        const auto scaled_button=std::find_if(scaled.buttons.begin(),scaled.buttons.end(),
+            [](const auto& item) { return item.action==openemperor::sandbox_ui::Action::Clay; });
+        check(scaled_button!=scaled.buttons.end(),"2x button present");
+        const auto button_window_x=(scaled_button->rect.x+scaled_button->rect.w/2.0)/2.0;
+        const auto button_window_y=(scaled_button->rect.y+scaled_button->rect.h/2.0)/2.0;
+        check(scaled.button_at(button_window_x*2,button_window_y*2)==
+                  openemperor::sandbox_ui::Action::Clay,
+              "2x window-to-render UI hit");
+        auto camera_2x=ui.camera();
+        camera_2x.viewport_width=scaled.map.w;
+        camera_2x.viewport_height=scaled.map.h;
+        auto storage_world=maps::terrain_world({110,114},72);
+        storage_world.y+=20;
+        camera_2x.center_on(storage_world);
+        camera_2x.offset.y+=scaled.map.y;
+        const auto physical=camera_2x.world_to_screen(storage_world);
+        const openemperor::scene::Point window_point{physical.x/2,physical.y/2};
+        const openemperor::scene::Point back_to_render{window_point.x*2,window_point.y*2};
+        const auto picked=maps::pick_terrain_cell(camera_2x.screen_to_world(back_to_render),
+                                                  maps::MapGeometry{84});
+        check(scaled.map.contains(back_to_render.x,back_to_render.y) && picked &&
+              *picked==maps::GridCell{110,114},"2x window-to-render map picking");
+        SDL_Texture* target_2x=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
+            SDL_TEXTUREACCESS_TARGET,2200,1400);
+        check(target_2x && SDL_SetRenderTarget(renderer,target_2x),"2x software target");
+        openemperor::SandboxView scaled_view(fixture(temp,true,true,true),true,
+            simulation::RulesProfile::IndustryV5);
+        scaled_view.initialize(window,renderer);
+        check(scaled_view.layout().scale==2 && scaled_view.render(),"2x UI render");
+        const auto panel=scaled_view.layout().panel;
+        const SDL_Rect text_sample{panel.x+12,panel.y+18,260,38};
+        SDL_Surface* sample=SDL_RenderReadPixels(renderer,&text_sample);
+        check(sample!=nullptr,"2x panel readback");
+        bool found_text=false;
+        for (int y=0;y<sample->h && !found_text;++y)
+            for (int x=0;x<sample->w && !found_text;++x) {
+                std::uint8_t r=0,g=0,b=0,a=0;
+                check(SDL_ReadSurfacePixel(sample,x,y,&r,&g,&b,&a),"2x panel pixel");
+                found_text=r>180 && g>180 && b>180;
+            }
+        SDL_DestroySurface(sample);
+        check(found_text,"2x inspector text clipped away");
+        scaled_view.shutdown();
+        check(SDL_SetRenderTarget(renderer,nullptr),"restore software target");
+        SDL_DestroyTexture(target_2x);
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
         std::cout << "Sandbox software view checks passed\n";
         return 0;

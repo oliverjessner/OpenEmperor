@@ -44,6 +44,7 @@ add_executable(openemperor
     src/app/MapBrowser.cpp
     src/app/MapRenderCheck.cpp
     src/app/SandboxView.cpp
+    src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
     src/app/SandboxCheck.cpp
     src/app/SandboxRoutingCheck.cpp
     src/renderer/TitleScreen.cpp
@@ -143,7 +144,8 @@ if(BUILD_TESTING)
     add_test(NAME sandbox-production-chain COMMAND openemperor-sandbox-production-tests)
     set_tests_properties(sandbox-production-chain PROPERTIES TIMEOUT 20)
     add_executable(openemperor-sandbox-view-tests tests/SandboxViewTests.cpp
-        src/app/SandboxView.cpp src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
+        src/app/SandboxView.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)

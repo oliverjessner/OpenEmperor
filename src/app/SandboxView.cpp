@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -93,6 +94,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Save map or rules differ from current sandbox");
     auto replacement=persistence::restore_save(document,data_root_,buildable_mask_);
     world_=std::make_unique<simulation::World>(std::move(replacement));
+    cancel_gesture();
+    if (selected_ && !world_->building_owner_at(*selected_)) selected_.reset();
     clock_.pause_and_reset();
     demo_origin_.reset();
     last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)"+
@@ -105,8 +108,7 @@ void SandboxView::load_now() {
 void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     window_=window;
     renderer_=renderer;
-    if (!SDL_GetCurrentRenderOutputSize(renderer_,&camera_.viewport_width,&camera_.viewport_height))
-        throw std::runtime_error(SDL_GetError());
+    update_layout(false);
     background_.initialize(renderer_);
     buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
     if (initial_save_) {
@@ -131,6 +133,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         "OpenEmperor | Logistics Sandbox - prototype rules");
 }
 void SandboxView::shutdown() {
+    cancel_gesture();
     background_.shutdown();
     world_.reset();
     window_=nullptr;
@@ -138,6 +141,8 @@ void SandboxView::shutdown() {
 }
 void SandboxView::reset_camera() {
     fit_stored_camera(background_.plan(),camera_);
+    camera_.offset.x+=layout_.map.x;
+    camera_.offset.y+=layout_.map.y;
     if (demo_origin_) {
         const auto center=maps::terrain_world({static_cast<std::uint32_t>(demo_origin_->x+
             (rules_==simulation::RulesProfile::IndustryV5 ? 6 :
@@ -147,18 +152,41 @@ void SandboxView::reset_camera() {
             static_cast<std::uint32_t>(demo_origin_->y)},geometry_.border);
         camera_.zoom=std::clamp(camera_.zoom,1.0,4.0);
         camera_.center_on({center.x,center.y+20.0});
-        camera_.offset.y+=75.0;
+        camera_.offset.y+=layout_.map.y+std::min(75,layout_.map.h/5);
     }
+    refresh_hover();
 }
 void SandboxView::resize_camera() {
-    int width=0,height=0;
+    update_layout(true);
+}
+void SandboxView::update_layout(bool preserve_center) {
+    int width=0,height=0,window_width=0,window_height=0;
     if (!SDL_GetCurrentRenderOutputSize(renderer_,&width,&height))
         throw std::runtime_error(SDL_GetError());
-    if (width==camera_.viewport_width && height==camera_.viewport_height) return;
-    const auto center=camera_.screen_to_world({camera_.viewport_width*0.5,camera_.viewport_height*0.5});
-    camera_.viewport_width=width;
-    camera_.viewport_height=height;
-    camera_.center_on(center);
+    if (!SDL_GetWindowSize(window_,&window_width,&window_height))
+        throw std::runtime_error(SDL_GetError());
+    const auto next=sandbox_ui::make_layout(width,height,window_width,window_height,panel_open_);
+    if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
+        next.map.w==layout_.map.w && next.map.h==layout_.map.h) return;
+    scene::Point center{};
+    if (preserve_center && layout_.map.w>0 && layout_.map.h>0)
+        center=camera_.screen_to_world({layout_.map.x+layout_.map.w*0.5,
+                                       layout_.map.y+layout_.map.h*0.5});
+    layout_=next;
+    camera_.viewport_width=layout_.map.w;
+    camera_.viewport_height=layout_.map.h;
+    if (preserve_center && layout_.map.w>0 && layout_.map.h>0) {
+        camera_.center_on(center);
+        camera_.offset.x+=layout_.map.x;
+        camera_.offset.y+=layout_.map.y;
+    }
+    panel_scroll_=0;
+    if (preserve_center) {
+        float mouse_x=0,mouse_y=0;
+        (void)SDL_GetMouseState(&mouse_x,&mouse_y);
+        pointer_=render_point(mouse_x,mouse_y);
+    }
+    refresh_hover();
 }
 void SandboxView::place_demo() {
     if (rules_==simulation::RulesProfile::IndustryV5) {
@@ -274,14 +302,8 @@ void SandboxView::place_demo() {
     }
     throw std::runtime_error("no suitable straight sandbox-buildable row for demo");
 }
-int SandboxView::hud_height() const {
-    return rules_==simulation::RulesProfile::IndustryV5 ? 405 :
-        rules_==simulation::RulesProfile::SettlementV4 ? 310 :
-        rules_==simulation::RulesProfile::HouseholdV3 ? 205 :
-        rules_==simulation::RulesProfile::ProductionV2 ? 151 : 116;
-}
 std::optional<simulation::Cell> SandboxView::pick(scene::Point screen) const {
-    if (screen.y<hud_height()) return std::nullopt;
+    if (!layout_.map.contains(screen.x,screen.y)) return std::nullopt;
     const auto cell=maps::pick_terrain_cell(camera_.screen_to_world(screen),geometry_);
     if (!cell) return std::nullopt;
     return simulation::Cell{static_cast<int>(cell->x),static_cast<int>(cell->y)};
@@ -289,69 +311,240 @@ std::optional<simulation::Cell> SandboxView::pick(scene::Point screen) const {
 simulation::CommandResult SandboxView::preview(simulation::Cell cell) const {
     if (tool_==(simulation::production_profile(rules_) ? 5 : 4))
         return {false,false,"Select tool",world_->command_sequence()+1,world_->ticks()};
+    if (tool_==1 && world_->object_at(cell)==simulation::Object::Road)
+        return {true,false,"Existing road",world_->command_sequence()+1,world_->ticks()};
     return world_->validate({command_type(rules_,tool_),cell});
 }
 void SandboxView::set_tool(int tool) {
-    if (tool>=1 && tool<=(simulation::household_profile(rules_) ? 7 :
-                          rules_==simulation::RulesProfile::ProductionV2 ? 6 : 4)) tool_=tool;
+    cancel_gesture();
+    sandbox_ui::Action action;
+    switch (tool) {
+    case 1: action=sandbox_ui::Action::Road; break;
+    case 2: action=sandbox_ui::Action::Clay; break;
+    case 3: action=simulation::production_profile(rules_) ? sandbox_ui::Action::Pottery :
+        sandbox_ui::Action::Warehouse; break;
+    case 4: action=simulation::production_profile(rules_) ? sandbox_ui::Action::Warehouse :
+        sandbox_ui::Action::Select; break;
+    case 5: action=sandbox_ui::Action::Select; break;
+    case 6: action=sandbox_ui::Action::RemoveRoad; break;
+    case 7: action=sandbox_ui::Action::Household; break;
+    default: return;
+    }
+    if (action_enabled(action)) perform_action(action);
+}
+bool SandboxView::action_enabled(sandbox_ui::Action action) const {
+    if (action==sandbox_ui::Action::Save || action==sandbox_ui::Action::Load)
+        return !save_path_.empty();
+    if (action==sandbox_ui::Action::RemoveRoad)
+        return simulation::production_profile(rules_);
+    if (action==sandbox_ui::Action::Household)
+        return simulation::household_profile(rules_) &&
+            world_->next_household_id()<simulation::household_id_end;
+    if (action==sandbox_ui::Action::Clay || action==sandbox_ui::Action::Pottery ||
+        action==sandbox_ui::Action::Warehouse) {
+        const auto wanted=action==sandbox_ui::Action::Clay ?
+            (simulation::production_profile(rules_) ? simulation::Object::ClaySource :
+                simulation::Object::Workshop) :
+            action==sandbox_ui::Action::Pottery ? simulation::Object::Pottery :
+                simulation::Object::Warehouse;
+        if (action==sandbox_ui::Action::Pottery && !simulation::production_profile(rules_)) return false;
+        int count=0;
+        for (unsigned id=1;id<=9;++id) {
+            const auto& b=world_->building(static_cast<simulation::BuildingId>(id));
+            if (b.placed && b.kind==wanted) ++count;
+        }
+        const int limit=(rules_==simulation::RulesProfile::IndustryV5 &&
+            (wanted==simulation::Object::ClaySource || wanted==simulation::Object::Pottery)) ? 2:1;
+        return count<limit;
+    }
+    return true;
+}
+void SandboxView::cancel_gesture() {
+    pressed_button_.reset();
+    pressed_building_.reset();
+    ui_pressed_=false;
+    map_pressed_=false;
+    road_start_.reset();
+    road_preview_={};
+}
+void SandboxView::perform_action(sandbox_ui::Action action) {
+    using A=sandbox_ui::Action;
+    if (action==A::Save || action==A::Load) cancel_gesture();
+    if (!action_enabled(action)) {
+        last_message_=save_path_.empty() && (action==A::Save || action==A::Load) ?
+            "No sandbox save path configured" : "Tool unavailable or building limit reached";
+        return;
+    }
+    if (action==A::Select || action==A::Road || action==A::Clay || action==A::Pottery ||
+        action==A::Warehouse || action==A::RemoveRoad || action==A::Household) {
+        cancel_gesture();
+        tool_=action==A::Select ? (simulation::production_profile(rules_) ? 5:4) :
+            action==A::Road ? 1 : action==A::Clay ? 2 : action==A::Pottery ? 3 :
+            action==A::Warehouse ? (simulation::production_profile(rules_) ? 4:3) :
+            action==A::RemoveRoad ? 6:7;
+        last_message_=tool_name(rules_,tool_);
+    } else if (action==A::Pause) clock_.toggle_pause();
+    else if (action==A::Step) clock_.step_once(*world_);
+    else if (action==A::Speed1) clock_.set_speed(1);
+    else if (action==A::Speed2) clock_.set_speed(2);
+    else if (action==A::Speed4) clock_.set_speed(4);
+    else if (action==A::Reset) { cancel_gesture(); reset_camera(); }
+    else if (action==A::Save || action==A::Load) {
+        cancel_gesture();
+        ++io_generation_;
+        try { if (action==A::Save) save_now(); else load_now(); }
+        catch (const std::exception& error) { last_message_=error.what(); }
+    } else if (action==A::TogglePanel) {
+        cancel_gesture();
+        panel_open_=!panel_open_;
+        update_layout(true);
+    } else if (action==A::ToggleDebug) debug_open_=!debug_open_;
+    refresh_hover();
+}
+std::optional<scene::Point> SandboxView::render_point(float x,float y) const {
+    int width=0,height=0;
+    if (!SDL_GetWindowSize(window_,&width,&height) || x<0 || y<0 ||
+        x>=static_cast<float>(width) || y>=static_cast<float>(height))
+        return std::nullopt;
+    float rx=0,ry=0;
+    if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&rx,&ry)) return std::nullopt;
+    return scene::Point{rx,ry};
+}
+void SandboxView::refresh_hover() {
+    hovered_=pointer_ ? pick(*pointer_) : std::nullopt;
+    if (road_start_ && hovered_) road_preview_=sandbox_ui::plan_road(*world_,*road_start_,*hovered_);
 }
 void SandboxView::handle_event(const SDL_Event& event,bool& running) {
-    if (event.type==SDL_EVENT_QUIT || event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
-        (event.type==SDL_EVENT_KEY_DOWN && event.key.key==SDLK_ESCAPE)) { running=false; return; }
-    if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) resize_camera();
+    if (event.type==SDL_EVENT_QUIT || event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+        cancel_gesture(); running=false; return;
+    }
+    if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST) { cancel_gesture(); pointer_.reset(); refresh_hover(); return; }
+    if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED || event.type==SDL_EVENT_WINDOW_RESIZED) {
+        cancel_gesture(); resize_camera(); return;
+    }
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+        if (event.key.key==SDLK_ESCAPE) {
+            if (map_pressed_ || road_start_ || pressed_button_ || ui_pressed_) cancel_gesture();
+            else running=false;
+            return;
+        }
         if (event.key.key>=SDLK_1 && event.key.key<=
             (simulation::household_profile(rules_) ? SDLK_7 :
              rules_==simulation::RulesProfile::ProductionV2 ? SDLK_6 : SDLK_4))
             set_tool(static_cast<int>(event.key.key-SDLK_1)+1);
-        else if (event.key.key==SDLK_SPACE) clock_.toggle_pause();
-        else if (event.key.key==SDLK_PERIOD) clock_.step_once(*world_);
+        else if (event.key.key==SDLK_SPACE) perform_action(sandbox_ui::Action::Pause);
+        else if (event.key.key==SDLK_PERIOD) perform_action(sandbox_ui::Action::Step);
         else if (event.key.key==SDLK_PLUS || event.key.key==SDLK_EQUALS || event.key.key==SDLK_KP_PLUS)
-            clock_.set_speed(clock_.speed()==1 ? 2 : 4);
+            perform_action(clock_.speed()==1 ? sandbox_ui::Action::Speed2 : sandbox_ui::Action::Speed4);
         else if (event.key.key==SDLK_MINUS || event.key.key==SDLK_KP_MINUS)
-            clock_.set_speed(clock_.speed()==4 ? 2 : 1);
-        else if (event.key.key==SDLK_R) reset_camera();
-        else if (event.key.key==SDLK_F5 || event.key.key==SDLK_F9) {
-            ++io_generation_;
-            try {
-                if (event.key.key==SDLK_F5) save_now(); else load_now();
-            } catch (const std::exception& error) { last_message_=error.what(); }
-        }
+            perform_action(clock_.speed()==4 ? sandbox_ui::Action::Speed2 : sandbox_ui::Action::Speed1);
+        else if (event.key.key==SDLK_R) perform_action(sandbox_ui::Action::Reset);
+        else if (event.key.key==SDLK_F5) perform_action(sandbox_ui::Action::Save);
+        else if (event.key.key==SDLK_F9) perform_action(sandbox_ui::Action::Load);
+        else if (event.key.key==SDLK_TAB) perform_action(sandbox_ui::Action::TogglePanel);
+        else if (event.key.key==SDLK_F1) perform_action(sandbox_ui::Action::ToggleDebug);
     }
     if (event.type==SDL_EVENT_MOUSE_WHEEL) {
-        float x=event.wheel.mouse_x,y=event.wheel.mouse_y;
-        if (SDL_RenderCoordinatesFromWindow(renderer_,x,y,&x,&y)) {
-            camera_.zoom_at({x,y},std::pow(1.15,event.wheel.y));
-            camera_.zoom=std::clamp(camera_.zoom,0.05,8.0);
+        const auto point=render_point(event.wheel.mouse_x,event.wheel.mouse_y);
+        if (point) {
+            pointer_=point;
+            if (layout_.panel.contains(point->x,point->y)) {
+                const auto rows=placed_buildings().size()+inspection_lines().size();
+                const int total=56*layout_.scale+static_cast<int>(rows)*18*layout_.scale;
+                const int limit=std::max(0,total-layout_.panel.h);
+                panel_scroll_=std::clamp(panel_scroll_-static_cast<int>(event.wheel.y)*24*layout_.scale,
+                                         0,limit);
+            }
+            else if (layout_.map.contains(point->x,point->y) && !road_start_)
+                camera_.zoom_at(*point,std::pow(1.15,event.wheel.y));
+            refresh_hover();
         }
     }
     if (event.type==SDL_EVENT_MOUSE_MOTION) {
-        float x=event.motion.x,y=event.motion.y;
-        hovered_=SDL_RenderCoordinatesFromWindow(renderer_,x,y,&x,&y) ? pick({x,y}) : std::nullopt;
+        pointer_=render_point(event.motion.x,event.motion.y);
+        refresh_hover();
     }
     if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN) {
         if (event.button.button==SDL_BUTTON_RIGHT) {
-            tool_=simulation::production_profile(rules_) ? 5 : 4; return;
+            cancel_gesture(); return;
         }
         if (event.button.button!=SDL_BUTTON_LEFT) return;
-        float x=event.button.x,y=event.button.y;
-        if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&x,&y)) return;
-        const auto cell=pick({x,y});
-        if (!cell) return;
-        hovered_=cell;
-        if (tool_==(simulation::production_profile(rules_) ? 5 : 4)) {
-            selected_=cell; return;
+        pointer_=render_point(event.button.x,event.button.y);
+        refresh_hover();
+        if (!pointer_) return;
+        if (const auto button=layout_.button_at(pointer_->x,pointer_->y)) {
+            pressed_button_=button; return;
         }
-        (void)execute({command_type(rules_,tool_),*cell});
+        if (layout_.ui_at(pointer_->x,pointer_->y)) {
+            ui_pressed_=true;
+            if (layout_.panel.contains(pointer_->x,pointer_->y)) {
+                const int relative=static_cast<int>(pointer_->y)-layout_.panel.y-
+                    46*layout_.scale+panel_scroll_;
+                if (relative>=0) {
+                    const auto entries=placed_buildings();
+                    const auto index=static_cast<std::size_t>(relative/(18*layout_.scale));
+                    if (index<entries.size()) pressed_building_=entries[index];
+                }
+            }
+            return;
+        }
+        const auto cell=pick(*pointer_);
+        if (!cell) return;
+        map_pressed_=true;
+        if (tool_==1) {
+            road_start_=cell;
+            road_preview_=sandbox_ui::plan_road(*world_,*cell,*cell);
+        }
+    }
+    if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
+        pointer_=render_point(event.button.x,event.button.y);
+        refresh_hover();
+        if (pressed_button_) {
+            const auto action=*pressed_button_;
+            const bool matching=pointer_ && layout_.button_at(pointer_->x,pointer_->y)==action;
+            cancel_gesture();
+            if (matching) perform_action(action);
+            return;
+        }
+        if (ui_pressed_) {
+            if (pressed_building_ && pointer_ && layout_.panel.contains(pointer_->x,pointer_->y)) {
+                const int relative=static_cast<int>(pointer_->y)-layout_.panel.y-
+                    46*layout_.scale+panel_scroll_;
+                const auto entries=placed_buildings();
+                if (relative>=0) {
+                    const auto index=static_cast<std::size_t>(relative/(18*layout_.scale));
+                    if (index<entries.size() && entries[index]==*pressed_building_)
+                        selected_=world_->building(*pressed_building_).cell;
+                }
+            }
+            cancel_gesture(); return;
+        }
+        if (!map_pressed_) return;
+        const auto cell=pointer_ ? pick(*pointer_) : std::nullopt;
+        if (cell && road_start_ && tool_==1) {
+            const auto plan=sandbox_ui::plan_road(*world_,*road_start_,*cell);
+            std::string reason;
+            if (!sandbox_ui::commit_road(*world_,plan,reason)) last_message_=reason;
+            else last_message_=reason;
+            selected_=cell;
+        } else if (cell) {
+            if (tool_==(simulation::production_profile(rules_) ? 5:4)) selected_=cell;
+            else (void)execute({command_type(rules_,tool_),*cell});
+        }
+        cancel_gesture();
+        refresh_hover();
     }
 }
 void SandboxView::update(double seconds) {
     const bool* keys=SDL_GetKeyboardState(nullptr);
     const double movement=400.0*std::clamp(seconds,0.0,0.05);
-    if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT]) camera_.offset.x+=movement;
-    if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) camera_.offset.x-=movement;
-    if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) camera_.offset.y+=movement;
-    if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) camera_.offset.y-=movement;
+    if (!road_start_) {
+        if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT]) camera_.offset.x+=movement;
+        if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) camera_.offset.x-=movement;
+        if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) camera_.offset.y+=movement;
+        if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) camera_.offset.y-=movement;
+        refresh_hover();
+    }
     clock_.update(seconds,*world_);
 }
 void SandboxView::tick_once() { world_->tick(); }
@@ -391,8 +584,9 @@ bool SandboxView::draw_world() {
         if (object==simulation::Object::Empty) continue;
         const auto top=world_for({static_cast<double>(x),static_cast<double>(y)});
         const auto center=camera_.world_to_screen(top);
-        if (center.x<-90 || center.y<-90 || center.x>camera_.viewport_width+90 ||
-            center.y>camera_.viewport_height+90) continue;
+        if (center.x<layout_.map.x-90 || center.y<layout_.map.y-90 ||
+            center.x>layout_.map.x+layout_.map.w+90 ||
+            center.y>layout_.map.y+layout_.map.h+90) continue;
         if (object==simulation::Object::Road) {
             if (!draw_diamond({top.x,top.y-20},225,174,65,true)) return false;
             for (const simulation::Cell next : {simulation::Cell{x+1,y},simulation::Cell{x,y+1},
@@ -482,6 +676,16 @@ bool SandboxView::draw_world() {
         const auto top=world_for({static_cast<double>(selected_->x),static_cast<double>(selected_->y)});
         if (!draw_diamond({top.x,top.y-20},255,255,255,false)) return false;
     }
+    if (road_start_) {
+        for (const auto cell:road_preview_.cells) {
+            const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
+            const bool okay=world_->object_at(cell)==simulation::Object::Road ||
+                world_->validate({simulation::CommandType::PlaceRoad,cell}).accepted;
+            if (!draw_diamond({top.x,top.y-20},okay ? 45:245,okay ? 230:60,
+                              okay ? 110:65,true)) return false;
+        }
+        return true;
+    }
     if (hovered_ && tool_!=(simulation::production_profile(rules_) ? 5 : 4)) {
         const auto top=world_for({static_cast<double>(hovered_->x),static_cast<double>(hovered_->y)});
         const auto result=preview(*hovered_);
@@ -490,280 +694,279 @@ bool SandboxView::draw_world() {
     }
     return true;
 }
-bool SandboxView::draw_hud() {
-    if (simulation::production_profile(rules_)) return draw_hud_v2();
-    const SDL_FRect panel{0,0,static_cast<float>(camera_.viewport_width),
-        static_cast<float>(hud_height())};
-    if (!SDL_SetRenderDrawColor(renderer_,11,16,24,245) || !SDL_RenderFillRect(renderer_,&panel) ||
-        !SDL_SetRenderDrawColor(renderer_,245,245,245,255)) return false;
-    const std::string line0="LOGISTICS SANDBOX - prototype rules | 1 Road 2 Workshop 3 Warehouse 4 Select";
-    const std::string line1="Tool: "+std::string{tool_name(rules_,tool_)}+" | Tick: "+std::to_string(world_->ticks())+
-        " ("+std::to_string(world_->ticks()/simulation::Rules::ticks_per_second)+"s) | "+
-        (clock_.paused()?"PAUSED":"RUNNING")+" "+std::to_string(clock_.speed())+"x | Goods produced: "+
-        std::to_string(world_->total_produced());
-    const std::string line2="Workshop: "+std::to_string(world_->workshop_stock())+"/"+
-        std::to_string(simulation::Rules::workshop_capacity)+" progress "+
-        std::to_string(world_->production_progress())+"/100 | Courier: "+
-        simulation::courier_phase_name(world_->courier_phase())+" cargo "+
-        std::to_string(world_->courier_cargo())+"/4 | Warehouse: "+
-        std::to_string(world_->warehouse_stock())+"/32";
-    const std::string line3="Status: "+std::string{world_->blockage()}+
-        " | Last: "+(last_message_.empty()?std::string{"-"}:last_message_)+
-        " | Road revision: "+std::to_string(world_->road_revision());
-    std::string line4="Space Pause  . Step  +/- Speed  WASD/Arrows Pan  Wheel Zoom  R Reset  Esc Exit";
-    if (hovered_ && tool_!=4) {
-        const auto p=preview(*hovered_);
-        line4+=" | Preview ("+std::to_string(hovered_->x)+","+std::to_string(hovered_->y)+"): "+
-            (p.accepted?"VALID ":"INVALID ")+p.reason;
+std::vector<simulation::BuildingId> SandboxView::placed_buildings() const {
+    std::vector<simulation::BuildingId> result;
+    for (unsigned id=1;id<=9;++id) {
+        const auto key=static_cast<simulation::BuildingId>(id);
+        if (world_->building(key).placed) result.push_back(key);
     }
-    const std::string line5=selected_ ?
-        "Selected: ("+std::to_string(selected_->x)+","+std::to_string(selected_->y)+") "+
-        object_name(world_->object_at(*selected_))+" | Buildable: "+
-        (world_->buildable(*selected_)?"yes":"no") : "Selected: none";
-    return SDL_RenderDebugText(renderer_,8,5,line0.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,23,line1.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,41,line2.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,59,line3.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,77,line4.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,95,line5.c_str());
+    return result;
 }
-bool SandboxView::draw_hud_v2() {
-    const SDL_FRect panel{0,0,static_cast<float>(camera_.viewport_width),
-        static_cast<float>(hud_height())};
-    if (!SDL_SetRenderDrawColor(renderer_,11,16,24,245) || !SDL_RenderFillRect(renderer_,&panel) ||
-        !SDL_SetRenderDrawColor(renderer_,245,245,245,255)) return false;
-    const auto& clay=world_->building(simulation::BuildingId::ClaySource);
-    const auto& pottery=world_->building(simulation::BuildingId::Pottery);
-    const auto& store=world_->building(simulation::BuildingId::Warehouse);
-    const auto& a=world_->courier(simulation::CourierId::Clay);
-    const auto& b=world_->courier(simulation::CourierId::Pottery);
-    const std::string line0=rules_==simulation::RulesProfile::IndustryV5 ?
-        "sandbox-industry-v5 rules 1 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove 7 Household" :
-        rules_==simulation::RulesProfile::SettlementV4 ?
-        "sandbox-settlement-v4 rules 1 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove 7 Household" :
-        rules_==simulation::RulesProfile::HouseholdV3 ?
-        "sandbox-household-v3 rules 1 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove 7 Household" :
-        "sandbox-production-v2 rules 2 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove";
-    const std::string line1="Tool: "+std::string{tool_name(rules_,tool_)}+
-        " | Tick: "+std::to_string(world_->ticks())+" | "+
-        (clock_.paused()?"PAUSED":"RUNNING")+" "+std::to_string(clock_.speed())+
-        "x | Clay extracted: "+std::to_string(world_->clay_extracted_total())+
-        " | Pottery completed: "+std::to_string(world_->pottery_completed_total());
-    const std::string line2="Clay source: "+std::to_string(clay.output)+"/8 progress "+
-        std::to_string(clay.progress)+"/100 | A: "+simulation::delivery_phase_name(a.phase)+
-        " Clay cargo "+std::to_string(a.cargo)+" reserved "+std::to_string(a.reserved)+
-        " reroutes "+std::to_string(a.reroute_attempts)+" | "+
-        world_->courier_blockage(simulation::CourierId::Clay);
-    const std::string line3="Pottery: Clay in "+std::to_string(pottery.input_clay)+"/8 reserved "+
-        std::to_string(pottery.reserved_incoming)+" recipe Clay "+
-        std::to_string(pottery.active_recipe_clay)+" progress "+
-        std::to_string(pottery.progress)+"/150 | "+world_->pottery_blockage();
-    const std::string line4="Pottery output: "+std::to_string(pottery.output)+"/8 | B: "+
-        simulation::delivery_phase_name(b.phase)+" Pottery cargo "+std::to_string(b.cargo)+
-        " reserved "+std::to_string(b.reserved)+" reroutes "+std::to_string(b.reroute_attempts)+
-        " | "+world_->courier_blockage(simulation::CourierId::Pottery);
-    const std::string line5="Warehouse: Pottery "+std::to_string(store.pottery_stock)+
-        "/32 reserved "+std::to_string(store.reserved_incoming)+
-        " free "+std::to_string(simulation::Rules::warehouse_capacity-store.pottery_stock-
-            store.reserved_incoming)+" | Balance: "+
-        (world_->production_balance_valid() && world_->navigation_valid()?"OK":"ERROR")+
-        " | Road revision "+std::to_string(world_->road_revision());
-    std::string line6="Last: "+(last_message_.empty()?std::string{"-"}:last_message_);
-    if (hovered_ && tool_!=5) {
-        const auto p=preview(*hovered_);
-        line6+=" | Preview ("+std::to_string(hovered_->x)+","+std::to_string(hovered_->y)+"): "+
-            (p.accepted?"VALID ":"INVALID ")+p.reason;
+std::optional<simulation::BuildingId> SandboxView::selected_building() const {
+    return selected_ ? world_->building_owner_at(*selected_) : std::nullopt;
+}
+std::vector<std::string> SandboxView::inspection_lines() const {
+    std::vector<std::string> lines;
+    const auto id=selected_building();
+    if (!id) {
+        lines.push_back("Select a building or list entry");
+        lines.push_back("Placed: "+std::to_string(placed_buildings().size()));
+        return lines;
     }
-    const std::string line7=selected_ ?
-        "Selected ("+std::to_string(selected_->x)+","+std::to_string(selected_->y)+"): "+
-        object_name(world_->object_at(*selected_))+" | Space Pause . Step +/- Speed Wheel Zoom R Reset Esc Exit" :
-        "Selected: none | Space Pause . Step +/- Speed Wheel Zoom R Reset Esc Exit";
-    bool drawn=SDL_RenderDebugText(renderer_,8,5,line0.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,23,line1.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,41,line2.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,59,line3.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,77,line4.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,95,line5.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,113,line6.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,131,line7.c_str());
-    if (!drawn) return false;
-    if (rules_==simulation::RulesProfile::IndustryV5) {
-        const auto& supplier=world_->courier(simulation::CourierId::Household);
-        const auto courier_for=[&](simulation::BuildingId owner)->const simulation::CourierState* {
-            for (unsigned id=1;id<=5;++id) {
-                const auto& c=world_->courier(static_cast<simulation::CourierId>(id));
-                if (c.enabled && c.owner==owner) return &c;
-            }
-            return nullptr;
-        };
-        const auto id_text=[](simulation::BuildingId id) {
-            return std::to_string(static_cast<unsigned>(id));
-        };
-        const std::string supplier_line="House supplier: "+
-            std::string{simulation::delivery_phase_name(supplier.phase)}+
-            " target "+(supplier.phase==simulation::CourierPhase::IdleAtWorkshop ?
-                "-":id_text(supplier.target))+" cargo "+std::to_string(supplier.cargo)+
-            " reserved "+std::to_string(supplier.reserved)+
-            " last H"+(world_->last_dispatched_household() ?
-                id_text(*world_->last_dispatched_household()):"-");
-        drawn=SDL_RenderDebugText(renderer_,8,149,supplier_line.c_str());
-        unsigned clay_count=0,pot_count=0;
-        for (unsigned id=1;id<=9;++id) {
-            const auto& instance=world_->building(static_cast<simulation::BuildingId>(id));
-            if (instance.placed && instance.kind==simulation::Object::ClaySource) ++clay_count;
-            if (instance.placed && instance.kind==simulation::Object::Pottery) ++pot_count;
-        }
-        const std::string overview="Industry: "+std::to_string(clay_count)+"/2 Clay, "+
-            std::to_string(pot_count)+"/2 Pottery | total Clay "+
-            std::to_string(world_->clay_extracted_total())+" Pottery "+
-            std::to_string(world_->pottery_completed_total())+" | Warehouse "+
-            std::to_string(store.pottery_stock)+" reserved "+
-            std::to_string(store.reserved_incoming);
-        drawn=drawn && SDL_RenderDebugText(renderer_,8,167,overview.c_str());
-        int row=0;
-        for (unsigned id=1;id<=9;++id) {
-            const auto& instance=world_->building(static_cast<simulation::BuildingId>(id));
-            if (!instance.placed || (instance.kind!=simulation::Object::ClaySource &&
-                              instance.kind!=simulation::Object::Pottery)) continue;
-            const auto* c=courier_for(instance.id);
-            const bool clay_source=instance.kind==simulation::Object::ClaySource;
-            const std::string line=std::string(clay_source ? "C":"P")+id_text(instance.id)+
-                " ("+std::to_string(instance.cell.x)+","+std::to_string(instance.cell.y)+")"+
-                (clay_source ? " out "+std::to_string(instance.output)+"/8 progress "+
-                    std::to_string(instance.progress)+"/100 extracted "+
-                    std::to_string(instance.clay_extracted)+
-                    (instance.output==simulation::Rules::clay_output_capacity ?
-                        " OUTPUT FULL":"") :
-                    " in "+std::to_string(instance.input_clay)+"/8 reserved "+
-                    std::to_string(instance.reserved_incoming)+" out "+std::to_string(instance.output)+
-                    "/8 recipe "+std::to_string(instance.progress)+"/150 completed "+
-                    std::to_string(instance.recipes_completed)+" "+
-                    (instance.active_recipe_clay>0 ? "Processing":
-                     instance.output>=simulation::Rules::pottery_output_capacity ? "OUTPUT FULL":
-                     instance.input_clay<simulation::Rules::pottery_recipe_clay ? "No Clay input":
-                     "Ready"))+
-                (c ? " | courier "+std::to_string(static_cast<unsigned>(c->id))+
-                    " target "+id_text(c->target)+" "+
-                    simulation::delivery_phase_name(c->phase)+" cargo "+
-                    std::to_string(c->cargo)+" "+world_->courier_blockage(c->id):"");
-            drawn=drawn && SDL_RenderDebugText(renderer_,8,static_cast<float>(185+row*18),line.c_str());
-            ++row;
-        }
-        for (;row<4;++row) {
-            const std::string line="Production slot available";
-            drawn=drawn && SDL_RenderDebugText(renderer_,8,static_cast<float>(185+row*18),line.c_str());
-        }
-        for (unsigned id=4;id<8;++id) {
-            const auto& h=world_->building(static_cast<simulation::BuildingId>(id));
-            const std::string line=h.placed ?
-                "H"+std::to_string(id)+" stock "+std::to_string(h.pottery_stock)+
-                    "/8 reserved "+std::to_string(h.reserved_incoming)+
-                    " demand "+std::to_string(h.demand_progress)+"/400 fulfilled "+
-                    std::to_string(h.fulfilled_demand)+" missed "+
-                    std::to_string(h.missed_demand)+" consumed "+
-                    std::to_string(h.consumed_total) :
-                "H"+std::to_string(id)+": not placed";
-            drawn=drawn && SDL_RenderDebugText(renderer_,8,
-                static_cast<float>(257+static_cast<int>(id-4)*18),line.c_str());
-        }
-        std::string selection="Selected: none";
-        if (selected_) {
-            if (const auto owner=world_->building_owner_at(*selected_)) {
-                const auto& instance=world_->building(*owner);
-                selection="Selected ID "+id_text(*owner)+" "+object_name(instance.kind)+
-                    " ("+std::to_string(instance.cell.x)+","+std::to_string(instance.cell.y)+")";
-                if (instance.kind==simulation::Object::ClaySource)
-                    selection+=" out "+std::to_string(instance.output)+" progress "+
-                        std::to_string(instance.progress)+" extracted "+
-                        std::to_string(instance.clay_extracted);
-                else if (instance.kind==simulation::Object::Pottery)
-                    selection+=" input "+std::to_string(instance.input_clay)+" reserved "+
-                        std::to_string(instance.reserved_incoming)+" out "+
-                        std::to_string(instance.output)+" progress "+
-                        std::to_string(instance.progress)+" recipes "+
-                        std::to_string(instance.recipes_completed);
-                else if (instance.kind==simulation::Object::Warehouse ||
-                         instance.kind==simulation::Object::Household)
-                    selection+=" Pottery "+std::to_string(instance.pottery_stock)+
-                        " reserved "+std::to_string(instance.reserved_incoming);
-                if (const auto* c=courier_for(*owner))
-                    selection+=" | courier "+std::to_string(static_cast<unsigned>(c->id))+
-                        " target "+id_text(c->target)+" "+world_->courier_blockage(c->id);
-            }
-        }
-        return drawn && SDL_RenderDebugText(renderer_,8,329,selection.c_str());
+    const auto& b=world_->building(*id);
+    const auto number=std::to_string(static_cast<unsigned>(*id));
+    lines.push_back(object_name(b.kind)+std::string(" #")+number);
+    lines.push_back("Cell "+std::to_string(b.cell.x)+", "+std::to_string(b.cell.y));
+    if (b.kind==simulation::Object::Workshop) {
+        lines.push_back("Output "+std::to_string(world_->workshop_stock())+"/8");
+        lines.push_back("Progress "+std::to_string(world_->production_progress())+"/100");
+        lines.push_back("Produced "+std::to_string(world_->total_produced()));
+        lines.push_back(world_->workshop_stock()==simulation::Rules::workshop_capacity ?
+            "Output full" : "Workshop active");
+    } else if (b.kind==simulation::Object::ClaySource) {
+        lines.push_back("Clay output "+std::to_string(b.output)+"/8");
+        lines.push_back("Progress "+std::to_string(b.progress)+"/100");
+        lines.push_back("Extracted "+std::to_string(b.clay_extracted));
+        lines.push_back(b.output==simulation::Rules::clay_output_capacity ? "Output full" :
+            "Extraction active");
+    } else if (b.kind==simulation::Object::Pottery) {
+        lines.push_back("Clay input "+std::to_string(b.input_clay)+"/8");
+        lines.push_back("Reserved input "+std::to_string(b.reserved_incoming));
+        lines.push_back("Recipe Clay "+std::to_string(b.active_recipe_clay));
+        lines.push_back("Recipe "+std::to_string(b.progress)+"/150");
+        lines.push_back("Pottery output "+std::to_string(b.output)+"/8");
+        lines.push_back("Completed "+std::to_string(b.recipes_completed));
+        lines.push_back(b.active_recipe_clay>0 ? "Processing" :
+            b.output>=simulation::Rules::pottery_output_capacity ? "Output full" :
+            b.input_clay<simulation::Rules::pottery_recipe_clay ? "No Clay input" : "Ready");
+    } else if (b.kind==simulation::Object::Warehouse) {
+        const int stock=simulation::production_profile(rules_) ? b.pottery_stock :
+            world_->warehouse_stock();
+        lines.push_back("Pottery stock "+std::to_string(stock)+"/32");
+        lines.push_back("Reserved input "+std::to_string(b.reserved_incoming));
+        lines.push_back("Free "+std::to_string(simulation::Rules::warehouse_capacity-stock-
+            b.reserved_incoming));
+    } else if (b.kind==simulation::Object::Household) {
+        lines.push_back("Pottery stock "+std::to_string(b.pottery_stock)+"/8");
+        lines.push_back("Reserved "+std::to_string(b.reserved_incoming));
+        lines.push_back("Demand clock "+std::to_string(b.demand_progress)+"/400");
+        lines.push_back("Fulfilled "+std::to_string(b.fulfilled_demand)+
+            " Missed "+std::to_string(b.missed_demand));
+        lines.push_back("Consumed "+std::to_string(b.consumed_total));
+        lines.push_back(b.last_demand_status==0 ? "Demand: not due" :
+            b.last_demand_status==1 ? "Demand: supplied" : "Demand: unmet");
     }
-    if (rules_==simulation::RulesProfile::SettlementV4) {
-        const auto& supplier=world_->courier(simulation::CourierId::Household);
-        const auto id_text=[](std::optional<simulation::BuildingId> id) {
-            return id ? "H"+std::to_string(static_cast<unsigned>(*id)) : std::string{"-"};
-        };
-        const std::string target=supplier.phase==simulation::CourierPhase::IdleAtWorkshop ?
-            "-" : id_text(supplier.target);
-        const std::string supply="Supplier: "+std::string{simulation::delivery_phase_name(supplier.phase)}+
-            " target "+target+" cargo "+std::to_string(supplier.cargo)+
-            " reserved "+std::to_string(supplier.reserved)+
-            (supplier.route_pending ? " WAITING":"")+
-            " | last dispatched "+id_text(world_->last_dispatched_household());
-        drawn=SDL_RenderDebugText(renderer_,8,149,supply.c_str());
-        const std::string status="Supply: "+std::string{world_->courier_blockage(simulation::CourierId::Household)}+
-            " | reroutes "+std::to_string(supplier.reroute_attempts)+
-            " | Houses "+std::to_string(static_cast<unsigned>(world_->next_household_id()-4))+"/4";
-        drawn=drawn && SDL_RenderDebugText(renderer_,8,167,status.c_str());
-        for (unsigned id=4;id<8;++id) {
-            const auto& home=world_->building(static_cast<simulation::BuildingId>(id));
-            const std::string line=home.placed ?
-                "H"+std::to_string(id)+" ("+std::to_string(home.cell.x)+","+
-                    std::to_string(home.cell.y)+") stock "+std::to_string(home.pottery_stock)+
-                    "/8 reserved "+std::to_string(home.reserved_incoming)+
-                    " demand "+std::to_string(home.demand_progress)+"/400 fulfilled "+
-                    std::to_string(home.fulfilled_demand)+" missed "+
-                    std::to_string(home.missed_demand)+" consumed "+
-                    std::to_string(home.consumed_total) :
-                "H"+std::to_string(id)+": not placed";
-            drawn=drawn && SDL_RenderDebugText(renderer_,8,
-                static_cast<float>(185+static_cast<int>(id-4)*18),
-                line.c_str());
-        }
-        std::string selected="Selected house: none";
-        if (selected_) {
-            const auto owner=world_->building_owner_at(*selected_);
-            if (owner && static_cast<unsigned>(*owner)>=4 && static_cast<unsigned>(*owner)<8) {
-                const auto& home=world_->building(*owner);
-                selected="Selected H"+std::to_string(static_cast<unsigned>(*owner))+
-                    " ("+std::to_string(home.cell.x)+","+std::to_string(home.cell.y)+")"+
-                    " last demand "+(home.last_demand_status==0 ? "none" :
-                        home.last_demand_status==1 ? "fulfilled":"missed")+
-                    " | route "+(world_->household_route_available(*owner) ? "available":"unreachable");
+    if (simulation::production_profile(rules_)) {
+        for (unsigned courier_id=1;courier_id<=5;++courier_id) {
+            const auto& c=world_->courier(static_cast<simulation::CourierId>(courier_id));
+            if (!c.enabled || c.owner!=*id) continue;
+            lines.push_back("Courier #"+std::to_string(courier_id)+" "+
+                (c.role==simulation::CourierRole::Clay ? "Clay" :
+                 c.role==simulation::CourierRole::Pottery ? "Pottery" : "House supply"));
+            lines.push_back("Target "+(c.phase==simulation::CourierPhase::IdleAtWorkshop ?
+                std::string("-"):std::to_string(static_cast<unsigned>(c.target)))+
+                " cargo "+std::to_string(c.cargo));
+            lines.push_back(std::string("Phase ")+simulation::delivery_phase_name(c.phase));
+            std::string status=world_->courier_blockage(c.id);
+            if (status=="No eligible pottery route or space") {
+                bool free_target=false,reachable=false;
+                for (unsigned target_id=1;target_id<=9;++target_id) {
+                    const auto& target=world_->building(static_cast<simulation::BuildingId>(target_id));
+                    if (!target.placed || target.kind!=simulation::Object::Pottery ||
+                        target.input_clay+target.reserved_incoming>=
+                            simulation::Rules::pottery_input_capacity) continue;
+                    free_target=true;
+                    if (c.target_routes[target_id-1]) reachable=true;
+                }
+                status=!free_target ? "Target buffer full":
+                    !reachable ? "No road connection":"No eligible Pottery";
+            } else if (status=="No eligible household route or space") {
+                bool free_target=false,reachable=false;
+                for (unsigned target_id=4;target_id<8;++target_id) {
+                    const auto& target=world_->building(static_cast<simulation::BuildingId>(target_id));
+                    if (!target.placed || target.kind!=simulation::Object::Household ||
+                        target.pottery_stock+target.reserved_incoming>=
+                            simulation::Rules::household_capacity) continue;
+                    free_target=true;
+                    if (world_->household_route_available(target.id)) reachable=true;
+                }
+                status=!free_target ? "Target buffer full":
+                    !reachable ? "No road connection":"No eligible household";
             }
+            lines.push_back("Status "+status);
+            break;
         }
-        return drawn && SDL_RenderDebugText(renderer_,8,257,selected.c_str());
+    } else if (b.kind==simulation::Object::Warehouse || b.kind==simulation::Object::Workshop) {
+        lines.push_back(std::string("Courier ")+simulation::courier_phase_name(world_->courier_phase()));
+        lines.push_back("Cargo "+std::to_string(world_->courier_cargo()));
     }
-    if (rules_!=simulation::RulesProfile::HouseholdV3) return drawn;
-    const auto& home=world_->building(simulation::BuildingId::Household);
-    const auto& courier=world_->courier(simulation::CourierId::Household);
-    const std::string last=home.last_demand_status==0 ? "no demand yet" :
-        home.last_demand_status==1 ? "fulfilled" : "unmet";
-    const std::string line8="Household: "+std::to_string(home.pottery_stock)+"/8 reserved "+
-        std::to_string(home.reserved_incoming)+" demand progress "+
-        std::to_string(home.demand_progress)+"/400 | Last: "+last;
-    const std::string line9="Demand fulfilled "+std::to_string(home.fulfilled_demand)+
-        " missed "+std::to_string(home.missed_demand)+" consumed "+
-        std::to_string(home.consumed_total)+" | Supplier: "+
-        simulation::delivery_phase_name(courier.phase)+" cargo "+std::to_string(courier.cargo)+
-        " reserved "+std::to_string(courier.reserved);
-    const std::string line10="Supply: "+std::string{world_->courier_blockage(simulation::CourierId::Household)}+
-        " | reroutes "+std::to_string(courier.reroute_attempts);
-    return SDL_RenderDebugText(renderer_,8,149,line8.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,167,line9.c_str()) &&
-        SDL_RenderDebugText(renderer_,8,185,line10.c_str());
+    return lines;
+}
+bool SandboxView::draw_text(double x,double y,const std::string& value,int max_width) {
+    if (max_width<=0) return true;
+    const int max_chars=max_width/(8*layout_.scale);
+    if (max_chars<=0) return true;
+    std::string text=value;
+    if (static_cast<int>(text.size())>max_chars) {
+        text.resize(static_cast<std::size_t>(max_chars));
+        if (max_chars>=3) text.replace(text.size()-3,3,"...");
+    }
+    const float scale=static_cast<float>(layout_.scale);
+    if (!SDL_SetRenderScale(renderer_,scale,scale)) return false;
+    const bool okay=SDL_RenderDebugText(renderer_,static_cast<float>(x/scale),
+                                        static_cast<float>(y/scale),text.c_str());
+    return SDL_SetRenderScale(renderer_,1,1) && okay;
+}
+bool SandboxView::draw_hud() {
+    using A=sandbox_ui::Action;
+    const auto fill=[&](sandbox_ui::Rect rect,SDL_Color color)->bool {
+        if (rect.w<=0 || rect.h<=0) return true;
+        const SDL_FRect area{static_cast<float>(rect.x),static_cast<float>(rect.y),
+            static_cast<float>(rect.w),static_cast<float>(rect.h)};
+        return SDL_SetRenderDrawColor(renderer_,color.r,color.g,color.b,color.a) &&
+            SDL_RenderFillRect(renderer_,&area);
+    };
+    if (!fill(layout_.top,{14,22,34,255}) || !fill(layout_.toolbar,{16,24,36,255}) ||
+        !fill(layout_.status,{13,21,31,255}) ||
+        !fill(layout_.panel,{19,29,43,250})) return false;
+    if (!SDL_SetRenderDrawColor(renderer_,230,236,244,255)) return false;
+    const std::string profile=simulation::rules_profile_name(rules_);
+    std::string overview=profile+" | Tick "+std::to_string(world_->ticks())+
+        (clock_.paused()?" PAUSED ":" RUNNING ")+std::to_string(clock_.speed())+"x";
+    if (simulation::production_profile(rules_)) overview+=" | Clay "+
+        std::to_string(world_->clay_extracted_total())+" Pottery "+
+        std::to_string(world_->pottery_completed_total())+" Store "+
+        std::to_string(world_->building(simulation::BuildingId::Warehouse).pottery_stock);
+    else overview+=" | Goods "+std::to_string(world_->total_produced());
+    if (!draw_text(8*layout_.scale,18*layout_.scale,overview,
+        layout_.top.w-200*layout_.scale)) return false;
+    const std::string status=road_start_ && !road_preview_.valid ? road_preview_.reason :
+        last_message_.empty() ? "OpenEmperor sandbox | Select a tool, then click the map" :
+        last_message_;
+    if (!draw_text(8*layout_.scale,layout_.status.y+7*layout_.scale,status,
+                   layout_.status.w-16*layout_.scale)) return false;
+    const auto label=[&](A action)->std::string {
+        switch (action) {
+        case A::Select: return simulation::production_profile(rules_) ? "5 Select":"4 Select";
+        case A::Road: return "1 Road";
+        case A::Clay: return simulation::production_profile(rules_) ? "2 Clay" : "2 Workshop";
+        case A::Pottery: return "3 Pottery";
+        case A::Warehouse: return simulation::production_profile(rules_) ? "4 Store" : "3 Store";
+        case A::RemoveRoad: return "6 Remove";
+        case A::Household: return "7 House";
+        case A::Pause: return clock_.paused()?"Continue":"Pause";
+        case A::Step: return "Step";
+        case A::Speed1: return "1x";
+        case A::Speed2: return "2x";
+        case A::Speed4: return "4x";
+        case A::Reset: return "Reset";
+        case A::Save: return "Save F5";
+        case A::Load: return "Load F9";
+        case A::TogglePanel: return layout_.panel_open ? "Hide info":"Show info";
+        case A::ToggleDebug: return debug_open_ ? "Hide debug":"Debug";
+        }
+        return "";
+    };
+    for (const auto& button:layout_.buttons) {
+        bool active=false;
+        switch (button.action) {
+        case A::Select: active=tool_==(simulation::production_profile(rules_) ? 5:4); break;
+        case A::Road: active=tool_==1; break;
+        case A::Clay: active=tool_==2; break;
+        case A::Pottery: active=simulation::production_profile(rules_) && tool_==3; break;
+        case A::Warehouse: active=tool_==(simulation::production_profile(rules_) ? 4:3); break;
+        case A::RemoveRoad: active=tool_==6; break;
+        case A::Household: active=tool_==7; break;
+        default: break;
+        }
+        const bool enabled=action_enabled(button.action);
+        if (!fill(button.rect,!enabled ? SDL_Color{43,47,55,255}:
+            active ? SDL_Color{38,100,125,255}:SDL_Color{38,58,77,255})) return false;
+        if (!SDL_SetRenderDrawColor(renderer_,enabled ? 245:135,enabled ? 247:140,
+                                    enabled ? 250:145,255)) return false;
+        std::string text=label(button.action);
+        if (button.action==A::Clay || button.action==A::Pottery ||
+            button.action==A::Warehouse || button.action==A::Household) {
+            const auto wanted=button.action==A::Clay ?
+                (simulation::production_profile(rules_) ? simulation::Object::ClaySource:
+                 simulation::Object::Workshop) :
+                button.action==A::Pottery ? simulation::Object::Pottery :
+                button.action==A::Warehouse ? simulation::Object::Warehouse:
+                simulation::Object::Household;
+            int count=0;
+            for (const auto id:placed_buildings()) if (world_->building(id).kind==wanted) ++count;
+            const int limit=button.action==A::Household ?
+                (rules_==simulation::RulesProfile::IndustryV5 ||
+                 rules_==simulation::RulesProfile::SettlementV4 ? 4:1) :
+                rules_==simulation::RulesProfile::IndustryV5 &&
+                (button.action==A::Clay || button.action==A::Pottery) ? 2:1;
+            text+=" "+std::to_string(count)+"/"+std::to_string(limit);
+        }
+        if (!draw_text(button.rect.x+5*layout_.scale,button.rect.y+10*layout_.scale,
+                       text,button.rect.w-8*layout_.scale)) return false;
+    }
+    if (layout_.panel_open) {
+        if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
+        if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
+                       "BUILDINGS",layout_.panel.w-20*layout_.scale)) return false;
+        const auto entries=placed_buildings();
+        for (std::size_t i=0;i<entries.size();++i) {
+            const auto& b=world_->building(entries[i]);
+            const int y=layout_.panel.y+46*layout_.scale+
+                static_cast<int>(i)*18*layout_.scale-panel_scroll_;
+            if (y<layout_.panel.y || y+10*layout_.scale>=layout_.panel.y+layout_.panel.h) continue;
+            const std::string text=std::to_string(static_cast<unsigned>(b.id))+" "+
+                object_name(b.kind)+" ("+std::to_string(b.cell.x)+","+
+                std::to_string(b.cell.y)+")";
+            if (selected_building()==entries[i]) {
+                if (!fill({layout_.panel.x+4*layout_.scale,y-2*layout_.scale,
+                    layout_.panel.w-8*layout_.scale,16*layout_.scale},{34,92,113,255})) return false;
+            }
+            if (!SDL_SetRenderDrawColor(renderer_,235,240,250,255) ||
+                !draw_text(layout_.panel.x+10*layout_.scale,y,text,
+                           layout_.panel.w-20*layout_.scale)) return false;
+        }
+        const int detail_y=layout_.panel.y+52*layout_.scale+
+            static_cast<int>(entries.size())*18*layout_.scale-panel_scroll_;
+        const auto details=inspection_lines();
+        for (std::size_t i=0;i<details.size();++i) {
+            const int y=detail_y+static_cast<int>(i)*17*layout_.scale;
+            if (y<layout_.panel.y || y+10*layout_.scale>=layout_.panel.y+layout_.panel.h) continue;
+            if (!SDL_SetRenderDrawColor(renderer_,205,225,238,255) ||
+                !draw_text(layout_.panel.x+10*layout_.scale,y,details[i],
+                           layout_.panel.w-20*layout_.scale)) return false;
+        }
+    }
+    if (debug_open_) {
+        if (!SDL_SetRenderDrawColor(renderer_,255,230,150,255)) return false;
+        const std::string debug="Road revision "+std::to_string(world_->road_revision())+
+            " | Commands "+std::to_string(world_->command_sequence())+
+            " | Balance "+(world_->goods_balance_valid()?"OK":"ERROR");
+        if (!draw_text(8*layout_.scale,layout_.map.y+8*layout_.scale,debug,
+                       layout_.map.w-16*layout_.scale)) return false;
+    }
+    return true;
 }
 bool SandboxView::render() {
     resize_camera();
-    if (!SDL_SetRenderDrawColor(renderer_,22,26,32,255) || !SDL_RenderClear(renderer_)) return false;
-    if (!background_.render(camera_,std::nullopt)) return false;
-    if (!draw_world() || !draw_hud()) return false;
-    return SDL_RenderPresent(renderer_);
+    if (!SDL_SetRenderViewport(renderer_,nullptr) ||
+        !SDL_SetRenderClipRect(renderer_,nullptr) ||
+        !SDL_SetRenderScale(renderer_,1,1) ||
+        !SDL_SetRenderDrawColor(renderer_,22,26,32,255) || !SDL_RenderClear(renderer_)) return false;
+    const SDL_Rect map_clip{layout_.map.x,layout_.map.y,layout_.map.w,layout_.map.h};
+    if (layout_.map.w>0 && layout_.map.h>0) {
+        if (!SDL_SetRenderClipRect(renderer_,&map_clip)) return false;
+        auto render_camera=camera_;
+        render_camera.viewport_width=layout_.map.x+layout_.map.w;
+        render_camera.viewport_height=layout_.map.y+layout_.map.h;
+        const bool map_ok=background_.render(render_camera,std::nullopt) && draw_world();
+        if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
+    }
+    const bool ui_ok=draw_hud();
+    const bool reset=SDL_SetRenderClipRect(renderer_,nullptr) &&
+        SDL_SetRenderViewport(renderer_,nullptr) && SDL_SetRenderScale(renderer_,1,1);
+    if (!ui_ok || !reset) return false;
+    return SDL_GetRenderTarget(renderer_) ? true:SDL_RenderPresent(renderer_);
 }
 
 } // namespace openemperor
