@@ -45,6 +45,7 @@ add_executable(openemperor
     src/app/MapRenderCheck.cpp
     src/app/SandboxView.cpp
     src/app/SandboxCheck.cpp
+    src/app/SandboxRoutingCheck.cpp
     src/renderer/TitleScreen.cpp
     src/renderer/ImagePreview.cpp
     src/renderer/SceneRenderer.cpp
@@ -152,6 +153,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-save-tests)
     add_test(NAME sandbox-save-resume COMMAND openemperor-sandbox-save-tests)
     set_tests_properties(sandbox-save-resume PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-sandbox-routing-tests tests/SandboxRoutingTests.cpp)
+    target_link_libraries(openemperor-sandbox-routing-tests PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-sandbox-routing-tests)
+    add_test(NAME sandbox-live-rerouting COMMAND openemperor-sandbox-routing-tests)
+    set_tests_properties(sandbox-live-rerouting PROPERTIES TIMEOUT 30)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(NAME map-corpus-runner COMMAND ${Python3_EXECUTABLE} -m unittest discover

@@ -4,7 +4,7 @@ OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of t
 
 ## Current status
 
-This repository contains an SDL3 application shell, read-only asset and map tools, and an interactive prototype sandbox. With `--data <directory> --sandbox Cities/Xia.map`, the app displays the user's original map as an unchanged background. The default `sandbox-logistics-v1` profile offers one workshop, one warehouse, and a courier. Explicit `--sandbox-rules sandbox-production-v2` offers a resource-dependent Clay source → Pottery → Warehouse chain with two couriers. `--sandbox-demo` places a suitable arrangement through normal commands; without it the world starts empty. Both profiles are self-defined prototypes, not Emperor's original economy. Existing `--map-debug`, browser, SG3 preview, and PNG export modes remain available. See [the sandbox guide](docs/gameplay-sandbox.md) for controls and rule boundaries.
+This repository contains an SDL3 application shell, read-only asset and map tools, and an interactive prototype sandbox. With `--data <directory> --sandbox Cities/Xia.map`, the app displays the user's original map as an unchanged background. The default `sandbox-logistics-v1` profile offers one workshop, one warehouse, and a courier. Explicit `--sandbox-rules sandbox-production-v2` offers a resource-dependent Clay source → Pottery → Warehouse chain with two couriers, plus protected road removal and live rerouting. `--sandbox-demo` places a suitable arrangement through normal commands; without it the world starts empty. Both profiles are self-defined prototypes, not Emperor's original economy. Existing `--map-debug`, browser, SG3 preview, and PNG export modes remain available. See [the sandbox guide](docs/gameplay-sandbox.md) for controls and rule boundaries.
 
 You must provide your own legally obtained original Emperor game data. The first planned source is the GOG offline installer. **No original game assets or proprietary source code are distributed here.** Keep local game files in `.local/`, which Git ignores.
 
@@ -37,6 +37,7 @@ RGB555 decoding now follows the public SGReader's red-high/blue-low channel posi
 - ✅ separately opted-in placement of isolated complete 2×2 Type-30 footprints (preview convention)
 - ✅ separately opted-in, reference-derived edge-byte grouping of touching 2×2 footprints
 - ✅ fixed-step, deterministic logistics sandbox with placed roads, production, routed delivery, and return
+- ✅ production-sandbox road removal, live rerouting, waiting with reserved cargo, and schema-2 save continuation
 - ✅ opt-in resource-dependent Clay → Pottery chain with two independent couriers and delivery reservations
 - ⚠️ external and other unobserved alpha profiles remain unverified; no pixel-exact game comparison
 - ❌ verified horizontal mirroring
@@ -94,13 +95,14 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-demo
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-check --report-json
+./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-routing-check --report-json
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-save .local/saves/quicksave.oesave.json
 ./build/openemperor --data /path/to/your/game-data --load-sandbox .local/saves/quicksave.oesave.json
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-check --sandbox-resume-check --report-json
 ctest --test-dir build --output-on-failure
 ```
 
-Sandbox `F5` saves and `F9` reloads the configured OpenEmperor save. Loading starts paused at the saved tick; Space resumes and `.` steps. This own JSON format supports both sandbox rule profiles and requires the same original map and a matching decoded buildability mask. It is **not compatible with original Emperor savegames** and contains no original map or image bytes. Save files belong outside `--data`, such as ignored `.local/saves/`; see [save schema and limits](docs/gameplay-sandbox.md#openemperor-sandbox-saves).
+Sandbox `F5` saves and `F9` reloads the configured OpenEmperor save. Loading starts paused at the saved tick; Space resumes and `.` steps. In the production profile, `6` selects road removal; an occupied road or begun edge is protected, and a courier waits with its cargo/reservation if the rest of its route is cut. This own schema-2 JSON format supports both sandbox rule profiles, reads valid schema-1 saves through explicit in-memory migration, and requires the same original map and matching decoded buildability mask. It is **not compatible with original Emperor savegames** and contains no original map or image bytes. Save files belong outside `--data`, such as ignored `.local/saves/`; see [save schema and routing rules](docs/gameplay-sandbox.md#openemperor-sandbox-saves).
 
 `--data` checks that the directory exists and prints its absolute path. The application's `--sg3` and `--image` options must be supplied together and cannot be combined with `--preview`. The direct preview resolves the `.555` source, checks each **effective** range against the actual file size, reads only those ranges, and renders without writing an intermediary. For internal version-214 Type-256 records with nonzero alpha and stored `alpha_offset == data_offset + 2 * data_length`, the effective alpha starts at `data_offset + data_length`. This equality is a conservative observed profile marker; the original meaning of `alpha_offset` remains unknown. Other alpha-bearing profiles fail explicitly in normal loading. `openemperor-inspect` prints generic file metadata for other files and structured SG3 JSON with raw and effective alpha fields. Its `--image <index>` export can write headerless RGBA8 or PNG when requested. `--preview <exported.png>` displays that PNG with nearest-neighbor scaling; the current reader supports only the RGBA8, filter-0, stored-DEFLATE subset written by this project. Keep decoded files under ignored `.local/` and do not distribute original game assets or decoded image copies.
 

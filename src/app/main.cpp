@@ -62,6 +62,8 @@ void print_usage(const char* executable) {
               << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2]"
               << " [--sandbox-demo] [--sandbox-save <save.json>]\n"
               << "       " << executable << " --data <directory> --load-sandbox <save.json>\n";
+    std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
+              << " --sandbox-rules sandbox-production-v2 --sandbox-routing-check --report-json\n";
 }
 
 } // namespace
@@ -80,6 +82,7 @@ int main(int argc, char* argv[]) {
     bool sandbox_demo = false;
     bool sandbox_check = false;
     bool sandbox_resume_check = false;
+    bool sandbox_routing_check = false;
     bool sandbox_rules_supplied = false;
     bool sandbox_save_supplied = false;
     bool load_sandbox_supplied = false;
@@ -129,6 +132,8 @@ int main(int argc, char* argv[]) {
             sandbox_check = true;
         } else if (argument == "--sandbox-resume-check" && !sandbox_resume_check) {
             sandbox_resume_check=true;
+        } else if (argument == "--sandbox-routing-check" && !sandbox_routing_check) {
+            sandbox_routing_check=true;
         } else if (argument == "--report-json" && !report_json) {
             report_json = true;
         } else if (argument == "--multi-tile-preview" && !multi_tile_preview) {
@@ -259,12 +264,16 @@ int main(int argc, char* argv[]) {
             scene_supplied || preview_supplied || sg3_supplied || view_supplied || graphics_profile_supplied)) ||
         (render_check && (!map_debug_supplied || !data_supplied || part_supplied ||
             map_view_mode!=openemperor::maps::MapViewMode::StoredGraphics || !report_json)) ||
-        (report_json && !render_check && !list_maps && !sandbox_check) ||
+        (report_json && !render_check && !list_maps && !sandbox_check && !sandbox_routing_check) ||
         (sandbox_demo && !sandbox_supplied) || (sandbox_check && (!sandbox_supplied || !report_json)) ||
         (sandbox_resume_check && !sandbox_check) ||
+        (sandbox_routing_check && (!sandbox_supplied || !report_json || !sandbox_rules_supplied ||
+            sandbox_rules!=openemperor::simulation::RulesProfile::ProductionV2 ||
+            sandbox_check || sandbox_resume_check || sandbox_demo || sandbox_save_supplied)) ||
         (sandbox_rules_supplied && !sandbox_supplied) ||
         (sandbox_save_supplied && (!sandbox_supplied || sandbox_check)) ||
         (load_sandbox_supplied && (sandbox_supplied || sandbox_demo || sandbox_rules_supplied ||
+            sandbox_routing_check ||
             sandbox_check || sandbox_save_supplied || !data_supplied || preview_supplied || sg3_supplied ||
             browse_assets || browse_maps || list_maps || scene_supplied || map_debug_supplied ||
             render_check || part_supplied || layer_supplied || view_supplied ||
@@ -313,6 +322,8 @@ int main(int argc, char* argv[]) {
             graphics_profile);
     if (sandbox_check) return openemperor::run_sandbox_check(data_directory,sandbox_path,
                                                               sandbox_rules,sandbox_resume_check);
+    if (sandbox_routing_check)
+        return openemperor::run_sandbox_routing_check(data_directory,sandbox_path);
 
     std::optional<openemperor::assets::RgbaImage> preview;
     std::unique_ptr<openemperor::AssetBrowser> browser;

@@ -15,6 +15,7 @@ struct SaveDocument {
     std::string map_sha256;
     std::string buildable_sha256;
     simulation::WorldSnapshot world;
+    bool migrated_from_schema1=false; // Diagnostic only; never serialized.
 };
 
 // Fault injection is used only by tests; production always uses None.

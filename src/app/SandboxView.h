@@ -29,6 +29,7 @@ public:
     void update(double frame_seconds);
     bool render();
     void tick_once(); // Used by the finite, offscreen compatibility check.
+    simulation::CommandResult execute(simulation::Command command);
     const simulation::World& world() const { return *world_; }
     std::optional<simulation::Cell> pick(scene::Point screen) const;
     simulation::CommandResult preview(simulation::Cell cell) const;

@@ -116,9 +116,13 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         {"owner",static_cast<int>(c.owner)},{"target",static_cast<int>(c.target)},
         {"good",static_cast<int>(c.good)},{"enabled",c.enabled},{"phase",static_cast<int>(c.phase)},
         {"cargo",c.cargo},{"reserved",c.reserved},{"path",cells_json(c.path)},
-        {"path_vertex",c.path_vertex},{"edge_progress",c.edge_progress}});
+        {"path_vertex",c.path_vertex},{"edge_progress",c.edge_progress},
+        {"route_pending",c.route_pending},
+        {"route_checked_revision",c.route_checked_revision ? json(*c.route_checked_revision):json(nullptr)},
+        {"reroute_attempts",c.reroute_attempts}});
     return {{"width",s.width},{"height",s.height},{"ticks",s.ticks},
         {"command_sequence",s.command_sequence},{"road_revision",s.road_revision},
+        {"roads_placed_total",s.roads_placed_total},{"roads_removed_total",s.roads_removed_total},
         {"roads",cells_json(s.roads)},{"workshop",optional_cell(s.workshop)},
         {"warehouse",optional_cell(s.warehouse)},{"total_produced",s.total_produced},
         {"clay_extracted_total",s.clay_extracted_total},
@@ -129,15 +133,21 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         {"path_vertex",s.path_vertex},{"edge_progress",s.edge_progress},
         {"buildings",bs},{"couriers",cs}};
 }
-simulation::WorldSnapshot parse_snapshot(const json& j) {
+simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
+                                         simulation::RulesProfile profile) {
     using namespace simulation;
     WorldSnapshot s;
+    s.profile=profile;
     s.width=small(field(j,"width"),512); s.height=small(field(j,"height"),512);
     require(s.width>0 && s.height>0,"invalid saved grid dimensions");
     const auto limit=static_cast<std::size_t>(s.width)*static_cast<std::size_t>(s.height);
     s.ticks=number(field(j,"ticks"),UINT64_MAX-1);
     s.command_sequence=number(field(j,"command_sequence"),UINT64_MAX-1);
     s.road_revision=number(field(j,"road_revision"));
+    if (schema==2) {
+        s.roads_placed_total=number(field(j,"roads_placed_total"));
+        s.roads_removed_total=number(field(j,"roads_removed_total"));
+    }
     s.roads=cells(field(j,"roads"),limit);
     s.workshop=optional_cell_read(field(j,"workshop"));
     s.warehouse=optional_cell_read(field(j,"warehouse"));
@@ -179,11 +189,27 @@ simulation::WorldSnapshot parse_snapshot(const json& j) {
         x.path=cells(field(c,"path"),limit);
         x.path_vertex=static_cast<std::size_t>(number(field(c,"path_vertex"),limit));
         x.edge_progress=small(field(c,"edge_progress"),Rules::edge_ticks);
+        if (schema==2) {
+            x.route_pending=boolean(field(c,"route_pending"));
+            const auto& checked=field(c,"route_checked_revision");
+            if (!checked.is_null()) x.route_checked_revision=number(checked);
+            x.reroute_attempts=number(field(c,"reroute_attempts"));
+        }
+    }
+    if (schema==1) {
+        const auto placed=s.profile==RulesProfile::LogisticsV1 ?
+            static_cast<unsigned>(s.workshop.has_value())+static_cast<unsigned>(s.warehouse.has_value()) :
+            static_cast<unsigned>(s.buildings[0].placed)+static_cast<unsigned>(s.buildings[1].placed)+
+            static_cast<unsigned>(s.buildings[2].placed);
+        require(s.road_revision==s.roads.size()+placed,
+                "legacy placement revision does not match saved objects");
+        s.roads_placed_total=s.roads.size();
+        s.roads_removed_total=0;
     }
     return s;
 }
 json document_json(const SaveDocument& d) {
-    return {{"format","openemperor-sandbox-save"},{"schema_version",1},
+    return {{"format","openemperor-sandbox-save"},{"schema_version",2},
         {"map",{{"relative_path",d.map_relative.generic_string()},{"sha256",d.map_sha256},
                 {"part_index",0},{"grid_width",d.world.width},{"grid_height",d.world.height}}},
         {"profiles",{{"graphics",maps::stored_graphics_slot8_profile},
@@ -195,7 +221,8 @@ json document_json(const SaveDocument& d) {
 }
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
-    require(number(field(j,"schema_version"))==1,"unsupported save schema version");
+    const auto schema=number(field(j,"schema_version"));
+    require(schema==1 || schema==2,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -214,9 +241,16 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::production_profile_name) d.world.profile=simulation::RulesProfile::ProductionV2;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
-    require(d.world.rule_version==1,"unsupported sandbox rule version");
-    auto parsed=parse_snapshot(field(j,"world"));
+    require(d.world.rule_version==(d.world.profile==simulation::RulesProfile::ProductionV2 && schema==2 ? 2U:1U),
+            "unsupported sandbox rule version");
+    auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;
+    if (schema==1 && parsed.profile==simulation::RulesProfile::ProductionV2) {
+        parsed.rule_version=2;
+        d.migrated_from_schema1=true;
+    }
+    if (schema==1 && parsed.profile==simulation::RulesProfile::LogisticsV1)
+        d.migrated_from_schema1=true;
     d.world=std::move(parsed);
     require(number(field(m,"grid_width"),512)==static_cast<std::uint64_t>(d.world.width) &&
             number(field(m,"grid_height"),512)==static_cast<std::uint64_t>(d.world.height),

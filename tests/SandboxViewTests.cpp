@@ -270,6 +270,50 @@ int main() {
         check(loaded_b[0]>loaded_b[2] && cargo_pixel[0]>200 && cargo_pixel[1]<100 &&
               cargo_pixel[2]>150 && production_view.world().courier(simulation::CourierId::Pottery).cargo>0,
               "loaded courier marker or cargo indicator absent");
+        bool outbound_edge=false;
+        for (int i=0;i<500 && !outbound_edge;++i) {
+            const auto& c=production_view.world().courier(simulation::CourierId::Clay);
+            outbound_edge=c.phase==simulation::CourierPhase::ToWarehouse && c.edge_progress>0 &&
+                c.path[c.path_vertex]==simulation::Cell{110,114};
+            if (!outbound_edge) production_view.tick_once();
+        }
+        check(outbound_edge,"viewer did not reach loaded outbound edge");
+        check(production_view.paused(),"viewer removal test was not paused");
+        production_view.handle_event(key(SDLK_6),running);
+        check(production_view.tool()==6 &&
+              !production_view.preview({111,114}).accepted &&
+              std::string(production_view.preview({111,114}).reason).find("occupied")!=std::string::npos &&
+              production_view.preview({112,114}).accepted,
+              "remove-road preview ignored protected or future cell");
+        const auto pre_remove_position=production_view.world().courier_position(simulation::CourierId::Clay);
+        v2_click(SDLK_6,112);
+        check(production_view.world().courier_position(simulation::CourierId::Clay)==pre_remove_position &&
+              production_view.world().courier(simulation::CourierId::Clay).route_pending &&
+              production_view.last_message()=="Road removed",
+              "viewer removal moved courier or hid command result");
+        bool waiting=false;
+        for (int i=0;i<20 && !waiting;++i) {
+            production_view.tick_once();
+            const auto& c=production_view.world().courier(simulation::CourierId::Clay);
+            waiting=c.route_pending && c.edge_progress==0;
+        }
+        check(waiting && production_view.world().courier_position(simulation::CourierId::Clay)==
+              simulation::Position{111.0,114.0} &&
+              std::string(production_view.world().courier_blockage(simulation::CourierId::Clay))==
+                  "Waiting for road connection", "viewer courier did not wait at reached road");
+        check(production_view.render(),"viewer waiting frame failed");
+        const auto orange=sample_courier(simulation::CourierId::Clay,-5);
+        check(orange[0]>220 && orange[1]>80 && orange[1]<180 && orange[2]<100,
+              "waiting courier marker was not orange");
+        v2_click(SDLK_1,112);
+        production_view.tick_once();
+        const auto resumed_position=production_view.world().courier_position(simulation::CourierId::Clay);
+        check(resumed_position && resumed_position->x>111.0 && resumed_position->x<112.0 &&
+              !production_view.world().courier(simulation::CourierId::Clay).route_pending,
+              "viewer courier did not continue from saved waiting point");
+        check(production_view.render(),"viewer resumed frame failed");
+        const auto cyan=sample_courier(simulation::CourierId::Clay,-5);
+        check(cyan[1]>200 && cyan[2]>200,"resumed courier marker did not return to moving color");
         production_view.shutdown();
         openemperor::SandboxView fresh_view(fixture(temp,true),false,
             simulation::RulesProfile::ProductionV2);

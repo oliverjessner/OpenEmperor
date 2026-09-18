@@ -20,6 +20,7 @@ const char* tool_name(simulation::RulesProfile rules,int tool) {
         case 2: return "Clay source";
         case 3: return "Pottery";
         case 4: return "Warehouse";
+        case 6: return "Remove road";
         default: return "Select";
         }
     }
@@ -47,7 +48,8 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool) {
         case 1: return simulation::CommandType::PlaceRoad;
         case 2: return simulation::CommandType::PlaceClaySource;
         case 3: return simulation::CommandType::PlacePottery;
-        default: return simulation::CommandType::PlaceWarehouse;
+        case 4: return simulation::CommandType::PlaceWarehouse;
+        default: return simulation::CommandType::RemoveRoad;
         }
     }
     switch (tool) {
@@ -90,7 +92,11 @@ void SandboxView::load_now() {
     world_=std::make_unique<simulation::World>(std::move(replacement));
     clock_.pause_and_reset();
     demo_origin_.reset();
-    last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)";
+    last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)"+
+        (document.migrated_from_schema1 ?
+            (rules_==simulation::RulesProfile::ProductionV2 ?
+                "; save schema 1 migrated to rules 2 in memory":
+                "; save schema 1 migrated in memory") : "");
 }
 
 void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
@@ -104,7 +110,8 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         world_=std::make_unique<simulation::World>(persistence::restore_save(*initial_save_,data_root_,
             buildable_mask_));
         clock_.pause_and_reset();
-        last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)";
+        last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)"+
+            (initial_save_->migrated_from_schema1 ? "; save schema 1 migrated in memory":"");
         initial_save_.reset();
     } else world_=std::make_unique<simulation::World>(maps::stored_grid_width,maps::stored_grid_height,
         buildable_mask_,rules_);
@@ -190,7 +197,7 @@ simulation::CommandResult SandboxView::preview(simulation::Cell cell) const {
     return world_->validate({command_type(rules_,tool_),cell});
 }
 void SandboxView::set_tool(int tool) {
-    if (tool>=1 && tool<=(rules_==simulation::RulesProfile::ProductionV2 ? 5 : 4)) tool_=tool;
+    if (tool>=1 && tool<=(rules_==simulation::RulesProfile::ProductionV2 ? 6 : 4)) tool_=tool;
 }
 void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_QUIT || event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
@@ -198,7 +205,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) resize_camera();
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
         if (event.key.key>=SDLK_1 && event.key.key<=
-            (rules_==simulation::RulesProfile::ProductionV2 ? SDLK_5 : SDLK_4))
+            (rules_==simulation::RulesProfile::ProductionV2 ? SDLK_6 : SDLK_4))
             set_tool(static_cast<int>(event.key.key-SDLK_1)+1);
         else if (event.key.key==SDLK_SPACE) clock_.toggle_pause();
         else if (event.key.key==SDLK_PERIOD) clock_.step_once(*world_);
@@ -238,9 +245,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (tool_==(rules_==simulation::RulesProfile::ProductionV2 ? 5 : 4)) {
             selected_=cell; return;
         }
-        const auto result=world_->execute({command_type(rules_,tool_),*cell});
-        last_message_=result.reason;
-        selected_=cell;
+        (void)execute({command_type(rules_,tool_),*cell});
     }
 }
 void SandboxView::update(double seconds) {
@@ -253,6 +258,12 @@ void SandboxView::update(double seconds) {
     clock_.update(seconds,*world_);
 }
 void SandboxView::tick_once() { world_->tick(); }
+simulation::CommandResult SandboxView::execute(simulation::Command command) {
+    const auto result=world_->execute(command);
+    last_message_=result.reason;
+    selected_=command.cell;
+    return result;
+}
 scene::Point SandboxView::world_for(simulation::Position cell) const {
     const double u=cell.x-static_cast<double>(geometry_.border);
     const double v=cell.y-static_cast<double>(geometry_.border);
@@ -329,10 +340,12 @@ bool SandboxView::draw_world() {
     };
     if (rules_==simulation::RulesProfile::ProductionV2) {
         if (const auto a=world_->courier_position(simulation::CourierId::Clay))
-            if (!draw_agent(*a,{100,240,255,255},{25,95,255,255},
+            if (!draw_agent(*a,world_->courier(simulation::CourierId::Clay).route_pending ?
+                SDL_Color{255,120,40,255}:SDL_Color{100,240,255,255},{25,95,255,255},
                 world_->courier(simulation::CourierId::Clay).cargo,-5)) return false;
         if (const auto b=world_->courier_position(simulation::CourierId::Pottery))
-            if (!draw_agent(*b,{255,225,130,255},{240,45,190,255},
+            if (!draw_agent(*b,world_->courier(simulation::CourierId::Pottery).route_pending ?
+                SDL_Color{255,120,40,255}:SDL_Color{255,225,130,255},{240,45,190,255},
                 world_->courier(simulation::CourierId::Pottery).cargo,5)) return false;
     } else if (const auto agent=world_->courier_position()) {
         if (!draw_agent(*agent,{255,255,255,255},{255,215,20,255},
@@ -397,7 +410,7 @@ bool SandboxView::draw_hud_v2() {
     const auto& store=world_->building(simulation::BuildingId::Warehouse);
     const auto& a=world_->courier(simulation::CourierId::Clay);
     const auto& b=world_->courier(simulation::CourierId::Pottery);
-    const std::string line0="sandbox-production-v2 - prototype | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select";
+    const std::string line0="sandbox-production-v2 rules 2 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove";
     const std::string line1="Tool: "+std::string{tool_name(rules_,tool_)}+
         " | Tick: "+std::to_string(world_->ticks())+" | "+
         (clock_.paused()?"PAUSED":"RUNNING")+" "+std::to_string(clock_.speed())+
@@ -405,19 +418,23 @@ bool SandboxView::draw_hud_v2() {
         " | Pottery completed: "+std::to_string(world_->pottery_completed_total());
     const std::string line2="Clay source: "+std::to_string(clay.output)+"/8 progress "+
         std::to_string(clay.progress)+"/100 | A: "+simulation::delivery_phase_name(a.phase)+
-        " Clay cargo "+std::to_string(a.cargo)+" | "+world_->courier_blockage(simulation::CourierId::Clay);
+        " Clay cargo "+std::to_string(a.cargo)+" reserved "+std::to_string(a.reserved)+
+        " reroutes "+std::to_string(a.reroute_attempts)+" | "+
+        world_->courier_blockage(simulation::CourierId::Clay);
     const std::string line3="Pottery: Clay in "+std::to_string(pottery.input_clay)+"/8 reserved "+
         std::to_string(pottery.reserved_incoming)+" recipe Clay "+
         std::to_string(pottery.active_recipe_clay)+" progress "+
         std::to_string(pottery.progress)+"/150 | "+world_->pottery_blockage();
     const std::string line4="Pottery output: "+std::to_string(pottery.output)+"/8 | B: "+
         simulation::delivery_phase_name(b.phase)+" Pottery cargo "+std::to_string(b.cargo)+
+        " reserved "+std::to_string(b.reserved)+" reroutes "+std::to_string(b.reroute_attempts)+
         " | "+world_->courier_blockage(simulation::CourierId::Pottery);
     const std::string line5="Warehouse: Pottery "+std::to_string(store.pottery_stock)+
         "/32 reserved "+std::to_string(store.reserved_incoming)+
         " free "+std::to_string(simulation::Rules::warehouse_capacity-store.pottery_stock-
             store.reserved_incoming)+" | Balance: "+
-        (world_->production_balance_valid()?"OK":"ERROR");
+        (world_->production_balance_valid() && world_->navigation_valid()?"OK":"ERROR")+
+        " | Road revision "+std::to_string(world_->road_revision());
     std::string line6="Last: "+(last_message_.empty()?std::string{"-"}:last_message_);
     if (hovered_ && tool_!=5) {
         const auto p=preview(*hovered_);

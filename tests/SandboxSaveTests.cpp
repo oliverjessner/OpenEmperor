@@ -163,13 +163,43 @@ int main() {
 
         save::write_save(target,doc,root/"data",mask());
         const auto valid=nlohmann::json::parse(bytes(target));
+        const auto as_legacy=[](nlohmann::json j) {
+            j["schema_version"]=1;
+            j["rules"]["version"]=1;
+            j["world"].erase("roads_placed_total");
+            j["world"].erase("roads_removed_total");
+            for (auto& courier:j["world"]["couriers"]) {
+                courier.erase("route_pending");
+                courier.erase("route_checked_revision");
+                courier.erase("reroute_attempts");
+            }
+            return j;
+        };
+        overwrite(target,as_legacy(valid));
+        const auto migrated=save::read_save(target);
+        check(migrated.migrated_from_schema1 && migrated.world.rule_version==2 &&
+              migrated.world.ticks==500 && migrated.world.roads_removed_total==0,
+              "legacy v2 fixture did not migrate explicitly");
+        auto legacy_world=save::restore_save(migrated,root/"data",mask());
+        auto legacy_reference=sim::World::restore(doc.world,mask());
+        check(legacy_world.snapshot()==legacy_reference.snapshot(),
+              "legacy v2 import changed current state");
+        for (int i=0;i<1000;++i) { legacy_world.tick(); legacy_reference.tick();
+            check(legacy_world.snapshot()==legacy_reference.snapshot(),
+                  "legacy v2 continuation diverged"); }
+        save::write_save(target,v1doc,root/"data",mask());
+        overwrite(target,as_legacy(nlohmann::json::parse(bytes(target))));
+        const auto old_v1=save::read_save(target);
+        check(old_v1.migrated_from_schema1 && old_v1.world.rule_version==1 &&
+              save::restore_save(old_v1,root/"data",mask()).snapshot()==v1doc.world,
+              "legacy v1 fixture changed rule version or state");
         auto mutate=[&](const auto& edit) {
             auto j=valid; edit(j); overwrite(target,j);
             rejects([&]{ auto parsed_bad=save::read_save(target);
                 (void)save::restore_save(parsed_bad,root/"data",mask()); },
                 "tampered save accepted");
         };
-        mutate([](auto& j){ j["schema_version"]=2; });
+        mutate([](auto& j){ j["schema_version"]=3; });
         mutate([](auto& j){ j["rules"]["id"]="unknown"; });
         mutate([](auto& j){ j["world"]["ticks"]=1.0; });
         mutate([](auto& j){ j["world"]["command_sequence"]=nlohmann::json::number_unsigned_t(-1); });
@@ -182,6 +212,10 @@ int main() {
         mutate([](auto& j){ j["world"]["couriers"][0]["path"][1]=nlohmann::json::array({15,3}); });
         mutate([](auto& j){ j["world"]["couriers"][0]["edge_progress"]=10; });
         mutate([](auto& j){ j["world"]["couriers"][0]["good"]=2; });
+        mutate([](auto& j){ j["world"]["couriers"][0]["route_pending"]=true; });
+        mutate([](auto& j){ j["world"]["couriers"][0]["route_checked_revision"]=999999; });
+        mutate([](auto& j){ j["world"]["roads_removed_total"]=1; });
+        mutate([](auto& j){ j["rules"]["version"]=1; });
         mutate([](auto& j){ j["world"]["couriers"][1]["id"]=1; });
         mutate([](auto& j){ j["world"]["buildings"][1]["active_recipe_clay"]=0; });
         mutate([](auto& j){ j["world"]["buildings"][1]["reserved_incoming"]=0; });

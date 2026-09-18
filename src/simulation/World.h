@@ -34,7 +34,8 @@ struct Cell {
     bool operator==(const Cell&) const = default;
 };
 enum class Object : std::uint8_t { Empty, Road, Workshop, Warehouse, ClaySource, Pottery };
-enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery };
+enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
+                         RemoveRoad };
 struct Command { CommandType type; Cell cell; };
 struct CommandResult {
     bool accepted=false;
@@ -74,6 +75,9 @@ struct CourierState {
     std::vector<Cell> path;
     std::size_t path_vertex=0;
     int edge_progress=0;
+    bool route_pending=false;
+    std::optional<std::uint64_t> route_checked_revision;
+    std::uint64_t reroute_attempts=0;
     std::uint64_t cached_revision=UINT64_MAX;
     std::optional<std::vector<Cell>> cached_route;
 };
@@ -88,6 +92,9 @@ struct CourierSnapshot {
     std::vector<Cell> path;
     std::size_t path_vertex=0;
     int edge_progress=0;
+    bool route_pending=false;
+    std::optional<std::uint64_t> route_checked_revision;
+    std::uint64_t reroute_attempts=0;
     bool operator==(const CourierSnapshot&) const = default;
 };
 struct BuildingSnapshot {
@@ -105,6 +112,7 @@ struct WorldSnapshot {
     RulesProfile profile=RulesProfile::LogisticsV1;
     std::uint32_t rule_version=1;
     std::uint64_t ticks=0, command_sequence=0, road_revision=0;
+    std::uint64_t roads_placed_total=0, roads_removed_total=0;
     std::vector<Cell> roads;
     std::optional<Cell> workshop, warehouse;
     std::uint64_t total_produced=0, clay_extracted_total=0, pottery_completed_total=0;
@@ -156,6 +164,9 @@ public:
     std::uint64_t ticks() const { return ticks_; }
     std::uint64_t command_sequence() const { return command_sequence_; }
     std::uint64_t road_revision() const { return road_revision_; }
+    std::uint64_t roads_placed_total() const { return roads_placed_total_; }
+    std::uint64_t roads_removed_total() const { return roads_removed_total_; }
+    bool navigation_valid() const;
     std::uint64_t total_produced() const { return total_produced_; }
     int workshop_stock() const { return workshop_stock_; }
     int production_progress() const { return production_progress_; }
@@ -169,6 +180,9 @@ private:
     void tick_production_v2();
     void dispatch_v2(CourierState& courier);
     void move_v2(CourierState& courier);
+    bool valid_return_path(const CourierState& courier) const;
+    void mark_route_pending(CourierState& courier);
+    void reroute_v2(CourierState& courier);
     BuildingState& mutable_building(BuildingId id);
     CourierState& mutable_courier(CourierId id);
     void move_courier();
@@ -187,6 +201,8 @@ private:
     std::uint64_t ticks_=0;
     std::uint64_t command_sequence_=0;
     std::uint64_t road_revision_=0;
+    std::uint64_t roads_placed_total_=0;
+    std::uint64_t roads_removed_total_=0;
     std::uint64_t cached_revision_=UINT64_MAX;
     std::optional<std::vector<Cell>> cached_route_;
     std::uint64_t total_produced_=0;
