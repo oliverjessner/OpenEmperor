@@ -163,11 +163,35 @@ int main() {
 
         save::write_save(target,doc,root/"data",mask());
         const auto valid=nlohmann::json::parse(bytes(target));
+        const auto as_schema2=[](nlohmann::json j) {
+            j["schema_version"]=2;
+            j["world"]["buildings"].erase(3);
+            j["world"]["couriers"].erase(2);
+            for (auto& building:j["world"]["buildings"]) {
+                building.erase("placed_tick"); building.erase("demand_progress");
+                building.erase("fulfilled_demand"); building.erase("missed_demand");
+                building.erase("consumed_total"); building.erase("last_demand_status");
+            }
+            return j;
+        };
+        overwrite(target,as_schema2(valid));
+        const auto older_v2=save::read_save(target);
+        check(older_v2.world.profile==sim::RulesProfile::ProductionV2 &&
+              older_v2.world.rule_version==2 && !older_v2.migrated_from_schema1 &&
+              save::restore_save(older_v2,root/"data",mask()).snapshot()==doc.world,
+              "schema-2 production save changed profile or state");
         const auto as_legacy=[](nlohmann::json j) {
             j["schema_version"]=1;
             j["rules"]["version"]=1;
             j["world"].erase("roads_placed_total");
             j["world"].erase("roads_removed_total");
+            j["world"]["buildings"].erase(3);
+            j["world"]["couriers"].erase(2);
+            for (auto& building:j["world"]["buildings"]) {
+                building.erase("placed_tick"); building.erase("demand_progress");
+                building.erase("fulfilled_demand"); building.erase("missed_demand");
+                building.erase("consumed_total"); building.erase("last_demand_status");
+            }
             for (auto& courier:j["world"]["couriers"]) {
                 courier.erase("route_pending");
                 courier.erase("route_checked_revision");
@@ -199,7 +223,7 @@ int main() {
                 (void)save::restore_save(parsed_bad,root/"data",mask()); },
                 "tampered save accepted");
         };
-        mutate([](auto& j){ j["schema_version"]=3; });
+        mutate([](auto& j){ j["schema_version"]=4; });
         mutate([](auto& j){ j["rules"]["id"]="unknown"; });
         mutate([](auto& j){ j["world"]["ticks"]=1.0; });
         mutate([](auto& j){ j["world"]["command_sequence"]=nlohmann::json::number_unsigned_t(-1); });

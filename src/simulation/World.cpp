@@ -35,6 +35,7 @@ const char* rules_profile_name(RulesProfile profile) {
     switch (profile) {
     case RulesProfile::LogisticsV1: return profile_name;
     case RulesProfile::ProductionV2: return production_profile_name;
+    case RulesProfile::HouseholdV3: return household_profile_name;
     }
     return "unknown";
 }
@@ -44,13 +45,15 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     if (width<=0 || height<=0 || width>512 || height>512 ||
         buildable_.size()!=static_cast<std::size_t>(width)*static_cast<std::size_t>(height))
         throw std::invalid_argument("invalid bounded sandbox grid");
-    if (profile!=RulesProfile::LogisticsV1 && profile!=RulesProfile::ProductionV2)
+    if (profile!=RulesProfile::LogisticsV1 && profile!=RulesProfile::ProductionV2 &&
+        profile!=RulesProfile::HouseholdV3)
         throw std::invalid_argument("unknown sandbox rules profile");
     objects_.assign(buildable_.size(),Object::Empty);
     owners_.assign(buildable_.size(),0);
     buildings_[0].id=BuildingId::ClaySource;
     buildings_[1].id=BuildingId::Pottery;
     buildings_[2].id=BuildingId::Warehouse;
+    buildings_[3].id=BuildingId::Household;
     couriers_[0].id=CourierId::Clay;
     couriers_[0].owner=BuildingId::ClaySource;
     couriers_[0].target=BuildingId::Pottery;
@@ -59,6 +62,10 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     couriers_[1].owner=BuildingId::Pottery;
     couriers_[1].target=BuildingId::Warehouse;
     couriers_[1].good=Good::Pottery;
+    couriers_[2].id=CourierId::Household;
+    couriers_[2].owner=BuildingId::Warehouse;
+    couriers_[2].target=BuildingId::Household;
+    couriers_[2].good=Good::Pottery;
 }
 bool World::in_bounds(Cell cell) const {
     return cell.x>=0 && cell.y>=0 && cell.x<width_ && cell.y<height_;
@@ -79,22 +86,22 @@ std::optional<BuildingId> World::building_owner_at(Cell cell) const {
 }
 const BuildingState& World::building(BuildingId id) const {
     const auto value=static_cast<unsigned>(id);
-    if (value<1 || value>3) throw std::out_of_range("invalid building ID");
+    if (value<1 || value>4) throw std::out_of_range("invalid building ID");
     return buildings_[value-1];
 }
 BuildingState& World::mutable_building(BuildingId id) {
     const auto value=static_cast<unsigned>(id);
-    if (value<1 || value>3) throw std::out_of_range("invalid building ID");
+    if (value<1 || value>4) throw std::out_of_range("invalid building ID");
     return buildings_[value-1];
 }
 const CourierState& World::courier(CourierId id) const {
     const auto value=static_cast<unsigned>(id);
-    if (value<1 || value>2) throw std::out_of_range("invalid courier ID");
+    if (value<1 || value>3) throw std::out_of_range("invalid courier ID");
     return couriers_[value-1];
 }
 CourierState& World::mutable_courier(CourierId id) {
     const auto value=static_cast<unsigned>(id);
-    if (value<1 || value>2) throw std::out_of_range("invalid courier ID");
+    if (value<1 || value>3) throw std::out_of_range("invalid courier ID");
     return couriers_[value-1];
 }
 CommandResult World::validate(Command command) const {
@@ -102,13 +109,15 @@ CommandResult World::validate(Command command) const {
     CommandResult result{false,false,"",command_sequence_+1,ticks_};
     if (command.type!=CommandType::PlaceRoad && command.type!=CommandType::PlaceWorkshop &&
         command.type!=CommandType::PlaceWarehouse && command.type!=CommandType::PlaceClaySource &&
-        command.type!=CommandType::PlacePottery && command.type!=CommandType::RemoveRoad) {
+        command.type!=CommandType::PlacePottery && command.type!=CommandType::RemoveRoad &&
+        command.type!=CommandType::PlaceHousehold) {
         result.reason="Unknown placement command"; return result;
     }
     if ((profile_==RulesProfile::LogisticsV1 &&
         (command.type==CommandType::PlaceClaySource || command.type==CommandType::PlacePottery ||
-         command.type==CommandType::RemoveRoad)) ||
-        (profile_==RulesProfile::ProductionV2 && command.type==CommandType::PlaceWorkshop)) {
+         command.type==CommandType::RemoveRoad || command.type==CommandType::PlaceHousehold)) ||
+        (production_profile(profile_) && command.type==CommandType::PlaceWorkshop) ||
+        (profile_==RulesProfile::ProductionV2 && command.type==CommandType::PlaceHousehold)) {
         result.reason="Command unavailable in selected rules profile"; return result;
     }
     if (!in_bounds(command.cell)) { result.reason="Outside sandbox grid"; return result; }
@@ -143,7 +152,7 @@ CommandResult World::validate(Command command) const {
     if (command.type==CommandType::PlaceWarehouse && warehouse_) {
         result.reason="Warehouse already exists"; return result;
     }
-    if (command.type==CommandType::PlaceWarehouse && profile_==RulesProfile::ProductionV2 &&
+    if (command.type==CommandType::PlaceWarehouse && production_profile(profile_) &&
         building(BuildingId::Warehouse).placed) {
         result.reason="Warehouse already exists"; return result;
     }
@@ -152,6 +161,9 @@ CommandResult World::validate(Command command) const {
     }
     if (command.type==CommandType::PlacePottery && building(BuildingId::Pottery).placed) {
         result.reason="Pottery already exists"; return result;
+    }
+    if (command.type==CommandType::PlaceHousehold && building(BuildingId::Household).placed) {
+        result.reason="Household already exists"; return result;
     }
     if (road_revision_==UINT64_MAX ||
         (command.type==CommandType::PlaceRoad && roads_placed_total_==UINT64_MAX)) {
@@ -186,7 +198,7 @@ CommandResult World::execute(Command command) {
         break;
     case CommandType::PlaceWarehouse:
         objects_[index(command.cell)]=Object::Warehouse;
-        if (profile_==RulesProfile::ProductionV2) {
+        if (production_profile(profile_)) {
             auto& b=mutable_building(BuildingId::Warehouse);
             b.placed=true; b.kind=Object::Warehouse; b.cell=command.cell;
             owners_[index(command.cell)]=static_cast<std::uint8_t>(b.id);
@@ -208,10 +220,18 @@ CommandResult World::execute(Command command) {
         mutable_courier(CourierId::Pottery).enabled=true;
         break;
     }
+    case CommandType::PlaceHousehold: {
+        objects_[index(command.cell)]=Object::Household;
+        auto& b=mutable_building(BuildingId::Household);
+        b.placed=true; b.kind=Object::Household; b.cell=command.cell; b.placed_tick=ticks_;
+        owners_[index(command.cell)]=static_cast<std::uint8_t>(b.id);
+        mutable_courier(CourierId::Household).enabled=true;
+        break;
+    }
     }
     ++road_revision_;
     cached_route_.reset();
-    if (profile_==RulesProfile::ProductionV2) refresh_routes();
+    if (production_profile(profile_)) refresh_routes();
     return result;
 }
 
@@ -287,6 +307,7 @@ void World::tick_production_v2() {
     if (source.placed) {
         if (source.output<Rules::clay_output_capacity) {
             if (++source.progress==Rules::clay_ticks) {
+                if (clay_extracted_total_==UINT64_MAX) throw std::overflow_error("Clay total exhausted");
                 source.progress=0;
                 ++source.output;
                 ++clay_extracted_total_;
@@ -296,6 +317,8 @@ void World::tick_production_v2() {
     if (pottery.placed) {
         if (pottery.active_recipe_clay>0) {
             if (++pottery.progress==Rules::pottery_recipe_ticks) {
+                if (pottery_completed_total_==UINT64_MAX || pottery.recipes_completed==UINT64_MAX)
+                    throw std::overflow_error("Pottery total exhausted");
                 pottery.progress=0;
                 pottery.active_recipe_clay=0;
                 ++pottery.output;
@@ -309,7 +332,28 @@ void World::tick_production_v2() {
             pottery.progress=0;
         }
     }
-    // Stable courier ID order. Arrival is after both production decisions.
+    if (profile_==RulesProfile::HouseholdV3) {
+        auto& home=mutable_building(BuildingId::Household);
+        if (home.placed) {
+            if (++home.demand_progress==Rules::household_demand_ticks) {
+                home.demand_progress=0;
+                if (home.pottery_stock>0) {
+                    if (home.fulfilled_demand==UINT64_MAX || home.consumed_total==UINT64_MAX)
+                        throw std::overflow_error("household fulfilled counter exhausted");
+                    --home.pottery_stock;
+                    ++home.fulfilled_demand;
+                    ++home.consumed_total;
+                    home.last_demand_status=1;
+                } else {
+                    if (home.missed_demand==UINT64_MAX)
+                        throw std::overflow_error("household missed counter exhausted");
+                    ++home.missed_demand;
+                    home.last_demand_status=2;
+                }
+            }
+        }
+    }
+    // Stable courier ID order. Arrival is after production and household demand.
     for (auto& courier:couriers_) dispatch_v2(courier);
     for (auto& courier:couriers_) move_v2(courier);
     if (!production_balance_valid() || !navigation_valid())
@@ -320,14 +364,33 @@ void World::dispatch_v2(CourierState& courier) {
     if (!courier.enabled || courier.phase!=CourierPhase::IdleAtWorkshop) return;
     auto& source=mutable_building(courier.owner);
     auto& target=mutable_building(courier.target);
-    if (!source.placed || !target.placed || source.output<=0 ||
+    if (!source.placed || !target.placed ||
         courier.cached_revision!=road_revision_ || !courier.cached_route) return;
-    const int destination_stock=courier.good==Good::Clay ? target.input_clay : target.pottery_stock;
-    const int capacity=courier.good==Good::Clay ? Rules::pottery_input_capacity : Rules::warehouse_capacity;
+    int* source_stock=nullptr;
+    int destination_stock=0,capacity=0;
+    switch (courier.id) {
+    case CourierId::Clay:
+        if (courier.owner!=BuildingId::ClaySource || courier.target!=BuildingId::Pottery ||
+            courier.good!=Good::Clay) throw std::logic_error("invalid Clay delivery relation");
+        source_stock=&source.output; destination_stock=target.input_clay;
+        capacity=Rules::pottery_input_capacity; break;
+    case CourierId::Pottery:
+        if (courier.owner!=BuildingId::Pottery || courier.target!=BuildingId::Warehouse ||
+            courier.good!=Good::Pottery) throw std::logic_error("invalid Pottery delivery relation");
+        source_stock=&source.output; destination_stock=target.pottery_stock;
+        capacity=Rules::warehouse_capacity; break;
+    case CourierId::Household:
+        if (profile_!=RulesProfile::HouseholdV3 || courier.owner!=BuildingId::Warehouse ||
+            courier.target!=BuildingId::Household || courier.good!=Good::Pottery)
+            throw std::logic_error("invalid household delivery relation");
+        source_stock=&source.pottery_stock; destination_stock=target.pottery_stock;
+        capacity=Rules::household_capacity; break;
+    default: throw std::logic_error("unknown courier delivery relation");
+    }
     const int free=capacity-destination_stock-target.reserved_incoming;
-    const int amount=std::min({source.output,Rules::courier_capacity,free});
+    const int amount=std::min({*source_stock,Rules::courier_capacity,free});
     if (amount<=0) return;
-    source.output-=amount;
+    *source_stock-=amount;
     courier.cargo=amount;
     courier.reserved=amount;
     target.reserved_incoming+=amount;
@@ -401,7 +464,7 @@ void World::move_v2(CourierState& courier) {
         if (courier.reserved!=courier.cargo || target.reserved_incoming<courier.reserved)
             throw std::logic_error("courier reservation mismatch");
         target.reserved_incoming-=courier.reserved;
-        if (courier.good==Good::Clay) target.input_clay+=courier.cargo;
+        if (courier.id==CourierId::Clay) target.input_clay+=courier.cargo;
         else target.pottery_stock+=courier.cargo;
         courier.cargo=0;
         courier.reserved=0;
@@ -448,7 +511,7 @@ void World::move_courier() {
 }
 
 void World::tick() {
-    if (profile_==RulesProfile::ProductionV2) { tick_production_v2(); return; }
+    if (production_profile(profile_)) { tick_production_v2(); return; }
     if (ticks_==UINT64_MAX) throw std::overflow_error("sandbox tick counter exhausted");
     ++ticks_;
     if (workshop_) {
@@ -502,10 +565,12 @@ const char* World::courier_blockage(CourierId id) const {
     if (!building(c.target).placed) return "No target building";
     if (!c.cached_route || c.cached_revision!=road_revision_) return "No road connection";
     const auto& target=building(c.target);
-    const int stock=c.good==Good::Clay ? target.input_clay : target.pottery_stock;
-    const int capacity=c.good==Good::Clay ? Rules::pottery_input_capacity : Rules::warehouse_capacity;
+    const int stock=c.id==CourierId::Clay ? target.input_clay : target.pottery_stock;
+    const int capacity=c.id==CourierId::Clay ? Rules::pottery_input_capacity :
+        c.id==CourierId::Pottery ? Rules::warehouse_capacity:Rules::household_capacity;
     if (stock+target.reserved_incoming>=capacity) return "Target buffer full";
-    if (building(c.owner).output==0) return c.good==Good::Clay ? "No Clay output" : "No Pottery output";
+    if ((c.id==CourierId::Household ? building(c.owner).pottery_stock :
+         building(c.owner).output)==0) return c.good==Good::Clay ? "No Clay output" : "No Pottery output";
     return "Ready";
 }
 const char* World::pottery_blockage() const {
@@ -517,15 +582,22 @@ const char* World::pottery_blockage() const {
     return "Ready to process";
 }
 bool World::production_balance_valid() const {
-    if (profile_!=RulesProfile::ProductionV2) return false;
+    if (!production_profile(profile_)) return false;
     const auto& source=building(BuildingId::ClaySource);
     const auto& pottery=building(BuildingId::Pottery);
     const auto& warehouse=building(BuildingId::Warehouse);
     const auto& clay=courier(CourierId::Clay);
     const auto& pots=courier(CourierId::Pottery);
+    const auto& home=building(BuildingId::Household);
+    const auto& delivery=courier(CourierId::Household);
+    if (pottery_completed_total_>(UINT64_MAX-64U)/Rules::pottery_recipe_clay ||
+        home.consumed_total>UINT64_MAX-64U ||
+        home.fulfilled_demand>UINT64_MAX-home.missed_demand ||
+        ticks_<home.placed_tick) return false;
     const auto clay_sum=static_cast<std::uint64_t>(source.output+clay.cargo+pottery.input_clay+
         pottery.active_recipe_clay)+2*pottery_completed_total_;
-    const auto pottery_sum=static_cast<std::uint64_t>(pottery.output+pots.cargo+warehouse.pottery_stock);
+    const auto pottery_sum=static_cast<std::uint64_t>(pottery.output+pots.cargo+
+        warehouse.pottery_stock+delivery.cargo+home.pottery_stock)+home.consumed_total;
     return source.output>=0 && source.output<=Rules::clay_output_capacity &&
         source.progress>=0 && source.progress<Rules::clay_ticks &&
         pottery.input_clay>=0 && pottery.input_clay<=Rules::pottery_input_capacity &&
@@ -546,11 +618,34 @@ bool World::production_balance_valid() const {
         pottery.input_clay+pottery.reserved_incoming<=Rules::pottery_input_capacity &&
         warehouse.pottery_stock+warehouse.reserved_incoming<=Rules::warehouse_capacity &&
         clay_extracted_total_==clay_sum && pottery_completed_total_==pottery_sum &&
-        pottery.recipes_completed==pottery_completed_total_;
+        pottery.recipes_completed==pottery_completed_total_ &&
+        (profile_==RulesProfile::HouseholdV3 ?
+            (home.pottery_stock>=0 && home.pottery_stock<=Rules::household_capacity &&
+             home.reserved_incoming>=0 &&
+             home.pottery_stock+home.reserved_incoming<=Rules::household_capacity &&
+             home.reserved_incoming==delivery.reserved &&
+             delivery.enabled==home.placed &&
+             delivery.cargo>=0 && delivery.cargo<=Rules::courier_capacity &&
+             delivery.reserved==(delivery.phase==CourierPhase::ToWarehouse ? delivery.cargo:0) &&
+             home.consumed_total==home.fulfilled_demand &&
+             home.fulfilled_demand+home.missed_demand==
+                 (home.placed ? (ticks_-home.placed_tick)/Rules::household_demand_ticks:0) &&
+             home.demand_progress==static_cast<int>(home.placed ?
+                 (ticks_-home.placed_tick)%Rules::household_demand_ticks:0) &&
+             (home.fulfilled_demand+home.missed_demand==0 ? home.last_demand_status==0 :
+                home.last_demand_status==1 ? home.fulfilled_demand>0 :
+                home.last_demand_status==2 && home.missed_demand>0) &&
+             (home.placed || (!home.pottery_stock && !home.reserved_incoming &&
+                              !home.fulfilled_demand && !home.missed_demand &&
+                              !home.consumed_total && !home.last_demand_status && !delivery.enabled))) :
+            (!home.placed && !home.pottery_stock && !home.reserved_incoming &&
+             !home.fulfilled_demand && !home.missed_demand && !home.consumed_total &&
+             !home.last_demand_status &&
+             !delivery.enabled));
 }
 
 bool World::navigation_valid() const {
-    if (profile_!=RulesProfile::ProductionV2) return true;
+    if (!production_profile(profile_)) return true;
     for (const auto& c:couriers_) {
         if (c.phase==CourierPhase::IdleAtWorkshop) {
             if (!c.path.empty() || c.path_vertex || c.edge_progress || c.route_pending ||
@@ -601,7 +696,9 @@ std::string World::canonical_state() const {
         out<<'|'<<static_cast<int>(b.id)<<','<<static_cast<int>(b.kind)<<','<<b.placed
            <<','<<b.cell.x<<','<<b.cell.y
            <<','<<b.input_clay<<','<<b.output<<','<<b.pottery_stock<<','<<b.reserved_incoming
-           <<','<<b.progress<<','<<b.active_recipe_clay<<','<<b.recipes_completed;
+           <<','<<b.progress<<','<<b.active_recipe_clay<<','<<b.recipes_completed
+           <<','<<b.placed_tick<<','<<b.demand_progress<<','<<b.fulfilled_demand
+           <<','<<b.missed_demand<<','<<b.consumed_total<<','<<b.last_demand_status;
     for (const auto& c:couriers_) {
         out<<'|'<<static_cast<int>(c.id)<<','<<static_cast<int>(c.owner)<<','
            <<static_cast<int>(c.target)<<','<<static_cast<int>(c.good)<<','
@@ -666,7 +763,9 @@ WorldSnapshot World::snapshot() const {
     for (std::size_t i=0;i<buildings_.size();++i) {
         const auto& b=buildings_[i];
         s.buildings[i]={b.id,b.kind,b.cell,b.placed,b.input_clay,b.output,b.pottery_stock,
-                        b.reserved_incoming,b.progress,b.active_recipe_clay,b.recipes_completed};
+                        b.reserved_incoming,b.progress,b.active_recipe_clay,b.recipes_completed,
+                        b.placed_tick,b.demand_progress,b.fulfilled_demand,b.missed_demand,
+                        b.consumed_total,b.last_demand_status};
     }
     for (std::size_t i=0;i<couriers_.size();++i) {
         const auto& c=couriers_[i];
@@ -744,8 +843,8 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
         for (std::size_t i=0;i<s.couriers.size();++i) {
             CourierSnapshot zero;
             zero.id=static_cast<CourierId>(i+1);
-            zero.owner=i==0 ? BuildingId::ClaySource:BuildingId::Pottery;
-            zero.target=i==0 ? BuildingId::Pottery:BuildingId::Warehouse;
+            zero.owner=i==0 ? BuildingId::ClaySource:i==1 ? BuildingId::Pottery:BuildingId::Warehouse;
+            zero.target=i==0 ? BuildingId::Pottery:i==1 ? BuildingId::Warehouse:BuildingId::Household;
             zero.good=i==0 ? Good::Clay:Good::Pottery;
             if (s.couriers[i]!=zero) fail("v1 contains production courier state");
         }
@@ -770,24 +869,34 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
             s.production_progress || s.courier_cargo || s.warehouse_stock ||
             s.phase!=CourierPhase::IdleAtWorkshop || !s.path.empty() || s.path_vertex || s.edge_progress)
             fail("v2 contains logistics state");
-        const std::array<Object,3> kinds{Object::ClaySource,Object::Pottery,Object::Warehouse};
+        const std::array<Object,4> kinds{Object::ClaySource,Object::Pottery,Object::Warehouse,
+                                         Object::Household};
         for (std::size_t i=0;i<s.buildings.size();++i) {
             const auto& b=s.buildings[i];
             if (b.id!=static_cast<BuildingId>(i+1)) fail("duplicate or invalid building identity");
+            if (i==3 && s.profile!=RulesProfile::HouseholdV3 &&
+                b!=BuildingSnapshot{BuildingId::Household}) fail("old profile contains household");
+            if (i!=3 && (b.placed_tick || b.demand_progress || b.fulfilled_demand ||
+                         b.missed_demand || b.consumed_total || b.last_demand_status))
+                fail("non-household demand state");
             if (b.placed) {
                 if (b.kind!=kinds[i]) fail("building kind does not match identity");
                 put(b.cell,b.kind,b.id);
             } else if (b.kind!=Object::Empty || b.cell!=Cell{} || b.input_clay || b.output ||
                        b.pottery_stock || b.reserved_incoming || b.progress ||
-                       b.active_recipe_clay || b.recipes_completed)
+                       b.active_recipe_clay || b.recipes_completed || b.placed_tick ||
+                       b.demand_progress || b.fulfilled_demand || b.missed_demand ||
+                       b.consumed_total || b.last_demand_status)
                 fail("unplaced building has state");
             auto& out=w.buildings_[i];
             out={b.id,b.kind,b.cell,b.placed,b.input_clay,b.output,b.pottery_stock,
-                 b.reserved_incoming,b.progress,b.active_recipe_clay,b.recipes_completed};
+                 b.reserved_incoming,b.progress,b.active_recipe_clay,b.recipes_completed,
+                 b.placed_tick,b.demand_progress,b.fulfilled_demand,b.missed_demand,
+                 b.consumed_total,b.last_demand_status};
         }
         const auto placed=static_cast<unsigned>(s.buildings[0].placed)+
             static_cast<unsigned>(s.buildings[1].placed)+
-            static_cast<unsigned>(s.buildings[2].placed);
+            static_cast<unsigned>(s.buildings[2].placed)+static_cast<unsigned>(s.buildings[3].placed);
         if (s.roads_placed_total<s.roads_removed_total ||
             s.roads_placed_total-s.roads_removed_total!=s.roads.size() ||
             s.road_revision<s.roads_placed_total ||
@@ -812,15 +921,27 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
             warehouse.input_clay || warehouse.output || warehouse.progress ||
             warehouse.active_recipe_clay || warehouse.recipes_completed ||
             warehouse.pottery_stock<0 || warehouse.pottery_stock>Rules::warehouse_capacity ||
-            warehouse.reserved_incoming<0 || warehouse.reserved_incoming>Rules::warehouse_capacity)
+            warehouse.reserved_incoming<0 || warehouse.reserved_incoming>Rules::warehouse_capacity ||
+            s.buildings[3].input_clay || s.buildings[3].output || s.buildings[3].progress ||
+            s.buildings[3].active_recipe_clay || s.buildings[3].recipes_completed ||
+            s.buildings[3].pottery_stock<0 ||
+            s.buildings[3].pottery_stock>Rules::household_capacity ||
+            s.buildings[3].reserved_incoming<0 ||
+            s.buildings[3].reserved_incoming>Rules::household_capacity)
             fail("invalid production building state");
         for (std::size_t i=0;i<s.couriers.size();++i) {
             const auto& c=s.couriers[i];
-            const auto owner=i==0 ? BuildingId::ClaySource:BuildingId::Pottery;
-            const auto target=i==0 ? BuildingId::Pottery:BuildingId::Warehouse;
+            const auto owner=i==0 ? BuildingId::ClaySource:i==1 ? BuildingId::Pottery:BuildingId::Warehouse;
+            const auto target=i==0 ? BuildingId::Pottery:i==1 ? BuildingId::Warehouse:BuildingId::Household;
             const auto good=i==0 ? Good::Clay:Good::Pottery;
+            CourierSnapshot inactive_household;
+            inactive_household.id=CourierId::Household;
+            inactive_household.owner=BuildingId::Warehouse;
+            inactive_household.target=BuildingId::Household;
+            inactive_household.good=Good::Pottery;
             if (c.id!=static_cast<CourierId>(i+1) || c.owner!=owner || c.target!=target ||
-                c.good!=good || c.enabled!=s.buildings[i].placed ||
+                c.good!=good || c.enabled!=(i==2 ? s.buildings[3].placed:s.buildings[i].placed) ||
+                (i==2 && s.profile!=RulesProfile::HouseholdV3 && c!=inactive_household) ||
                 c.cargo<0 || c.cargo>Rules::courier_capacity ||
                 c.reserved<0 || c.reserved>Rules::courier_capacity ||
                 (c.phase!=CourierPhase::IdleAtWorkshop && c.phase!=CourierPhase::ToWarehouse &&

@@ -111,7 +111,10 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         {"kind",static_cast<int>(b.kind)},{"cell",cell_json(b.cell)},{"placed",b.placed},
         {"input_clay",b.input_clay},{"output",b.output},{"pottery_stock",b.pottery_stock},
         {"reserved_incoming",b.reserved_incoming},{"progress",b.progress},
-        {"active_recipe_clay",b.active_recipe_clay},{"recipes_completed",b.recipes_completed}});
+        {"active_recipe_clay",b.active_recipe_clay},{"recipes_completed",b.recipes_completed},
+        {"placed_tick",b.placed_tick},{"demand_progress",b.demand_progress},
+        {"fulfilled_demand",b.fulfilled_demand},{"missed_demand",b.missed_demand},
+        {"consumed_total",b.consumed_total},{"last_demand_status",b.last_demand_status}});
     for (const auto& c:s.couriers) cs.push_back({{"id",static_cast<int>(c.id)},
         {"owner",static_cast<int>(c.owner)},{"target",static_cast<int>(c.target)},
         {"good",static_cast<int>(c.good)},{"enabled",c.enabled},{"phase",static_cast<int>(c.phase)},
@@ -144,7 +147,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     s.ticks=number(field(j,"ticks"),UINT64_MAX-1);
     s.command_sequence=number(field(j,"command_sequence"),UINT64_MAX-1);
     s.road_revision=number(field(j,"road_revision"));
-    if (schema==2) {
+    if (schema>=2) {
         s.roads_placed_total=number(field(j,"roads_placed_total"));
         s.roads_removed_total=number(field(j,"roads_removed_total"));
     }
@@ -163,12 +166,20 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     s.path_vertex=static_cast<std::size_t>(number(field(j,"path_vertex"),limit));
     s.edge_progress=small(field(j,"edge_progress"),Rules::edge_ticks);
     const auto& bs=field(j,"buildings"); const auto& cs=field(j,"couriers");
-    require(bs.is_array() && bs.size()==3 && cs.is_array() && cs.size()==2,
+    const std::size_t expected_buildings=schema==3 ? 4U:3U;
+    const std::size_t expected_couriers=schema==3 ? 3U:2U;
+    require(bs.is_array() && bs.size()==expected_buildings &&
+            cs.is_array() && cs.size()==expected_couriers,
             "invalid building or courier array length");
-    for (std::size_t i=0;i<3;++i) {
+    s.buildings[3].id=BuildingId::Household;
+    s.couriers[2].id=CourierId::Household;
+    s.couriers[2].owner=BuildingId::Warehouse;
+    s.couriers[2].target=BuildingId::Household;
+    s.couriers[2].good=Good::Pottery;
+    for (std::size_t i=0;i<expected_buildings;++i) {
         const auto& b=bs[i]; auto& x=s.buildings[i];
-        x.id=static_cast<BuildingId>(small(field(b,"id"),3));
-        x.kind=static_cast<Object>(small(field(b,"kind"),5));
+        x.id=static_cast<BuildingId>(small(field(b,"id"),4));
+        x.kind=static_cast<Object>(small(field(b,"kind"),6));
         x.cell=cell(field(b,"cell")); x.placed=boolean(field(b,"placed"));
         x.input_clay=small(field(b,"input_clay")); x.output=small(field(b,"output"));
         x.pottery_stock=small(field(b,"pottery_stock"));
@@ -176,12 +187,20 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         x.progress=small(field(b,"progress"));
         x.active_recipe_clay=small(field(b,"active_recipe_clay"));
         x.recipes_completed=number(field(b,"recipes_completed"));
+        if (schema==3) {
+            x.placed_tick=number(field(b,"placed_tick"));
+            x.demand_progress=small(field(b,"demand_progress"),Rules::household_demand_ticks-1);
+            x.fulfilled_demand=number(field(b,"fulfilled_demand"));
+            x.missed_demand=number(field(b,"missed_demand"));
+            x.consumed_total=number(field(b,"consumed_total"));
+            x.last_demand_status=small(field(b,"last_demand_status"),2);
+        }
     }
-    for (std::size_t i=0;i<2;++i) {
+    for (std::size_t i=0;i<expected_couriers;++i) {
         const auto& c=cs[i]; auto& x=s.couriers[i];
-        x.id=static_cast<CourierId>(small(field(c,"id"),2));
-        x.owner=static_cast<BuildingId>(small(field(c,"owner"),3));
-        x.target=static_cast<BuildingId>(small(field(c,"target"),3));
+        x.id=static_cast<CourierId>(small(field(c,"id"),3));
+        x.owner=static_cast<BuildingId>(small(field(c,"owner"),4));
+        x.target=static_cast<BuildingId>(small(field(c,"target"),4));
         x.good=static_cast<Good>(small(field(c,"good"),2));
         x.enabled=boolean(field(c,"enabled"));
         x.phase=static_cast<CourierPhase>(small(field(c,"phase"),2));
@@ -189,7 +208,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         x.path=cells(field(c,"path"),limit);
         x.path_vertex=static_cast<std::size_t>(number(field(c,"path_vertex"),limit));
         x.edge_progress=small(field(c,"edge_progress"),Rules::edge_ticks);
-        if (schema==2) {
+        if (schema>=2) {
             x.route_pending=boolean(field(c,"route_pending"));
             const auto& checked=field(c,"route_checked_revision");
             if (!checked.is_null()) x.route_checked_revision=number(checked);
@@ -209,7 +228,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     return s;
 }
 json document_json(const SaveDocument& d) {
-    return {{"format","openemperor-sandbox-save"},{"schema_version",2},
+    return {{"format","openemperor-sandbox-save"},{"schema_version",3},
         {"map",{{"relative_path",d.map_relative.generic_string()},{"sha256",d.map_sha256},
                 {"part_index",0},{"grid_width",d.world.width},{"grid_height",d.world.height}}},
         {"profiles",{{"graphics",maps::stored_graphics_slot8_profile},
@@ -222,7 +241,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema==1 || schema==2,"unsupported save schema version");
+    require(schema>=1 && schema<=3,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -239,9 +258,11 @@ SaveDocument parse_document(const json& j) {
     const auto id=str(field(r,"id"));
     if (id==simulation::profile_name) d.world.profile=simulation::RulesProfile::LogisticsV1;
     else if (id==simulation::production_profile_name) d.world.profile=simulation::RulesProfile::ProductionV2;
+    else if (id==simulation::household_profile_name) d.world.profile=simulation::RulesProfile::HouseholdV3;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
-    require(d.world.rule_version==(d.world.profile==simulation::RulesProfile::ProductionV2 && schema==2 ? 2U:1U),
+    require(d.world.rule_version==(d.world.profile==simulation::RulesProfile::ProductionV2 && schema>=2 ? 2U:1U) &&
+            (d.world.profile!=simulation::RulesProfile::HouseholdV3 || schema==3),
             "unsupported sandbox rule version");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;

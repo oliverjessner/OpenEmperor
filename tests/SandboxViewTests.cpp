@@ -46,7 +46,8 @@ struct Temp {
     ~Temp() { std::error_code error; std::filesystem::remove_all(path,error);
         std::filesystem::remove(path.parent_path()/(path.filename().string()+"-viewer-save.json"),error); }
 };
-openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=false) {
+openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=false,
+                                           bool household=false) {
     Bytes sg3(40680U+64U,0);
     u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));
     u32(sg3,4,213); u32(sg3,12,1); u32(sg3,16,1); u32(sg3,20,1);
@@ -75,11 +76,12 @@ openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=fal
     maps::StoredAsset asset;
     asset.record=record;
     plan.assets.push_back(std::move(asset));
-    for (std::uint32_t x=110;x<=(production ? 117U : 116U);++x) {
+    const std::uint32_t blocked=household ? 120U : production ? 117U : 116U;
+    for (std::uint32_t x=110;x<=blocked;++x) {
         maps::StoredCell cell;
         cell.storage={x,114};
         cell.cell_index=static_cast<std::size_t>(114)*228+x;
-        cell.terrain_raw=x==(production ? 117U : 116U) ? 0 : 0x80;
+        cell.terrain_raw=x==blocked ? 0 : 0x80;
         cell.objects_raw=0;
         cell.status=maps::StoredStatus::DecodePending;
         cell.asset_index=0;
@@ -331,6 +333,78 @@ int main() {
               fresh_view.last_message().find("parse error")!=std::string::npos,
               "failed F9 replaced world or concealed error");
         fresh_view.shutdown();
+        openemperor::SandboxView household_view(fixture(temp,true,true),true,
+            simulation::RulesProfile::HouseholdV3);
+        household_view.configure_save(temp.path,"Cities/Synthetic.map",save_path);
+        household_view.initialize(window,renderer);
+        check(household_view.demo_origin()==simulation::Cell{110,114} &&
+              household_view.world().building(simulation::BuildingId::Household).placed &&
+              household_view.tool()==5 && household_view.preview({119,114}).accepted==false,
+              "v3 demo, household placement or select tool failed");
+        household_view.handle_event(key(SDLK_7),running);
+        check(household_view.tool()==7 &&
+              !household_view.preview({119,114}).accepted &&
+              std::string(household_view.preview({119,114}).reason)=="Cell already occupied",
+              "v3 seventh tool did not use ordinary validation");
+        household_view.handle_event(key(SDLK_5),running);
+        for (int i=0;i<399;++i) household_view.tick_once();
+        const auto before_need=household_view.world().snapshot();
+        household_view.handle_event(key(SDLK_F5),running);
+        check(household_view.last_message().find("Saved tick 399")!=std::string::npos,
+              "v3 F5 did not save one tick before demand");
+        household_view.handle_event(key(SDLK_SPACE),running);
+        check(household_view.paused(),"v3 pause did not stop clock");
+        household_view.update(1.0);
+        check(household_view.world().snapshot()==before_need,
+              "paused v3 simulation advanced demand");
+        household_view.handle_event(key(SDLK_PERIOD),running);
+        check(household_view.world().ticks()==400 &&
+              household_view.world().building(simulation::BuildingId::Household).missed_demand+
+              household_view.world().building(simulation::BuildingId::Household).fulfilled_demand==1,
+              "v3 single-step did not process one demand tick");
+        household_view.handle_event(key(SDLK_F9),running);
+        check(household_view.paused() && household_view.world().snapshot()==before_need,
+              "v3 F9 did not restore tick-399 state transactionally");
+        for (int i=0;i<401;++i) household_view.tick_once();
+        check(household_view.render() && household_view.last_courier_draws()==3 &&
+              household_view.world().building(simulation::BuildingId::Household).consumed_total>0,
+              "v3 software frame did not render three couriers and real consumption");
+        bool third_edge=false;
+        for (int i=0;i<2000 && !third_edge;++i) {
+            const auto& c=household_view.world().courier(simulation::CourierId::Household);
+            third_edge=c.phase==simulation::CourierPhase::ToWarehouse && c.edge_progress>0 &&
+                c.path[c.path_vertex]==simulation::Cell{116,114};
+            if (!third_edge) household_view.tick_once();
+        }
+        check(third_edge,"v3 viewer did not reach household supplier edge");
+        household_view.handle_event(key(SDLK_6),running);
+        check(!household_view.preview({117,114}).accepted &&
+              household_view.preview({118,114}).accepted,
+              "v3 removal preview ignored third courier's protected edge");
+        check(household_view.execute({simulation::CommandType::RemoveRoad,{118,114}}).accepted,
+              "v3 viewer could not remove future household road");
+        bool third_waiting=false;
+        for (int i=0;i<40 && !third_waiting;++i) {
+            household_view.tick_once();
+            const auto& c=household_view.world().courier(simulation::CourierId::Household);
+            third_waiting=c.route_pending && c.edge_progress==0;
+        }
+        check(third_waiting && household_view.render(),"v3 supplier did not wait or render");
+        const auto supplier_position=*household_view.world().courier_position(
+            simulation::CourierId::Household);
+        const auto supplier_u=supplier_position.x-72.0,supplier_v=supplier_position.y-72.0;
+        const auto supplier_screen=household_view.camera().world_to_screen(
+            {(supplier_u-supplier_v)*40.0,(supplier_u+supplier_v)*20.0+20.0});
+        const auto waiting_pixel=pixel(renderer,static_cast<int>(supplier_screen.x),
+                                       static_cast<int>(supplier_screen.y));
+        check(waiting_pixel[0]>220 && waiting_pixel[1]>80 && waiting_pixel[1]<180 &&
+              waiting_pixel[2]<100,"v3 waiting courier lacked orange marker");
+        check(household_view.execute({simulation::CommandType::PlaceRoad,{118,114}}).accepted,
+              "v3 viewer could not repair household road");
+        household_view.tick_once();
+        check(!household_view.world().courier(simulation::CourierId::Household).route_pending &&
+              household_view.render(),"v3 supplier did not resume after repair");
+        household_view.shutdown();
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
         std::cout << "Sandbox software view checks passed\n";
         return 0;

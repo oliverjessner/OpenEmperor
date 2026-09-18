@@ -11,7 +11,11 @@ namespace openemperor::simulation {
 
 inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
-enum class RulesProfile { LogisticsV1, ProductionV2 };
+enum class RulesProfile { LogisticsV1, ProductionV2, HouseholdV3 };
+inline constexpr const char* household_profile_name = "sandbox-household-v3";
+constexpr bool production_profile(RulesProfile profile) {
+    return profile==RulesProfile::ProductionV2 || profile==RulesProfile::HouseholdV3;
+}
 const char* rules_profile_name(RulesProfile profile);
 struct Rules {
     static constexpr int ticks_per_second = 20;
@@ -26,6 +30,8 @@ struct Rules {
     static constexpr int pottery_output_capacity = 8;
     static constexpr int pottery_recipe_clay = 2;
     static constexpr int pottery_recipe_ticks = 150;
+    static constexpr int household_capacity = 8;
+    static constexpr int household_demand_ticks = 400;
 };
 
 struct Cell {
@@ -33,9 +39,9 @@ struct Cell {
     int y=0;
     bool operator==(const Cell&) const = default;
 };
-enum class Object : std::uint8_t { Empty, Road, Workshop, Warehouse, ClaySource, Pottery };
+enum class Object : std::uint8_t { Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household };
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
-                         RemoveRoad };
+                         RemoveRoad, PlaceHousehold };
 struct Command { CommandType type; Cell cell; };
 struct CommandResult {
     bool accepted=false;
@@ -48,8 +54,8 @@ enum class CourierPhase { IdleAtWorkshop, ToWarehouse, Returning };
 const char* courier_phase_name(CourierPhase phase);
 struct Position { double x=0; double y=0; bool operator==(const Position&) const = default; };
 enum class Good { Goods, Clay, Pottery };
-enum class BuildingId : std::uint8_t { ClaySource=1, Pottery=2, Warehouse=3 };
-enum class CourierId : std::uint8_t { Clay=1, Pottery=2 };
+enum class BuildingId : std::uint8_t { ClaySource=1, Pottery=2, Warehouse=3, Household=4 };
+enum class CourierId : std::uint8_t { Clay=1, Pottery=2, Household=3 };
 struct BuildingState {
     BuildingId id=BuildingId::ClaySource;
     Object kind=Object::Empty;
@@ -62,6 +68,10 @@ struct BuildingState {
     int progress=0;
     int active_recipe_clay=0;
     std::uint64_t recipes_completed=0;
+    std::uint64_t placed_tick=0;
+    int demand_progress=0;
+    std::uint64_t fulfilled_demand=0, missed_demand=0, consumed_total=0;
+    int last_demand_status=0; // 0 none, 1 fulfilled, 2 missed.
 };
 struct CourierState {
     CourierId id=CourierId::Clay;
@@ -105,6 +115,10 @@ struct BuildingSnapshot {
     int input_clay=0, output=0, pottery_stock=0, reserved_incoming=0;
     int progress=0, active_recipe_clay=0;
     std::uint64_t recipes_completed=0;
+    std::uint64_t placed_tick=0;
+    int demand_progress=0;
+    std::uint64_t fulfilled_demand=0, missed_demand=0, consumed_total=0;
+    int last_demand_status=0;
     bool operator==(const BuildingSnapshot&) const = default;
 };
 struct WorldSnapshot {
@@ -121,8 +135,8 @@ struct WorldSnapshot {
     std::vector<Cell> path;
     std::size_t path_vertex=0;
     int edge_progress=0;
-    std::array<BuildingSnapshot,3> buildings{};
-    std::array<CourierSnapshot,2> couriers{};
+    std::array<BuildingSnapshot,4> buildings{};
+    std::array<CourierSnapshot,3> couriers{};
     bool operator==(const WorldSnapshot&) const = default;
 };
 const char* delivery_phase_name(CourierPhase phase);
@@ -192,8 +206,8 @@ private:
     std::vector<std::uint8_t> buildable_;
     std::vector<Object> objects_;
     std::vector<std::uint8_t> owners_;
-    std::array<BuildingState,3> buildings_;
-    std::array<CourierState,2> couriers_;
+    std::array<BuildingState,4> buildings_;
+    std::array<CourierState,3> couriers_;
     std::uint64_t clay_extracted_total_=0;
     std::uint64_t pottery_completed_total_=0;
     std::optional<Cell> workshop_;

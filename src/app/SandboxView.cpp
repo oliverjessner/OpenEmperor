@@ -14,13 +14,14 @@
 namespace openemperor {
 namespace {
 const char* tool_name(simulation::RulesProfile rules,int tool) {
-    if (rules==simulation::RulesProfile::ProductionV2) {
+    if (simulation::production_profile(rules)) {
         switch (tool) {
         case 1: return "Road";
         case 2: return "Clay source";
         case 3: return "Pottery";
         case 4: return "Warehouse";
         case 6: return "Remove road";
+        case 7: return "Household";
         default: return "Select";
         }
     }
@@ -39,17 +40,19 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::Warehouse: return "Warehouse";
     case simulation::Object::ClaySource: return "Clay source";
     case simulation::Object::Pottery: return "Pottery";
+    case simulation::Object::Household: return "Household";
     }
     return "Unknown";
 }
 simulation::CommandType command_type(simulation::RulesProfile rules,int tool) {
-    if (rules==simulation::RulesProfile::ProductionV2) {
+    if (simulation::production_profile(rules)) {
         switch (tool) {
         case 1: return simulation::CommandType::PlaceRoad;
         case 2: return simulation::CommandType::PlaceClaySource;
         case 3: return simulation::CommandType::PlacePottery;
         case 4: return simulation::CommandType::PlaceWarehouse;
-        default: return simulation::CommandType::RemoveRoad;
+        case 6: return simulation::CommandType::RemoveRoad;
+        default: return simulation::CommandType::PlaceHousehold;
         }
     }
     switch (tool) {
@@ -64,7 +67,7 @@ SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::Ru
     : geometry_(session.map.declared_map_size),background_(std::move(session.plan)),demo_(demo),
       rules_(rules) {
     if (!geometry_.supported) throw std::invalid_argument("sandbox requires supported map geometry");
-    if (rules_==simulation::RulesProfile::ProductionV2) tool_=5;
+    if (simulation::production_profile(rules_)) tool_=5;
 }
 SandboxView::~SandboxView() { shutdown(); }
 
@@ -117,7 +120,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         buildable_mask_,rules_);
     reset_camera();
     if (demo_) place_demo();
-    SDL_SetWindowTitle(window_,rules_==simulation::RulesProfile::ProductionV2 ?
+    SDL_SetWindowTitle(window_,rules_==simulation::RulesProfile::HouseholdV3 ?
+        "OpenEmperor | Household Sandbox - prototype rules" :
+        rules_==simulation::RulesProfile::ProductionV2 ?
         "OpenEmperor | Production Sandbox - prototype rules" :
         "OpenEmperor | Logistics Sandbox - prototype rules");
 }
@@ -131,7 +136,8 @@ void SandboxView::reset_camera() {
     fit_stored_camera(background_.plan(),camera_);
     if (demo_origin_) {
         const auto center=maps::terrain_world({static_cast<std::uint32_t>(demo_origin_->x+
-            (rules_==simulation::RulesProfile::ProductionV2 ? 3 : 2)),
+            (rules_==simulation::RulesProfile::HouseholdV3 ? 5 :
+             rules_==simulation::RulesProfile::ProductionV2 ? 3 : 2)),
             static_cast<std::uint32_t>(demo_origin_->y)},geometry_.border);
         camera_.zoom=std::clamp(camera_.zoom,1.0,4.0);
         camera_.center_on({center.x,center.y+20.0});
@@ -149,13 +155,14 @@ void SandboxView::resize_camera() {
     camera_.center_on(center);
 }
 void SandboxView::place_demo() {
-    const int length=rules_==simulation::RulesProfile::ProductionV2 ? 7 : 6;
+    const int length=rules_==simulation::RulesProfile::HouseholdV3 ? 10 :
+        rules_==simulation::RulesProfile::ProductionV2 ? 7 : 6;
     for (int y=0;y<world_->height();++y) for (int x=0;x+length<=world_->width();++x) {
         bool valid=true;
         for (int i=0;i<length;++i) valid=valid && world_->buildable({x+i,y});
         if (!valid) continue;
         demo_origin_=simulation::Cell{x,y};
-        if (rules_==simulation::RulesProfile::ProductionV2) {
+        if (simulation::production_profile(rules_)) {
             const auto run=[&](simulation::CommandType type,int at) {
                 if (!world_->execute({type,{at,y}}).accepted)
                     throw std::logic_error("production demo command failed");
@@ -165,6 +172,11 @@ void SandboxView::place_demo() {
             run(simulation::CommandType::PlacePottery,x+3);
             for (int i=4;i<6;++i) run(simulation::CommandType::PlaceRoad,x+i);
             run(simulation::CommandType::PlaceWarehouse,x+6);
+            if (rules_==simulation::RulesProfile::HouseholdV3) {
+                run(simulation::CommandType::PlaceRoad,x+7);
+                run(simulation::CommandType::PlaceRoad,x+8);
+                run(simulation::CommandType::PlaceHousehold,x+9);
+            }
             reset_camera();
             last_message_="Production demo placed through normal commands";
             return;
@@ -183,7 +195,8 @@ void SandboxView::place_demo() {
     throw std::runtime_error("no suitable straight sandbox-buildable row for demo");
 }
 int SandboxView::hud_height() const {
-    return rules_==simulation::RulesProfile::ProductionV2 ? 151 : 116;
+    return rules_==simulation::RulesProfile::HouseholdV3 ? 205 :
+        rules_==simulation::RulesProfile::ProductionV2 ? 151 : 116;
 }
 std::optional<simulation::Cell> SandboxView::pick(scene::Point screen) const {
     if (screen.y<hud_height()) return std::nullopt;
@@ -192,12 +205,13 @@ std::optional<simulation::Cell> SandboxView::pick(scene::Point screen) const {
     return simulation::Cell{static_cast<int>(cell->x),static_cast<int>(cell->y)};
 }
 simulation::CommandResult SandboxView::preview(simulation::Cell cell) const {
-    if (tool_==(rules_==simulation::RulesProfile::ProductionV2 ? 5 : 4))
+    if (tool_==(simulation::production_profile(rules_) ? 5 : 4))
         return {false,false,"Select tool",world_->command_sequence()+1,world_->ticks()};
     return world_->validate({command_type(rules_,tool_),cell});
 }
 void SandboxView::set_tool(int tool) {
-    if (tool>=1 && tool<=(rules_==simulation::RulesProfile::ProductionV2 ? 6 : 4)) tool_=tool;
+    if (tool>=1 && tool<=(rules_==simulation::RulesProfile::HouseholdV3 ? 7 :
+                          rules_==simulation::RulesProfile::ProductionV2 ? 6 : 4)) tool_=tool;
 }
 void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_QUIT || event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
@@ -205,7 +219,8 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) resize_camera();
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
         if (event.key.key>=SDLK_1 && event.key.key<=
-            (rules_==simulation::RulesProfile::ProductionV2 ? SDLK_6 : SDLK_4))
+            (rules_==simulation::RulesProfile::HouseholdV3 ? SDLK_7 :
+             rules_==simulation::RulesProfile::ProductionV2 ? SDLK_6 : SDLK_4))
             set_tool(static_cast<int>(event.key.key-SDLK_1)+1);
         else if (event.key.key==SDLK_SPACE) clock_.toggle_pause();
         else if (event.key.key==SDLK_PERIOD) clock_.step_once(*world_);
@@ -234,7 +249,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     }
     if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN) {
         if (event.button.button==SDL_BUTTON_RIGHT) {
-            tool_=rules_==simulation::RulesProfile::ProductionV2 ? 5 : 4; return;
+            tool_=simulation::production_profile(rules_) ? 5 : 4; return;
         }
         if (event.button.button!=SDL_BUTTON_LEFT) return;
         float x=event.button.x,y=event.button.y;
@@ -242,7 +257,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         const auto cell=pick({x,y});
         if (!cell) return;
         hovered_=cell;
-        if (tool_==(rules_==simulation::RulesProfile::ProductionV2 ? 5 : 4)) {
+        if (tool_==(simulation::production_profile(rules_) ? 5 : 4)) {
             selected_=cell; return;
         }
         (void)execute({command_type(rules_,tool_),*cell});
@@ -314,6 +329,7 @@ bool SandboxView::draw_world() {
             if (object==simulation::Object::Workshop || object==simulation::Object::ClaySource)
                 color={50,210,245,255};
             if (object==simulation::Object::Pottery) color={220,95,245,255};
+            if (object==simulation::Object::Household) color={90,245,125,255};
             if (!draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true)) return false;
             const float size=static_cast<float>(std::max(5.0,11.0*camera_.zoom));
             const SDL_FRect rect{static_cast<float>(center.x)-size/2,
@@ -338,7 +354,7 @@ bool SandboxView::draw_world() {
         ++last_courier_draws_;
         return true;
     };
-    if (rules_==simulation::RulesProfile::ProductionV2) {
+    if (simulation::production_profile(rules_)) {
         if (const auto a=world_->courier_position(simulation::CourierId::Clay))
             if (!draw_agent(*a,world_->courier(simulation::CourierId::Clay).route_pending ?
                 SDL_Color{255,120,40,255}:SDL_Color{100,240,255,255},{25,95,255,255},
@@ -347,6 +363,11 @@ bool SandboxView::draw_world() {
             if (!draw_agent(*b,world_->courier(simulation::CourierId::Pottery).route_pending ?
                 SDL_Color{255,120,40,255}:SDL_Color{255,225,130,255},{240,45,190,255},
                 world_->courier(simulation::CourierId::Pottery).cargo,5)) return false;
+        if (rules_==simulation::RulesProfile::HouseholdV3)
+            if (const auto c=world_->courier_position(simulation::CourierId::Household))
+                if (!draw_agent(*c,world_->courier(simulation::CourierId::Household).route_pending ?
+                    SDL_Color{255,120,40,255}:SDL_Color{110,255,130,255},
+                    {255,90,150,255},world_->courier(simulation::CourierId::Household).cargo,0)) return false;
     } else if (const auto agent=world_->courier_position()) {
         if (!draw_agent(*agent,{255,255,255,255},{255,215,20,255},
             world_->courier_cargo(),0)) return false;
@@ -355,7 +376,7 @@ bool SandboxView::draw_world() {
         const auto top=world_for({static_cast<double>(selected_->x),static_cast<double>(selected_->y)});
         if (!draw_diamond({top.x,top.y-20},255,255,255,false)) return false;
     }
-    if (hovered_ && tool_!=(rules_==simulation::RulesProfile::ProductionV2 ? 5 : 4)) {
+    if (hovered_ && tool_!=(simulation::production_profile(rules_) ? 5 : 4)) {
         const auto top=world_for({static_cast<double>(hovered_->x),static_cast<double>(hovered_->y)});
         const auto result=preview(*hovered_);
         if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
@@ -364,7 +385,7 @@ bool SandboxView::draw_world() {
     return true;
 }
 bool SandboxView::draw_hud() {
-    if (rules_==simulation::RulesProfile::ProductionV2) return draw_hud_v2();
+    if (simulation::production_profile(rules_)) return draw_hud_v2();
     const SDL_FRect panel{0,0,static_cast<float>(camera_.viewport_width),
         static_cast<float>(hud_height())};
     if (!SDL_SetRenderDrawColor(renderer_,11,16,24,245) || !SDL_RenderFillRect(renderer_,&panel) ||
@@ -410,7 +431,9 @@ bool SandboxView::draw_hud_v2() {
     const auto& store=world_->building(simulation::BuildingId::Warehouse);
     const auto& a=world_->courier(simulation::CourierId::Clay);
     const auto& b=world_->courier(simulation::CourierId::Pottery);
-    const std::string line0="sandbox-production-v2 rules 2 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove";
+    const std::string line0=rules_==simulation::RulesProfile::HouseholdV3 ?
+        "sandbox-household-v3 rules 1 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove 7 Household" :
+        "sandbox-production-v2 rules 2 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove";
     const std::string line1="Tool: "+std::string{tool_name(rules_,tool_)}+
         " | Tick: "+std::to_string(world_->ticks())+" | "+
         (clock_.paused()?"PAUSED":"RUNNING")+" "+std::to_string(clock_.speed())+
@@ -445,7 +468,7 @@ bool SandboxView::draw_hud_v2() {
         "Selected ("+std::to_string(selected_->x)+","+std::to_string(selected_->y)+"): "+
         object_name(world_->object_at(*selected_))+" | Space Pause . Step +/- Speed Wheel Zoom R Reset Esc Exit" :
         "Selected: none | Space Pause . Step +/- Speed Wheel Zoom R Reset Esc Exit";
-    return SDL_RenderDebugText(renderer_,8,5,line0.c_str()) &&
+    bool drawn=SDL_RenderDebugText(renderer_,8,5,line0.c_str()) &&
         SDL_RenderDebugText(renderer_,8,23,line1.c_str()) &&
         SDL_RenderDebugText(renderer_,8,41,line2.c_str()) &&
         SDL_RenderDebugText(renderer_,8,59,line3.c_str()) &&
@@ -453,6 +476,24 @@ bool SandboxView::draw_hud_v2() {
         SDL_RenderDebugText(renderer_,8,95,line5.c_str()) &&
         SDL_RenderDebugText(renderer_,8,113,line6.c_str()) &&
         SDL_RenderDebugText(renderer_,8,131,line7.c_str());
+    if (!drawn || rules_!=simulation::RulesProfile::HouseholdV3) return drawn;
+    const auto& home=world_->building(simulation::BuildingId::Household);
+    const auto& courier=world_->courier(simulation::CourierId::Household);
+    const std::string last=home.last_demand_status==0 ? "no demand yet" :
+        home.last_demand_status==1 ? "fulfilled" : "unmet";
+    const std::string line8="Household: "+std::to_string(home.pottery_stock)+"/8 reserved "+
+        std::to_string(home.reserved_incoming)+" demand progress "+
+        std::to_string(home.demand_progress)+"/400 | Last: "+last;
+    const std::string line9="Demand fulfilled "+std::to_string(home.fulfilled_demand)+
+        " missed "+std::to_string(home.missed_demand)+" consumed "+
+        std::to_string(home.consumed_total)+" | Supplier: "+
+        simulation::delivery_phase_name(courier.phase)+" cargo "+std::to_string(courier.cargo)+
+        " reserved "+std::to_string(courier.reserved);
+    const std::string line10="Supply: "+std::string{world_->courier_blockage(simulation::CourierId::Household)}+
+        " | reroutes "+std::to_string(courier.reroute_attempts);
+    return SDL_RenderDebugText(renderer_,8,149,line8.c_str()) &&
+        SDL_RenderDebugText(renderer_,8,167,line9.c_str()) &&
+        SDL_RenderDebugText(renderer_,8,185,line10.c_str());
 }
 bool SandboxView::render() {
     resize_camera();
