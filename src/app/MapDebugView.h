@@ -35,6 +35,9 @@ public:
     maps::MaskMode mask() const { return mask_; }
     std::optional<maps::GridCell> selected_cell() const { return selected_; }
     const maps::StorageGridCamera& camera() const { return camera_; }
+    const maps::StoredGraphicsPlan* stored_plan() const;
+    std::size_t stored_texture_draws() const;
+    std::size_t stored_diagnostic_draws() const;
 private:
     void set_layer(maps::RawLayer layer);
     void set_view(maps::MapViewMode view);

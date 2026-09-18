@@ -2,6 +2,8 @@
 #include "app/AssetBrowser.h"
 #include "app/SceneView.h"
 #include "app/MapDebugView.h"
+#include "app/MapBrowser.h"
+#include "app/MapRenderCheck.h"
 #include "assets/AssetCatalog.h"
 #include "assets/RgbaPngReader.h"
 #include "assets/Sg3ImageLoader.h"
@@ -10,6 +12,10 @@
 #include "maps/EmperorMap.h"
 #include "maps/TerrainBindings.h"
 #include "maps/StoredGraphicsPlan.h"
+#include "maps/MapCatalog.h"
+#include "maps/StoredMapSession.h"
+
+#include <nlohmann/json.hpp>
 
 #include <SDL3/SDL_main.h>
 
@@ -38,22 +44,14 @@ void print_usage(const char* executable) {
               << " [--terrain-bindings <preview.json>]"
               << " [--graphics-profile exe-6373328b-v213-runtime-table]"
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]\n";
-}
-
-std::filesystem::path resolve_map_path(const std::filesystem::path& root_path,
-                                       const std::filesystem::path& requested) {
-    namespace fs = std::filesystem;
-    std::error_code ec;
-    const fs::path root = fs::canonical(root_path, ec);
-    if (ec) throw std::runtime_error("cannot resolve data directory");
-    const fs::path candidate = fs::canonical(requested.is_absolute() ? requested : root / requested, ec);
-    if (ec || !fs::is_regular_file(candidate))
-        throw std::runtime_error("map file is missing or cannot be resolved");
-    const fs::path relative = candidate.lexically_relative(root);
-    if (relative.empty() || relative.is_absolute()) throw std::runtime_error("map file escapes data directory");
-    for (const auto& component : relative)
-        if (component == "..") throw std::runtime_error("map file escapes data directory");
-    return candidate;
+    std::cerr << "       " << executable << " --data <directory> --browse-maps --view stored-graphics"
+              << " --graphics-profile exe-6373328b-v213-runtime-table"
+              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]\n"
+              << "       " << executable << " --data <directory> --list-maps --report-json\n"
+              << "       " << executable << " --data <directory> --map-debug <relative.map>"
+              << " --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table"
+              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]"
+              << " --render-check --report-json\n";
 }
 
 } // namespace
@@ -65,6 +63,10 @@ int main(int argc, char* argv[]) {
     bool sg3_supplied = false;
     bool image_supplied = false;
     bool browse_assets = false;
+    bool browse_maps = false;
+    bool list_maps = false;
+    bool render_check = false;
+    bool report_json = false;
     bool ignore_alpha = false;
     bool scene_supplied = false;
     bool map_debug_supplied = false;
@@ -93,6 +95,14 @@ int main(int argc, char* argv[]) {
         const std::string_view argument{argv[index]};
         if (argument == "--browse-assets" && !browse_assets) {
             browse_assets = true;
+        } else if (argument == "--browse-maps" && !browse_maps) {
+            browse_maps = true;
+        } else if (argument == "--list-maps" && !list_maps) {
+            list_maps = true;
+        } else if (argument == "--render-check" && !render_check) {
+            render_check = true;
+        } else if (argument == "--report-json" && !report_json) {
+            report_json = true;
         } else if (argument == "--multi-tile-preview" && !multi_tile_preview) {
             multi_tile_preview = true;
         } else if (argument == "--footprint-policy" && !footprint_policy_supplied && index + 1 < argc) {
@@ -186,15 +196,23 @@ int main(int argc, char* argv[]) {
                             ignore_alpha || diagnostic_alpha_addressing || browser_kind || map_debug_supplied)) ||
         (map_debug_supplied && (!data_supplied || preview_supplied || sg3_supplied || browse_assets ||
                                 scene_supplied || ignore_alpha || diagnostic_alpha_addressing || browser_kind)) ||
-        ((part_supplied || layer_supplied || view_supplied || terrain_bindings_supplied ||
-          graphics_profile_supplied) && !map_debug_supplied) ||
+        ((part_supplied || layer_supplied || terrain_bindings_supplied) && !map_debug_supplied) ||
+        ((view_supplied || graphics_profile_supplied) && !map_debug_supplied && !browse_maps) ||
         (map_view_mode == openemperor::maps::MapViewMode::Textured && !terrain_bindings_supplied) ||
         (terrain_bindings_supplied && map_view_mode != openemperor::maps::MapViewMode::Textured) ||
         (map_view_mode == openemperor::maps::MapViewMode::StoredGraphics && !graphics_profile_supplied) ||
         (graphics_profile_supplied && map_view_mode != openemperor::maps::MapViewMode::StoredGraphics) ||
         (footprint_policy_supplied && !multi_tile_preview) ||
         (multi_tile_preview && (!graphics_profile_supplied ||
-            map_view_mode != openemperor::maps::MapViewMode::StoredGraphics))) {
+            map_view_mode != openemperor::maps::MapViewMode::StoredGraphics)) ||
+        (browse_maps && (!data_supplied || map_debug_supplied || browse_assets || scene_supplied ||
+            preview_supplied || sg3_supplied || map_view_mode!=openemperor::maps::MapViewMode::StoredGraphics ||
+            !graphics_profile_supplied)) ||
+        (list_maps && (!data_supplied || browse_maps || map_debug_supplied || browse_assets ||
+            scene_supplied || preview_supplied || sg3_supplied || view_supplied || graphics_profile_supplied)) ||
+        (render_check && (!map_debug_supplied || !data_supplied || part_supplied ||
+            map_view_mode!=openemperor::maps::MapViewMode::StoredGraphics || !report_json)) ||
+        (report_json && !render_check && !list_maps)) {
         print_usage(argv[0]);
         return 2;
     }
@@ -203,16 +221,39 @@ int main(int argc, char* argv[]) {
         std::error_code error;
         const fs::path absolute_path = fs::absolute(data_directory, error);
         if (error || !fs::is_directory(absolute_path, error) || error) {
+            if (render_check)
+                return openemperor::run_map_render_check(data_directory,map_debug_path,
+                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
             std::cerr << "Data directory does not exist or cannot be accessed: " << data_directory.string() << '\n';
             return 2;
         }
-        std::cout << "Data directory: " << absolute_path.lexically_normal().string() << '\n';
+        if (!report_json)
+            std::cout << "Data directory: " << absolute_path.lexically_normal().string() << '\n';
     }
+
+    if (list_maps) {
+        try {
+            const auto catalog=openemperor::maps::discover_standalone_maps(data_directory);
+            nlohmann::json entries=nlohmann::json::array();
+            for (const auto& entry:catalog.entries)
+                entries.push_back({{"relative_path",entry.relative_path.generic_string()},
+                    {"file_bytes",entry.file_bytes},{"container_valid",entry.container_valid},
+                    {"map_profile",entry.map_profile},{"declared_map_size",entry.declared_size},
+                    {"error",entry.error},{"render_status","not_checked"}});
+            std::cout<<nlohmann::json{{"schema","openemperor-map-catalog-v1"},
+                {"entries",entries},{"scan_errors",catalog.scan_errors}}.dump()<<'\n';
+            return catalog.scan_errors.empty() ? 0 : 1;
+        } catch (const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
+    }
+    if (render_check)
+        return openemperor::run_map_render_check(data_directory,map_debug_path,
+            multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
 
     std::optional<openemperor::assets::RgbaImage> preview;
     std::unique_ptr<openemperor::AssetBrowser> browser;
     std::unique_ptr<openemperor::SceneView> scene_view;
     std::unique_ptr<openemperor::MapDebugView> map_view;
+    std::unique_ptr<openemperor::MapBrowser> map_browser;
     if (preview_supplied) {
         try {
             preview = openemperor::assets::read_exported_png(preview_path);
@@ -254,9 +295,27 @@ int main(int argc, char* argv[]) {
             std::cerr << "Scene load failed: " << error_message.what() << '\n';
             return 1;
         }
+    } else if (browse_maps) {
+        try {
+            map_browser=std::make_unique<openemperor::MapBrowser>(
+                openemperor::maps::discover_standalone_maps(data_directory),
+                multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
+        } catch (const std::exception& error) {
+            std::cerr<<"Map browser scan failed: "<<error.what()<<'\n'; return 1;
+        }
     } else if (map_debug_supplied) {
         try {
-            const fs::path map_path = resolve_map_path(data_directory, map_debug_path);
+            if (graphics_profile_supplied && !part_supplied) {
+                auto session=openemperor::maps::load_stored_map_session(data_directory,map_debug_path,
+                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
+                std::cout << "Original map: " << map_debug_path << " part 0 storage "
+                          << session.map.stored_width << 'x' << session.map.stored_height
+                          << " declared size " << session.map.declared_map_size
+                          << " active extent unknown\n";
+                map_view=std::make_unique<openemperor::MapDebugView>(std::move(session.map),
+                    map_layer,map_view_mode,std::nullopt,std::move(session.plan));
+            } else {
+            const fs::path map_path = openemperor::maps::resolve_map_path(data_directory, map_debug_path);
             auto container = openemperor::maps::EmperorContainer::open(map_path);
             if (container.multipart() && !part_supplied)
                 throw std::runtime_error("multipart container requires --part <index>");
@@ -291,6 +350,7 @@ int main(int argc, char* argv[]) {
             }
             map_view = std::make_unique<openemperor::MapDebugView>(
                 std::move(map), map_layer, map_view_mode, std::move(bindings),std::move(stored_plan));
+            }
         } catch (const std::exception& error_message) {
             std::cerr << "Map debug load failed: " << error_message.what() << '\n';
             return 1;
@@ -298,7 +358,7 @@ int main(int argc, char* argv[]) {
     }
 
     openemperor::Application application{std::move(preview), std::move(browser),
-                                       std::move(scene_view), std::move(map_view)};
+                                       std::move(scene_view), std::move(map_view),std::move(map_browser)};
     if (!application.initialize()) {
         return 1;
     }

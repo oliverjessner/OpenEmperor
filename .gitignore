@@ -23,3 +23,5 @@ server/data/db_logos/*
 .qwen
 .playwright-mcp/
 .local/
+__pycache__/
+*.pyc

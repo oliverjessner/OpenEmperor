@@ -1,6 +1,7 @@
 #include "maps/EmperorContainer.h"
 #include "maps/EmperorMap.h"
 #include "maps/MapGeometry.h"
+#include "maps/MapCatalog.h"
 #include "maps/TerrainInterpretation.h"
 
 #include <nlohmann/json.hpp>
@@ -38,6 +39,8 @@ std::vector<fs::path> candidates(const fs::path& root) {
     std::error_code ec;
     if (!fs::is_directory(root, ec) || ec) throw std::runtime_error("data directory is missing");
     std::vector<fs::path> paths;
+    const auto standalone=maps::discover_standalone_maps(root);
+    for (const auto& entry:standalone.entries) paths.push_back(root/entry.relative_path);
     fs::recursive_directory_iterator it{root, fs::directory_options::skip_permission_denied, ec};
     const fs::recursive_directory_iterator end;
     if (ec) throw std::runtime_error("cannot scan data directory: " + ec.message());
@@ -46,7 +49,12 @@ std::vector<fs::path> candidates(const fs::path& root) {
         const auto status = it->symlink_status(ec);
         if (ec) { ec.clear(); it.disable_recursion_pending(); continue; }
         if (fs::is_symlink(status)) { it.disable_recursion_pending(); continue; }
-        if (fs::is_regular_file(status) && candidate_extension(it->path())) paths.push_back(it->path());
+        if (fs::is_regular_file(status) && candidate_extension(it->path())) {
+            std::string extension=it->path().extension().string();
+            std::transform(extension.begin(),extension.end(),extension.begin(),
+                [](unsigned char ch){ return static_cast<char>(std::tolower(ch)); });
+            if (extension!=".map") paths.push_back(it->path());
+        }
     }
     std::sort(paths.begin(), paths.end(), [&](const fs::path& a, const fs::path& b) {
         return a.lexically_relative(root).generic_string() < b.lexically_relative(root).generic_string();

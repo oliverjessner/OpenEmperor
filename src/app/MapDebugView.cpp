@@ -41,6 +41,15 @@ MapDebugView::MapDebugView(maps::ParsedEmperorMap map, maps::RawLayer initial_la
         throw std::invalid_argument("stored graphics view requires --graphics-profile");
 }
 MapDebugView::~MapDebugView() { shutdown(); }
+const maps::StoredGraphicsPlan* MapDebugView::stored_plan() const {
+    return stored_renderer_ ? &stored_renderer_->plan() : nullptr;
+}
+std::size_t MapDebugView::stored_texture_draws() const {
+    return stored_renderer_ ? stored_renderer_->last_texture_draws() : 0;
+}
+std::size_t MapDebugView::stored_diagnostic_draws() const {
+    return stored_renderer_ ? stored_renderer_->last_diagnostic_draws() : 0;
+}
 bool MapDebugView::is_texture_view() const {
     return view_ == maps::MapViewMode::Textured || view_ == maps::MapViewMode::StoredGraphics;
 }

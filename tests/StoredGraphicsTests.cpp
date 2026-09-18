@@ -1,9 +1,13 @@
 #include "app/MapDebugView.h"
+#include "app/MapBrowser.h"
+#include "app/MapRenderCheck.h"
 #include "assets/Sg3ImageLoader.h"
 #include "maps/StoredGraphicsPlan.h"
 #include "renderer/StoredGraphicsRenderer.h"
 
 #include <SDL3/SDL.h>
+#include <zlib.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <array>
@@ -15,6 +19,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -64,6 +69,33 @@ Bytes tile(std::uint16_t color) {
     Bytes b(3200);
     for (std::size_t i=0;i<b.size();i+=2) u16(b,i,color);
     return b;
+}
+Bytes stored_map_file(std::uint32_t marker,bool partial=false,std::uint32_t declared_size=84) {
+    Bytes raw(static_cast<std::size_t>(maps::objects_logical_offset+maps::grid_byte_length),0);
+    const std::array<std::uint8_t,8> signature{5,0,0xfe,0xca,0,0,2,0};
+    std::copy(signature.begin(),signature.end(),raw.begin());
+    u32(raw,84,declared_size);
+    for (std::size_t i=0;i<228U*228U;++i) {
+        u32(raw,static_cast<std::size_t>(maps::candidate_word_logical_offset)+4*i,0xc000);
+        raw[static_cast<std::size_t>(maps::candidate_byte_logical_offset)+i]=64;
+        u32(raw,static_cast<std::size_t>(maps::terrain_logical_offset)+4*i,marker);
+    }
+    if (partial) u32(raw,static_cast<std::size_t>(maps::candidate_word_logical_offset)+
+                         4U*(114U*228U+114U),0xc002);
+    Bytes file{0xaa,0xba,0xdc,0xfe};
+    for (std::size_t at=0;at<raw.size();at+=32768) {
+        const auto length=std::min<std::size_t>(32768,raw.size()-at);
+        uLongf capacity=compressBound(static_cast<uLong>(length));
+        Bytes zipped(static_cast<std::size_t>(capacity));
+        check(compress2(zipped.data(),&capacity,raw.data()+at,static_cast<uLong>(length),6)==Z_OK,
+              "synthetic map zlib compression");
+        zipped.resize(static_cast<std::size_t>(capacity));
+        const auto start=file.size(); file.resize(start+12);
+        u32(file,start,0x12345678); u32(file,start+4,static_cast<std::uint32_t>(zipped.size()));
+        u32(file,start+8,static_cast<std::uint32_t>(length));
+        file.insert(file.end(),zipped.begin(),zipped.end());
+    }
+    return file;
 }
 maps::ParsedEmperorMap map_fixture() {
     maps::ParsedEmperorMap m;
@@ -431,6 +463,86 @@ int main() {
         check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL dummy init");
         SDL_Window* window=nullptr; SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("stored test",400,300,0,&window,&renderer),"software renderer");
+        fs::create_directories(temp.path/"Cities");
+        write(temp.path/"Cities/A.map",stored_map_file(0x80));
+        write(temp.path/"Cities/B.MAP",stored_map_file(0x82));
+        write(temp.path/"Cities/Broken.map",Bytes{'b','a','d'});
+        {
+            auto catalog=maps::discover_standalone_maps(temp.path);
+            check(catalog.entries.size()==3 && catalog.entries[0].map_profile &&
+                  catalog.entries[1].map_profile && !catalog.entries[2].map_profile,
+                  "browser catalog validates synthetic maps independently");
+            openemperor::MapBrowser browser{std::move(catalog),maps::FootprintPolicy::EdgeBytePreview};
+            browser.initialize(window,renderer);
+            bool running=true;
+            SDL_Event down{}; down.type=SDL_EVENT_KEY_DOWN; down.key.key=SDLK_DOWN;
+            SDL_Event up{}; up.type=SDL_EVENT_KEY_DOWN; up.key.key=SDLK_UP;
+            SDL_Event escape{}; escape.type=SDL_EVENT_KEY_DOWN; escape.key.key=SDLK_ESCAPE;
+            check(browser.open_selected() && browser.map_open() && browser.render() &&
+                  openemperor::StoredGraphicsRenderer::live_texture_count()==1,
+                  "first synthetic map opens and uploads one shared texture");
+            browser.handle_event(escape,running);
+            check(running && !browser.map_open() &&
+                  openemperor::StoredGraphicsRenderer::live_texture_count()==0,
+                  "Escape returns to list and releases all owned map textures");
+            browser.handle_event(down,running);
+            check(browser.selected_index()==1 && browser.open_selected() && browser.render() &&
+                  openemperor::StoredGraphicsRenderer::live_texture_count()==1,
+                  "second synthetic map opens in same renderer");
+            browser.handle_event(escape,running);
+            browser.handle_event(down,running);
+            check(browser.selected_index()==2 && !browser.open_selected() &&
+                  !browser.map_open() && browser.statuses()[2]=="load_failed" &&
+                  openemperor::StoredGraphicsRenderer::live_texture_count()==0,
+                  "bad map reports error without ending browser session");
+            browser.handle_event(up,running); browser.handle_event(up,running);
+            check(browser.selected_index()==0 && browser.open_selected() && browser.render() &&
+                  browser.statuses()[0]=="snapshot_complete" &&
+                  openemperor::StoredGraphicsRenderer::live_texture_count()==1,
+                  "first map reopens after second map and failed file");
+            browser.handle_event(escape,running);
+            check(!browser.map_open() && openemperor::StoredGraphicsRenderer::live_texture_count()==0,
+                  "A-B-error-A sequence leaves no owned map textures");
+            SDL_Event page_down{}; page_down.type=SDL_EVENT_KEY_DOWN; page_down.key.key=SDLK_PAGEDOWN;
+            SDL_Event page_up{}; page_up.type=SDL_EVENT_KEY_DOWN; page_up.key.key=SDLK_PAGEUP;
+            browser.handle_event(page_down,running);
+            check(browser.selected_index()==2,"Page Down moves to end of short list");
+            browser.handle_event(page_up,running);
+            check(browser.selected_index()==0,"Page Up returns to first page");
+            SDL_Event double_click{}; double_click.type=SDL_EVENT_MOUSE_BUTTON_DOWN;
+            double_click.button.button=SDL_BUTTON_LEFT; double_click.button.clicks=2;
+            double_click.button.x=20; double_click.button.y=128;
+            browser.handle_event(double_click,running);
+            check(browser.selected_index()==1 && browser.map_open() && browser.render(),
+                  "double click opens selected row");
+            browser.handle_event(escape,running);
+            check(openemperor::StoredGraphicsRenderer::live_texture_count()==0,
+                  "double-clicked map also releases textures");
+            browser.handle_event(escape,running);
+            check(!running,"Escape in list quits application");
+            browser.shutdown();
+        }
+        write(temp.path/"Cities/Fail.map",stored_map_file(0x80,false,85));
+        {
+            openemperor::MapBrowser browser{maps::discover_standalone_maps(temp.path),
+                                            maps::FootprintPolicy::EdgeBytePreview};
+            browser.initialize(window,renderer);
+            bool running=true;
+            SDL_Event down{}; down.type=SDL_EVENT_KEY_DOWN; down.key.key=SDLK_DOWN;
+            for (int i=0;i<3;++i) browser.handle_event(down,running);
+            check(browser.selected_index()==3 && !browser.open_selected() &&
+                  browser.statuses()[3]=="load_failed" && !browser.map_open(),
+                  "valid-format unsupported geometry fails session loading without exiting browser");
+            SDL_Event up{}; up.type=SDL_EVENT_KEY_DOWN; up.key.key=SDLK_UP;
+            for (int i=0;i<3;++i) browser.handle_event(up,running);
+            check(browser.open_selected() && browser.render() &&
+                  openemperor::StoredGraphicsRenderer::live_texture_count()==1,
+                  "a good map opens after actual session-load failure");
+            browser.shutdown();
+            check(openemperor::StoredGraphicsRenderer::live_texture_count()==0,
+                  "failed-session recovery releases good map resources");
+        }
+        write(temp.path/"Cities/C.map",stored_map_file(0x80,true));
         {
             auto adjacent=edge_plan(vertical_candidates,vertical_cells);
             openemperor::StoredGraphicsRenderer preview{std::move(adjacent)};
@@ -627,6 +739,36 @@ int main() {
             SDL_SetWindowSize(window,400,300);
         }
         SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
+        const auto check_report=[&](const fs::path& relative) {
+            std::ostringstream output;
+            auto* previous=std::cout.rdbuf(output.rdbuf());
+            const auto code=openemperor::run_map_render_check(temp.path,relative,
+                maps::FootprintPolicy::EdgeBytePreview);
+            std::cout.rdbuf(previous);
+            check(code==0,"headless render check returns without event loop");
+            return nlohmann::json::parse(output.str());
+        };
+        const auto full_report=check_report("Cities/A.map");
+        const auto partial_report=check_report("Cities/C.map");
+        check(full_report.at("status")=="snapshot_complete" &&
+              full_report.at("stages").at("render_frames")==true &&
+              full_report.at("decoded_assets")==1 && full_report.at("texture_uploads")==1 &&
+              full_report.at("candidate_cells")==full_report.at("covered_cells") &&
+              partial_report.at("status")=="snapshot_partial" &&
+              partial_report.at("diagnostic_cells")==1 &&
+              partial_report.at("stages").at("render_frames")==true,
+              "render-check JSON distinguishes full and partial actual decoder/renderer runs");
+        {
+            std::ostringstream output;
+            auto* previous=std::cout.rdbuf(output.rdbuf());
+            const auto code=openemperor::run_map_render_check(temp.path,"Cities/Broken.map",
+                maps::FootprintPolicy::EdgeBytePreview);
+            std::cout.rdbuf(previous);
+            const auto failed=nlohmann::json::parse(output.str());
+            check(code==1 && failed.at("status")=="load_failed" &&
+                  failed.at("stages").at("container_valid")==false,
+                  "headless failure still emits one valid JSON report");
+        }
         {
             Temp outside;
             write(outside.path/"DATA/foreign.555",Bytes{1,2});

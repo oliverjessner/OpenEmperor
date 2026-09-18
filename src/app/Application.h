@@ -14,13 +14,15 @@ namespace openemperor {
 class AssetBrowser;
 class SceneView;
 class MapDebugView;
+class MapBrowser;
 
 class Application {
 public:
     explicit Application(std::optional<assets::RgbaImage> preview = std::nullopt,
                          std::unique_ptr<AssetBrowser> browser = nullptr,
                          std::unique_ptr<SceneView> scene = nullptr,
-                         std::unique_ptr<MapDebugView> map_debug = nullptr);
+                         std::unique_ptr<MapDebugView> map_debug = nullptr,
+                         std::unique_ptr<MapBrowser> map_browser = nullptr);
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
     ~Application();
@@ -39,6 +41,7 @@ private:
     std::unique_ptr<AssetBrowser> browser_;
     std::unique_ptr<SceneView> scene_;
     std::unique_ptr<MapDebugView> map_debug_;
+    std::unique_ptr<MapBrowser> map_browser_;
     bool sdl_initialized_ = false;
 };
 

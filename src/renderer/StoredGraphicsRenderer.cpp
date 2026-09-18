@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <stdexcept>
@@ -12,6 +13,9 @@
 #include <utility>
 
 namespace openemperor {
+namespace { std::atomic<std::size_t> live_textures{0}; }
+
+std::size_t StoredGraphicsRenderer::live_texture_count() { return live_textures.load(); }
 
 StoredGraphicsRenderer::StoredGraphicsRenderer(maps::StoredGraphicsPlan plan)
     : plan_(std::move(plan)) {}
@@ -52,6 +56,7 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
                 SDL_TEXTUREACCESS_STATIC,rgba.width,rgba.height);
             if (!texture) throw std::runtime_error(SDL_GetError());
             textures_[i] = texture;
+            ++live_textures;
             if (!SDL_UpdateTexture(texture,nullptr,rgba.pixels.data(),rgba.width*4) ||
                 !SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND) ||
                 !SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST))
@@ -60,7 +65,7 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
             ++plan_.texture_uploads;
             plan_.logical_texture_bytes += bytes;
         } catch (const std::exception& error) {
-            if (textures_[i]) { SDL_DestroyTexture(textures_[i]); textures_[i]=nullptr; }
+            if (textures_[i]) { SDL_DestroyTexture(textures_[i]); textures_[i]=nullptr; --live_textures; }
             asset.status = maps::StoredStatus::DecodeFailed;
             asset.error = error.what();
         }
@@ -95,7 +100,7 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
 }
 
 void StoredGraphicsRenderer::shutdown() {
-    for (auto* texture : textures_) if (texture) SDL_DestroyTexture(texture);
+    for (auto* texture : textures_) if (texture) { SDL_DestroyTexture(texture); --live_textures; }
     textures_.clear();
     renderer_ = nullptr;
 }

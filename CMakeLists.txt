@@ -40,6 +40,8 @@ add_executable(openemperor
     src/app/AssetBrowser.cpp
     src/app/SceneView.cpp
     src/app/MapDebugView.cpp
+    src/app/MapBrowser.cpp
+    src/app/MapRenderCheck.cpp
     src/renderer/TitleScreen.cpp
     src/renderer/ImagePreview.cpp
     src/renderer/SceneRenderer.cpp
@@ -93,6 +95,8 @@ add_library(openemperor-maps STATIC
     src/maps/TerrainRenderPlan.cpp
     src/maps/StoredGraphicsPlan.cpp
     src/maps/MapSubtileMetadata.cpp
+    src/maps/MapCatalog.cpp
+    src/maps/StoredMapSession.cpp
 )
 target_include_directories(openemperor-maps PUBLIC src)
 target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohmann_json::nlohmann_json openemperor-scene)
@@ -113,6 +117,13 @@ openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME map-corpus-runner COMMAND ${Python3_EXECUTABLE} -m unittest discover
+            -s ${CMAKE_SOURCE_DIR}/tests -p test_verify_map_corpus.py)
+        set_tests_properties(map-corpus-runner PROPERTIES TIMEOUT 20
+            ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+    endif()
     add_executable(openemperor-resource-group-tests tests/ResourceGroupLookupTests.cpp)
     target_link_libraries(openemperor-resource-group-tests PRIVATE openemperor-maps)
     openemperor_enable_warnings(openemperor-resource-group-tests)
@@ -132,11 +143,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-map-view-tests)
     add_test(NAME emperor-map-debug-view COMMAND openemperor-map-view-tests)
     add_executable(openemperor-stored-graphics-tests tests/StoredGraphicsTests.cpp
-        src/app/MapDebugView.cpp src/renderer/TerrainPreviewRenderer.cpp
+        src/app/MapBrowser.cpp src/app/MapRenderCheck.cpp src/app/MapDebugView.cpp src/renderer/TerrainPreviewRenderer.cpp
         src/renderer/StoredGraphicsRenderer.cpp)
     target_link_libraries(openemperor-stored-graphics-tests PRIVATE openemperor-maps SDL3::SDL3)
     openemperor_enable_warnings(openemperor-stored-graphics-tests)
     add_test(NAME stored-graphics-map-preview COMMAND openemperor-stored-graphics-tests)
+    set_tests_properties(stored-graphics-map-preview PROPERTIES TIMEOUT 30)
     add_executable(openemperor-terrain-preview-tests tests/TerrainPreviewTests.cpp src/renderer/TerrainPreviewRenderer.cpp)
     target_link_libraries(openemperor-terrain-preview-tests PRIVATE openemperor-maps SDL3::SDL3)
     openemperor_enable_warnings(openemperor-terrain-preview-tests)

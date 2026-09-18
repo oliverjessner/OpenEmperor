@@ -1,6 +1,7 @@
 #include "maps/EmperorContainer.h"
 #include "maps/EmperorMap.h"
 #include "maps/MapGraphicCandidates.h"
+#include "maps/MapCatalog.h"
 #include "maps/DirectGraphicCandidate.h"
 
 #include <zlib.h>
@@ -127,6 +128,35 @@ int main() {
               container.read_range(0, 2, 4) == Bytes({'c','d','e','f'}), "cross-block logical read");
 
         auto data = map_bytes();
+        fs::create_directory(root/"catalog");
+        write(root/"catalog/Zed.MAP",single(data));
+        write(root/"catalog/Alpha.map",single(data));
+        write(root/"catalog/Invalid.map",Bytes{'n','o'});
+        write(root/"catalog/Unknown.map",single(Bytes{'a','b','c'}));
+        const auto discovered=maps::discover_standalone_maps(root/"catalog");
+        check(discovered.entries.size()==4 && discovered.entries[0].relative_path=="Alpha.map" &&
+              discovered.entries[1].relative_path=="Invalid.map" &&
+              discovered.entries[2].relative_path=="Unknown.map" &&
+              discovered.entries[3].relative_path=="Zed.MAP" &&
+              discovered.entries[0].map_profile && discovered.entries[0].declared_size==112 &&
+              !discovered.entries[1].container_valid && !discovered.entries[1].error.empty() &&
+              discovered.entries[2].container_valid && !discovered.entries[2].map_profile &&
+              discovered.entries[3].map_profile,
+              "deterministic case-insensitive map discovery keeps bad entries independently");
+        check(maps::resolve_map_path(root/"catalog","Alpha.map")==
+              fs::canonical(root/"catalog/Alpha.map") &&
+              maps::resolve_map_path(root/"catalog",fs::canonical(root/"catalog/Alpha.map"))==
+              fs::canonical(root/"catalog/Alpha.map"),
+              "safe relative and in-root absolute map resolution");
+        rejects([&]{ (void)maps::discover_standalone_maps(root/"missing"); });
+        rejects([&]{ (void)maps::resolve_map_path(root/"catalog","../synthetic.map"); });
+        std::error_code symlink_error;
+        fs::create_symlink(root/"synthetic.map",root/"catalog/Outside.map",symlink_error);
+        if (!symlink_error) {
+            check(maps::discover_standalone_maps(root/"catalog").entries.size()==4,
+                  "map discovery does not follow symlink files");
+            rejects([&]{ (void)maps::resolve_map_path(root/"catalog","Outside.map"); });
+        }
         write(file, single(data));
         container = maps::EmperorContainer::open(file);
         check(maps::probe_map_part(container, 0).profile == maps::PartProfile::Map, "map profile probe");

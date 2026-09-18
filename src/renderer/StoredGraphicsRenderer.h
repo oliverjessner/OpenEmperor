@@ -25,6 +25,7 @@ public:
     std::size_t last_drawn_instances() const { return last_drawn_instances_; }
     std::size_t last_texture_draws() const { return last_texture_draws_; }
     std::size_t last_diagnostic_draws() const { return last_diagnostic_draws_; }
+    static std::size_t live_texture_count(); // Textures owned by this renderer class.
 private:
     struct DrawItem { bool footprint; std::size_t index; double depth; double x; std::size_t stable; };
     bool draw_diagnostic(scene::Point world, const scene::Camera2D& camera, bool selected);
