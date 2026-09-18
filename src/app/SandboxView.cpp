@@ -120,7 +120,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         buildable_mask_,rules_);
     reset_camera();
     if (demo_) place_demo();
-    SDL_SetWindowTitle(window_,rules_==simulation::RulesProfile::HouseholdV3 ?
+    SDL_SetWindowTitle(window_,rules_==simulation::RulesProfile::SettlementV4 ?
+        "OpenEmperor | Settlement Sandbox - prototype rules" :
+        rules_==simulation::RulesProfile::HouseholdV3 ?
         "OpenEmperor | Household Sandbox - prototype rules" :
         rules_==simulation::RulesProfile::ProductionV2 ?
         "OpenEmperor | Production Sandbox - prototype rules" :
@@ -136,7 +138,8 @@ void SandboxView::reset_camera() {
     fit_stored_camera(background_.plan(),camera_);
     if (demo_origin_) {
         const auto center=maps::terrain_world({static_cast<std::uint32_t>(demo_origin_->x+
-            (rules_==simulation::RulesProfile::HouseholdV3 ? 5 :
+            (rules_==simulation::RulesProfile::SettlementV4 ? 6 :
+             rules_==simulation::RulesProfile::HouseholdV3 ? 5 :
              rules_==simulation::RulesProfile::ProductionV2 ? 3 : 2)),
             static_cast<std::uint32_t>(demo_origin_->y)},geometry_.border);
         camera_.zoom=std::clamp(camera_.zoom,1.0,4.0);
@@ -155,6 +158,39 @@ void SandboxView::resize_camera() {
     camera_.center_on(center);
 }
 void SandboxView::place_demo() {
+    if (rules_==simulation::RulesProfile::SettlementV4) {
+        // A fixed three-branch pattern, searched only in the actual buildability mask.
+        for (int y=0;y+2<world_->height();++y) for (int x=0;x+11<=world_->width();++x) {
+            bool valid=true;
+            for (int i=0;i<11;++i) valid=valid && world_->buildable({x+i,y+1});
+            for (int dy : {0,2}) for (int dx : {7,8})
+                valid=valid && world_->buildable({x+dx,y+dy});
+            if (!valid) continue;
+            const auto run=[&](simulation::CommandType type,int dx,int dy) {
+                if (!world_->execute({type,{x+dx,y+dy}}).accepted)
+                    throw std::logic_error("settlement demo command failed");
+            };
+            run(simulation::CommandType::PlaceClaySource,0,1);
+            run(simulation::CommandType::PlaceRoad,1,1);
+            run(simulation::CommandType::PlaceRoad,2,1);
+            run(simulation::CommandType::PlacePottery,3,1);
+            run(simulation::CommandType::PlaceRoad,4,1);
+            run(simulation::CommandType::PlaceRoad,5,1);
+            run(simulation::CommandType::PlaceWarehouse,6,1);
+            for (int dx=7;dx<=9;++dx) run(simulation::CommandType::PlaceRoad,dx,1);
+            run(simulation::CommandType::PlaceHousehold,10,1);
+            for (int dy : {0,2}) {
+                run(simulation::CommandType::PlaceRoad,7,dy);
+                run(simulation::CommandType::PlaceRoad,8,dy);
+                run(simulation::CommandType::PlaceHousehold,9,dy);
+            }
+            demo_origin_=simulation::Cell{x,y+1};
+            reset_camera();
+            last_message_="Three-house settlement demo placed through normal commands";
+            return;
+        }
+        throw std::runtime_error("no suitable 11x3 sandbox-buildable branch pattern for settlement demo");
+    }
     const int length=rules_==simulation::RulesProfile::HouseholdV3 ? 10 :
         rules_==simulation::RulesProfile::ProductionV2 ? 7 : 6;
     for (int y=0;y<world_->height();++y) for (int x=0;x+length<=world_->width();++x) {
@@ -195,7 +231,8 @@ void SandboxView::place_demo() {
     throw std::runtime_error("no suitable straight sandbox-buildable row for demo");
 }
 int SandboxView::hud_height() const {
-    return rules_==simulation::RulesProfile::HouseholdV3 ? 205 :
+    return rules_==simulation::RulesProfile::SettlementV4 ? 310 :
+        rules_==simulation::RulesProfile::HouseholdV3 ? 205 :
         rules_==simulation::RulesProfile::ProductionV2 ? 151 : 116;
 }
 std::optional<simulation::Cell> SandboxView::pick(scene::Point screen) const {
@@ -210,7 +247,7 @@ simulation::CommandResult SandboxView::preview(simulation::Cell cell) const {
     return world_->validate({command_type(rules_,tool_),cell});
 }
 void SandboxView::set_tool(int tool) {
-    if (tool>=1 && tool<=(rules_==simulation::RulesProfile::HouseholdV3 ? 7 :
+    if (tool>=1 && tool<=(simulation::household_profile(rules_) ? 7 :
                           rules_==simulation::RulesProfile::ProductionV2 ? 6 : 4)) tool_=tool;
 }
 void SandboxView::handle_event(const SDL_Event& event,bool& running) {
@@ -219,7 +256,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) resize_camera();
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
         if (event.key.key>=SDLK_1 && event.key.key<=
-            (rules_==simulation::RulesProfile::HouseholdV3 ? SDLK_7 :
+            (simulation::household_profile(rules_) ? SDLK_7 :
              rules_==simulation::RulesProfile::ProductionV2 ? SDLK_6 : SDLK_4))
             set_tool(static_cast<int>(event.key.key-SDLK_1)+1);
         else if (event.key.key==SDLK_SPACE) clock_.toggle_pause();
@@ -336,6 +373,13 @@ bool SandboxView::draw_world() {
                 static_cast<float>(center.y)-size*1.5F,size,size};
             if (!SDL_SetRenderDrawColor(renderer_,color.r,color.g,color.b,255) ||
                 !SDL_RenderFillRect(renderer_,&rect)) return false;
+            if (object==simulation::Object::Household) {
+                const auto id=world_->building_owner_at({x,y});
+                const std::string label="H"+std::to_string(static_cast<unsigned>(*id));
+                if (!SDL_SetRenderDrawColor(renderer_,255,255,255,255) ||
+                    !SDL_RenderDebugText(renderer_,static_cast<float>(center.x)+7,
+                        static_cast<float>(center.y)-16,label.c_str())) return false;
+            }
         }
     }
     const auto draw_agent=[&](simulation::Position position,SDL_Color body,SDL_Color cargo_color,
@@ -363,7 +407,7 @@ bool SandboxView::draw_world() {
             if (!draw_agent(*b,world_->courier(simulation::CourierId::Pottery).route_pending ?
                 SDL_Color{255,120,40,255}:SDL_Color{255,225,130,255},{240,45,190,255},
                 world_->courier(simulation::CourierId::Pottery).cargo,5)) return false;
-        if (rules_==simulation::RulesProfile::HouseholdV3)
+        if (simulation::household_profile(rules_))
             if (const auto c=world_->courier_position(simulation::CourierId::Household))
                 if (!draw_agent(*c,world_->courier(simulation::CourierId::Household).route_pending ?
                     SDL_Color{255,120,40,255}:SDL_Color{110,255,130,255},
@@ -431,7 +475,9 @@ bool SandboxView::draw_hud_v2() {
     const auto& store=world_->building(simulation::BuildingId::Warehouse);
     const auto& a=world_->courier(simulation::CourierId::Clay);
     const auto& b=world_->courier(simulation::CourierId::Pottery);
-    const std::string line0=rules_==simulation::RulesProfile::HouseholdV3 ?
+    const std::string line0=rules_==simulation::RulesProfile::SettlementV4 ?
+        "sandbox-settlement-v4 rules 1 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove 7 Household" :
+        rules_==simulation::RulesProfile::HouseholdV3 ?
         "sandbox-household-v3 rules 1 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove 7 Household" :
         "sandbox-production-v2 rules 2 | 1 Road 2 Clay 3 Pottery 4 Warehouse 5 Select 6 Remove";
     const std::string line1="Tool: "+std::string{tool_name(rules_,tool_)}+
@@ -476,7 +522,54 @@ bool SandboxView::draw_hud_v2() {
         SDL_RenderDebugText(renderer_,8,95,line5.c_str()) &&
         SDL_RenderDebugText(renderer_,8,113,line6.c_str()) &&
         SDL_RenderDebugText(renderer_,8,131,line7.c_str());
-    if (!drawn || rules_!=simulation::RulesProfile::HouseholdV3) return drawn;
+    if (!drawn) return false;
+    if (rules_==simulation::RulesProfile::SettlementV4) {
+        const auto& supplier=world_->courier(simulation::CourierId::Household);
+        const auto id_text=[](std::optional<simulation::BuildingId> id) {
+            return id ? "H"+std::to_string(static_cast<unsigned>(*id)) : std::string{"-"};
+        };
+        const std::string target=supplier.phase==simulation::CourierPhase::IdleAtWorkshop ?
+            "-" : id_text(supplier.target);
+        const std::string supply="Supplier: "+std::string{simulation::delivery_phase_name(supplier.phase)}+
+            " target "+target+" cargo "+std::to_string(supplier.cargo)+
+            " reserved "+std::to_string(supplier.reserved)+
+            (supplier.route_pending ? " WAITING":"")+
+            " | last dispatched "+id_text(world_->last_dispatched_household());
+        drawn=SDL_RenderDebugText(renderer_,8,149,supply.c_str());
+        const std::string status="Supply: "+std::string{world_->courier_blockage(simulation::CourierId::Household)}+
+            " | reroutes "+std::to_string(supplier.reroute_attempts)+
+            " | Houses "+std::to_string(static_cast<unsigned>(world_->next_household_id()-4))+"/4";
+        drawn=drawn && SDL_RenderDebugText(renderer_,8,167,status.c_str());
+        for (unsigned id=4;id<8;++id) {
+            const auto& home=world_->building(static_cast<simulation::BuildingId>(id));
+            const std::string line=home.placed ?
+                "H"+std::to_string(id)+" ("+std::to_string(home.cell.x)+","+
+                    std::to_string(home.cell.y)+") stock "+std::to_string(home.pottery_stock)+
+                    "/8 reserved "+std::to_string(home.reserved_incoming)+
+                    " demand "+std::to_string(home.demand_progress)+"/400 fulfilled "+
+                    std::to_string(home.fulfilled_demand)+" missed "+
+                    std::to_string(home.missed_demand)+" consumed "+
+                    std::to_string(home.consumed_total) :
+                "H"+std::to_string(id)+": not placed";
+            drawn=drawn && SDL_RenderDebugText(renderer_,8,
+                static_cast<float>(185+static_cast<int>(id-4)*18),
+                line.c_str());
+        }
+        std::string selected="Selected house: none";
+        if (selected_) {
+            const auto owner=world_->building_owner_at(*selected_);
+            if (owner && static_cast<unsigned>(*owner)>=4 && static_cast<unsigned>(*owner)<8) {
+                const auto& home=world_->building(*owner);
+                selected="Selected H"+std::to_string(static_cast<unsigned>(*owner))+
+                    " ("+std::to_string(home.cell.x)+","+std::to_string(home.cell.y)+")"+
+                    " last demand "+(home.last_demand_status==0 ? "none" :
+                        home.last_demand_status==1 ? "fulfilled":"missed")+
+                    " | route "+(world_->household_route_available(*owner) ? "available":"unreachable");
+            }
+        }
+        return drawn && SDL_RenderDebugText(renderer_,8,257,selected.c_str());
+    }
+    if (rules_!=simulation::RulesProfile::HouseholdV3) return drawn;
     const auto& home=world_->building(simulation::BuildingId::Household);
     const auto& courier=world_->courier(simulation::CourierId::Household);
     const std::string last=home.last_demand_status==0 ? "no demand yet" :

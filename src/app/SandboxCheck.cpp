@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include <iostream>
+#include <array>
 #include <optional>
 #include <random>
 #include <stdexcept>
@@ -44,11 +45,21 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         std::optional<simulation::World> resumed;
         bool delivered=false,returning=false,returned=false,balanced=true,rendered=true;
         bool pottery_processed=false,clay_delivered=false,house_delivered=false;
+        std::array<int,4> house_arrivals{};
         int frames_with_both=0,frames_with_three=0;
-        const int limit=simulation::production_profile(rules) ? 3000 : 700;
+        const int limit=rules==simulation::RulesProfile::SettlementV4 ? 6000 :
+            simulation::production_profile(rules) ? 3000 : 700;
         for (int i=0;i<limit;++i) {
+            const auto before=rules==simulation::RulesProfile::SettlementV4 ?
+                view.world().courier(simulation::CourierId::Household):simulation::CourierState{};
             view.tick_once();
             const auto& world=view.world();
+            if (rules==simulation::RulesProfile::SettlementV4 &&
+                before.phase==simulation::CourierPhase::ToWarehouse &&
+                world.courier(simulation::CourierId::Household).phase==simulation::CourierPhase::Returning) {
+                const auto id=static_cast<unsigned>(before.target);
+                if (id>=4 && id<8) ++house_arrivals[id-4];
+            }
             if (resume_check && i==(simulation::production_profile(rules) ? 1000:200)) {
                 view.save_now(); saved=true;
                 const auto parsed=persistence::read_save(temporary.path/"resume.json");
@@ -85,7 +96,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 rendered=rendered && view.render();
                 if (simulation::production_profile(rules) && view.last_courier_draws()>=2)
                     ++frames_with_both;
-                if (rules==simulation::RulesProfile::HouseholdV3 && view.last_courier_draws()==3)
+                if (simulation::household_profile(rules) && view.last_courier_draws()==3)
                     ++frames_with_three;
             }
         }
@@ -99,6 +110,42 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             const auto& b=world.courier(simulation::CourierId::Pottery);
             const auto& home=world.building(simulation::BuildingId::Household);
             const auto& supplier=world.courier(simulation::CourierId::Household);
+            if (rules==simulation::RulesProfile::SettlementV4) {
+                nlohmann::json houses=nlohmann::json::array();
+                int supplied=0,consumed=0;
+                for (unsigned id=4;id<8;++id) {
+                    const auto& h=world.building(static_cast<simulation::BuildingId>(id));
+                    if (!h.placed) continue;
+                    if (house_arrivals[id-4]>0) ++supplied;
+                    if (h.consumed_total>0) ++consumed;
+                    houses.push_back({{"id",id},{"position",{h.cell.x,h.cell.y}},
+                        {"arrivals",house_arrivals[id-4]},{"pottery",h.pottery_stock},
+                        {"reserved",h.reserved_incoming},{"demand_progress",h.demand_progress},
+                        {"fulfilled",h.fulfilled_demand},{"missed",h.missed_demand},
+                        {"consumed",h.consumed_total}});
+                }
+                const bool success=houses.size()>=3 && supplied>=2 && consumed>=2 &&
+                    pottery_processed && delivered && balanced && rendered && frames_with_three>0 &&
+                    (!resume_check || (saved && reparsed && fresh_world && direct_equal && continued_equal));
+                std::cout<<nlohmann::json{{"schema","openemperor-sandbox-check-v4"},
+                    {"rules",simulation::rules_profile_name(rules)},
+                    {"map",map_relative.generic_string()},{"ticks",world.ticks()},
+                    {"demo_origin",origin ? nlohmann::json::array({origin->x,origin->y}) : nlohmann::json()},
+                    {"houses",houses},{"distinct_supplied",supplied},{"distinct_consumed",consumed},
+                    {"last_dispatched_household",world.last_dispatched_household() ?
+                        nlohmann::json(static_cast<unsigned>(*world.last_dispatched_household())):
+                        nlohmann::json()},
+                    {"supplier_target",supplier.phase==simulation::CourierPhase::IdleAtWorkshop ?
+                        nlohmann::json():nlohmann::json(static_cast<unsigned>(supplier.target))},
+                    {"pottery_completed_total",world.pottery_completed_total()},
+                    {"goods_balance_valid",balanced},{"frames_rendered",rendered},
+                    {"frames_with_three_couriers",frames_with_three},
+                    {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
+                               {"fresh_world",fresh_world},{"direct_equal",direct_equal},
+                               {"continued_equal",continued_equal}}}}.dump()<<'\n';
+                view.shutdown(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
+                return success ? 0:1;
+            }
             if (rules==simulation::RulesProfile::HouseholdV3) {
                 const bool success=clay_delivered && pottery_processed && delivered &&
                     house_delivered && home.consumed_total>0 && balanced && rendered &&

@@ -11,10 +11,17 @@ namespace openemperor::simulation {
 
 inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
-enum class RulesProfile { LogisticsV1, ProductionV2, HouseholdV3 };
+enum class RulesProfile { LogisticsV1, ProductionV2, HouseholdV3, SettlementV4 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
+inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
+inline constexpr std::uint8_t first_household_id=4;
+inline constexpr std::uint8_t household_limit=4;
+inline constexpr std::uint8_t household_id_end=first_household_id+household_limit;
+constexpr bool household_profile(RulesProfile profile) {
+    return profile==RulesProfile::HouseholdV3 || profile==RulesProfile::SettlementV4;
+}
 constexpr bool production_profile(RulesProfile profile) {
-    return profile==RulesProfile::ProductionV2 || profile==RulesProfile::HouseholdV3;
+    return profile==RulesProfile::ProductionV2 || household_profile(profile);
 }
 const char* rules_profile_name(RulesProfile profile);
 struct Rules {
@@ -135,8 +142,10 @@ struct WorldSnapshot {
     std::vector<Cell> path;
     std::size_t path_vertex=0;
     int edge_progress=0;
-    std::array<BuildingSnapshot,4> buildings{};
+    std::array<BuildingSnapshot,7> buildings{};
     std::array<CourierSnapshot,3> couriers{};
+    std::uint8_t next_household_id=first_household_id;
+    std::optional<BuildingId> last_dispatched_household;
     bool operator==(const WorldSnapshot&) const = default;
 };
 const char* delivery_phase_name(CourierPhase phase);
@@ -153,6 +162,10 @@ public:
     Object object_at(Cell cell) const;
     std::optional<BuildingId> building_owner_at(Cell cell) const;
     const BuildingState& building(BuildingId id) const;
+    std::uint8_t next_household_id() const { return next_household_id_; }
+    std::optional<BuildingId> last_dispatched_household() const { return last_dispatched_household_; }
+    std::optional<BuildingId> next_household_candidate() const;
+    bool household_route_available(BuildingId id) const;
     const CourierState& courier(CourierId id) const;
     std::optional<Position> courier_position(CourierId id) const;
     const char* courier_blockage(CourierId id) const;
@@ -206,8 +219,12 @@ private:
     std::vector<std::uint8_t> buildable_;
     std::vector<Object> objects_;
     std::vector<std::uint8_t> owners_;
-    std::array<BuildingState,4> buildings_;
+    std::array<BuildingState,7> buildings_;
     std::array<CourierState,3> couriers_;
+    std::uint8_t next_household_id_=first_household_id;
+    std::optional<BuildingId> last_dispatched_household_;
+    std::array<std::optional<std::vector<Cell>>,household_limit> household_routes_{};
+    std::uint64_t household_routes_revision_=UINT64_MAX;
     std::uint64_t clay_extracted_total_=0;
     std::uint64_t pottery_completed_total_=0;
     std::optional<Cell> workshop_;

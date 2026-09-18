@@ -165,7 +165,10 @@ int main() {
         const auto valid=nlohmann::json::parse(bytes(target));
         const auto as_schema2=[](nlohmann::json j) {
             j["schema_version"]=2;
-            j["world"]["buildings"].erase(3);
+            j["world"].erase("next_household_id");
+            j["world"].erase("last_dispatched_household");
+            while (j["world"]["buildings"].size()>3)
+                j["world"]["buildings"].erase(3);
             j["world"]["couriers"].erase(2);
             for (auto& building:j["world"]["buildings"]) {
                 building.erase("placed_tick"); building.erase("demand_progress");
@@ -180,12 +183,44 @@ int main() {
               older_v2.world.rule_version==2 && !older_v2.migrated_from_schema1 &&
               save::restore_save(older_v2,root/"data",mask()).snapshot()==doc.world,
               "schema-2 production save changed profile or state");
+        { sim::World older_house(16,4,mask(),sim::RulesProfile::HouseholdV3);
+          command(older_house,sim::CommandType::PlaceClaySource,0);
+          command(older_house,sim::CommandType::PlaceRoad,1);
+          command(older_house,sim::CommandType::PlaceRoad,2);
+          command(older_house,sim::CommandType::PlacePottery,3);
+          command(older_house,sim::CommandType::PlaceRoad,4);
+          command(older_house,sim::CommandType::PlaceRoad,5);
+          command(older_house,sim::CommandType::PlaceWarehouse,6);
+          command(older_house,sim::CommandType::PlaceRoad,7);
+          command(older_house,sim::CommandType::PlaceRoad,8);
+          command(older_house,sim::CommandType::PlaceHousehold,9);
+          for (int i=0;i<1700;++i) older_house.tick();
+          save::write_save(target,save::make_document(root/"data",relative,mask(),older_house),
+              root/"data",mask());
+          auto old_json=nlohmann::json::parse(bytes(target));
+          old_json["schema_version"]=3;
+          old_json["world"].erase("next_household_id");
+          old_json["world"].erase("last_dispatched_household");
+          while (old_json["world"]["buildings"].size()>4)
+              old_json["world"]["buildings"].erase(4);
+          overwrite(target,old_json);
+          auto old_loaded=save::restore_save(save::read_save(target),root/"data",mask());
+          check(old_loaded.profile()==sim::RulesProfile::HouseholdV3 &&
+                old_loaded.snapshot()==older_house.snapshot(),
+                "schema-3 household identity or state changed");
+          for (int i=0;i<1000;++i) { older_house.tick(); old_loaded.tick();
+              check(older_house.snapshot()==old_loaded.snapshot(),
+                  "schema-3 household continuation diverged"); }
+        }
         const auto as_legacy=[](nlohmann::json j) {
             j["schema_version"]=1;
             j["rules"]["version"]=1;
             j["world"].erase("roads_placed_total");
             j["world"].erase("roads_removed_total");
-            j["world"]["buildings"].erase(3);
+            j["world"].erase("next_household_id");
+            j["world"].erase("last_dispatched_household");
+            while (j["world"]["buildings"].size()>3)
+                j["world"]["buildings"].erase(3);
             j["world"]["couriers"].erase(2);
             for (auto& building:j["world"]["buildings"]) {
                 building.erase("placed_tick"); building.erase("demand_progress");
@@ -223,7 +258,7 @@ int main() {
                 (void)save::restore_save(parsed_bad,root/"data",mask()); },
                 "tampered save accepted");
         };
-        mutate([](auto& j){ j["schema_version"]=4; });
+        mutate([](auto& j){ j["schema_version"]=5; });
         mutate([](auto& j){ j["rules"]["id"]="unknown"; });
         mutate([](auto& j){ j["world"]["ticks"]=1.0; });
         mutate([](auto& j){ j["world"]["command_sequence"]=nlohmann::json::number_unsigned_t(-1); });
