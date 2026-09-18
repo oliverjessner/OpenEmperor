@@ -11,6 +11,7 @@
 #include "renderer/WalkerSpriteSet.h"
 
 #include <memory>
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -25,6 +26,15 @@ namespace openemperor {
 
 class SandboxView {
 public:
+    struct WalkerDisplayStats {
+        std::array<bool,4> configured{};
+        std::array<bool,4> moving_drawn{};
+        std::size_t decoded_assets=0;
+        std::size_t texture_uploads=0;
+        std::vector<assets::AssetId> decoded_frame_ids;
+        std::uint64_t unmapped_fallbacks=0;
+        std::uint64_t invalid_edge_fallbacks=0;
+    };
     explicit SandboxView(maps::StoredMapSession session, bool demo,
                          simulation::RulesProfile rules=simulation::RulesProfile::LogisticsV1);
     ~SandboxView();
@@ -52,6 +62,7 @@ public:
     void set_walker_visuals(const std::filesystem::path& manifest);
     bool walker_visuals_active() const { return walker_visuals_enabled_ && walker_profile_.has_value(); }
     std::size_t walker_texture_count() const { return walker_sprites_ ? walker_sprites_->texture_count():0; }
+    WalkerDisplayStats walker_display_stats() const;
     std::uint64_t io_generation() const { return io_generation_; }
     std::uint64_t save_generation() const { return save_generation_; }
     bool dirty() const { return world_ && (world_->ticks()!=saved_tick_ ||
@@ -72,6 +83,7 @@ private:
     void place_demo();
     bool draw_diamond(scene::Point world, std::uint8_t r, std::uint8_t g, std::uint8_t b, bool fill);
     bool draw_world();
+    bool draw_walker_diagnostic();
     bool draw_hud();
     bool draw_text(double x,double y,const std::string& text,int max_width);
     bool action_enabled(sandbox_ui::Action action) const;
@@ -113,6 +125,11 @@ private:
     std::optional<assets::WalkerVisualProfile> walker_profile_;
     std::unique_ptr<WalkerSpriteSet> walker_sprites_;
     bool walker_visuals_enabled_=true;
+    bool walker_diagnostic_open_=false, walker_diagnostic_zoom4_=true;
+    bool walker_diagnostic_light_=false;
+    std::size_t walker_diagnostic_direction_=0, walker_diagnostic_step_=0;
+    std::array<bool,4> walker_moving_drawn_{};
+    std::uint64_t walker_unmapped_fallbacks_=0, walker_invalid_edge_fallbacks_=0;
     std::optional<persistence::SaveDocument> initial_save_;
     std::vector<std::uint8_t> buildable_mask_;
     std::uint64_t io_generation_=0;

@@ -4,13 +4,17 @@
 #include "simulation/World.h"
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -204,44 +208,154 @@ void render_checks(const openemperor::assets::WalkerVisualProfile& profile) {
     check(pixel(renderer,20,75)[0]==255,"visible upper sprite culled with offscreen foot");
     sprites.shutdown();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
 }
+openemperor::assets::WalkerVisualProfile four_direction_profile() {
+    using namespace openemperor::assets;
+    WalkerVisualProfile profile;
+    profile.ticks_per_frame=3;profile.idle_frame=0;
+    constexpr std::array<std::array<std::uint8_t,4>,4> colors{{
+        {{255,0,0,255}},{{0,255,0,255}},{{0,0,255,255}},{{255,255,0,255}}}};
+    constexpr std::array<std::array<int,4>,4> geometry{{
+        {{2,3,1,2}},{{3,2,2,1}},{{4,2,1,1}},{{2,4,1,3}}}};
+    for (std::size_t i=0;i<4;++i) {
+        const auto [width,height,foot_x,foot_y]=geometry[i];
+        RgbaImage image;image.width=static_cast<std::uint16_t>(width);
+        image.height=static_cast<std::uint16_t>(height);
+        for (int j=0;j<width*height;++j)
+            image.pixels.insert(image.pixels.end(),colors[i].begin(),colors[i].end());
+        image.pixels[3]=0; // Distinct transparent top-left corner.
+        if (i==3) {
+            const std::size_t mixed=static_cast<std::size_t>(width+1)*4;
+            image.pixels[mixed]=100;image.pixels[mixed+1]=0;
+            image.pixels[mixed+2]=200;image.pixels[mixed+3]=128;
+        }
+        profile.unique_images.push_back(std::move(image));
+        WalkerFrame frame;frame.alias="direction-"+std::to_string(i);
+        frame.id={"DATA/synthetic.sg3",static_cast<std::uint32_t>(1+2*i)};
+        frame.foot_x=foot_x;frame.foot_y=foot_y;frame.image_index=i;
+        profile.frames.push_back(frame);profile.clips[i]={i};
+    }
+    return profile;
+}
+void four_direction_pixels(const openemperor::assets::WalkerVisualProfile& profile) {
+    using namespace openemperor;
+    check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL init");
+    SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
+    check(SDL_CreateWindowAndRenderer("four direction pixels",100,100,SDL_WINDOW_HIDDEN,
+                                      &window,&renderer),"software window");
+    WalkerSpriteSet sprites;sprites.initialize(renderer,profile);
+    check(sprites.texture_count()==4,"four directions did not upload four distinct textures");
+    constexpr std::array<std::array<std::uint8_t,3>,4> expected{{
+        {{255,0,0}},{{0,255,0}},{{0,0,255}},{{255,255,0}}}};
+    for (std::size_t i=0;i<4;++i) {
+        check(SDL_SetRenderDrawColor(renderer,20,40,60,255) && SDL_RenderClear(renderer),"dark clear");
+        check(sprites.draw(i,{40,40},4,profile,{0,0},{100,100}),"direction draw");
+        const auto& frame=profile.frames[i];
+        const int left=40-static_cast<int>(frame.foot_x)*4;
+        const int top=40-static_cast<int>(frame.foot_y)*4;
+        check(pixel(renderer,left,top)==std::array<std::uint8_t,4>({20,40,60,255}),
+              "transparent corner did not show dark background");
+        const auto solid=pixel(renderer,left+5,top+1);
+        check(solid[0]==expected[i][0] && solid[1]==expected[i][1] &&
+              solid[2]==expected[i][2],"direction color/anchor/texture modulation mismatch");
+    }
+    const auto& half=profile.frames[3];
+    const int half_x=40-static_cast<int>(half.foot_x)*4+5;
+    const int half_y=40-static_cast<int>(half.foot_y)*4+5;
+    const auto dark=pixel(renderer,half_x,half_y);
+    const auto near=[](int actual,int expected){return std::abs(actual-expected)<=1;};
+    check(near(dark[0],60) && near(dark[1],20) && near(dark[2],130),
+          "half-alpha dark blend differs from straight-alpha expectation");
+    check(SDL_SetRenderDrawColor(renderer,200,220,240,255) && SDL_RenderClear(renderer) &&
+          sprites.draw(3,{40,40},4,profile,{0,0},{100,100}),"light blend render");
+    const auto light=pixel(renderer,half_x,half_y);
+    check(near(light[0],150) && near(light[1],110) && near(light[2],220),
+          "half-alpha light blend or texture modulation mismatch");
+    sprites.shutdown();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
+}
 void simulation_neutrality(const openemperor::assets::WalkerVisualProfile& profile) {
     using namespace openemperor::simulation;
-    World plain(11,1,std::vector<std::uint8_t>(11,1),RulesProfile::ProductionV2);
-    World decorated(11,1,std::vector<std::uint8_t>(11,1),RulesProfile::ProductionV2);
+    World plain(11,5,std::vector<std::uint8_t>(55,1),RulesProfile::ProductionV2);
+    World decorated(11,5,std::vector<std::uint8_t>(55,1),RulesProfile::ProductionV2);
     const auto place=[&](Command command) {
         check(plain.execute(command).accepted && decorated.execute(command).accepted,"placement");
     };
     place({CommandType::PlaceClaySource,{0,0}});
-    place({CommandType::PlacePottery,{5,0}});
-    place({CommandType::PlaceWarehouse,{10,0}});
-    for (int x:{1,2,3,4,6,7,8,9}) place({CommandType::PlaceRoad,{x,0}});
-    bool moving=false;
-    for (int tick=0;tick<800;++tick) {
+    place({CommandType::PlacePottery,{4,3}});
+    place({CommandType::PlaceWarehouse,{10,3}});
+    for (const Cell cell:{Cell{1,0},Cell{2,0},Cell{3,0},Cell{4,0},
+                          Cell{4,1},Cell{4,2},Cell{5,3},Cell{6,3},
+                          Cell{7,3},Cell{8,3},Cell{9,3}})
+        place({CommandType::PlaceRoad,cell});
+    std::array<bool,4> directions{};
+    for (int tick=0;tick<1600;++tick) {
         plain.tick();decorated.tick();
         for (int draw=0;draw<5;++draw) {
             const auto pose=openemperor::walker_pose(decorated.courier(CourierId::Clay),
                                                      decorated.ticks(),profile);
-            moving=moving || pose.moving;
+            if (pose.moving && pose.direction) {
+                check(pose.frame && pose.fallback==openemperor::WalkerFallback::None,
+                      "real bent route used walker fallback");
+                directions[openemperor::assets::direction_index(*pose.direction)]=true;
+            }
         }
         check(plain.snapshot()==decorated.snapshot(),"walker query changed authoritative World");
         if (tick==150 || tick==250) {
             const auto saved=decorated.snapshot();
-            auto resumed=World::restore(saved,std::vector<std::uint8_t>(11,1));
+            auto resumed=World::restore(saved,std::vector<std::uint8_t>(55,1));
             check(resumed.snapshot()==saved &&
                   openemperor::walker_pose(resumed.courier(CourierId::Clay),resumed.ticks(),profile).frame==
                   openemperor::walker_pose(decorated.courier(CourierId::Clay),decorated.ticks(),profile).frame,
                   "restored pose differs");
         }
     }
-    check(moving && plain.production_balance_valid() && decorated.production_balance_valid(),
-          "production or movement failed");
+    check(std::all_of(directions.begin(),directions.end(),[](bool seen){return seen;}) &&
+          plain.production_balance_valid() && decorated.production_balance_valid(),
+          "bent transport did not traverse all four storage directions");
 }
 }
-int main() {
+void local_red_check(const fs::path& root,const fs::path& manifest) {
+    const auto profile=openemperor::assets::load_walker_visual_profile(root,manifest);
+    const auto frame=std::find_if(profile.frames.begin(),profile.frames.end(),[](const auto& candidate) {
+        return candidate.id.archive_relative_path==fs::path("DATA/SprMain.sg3") &&
+            candidate.id.image_index==109;
+    });
+    check(frame!=profile.frames.end(),"local red check requires physical SprMain record 109");
+    const auto frame_index=static_cast<std::size_t>(frame-profile.frames.begin());
+    const auto& image=profile.unique_images.at(frame->image_index);
+    check(image.width>24 && image.height>30,"local red sample outside image");
+    const auto source=static_cast<std::size_t>(30*image.width+24)*4;
+    const std::array<std::uint8_t,4> decoded{image.pixels[source],image.pixels[source+1],
+        image.pixels[source+2],image.pixels[source+3]};
+    check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL init");
+    SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
+    check(SDL_CreateWindowAndRenderer("local walker pixel",100,100,SDL_WINDOW_HIDDEN,
+                                      &window,&renderer),"local software window");
+    openemperor::WalkerSpriteSet sprites;sprites.initialize(renderer,profile);
+    const auto sample=[&](std::array<std::uint8_t,3> background) {
+        check(SDL_SetRenderDrawColor(renderer,background[0],background[1],background[2],255) &&
+              SDL_RenderClear(renderer),"local background clear");
+        check(sprites.draw(frame_index,{frame->foot_x,frame->foot_y},1,profile,{0,0},{100,100}),
+              "local sprite draw");
+        return std::array{pixel(renderer,24,30),pixel(renderer,0,0)};
+    };
+    const auto dark=sample({20,40,60});const auto light=sample({200,220,240});
+    std::cout<<Json{{"archive","DATA/SprMain.sg3"},{"physical_image_index",109},
+        {"image_pixel",{24,30}},{"decoded_rgba",decoded},
+        {"dark_sdl_rgba",dark[0]},{"light_sdl_rgba",light[0]},
+        {"transparent_decoded_alpha",image.pixels[3]},
+        {"dark_transparent_sdl_rgba",dark[1]},
+        {"light_transparent_sdl_rgba",light[1]}}.dump()<<'\n';
+    sprites.shutdown();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
+}
+int main(int argc,char* argv[]) {
     try {
+        if (argc==4 && std::string_view(argv[1])=="--local-red-check") {
+            local_red_check(argv[2],argv[3]);return 0;
+        }
         Fixture fixture;profile_checks(fixture);
         auto profile=openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest);
-        pose_checks(profile);render_checks(profile);simulation_neutrality(profile);
+        pose_checks(profile);render_checks(profile);
+        const auto four=four_direction_profile();four_direction_pixels(four);simulation_neutrality(four);
         std::cout<<"walker profile, pose, software pixels and neutral World checks passed\n";
         return 0;
     } catch (const std::exception& error) { std::cerr<<error.what()<<'\n';return 1; }

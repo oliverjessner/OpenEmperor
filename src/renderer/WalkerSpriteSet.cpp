@@ -3,6 +3,8 @@
 #include <stdexcept>
 
 namespace openemperor {
+namespace { std::size_t live_textures=0; }
+std::size_t WalkerSpriteSet::live_texture_count() { return live_textures; }
 WalkerSpriteSet::~WalkerSpriteSet() { shutdown(); }
 void WalkerSpriteSet::initialize(SDL_Renderer* renderer,const assets::WalkerVisualProfile& profile) {
     shutdown(); renderer_=renderer;
@@ -12,6 +14,7 @@ void WalkerSpriteSet::initialize(SDL_Renderer* renderer,const assets::WalkerVisu
                 SDL_TEXTUREACCESS_STATIC,image.width,image.height);
             if (!texture) throw std::runtime_error(SDL_GetError());
             textures_.push_back(texture);
+            ++live_textures;
             if (!SDL_UpdateTexture(texture,nullptr,image.pixels.data(),image.width*4) ||
                 !SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND) ||
                 !SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST))
@@ -21,6 +24,7 @@ void WalkerSpriteSet::initialize(SDL_Renderer* renderer,const assets::WalkerVisu
 }
 void WalkerSpriteSet::shutdown() {
     for (auto* texture:textures_) SDL_DestroyTexture(texture);
+    live_textures-=textures_.size();
     textures_.clear(); renderer_=nullptr;
 }
 bool WalkerSpriteSet::draw(std::size_t frame,scene::Point ground,double zoom,

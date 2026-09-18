@@ -142,6 +142,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
 }
 void SandboxView::shutdown() {
     cancel_gesture();
+    walker_diagnostic_open_=false;
     walker_sprites_.reset();
     walker_profile_.reset();
     background_.shutdown();
@@ -152,6 +153,7 @@ void SandboxView::shutdown() {
 void SandboxView::set_walker_visuals(const std::filesystem::path& manifest) {
     if (manifest.empty()) {
         walker_sprites_.reset(); walker_profile_.reset(); walker_manifest_.clear();
+        walker_diagnostic_open_=false;
         return;
     }
     if (!renderer_) { walker_manifest_=manifest; return; }
@@ -164,7 +166,28 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest) {
     walker_profile_=std::move(profile);
     walker_manifest_=manifest;
     walker_visuals_enabled_=true;
+    walker_moving_drawn_.fill(false);
+    walker_unmapped_fallbacks_=walker_invalid_edge_fallbacks_=0;
+    walker_diagnostic_direction_=walker_diagnostic_step_=0;
     last_message_="Curated Clay walker preview active";
+}
+SandboxView::WalkerDisplayStats SandboxView::walker_display_stats() const {
+    WalkerDisplayStats stats;
+    if (walker_profile_) {
+        for (std::size_t i=0;i<4;++i) stats.configured[i]=!walker_profile_->clips[i].empty();
+        stats.decoded_assets=walker_profile_->unique_images.size();
+        std::vector<bool> seen(stats.decoded_assets,false);
+        for (const auto& frame:walker_profile_->frames)
+            if (!seen.at(frame.image_index)) {
+                seen[frame.image_index]=true;
+                stats.decoded_frame_ids.push_back(frame.id);
+            }
+    }
+    stats.texture_uploads=walker_texture_count();
+    stats.moving_drawn=walker_moving_drawn_;
+    stats.unmapped_fallbacks=walker_unmapped_fallbacks_;
+    stats.invalid_edge_fallbacks=walker_invalid_edge_fallbacks_;
+    return stats;
 }
 void SandboxView::reset_camera() {
     fit_stored_camera(background_.plan(),camera_);
@@ -477,6 +500,22 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             walker_visuals_enabled_=!walker_visuals_enabled_;
             last_message_=walker_visuals_enabled_ ? "Clay walker preview ON" : "Clay walker preview OFF";
         }
+        else if (event.key.key==SDLK_F3 && walker_profile_) {
+            walker_diagnostic_open_=!walker_diagnostic_open_;
+            last_message_=walker_diagnostic_open_ ? "Walker clip inspection ON":"Walker clip inspection OFF";
+        }
+        else if (walker_diagnostic_open_ && walker_profile_) {
+            if (event.key.key==SDLK_Q || event.key.key==SDLK_BACKSLASH) {
+                walker_diagnostic_direction_=(walker_diagnostic_direction_+1)%4;
+                walker_diagnostic_step_=0;
+            } else if (event.key.key==SDLK_E || event.key.key==SDLK_RIGHTBRACKET)
+                ++walker_diagnostic_step_;
+            else if (event.key.key==SDLK_C || event.key.key==SDLK_LEFTBRACKET) {
+                const auto& clip=walker_profile_->clips[walker_diagnostic_direction_];
+                if (!clip.empty()) walker_diagnostic_step_=(walker_diagnostic_step_+clip.size()-1)%clip.size();
+            } else if (event.key.key==SDLK_X) walker_diagnostic_zoom4_=!walker_diagnostic_zoom4_;
+            else if (event.key.key==SDLK_B) walker_diagnostic_light_=!walker_diagnostic_light_;
+        }
     }
     if (event.type==SDL_EVENT_MOUSE_WHEEL) {
         const auto point=render_point(event.wheel.mouse_x,event.wheel.mouse_y);
@@ -695,6 +734,17 @@ bool SandboxView::draw_world() {
                     {static_cast<double>(layout_.map.x),static_cast<double>(layout_.map.y)},
                     {static_cast<double>(layout_.map.x+layout_.map.w),
                      static_cast<double>(layout_.map.y+layout_.map.h)})) return false;
+                if (pose.moving && pose.direction) {
+                    const auto& frame=walker_profile_->frames[*pose.frame];
+                    const auto& image=walker_profile_->unique_images[frame.image_index];
+                    const double left=ground.x-frame.foot_x*camera_.zoom;
+                    const double top=ground.y-frame.foot_y*camera_.zoom;
+                    if (left+image.width*camera_.zoom>layout_.map.x &&
+                        top+image.height*camera_.zoom>layout_.map.y &&
+                        left<layout_.map.x+layout_.map.w &&
+                        top<layout_.map.y+layout_.map.h)
+                        walker_moving_drawn_[assets::direction_index(*pose.direction)]=true;
+                }
                 if (pose.loaded) {
                     const float size=static_cast<float>(std::max(5.0,8.0*camera_.zoom));
                     const SDL_FRect cargo{static_cast<float>(ground.x)+size*.3F,
@@ -705,6 +755,8 @@ bool SandboxView::draw_world() {
                 ++last_courier_draws_;
                 return true;
             }
+            if (pose.fallback==WalkerFallback::UnmappedDirection) ++walker_unmapped_fallbacks_;
+            else if (pose.fallback==WalkerFallback::InvalidEdge) ++walker_invalid_edge_fallbacks_;
             if (!draw_agent(position,{255,90,60,255},{25,95,255,255},courier.cargo,
                             marker_shift)) return false;
             return SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
@@ -1020,6 +1072,55 @@ bool SandboxView::draw_hud() {
     }
     return true;
 }
+bool SandboxView::draw_walker_diagnostic() {
+    if (!walker_diagnostic_open_ || !walker_profile_ || !walker_sprites_) return true;
+    const float scale=static_cast<float>(layout_.scale);
+    const SDL_FRect panel{static_cast<float>(layout_.map.x)+8*scale,
+        static_cast<float>(layout_.map.y)+8*scale,300*scale,320*scale};
+    if (!SDL_SetRenderDrawColor(renderer_,walker_diagnostic_light_ ? 232:22,
+        walker_diagnostic_light_ ? 232:26,walker_diagnostic_light_ ? 220:34,255) ||
+        !SDL_RenderFillRect(renderer_,&panel)) return false;
+    if (!SDL_SetRenderDrawColor(renderer_,walker_diagnostic_light_ ? 15:245,
+        walker_diagnostic_light_ ? 20:245,walker_diagnostic_light_ ? 30:245,255)) return false;
+    constexpr const char* directions[]={"pos_x  right/down","neg_x  left/up",
+        "pos_y  left/down","neg_y  right/up"};
+    const auto label=[&](int row,const std::string& value)->bool {
+        return draw_text(panel.x+8*scale,panel.y+static_cast<float>(12+row*18)*scale,value,
+                         static_cast<int>(panel.w-16*scale));
+    };
+    if (!label(0,"WALKER CLIP | F3 close") ||
+        !label(1,std::string(directions[walker_diagnostic_direction_])+
+            (walker_diagnostic_zoom4_ ? "  4x":"  1x")) ||
+        !label(2,"Q dir  C/E frame  X 1/4  B bg")) return false;
+    const auto& clip=walker_profile_->clips[walker_diagnostic_direction_];
+    if (clip.empty()) return label(3,"UNMAPPED - no image selected");
+    const auto step=walker_diagnostic_step_%clip.size();
+    const auto& frame=walker_profile_->frames[clip[step]];
+    const auto& image=walker_profile_->unique_images[frame.image_index];
+    const auto compact=[](double value) {
+        auto text=std::to_string(value);
+        while (!text.empty() && text.back()=='0') text.pop_back();
+        if (!text.empty() && text.back()=='.') text.pop_back();
+        return text;
+    };
+    if (!label(3,"Physical #"+std::to_string(frame.id.image_index)+"  step "+
+        std::to_string(step+1)+"/"+std::to_string(clip.size())) ||
+        !label(4,"Size "+std::to_string(image.width)+"x"+std::to_string(image.height)+
+            "  foot "+compact(frame.foot_x)+","+compact(frame.foot_y))) return false;
+    const double zoom=(walker_diagnostic_zoom4_ ? 4.0:1.0)*layout_.scale;
+    const scene::Point ground{panel.x+150*scale,panel.y+300*scale};
+    const SDL_FRect bounds{static_cast<float>(ground.x-frame.foot_x*zoom),
+        static_cast<float>(ground.y-frame.foot_y*zoom),
+        static_cast<float>(image.width*zoom),static_cast<float>(image.height*zoom)};
+    if (!walker_sprites_->draw(clip[step],ground,zoom,*walker_profile_,
+            {panel.x,panel.y},{panel.x+panel.w,panel.y+panel.h}) ||
+        !SDL_SetRenderDrawColor(renderer_,20,210,245,255) ||
+        !SDL_RenderRect(renderer_,&bounds)) return false;
+    const float gx=static_cast<float>(ground.x),gy=static_cast<float>(ground.y);
+    return SDL_SetRenderDrawColor(renderer_,245,225,40,255) &&
+        SDL_RenderLine(renderer_,gx-5*scale,gy,gx+5*scale,gy) &&
+        SDL_RenderLine(renderer_,gx,gy-5*scale,gx,gy+5*scale);
+}
 bool SandboxView::render() {
     resize_camera();
     if (!SDL_SetRenderViewport(renderer_,nullptr) ||
@@ -1035,7 +1136,7 @@ bool SandboxView::render() {
         const bool map_ok=background_.render(render_camera,std::nullopt) && draw_world();
         if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
     }
-    const bool ui_ok=draw_hud();
+    const bool ui_ok=draw_hud() && draw_walker_diagnostic();
     const bool reset=SDL_SetRenderClipRect(renderer_,nullptr) &&
         SDL_SetRenderViewport(renderer_,nullptr) && SDL_SetRenderScale(renderer_,1,1);
     if (!ui_ok || !reset) return false;

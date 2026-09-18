@@ -43,6 +43,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             view.configure_save(data_root,map_relative,temporary.path/"resume.json");
         }
         view.initialize(window,renderer);
+        std::optional<simulation::World> walker_control;
+        if (!walker_visuals.empty())
+            walker_control.emplace(simulation::World::restore(view.world().snapshot(),
+                                                               view.buildable_mask()));
+        bool simulation_neutral=true;
         bool saved=false,reparsed=false,fresh_world=false,direct_equal=false,continued_equal=true;
         std::optional<simulation::World> resumed;
         bool delivered=false,returning=false,returned=false,balanced=true,rendered=true;
@@ -62,6 +67,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     previous[id-1]=view.world().courier(static_cast<simulation::CourierId>(id)).phase;
             view.tick_once();
             const auto& world=view.world();
+            if (walker_control) {
+                walker_control->tick();
+                simulation_neutral=simulation_neutral &&
+                    walker_control->snapshot()==world.snapshot();
+            }
             if (rules==simulation::RulesProfile::IndustryV5)
                 for (unsigned id=1;id<=5;++id)
                     if (previous[id-1]==simulation::CourierPhase::ToWarehouse &&
@@ -116,6 +126,32 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     ++frames_with_five;
             }
         }
+        const auto walker_report=[&]() {
+            const auto stats=view.walker_display_stats();
+            constexpr const char* directions[]={"pos_x","neg_x","pos_y","neg_y"};
+            nlohmann::json configured=nlohmann::json::array();
+            nlohmann::json drawn=nlohmann::json::array();
+            nlohmann::json missing=nlohmann::json::array();
+            nlohmann::json decoded=nlohmann::json::array();
+            for (std::size_t d=0;d<4;++d) {
+                if (stats.configured[d]) configured.push_back(directions[d]);
+                else missing.push_back(directions[d]);
+                if (stats.moving_drawn[d]) drawn.push_back(directions[d]);
+            }
+            for (const auto& id:stats.decoded_frame_ids)
+                decoded.push_back({{"archive",id.archive_relative_path.generic_string()},
+                                   {"physical_image_index",id.image_index}});
+            return nlohmann::json{{"configured_directions",configured},
+                {"moving_directions_drawn",drawn},{"unmapped_directions",missing},
+                {"decoded_frame_assets",decoded},{"decoded_asset_count",stats.decoded_assets},
+                {"texture_uploads",stats.texture_uploads},
+                {"unmapped_fallbacks",stats.unmapped_fallbacks},
+                {"invalid_edge_fallbacks",stats.invalid_edge_fallbacks},
+                {"decode_errors",0},{"manual_visual_review",false},
+                {"simulation_neutral",simulation_neutral},
+                {"save_resume_equal",resume_check ? nlohmann::json(direct_equal && continued_equal):
+                    nlohmann::json()}};
+        };
         const auto& world=view.world();
         const auto origin=view.demo_origin();
         if (simulation::production_profile(rules)) {
@@ -156,8 +192,9 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     world.building(static_cast<simulation::BuildingId>(9)).recipes_completed>0 &&
                     courier_arrivals[1]>0 && courier_arrivals[4]>0 &&
                     supplied>=2 && consumed>=2 && balanced && rendered && frames_with_five>0 &&
-                    (!resume_check || (saved && reparsed && fresh_world && direct_equal && continued_equal));
-                std::cout<<nlohmann::json{{"schema","openemperor-sandbox-check-v5"},
+                    (!resume_check || (saved && reparsed && fresh_world && direct_equal && continued_equal)) &&
+                    (!walker_control || simulation_neutral);
+                nlohmann::json report={{"schema","openemperor-sandbox-check-v5"},
                     {"rules",simulation::rules_profile_name(rules)},
                     {"map",map_relative.generic_string()},{"ticks",world.ticks()},
                     {"demo_origin",origin ? nlohmann::json::array({origin->x,origin->y}):nlohmann::json()},
@@ -172,7 +209,9 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"frames_with_five_couriers",frames_with_five},
                     {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
                                {"fresh_world",fresh_world},{"direct_equal",direct_equal},
-                               {"continued_equal",continued_equal}}}}.dump()<<'\n';
+                               {"continued_equal",continued_equal}}}};
+                if (!walker_visuals.empty()) report["walker"]=walker_report();
+                std::cout<<report.dump()<<'\n';
                 view.shutdown(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
                 return success ? 0:1;
             }

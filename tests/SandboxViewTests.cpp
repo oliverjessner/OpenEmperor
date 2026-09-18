@@ -482,6 +482,33 @@ int main() {
         check(production_view.walker_visuals_active() &&
               production_view.world().snapshot()==before_toggle && production_view.render(),
               "F2 sprite toggle changed simulation");
+        production_view.handle_event(key(SDLK_F3),running);
+        check(production_view.render(),"walker diagnostic frame failed");
+        const auto diagnostic_x=production_view.layout().map.x+8*production_view.layout().scale;
+        const auto diagnostic_y=production_view.layout().map.y+8*production_view.layout().scale;
+        const auto scale=production_view.layout().scale;
+        const auto diagnostic_pixel=[&] {
+            return pixel(renderer,diagnostic_x+150*scale-2*scale,diagnostic_y+300*scale-2*scale);
+        };
+        const auto first_preview=diagnostic_pixel();
+        check(first_preview[0]>220 && first_preview[1]<80,
+              "4x diagnostic did not draw first physical frame");
+        production_view.handle_event(key(SDLK_RIGHTBRACKET),running);
+        check(production_view.render(),"diagnostic frame advance failed");
+        const auto second_preview=diagnostic_pixel();
+        check(second_preview[1]>220 && second_preview[0]<80 &&
+              production_view.world().snapshot()==before_toggle,
+              "visual-only frame advance changed World or missed next frame");
+        production_view.handle_event(key(SDLK_B),running);
+        check(production_view.render(),"light diagnostic background failed");
+        const auto light_background=pixel(renderer,diagnostic_x+15*scale,diagnostic_y+150*scale);
+        check(light_background[0]>200 && production_view.world().snapshot()==before_toggle,
+              "diagnostic background switch changed World");
+        production_view.handle_event(key(SDLK_X),running);
+        production_view.handle_event(key(SDLK_BACKSLASH),running);
+        check(production_view.render() && production_view.world().snapshot()==before_toggle,
+              "diagnostic zoom or direction switch changed World");
+        production_view.handle_event(key(SDLK_F3),running);
         const auto prior_textures=production_view.walker_texture_count();
         bool rejected=false;
         try { production_view.set_walker_visuals(temp.path/"missing-walker.json"); }
@@ -489,7 +516,13 @@ int main() {
         check(rejected && production_view.walker_texture_count()==prior_textures &&
               production_view.world().snapshot()==before_toggle && production_view.render(),
               "failed walker activation destroyed running world or textures");
+        production_view.set_walker_visuals(walker_manifest);
+        check(production_view.walker_texture_count()==2 &&
+              openemperor::WalkerSpriteSet::live_texture_count()==2,
+              "repeated profile activation leaked textures");
         production_view.shutdown();
+        check(openemperor::WalkerSpriteSet::live_texture_count()==0,
+              "walker textures survived production session shutdown");
         openemperor::SandboxView fresh_view(fixture(temp,true),false,
             simulation::RulesProfile::ProductionV2);
         fresh_view.configure_save(temp.path,"Cities/Synthetic.map",save_path,
@@ -584,12 +617,25 @@ int main() {
         industry_view.set_walker_visuals(walker_manifest);
         industry_view.initialize(window,renderer);
         check(industry_view.walker_texture_count()==2,"second clay courier duplicated textures");
+        openemperor::SandboxView marker_control(fixture(temp,true,true,true),true,
+            simulation::RulesProfile::IndustryV5);
+        marker_control.initialize(window,renderer);
         check(industry_view.world().building(static_cast<simulation::BuildingId>(8)).kind==
                   simulation::Object::ClaySource &&
               industry_view.world().building(static_cast<simulation::BuildingId>(9)).kind==
                   simulation::Object::Pottery && industry_view.tool()==5,
               "v5 viewer did not place two production instances");
-        for (int i=0;i<700;++i) industry_view.tick_once();
+        for (int i=0;i<700;++i) {
+            industry_view.tick_once();marker_control.tick_once();
+            if (i%25==0) {
+                industry_view.handle_event(key(SDLK_F2),running);
+                check(industry_view.render() && industry_view.render() && marker_control.render(),
+                      "frequent sprite/marker render failed");
+            }
+            check(industry_view.world().snapshot()==marker_control.world().snapshot(),
+                  "sprite preview or F2 changed an authoritative Industry World tick");
+        }
+        if (!industry_view.walker_visuals_active()) industry_view.handle_event(key(SDLK_F2),running);
         check(industry_view.render() && industry_view.last_courier_draws()==5 &&
               industry_view.world().building(static_cast<simulation::BuildingId>(9)).recipes_completed>0,
               "v5 software frame did not draw five couriers and active second pottery");
@@ -597,6 +643,9 @@ int main() {
         check(industry_view.tool()==5,
               "v5 full Clay tool remained selectable");
         industry_view.shutdown();
+        marker_control.shutdown();
+        check(openemperor::WalkerSpriteSet::live_texture_count()==0,
+              "walker textures survived industry session shutdown");
 
         check(SDL_SetWindowSize(window,1100,700),"resize end-to-end window");
         openemperor::SandboxView ui(fixture(temp,true,true,true),false,

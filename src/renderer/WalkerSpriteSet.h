@@ -18,6 +18,7 @@ public:
               const assets::WalkerVisualProfile& profile,
               scene::Point clip_min,scene::Point clip_max) const;
     std::size_t texture_count() const { return textures_.size(); }
+    static std::size_t live_texture_count();
 private:
     SDL_Renderer* renderer_=nullptr;
     std::vector<SDL_Texture*> textures_;
