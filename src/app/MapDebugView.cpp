@@ -77,6 +77,9 @@ void MapDebugView::initialize(SDL_Window* window, SDL_Renderer* renderer) {
                   << " two_by_two_instances=" << plan.footprint_count(2)
                   << " distinct_textures=" << plan.texture_uploads
                   << " multi_tile_preview=" << plan.multi_tile_preview
+                  << " footprint_policy=" << maps::footprint_policy_name(plan.footprint_policy)
+                  << " marker_deviations=" << plan.marker_deviations
+                  << " unknown_bit_cells=" << plan.unknown_bit_cells
                   << " logical_texture_bytes=" << plan.logical_texture_bytes << '\n';
         for (const auto& [status,count] : plan.status_counts())
             std::cout << "  status " << status << '=' << count << '\n';
@@ -271,6 +274,7 @@ void MapDebugView::show_selected() {
                   << " stored_id=" << hex32(cell->stored_id) << " (" << cell->stored_id << ')'
                   << " logical_offset=" << cell->logical_offset
                   << " candidate_byte=" << static_cast<unsigned>(cell->candidate_byte)
+                  << " candidate_byte_hex=" << hex32(cell->candidate_byte)
                   << " slot=" << cell->slot << " local_index=" << cell->local_index
                   << " system_record_skip=" << cell->system_record_skip
                   << " physical_record=";
@@ -281,6 +285,16 @@ void MapDebugView::show_selected() {
                   << " source_ranges_valid=" << cell->source_ranges_valid
                   << " footprint_supported=" << cell->footprint_supported
                   << " render_status=" << maps::stored_status_name(cell->status);
+        if (cell->subtile) {
+            std::cout << " subtile_profile=" << maps::edge_byte_profile
+                      << " part_x=" << static_cast<unsigned>(cell->subtile->part_x)
+                      << " part_y=" << static_cast<unsigned>(cell->subtile->part_y)
+                      << " draw_marker_candidate=" << cell->subtile->draw_marker_candidate
+                      << " unknown_bits=" << hex32(cell->subtile->unknown_bits);
+            if (cell->subtile_origin)
+                std::cout << " metadata_origin=(" << cell->subtile_origin->x << ','
+                          << cell->subtile_origin->y << ')';
+        }
         if (cell->asset_index) {
             const auto& asset = plan.assets[*cell->asset_index];
             const auto& record = asset.record;
@@ -306,6 +320,12 @@ void MapDebugView::show_selected() {
                       << " footprint_origin=(" << footprint.origin.x << ',' << footprint.origin.y << ')'
                       << " footprint_size=" << footprint.width_cells << 'x' << footprint.height_cells
                       << " placement_rule=" << footprint.rule
+                      << " draw_cell_candidate=";
+            if (footprint.draw_cell_candidate)
+                std::cout << '(' << footprint.draw_cell_candidate->x << ','
+                          << footprint.draw_cell_candidate->y << ')';
+            else std::cout << "none";
+            std::cout
                       << " image_origin=(" << footprint.image_origin.x << ','
                       << footprint.image_origin.y << ')';
         }

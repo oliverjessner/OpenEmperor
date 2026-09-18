@@ -29,6 +29,7 @@ RGB555 decoding now follows the public SGReader's red-high/blue-low channel posi
 - ✅ exact-pair curated SG3 terrain preview with distinct unmapped diagnostics and shared textures
 - ✅ opt-in stored-graphics map snapshot from saved IDs and the corrected v213 runtime layout
 - ✅ separately opted-in placement of isolated complete 2×2 Type-30 footprints (preview convention)
+- ✅ separately opted-in, reference-derived edge-byte grouping of touching 2×2 footprints
 - ⚠️ external and other unobserved alpha profiles remain unverified; no pixel-exact game comparison
 - ❌ verified horizontal mirroring
 - ❌ original-game-verified active cells, world coordinates, or map-to-SG3 graphics mapping
@@ -76,6 +77,7 @@ For an offline local build with SDL3 3.4.10 or newer already installed, add `-DO
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map --view textured --terrain-bindings .local/terrain-bindings/preview.json
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Xia.map --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table
 ./build/openemperor --data /path/to/your/game-data --map-debug Cities/Chengdu.map --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table --multi-tile-preview
+./build/openemperor --data /path/to/your/game-data --map-debug Cities/Banpo.map --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table --multi-tile-preview --footprint-policy edge-byte
 ctest --test-dir build --output-on-failure
 ```
 
@@ -104,3 +106,5 @@ The optional `openemperor-map-graphics --profile exe-6373328b-v213-runtime-table
 The separate `--terrain-selection-profile exe-6373328b-v213-layout-terrain-probe` compares selected simple-ground cells with their stored graphic IDs and conditional SG3 decode. It deliberately reports no computed ID: the observed range writer runs before the stored map graphic array is read, and the path from those saved values to the first draw is not yet complete. It does not alter the curated preview or imply a recovered terrain rule.
 
 The explicit `--layout-profile exe-6373328b-v213-runtime-table --group-key 0x603 --variants 8` query uses the same layout as image resolution. Retained signed-positive index words stay in **file order**; the Terrain word at SG3 offset 86 is 247, yielding packed base `0xc02e`. Variants 0–7 decode physical Terrain records 247–254. `--graphic-id` adds a full selected-ID resolution; optional `--map`/`--cell` compares untouched saved values. The sampled Xia, Banpo, Chengdu, and Anyi cells do not match the group's 0–7 range. The older profile names are rejected as superseded. This query does not establish loaded-map drawing behavior or reproduce the generator state. See [graphics-ID evidence](docs/reverse/graphics-id.md).
+
+For touching 2×2 saved-image instances, `--multi-tile-preview --footprint-policy edge-byte` selects a separate, reference-derived grouping rule. It preserves the raw byte and groups only validated four-part, same-ID and same-AssetId footprints; the upper bit remains unknown and the draw marker is diagnostic. On the locally checked Banpo map this yields eleven 2×2 instances and covers the eight cells that remain ambiguous under the default isolated policy. This does not establish the original game's first draw. See [preview details](docs/stored-graphics-preview.md) and [evidence](docs/reverse/graphics-id.md).

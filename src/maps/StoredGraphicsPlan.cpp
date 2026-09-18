@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <set>
 #include <stdexcept>
 #include <tuple>
 
@@ -55,12 +56,136 @@ bool two_by_two_geometry(const assets::AssetRecord& record) {
            record.horizontal_mirror_offset == 0;
 }
 
+void set_status(StoredGraphicsPlan& plan, std::size_t member, StoredStatus status) {
+    plan.cells[member].status=status;
+    plan.status_by_storage[plan.cells[member].cell_index]=status;
+}
+
+void place_edge_byte_footprints(StoredGraphicsPlan& plan) {
+    using Key = std::tuple<std::uint32_t,std::uint32_t,std::uint32_t,std::size_t>;
+    std::map<Key,std::vector<std::size_t>> groups;
+    for (std::size_t i=0;i<plan.cells.size();++i) {
+        auto& cell=plan.cells[i];
+        if (cell.status!=StoredStatus::MultiTilePlacementUnverified || !cell.asset_index) continue;
+        const auto& record=plan.assets[*cell.asset_index].record;
+        if (!two_by_two_geometry(record)) {
+            set_status(plan,i,record.horizontal_mirror_offset ? StoredStatus::MirrorUnverified :
+                       StoredStatus::UnsupportedFootprintSize);
+            continue;
+        }
+        const auto metadata=decode_map_subtile_byte(cell.candidate_byte);
+        cell.subtile=metadata;
+        if (metadata.unknown_bits) ++plan.unknown_bit_cells;
+        if (metadata.part_x>1 || metadata.part_y>1) {
+            set_status(plan,i,StoredStatus::SubtilePositionInvalid);
+            continue;
+        }
+        cell.subtile_origin=map_subtile_origin(cell.storage,metadata);
+        if (!cell.subtile_origin) {
+            set_status(plan,i,StoredStatus::SubtilePositionInvalid);
+            continue;
+        }
+        groups[{cell.subtile_origin->x,cell.subtile_origin->y,cell.stored_id,*cell.asset_index}].push_back(i);
+    }
+    struct CheckedGroup { Key key; std::vector<std::size_t> members; StoredStatus issue=StoredStatus::DecodePending; };
+    std::vector<CheckedGroup> checked;
+    for (const auto& [key,members] : groups) {
+        const auto [ox,oy,id,asset]=key;
+        (void)id; (void)asset;
+        CheckedGroup group{key,members};
+        std::set<std::pair<std::uint8_t,std::uint8_t>> parts;
+        if (members.size()!=4) group.issue=StoredStatus::IncompleteFootprint;
+        for (const auto i:members) {
+            const auto& sub=*plan.cells[i].subtile;
+            if (!parts.emplace(sub.part_x,sub.part_y).second)
+                group.issue=StoredStatus::ConflictingFootprint;
+        }
+        for (std::uint32_t dy=0;dy<2;++dy) for (std::uint32_t dx=0;dx<2;++dx) {
+            if (ox+dx>=stored_grid_width || oy+dy>=stored_grid_height) {
+                group.issue=StoredStatus::AnchorUnresolved;
+                continue;
+            }
+            const auto raw=static_cast<std::size_t>(oy+dy)*stored_grid_width+ox+dx;
+            if (!plan.cell_by_storage[raw]) {
+                group.issue=StoredStatus::AnchorUnresolved;
+                continue;
+            }
+            const auto other=*plan.cell_by_storage[raw];
+            if (std::find(members.begin(),members.end(),other)==members.end())
+                group.issue=StoredStatus::ConflictingFootprint;
+        }
+        checked.push_back(std::move(group));
+    }
+    // Validate all claims before assigning ownership. A cell claimed by a
+    // different origin invalidates both groups, independent of visit order.
+    std::vector<std::optional<std::size_t>> group_by_member(plan.cells.size());
+    for (std::size_t group_index=0;group_index<checked.size();++group_index)
+        for (const auto member:checked[group_index].members)
+            group_by_member[member]=group_index;
+    for (std::size_t group_index=0;group_index<checked.size();++group_index) {
+        auto& group=checked[group_index];
+        const auto [ox,oy,id,asset]=group.key;
+        (void)id; (void)asset;
+        for (std::uint32_t dy=0;dy<2;++dy) for (std::uint32_t dx=0;dx<2;++dx) {
+            if (ox+dx>=stored_grid_width || oy+dy>=stored_grid_height) continue;
+            const auto other=plan.cell_by_storage[static_cast<std::size_t>(oy+dy)*stored_grid_width+ox+dx];
+            if (!other) continue;
+            if (group_by_member[*other] && *group_by_member[*other]!=group_index) {
+                group.issue=StoredStatus::ConflictingFootprint;
+                checked[*group_by_member[*other]].issue=StoredStatus::ConflictingFootprint;
+            }
+        }
+    }
+    for (const auto& group:checked) {
+        if (group.issue!=StoredStatus::DecodePending) {
+            for (const auto i:group.members) set_status(plan,i,group.issue);
+            continue;
+        }
+        const auto [ox,oy,id,asset]=group.key;
+        (void)id;
+        PlacedFootprint footprint;
+        footprint.id=plan.footprints.size();
+        footprint.asset_index=asset;
+        footprint.origin={ox,oy};
+        footprint.width_cells=2; footprint.height_cells=2;
+        footprint.rule="edge_byte_origin_preview";
+        footprint.cell_indices=group.members;
+        const auto& record=plan.assets[asset].record;
+        plan.assets[asset].status=StoredStatus::DecodePending;
+        footprint.image_origin=stored_two_by_two_image_origin(
+            terrain_world(footprint.origin,plan.border),static_cast<std::uint32_t>(record.width),
+            static_cast<std::uint32_t>(record.height));
+        std::size_t markers=0;
+        bool expected_marker=false;
+        for (const auto i:group.members) {
+            const auto& cell=plan.cells[i];
+            if (cell.subtile->draw_marker_candidate) {
+                ++markers;
+                footprint.draw_cell_candidate=cell.storage;
+                expected_marker=cell.subtile->part_x==0 && cell.subtile->part_y==1;
+            }
+        }
+        if (markers!=1 || !expected_marker) ++plan.marker_deviations;
+        if (markers!=1) footprint.draw_cell_candidate.reset();
+        for (const auto i:group.members) {
+            auto& cell=plan.cells[i];
+            cell.footprint_index=footprint.id;
+            cell.footprint_supported=true;
+            cell.image_origin=footprint.image_origin;
+            set_status(plan,i,StoredStatus::DecodePending);
+        }
+        plan.footprints.push_back(std::move(footprint));
+    }
+}
+
 void place_footprints(StoredGraphicsPlan& plan, const MapGraphicCandidates& candidates) {
+    if (plan.footprint_policy==FootprintPolicy::EdgeBytePreview)
+        place_edge_byte_footprints(plan);
     // A two-cell component is never expanded across a mask boundary. Only an
     // isolated, complete 2x2 component of identical saved IDs is a preview
     // placement; neither candidate_byte nor an original draw anchor is inferred.
     std::vector<bool> visited(plan.cells.size(),false);
-    for (std::size_t i=0;plan.multi_tile_preview && i<plan.cells.size();++i) {
+    for (std::size_t i=0;plan.footprint_policy==FootprintPolicy::IsolatedPreview && i<plan.cells.size();++i) {
         auto& cell=plan.cells[i];
         if (cell.status != StoredStatus::MultiTilePlacementUnverified || !cell.asset_index) continue;
         const auto& record=plan.assets[*cell.asset_index].record;
@@ -210,8 +335,19 @@ const char* stored_status_name(StoredStatus status) {
     case StoredStatus::UnsupportedFootprintSize: return "unsupported_footprint_size";
     case StoredStatus::MirrorUnverified: return "mirror_unverified";
     case StoredStatus::DecodeFailed: return "decode_failed";
+    case StoredStatus::SubtilePositionInvalid: return "subtile_position_invalid";
+    case StoredStatus::ConflictingFootprint: return "conflicting_footprint";
     }
     return "invalid_status";
+}
+
+const char* footprint_policy_name(FootprintPolicy policy) {
+    switch (policy) {
+    case FootprintPolicy::Disabled: return "disabled";
+    case FootprintPolicy::IsolatedPreview: return "isolated";
+    case FootprintPolicy::EdgeBytePreview: return "edge-byte";
+    }
+    return "invalid";
 }
 
 scene::Point stored_image_origin(scene::Point world, std::uint32_t width, std::uint32_t height) {
@@ -259,7 +395,7 @@ StoredGraphicsPlan make_stored_graphics_plan(
     const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
     const MapGeometry& geometry, const assets::AssetCatalog& terrain,
     const RuntimeArchiveLayout& terrain_layout, const assets::AssetCatalog& elevation,
-    const RuntimeArchiveLayout& elevation_layout, bool multi_tile_preview) {
+    const RuntimeArchiveLayout& elevation_layout, FootprintPolicy policy) {
     constexpr auto storage_count = static_cast<std::size_t>(stored_grid_width) * stored_grid_height;
     if (!geometry.supported || geometry.candidate.size() != storage_count ||
         map.terrain_raw.values.size() != storage_count || map.objects_raw.values.size() != storage_count ||
@@ -271,7 +407,8 @@ StoredGraphicsPlan make_stored_graphics_plan(
         throw std::invalid_argument("stored graphics require verified Terrain/Elevation registrations");
     StoredGraphicsPlan plan;
     plan.data_root = terrain.data_root;
-    plan.multi_tile_preview = multi_tile_preview;
+    plan.multi_tile_preview = policy!=FootprintPolicy::Disabled;
+    plan.footprint_policy = policy;
     plan.border = geometry.border;
     plan.mask_comparison = compare_masks(map,geometry);
     plan.status_by_storage.assign(storage_count, StoredStatus::Excluded);
@@ -318,7 +455,7 @@ StoredGraphicsPlan make_stored_graphics_plan(
                     plan.assets.push_back({record,cell.status,false,false,{}});
                 }
                 cell.asset_index = it->second;
-                if (multi_tile_preview && cell.status==StoredStatus::UnsupportedLayout &&
+                if (plan.multi_tile_preview && cell.status==StoredStatus::UnsupportedLayout &&
                     record.image_type==30 && record.width>78) {
                     cell.status=StoredStatus::UnsupportedFootprintSize;
                     if (inserted) plan.assets.back().status=cell.status;
@@ -348,6 +485,16 @@ StoredGraphicsPlan make_stored_graphics_plan(
     if (plan.cells.size() + plan.excluded != storage_count)
         throw std::logic_error("stored graphics candidate accounting mismatch");
     return plan;
+}
+
+StoredGraphicsPlan make_stored_graphics_plan(
+    const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
+    const MapGeometry& geometry, const assets::AssetCatalog& terrain,
+    const RuntimeArchiveLayout& terrain_layout, const assets::AssetCatalog& elevation,
+    const RuntimeArchiveLayout& elevation_layout, bool multi_tile_preview) {
+    return make_stored_graphics_plan(map,candidates,geometry,terrain,terrain_layout,
+        elevation,elevation_layout,multi_tile_preview ? FootprintPolicy::IsolatedPreview :
+                                           FootprintPolicy::Disabled);
 }
 
 } // namespace openemperor::maps

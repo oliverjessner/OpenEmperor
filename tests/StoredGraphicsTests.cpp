@@ -105,6 +105,13 @@ maps::MapGeometry sparse_geometry(std::initializer_list<maps::GridCell> cells) {
         geometry.candidate.at(static_cast<std::size_t>(cell.y)*228U+cell.x)=1;
     return geometry;
 }
+maps::MapGeometry sparse_geometry(const std::vector<maps::GridCell>& cells) {
+    maps::MapGeometry geometry{84};
+    std::fill(geometry.candidate.begin(),geometry.candidate.end(),0);
+    for (const auto cell:cells)
+        geometry.candidate.at(static_cast<std::size_t>(cell.y)*228U+cell.x)=1;
+    return geometry;
+}
 std::array<std::uint8_t,4> pixel(SDL_Renderer* r,int x,int y) {
     SDL_Surface* s=SDL_RenderReadPixels(r,nullptr);
     check(s!=nullptr,"read software pixels");
@@ -287,6 +294,119 @@ int main() {
         check(boundary.footprint_count(2)==0 && !boundary.at({101,101}) &&
               boundary.status_counts().at("incomplete_footprint")==3,
               "candidate mask boundary cannot complete a footprint by clipping");
+        const auto metadata_zero=maps::decode_map_subtile_byte(0);
+        const auto metadata_one=maps::decode_map_subtile_byte(1);
+        const auto metadata_72=maps::decode_map_subtile_byte(72);
+        const auto metadata_nine=maps::decode_map_subtile_byte(9);
+        check(metadata_zero.part_x==0 && metadata_zero.part_y==0 && !metadata_zero.draw_marker_candidate &&
+              metadata_one.part_x==1 && metadata_one.part_y==0 &&
+              metadata_72.part_x==0 && metadata_72.part_y==1 && metadata_72.draw_marker_candidate &&
+              metadata_nine.part_x==1 && metadata_nine.part_y==1 &&
+              maps::decode_map_subtile_byte(0x08).part_y==maps::decode_map_subtile_byte(0x48).part_y &&
+              !maps::decode_map_subtile_byte(0x08).draw_marker_candidate &&
+              maps::decode_map_subtile_byte(0x48).draw_marker_candidate &&
+              maps::decode_map_subtile_byte(0x80).unknown_bits==0x80 &&
+              !maps::map_subtile_origin({0,0},metadata_one),
+              "reference-derived bits preserve position, marker and unknown top bit independently");
+        const auto edge_plan=[&](const maps::MapGraphicCandidates& c,const std::vector<maps::GridCell>& cells) {
+            return maps::make_stored_graphics_plan(map,c,sparse_geometry(cells),terrain_catalog,
+                *terrain_layout,elevation_catalog,*elevation_layout,maps::FootprintPolicy::EdgeBytePreview);
+        };
+        const auto squares=[&](std::initializer_list<maps::GridCell> origins) {
+            auto c=candidates_fixture();
+            std::vector<maps::GridCell> cells;
+            for (const auto origin:origins) {
+                const std::array<std::uint8_t,4> bytes{0,1,72,9};
+                std::size_t part=0;
+                for (std::uint32_t dy=0;dy<2;++dy) for (std::uint32_t dx=0;dx<2;++dx) {
+                    set_id(c,origin.x+dx,origin.y+dy,0xc002,bytes[part++]);
+                    cells.push_back({origin.x+dx,origin.y+dy});
+                }
+            }
+            return std::pair{c,cells};
+        };
+        for (const auto& origins : {std::vector<maps::GridCell>{{100,100}},
+                                   std::vector<maps::GridCell>{{100,100},{100,102}},
+                                   std::vector<maps::GridCell>{{100,100},{102,100}},
+                                   std::vector<maps::GridCell>{{100,100},{102,100},{100,102},{102,102}}}) {
+            auto c=candidates_fixture();
+            std::vector<maps::GridCell> cells;
+            for (const auto origin:origins) {
+                const std::array<std::uint8_t,4> bytes{0,1,72,9};
+                std::size_t part=0;
+                for (std::uint32_t dy=0;dy<2;++dy) for (std::uint32_t dx=0;dx<2;++dx) {
+                    set_id(c,origin.x+dx,origin.y+dy,0xc002,bytes[part++]);
+                    cells.push_back({origin.x+dx,origin.y+dy});
+                }
+            }
+            const auto grouped=edge_plan(c,cells);
+            check(grouped.footprint_count(2)==origins.size() &&
+                  grouped.covered_cells()==origins.size()*4 && grouped.marker_deviations==0 &&
+                  grouped.status_counts().at("decode_pending")==cells.size(),
+                  "adjacent edge-byte squares are independent complete instances");
+            for (const auto& footprint:grouped.footprints) {
+                check(footprint.draw_cell_candidate &&
+                      footprint.draw_cell_candidate->x==footprint.origin.x &&
+                      footprint.draw_cell_candidate->y==footprint.origin.y+1 &&
+                      footprint.image_origin.x==maps::stored_two_by_two_image_origin(
+                          maps::terrain_world(footprint.origin,grouped.border),158,80).x,
+                      "draw candidate differs from projected image origin");
+            }
+        }
+        auto [vertical_candidates,vertical_cells]=squares({{100,100},{100,102}});
+        const auto old_vertical=maps::make_stored_graphics_plan(map,vertical_candidates,
+            sparse_geometry(vertical_cells),terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,true);
+        check(old_vertical.footprint_count(2)==0 &&
+              old_vertical.status_counts().at("ambiguous_footprint")==8,
+              "isolated policy remains separately ambiguous for touching squares");
+        const auto edge_vertical=edge_plan(vertical_candidates,vertical_cells);
+        auto reversed_cells=vertical_cells;
+        std::reverse(reversed_cells.begin(),reversed_cells.end());
+        const auto reversed=edge_plan(vertical_candidates,reversed_cells);
+        check(edge_vertical.at({100,100})->footprint_index!=edge_vertical.at({100,102})->footprint_index &&
+              edge_vertical.at({100,100})->asset_index==edge_vertical.at({100,102})->asset_index &&
+              edge_vertical.at({100,101})->candidate_byte==72 &&
+              reversed.at({100,100})->footprint_index==edge_vertical.at({100,100})->footprint_index &&
+              reversed.at({100,102})->footprint_index==edge_vertical.at({100,102})->footprint_index,
+              "touching instances retain their own raw bytes and share asset identity");
+        auto zero_candidates=vertical_candidates;
+        for (const auto cell:vertical_cells)
+            set_id(zero_candidates,cell.x,cell.y,0xc002,0);
+        const auto zero=edge_plan(zero_candidates,vertical_cells);
+        check(zero.footprint_count(2)==0 && zero.covered_cells()==0,
+              "four zero bytes do not acquire geometry by spatial fallback");
+        auto wrong_candidates=vertical_candidates;
+        set_id(wrong_candidates,101,101,0xc002,0x1a);
+        const auto wrong=edge_plan(wrong_candidates,vertical_cells);
+        check(wrong.footprint_count(2)==1 &&
+              wrong.at({101,101})->status==maps::StoredStatus::SubtilePositionInvalid &&
+              wrong.at({100,100})->status==maps::StoredStatus::ConflictingFootprint,
+              "invalid part position diagnoses its group without isolated fallback");
+        auto different_candidates=vertical_candidates;
+        set_id(different_candidates,101,101,0xc008,9);
+        const auto different=edge_plan(different_candidates,vertical_cells);
+        check(different.footprint_count(2)==1 &&
+              different.at({100,100})->status==maps::StoredStatus::ConflictingFootprint,
+              "different saved ID and physical asset cannot complete first group");
+        auto missing_cells=vertical_cells;
+        missing_cells.erase(std::remove_if(missing_cells.begin(),missing_cells.end(),
+            [](maps::GridCell p){ return p.x==101 && p.y==101; }),missing_cells.end());
+        const auto missing=edge_plan(vertical_candidates,missing_cells);
+        check(missing.footprint_count(2)==1 &&
+              missing.at({100,100})->status==maps::StoredStatus::AnchorUnresolved,
+              "preview mask boundary rejects incomplete footprint");
+        auto marker_candidates=vertical_candidates;
+        set_id(marker_candidates,100,101,0xc002,8);
+        set_id(marker_candidates,101,103,0xc002,73);
+        const auto marker=edge_plan(marker_candidates,vertical_cells);
+        check(marker.footprint_count(2)==2 && marker.marker_deviations==2,
+              "missing and duplicate marker candidates are diagnostic, not hidden ownership rules");
+        auto unknown_candidates=vertical_candidates;
+        set_id(unknown_candidates,100,100,0xc002,0x80);
+        const auto unknown=edge_plan(unknown_candidates,vertical_cells);
+        check(unknown.footprint_count(2)==2 && unknown.unknown_bit_cells==1 &&
+              unknown.at({100,100})->candidate_byte==0x80,
+              "unknown top bit is retained without altering grouping");
         auto edge_candidates=multi_candidates;
         set_id(edge_candidates,102,100,0xc002); // Same saved ID immediately outside the mask.
         const auto edge=maps::make_stored_graphics_plan(map,edge_candidates,
@@ -311,6 +431,33 @@ int main() {
         check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL dummy init");
         SDL_Window* window=nullptr; SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("stored test",400,300,0,&window,&renderer),"software renderer");
+        {
+            auto adjacent=edge_plan(vertical_candidates,vertical_cells);
+            openemperor::StoredGraphicsRenderer preview{std::move(adjacent)};
+            preview.initialize(renderer);
+            check(preview.upload_count()==1 && preview.plan().footprint_count(2)==2 &&
+                  preview.plan().covered_cells()==8 &&
+                  preview.plan().status_counts().at("rendered")==8,
+                  "two touching metadata instances share one decoded SDL texture");
+            scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+            camera.center_on(maps::terrain_world({100,101},sparse.border));
+            check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                  preview.render(camera,std::nullopt) && preview.last_texture_draws()==2 &&
+                  preview.last_diagnostic_draws()==0,
+                  "touching instances draw twice without diagnostic overpaint");
+            camera.zoom_at({200,150},1.4);
+            check(preview.render(camera,std::nullopt) && preview.upload_count()==1,
+                  "zoom does not re-upload shared texture");
+            const auto adjacent_geometry=sparse_geometry(vertical_cells);
+            for (const auto where:vertical_cells) {
+                const auto ground=maps::terrain_world(where,adjacent_geometry.border);
+                const scene::Point inside{ground.x,ground.y+20};
+                check(maps::pick_terrain_cell(camera.screen_to_world(camera.world_to_screen(inside)),
+                      adjacent_geometry)==where,
+                      "each edge-byte part remains selectable after zoom");
+            }
+            preview.shutdown();
+        }
         {
             auto isolated=maps::make_stored_graphics_plan(map,multi_candidates,
                 sparse_geometry({{100,100},{101,100},{100,101},{101,101}}),terrain_catalog,

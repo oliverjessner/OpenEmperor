@@ -37,7 +37,7 @@ void print_usage(const char* executable) {
               << " [--view storage|semantic|projected|textured|stored-graphics]"
               << " [--terrain-bindings <preview.json>]"
               << " [--graphics-profile exe-6373328b-v213-runtime-table]"
-              << " [--multi-tile-preview]\n";
+              << " [--multi-tile-preview [--footprint-policy isolated|edge-byte]]\n";
 }
 
 std::filesystem::path resolve_map_path(const std::filesystem::path& root_path,
@@ -74,6 +74,8 @@ int main(int argc, char* argv[]) {
     bool terrain_bindings_supplied = false;
     bool graphics_profile_supplied = false;
     bool multi_tile_preview = false;
+    bool footprint_policy_supplied = false;
+    auto footprint_policy = openemperor::maps::FootprintPolicy::IsolatedPreview;
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
@@ -93,6 +95,12 @@ int main(int argc, char* argv[]) {
             browse_assets = true;
         } else if (argument == "--multi-tile-preview" && !multi_tile_preview) {
             multi_tile_preview = true;
+        } else if (argument == "--footprint-policy" && !footprint_policy_supplied && index + 1 < argc) {
+            const std::string_view value{argv[++index]};
+            if (value == "isolated") footprint_policy = openemperor::maps::FootprintPolicy::IsolatedPreview;
+            else if (value == "edge-byte") footprint_policy = openemperor::maps::FootprintPolicy::EdgeBytePreview;
+            else { print_usage(argv[0]); return 2; }
+            footprint_policy_supplied = true;
         } else if (argument == "--ignore-alpha" && !ignore_alpha) {
             ignore_alpha = true;
         } else if (argument == "--alpha-addressing" && !diagnostic_alpha_addressing && index + 1 < argc) {
@@ -184,6 +192,7 @@ int main(int argc, char* argv[]) {
         (terrain_bindings_supplied && map_view_mode != openemperor::maps::MapViewMode::Textured) ||
         (map_view_mode == openemperor::maps::MapViewMode::StoredGraphics && !graphics_profile_supplied) ||
         (graphics_profile_supplied && map_view_mode != openemperor::maps::MapViewMode::StoredGraphics) ||
+        (footprint_policy_supplied && !multi_tile_preview) ||
         (multi_tile_preview && (!graphics_profile_supplied ||
             map_view_mode != openemperor::maps::MapViewMode::StoredGraphics))) {
         print_usage(argv[0]);
@@ -277,7 +286,8 @@ int main(int argc, char* argv[]) {
                 const auto candidates = maps::read_map_graphic_candidates(container,map_part);
                 const maps::MapGeometry geometry{map.declared_map_size};
                 stored_plan = maps::make_stored_graphics_plan(map,candidates,geometry,
-                    terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,multi_tile_preview);
+                    terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,
+                    multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled);
             }
             map_view = std::make_unique<openemperor::MapDebugView>(
                 std::move(map), map_layer, map_view_mode, std::move(bindings),std::move(stored_plan));

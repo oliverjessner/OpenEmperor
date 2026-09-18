@@ -12,6 +12,16 @@ Add `--multi-tile-preview` to opt into the deliberately narrow 2×2 reconstructi
 ./build/openemperor --data .local/gog-extracted/app --map-debug Cities/Chengdu.map --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table --multi-tile-preview
 ```
 
+The existing option continues to mean the isolated-component preview (`--footprint-policy isolated` is an explicit spelling). A separate, reference-derived metadata experiment is available with `--multi-tile-preview --footprint-policy edge-byte`:
+
+```sh
+./build/openemperor --data .local/gog-extracted/app --map-debug Cities/Banpo.map --view stored-graphics --graphics-profile exe-6373328b-v213-runtime-table --multi-tile-preview --footprint-policy edge-byte
+```
+
+For this second policy only, `MapSubtileMetadata` retains the byte and tentatively reads `part_x=byte&7`, `part_y=(byte>>3)&7`, draw-marker candidate `byte&0x40`, and still-unknown `byte&0x80`. These masks come from the pinned public [Julius edge-grid reference](https://github.com/bvschaik/julius/blob/34d1ecd54befb845c0139b371fa8a0438210dac1/src/map/property.c); they do not by themselves prove Emperor semantics. The separate `bitfields_grid` in that reference is not used. The local Emperor static check supports use of `0x40` in a draw-related path, while the low-bit position meaning remains reference- and data-derived. The marker is diagnostic and never hides a cell. A missing, duplicate, or misplaced marker increments `marker_deviations`; unknown high bits are counted and preserved.
+
+Each eligible 158-wide image cell proposes an origin `(storage_x-part_x, storage_y-part_y)` using signed arithmetic. Only four distinct in-mask cells with exact parts `(0,0),(1,0),(0,1),(1,1)`, identical saved ID and physical AssetId, valid source, and the existing 2×2 image restrictions may form an instance. Groups are validated before ownership. Invalid positions, incomplete/mask-crossing groups, and conflicting claims stay diagnostic; there is no fallback to the isolated policy. Touching groups may share the same image texture. The marker candidate at part `(0,1)` is reported separately from the projected footprint origin `(0,0)`; the same `project(origin) − (width/2,height−80)` image anchor is used for both policies. Every original storage cell remains selectable.
+
 The option requires this view and profile. The saved graphic ID, `candidate_byte`, terrain/object words, logical offsets, off-map bit, and candidate mask are left unchanged. `RuntimeArchiveLayout` resolves the studied version-213 Terrain/Elevation registration to physical SG3 AssetIds; there is no binding file, implicit fallback, or per-frame file read. The snapshot does not establish the original game's first draw.
 
 A single-cell image remains supported when it is Type 30, 78 pixels wide, at least 40 high, has a 3,200-byte base and valid source, and needs no unverified mirroring. It is placed at `project(cell) − (width/2, height−40)`. The opt-in 2×2 rule additionally requires Type 30, width 158, height at least 80, 12,800-byte base, isometric size flag 2, valid source, and no unverified mirror. It finds four **candidate-mask** cells with the same exact saved ID and physical AssetId that form an isolated, complete 2×2 four-neighbor component. The component must have no fifth touching cell with that ID. This is an independently chosen **preview grouping rule**, not a recovered engine anchor or an interpretation of `candidate_byte`. Three-cell groups stay `incomplete_footprint`; touching groups of five or more stay `ambiguous_footprint`. Inconsistent larger layouts stay `unsupported_footprint_size`. A four-cell component touching a matching saved ID just outside the candidate mask stays `anchor_unresolved`; the mask is not used to manufacture isolation. No observed cell is assigned an original anchor flag. No candidate-mask boundary is extended or trimmed to complete a group.
@@ -32,3 +42,16 @@ The local read-only check on the user's GOG files gave these post-decode results
 Chengdu's four cells are `(55,133)`, `(56,133)`, `(55,134)`, `(56,134)` with saved ID `0xc10a`, physical Terrain record 467, 158×95, 12,800-byte base and size flag 2. Banpo's unresolved eight cells form a touching 2×4 component at x=103–104, y=143–146, all ID `0x400a1`; the preview does not partition it. See the [evidence record](reverse/graphics-id.md) for individual Chengdu values and limits. Whole-map and targeted offscreen SDL software captures were viewed locally under ignored `.local/`; these are OpenEmperor renderings, with no interactive desktop run or original-game image comparison. No capture or source game data is distributed.
 
 WASD/arrows pan, wheel zooms, `R` refits, `V` cycles views, and clicking or Return selects a ground cell. Unsupported layouts, ambiguous cells, and decode failures remain purple. The first-draw question, heights, animation, mirroring, and arbitrary/interlocking footprints remain unresolved.
+
+The new policy was checked read-only against `Cities/Chengdu.map`, `Cities/Banpo.map`, `Cities/Xia.map`, and `Cities/Anyi.map`. Its metadata planning counts are:
+
+| Map | Edge-byte 2×2 | Covered cells | Remaining footprint diagnostics | Isolated 2×2 / covered |
+| --- | ---: | ---: | --- | --- |
+| Chengdu | 1 | 14,620 | none | 1 / 14,620 |
+| Banpo | 11 | 6,384 | none | 9 / 6,376, plus 8 ambiguous |
+| Xia | 6 | 3,612 | none | 6 / 3,612 |
+| Anyi | 15 | 14,620 | none | 15 / 14,620 |
+
+Banpo's x=103–104, y=143–144 and y=145–146 have identical saved ID `0x400a1` and physical Elevation record 362 but repeat `0,1,72,9`; their calculated origins are `(103,143)` and `(103,145)`. All qualifying groups in these four maps have one marker candidate at part `(0,1)` and no unknown high bits. This is a saved-snapshot consistency check, not an original-game first-draw comparison; see [reverse-engineering evidence](reverse/graphics-id.md).
+
+After the shared-asset eligibility was included in the new plan, a headless SDL software run decoded and uploaded all 282 Banpo distinct assets, rendered all 6,384 candidate cells, drew 6,351 texture instances in the full viewport, and drew zero diagnostics. The targeted 3× view drew 93 texture instances and zero diagnostics. The locally ignored `edge-banpo/target.png` and `edge-banpo/full.png` were opened and viewed: the targeted image shows two adjacent rocky/cliff footprints with surrounding grass, and the full view shows a coherent ring of terrain without the prior purple eight-cell gap. These are observations of OpenEmperor output only. They do not substitute for an interactive macOS desktop run or original-game image comparison; captures remain ignored under `.local/` and are not distributed.

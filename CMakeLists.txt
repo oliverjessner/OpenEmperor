@@ -92,6 +92,7 @@ add_library(openemperor-maps STATIC
     src/maps/TerrainBindings.cpp
     src/maps/TerrainRenderPlan.cpp
     src/maps/StoredGraphicsPlan.cpp
+    src/maps/MapSubtileMetadata.cpp
 )
 target_include_directories(openemperor-maps PUBLIC src)
 target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohmann_json::nlohmann_json openemperor-scene)

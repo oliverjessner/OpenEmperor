@@ -2,6 +2,7 @@
 
 #include "maps/GraphicsIdHypothesis.h"
 #include "maps/MapGraphicCandidates.h"
+#include "maps/MapSubtileMetadata.h"
 #include "maps/TerrainRenderPlan.h"
 
 #include <cstddef>
@@ -24,8 +25,12 @@ enum class StoredStatus { Excluded, DecodePending, Rendered, UnsupportedHighBit,
     UnregisteredSlot, UnverifiedRegistration, IndexOutOfRange, EmptyRecord,
     SourceUnavailable, UnsupportedLayout, MultiTilePlacementUnverified,
     AmbiguousFootprint, IncompleteFootprint, AnchorUnresolved,
-    UnsupportedFootprintSize, MirrorUnverified, DecodeFailed };
+    UnsupportedFootprintSize, MirrorUnverified, DecodeFailed,
+    SubtilePositionInvalid, ConflictingFootprint };
 const char* stored_status_name(StoredStatus status);
+
+enum class FootprintPolicy { Disabled, IsolatedPreview, EdgeBytePreview };
+const char* footprint_policy_name(FootprintPolicy policy);
 
 struct StoredAsset {
     assets::AssetRecord record;
@@ -43,6 +48,8 @@ struct StoredCell {
     std::uint32_t terrain_raw = 0;
     std::uint32_t objects_raw = 0;
     std::uint8_t candidate_byte = 0;
+    std::optional<MapSubtileMetadata> subtile;
+    std::optional<GridCell> subtile_origin;
     bool offmap_bit = false;
     std::uint32_t slot = 0;
     std::uint32_t local_index = 0;
@@ -67,6 +74,7 @@ struct PlacedFootprint {
     std::uint32_t width_cells = 1;
     std::uint32_t height_cells = 1;
     std::vector<std::size_t> cell_indices; // Indices into StoredGraphicsPlan::cells.
+    std::optional<GridCell> draw_cell_candidate;
     scene::Point image_origin{};
     const char* rule = "single_cell_geometry";
     StoredStatus status = StoredStatus::DecodePending;
@@ -78,6 +86,9 @@ struct StoredGraphicsPlan {
     std::vector<StoredAsset> assets; // Distinct physical AssetIds.
     std::vector<PlacedFootprint> footprints;
     bool multi_tile_preview = false;
+    FootprintPolicy footprint_policy = FootprintPolicy::Disabled;
+    std::size_t marker_deviations = 0;
+    std::size_t unknown_bit_cells = 0;
     std::vector<StoredStatus> status_by_storage; // Excluded cells retained.
     std::vector<std::optional<std::size_t>> cell_by_storage;
     std::uint32_t border = 0;
@@ -102,6 +113,11 @@ StoredGraphicsPlan make_stored_graphics_plan(
     const MapGeometry& geometry, const assets::AssetCatalog& terrain,
     const RuntimeArchiveLayout& terrain_layout, const assets::AssetCatalog& elevation,
     const RuntimeArchiveLayout& elevation_layout, bool multi_tile_preview = false);
+StoredGraphicsPlan make_stored_graphics_plan(
+    const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
+    const MapGeometry& geometry, const assets::AssetCatalog& terrain,
+    const RuntimeArchiveLayout& terrain_layout, const assets::AssetCatalog& elevation,
+    const RuntimeArchiveLayout& elevation_layout, FootprintPolicy policy);
 
 // Checks archive and every documented bitmap source against the canonical
 // user data root before catalog scanning or image loading, including symlinks.
