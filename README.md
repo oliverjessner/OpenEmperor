@@ -87,6 +87,33 @@ per-user preference directory.
 
 Install Xcode Command Line Tools, CMake, and OpenSSL (for example `brew install openssl@3`). The map reader also uses the system zlib library through CMake's `find_package(ZLIB REQUIRED)`. The default CMake configuration fetches a fixed SDL3 source commit and the checksum-pinned nlohmann/json 3.12.0 release if no exact system package exists; network access may be needed the first time.
 
+The frozen alpha scope has a separate, fail-closed acceptance runner. It builds and tests Debug, a fresh Release tree, and a fresh ASan/UBSan tree; runs the deterministic 100,000-tick Industry-v5 endurance test, 3,000 pure render frames, and 100 complete synthetic menu/session test processes; verifies the Release architecture; and writes only a path-scrubbed report to ignored `.local/reports/alpha-check.json`. These longer checks are intentionally outside ordinary CTest.
+
+```sh
+python3 tools/alpha_check.py --system-sdl
+```
+
+Add `--package` to include the macOS bundle validation. An original-data smoke is opt-in and requires all three local profiles:
+
+```sh
+python3 tools/alpha_check.py --system-sdl \
+  --data /path/to/emperor \
+  --walker-visuals .local/visuals/walkers-v2.json \
+  --building-visuals .local/visuals/buildings.json \
+  --road-visuals .local/visuals/roads.json
+```
+
+For a sanitizer-only development build, use `-DOPENEMPEROR_ENABLE_SANITIZERS=ON`. This instruments OpenEmperor's own targets with AddressSanitizer and UndefinedBehaviorSanitizer on Clang/GCC-compatible toolchains; normal builds and fetched dependencies are not forced to use those flags.
+
+```sh
+cmake -S . -B build-sanitize -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DOPENEMPEROR_ENABLE_SANITIZERS=ON
+cmake --build build-sanitize --parallel
+ctest --test-dir build-sanitize --output-on-failure
+```
+
+See [alpha readiness](docs/alpha-readiness.md) for the frozen scope, required checks, and known limits.
+
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=arm64
 cmake --build build --parallel

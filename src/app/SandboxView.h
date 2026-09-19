@@ -114,6 +114,14 @@ public:
     const sandbox_ui::RoadPlan& road_preview() const { return road_preview_; }
     const std::vector<std::uint8_t>& buildable_mask() const { return buildable_mask_; }
 private:
+    struct DrawInstance {
+        scene::WorldDrawKey key;
+        simulation::Cell cell{};
+        simulation::Object object=simulation::Object::Empty;
+        simulation::CourierId courier=simulation::CourierId::Clay;
+        simulation::Position position{};
+        bool placement_preview=false;
+    };
     void reset_camera();
     void resize_camera();
     void place_demo();
@@ -187,6 +195,8 @@ private:
     std::uint64_t io_generation_=0;
     std::uint64_t save_generation_=0, saved_tick_=0, saved_command_=0;
     bool managed_=false, menu_requested_=false, menu_pressed_=false;
+    // Reused by draw_world(); its capacity remains bounded by the fixed World grid.
+    std::vector<DrawInstance> draw_instances_;
 };
 
 } // namespace openemperor

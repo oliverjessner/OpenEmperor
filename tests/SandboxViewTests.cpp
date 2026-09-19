@@ -274,8 +274,10 @@ SDL_Event key(SDL_Keycode code) {
     return event;
 }
 }
-int main() {
+int main(int argc,char** argv) {
     try {
+        const bool alpha_stress=argc==2 && std::string(argv[1])=="--alpha-stress";
+        check(argc==1 || alpha_stress,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
             check(layout.top.h==52 && layout.map.w==796 && layout.map.h==552 &&
@@ -878,6 +880,69 @@ int main() {
         industry_view.handle_event(key(SDLK_2),running);
         check(industry_view.tool()==5,
               "v5 full Clay tool remained selectable");
+        if (alpha_stress) {
+            const auto stable_world=industry_view.world().snapshot();
+            const auto walker_before=industry_view.walker_display_stats();
+            const auto building_before=industry_view.building_display_stats();
+            const auto road_before=industry_view.road_display_stats();
+            const auto order_before=industry_view.painter_stats().stored_order_builds;
+            struct HiddenFiles {
+                std::vector<std::pair<std::filesystem::path,std::filesystem::path>> paths;
+                void restore() {
+                    for (auto it=paths.rbegin();it!=paths.rend();++it)
+                        std::filesystem::rename(it->second,it->first);
+                    paths.clear();
+                }
+                ~HiddenFiles() {
+                    for (auto it=paths.rbegin();it!=paths.rend();++it) {
+                        std::error_code error;
+                        std::filesystem::rename(it->second,it->first,error);
+                    }
+                }
+            } hidden;
+            std::vector<std::filesystem::path> loaded_files;
+            for (const auto& entry:std::filesystem::recursive_directory_iterator(temp.path))
+                if (entry.is_regular_file() && (entry.path().extension()==".json" ||
+                    entry.path().extension()==".map" || entry.path().extension()==".sg3" ||
+                    entry.path().extension()==".555")) loaded_files.push_back(entry.path());
+            for (const auto& original:loaded_files) {
+                auto unavailable=original;unavailable += ".alpha-hidden";
+                std::filesystem::rename(original,unavailable);
+                hidden.paths.emplace_back(original,unavailable);
+            }
+            for (int frame=0;frame<3000;++frame) {
+                if (frame%100==0) {
+                    industry_view.handle_event(key(SDLK_F2),running);
+                    industry_view.handle_event(key(SDLK_F4),running);
+                    industry_view.handle_event(key(SDLK_F6),running);
+                    industry_view.handle_event(key(SDLK_F7),running);
+                    industry_view.handle_event(key(SDLK_F3),running);
+                    industry_view.handle_event(key(SDLK_V),running);
+                    SDL_Event stress_wheel{};stress_wheel.type=SDL_EVENT_MOUSE_WHEEL;
+                    stress_wheel.wheel.mouse_x=400;stress_wheel.wheel.mouse_y=300;
+                    stress_wheel.wheel.y=(frame/100)%2==0 ? 1.0F:-1.0F;
+                    industry_view.handle_event(stress_wheel,running);
+                    industry_view.handle_event(motion(350.0F+static_cast<float>(frame%200),300.0F),running);
+                }
+                check(industry_view.render(),"alpha pure render frame failed");
+            }
+            hidden.restore();
+            const auto walker_after=industry_view.walker_display_stats();
+            const auto building_after=industry_view.building_display_stats();
+            const auto road_after=industry_view.road_display_stats();
+            check(industry_view.world().snapshot()==stable_world,
+                  "3000 pure render frames changed Industry World");
+            check(walker_after.decoded_assets==walker_before.decoded_assets &&
+                  walker_after.texture_uploads==walker_before.texture_uploads &&
+                  building_after.decoded_assets==building_before.decoded_assets &&
+                  building_after.texture_uploads==building_before.texture_uploads &&
+                  road_after.unique_assets==road_before.unique_assets &&
+                  road_after.texture_uploads==road_before.texture_uploads,
+                  "pure rendering decoded or uploaded visual assets");
+            check(industry_view.painter_stats().stored_order_builds==order_before,
+                  "pure rendering rebuilt stored draw order");
+            std::cout<<"alpha render stress: 3000 frames, zero decode/upload/order rebuilds\n";
+        }
         industry_view.shutdown();
         marker_control.shutdown();
         check(openemperor::WalkerSpriteSet::live_texture_count()==0,

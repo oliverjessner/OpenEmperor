@@ -234,6 +234,10 @@ int main() {
               for (auto& c:bad["world"]["couriers"])
                   if (c["id"]==5) c["target"]=4;
           });
+          rejects("invalid CourierRole accepted",[](auto& bad) {
+              for (auto& c:bad["world"]["couriers"])
+                  if (c["id"]==5) c["role"]=99;
+          });
           rejects("forged Clay cursor accepted",[](auto& bad) {
               for (auto& c:bad["world"]["couriers"])
                   if (c["id"]==1) c["last_dispatched_pottery"]=3;

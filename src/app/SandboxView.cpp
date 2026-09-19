@@ -765,15 +765,11 @@ bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,
 bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     last_courier_draws_=0;
     road_fallbacks_current_=0;
-    struct Instance {
-        scene::WorldDrawKey key;
-        simulation::Cell cell{};
-        simulation::Object object=simulation::Object::Empty;
-        simulation::CourierId courier=simulation::CourierId::Clay;
-        simulation::Position position{};
-        bool placement_preview=false;
-    };
-    std::vector<Instance> instances;
+    auto& instances=draw_instances_;
+    instances.clear();
+    const auto maximum=static_cast<std::size_t>(world_->width())*
+        static_cast<std::size_t>(world_->height())+road_preview_.cells.size()+6U;
+    if (instances.capacity()<maximum) instances.reserve(maximum);
     for (int y=0;y<world_->height();++y) for (int x=0;x<world_->width();++x) {
         const simulation::Cell cell{x,y};
         const auto object=world_->object_at(cell);
@@ -968,7 +964,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                  simulation::CourierId::Clay,{},true});
         }
     }
-    std::sort(instances.begin(),instances.end(),[](const Instance& a,const Instance& b) {
+    std::sort(instances.begin(),instances.end(),[](const DrawInstance& a,const DrawInstance& b) {
         return a.key<b.key;
     });
     const auto draw_instance=[&](std::size_t index)->bool {

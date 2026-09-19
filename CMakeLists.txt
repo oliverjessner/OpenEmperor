@@ -3,6 +3,11 @@ cmake_minimum_required(VERSION 3.24)
 project(OpenEmperor VERSION 0.1.0 LANGUAGES C CXX)
 
 option(OPENEMPEROR_BUILD_MACOS_APP "Build the opt-in macOS application bundle" OFF)
+option(OPENEMPEROR_ENABLE_SANITIZERS
+    "Instrument OpenEmperor targets with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+if(OPENEMPEROR_ENABLE_SANITIZERS AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    message(FATAL_ERROR "OPENEMPEROR_ENABLE_SANITIZERS requires a Clang/GCC-compatible compiler")
+endif()
 if(OPENEMPEROR_BUILD_MACOS_APP AND NOT APPLE)
     message(FATAL_ERROR "OPENEMPEROR_BUILD_MACOS_APP requires macOS")
 endif()
@@ -215,6 +220,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-industry-tests)
     add_test(NAME sandbox-industry-production COMMAND openemperor-sandbox-industry-tests)
     set_tests_properties(sandbox-industry-production PROPERTIES TIMEOUT 30)
+    # Deliberately not registered with CTest: this 100k-tick executable belongs to
+    # tools/alpha_check.py so the normal regression suite remains quick.
+    add_executable(openemperor-alpha-endurance tests/AlphaEnduranceTests.cpp)
+    target_link_libraries(openemperor-alpha-endurance PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(NAME map-corpus-runner COMMAND ${Python3_EXECUTABLE} -m unittest discover

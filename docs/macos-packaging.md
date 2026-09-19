@@ -54,3 +54,8 @@ Mac is unproved. A clean Mac without developer tools is an additional test,
 not simulated by restricting PATH. The project currently has no explicit own
 LICENSE file; choosing one is a prerequisite for public distribution, outside
 this packaging milestone.
+# Alpha acceptance
+
+Run `python3 tools/alpha_check.py --system-sdl --package` for the synthetic alpha acceptance plus the existing package pipeline. The package step remains the authority for relocation, dependency/RPATH checks, arm64, ad-hoc signature integrity, ZIP extraction, and synthetic app smoke. The alpha runner additionally rejects `walkers-v2.json`, `buildings.json`, `roads.json`, and `alpha-check.json` if any appears in the produced app or ZIP. Local visual profiles and `.local/reports/` are development inputs and must never be bundled.
+
+The package is still a local development preview. Developer ID signing, notarization, independent clean-Mac verification, and publication readiness remain outside this milestone.

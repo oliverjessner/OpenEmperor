@@ -252,11 +252,15 @@ int main() {
         check(old_v1.migrated_from_schema1 && old_v1.world.rule_version==1 &&
               save::restore_save(old_v1,root/"data",mask()).snapshot()==v1doc.world,
               "legacy v1 fixture changed rule version or state");
+        int mutation_number=0;
         auto mutate=[&](const auto& edit) {
+            ++mutation_number;
             auto j=valid; edit(j); overwrite(target,j);
-            rejects([&]{ auto parsed_bad=save::read_save(target);
-                (void)save::restore_save(parsed_bad,root/"data",mask()); },
-                "tampered save accepted");
+            try { auto parsed_bad=save::read_save(target);
+                (void)save::restore_save(parsed_bad,root/"data",mask()); }
+            catch (const std::exception&) { return; }
+            throw std::runtime_error("tampered save accepted at matrix case "+
+                                     std::to_string(mutation_number));
         };
         mutate([](auto& j){ j["schema_version"]=5; });
         mutate([](auto& j){ j["rules"]["id"]="unknown"; });
@@ -266,11 +270,13 @@ int main() {
         mutate([](auto& j){ j["profiles"]["buildable_sha256"]=std::string(64,'0'); });
         mutate([](auto& j){ j["map"]["relative_path"]="../escape.map"; });
         mutate([](auto& j){ j["world"]["buildings"][1]["id"]=1; });
+        mutate([](auto& j){ j["world"]["buildings"][0]["id"]=99; });
         mutate([](auto& j){ j["world"]["roads"].push_back(j["world"]["buildings"][0]["cell"]); });
         mutate([](auto& j){ j["world"]["couriers"][0]["path_vertex"]=100000; });
         mutate([](auto& j){ j["world"]["couriers"][0]["path"][1]=nlohmann::json::array({15,3}); });
         mutate([](auto& j){ j["world"]["couriers"][0]["edge_progress"]=10; });
         mutate([](auto& j){ j["world"]["couriers"][0]["good"]=2; });
+        mutate([](auto& j){ j["world"]["couriers"][0]["cargo"]=-1; });
         mutate([](auto& j){ j["world"]["couriers"][0]["route_pending"]=true; });
         mutate([](auto& j){ j["world"]["couriers"][0]["route_checked_revision"]=999999; });
         mutate([](auto& j){ j["world"]["roads_removed_total"]=1; });
@@ -278,7 +284,10 @@ int main() {
         mutate([](auto& j){ j["world"]["couriers"][1]["id"]=1; });
         mutate([](auto& j){ j["world"]["buildings"][1]["active_recipe_clay"]=0; });
         mutate([](auto& j){ j["world"]["buildings"][1]["reserved_incoming"]=0; });
+        mutate([](auto& j){ j["world"]["buildings"][1]["output"]=99; });
         mutate([](auto& j){ j["world"]["clay_extracted_total"]=0; });
+        overwrite(target,nlohmann::json::array({"valid JSON, wrong root"}));
+        rejects([&]{ (void)save::read_save(target); },"valid non-object save root accepted");
         { std::ofstream out(target); out<<"{\"format\":"; }
         rejects([&]{ (void)save::read_save(target); },"truncated JSON accepted");
         { std::ofstream out(target,std::ios::trunc); out<<std::string(8U*1024U*1024U+1,' '); }
