@@ -31,6 +31,15 @@ namespace openemperor {
 class SandboxView {
 public:
     struct WalkerDisplayStats {
+        struct Role {
+            bool configured=false;
+            std::array<bool,4> directions_configured{};
+            std::array<bool,4> directions_drawn{};
+            std::uint64_t draws=0;
+            std::uint64_t fallback_unmapped=0,fallback_invalid_edge=0;
+        };
+        std::uint32_t schema_version=0;
+        std::array<Role,3> roles{};
         std::array<bool,4> configured{};
         std::array<bool,4> moving_drawn{};
         std::size_t decoded_assets=0;
@@ -154,7 +163,9 @@ private:
     bool walker_visuals_enabled_=true;
     bool walker_diagnostic_open_=false, walker_diagnostic_zoom4_=true;
     bool walker_diagnostic_light_=false;
-    std::size_t walker_diagnostic_direction_=0, walker_diagnostic_step_=0;
+    std::size_t walker_diagnostic_role_=0,walker_diagnostic_direction_=0,
+                walker_diagnostic_step_=0;
+    std::array<WalkerDisplayStats::Role,3> walker_role_stats_{};
     std::array<bool,4> walker_moving_drawn_{};
     std::uint64_t walker_unmapped_fallbacks_=0, walker_invalid_edge_fallbacks_=0;
     std::filesystem::path building_manifest_;

@@ -12,8 +12,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -99,12 +101,13 @@ std::array<std::uint8_t,4> pixel(SDL_Renderer* renderer,int x,int y) {
 void profile_checks(Fixture& fixture) {
     fixture.save(fixture.valid());
     const auto profile=openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest);
-    check(profile.frames.size()==3 && profile.unique_images.size()==2,"physical frame dedup");
-    check(profile.frames[0].id.image_index==1 && profile.frames[1].id.image_index==3,
+    const auto& clay=*profile.find(openemperor::assets::WalkerVisualRole::Clay);
+    check(clay.frames.size()==3 && profile.unique_images.size()==2,"physical frame dedup");
+    check(clay.frames[0].id.image_index==1 && clay.frames[1].id.image_index==3,
           "physical SG3 indices shifted");
-    check(profile.frames[0].image_index==profile.frames[2].image_index,"shared asset not deduped");
-    check(profile.clips[0]==std::vector<std::size_t>({1,0,1}),"explicit clip order sorted");
-    auto invalid=fixture.valid();invalid["schema_version"]=2;fixture.save(invalid);
+    check(clay.frames[0].image_index==clay.frames[2].image_index,"shared asset not deduped");
+    check(clay.clips[0]==std::vector<std::size_t>({1,0,1}),"explicit clip order sorted");
+    auto invalid=fixture.valid();invalid["schema_version"]=3;fixture.save(invalid);
     rejects([&]{ openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest); },"version accepted");
     invalid=fixture.valid();invalid["clips"]["pos_x"]=Json::array();fixture.save(invalid);
     rejects([&]{ openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest); },"empty clip accepted");
@@ -154,6 +157,117 @@ void profile_checks(Fixture& fixture) {
     write(bitmap,restored);
     fixture.save(fixture.valid());
 }
+void multi_role_profile_checks(Fixture& fixture) {
+    using namespace openemperor;
+    auto clay=fixture.valid();
+    for (const char* field:{"schema_version","mode","role"}) clay.erase(field);
+    Json manifest={{"schema_version",2},{"mode","curated_walker_preview"},
+        {"roles",{{"clay",clay}}}};
+    fixture.save(manifest);
+    auto parsed=assets::load_walker_visual_profile(fixture.data,fixture.manifest);
+    check(parsed.schema_version==2 && parsed.find(assets::WalkerVisualRole::Clay) &&
+          !parsed.find(assets::WalkerVisualRole::Pottery),"schema-2 Clay-only profile");
+    manifest["roles"]["pottery"]=clay;
+    manifest["roles"]["pottery"]["ticks_per_frame"]=5;
+    fixture.save(manifest);
+    parsed=assets::load_walker_visual_profile(fixture.data,fixture.manifest);
+    check(parsed.find(assets::WalkerVisualRole::Pottery)->ticks_per_frame==5 &&
+          parsed.unique_images.size()==2 &&
+          parsed.find(assets::WalkerVisualRole::Clay)->frames[0].image_index==
+          parsed.find(assets::WalkerVisualRole::Pottery)->frames[0].image_index,
+          "role-scoped aliases or shared physical dedup failed");
+    manifest["roles"]["household"]=clay;
+    manifest["roles"]["household"]["ticks_per_frame"]=7;
+    fixture.save(manifest);
+    parsed=assets::load_walker_visual_profile(fixture.data,fixture.manifest);
+    check(parsed.find(assets::WalkerVisualRole::Household) &&
+          parsed.unique_images.size()==2,"three-role profile or global dedup failed");
+    check(walker_visual_role(simulation::CourierRole::Clay)==assets::WalkerVisualRole::Clay &&
+          walker_visual_role(simulation::CourierRole::Pottery)==assets::WalkerVisualRole::Pottery &&
+          walker_visual_role(simulation::CourierRole::Household)==assets::WalkerVisualRole::Household &&
+          !walker_visual_role(simulation::CourierRole::None),"CourierRole mapping");
+    simulation::CourierState courier;
+    courier.id=static_cast<simulation::CourierId>(5);
+    courier.role=simulation::CourierRole::Pottery;
+    courier.enabled=true;courier.phase=simulation::CourierPhase::ToWarehouse;
+    courier.path={{2,2},{3,2}};
+    check(walker_pose(courier,4,parsed).role==assets::WalkerVisualRole::Pottery &&
+          walker_pose(courier,4,parsed).frame==1 &&
+          walker_pose(courier,5,parsed).frame==0,
+          "unusual CourierId selected wrong role/tick rate");
+    courier.role=simulation::CourierRole::Household;
+    check(walker_pose(courier,5,parsed).role==assets::WalkerVisualRole::Household &&
+          walker_pose(courier,5,parsed).frame==1 &&
+          walker_pose(courier,7,parsed).frame==0,"Household role/tick rate");
+    for (const auto visual_role:{assets::WalkerVisualRole::Clay,
+                                assets::WalkerVisualRole::Pottery,
+                                assets::WalkerVisualRole::Household}) {
+        courier.role=visual_role==assets::WalkerVisualRole::Clay ? simulation::CourierRole::Clay:
+            visual_role==assets::WalkerVisualRole::Pottery ? simulation::CourierRole::Pottery:
+                simulation::CourierRole::Household;
+        for (const auto [from,to,direction]:{
+                 std::tuple{simulation::Cell{2,2},simulation::Cell{3,2},assets::StorageDirection::PosX},
+                 std::tuple{simulation::Cell{3,2},simulation::Cell{2,2},assets::StorageDirection::NegX},
+                 std::tuple{simulation::Cell{2,2},simulation::Cell{2,3},assets::StorageDirection::PosY},
+                 std::tuple{simulation::Cell{2,3},simulation::Cell{2,2},assets::StorageDirection::NegY}}) {
+            courier.path={from,to};courier.route_pending=false;
+            const auto pose=walker_pose(courier,0,parsed);
+            check(pose.role==visual_role && pose.direction==direction && pose.moving &&
+                  pose.frame.has_value(),"role-specific direction pose missing");
+        }
+        courier.route_pending=true;courier.edge_progress=1;
+        check(walker_pose(courier,1,parsed).moving,"begun protected edge stopped");
+        courier.edge_progress=0;
+        check(!walker_pose(courier,1,parsed).moving,"waiting role animated");
+        courier.route_pending=false;courier.path={{2,2}};
+        check(!walker_pose(courier,1,parsed).moving,"one-point role animated");
+        courier.path={{2,2},{3,3}};
+        check(walker_pose(courier,1,parsed).fallback==WalkerFallback::InvalidEdge,
+              "diagonal role edge accepted");
+    }
+    auto invalid=manifest;invalid["roles"]["trader"]=clay;fixture.save(invalid);
+    rejects([&]{assets::load_walker_visual_profile(fixture.data,fixture.manifest);},
+        "unknown role accepted");
+    invalid=manifest;invalid["roles"]["pottery"]["clips"]=Json::object();fixture.save(invalid);
+    rejects([&]{assets::load_walker_visual_profile(fixture.data,fixture.manifest);},
+        "role without clips accepted");
+    invalid=manifest;invalid["roles"]["pottery"]["idle"]="outside-role";fixture.save(invalid);
+    rejects([&]{assets::load_walker_visual_profile(fixture.data,fixture.manifest);},
+        "cross-role idle accepted");
+    invalid=manifest;
+    for (int i=0;i<255;++i) {
+        auto frame=clay["frames"][0];frame["alias"]="extra-"+std::to_string(i);
+        invalid["roles"]["pottery"]["frames"].push_back(frame);
+    }
+    fixture.save(invalid);
+    rejects([&]{assets::load_walker_visual_profile(fixture.data,fixture.manifest);},
+        "global frame budget accepted");
+    {
+        const auto archive_path=fixture.data/"DATA/walker.sg3";
+        std::ifstream input(archive_path,std::ios::binary);
+        Bytes metadata((std::istreambuf_iterator<char>(input)),std::istreambuf_iterator<char>());
+        const auto original=metadata;
+        u16(metadata,40680U+3U*72U+20U,4096);
+        u16(metadata,40680U+3U*72U+22U,4097);
+        write(archive_path,metadata);
+        fixture.save(manifest);
+        bool budget_rejected=false;
+        try { assets::load_walker_visual_profile(fixture.data,fixture.manifest); }
+        catch (const std::exception& error) {
+            budget_rejected=std::string_view(error.what()).find("RGBA budget")!=
+                std::string_view::npos;
+        }
+        check(budget_rejected,"global RGBA budget not enforced before decode");
+        write(archive_path,original);
+    }
+    {
+        std::ofstream out(fixture.manifest);
+        out<<R"({"schema_version":2,"mode":"curated_walker_preview","roles":{"clay":{},"clay":{}}})";
+    }
+    rejects([&]{assets::load_walker_visual_profile(fixture.data,fixture.manifest);},
+        "duplicate role key accepted");
+    fixture.save(fixture.valid());
+}
 void pose_checks(const openemperor::assets::WalkerVisualProfile& profile) {
     using namespace openemperor;
     simulation::CourierState courier;
@@ -184,7 +298,7 @@ void pose_checks(const openemperor::assets::WalkerVisualProfile& profile) {
     check(!walker_pose(courier,6,profile).moving,"idle courier animated");
     courier.path={{2,2},{4,2}};courier.phase=simulation::CourierPhase::Returning;
     check(walker_pose(courier,6,profile).fallback==WalkerFallback::InvalidEdge,"bad edge accepted");
-    auto partial=profile;partial.clips[0].clear();courier.path={{2,2},{3,2}};
+    auto partial=profile;partial.roles[0]->clips[0].clear();courier.path={{2,2},{3,2}};
     check(walker_pose(courier,6,partial).fallback==WalkerFallback::UnmappedDirection &&
           !walker_pose(courier,6,partial).frame,"unmapped direction hidden");
 }
@@ -196,22 +310,25 @@ void render_checks(const openemperor::assets::WalkerVisualProfile& profile) {
     openemperor::WalkerSpriteSet sprites;sprites.initialize(renderer,profile);
     check(sprites.texture_count()==2,"duplicate texture uploaded");
     check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer),"clear");
-    check(sprites.draw(0,{20,20},2,profile,{0,0},{80,80}),"draw red");
+    const auto& clay=*profile.find(openemperor::assets::WalkerVisualRole::Clay);
+    check(sprites.draw(0,{20,20},2,clay,profile,{0,0},{80,80}),"draw red");
     check(pixel(renderer,18,14)==std::array<std::uint8_t,4>({0,0,0,255}),"transparent pixel overwritten");
     check(pixel(renderer,20,20)[0]==255,"red foot placement");
     check(SDL_RenderClear(renderer),"clear second");
-    check(sprites.draw(1,{20,20},2,profile,{0,0},{80,80}),"draw green");
+    check(sprites.draw(1,{20,20},2,clay,profile,{0,0},{80,80}),"draw green");
     check(pixel(renderer,17,19)[1]==255 && pixel(renderer,23,21)[1]==255,
           "green frame size, anchor or full image lost");
     check(SDL_RenderClear(renderer),"clear cull");
-    check(sprites.draw(0,{20,81},2,profile,{0,0},{80,80}),"edge draw");
+    check(sprites.draw(0,{20,81},2,clay,profile,{0,0},{80,80}),"edge draw");
     check(pixel(renderer,20,75)[0]==255,"visible upper sprite culled with offscreen foot");
     sprites.shutdown();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
 }
 openemperor::assets::WalkerVisualProfile four_direction_profile() {
     using namespace openemperor::assets;
     WalkerVisualProfile profile;
-    profile.ticks_per_frame=3;profile.idle_frame=0;
+    profile.roles[0].emplace();
+    auto& clay=*profile.roles[0];
+    clay.ticks_per_frame=3;clay.idle_frame=0;
     constexpr std::array<std::array<std::uint8_t,4>,4> colors{{
         {{255,0,0,255}},{{0,255,0,255}},{{0,0,255,255}},{{255,255,0,255}}}};
     constexpr std::array<std::array<int,4>,4> geometry{{
@@ -232,7 +349,7 @@ openemperor::assets::WalkerVisualProfile four_direction_profile() {
         WalkerFrame frame;frame.alias="direction-"+std::to_string(i);
         frame.id={"DATA/synthetic.sg3",static_cast<std::uint32_t>(1+2*i)};
         frame.foot_x=foot_x;frame.foot_y=foot_y;frame.image_index=i;
-        profile.frames.push_back(frame);profile.clips[i]={i};
+        clay.frames.push_back(frame);clay.clips[i]={i};
     }
     return profile;
 }
@@ -243,13 +360,14 @@ void four_direction_pixels(const openemperor::assets::WalkerVisualProfile& profi
     check(SDL_CreateWindowAndRenderer("four direction pixels",100,100,SDL_WINDOW_HIDDEN,
                                       &window,&renderer),"software window");
     WalkerSpriteSet sprites;sprites.initialize(renderer,profile);
+    const auto& clay=*profile.find(assets::WalkerVisualRole::Clay);
     check(sprites.texture_count()==4,"four directions did not upload four distinct textures");
     constexpr std::array<std::array<std::uint8_t,3>,4> expected{{
         {{255,0,0}},{{0,255,0}},{{0,0,255}},{{255,255,0}}}};
     for (std::size_t i=0;i<4;++i) {
         check(SDL_SetRenderDrawColor(renderer,20,40,60,255) && SDL_RenderClear(renderer),"dark clear");
-        check(sprites.draw(i,{40,40},4,profile,{0,0},{100,100}),"direction draw");
-        const auto& frame=profile.frames[i];
+        check(sprites.draw(i,{40,40},4,clay,profile,{0,0},{100,100}),"direction draw");
+        const auto& frame=clay.frames[i];
         const int left=40-static_cast<int>(frame.foot_x)*4;
         const int top=40-static_cast<int>(frame.foot_y)*4;
         check(pixel(renderer,left,top)==std::array<std::uint8_t,4>({20,40,60,255}),
@@ -258,7 +376,7 @@ void four_direction_pixels(const openemperor::assets::WalkerVisualProfile& profi
         check(solid[0]==expected[i][0] && solid[1]==expected[i][1] &&
               solid[2]==expected[i][2],"direction color/anchor/texture modulation mismatch");
     }
-    const auto& half=profile.frames[3];
+    const auto& half=clay.frames[3];
     const int half_x=40-static_cast<int>(half.foot_x)*4+5;
     const int half_y=40-static_cast<int>(half.foot_y)*4+5;
     const auto dark=pixel(renderer,half_x,half_y);
@@ -266,11 +384,57 @@ void four_direction_pixels(const openemperor::assets::WalkerVisualProfile& profi
     check(near(dark[0],60) && near(dark[1],20) && near(dark[2],130),
           "half-alpha dark blend differs from straight-alpha expectation");
     check(SDL_SetRenderDrawColor(renderer,200,220,240,255) && SDL_RenderClear(renderer) &&
-          sprites.draw(3,{40,40},4,profile,{0,0},{100,100}),"light blend render");
+          sprites.draw(3,{40,40},4,clay,profile,{0,0},{100,100}),"light blend render");
     const auto light=pixel(renderer,half_x,half_y);
     check(near(light[0],150) && near(light[1],110) && near(light[2],220),
           "half-alpha light blend or texture modulation mismatch");
     sprites.shutdown();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
+}
+void multi_role_pixels() {
+    using namespace openemperor;
+    assets::WalkerVisualProfile profile;
+    profile.schema_version=2;
+    for (const auto color:{std::array<std::uint8_t,4>{0,255,255,255},
+                          std::array<std::uint8_t,4>{255,0,255,255},
+                          std::array<std::uint8_t,4>{0,255,0,255}}) {
+        assets::RgbaImage image;image.width=2;image.height=2;
+        for (int i=0;i<4;++i) image.pixels.insert(image.pixels.end(),color.begin(),color.end());
+        profile.unique_images.push_back(std::move(image));
+    }
+    for (std::size_t r=0;r<3;++r) {
+        auto& role=profile.roles[r].emplace();
+        role.ticks_per_frame=static_cast<std::uint32_t>(r+2);
+        assets::WalkerFrame frame;
+        frame.alias="same-alias";frame.id={"DATA/synthetic.sg3",static_cast<std::uint32_t>(1+2*r)};
+        frame.image_index=r;frame.foot_x=0;frame.foot_y=0;
+        role.frames.push_back(frame);
+        for (auto& clip:role.clips) clip={0};
+    }
+    check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL init");
+    SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
+    check(SDL_CreateWindowAndRenderer("multi role pixels",64,64,SDL_WINDOW_HIDDEN,
+                                      &window,&renderer),"software window");
+    WalkerSpriteSet sprites;sprites.initialize(renderer,profile);
+    check(sprites.texture_count()==3,"three role textures not uploaded");
+    for (std::size_t r=0;r<3;++r) {
+        check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer),"clear");
+        const auto& role=*profile.roles[r];
+        check(sprites.draw(0,{10,10},4,role,profile,{0,0},{64,64}),"role sprite draw");
+        const auto expected=r==0 ? std::array<std::uint8_t,4>{0,255,255,255}:
+            r==1 ? std::array<std::uint8_t,4>{255,0,255,255}:
+                std::array<std::uint8_t,4>{0,255,0,255};
+        check(pixel(renderer,12,12)==expected,"role chose wrong physical texture");
+    }
+    sprites.shutdown();
+    check(sprites.texture_count()==0,"texture leak after session cleanup");
+    profile.unique_images.pop_back();
+    profile.roles[2]->frames[0].image_index=0;
+    profile.roles[2]->frames[0].id=profile.roles[0]->frames[0].id;
+    sprites.initialize(renderer,profile);
+    check(sprites.texture_count()==2,"shared physical AssetId uploaded twice");
+    sprites.shutdown();
+    check(sprites.texture_count()==0,"shared texture survived session shutdown");
+    SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
 }
 void simulation_neutrality(const openemperor::assets::WalkerVisualProfile& profile) {
     using namespace openemperor::simulation;
@@ -312,15 +476,81 @@ void simulation_neutrality(const openemperor::assets::WalkerVisualProfile& profi
           plain.production_balance_valid() && decorated.production_balance_valid(),
           "bent transport did not traverse all four storage directions");
 }
+void industry_multi_role_neutrality(openemperor::assets::WalkerVisualProfile profile) {
+    using namespace openemperor;
+    using namespace openemperor::simulation;
+    profile.roles[1]=profile.roles[0];profile.roles[2]=profile.roles[0];
+    profile.roles[1]->ticks_per_frame=4;profile.roles[2]->ticks_per_frame=5;
+    const std::vector<std::uint8_t> mask(20U*8U,1);
+    const auto setup=[&]() {
+        World world(20,8,mask,RulesProfile::IndustryV5);
+        const auto put=[&](CommandType type,int x,int y) {
+            check(world.execute({type,{x,y}}).accepted,"industry fixture placement");
+        };
+        put(CommandType::PlaceClaySource,0,3);
+        put(CommandType::PlaceRoad,1,3);put(CommandType::PlaceRoad,2,3);
+        put(CommandType::PlacePottery,3,3);
+        put(CommandType::PlaceRoad,4,3);put(CommandType::PlaceRoad,5,3);
+        put(CommandType::PlaceWarehouse,6,3);
+        put(CommandType::PlaceRoad,7,3);put(CommandType::PlaceRoad,8,3);
+        put(CommandType::PlaceHousehold,9,3);
+        put(CommandType::PlaceRoad,1,5);put(CommandType::PlaceRoad,2,5);
+        put(CommandType::PlaceRoad,2,4);
+        put(CommandType::PlaceClaySource,0,5);
+        put(CommandType::PlaceRoad,4,5);put(CommandType::PlaceRoad,5,5);
+        put(CommandType::PlaceRoad,6,5);put(CommandType::PlaceRoad,6,4);
+        put(CommandType::PlacePottery,3,5);
+        return world;
+    };
+    auto control=setup(),decorated=setup();
+    std::array<bool,3> moving_seen{},loaded_seen{},returning_seen{};
+    for (int tick=0;tick<4000;++tick) {
+        control.tick();decorated.tick();
+        bool visuals_on=tick%37<19,inspector_open=tick%41<7;
+        for (int repeat=0;repeat<4;++repeat) {
+            for (int id=1;id<=5;++id) {
+                const auto& courier=decorated.courier(static_cast<CourierId>(id));
+                const auto role=walker_visual_role(courier.role);
+                check(role.has_value(),"industry courier missing role");
+                const auto pose=walker_pose(courier,decorated.ticks(),profile);
+                check(pose.role==role,"pose followed CourierId instead of role");
+                const auto index=assets::walker_role_index(*role);
+                moving_seen[index]=moving_seen[index] || pose.moving;
+                loaded_seen[index]=loaded_seen[index] || courier.cargo>0;
+                returning_seen[index]=returning_seen[index] ||
+                    courier.phase==CourierPhase::Returning;
+                if (visuals_on && inspector_open)
+                    check(pose.frame==walker_pose(courier,decorated.ticks(),profile).frame,
+                          "visual-only role inspection changed pose");
+            }
+        }
+        check(control.snapshot()==decorated.snapshot(),"multi-role render query changed World");
+        if (tick==250 || tick==1400 || tick==2800) {
+            const auto saved=decorated.snapshot();
+            auto restored=World::restore(saved,mask);
+            check(restored.snapshot()==saved,"industry multi-role restore mismatch");
+            for (int id=1;id<=5;++id)
+                check(walker_pose(restored.courier(static_cast<CourierId>(id)),
+                    restored.ticks(),profile).frame==
+                    walker_pose(decorated.courier(static_cast<CourierId>(id)),
+                    decorated.ticks(),profile).frame,"multi-role restored pose mismatch");
+        }
+    }
+    check(std::all_of(moving_seen.begin(),moving_seen.end(),[](bool b){return b;}) &&
+          std::all_of(loaded_seen.begin(),loaded_seen.end(),[](bool b){return b;}) &&
+          std::all_of(returning_seen.begin(),returning_seen.end(),[](bool b){return b;}),
+          "not all industry roles moved loaded and returned");
+}
 }
 void local_red_check(const fs::path& root,const fs::path& manifest) {
     const auto profile=openemperor::assets::load_walker_visual_profile(root,manifest);
-    const auto frame=std::find_if(profile.frames.begin(),profile.frames.end(),[](const auto& candidate) {
+    const auto& clay=*profile.find(openemperor::assets::WalkerVisualRole::Clay);
+    const auto frame=std::find_if(clay.frames.begin(),clay.frames.end(),[](const auto& candidate) {
         return candidate.id.archive_relative_path==fs::path("DATA/SprMain.sg3") &&
             candidate.id.image_index==109;
     });
-    check(frame!=profile.frames.end(),"local red check requires physical SprMain record 109");
-    const auto frame_index=static_cast<std::size_t>(frame-profile.frames.begin());
+    check(frame!=clay.frames.end(),"local red check requires physical SprMain record 109");
+    const auto frame_index=static_cast<std::size_t>(frame-clay.frames.begin());
     const auto& image=profile.unique_images.at(frame->image_index);
     check(image.width>24 && image.height>30,"local red sample outside image");
     const auto source=static_cast<std::size_t>(30*image.width+24)*4;
@@ -334,7 +564,7 @@ void local_red_check(const fs::path& root,const fs::path& manifest) {
     const auto sample=[&](std::array<std::uint8_t,3> background) {
         check(SDL_SetRenderDrawColor(renderer,background[0],background[1],background[2],255) &&
               SDL_RenderClear(renderer),"local background clear");
-        check(sprites.draw(frame_index,{frame->foot_x,frame->foot_y},1,profile,{0,0},{100,100}),
+        check(sprites.draw(frame_index,{frame->foot_x,frame->foot_y},1,clay,profile,{0,0},{100,100}),
               "local sprite draw");
         return std::array{pixel(renderer,24,30),pixel(renderer,0,0)};
     };
@@ -352,10 +582,11 @@ int main(int argc,char* argv[]) {
         if (argc==4 && std::string_view(argv[1])=="--local-red-check") {
             local_red_check(argv[2],argv[3]);return 0;
         }
-        Fixture fixture;profile_checks(fixture);
+        Fixture fixture;profile_checks(fixture);multi_role_profile_checks(fixture);
         auto profile=openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest);
         pose_checks(profile);render_checks(profile);
-        const auto four=four_direction_profile();four_direction_pixels(four);simulation_neutrality(four);
+        const auto four=four_direction_profile();four_direction_pixels(four);multi_role_pixels();
+        simulation_neutrality(four);industry_multi_role_neutrality(four);
         std::cout<<"walker profile, pose, software pixels and neutral World checks passed\n";
         return 0;
     } catch (const std::exception& error) { std::cerr<<error.what()<<'\n';return 1; }

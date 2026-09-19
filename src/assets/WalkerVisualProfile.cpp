@@ -5,6 +5,7 @@
 #include <fstream>
 #include <limits>
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <utility>
 
@@ -50,39 +51,30 @@ double anchor(const nlohmann::json& value) {
         throw std::runtime_error("walker foot anchor outside finite limit");
     return result;
 }
-}
-WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
-                                               const fs::path& manifest) {
-    std::error_code error;
-    const auto root=fs::canonical(data_root,error);
-    if (error || !fs::is_directory(root)) throw std::runtime_error("walker data root invalid");
-    if (!fs::is_regular_file(manifest) || fs::file_size(manifest)>max_manifest)
-        throw std::runtime_error("walker manifest missing or exceeds 1 MiB");
-    std::ifstream input(manifest,std::ios::binary);
-    if (!input) throw std::runtime_error("walker manifest cannot be read");
-    const auto json=nlohmann::json::parse(input);
-    if (!json.is_object() || !json.contains("schema_version") ||
-        !json.at("schema_version").is_number_integer() || json.at("schema_version")!=1 ||
-        json.value("mode",std::string{})!="curated_walker_preview" ||
-        json.value("role",std::string{})!="clay")
-        throw std::runtime_error("unsupported walker visual profile schema/mode/role");
-    if (!json.contains("ticks_per_frame") || !json.at("ticks_per_frame").is_number_unsigned())
-        throw std::runtime_error("walker ticks_per_frame must be positive");
-    WalkerVisualProfile result;
-    const auto tick_count=json.at("ticks_per_frame").get<std::uint64_t>();
-    if (tick_count>1000)
-        throw std::runtime_error("walker ticks_per_frame outside 1..1000");
-    result.ticks_per_frame=static_cast<std::uint32_t>(tick_count);
-    if (result.ticks_per_frame==0 || result.ticks_per_frame>1000)
-        throw std::runtime_error("walker ticks_per_frame outside 1..1000");
-    result.evidence=bounded_string(json,"evidence",512);
-    if (!json.contains("frames") || !json.at("frames").is_array() ||
-        json.at("frames").empty() || json.at("frames").size()>256)
-        throw std::runtime_error("walker frames must contain 1..256 aliases");
-    std::map<std::string,std::size_t> aliases;
+struct ParseState {
+    fs::path root;
+    WalkerVisualProfile profile;
     std::map<std::pair<std::string,std::uint32_t>,std::size_t> unique;
     std::map<std::string,Sg3Archive> archives;
     std::uint64_t rgba_bytes=0;
+    std::size_t aliases_total=0;
+};
+WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state) {
+    if (!json.is_object() || !json.contains("ticks_per_frame") ||
+        !json.at("ticks_per_frame").is_number_unsigned())
+        throw std::runtime_error("walker ticks_per_frame must be positive");
+    const auto tick_count=json.at("ticks_per_frame").get<std::uint64_t>();
+    if (tick_count==0 || tick_count>1000)
+        throw std::runtime_error("walker ticks_per_frame outside 1..1000");
+    WalkerRoleVisual role;
+    role.ticks_per_frame=static_cast<std::uint32_t>(tick_count);
+    role.evidence=bounded_string(json,"evidence",512);
+    if (!json.contains("frames") || !json.at("frames").is_array() ||
+        json.at("frames").empty() ||
+        json.at("frames").size()>256-state.aliases_total)
+        throw std::runtime_error("walker total frames must contain 1..256 aliases");
+    state.aliases_total+=json.at("frames").size();
+    std::map<std::string,std::size_t> aliases; // Scoped to this role only.
     for (const auto& item:json.at("frames")) {
         if (!item.is_object()) throw std::runtime_error("walker frame must be an object");
         WalkerFrame frame;
@@ -100,13 +92,13 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
             throw std::runtime_error("walker foot_anchor must contain x,y");
         frame.foot_x=anchor(item.at("foot_anchor").at(0));
         frame.foot_y=anchor(item.at("foot_anchor").at(1));
-        if (!aliases.emplace(frame.alias,result.frames.size()).second)
+        if (!aliases.emplace(frame.alias,role.frames.size()).second)
             throw std::runtime_error("duplicate walker frame alias: "+frame.alias);
         const auto name=frame.id.archive_relative_path.generic_string();
-        auto found=archives.find(name);
-        if (found==archives.end()) {
-            const auto path=checked_file(root,root/frame.id.archive_relative_path);
-            found=archives.emplace(name,read_sg3_archive(path)).first;
+        auto found=state.archives.find(name);
+        if (found==state.archives.end()) {
+            const auto path=checked_file(state.root,state.root/frame.id.archive_relative_path);
+            found=state.archives.emplace(name,read_sg3_archive(path)).first;
         }
         const auto& archive=found->second;
         if (frame.id.image_index>=archive.images.size())
@@ -117,26 +109,30 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
             metadata.width<=0 || metadata.height<=0)
             throw std::runtime_error("walker frame has unsupported sprite/mirror layout");
         const auto key=std::make_pair(name,frame.id.image_index);
-        if (const auto existing=unique.find(key);existing!=unique.end()) frame.image_index=existing->second;
+        if (const auto existing=state.unique.find(key);existing!=state.unique.end())
+            frame.image_index=existing->second;
         else {
+            if (state.profile.unique_images.size()>=256)
+                throw std::runtime_error("walker unique asset budget exceeded");
             const auto bytes=static_cast<std::uint64_t>(metadata.width)*
                 static_cast<std::uint64_t>(metadata.height)*4U;
-            if (bytes>max_rgba-rgba_bytes) throw std::runtime_error("walker RGBA budget exceeded");
-            const auto archive_path=checked_file(root,root/frame.id.archive_relative_path);
+            if (bytes>max_rgba-state.rgba_bytes)
+                throw std::runtime_error("walker RGBA budget exceeded");
+            const auto archive_path=checked_file(state.root,state.root/frame.id.archive_relative_path);
             const auto bitmap=resolve_sg3_image_bitmap(archive_path,archive,metadata);
             if (bitmap.status!=Sg3BitmapStatus::Resolved)
                 throw std::runtime_error("walker .555 source unresolved or unsafe");
-            checked_file(root,bitmap.path);
+            checked_file(state.root,bitmap.path);
             auto rgba=load_sg3_image({archive_path,frame.id.image_index});
             if (rgba.width!=metadata.width || rgba.height!=metadata.height ||
                 rgba.pixels.size()!=bytes)
                 throw std::runtime_error("walker decoded dimensions differ from SG3 metadata");
-            rgba_bytes+=bytes;
-            frame.image_index=result.unique_images.size();
-            unique.emplace(key,frame.image_index);
-            result.unique_images.push_back(std::move(rgba));
+            state.rgba_bytes+=bytes;
+            frame.image_index=state.profile.unique_images.size();
+            state.unique.emplace(key,frame.image_index);
+            state.profile.unique_images.push_back(std::move(rgba));
         }
-        result.frames.push_back(std::move(frame));
+        role.frames.push_back(std::move(frame));
     }
     if (!json.contains("clips") || !json.at("clips").is_object())
         throw std::runtime_error("walker clips missing");
@@ -150,16 +146,79 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
             if (!value.is_string()) throw std::runtime_error("walker clip alias must be a string");
             const auto found=aliases.find(value.get<std::string>());
             if (found==aliases.end()) throw std::runtime_error("walker clip references missing alias");
-            result.clips[direction].push_back(found->second);
+            role.clips[direction].push_back(found->second);
         }
     }
-    if (result.clips[0].empty() && result.clips[1].empty() &&
-        result.clips[2].empty() && result.clips[3].empty())
+    if (role.clips[0].empty() && role.clips[1].empty() &&
+        role.clips[2].empty() && role.clips[3].empty())
         throw std::runtime_error("walker profile has no mapped moving direction");
     const auto idle=bounded_string(json,"idle",64);
     const auto found=aliases.find(idle);
     if (found==aliases.end()) throw std::runtime_error("walker idle frame alias missing");
-    result.idle_frame=found->second;
-    return result;
+    role.idle_frame=found->second;
+    return role;
+}
+std::optional<WalkerVisualRole> named_role(const std::string& name) {
+    if (name=="clay") return WalkerVisualRole::Clay;
+    if (name=="pottery") return WalkerVisualRole::Pottery;
+    if (name=="household") return WalkerVisualRole::Household;
+    return std::nullopt;
+}
+} // namespace
+
+const char* walker_role_name(WalkerVisualRole role) {
+    switch (role) {
+    case WalkerVisualRole::Clay: return "clay";
+    case WalkerVisualRole::Pottery: return "pottery";
+    case WalkerVisualRole::Household: return "household";
+    }
+    return "unknown";
+}
+
+WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
+                                               const fs::path& manifest) {
+    std::error_code error;
+    const auto root=fs::canonical(data_root,error);
+    if (error || !fs::is_directory(root)) throw std::runtime_error("walker data root invalid");
+    if (!fs::is_regular_file(manifest) || fs::file_size(manifest)>max_manifest)
+        throw std::runtime_error("walker manifest missing or exceeds 1 MiB");
+    std::ifstream input(manifest,std::ios::binary);
+    if (!input) throw std::runtime_error("walker manifest cannot be read");
+    std::vector<std::set<std::string>> object_keys;
+    const auto reject_duplicates=[&](int,nlohmann::json::parse_event_t event,
+                                     nlohmann::json& value) {
+        if (event==nlohmann::json::parse_event_t::object_start) object_keys.emplace_back();
+        else if (event==nlohmann::json::parse_event_t::object_end) object_keys.pop_back();
+        else if (event==nlohmann::json::parse_event_t::key &&
+                 !object_keys.back().insert(value.get<std::string>()).second)
+            throw std::runtime_error("duplicate walker manifest key");
+        return true;
+    };
+    const auto json=nlohmann::json::parse(input,reject_duplicates);
+    if (!json.is_object() || !json.contains("schema_version") ||
+        !json.at("schema_version").is_number_integer() ||
+        json.value("mode",std::string{})!="curated_walker_preview")
+        throw std::runtime_error("unsupported walker visual profile schema/mode");
+    const auto version=json.at("schema_version").get<std::int64_t>();
+    if (version!=1 && version!=2)
+        throw std::runtime_error("unsupported walker visual profile schema version");
+    ParseState state;
+    state.root=root;
+    state.profile.schema_version=static_cast<std::uint32_t>(version);
+    if (version==1) {
+        if (json.value("role",std::string{})!="clay")
+            throw std::runtime_error("schema-1 walker role must be clay");
+        state.profile.roles[walker_role_index(WalkerVisualRole::Clay)]=parse_role(json,state);
+    } else {
+        if (!json.contains("roles") || !json.at("roles").is_object() ||
+            json.at("roles").empty() || json.at("roles").size()>3)
+            throw std::runtime_error("walker roles must contain 1..3 roles");
+        for (const auto& [name,value]:json.at("roles").items()) {
+            const auto role=named_role(name);
+            if (!role) throw std::runtime_error("unknown walker visual role: "+name);
+            state.profile.roles[walker_role_index(*role)]=parse_role(value,state);
+        }
+    }
+    return std::move(state.profile);
 }
 }

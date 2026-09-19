@@ -156,6 +156,33 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 {"save_resume_equal",resume_check ? nlohmann::json(direct_equal && continued_equal):
                     nlohmann::json()}};
         };
+        const auto walker_visuals_report=[&]() {
+            const auto stats=view.walker_display_stats();
+            constexpr const char* directions[]={"pos_x","neg_x","pos_y","neg_y"};
+            nlohmann::json configured=nlohmann::json::array();
+            nlohmann::json roles=nlohmann::json::object();
+            for (std::size_t r=0;r<3;++r) {
+                const auto name=assets::walker_role_name(static_cast<assets::WalkerVisualRole>(r));
+                const auto& role=stats.roles[r];
+                if (role.configured) configured.push_back(name);
+                nlohmann::json mapped=nlohmann::json::array(),drawn=nlohmann::json::array();
+                for (std::size_t d=0;d<4;++d) {
+                    if (role.directions_configured[d]) mapped.push_back(directions[d]);
+                    if (role.directions_drawn[d]) drawn.push_back(directions[d]);
+                }
+                roles[name]={{"configured",role.configured},{"directions_configured",mapped},
+                    {"directions_drawn",drawn},{"draws",role.draws},
+                    {"fallback_unmapped",role.fallback_unmapped},
+                    {"fallback_invalid_edge",role.fallback_invalid_edge}};
+            }
+            return nlohmann::json{{"schema_version",stats.schema_version},
+                {"configured_roles",configured},{"unique_assets",stats.decoded_assets},
+                {"texture_uploads",stats.texture_uploads},{"roles",roles},
+                {"simulation_equal_to_control",simulation_neutral},
+                {"manual_visual_review",false},
+                {"save_resume_equal",resume_check ? nlohmann::json(direct_equal && continued_equal):
+                    nlohmann::json()}};
+        };
         const auto& world=view.world();
         const auto origin=view.demo_origin();
         if (simulation::production_profile(rules)) {
@@ -222,7 +249,10 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"sandbox_before_stored_count",painter.sandbox_before_stored_count},
                     {"stored_order_builds",painter.stored_order_builds},
                     {"manual_visual_review",false}};
-                if (!walker_visuals.empty()) report["walker"]=walker_report();
+                if (!walker_visuals.empty()) {
+                    report["walker"]=walker_report(); // Schema-1 check compatibility.
+                    report["walker_visuals"]=walker_visuals_report();
+                }
                 if (!building_visuals.empty()) {
                     const auto stats=view.building_display_stats();
                     nlohmann::json roles=nlohmann::json::array();

@@ -15,6 +15,7 @@ public:
     void initialize(SDL_Renderer* renderer,const assets::WalkerVisualProfile& profile);
     void shutdown();
     bool draw(std::size_t frame,scene::Point ground,double zoom,
+              const assets::WalkerRoleVisual& role_visual,
               const assets::WalkerVisualProfile& profile,
               scene::Point clip_min,scene::Point clip_max) const;
     std::size_t texture_count() const { return textures_.size(); }

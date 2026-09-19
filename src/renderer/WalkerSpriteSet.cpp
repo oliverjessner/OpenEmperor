@@ -28,9 +28,10 @@ void WalkerSpriteSet::shutdown() {
     textures_.clear(); renderer_=nullptr;
 }
 bool WalkerSpriteSet::draw(std::size_t frame,scene::Point ground,double zoom,
+                           const assets::WalkerRoleVisual& role_visual,
                            const assets::WalkerVisualProfile& profile,
                            scene::Point clip_min,scene::Point clip_max) const {
-    const auto& selected=profile.frames.at(frame);
+    const auto& selected=role_visual.frames.at(frame);
     const auto& image=profile.unique_images.at(selected.image_index);
     const SDL_FRect destination{static_cast<float>(ground.x-selected.foot_x*zoom),
         static_cast<float>(ground.y-selected.foot_y*zoom),

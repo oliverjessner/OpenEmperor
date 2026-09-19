@@ -80,6 +80,46 @@ std::filesystem::path walker_fixture(const Temp& temp) {
     check(static_cast<bool>(out),"walker manifest write");
     return path;
 }
+std::filesystem::path multi_role_walker_fixture(const Temp& temp) {
+    Bytes sg3(40680U+6U*72U,0);
+    u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,214);
+    u32(sg3,12,6);u32(sg3,16,6);u32(sg3,20,1);
+    const std::string name="synthetic.bmp";
+    std::copy(name.begin(),name.end(),sg3.begin()+680);u32(sg3,680+124,6);
+    Bytes bitmap{0,0,0,0};
+    for (const auto [index,color]:{std::pair{1U,std::uint16_t{0x03ff}},
+                                  std::pair{3U,std::uint16_t{0x7c1f}},
+                                  std::pair{5U,std::uint16_t{0x03e0}}}) {
+        const auto at=40680U+index*72U;
+        u32(sg3,at,static_cast<std::uint32_t>(bitmap.size()));u32(sg3,at+4,10);
+        u16(sg3,at+20,2);u16(sg3,at+22,2);u16(sg3,at+50,256);
+        for (int row=0;row<2;++row) {
+            bitmap.push_back(2);
+            for (int column=0;column<2;++column) {
+                bitmap.push_back(static_cast<std::uint8_t>(color));
+                bitmap.push_back(static_cast<std::uint8_t>(color>>8U));
+            }
+        }
+    }
+    write(temp.path/"DATA/multi-walker.sg3",sg3);
+    write(temp.path/"DATA/multi-walker.555",bitmap);
+    nlohmann::json roles=nlohmann::json::object();
+    for (const auto [role,index]:{std::pair{"clay",1},std::pair{"pottery",3},
+                                 std::pair{"household",5}}) {
+        roles[role]={{"ticks_per_frame",4},{"evidence","Synthetic role color"},
+            {"frames",nlohmann::json::array({{{"alias","only"},
+                {"archive","DATA/multi-walker.sg3"},{"image_index",index},
+                {"foot_anchor",{1,1}}}})},
+            {"clips",{{"pos_x",{"only"}},{"neg_x",{"only"}},
+                {"pos_y",{"only"}},{"neg_y",{"only"}}}},
+            {"idle","only"}};
+    }
+    const auto path=temp.path/"multi-walker.json";
+    std::ofstream out(path);
+    out<<nlohmann::json{{"schema_version",2},{"mode","curated_walker_preview"},
+                         {"roles",roles}}.dump();
+    check(bool(out),"multi-role manifest write");return path;
+}
 std::filesystem::path building_fixture(const Temp& temp) {
     Bytes sg3(40680U+4U*72U,0);
     u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,214);
@@ -513,11 +553,11 @@ int main() {
             for (int yy=-4;yy<=4;++yy) for (int xx=-4;xx<=4;++xx) {
                 const auto color=pixel(renderer,static_cast<int>(screen.x)+xx,
                                         static_cast<int>(screen.y)+yy);
-                if (profile.frames[*pose.frame].alias=="red")
+                if (profile.find(openemperor::assets::WalkerVisualRole::Clay)->frames[*pose.frame].alias=="red")
                     found_color|=color[0]>220 && color[1]<80 && color[2]<80;
                 else found_color|=color[1]>220 && color[0]<80 && color[2]<80;
             }
-            if (profile.frames[*pose.frame].alias=="red") {
+            if (profile.find(openemperor::assets::WalkerVisualRole::Clay)->frames[*pose.frame].alias=="red") {
                 check(found_color,"red walker pixel missing");
                 saw_red=true;
             } else {
@@ -550,8 +590,10 @@ int main() {
         const auto diagnostic_x=production_view.layout().map.x+8*production_view.layout().scale;
         const auto diagnostic_y=production_view.layout().map.y+8*production_view.layout().scale;
         const auto scale=production_view.layout().scale;
+        const auto diagnostic_ground_x=diagnostic_x+
+            std::min(470*scale,production_view.layout().map.w-16*scale)-105*scale;
         const auto diagnostic_pixel=[&] {
-            return pixel(renderer,diagnostic_x+150*scale-2*scale,diagnostic_y+300*scale-2*scale);
+            return pixel(renderer,diagnostic_ground_x-2*scale,diagnostic_y+300*scale-2*scale);
         };
         const auto first_preview=diagnostic_pixel();
         check(first_preview[0]>220 && first_preview[1]<80,
@@ -677,13 +719,13 @@ int main() {
         openemperor::SandboxView industry_view(fixture(temp,true,true,true),true,
             simulation::RulesProfile::IndustryV5);
         industry_view.configure_save(temp.path,"Cities/Synthetic.map",save_path);
-        industry_view.set_walker_visuals(walker_manifest);
+        industry_view.set_walker_visuals(multi_role_walker_fixture(temp));
         const auto building_manifest=building_fixture(temp);
         const auto road_manifest=road_fixture(temp);
         industry_view.set_building_visuals(building_manifest);
         industry_view.set_road_visuals(road_manifest);
         industry_view.initialize(window,renderer);
-        check(industry_view.walker_texture_count()==2,"second clay courier duplicated textures");
+        check(industry_view.walker_texture_count()==3,"industry role textures missing or duplicated");
         check(industry_view.building_texture_count()==4 &&
               openemperor::BuildingSprite::live_texture_count()==4,
               "four roles did not share four textures");
@@ -713,6 +755,43 @@ int main() {
         check(industry_view.render() && industry_view.last_courier_draws()==5 &&
               industry_view.world().building(static_cast<simulation::BuildingId>(9)).recipes_completed>0,
               "v5 software frame did not draw five couriers and active second pottery");
+        std::array<bool,3> role_pixels{};
+        for (int step=0;step<300 && !std::all_of(role_pixels.begin(),role_pixels.end(),
+                [](bool seen){return seen;});++step) {
+            industry_view.tick_once();marker_control.tick_once();
+            check(industry_view.world().snapshot()==marker_control.world().snapshot() &&
+                  industry_view.render(),"multi-role render changed Industry World");
+            for (int id=1;id<=5;++id) {
+                const auto courier_id=static_cast<simulation::CourierId>(id);
+                const auto& courier=industry_view.world().courier(courier_id);
+                const auto visual_role=openemperor::walker_visual_role(courier.role);
+                if (!visual_role) continue;
+                const auto courier_position=industry_view.world().courier_position(courier_id);
+                if (!courier_position) continue;
+                const double grid_u=courier_position->x-72,grid_v=courier_position->y-72;
+                const auto ground=industry_view.camera().world_to_screen(
+                    {(grid_u-grid_v)*40,(grid_u+grid_v)*20+20});
+                int render_width=0,render_height=0;
+                check(SDL_GetRenderOutputSize(renderer,&render_width,&render_height),
+                      "renderer output size");
+                if (ground.x<1 || ground.y<1 || ground.x>=render_width-1 ||
+                    ground.y>=render_height-1) continue;
+                const auto sample=pixel(renderer,static_cast<int>(ground.x),
+                                        static_cast<int>(ground.y));
+                const auto role_index=openemperor::assets::walker_role_index(*visual_role);
+                role_pixels[role_index]=role_pixels[role_index] ||
+                    (role_index==0 ? sample[1]>220 && sample[2]>220 && sample[0]<80:
+                     role_index==1 ? sample[0]>220 && sample[2]>220 && sample[1]<80:
+                                     sample[1]>220 && sample[0]<80 && sample[2]<80);
+            }
+        }
+        check(std::all_of(role_pixels.begin(),role_pixels.end(),[](bool seen){return seen;}),
+              "one CourierRole lacked its synthetic color in SDL pixels");
+        const auto walker_roles=industry_view.walker_display_stats();
+        check(walker_roles.schema_version==2 && walker_roles.decoded_assets==3 &&
+              walker_roles.texture_uploads==3 && walker_roles.roles[0].draws>0 &&
+              walker_roles.roles[1].draws>0 && walker_roles.roles[2].draws>0,
+              "five Industry couriers did not share three role textures");
         const auto building_stats=industry_view.building_display_stats();
         check(building_stats.configured && building_stats.decoded_assets==4 &&
               building_stats.texture_uploads==4 &&

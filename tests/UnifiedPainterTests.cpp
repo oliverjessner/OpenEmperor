@@ -164,13 +164,15 @@ void run_case(SDL_Renderer* renderer,const Temp& temp,unsigned side) {
     const auto screen=camera.world_to_screen(fixture.sample);
     const auto sx=static_cast<int>(screen.x),sy=static_cast<int>(screen.y);
     const auto red=SDL_Color{255,0,0,255};
-    for (int direction : {-1,0,1}) {
+    const std::array<SDL_Color,3> role_colors{{{0,255,255,255},{255,0,255,255},
+                                               {0,0,255,255}}};
+    for (std::size_t role=0;role<role_colors.size();++role) for (int direction : {-1,1}) {
         // Both sprite rectangles cover the same green upper pixel. Only their
         // projected ground depth changes; their image tops are not sort keys.
         const scene::Point walker_ground{fixture.ground.x,
                                          fixture.ground.y+direction*20.0};
         const SandboxItem walker{{walker_ground.y,walker_ground.x,
-                                  scene::WorldVisualLayer::SandboxWalker,1},red};
+                                  scene::WorldVisualLayer::SandboxWalker,role+1},role_colors[role]};
         const std::array<SandboxItem,1> sandbox{walker};
         scene::WorldMergeStats stats;
         check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer),
@@ -178,12 +180,13 @@ void run_case(SDL_Renderer* renderer,const Temp& temp,unsigned side) {
         map.begin_frame();
         check(scene::merge_world_draw_streams(map.draw_items(),sandbox,
             [&](std::size_t i) { return map.draw_item(i,camera); },
-            [&](std::size_t) { return draw_marker(renderer,camera,walker_ground,red); },stats),
+            [&](std::size_t) { return draw_marker(renderer,camera,walker_ground,role_colors[role]); },stats),
             "draw merged map and walker");
         const auto actual=pixel(renderer,sx,sy);
         const bool map_in_front=direction<0;
         check(map_in_front ? actual==std::array<std::uint8_t,4>{0,255,0,255}:
-                             actual==std::array<std::uint8_t,4>{255,0,0,255},
+                             actual==std::array<std::uint8_t,4>{role_colors[role].r,
+                                 role_colors[role].g,role_colors[role].b,255},
               "ground depth did not control actual SDL occlusion pixel");
         check(stats.stored_items_visited==1 && stats.sandbox_items==1 &&
               stats.stored_before_sandbox_count==static_cast<unsigned>(!map_in_front) &&

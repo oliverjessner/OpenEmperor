@@ -165,7 +165,7 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest) {
     }
     if (!renderer_) { walker_manifest_=manifest; return; }
     if (!simulation::production_profile(rules_))
-        throw std::runtime_error("Clay walker visuals require a production sandbox profile");
+        throw std::runtime_error("walker visuals require a production sandbox profile");
     auto profile=assets::load_walker_visual_profile(data_root_,manifest);
     auto textures=std::make_unique<WalkerSpriteSet>();
     textures->initialize(renderer_,profile);
@@ -173,25 +173,36 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest) {
     walker_profile_=std::move(profile);
     walker_manifest_=manifest;
     walker_visuals_enabled_=true;
+    walker_role_stats_={};
     walker_moving_drawn_.fill(false);
     walker_unmapped_fallbacks_=walker_invalid_edge_fallbacks_=0;
-    walker_diagnostic_direction_=walker_diagnostic_step_=0;
-    last_message_="Curated Clay walker preview active";
+    walker_diagnostic_role_=walker_diagnostic_direction_=walker_diagnostic_step_=0;
+    last_message_="Curated walker previews active";
 }
 SandboxView::WalkerDisplayStats SandboxView::walker_display_stats() const {
     WalkerDisplayStats stats;
     if (walker_profile_) {
-        for (std::size_t i=0;i<4;++i) stats.configured[i]=!walker_profile_->clips[i].empty();
+        stats.schema_version=walker_profile_->schema_version;
+        for (std::size_t role=0;role<3;++role) {
+            const auto& visual=walker_profile_->roles[role];
+            stats.roles[role]=walker_role_stats_[role];
+            stats.roles[role].configured=visual.has_value();
+            if (visual) for (std::size_t direction=0;direction<4;++direction)
+                stats.roles[role].directions_configured[direction]=
+                    !visual->clips[direction].empty();
+        }
+        stats.configured=stats.roles[0].directions_configured;
         stats.decoded_assets=walker_profile_->unique_images.size();
         std::vector<bool> seen(stats.decoded_assets,false);
-        for (const auto& frame:walker_profile_->frames)
-            if (!seen.at(frame.image_index)) {
-                seen[frame.image_index]=true;
-                stats.decoded_frame_ids.push_back(frame.id);
-            }
+        for (const auto& visual:walker_profile_->roles) if (visual)
+            for (const auto& frame:visual->frames)
+                if (!seen.at(frame.image_index)) {
+                    seen[frame.image_index]=true;
+                    stats.decoded_frame_ids.push_back(frame.id);
+                }
     }
     stats.texture_uploads=walker_texture_count();
-    stats.moving_drawn=walker_moving_drawn_;
+    stats.moving_drawn=stats.roles[0].directions_drawn;
     stats.unmapped_fallbacks=walker_unmapped_fallbacks_;
     stats.invalid_edge_fallbacks=walker_invalid_edge_fallbacks_;
     return stats;
@@ -569,7 +580,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_F1) perform_action(sandbox_ui::Action::ToggleDebug);
         else if (event.key.key==SDLK_F2 && walker_profile_) {
             walker_visuals_enabled_=!walker_visuals_enabled_;
-            last_message_=walker_visuals_enabled_ ? "Clay walker preview ON" : "Clay walker preview OFF";
+            last_message_=walker_visuals_enabled_ ? "Walker visuals ON" : "Walker visuals OFF";
         }
         else if (event.key.key==SDLK_F3 && walker_profile_) {
             walker_diagnostic_open_=!walker_diagnostic_open_;
@@ -592,14 +603,21 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             last_message_=unified_depth_ ? "Depth painter: unified":"Depth painter: legacy";
         }
         else if (walker_diagnostic_open_ && walker_profile_) {
-            if (event.key.key==SDLK_Q || event.key.key==SDLK_BACKSLASH) {
+            if (event.key.key==SDLK_V) {
+                walker_diagnostic_role_=(walker_diagnostic_role_+1)%3;
+                walker_diagnostic_step_=0;
+            } else if (event.key.key==SDLK_Q || event.key.key==SDLK_BACKSLASH) {
                 walker_diagnostic_direction_=(walker_diagnostic_direction_+1)%4;
                 walker_diagnostic_step_=0;
             } else if (event.key.key==SDLK_E || event.key.key==SDLK_RIGHTBRACKET)
                 ++walker_diagnostic_step_;
             else if (event.key.key==SDLK_C || event.key.key==SDLK_LEFTBRACKET) {
-                const auto& clip=walker_profile_->clips[walker_diagnostic_direction_];
-                if (!clip.empty()) walker_diagnostic_step_=(walker_diagnostic_step_+clip.size()-1)%clip.size();
+                const auto& role=walker_profile_->roles[walker_diagnostic_role_];
+                if (role) {
+                    const auto& clip=role->clips[walker_diagnostic_direction_];
+                    if (!clip.empty())
+                        walker_diagnostic_step_=(walker_diagnostic_step_+clip.size()-1)%clip.size();
+                }
             } else if (event.key.key==SDLK_X) walker_diagnostic_zoom4_=!walker_diagnostic_zoom4_;
             else if (event.key.key==SDLK_B) walker_diagnostic_light_=!walker_diagnostic_light_;
         }
@@ -866,47 +884,60 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         ++last_courier_draws_;
         return true;
     };
-    const auto draw_clay=[&](simulation::CourierId id,simulation::Position position,
-                            SDL_Color marker_color,int marker_shift)->bool {
+    const auto draw_courier=[&](simulation::CourierId id,simulation::Position position,
+                               SDL_Color marker_color,SDL_Color cargo_color,
+                               int marker_shift)->bool {
         const auto& courier=world_->courier(id);
-        if (walker_visuals_active() && walker_sprites_ &&
-            courier.role==simulation::CourierRole::Clay) {
-            const auto pose=walker_pose(courier,world_->ticks(),*walker_profile_);
+        const auto visual_role=walker_visual_role(courier.role);
+        const auto* visual=visual_role && walker_profile_ ?
+            walker_profile_->find(*visual_role):nullptr;
+        if (walker_visuals_active() && walker_sprites_ && visual) {
+            const auto role_index=assets::walker_role_index(*visual_role);
+            const auto pose=walker_pose(courier,world_->ticks(),*visual);
             const auto ground=camera_.world_to_screen(world_for(position));
             if (pose.frame) {
-                if (!walker_sprites_->draw(*pose.frame,ground,camera_.zoom,*walker_profile_,
+                if (!walker_sprites_->draw(*pose.frame,ground,camera_.zoom,*visual,*walker_profile_,
                     {static_cast<double>(layout_.map.x),static_cast<double>(layout_.map.y)},
                     {static_cast<double>(layout_.map.x+layout_.map.w),
                      static_cast<double>(layout_.map.y+layout_.map.h)})) return false;
-                if (pose.moving && pose.direction) {
-                    const auto& frame=walker_profile_->frames[*pose.frame];
-                    const auto& image=walker_profile_->unique_images[frame.image_index];
-                    const double left=ground.x-frame.foot_x*camera_.zoom;
-                    const double top=ground.y-frame.foot_y*camera_.zoom;
-                    if (left+image.width*camera_.zoom>layout_.map.x &&
-                        top+image.height*camera_.zoom>layout_.map.y &&
-                        left<layout_.map.x+layout_.map.w &&
-                        top<layout_.map.y+layout_.map.h)
-                        walker_moving_drawn_[assets::direction_index(*pose.direction)]=true;
+                const auto& frame=visual->frames[*pose.frame];
+                const auto& image=walker_profile_->unique_images[frame.image_index];
+                const double left=ground.x-frame.foot_x*camera_.zoom;
+                const double top=ground.y-frame.foot_y*camera_.zoom;
+                const bool visible=left+image.width*camera_.zoom>layout_.map.x &&
+                    top+image.height*camera_.zoom>layout_.map.y &&
+                    left<layout_.map.x+layout_.map.w &&
+                    top<layout_.map.y+layout_.map.h;
+                if (visible) {
+                    ++walker_role_stats_[role_index].draws;
+                    if (pose.moving && pose.direction)
+                        walker_role_stats_[role_index].directions_drawn[
+                            assets::direction_index(*pose.direction)]=true;
                 }
                 if (pose.loaded) {
                     const float size=static_cast<float>(std::max(5.0,8.0*camera_.zoom));
                     const SDL_FRect cargo{static_cast<float>(ground.x)+size*.3F,
                         static_cast<float>(ground.y)-size*1.5F,size*.6F,size*.6F};
-                    if (!SDL_SetRenderDrawColor(renderer_,25,95,255,255) ||
+                    if (!SDL_SetRenderDrawColor(renderer_,cargo_color.r,cargo_color.g,
+                                                cargo_color.b,255) ||
                         !SDL_RenderFillRect(renderer_,&cargo)) return false;
                 }
                 ++last_courier_draws_;
                 return true;
             }
-            if (pose.fallback==WalkerFallback::UnmappedDirection) ++walker_unmapped_fallbacks_;
-            else if (pose.fallback==WalkerFallback::InvalidEdge) ++walker_invalid_edge_fallbacks_;
-            if (!draw_agent(position,{255,90,60,255},{25,95,255,255},courier.cargo,
+            if (pose.fallback==WalkerFallback::UnmappedDirection) {
+                ++walker_unmapped_fallbacks_;
+                ++walker_role_stats_[role_index].fallback_unmapped;
+            } else if (pose.fallback==WalkerFallback::InvalidEdge) {
+                ++walker_invalid_edge_fallbacks_;
+                ++walker_role_stats_[role_index].fallback_invalid_edge;
+            }
+            if (!draw_agent(position,{255,90,60,255},cargo_color,courier.cargo,
                             marker_shift)) return false;
             return SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
                 static_cast<float>(ground.y)-20,"W?");
         }
-        return draw_agent(position,marker_color,{25,95,255,255},courier.cargo,marker_shift);
+        return draw_agent(position,marker_color,cargo_color,courier.cargo,marker_shift);
     };
     const unsigned courier_count=!simulation::production_profile(rules_) ? 1U:
         rules_==simulation::RulesProfile::IndustryV5 ? 5U:
@@ -952,21 +983,16 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         const auto& courier=world_->courier(instance.courier);
         const auto pending=courier.route_pending;
-        if (courier.role==simulation::CourierRole::Clay) {
-            const SDL_Color color=pending ? SDL_Color{255,120,40,255}:
-                id==1 ? SDL_Color{100,240,255,255}:SDL_Color{50,175,255,255};
-            const int shift=id==1 ? -5:id==4 ? -10:10;
-            if (!draw_clay(instance.courier,position,color,shift)) return false;
-        } else {
-            const SDL_Color color=pending ? SDL_Color{255,120,40,255}:
-                id==2 ? SDL_Color{255,225,130,255}:
-                id==3 ? SDL_Color{110,255,130,255}:SDL_Color{225,145,255,255};
-            const SDL_Color cargo=id==3 ? SDL_Color{255,90,150,255}:
-                SDL_Color{240,45,190,255};
-            const int shift=id==2 ? 5:id==3 ? 0:id==4 ? -10:10;
-            if (!draw_agent(position,color,cargo,courier.cargo,shift)) return false;
-        }
-        return true;
+        const SDL_Color color=pending ? SDL_Color{255,120,40,255}:
+            courier.role==simulation::CourierRole::Clay ?
+                (id==1 ? SDL_Color{100,240,255,255}:SDL_Color{50,175,255,255}):
+            id==2 ? SDL_Color{255,225,130,255}:
+            id==3 ? SDL_Color{110,255,130,255}:SDL_Color{225,145,255,255};
+        const SDL_Color cargo=courier.role==simulation::CourierRole::Clay ?
+            SDL_Color{25,95,255,255}:courier.role==simulation::CourierRole::Household ?
+            SDL_Color{255,90,150,255}:SDL_Color{240,45,190,255};
+        const int shift=id==1 ? -5:id==2 ? 5:id==3 ? 0:id==4 ? -10:10;
+        return draw_courier(instance.courier,position,color,cargo,shift);
     };
     painter_stats_={};
     painter_stats_.stored_order_builds=background_.stored_order_builds();
@@ -1174,9 +1200,18 @@ bool SandboxView::draw_hud() {
         layout_.top.w-200*layout_.scale)) return false;
     if (managed_ && !draw_text(layout_.top.w-82*layout_.scale,18*layout_.scale,
                                "[ MENU ]",80*layout_.scale)) return false;
-    const std::string status=road_start_ && !road_preview_.valid ? road_preview_.reason :
+    std::string status=road_start_ && !road_preview_.valid ? road_preview_.reason :
         last_message_.empty() ? "OpenEmperor sandbox | Select a tool, then click the map" :
         last_message_;
+    if (walker_profile_) {
+        status+=" | Walkers ";
+        status+=walker_visuals_enabled_ ? "ON ":"OFF ";
+        for (std::size_t r=0;r<3;++r) {
+            if (r) status+=' ';
+            status+=assets::walker_role_name(static_cast<assets::WalkerVisualRole>(r));
+            status+=walker_profile_->roles[r] ? ":yes":":no";
+        }
+    }
     if (!draw_text(8*layout_.scale,layout_.status.y+7*layout_.scale,status,
                    layout_.status.w-16*layout_.scale)) return false;
     const auto label=[&](A action)->std::string {
@@ -1299,7 +1334,8 @@ bool SandboxView::draw_walker_diagnostic() {
     if (!walker_diagnostic_open_ || !walker_profile_ || !walker_sprites_) return true;
     const float scale=static_cast<float>(layout_.scale);
     const SDL_FRect panel{static_cast<float>(layout_.map.x)+8*scale,
-        static_cast<float>(layout_.map.y)+8*scale,300*scale,320*scale};
+        static_cast<float>(layout_.map.y)+8*scale,
+        std::min(470*scale,static_cast<float>(layout_.map.w)-16*scale),320*scale};
     if (!SDL_SetRenderDrawColor(renderer_,walker_diagnostic_light_ ? 232:22,
         walker_diagnostic_light_ ? 232:26,walker_diagnostic_light_ ? 220:34,255) ||
         !SDL_RenderFillRect(renderer_,&panel)) return false;
@@ -1309,16 +1345,19 @@ bool SandboxView::draw_walker_diagnostic() {
         "pos_y  left/down","neg_y  right/up"};
     const auto label=[&](int row,const std::string& value)->bool {
         return draw_text(panel.x+8*scale,panel.y+static_cast<float>(12+row*18)*scale,value,
-                         static_cast<int>(panel.w-16*scale));
+                         static_cast<int>(std::min(255*scale,panel.w-16*scale)));
     };
-    if (!label(0,"WALKER CLIP | F3 close") ||
+    const auto role=static_cast<assets::WalkerVisualRole>(walker_diagnostic_role_);
+    const auto* visual=walker_profile_->find(role);
+    if (!label(0,std::string("WALKER ")+assets::walker_role_name(role)+" | F3 close") ||
         !label(1,std::string(directions[walker_diagnostic_direction_])+
             (walker_diagnostic_zoom4_ ? "  4x":"  1x")) ||
-        !label(2,"Q dir  C/E frame  X 1/4  B bg")) return false;
-    const auto& clip=walker_profile_->clips[walker_diagnostic_direction_];
+        !label(2,"V role Q dir C/E X zoom B bg")) return false;
+    if (!visual) return label(3,"UNCONFIGURED - no original series");
+    const auto& clip=visual->clips[walker_diagnostic_direction_];
     if (clip.empty()) return label(3,"UNMAPPED - no image selected");
     const auto step=walker_diagnostic_step_%clip.size();
-    const auto& frame=walker_profile_->frames[clip[step]];
+    const auto& frame=visual->frames[clip[step]];
     const auto& image=walker_profile_->unique_images[frame.image_index];
     const auto compact=[](double value) {
         auto text=std::to_string(value);
@@ -1329,13 +1368,16 @@ bool SandboxView::draw_walker_diagnostic() {
     if (!label(3,"Physical #"+std::to_string(frame.id.image_index)+"  step "+
         std::to_string(step+1)+"/"+std::to_string(clip.size())) ||
         !label(4,"Size "+std::to_string(image.width)+"x"+std::to_string(image.height)+
-            "  foot "+compact(frame.foot_x)+","+compact(frame.foot_y))) return false;
+            "  foot "+compact(frame.foot_x)+","+compact(frame.foot_y)) ||
+        !label(5,frame.id.archive_relative_path.generic_string()) ||
+        !label(6,"tick/frame "+std::to_string(visual->ticks_per_frame)+" | "+visual->evidence))
+        return false;
     const double zoom=(walker_diagnostic_zoom4_ ? 4.0:1.0)*layout_.scale;
-    const scene::Point ground{panel.x+150*scale,panel.y+300*scale};
+    const scene::Point ground{panel.x+panel.w-105*scale,panel.y+300*scale};
     const SDL_FRect bounds{static_cast<float>(ground.x-frame.foot_x*zoom),
         static_cast<float>(ground.y-frame.foot_y*zoom),
         static_cast<float>(image.width*zoom),static_cast<float>(image.height*zoom)};
-    if (!walker_sprites_->draw(clip[step],ground,zoom,*walker_profile_,
+    if (!walker_sprites_->draw(clip[step],ground,zoom,*visual,*walker_profile_,
             {panel.x,panel.y},{panel.x+panel.w,panel.y+panel.h}) ||
         !SDL_SetRenderDrawColor(renderer_,20,210,245,255) ||
         !SDL_RenderRect(renderer_,&bounds)) return false;
