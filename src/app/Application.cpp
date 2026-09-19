@@ -5,6 +5,7 @@
 #include "app/MapBrowser.h"
 #include "app/SandboxView.h"
 #include "app/MenuSession.h"
+#include "core/Version.h"
 
 #include "renderer/TitleScreen.h"
 #include "renderer/ImagePreview.h"
@@ -39,7 +40,8 @@ bool Application::initialize() {
     }
     sdl_initialized_ = true;
 
-    if (!SDL_CreateWindowAndRenderer("OpenEmperor", browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ || menu_ ? 1100 : 800,
+    const std::string title = "OpenEmperor - " + std::string(version::display);
+    if (!SDL_CreateWindowAndRenderer(title.c_str(), browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ || menu_ ? 1100 : 800,
                                      browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ || menu_ ? 700 : 450,
                                      scene_ || map_debug_ || map_browser_ || sandbox_ || menu_ ? SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY : 0,
                                      &window_, &renderer_)) {

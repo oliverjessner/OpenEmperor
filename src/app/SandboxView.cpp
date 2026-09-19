@@ -519,7 +519,10 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         cancel_gesture();
         ++io_generation_;
         try { if (action==A::Save) save_now(); else load_now(); }
-        catch (const std::exception& error) { last_message_=error.what(); }
+        catch (const std::exception& error) {
+            last_message_=(action==A::Save ? "Save failed: ":"Load failed: ")+
+                std::string(error.what());
+        }
     } else if (action==A::TogglePanel) {
         cancel_gesture();
         panel_open_=!panel_open_;
@@ -549,13 +552,21 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         cancel_gesture(); resize_camera(); return;
     }
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+        if (event.key.key==SDLK_H || event.key.key==SDLK_QUESTION) {
+            cancel_gesture();
+            help_open_=!help_open_;
+            last_message_=help_open_ ? "Help opened; press H or ? to close":"Help closed";
+            return;
+        }
         if (event.key.key==SDLK_ESCAPE) {
+            if (help_open_) { help_open_=false; last_message_="Help closed"; return; }
             if (map_pressed_ || road_start_ || pressed_button_ || ui_pressed_ || menu_pressed_)
                 cancel_gesture();
             else if (managed_) menu_requested_=true;
             else running=false;
             return;
         }
+        if (help_open_) return;
         if (event.key.key>=SDLK_1 && event.key.key<=
             (simulation::household_profile(rules_) ? SDLK_7 :
              rules_==simulation::RulesProfile::ProductionV2 ? SDLK_6 : SDLK_4))
@@ -622,6 +633,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             else if (event.key.key==SDLK_B) walker_diagnostic_light_=!walker_diagnostic_light_;
         }
     }
+    if (help_open_) return;
     if (event.type==SDL_EVENT_MOUSE_WHEEL) {
         const auto point=render_point(event.wheel.mouse_x,event.wheel.mouse_y);
         if (point) {
@@ -1382,6 +1394,38 @@ bool SandboxView::draw_walker_diagnostic() {
         SDL_RenderLine(renderer_,gx-5*scale,gy,gx+5*scale,gy) &&
         SDL_RenderLine(renderer_,gx,gy-5*scale,gx,gy+5*scale);
 }
+bool SandboxView::draw_help_overlay() {
+    if (!help_open_) return true;
+    const int margin=12*layout_.scale;
+    const int x=layout_.map.x+margin;
+    const int y=layout_.map.y+margin;
+    const int width=std::max(0,layout_.map.w-2*margin);
+    const int height=std::max(0,std::min(layout_.map.h-2*margin,250*layout_.scale));
+    if (width<=0 || height<=0) return true;
+    const SDL_FRect panel{static_cast<float>(x),static_cast<float>(y),
+        static_cast<float>(width),static_cast<float>(height)};
+    if (!SDL_SetRenderDrawColor(renderer_,12,19,30,248) || !SDL_RenderFillRect(renderer_,&panel) ||
+        !SDL_SetRenderDrawColor(renderer_,235,241,248,255)) return false;
+    const int pad=12*layout_.scale;
+    const int line=16*layout_.scale;
+    const int column=std::max(160*layout_.scale,(width-3*pad)/2);
+    const auto text=[&](int col,int row,const std::string& value)->bool {
+        return draw_text(x+pad+col*column,y+pad+row*line,value,column-pad);
+    };
+    return text(0,0,"HELP - H / ? closes") &&
+        text(0,2,"GAMEPLAY") && text(0,3,"1 Road | 2 Clay | 3 Pottery") &&
+        text(0,4,"4 Store | 5 Select") && text(0,5,"6 Remove road | 7 House") &&
+        text(0,6,"Space Pause | . Single step") && text(0,7,"+ / - Simulation speed") &&
+        text(0,8,"F5 Save | F9 Load") &&
+        text(0,10,"CAMERA AND MENU") && text(0,11,"WASD / Arrow keys Move") &&
+        text(0,12,"Mouse wheel Zoom | R Reset") && text(0,13,"Tab Info panel | Esc Menu") &&
+        text(1,2,"ADVANCED VISUAL DIAGNOSTICS") &&
+        text(1,3,"F2 Walker graphics") && text(1,4,"F3 Walker frame inspector") &&
+        text(1,5,"F4 Building graphics") && text(1,6,"F6 Road graphics") &&
+        text(1,7,"F7 Depth comparison") &&
+        text(1,9,"DEBUG") && text(1,10,"F1 Runtime debug overlay") &&
+        text(1,12,"These views are diagnostic") && text(1,13,"and do not change the world.");
+}
 bool SandboxView::render() {
     resize_camera();
     if (!SDL_SetRenderViewport(renderer_,nullptr) ||
@@ -1398,7 +1442,7 @@ bool SandboxView::render() {
             draw_world(render_camera);
         if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
     }
-    const bool ui_ok=draw_hud() && draw_walker_diagnostic();
+    const bool ui_ok=draw_hud() && draw_walker_diagnostic() && draw_help_overlay();
     const bool reset=SDL_SetRenderClipRect(renderer_,nullptr) &&
         SDL_SetRenderViewport(renderer_,nullptr) && SDL_SetRenderScale(renderer_,1,1);
     if (!ui_ok || !reset) return false;

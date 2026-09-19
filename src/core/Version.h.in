@@ -1,0 +1,14 @@
+#pragma once
+
+#include <string_view>
+
+namespace openemperor::version {
+
+inline constexpr std::string_view display = "@OPENEMPEROR_DISPLAY_VERSION@";
+inline constexpr std::string_view project = "@PROJECT_VERSION@";
+inline constexpr std::string_view revision = "@OPENEMPEROR_GIT_REVISION@";
+inline constexpr bool dirty = @OPENEMPEROR_GIT_DIRTY@;
+inline constexpr std::string_view build_type = "@OPENEMPEROR_CONFIGURED_BUILD_TYPE@";
+inline constexpr std::string_view target = "@OPENEMPEROR_BUILD_TARGET@";
+
+} // namespace openemperor::version

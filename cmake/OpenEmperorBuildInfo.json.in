@@ -1,0 +1,9 @@
+{
+  "display_version": "@OPENEMPEROR_DISPLAY_VERSION@",
+  "project_version": "@PROJECT_VERSION@",
+  "revision": "@OPENEMPEROR_GIT_REVISION@",
+  "dirty": @OPENEMPEROR_GIT_DIRTY@,
+  "architecture": "@OPENEMPEROR_BUILD_ARCHITECTURE@",
+  "build_type": "@OPENEMPEROR_CONFIGURED_BUILD_TYPE@",
+  "deployment_target": "@OPENEMPEROR_DEPLOYMENT_TARGET@"
+}

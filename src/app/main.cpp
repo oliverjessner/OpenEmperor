@@ -19,6 +19,7 @@
 #include "maps/MapCatalog.h"
 #include "maps/StoredMapSession.h"
 #include "persistence/SandboxSave.h"
+#include "core/Version.h"
 
 #include <nlohmann/json.hpp>
 
@@ -74,6 +75,15 @@ void print_usage(const char* executable) {
 } // namespace
 
 int main(int argc, char* argv[]) {
+    if (argc == 2 && std::string_view(argv[1]) == "--version") {
+        std::cout << "OpenEmperor " << openemperor::version::display << "\n"
+                  << "project " << openemperor::version::project << "\n"
+                  << "revision " << openemperor::version::revision
+                  << (openemperor::version::dirty ? " dirty\n" : " clean\n")
+                  << "build " << openemperor::version::build_type << " "
+                  << openemperor::version::target << '\n';
+        return 0;
+    }
     if (argc>1 && std::string_view(argv[1])=="--menu-check") return run_menu_check(argc,argv);
     namespace fs = std::filesystem;
     bool data_supplied = false;

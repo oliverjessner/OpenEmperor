@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a reproducible problem in OpenEmperor
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not upload original Emperor game files, the GOG installer, or proprietary assets.**
+        An OpenEmperor save may be attached when it helps reproduce the issue.
+  - type: input
+    id: version
+    attributes:
+      label: OpenEmperor version
+      placeholder: 0.1.0-alpha.1, including revision if shown
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Mac model / Apple Silicon generation
+      description: Optional, for example M2 Mac mini.
+  - type: input
+    id: map
+    attributes:
+      label: Map
+      placeholder: Xia.map
+    validations:
+      required: true
+  - type: dropdown
+    id: visual_profiles
+    attributes:
+      label: Optional visual JSON profiles enabled?
+      options:
+        - None
+        - Walker only
+        - Building only
+        - Road only
+        - Two profiles
+        - All three profiles
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Exact steps to reproduce
+      placeholder: Numbered steps starting from launch.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Crash or error text
+      description: Paste relevant OpenEmperor terminal output. Remove private paths first.

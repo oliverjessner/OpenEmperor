@@ -126,11 +126,11 @@ int main(int argc,char* argv[]) {
             local.sandbox()->tick_once(); key(local,SDLK_F5);
             check(fs::exists(local.sandbox()->save_path()),"local save not written");
             const auto expected=local.sandbox()->world().snapshot();
-            key(local,SDLK_ESCAPE); click(local,90,220); click(local,480,250);
+            key(local,SDLK_ESCAPE); click(local,90,310); click(local,480,250);
             click(local,90,650); finish_load(local);
             if (local.state()!=Menu::State::Playing) throw std::runtime_error("second local map load: "+local.message());
             check(local.settings().last_map!="Cities/Xia.map","local map selection did not change");
-            key(local,SDLK_ESCAPE); click(local,90,310); click(local,90,560); finish_load(local);
+            key(local,SDLK_ESCAPE); click(local,90,400); click(local,90,560); finish_load(local);
             check(local.state()==Menu::State::Playing && local.sandbox()->paused() &&
                   local.sandbox()->world().snapshot()==expected,"local saved Xia world not restored");
             local.shutdown();
@@ -152,7 +152,9 @@ int main(int argc,char* argv[]) {
             click(menu,90,286);
             std::thread worker([&]{ dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
                 (t.root/"invalid").string()}); }); worker.join(); menu.advance();
-            check(menu.state()==Menu::State::DataSetup && menu.message().find("invalid")!=std::string::npos,
+            check(menu.state()==Menu::State::DataSetup &&
+                  menu.message().find("installed or extracted")!=std::string::npos &&
+                  menu.message().find("GOG installer")!=std::string::npos,
                   "invalid root not reported");
             click(menu,90,286);
             std::thread valid([&]{ dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
@@ -188,10 +190,22 @@ int main(int argc,char* argv[]) {
                   menu.message().find("road manifest")!=std::string::npos,
                   "missing road profile did not reject activation");
             click(menu,500,910); // Clear the independent road selection.
+            {
+                std::ifstream stored(t.root/"app/settings.json");
+                const std::string settings_text((std::istreambuf_iterator<char>(stored)),{});
+                check(settings_text.find("missing-walker") == std::string::npos &&
+                      settings_text.find("missing-building") == std::string::npos &&
+                      settings_text.find("missing-roads") == std::string::npos,
+                      "session-only visual profile leaked into settings");
+            }
             click(menu,90,650); // Start
             finish_load(menu);
             if (!(menu.state()==Menu::State::Playing && menu.sandbox()))
                 throw std::runtime_error("sandbox not opened: "+menu.message());
+            check(!menu.sandbox()->walker_visuals_active() &&
+                  !menu.sandbox()->building_visuals_active() &&
+                  !menu.sandbox()->road_visuals_active(),
+                  "new sandbox unexpectedly required optional visual profiles");
             const auto first_save=menu.sandbox()->save_path();
             check(!fs::exists(first_save),"new sandbox wrote save prematurely");
             const auto& mask=menu.sandbox()->buildable_mask();
@@ -214,13 +228,13 @@ int main(int argc,char* argv[]) {
             key(menu,SDLK_ESCAPE);
             check(menu.state()==Menu::State::MainMenu,"escape did not open menu");
             menu.update(10.0); check(menu.sandbox()->world().ticks()==tick,"menu advanced world");
-            click(menu,90,400); // Resume
+            click(menu,90,220); // Continue
             check(menu.state()==Menu::State::Playing && menu.sandbox()->world().ticks()==tick,
                   "resume changed world");
             key(menu,SDLK_F5);
             check(fs::exists(first_save) && !menu.sandbox()->dirty(),"explicit save failed");
             const auto saved=menu.sandbox()->world().snapshot();
-            key(menu,SDLK_ESCAPE); click(menu,90,220); // Main, New
+            key(menu,SDLK_ESCAPE); click(menu,90,310); // Main, New
             click(menu,480,250); // Next map, Cities/B.map
             click(menu,90,650); finish_load(menu);
             check(menu.state()==Menu::State::Playing && menu.sandbox()->save_path()!=first_save,
@@ -229,7 +243,7 @@ int main(int argc,char* argv[]) {
             const auto second_save=menu.sandbox()->save_path();
             check(!fs::exists(second_save),"unsaved second session created file");
             menu.update(0.5); const auto second_tick=menu.sandbox()->world().ticks();
-            key(menu,SDLK_ESCAPE); click(menu,90,310); // Main, Load
+            key(menu,SDLK_ESCAPE); click(menu,90,400); // Main, Load
             check(menu.state()==Menu::State::LoadSandbox,"load list not opened");
             click(menu,90,560); finish_load(menu); // Open selected
             check(menu.state()==Menu::State::ConfirmLeave &&
@@ -237,7 +251,7 @@ int main(int argc,char* argv[]) {
             click(menu,90,515); // Cancel
             check(menu.state()==Menu::State::MainMenu && menu.sandbox()->world().ticks()==second_tick,
                   "cancel lost prior session");
-            click(menu,90,310); click(menu,90,560); finish_load(menu);
+            click(menu,90,400); click(menu,90,560); finish_load(menu);
             click(menu,90,425); // Without saving
             if (!(menu.state()==Menu::State::Playing && menu.sandbox() && menu.sandbox()->paused() &&
                   menu.sandbox()->world().snapshot()==saved))
@@ -251,12 +265,19 @@ int main(int argc,char* argv[]) {
             Menu restarted({},t.root/"app",std::move(fake_restart));
             restarted.initialize(window,renderer);
             check(restarted.state()==Menu::State::MainMenu,"restart did not read settings");
-            click(restarted,90,310); click(restarted,90,560); finish_load(restarted);
+            click(restarted,90,220); click(restarted,90,650); finish_load(restarted);
+            check(restarted.state()==Menu::State::Playing &&
+                  !restarted.sandbox()->walker_visuals_active() &&
+                  !restarted.sandbox()->building_visuals_active() &&
+                  !restarted.sandbox()->road_visuals_active(),
+                  "restart depended on a deleted optional visual profile");
+            key(restarted,SDLK_ESCAPE); click(restarted,90,400);
+            click(restarted,90,560); finish_load(restarted);
             check(restarted.state()==Menu::State::Playing && restarted.sandbox()->paused(),"restart load failed");
             const auto baseline=restarted.sandbox()->world().snapshot();
             const auto external=t.root/"external.json";
             fs::copy_file(restarted.sandbox()->save_path(),external);
-            key(restarted,SDLK_ESCAPE); click(restarted,90,310);
+            key(restarted,SDLK_ESCAPE); click(restarted,90,400);
             click(restarted,480,555); // Open external save dialog
             check(static_cast<bool>(restart_dialog->callback),"external save dialog missing");
             restart_dialog->answer({openemperor::menu::DialogResult::Kind::Selected,external.string()});
@@ -299,10 +320,11 @@ int main(int argc,char* argv[]) {
             finish_load(malformed);
             check(malformed.state()==Menu::State::Playing,"valid save could not load beside corrupt one");
             const auto retained=malformed.sandbox()->world().snapshot();
-            key(malformed,SDLK_ESCAPE); click(malformed,90,310); click(malformed,90,560);
+            key(malformed,SDLK_ESCAPE); click(malformed,90,400); click(malformed,90,560);
             finish_load(malformed);
             check(malformed.state()==Menu::State::LoadSandbox && malformed.sandbox() &&
-                  malformed.sandbox()->world().snapshot()==retained,
+                  malformed.sandbox()->world().snapshot()==retained &&
+                  malformed.message().find("Save could not be loaded")!=std::string::npos,
                   "corrupt save replaced retained session");
             malformed.shutdown();
             const auto preferences=t.root/"app/settings.json";

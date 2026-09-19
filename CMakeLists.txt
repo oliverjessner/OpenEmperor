@@ -2,6 +2,55 @@ cmake_minimum_required(VERSION 3.24)
 
 project(OpenEmperor VERSION 0.1.0 LANGUAGES C CXX)
 
+# CMake's project version remains numeric for platform metadata. This display
+# version is the single source used by the executable and release packaging.
+set(OPENEMPEROR_DISPLAY_VERSION "0.1.0-alpha.1" CACHE STRING
+    "Human-readable OpenEmperor release version")
+
+execute_process(COMMAND git rev-parse --short=12 HEAD
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    RESULT_VARIABLE OPENEMPEROR_GIT_RESULT
+    OUTPUT_VARIABLE OPENEMPEROR_GIT_REVISION
+    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+if(NOT OPENEMPEROR_GIT_RESULT EQUAL 0)
+    set(OPENEMPEROR_GIT_REVISION "unknown")
+endif()
+execute_process(COMMAND git status --porcelain
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    RESULT_VARIABLE OPENEMPEROR_GIT_STATUS_RESULT
+    OUTPUT_VARIABLE OPENEMPEROR_GIT_STATUS
+    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+if(OPENEMPEROR_GIT_STATUS_RESULT EQUAL 0 AND OPENEMPEROR_GIT_STATUS STREQUAL "")
+    set(OPENEMPEROR_GIT_DIRTY false)
+else()
+    set(OPENEMPEROR_GIT_DIRTY true)
+endif()
+if(CMAKE_BUILD_TYPE)
+    set(OPENEMPEROR_CONFIGURED_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+else()
+    set(OPENEMPEROR_CONFIGURED_BUILD_TYPE "multi-config")
+endif()
+if(APPLE AND CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+    set(OPENEMPEROR_BUILD_TARGET "macOS arm64")
+else()
+    set(OPENEMPEROR_BUILD_TARGET "${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+if(CMAKE_OSX_ARCHITECTURES)
+    set(OPENEMPEROR_BUILD_ARCHITECTURE "${CMAKE_OSX_ARCHITECTURES}")
+else()
+    set(OPENEMPEROR_BUILD_ARCHITECTURE "${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+if(CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(OPENEMPEROR_DEPLOYMENT_TARGET "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+else()
+    set(OPENEMPEROR_DEPLOYMENT_TARGET "unspecified")
+endif()
+configure_file(src/core/Version.h.in generated/core/Version.h @ONLY)
+configure_file(cmake/OpenEmperorBuildInfo.json.in generated/BuildInfo.json @ONLY)
+add_library(openemperor-version INTERFACE)
+target_include_directories(openemperor-version INTERFACE
+    "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
 option(OPENEMPEROR_BUILD_MACOS_APP "Build the opt-in macOS application bundle" OFF)
 option(OPENEMPEROR_ENABLE_SANITIZERS
     "Instrument OpenEmperor targets with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
@@ -74,7 +123,7 @@ add_executable(openemperor
     src/renderer/RoadSpriteSet.cpp
 )
 target_include_directories(openemperor PRIVATE src)
-target_link_libraries(openemperor PRIVATE SDL3::SDL3)
+target_link_libraries(openemperor PRIVATE SDL3::SDL3 openemperor-version)
 openemperor_enable_warnings(openemperor)
 if(OPENEMPEROR_BUILD_MACOS_APP)
     set_target_properties(openemperor PROPERTIES
@@ -191,7 +240,7 @@ if(BUILD_TESTING)
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
     target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp)
-    target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-persistence SDL3::SDL3)
+    target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-persistence SDL3::SDL3 openemperor-version)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
     set_tests_properties(menu-session-flow PROPERTIES TIMEOUT 30)
@@ -358,4 +407,9 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-asset-browser-tests PRIVATE openemperor-sg3 SDL3::SDL3)
     openemperor_enable_warnings(openemperor-asset-browser-tests)
     add_test(NAME asset-browser-cache COMMAND openemperor-asset-browser-tests)
+
+    add_executable(openemperor-version-tests tests/VersionTests.cpp)
+    target_link_libraries(openemperor-version-tests PRIVATE openemperor-version)
+    openemperor_enable_warnings(openemperor-version-tests)
+    add_test(NAME release-version COMMAND openemperor-version-tests)
 endif()

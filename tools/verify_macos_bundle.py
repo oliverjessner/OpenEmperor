@@ -68,6 +68,24 @@ def verify(app, signature=True, required_arch="arm64"):
             raise ValueError("unlisted bundle item: " + relative)
     if not RESOURCE_FILES.issubset({p.name for p in (contents / "Resources").iterdir()}):
         raise ValueError("license or build info missing")
+    build_info_path = contents / "Resources" / "BuildInfo.json"
+    try:
+        build_info = json.loads(build_info_path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("invalid BuildInfo.json") from error
+    required_build_info = {"display_version", "project_version", "revision", "dirty",
+                           "architecture", "build_type", "deployment_target"}
+    if not required_build_info.issubset(build_info):
+        raise ValueError("BuildInfo.json lacks release provenance")
+    if (build_info["project_version"] != info.get("CFBundleShortVersionString") or
+            build_info["architecture"] != required_arch or
+            build_info["deployment_target"] != min_os or
+            not isinstance(build_info["dirty"], bool) or
+            not all(isinstance(build_info[key], str) and build_info[key]
+                    for key in required_build_info - {"dirty"})):
+        raise ValueError("BuildInfo.json conflicts with the bundle")
+    if any(Path(value).is_absolute() for value in build_info.values() if isinstance(value, str)):
+        raise ValueError("BuildInfo.json contains an absolute path")
     if len(macho) < 2:
         raise ValueError("expected embedded dynamic libraries")
     report = []
@@ -139,6 +157,7 @@ def verify(app, signature=True, required_arch="arm64"):
     if signature:
         run("codesign", "--verify", "--deep", "--strict", "--verbose=2", str(app))
     return {"bundle_id": info["CFBundleIdentifier"], "version": info["CFBundleShortVersionString"],
+            "display_version": build_info["display_version"],
             "declared_minimum_macos": min_os, "mach_o": report,
             "ad_hoc_signature_valid": bool(signature)}
 

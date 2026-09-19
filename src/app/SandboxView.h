@@ -107,6 +107,7 @@ public:
     bool take_menu_request() { const bool value=menu_requested_; menu_requested_=false; return value; }
     const std::filesystem::path& save_path() const { return save_path_; }
     bool paused() const { return clock_.paused(); }
+    bool help_open() const { return help_open_; }
     const sandbox_ui::Layout& layout() const { return layout_; }
     std::optional<simulation::BuildingId> selected_building() const;
     std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
@@ -129,6 +130,7 @@ private:
     bool draw_world(const scene::Camera2D& render_camera);
     bool draw_walker_diagnostic();
     bool draw_hud();
+    bool draw_help_overlay();
     bool draw_text(double x,double y,const std::string& text,int max_width);
     bool action_enabled(sandbox_ui::Action action) const;
     void perform_action(sandbox_ui::Action action);
@@ -157,6 +159,7 @@ private:
     bool map_pressed_=false;
     bool panel_open_=true;
     bool debug_open_=false;
+    bool help_open_=false;
     int panel_scroll_=0;
     std::optional<scene::Point> pointer_;
     std::string last_message_;

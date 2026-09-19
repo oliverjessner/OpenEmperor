@@ -1,6 +1,7 @@
 #include "app/MenuSession.h"
 #include "maps/StoredMapSession.h"
 #include "persistence/SandboxSave.h"
+#include "core/Version.h"
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
@@ -19,13 +20,22 @@ constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::Logisti
     simulation::RulesProfile::SettlementV4,simulation::RulesProfile::IndustryV5};
 const char* description(simulation::RulesProfile p) {
     switch (p) {
-    case simulation::RulesProfile::LogisticsV1: return "Goods: workshop, road, warehouse";
-    case simulation::RulesProfile::ProductionV2: return "Clay and pottery production";
-    case simulation::RulesProfile::HouseholdV3: return "One household and demand";
-    case simulation::RulesProfile::SettlementV4: return "Up to four households";
-    case simulation::RulesProfile::IndustryV5: return "Two clay and pottery producers";
+    case simulation::RulesProfile::LogisticsV1: return "Legacy prototype: goods delivery";
+    case simulation::RulesProfile::ProductionV2: return "Legacy prototype: clay and pottery";
+    case simulation::RulesProfile::HouseholdV3: return "Legacy prototype: one household";
+    case simulation::RulesProfile::SettlementV4: return "Legacy prototype: four households";
+    case simulation::RulesProfile::IndustryV5: return "Alpha default: complete industry loop";
     }
     return "";
+}
+std::string selection_label(const char* kind,const fs::path& path) {
+    std::string value=path.empty()?"not selected":path.filename().string();
+    if (value.size()>18) value=value.substr(0,15)+"...";
+    return std::string(kind)+": "+value;
+}
+std::string data_error(const std::exception& error) {
+    return "That folder is not an installed or extracted Emperor data folder. "
+           "Select the game folder, not the GOG installer file. Details: "+std::string(error.what());
 }
 }
 MenuSession::MenuSession(fs::path explicit_data,fs::path app_root,std::unique_ptr<DialogAdapter> dialog)
@@ -44,7 +54,7 @@ void MenuSession::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     const auto wanted=explicit_data_.empty()?settings_.data_root:explicit_data_;
     if (!wanted.empty()) {
         try { accept_data(wanted); }
-        catch (const std::exception& e) { state_=State::DataSetup; message_=e.what(); }
+        catch (const std::exception& e) { state_=State::DataSetup; message_=data_error(e); }
     }
     rebuild_buttons(); initialized_=true;
 }
@@ -86,7 +96,7 @@ void MenuSession::accept_data(const fs::path& path) {
 }
 void MenuSession::refresh_saves() {
     try { saves_=list_saves(app_root_); save_index_=0; save_scroll_=0; }
-    catch (const std::exception& e) { saves_={}; message_=e.what(); }
+    catch (const std::exception& e) { saves_={}; message_="Save list could not be read: "+std::string(e.what()); }
 }
 void MenuSession::open_dialog(DialogKind kind) {
     if (dialog_kind_!=DialogKind::None) return;
@@ -103,7 +113,7 @@ void MenuSession::open_dialog(DialogKind kind) {
                  kind==DialogKind::RoadVisualsFile)
             dialog_->open_visual_profile(window_,std::move(callback));
         else dialog_->open_file(window_,std::move(callback));
-    } catch (const std::exception& e) { dialog_kind_=DialogKind::None; message_=e.what(); }
+    } catch (const std::exception& e) { dialog_kind_=DialogKind::None; message_="File chooser could not open: "+std::string(e.what()); }
 }
 void MenuSession::start_new() {
     const auto& map=catalog_.entries.at(map_index_);
@@ -144,7 +154,10 @@ void MenuSession::finish_loading() {
         if (sandbox_ && sandbox_->dirty()) confirm_or(AfterConfirm::Replace);
         else commit_candidate();
     } catch (const std::exception& e) {
-        candidate_.reset(); message_=std::string("Sandbox load failed: ")+e.what(); set_state(return_state_);
+        candidate_.reset();
+        const auto subject=pending_save_path_.empty()?"Map or optional visual preview":"Save";
+        message_=std::string(subject)+" could not be loaded: "+e.what()+". Check the selected file and try again.";
+        set_state(return_state_);
     }
 }
 void MenuSession::commit_candidate() {
@@ -238,7 +251,9 @@ void MenuSession::perform(int action) {
             message_="Preferences reset"; rebuild_buttons(); break;
         case OpenMenu: set_state(State::MainMenu); message_="Session retained in memory"; break;
         }
-    } catch (const std::exception& e) { message_=e.what(); }
+    } catch (const std::exception& e) {
+        message_=(action==ConfirmSave ? "Save failed: ":"Action failed: ")+std::string(e.what());
+    }
 }
 void MenuSession::activate_button(int action) { pending_action_=action; }
 std::optional<SDL_FPoint> MenuSession::point(float x,float y) const {
@@ -306,7 +321,7 @@ void MenuSession::advance() {
         if (id!=dialog_generation_ || dialog_kind_==DialogKind::None) continue;
         const auto kind=dialog_kind_; dialog_kind_=DialogKind::None;
         if (result.kind==DialogResult::Kind::Cancelled) { message_="Selection cancelled"; continue; }
-        if (result.kind==DialogResult::Kind::Error) { message_=result.path; continue; }
+        if (result.kind==DialogResult::Kind::Error) { message_="File chooser failed: "+result.path; continue; }
         try {
             if (kind==DialogKind::Folder) accept_data(result.path);
             else if (kind==DialogKind::VisualsFile || kind==DialogKind::BuildingVisualsFile ||
@@ -322,7 +337,10 @@ void MenuSession::advance() {
                     "Building profile selected for this session":"Road profile selected for this session";
                 rebuild_buttons();
             } else start_load(result.path);
-        } catch (const std::exception& e) { message_=e.what(); }
+        } catch (const std::exception& e) {
+            message_=kind==DialogKind::Folder ? data_error(e) :
+                "Selected file could not be used: "+std::string(e.what());
+        }
     }
     if (pending_action_) { const auto action=*pending_action_; pending_action_.reset(); perform(action); }
     if (sandbox_ && sandbox_->save_generation()!=seen_save_generation_) record_save();
@@ -333,20 +351,21 @@ void MenuSession::update(double seconds) {
 }
 void MenuSession::rebuild_buttons() {
     buttons_.clear();
-    auto add=[&](int action,const char* label,int x,int y,int w=180) {
+    auto add=[&](int action,std::string label,int x,int y,int w=180) {
         buttons_.push_back({SDL_FRect{static_cast<float>(x),static_cast<float>(y),
-            static_cast<float>(w),32.0f},label,action});
+            static_cast<float>(w),32.0f},std::move(label),action});
     };
     if (state_==State::DataSetup) {
-        add(ChooseFolder,"Choose data folder",40,135,210);
+        add(ChooseFolder,"Choose Game Data Folder",40,135,230);
         if (settings_reset_required_) add(ResetSettings,"Reset preferences",40,185,210);
         add(Quit,"Quit",40,235);
         if (!catalog_.entries.empty()) add(Back,"Back",230,235);
     } else if (state_==State::MainMenu) {
-        add(NewGame,"New sandbox",40,100,210);
-        add(LoadGame,"Load save",40,145,210);
-        if (sandbox_) add(Resume,"Resume session",40,190,210);
+        if (sandbox_) add(Resume,"Continue",40,100,210);
+        add(NewGame,"New Sandbox",40,sandbox_?145:100,210);
+        add(LoadGame,"Load Save",40,sandbox_?190:145,210);
         add(DataFolder,"Data folder",40,sandbox_?235:190,210);
+        buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,sandbox_?280:235,210);
         if (settings_reset_required_) add(ResetSettings,"Reset preferences",280,235,210);
     } else if (state_==State::NewSandbox) {
@@ -354,11 +373,11 @@ void MenuSession::rebuild_buttons() {
         add(ProfilePrev,"Previous rules",40,205); add(ProfileNext,"Next rules",230,205);
         add(Demo,demo_?"Demo: ON":"Demo: OFF",40,270);
         add(Start,"Start sandbox",40,315); add(Back,"Back",230,315);
-        add(VisualsFile,"Walker JSON...",40,360); add(VisualsClear,"No walker visuals",230,360);
+        add(VisualsFile,"Choose walker JSON...",40,360); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,360);
         add(BuildingVisualsFile,"Building JSON...",40,400);
-        add(BuildingVisualsClear,"No building visuals",230,400);
+        add(BuildingVisualsClear,selection_label("Buildings",building_profile_path_),230,400);
         add(RoadVisualsFile,"Road JSON...",40,440);
-        add(RoadVisualsClear,"No road visuals",230,440);
+        add(RoadVisualsClear,selection_label("Roads",road_profile_path_),230,440);
         const auto begin=map_index_>4?map_index_-4:0;
         map_scroll_=begin;
         for (std::size_t i=begin;i<catalog_.entries.size() && i<begin+11;++i) {
@@ -374,11 +393,11 @@ void MenuSession::rebuild_buttons() {
         add(SavePrev,"Previous save",40,120); add(SaveNext,"Next save",230,120);
         add(OpenSave,"Open selected",40,270); add(ExternalSave,"Open save file...",230,270);
         add(Back,"Back",40,315);
-        add(VisualsFile,"Walker JSON...",40,360); add(VisualsClear,"No walker visuals",230,360);
+        add(VisualsFile,"Choose walker JSON...",40,360); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,360);
         add(BuildingVisualsFile,"Building JSON...",40,400);
-        add(BuildingVisualsClear,"No building visuals",230,400);
+        add(BuildingVisualsClear,selection_label("Buildings",building_profile_path_),230,400);
         add(RoadVisualsFile,"Road JSON...",40,440);
-        add(RoadVisualsClear,"No road visuals",230,440);
+        add(RoadVisualsClear,selection_label("Roads",road_profile_path_),230,440);
         const auto begin=save_index_>4?save_index_-4:0;
         save_scroll_=begin;
         for (std::size_t i=begin;i<saves_.entries.size() && i<begin+11;++i) {
@@ -389,8 +408,9 @@ void MenuSession::rebuild_buttons() {
                 SaveSelectBase+static_cast<int>(i-begin)});
         }
     } else if (state_==State::ConfirmLeave) {
-        add(ConfirmSave,"Save and continue",40,160,210);
-        add(ConfirmDiscard,"Without saving",40,205,210);
+        const bool quitting=after_confirm_==AfterConfirm::Quit;
+        add(ConfirmSave,quitting?"Save and Quit":"Save and Continue",40,160,210);
+        add(ConfirmDiscard,quitting?"Quit Without Saving":"Discard Changes",40,205,210);
         add(ConfirmCancel,"Cancel",40,250,210);
     }
 }
@@ -407,15 +427,19 @@ bool MenuSession::render() {
         return SDL_SetRenderDrawColor(renderer_,230,237,244,255) &&
             SDL_RenderDebugText(renderer_,static_cast<float>(x),static_cast<float>(y),s.c_str());
     };
-    const auto heading=state_==State::DataSetup?"Original game data setup":
+    const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?"OpenEmperor":state_==State::NewSandbox?"New sandbox":
-        state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading map and graphics...":
+        state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
         "Unsaved progress";
     if (!label(40,40,heading)) return false;
     if (state_==State::DataSetup) {
-        if (!label(40,80,"Choose installed or extracted Emperor game files.")) return false;
-        if (!label(40,95,"The GOG installer alone is not a data folder.")) return false;
+        if (!label(40,56,std::string(version::display)+" | Clean-room reimplementation")) return false;
+        if (!label(40,72,"Original game data setup")) return false;
+        if (!label(40,88,"OpenEmperor requires files from a legally obtained Emperor installation.")) return false;
+        if (!label(40,103,"Do not select the GOG installer file itself.")) return false;
     } else if (state_==State::MainMenu) {
+        if (!label(40,56,std::string(version::display))) return false;
+        if (!label(40,70,"Experimental sandbox using your own Emperor game data")) return false;
         if (!label(280,105,"Data: "+settings_.data_root.generic_string())) return false;
         if (sandbox_ && !label(280,125,"Retained tick "+std::to_string(sandbox_->world().ticks())+
             (sandbox_->dirty()?" (unsaved)":" (saved)"))) return false;
@@ -426,6 +450,7 @@ bool MenuSession::render() {
         if (!label(40,165,"Declared size: "+(e.declared_size?std::to_string(*e.declared_size):"unsupported")+
             (e.error.empty()?"":" - "+e.error))) return false;
         if (!label(40,245,std::string(simulation::rules_profile_name(settings_.profile))+" - "+description(settings_.profile))) return false;
+        if (!label(40,345,"Advanced visual previews (optional diagnostics)")) return false;
     } else if (state_==State::LoadSandbox) {
         if (!label(40,85,"Saves: "+std::to_string(saves_.entries.size())+(saves_.truncated?" (list limited)":""))) return false;
         if (!saves_.entries.empty()) {
@@ -434,16 +459,27 @@ bool MenuSession::render() {
             if (e.error.empty() && !label(40,185,e.profile+" | tick "+std::to_string(e.tick)+
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
         }
+        if (!label(40,345,"Advanced visual previews (optional diagnostics)")) return false;
+    } else if (state_==State::Loading) {
+        const auto item=pending_save_path_.empty() && map_index_<catalog_.entries.size()
+            ? catalog_.entries[map_index_].relative_path.filename().string()
+            : pending_save_path_.filename().string();
+        if (!label(40,72,"Loading "+(item.empty()?std::string("sandbox"):item)+"...")) return false;
+        if (!label(40,88,"Reading map and original graphics. This may take a moment.")) return false;
+    } else if (state_==State::ConfirmLeave) {
+        if (!label(40,80,"This sandbox has unsaved changes.")) return false;
+        if (!label(40,96,"Choose whether to save before leaving the current session.")) return false;
     }
-    if (!visual_profile_path_.empty() &&
-        (state_==State::NewSandbox || state_==State::LoadSandbox) &&
-        !label(40,405,"Walker: "+visual_profile_path_.filename().string())) return false;
     for (const auto& b:buttons_) {
         if (!SDL_SetRenderDrawColor(renderer_,b.enabled?45:42,b.enabled?84:45,b.enabled?104:50,255) ||
             !SDL_RenderFillRect(renderer_,&b.rect) ||
             !label(static_cast<int>(b.rect.x)+8,static_cast<int>(b.rect.y)+11,b.label)) return false;
     }
     if (!message_.empty() && !label(40,std::max(25,height-34),message_.substr(0,static_cast<std::size_t>(std::max(0,width/8-12))))) return false;
+    const std::string footer="OpenEmperor "+std::string(version::display)+" | "+std::string(version::target)+
+        " | Clean-room reimplementation | rev "+std::string(version::revision)+
+        (version::dirty?" dirty":"")+" | "+std::string(version::build_type);
+    if (!label(40,std::max(12,height-18),footer.substr(0,static_cast<std::size_t>(std::max(0,width/8-12))))) return false;
     if (!SDL_SetRenderScale(renderer_,1,1)) return false;
     const bool okay=SDL_RenderPresent(renderer_);
     if (okay && state_==State::Loading) loading_drawn_=true;

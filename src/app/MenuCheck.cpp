@@ -71,7 +71,7 @@ int run_menu_check(int argc, char* argv[]) {
                 key(menu,SDLK_F5);
                 require(fs::is_regular_file(menu.sandbox()->save_path()),"save not written");
                 const auto snapshot=menu.sandbox()->world().snapshot();
-                key(menu,SDLK_ESCAPE); click(menu,90,310); click(menu,90,560); frame(menu);
+                key(menu,SDLK_ESCAPE); click(menu,90,400); click(menu,90,560); frame(menu);
                 require(menu.state()==Menu::State::Playing && menu.sandbox()->paused() &&
                         menu.sandbox()->world().snapshot()==snapshot,"saved world did not resume");
                 menu.sandbox()->tick_once();

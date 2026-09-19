@@ -2,7 +2,48 @@
 
 OpenEmperor is a clean-room, open-source reimplementation of _Emperor: Rise of the Middle Kingdom_ for modern systems. The initial target is native macOS on Apple Silicon (arm64), with an architecture intended to support Linux and Windows later.
 
-## Current status
+## Alpha status
+
+**OpenEmperor 0.1.0-alpha.1 is an experimental sandbox for external testing.** It is not a complete recreation of Emperor. The app uses original game files supplied by the user and never distributes those files or decoded copies. See [Known Issues](KNOWN_ISSUES.md) before testing.
+
+## Requirements
+
+- An Apple Silicon Mac running macOS
+- A legally obtained, installed or extracted copy of _Emperor: Rise of the Middle Kingdom_; the GOG offline installer file itself is not a data folder
+- For source builds: Xcode Command Line Tools, CMake, and either network access for the pinned SDL3 source or SDL3 3.4.10 or newer installed locally
+
+## Quick start for testers
+
+1. Open `OpenEmperor.app`, or build and run `./build/openemperor`.
+2. Choose the installed or extracted Emperor game folder when prompted.
+3. Select **New Sandbox** and a supported map.
+4. Keep **sandbox-industry-v5**, the alpha default.
+5. Enable **Demo** for a prepared settlement, then select **Start Sandbox**.
+
+Walker, building, and road JSON profiles are optional developer previews. A normal sandbox runs without them using diagnostic markers and tiles.
+
+For a local source build:
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build build --parallel
+./build/openemperor
+```
+
+## What works
+
+- Main-menu setup for user-supplied Emperor data and supported standalone maps
+- The original OpenEmperor Industry-v5 sandbox with roads, two clay sources, two potteries, a warehouse, four households, and five couriers
+- Road placement/removal, production, supply, routing and live rerouting
+- OpenEmperor save/load and migration of its older schema versions
+- Optional curated walker, building, and road previews from the user's own files
+- Native macOS arm64 app packaging with bundled runtime libraries
+
+## Known limitations
+
+OpenEmperor does not support original Emperor savegames, campaigns, the original economy, or complete map and rendering behavior. Curated visual mappings and the F2/F3/F4/F6/F7 controls are diagnostic previews. The development app is ad-hoc signed and not notarized. The complete current list is in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+## Developer and research status
 
 Run `./build/openemperor` to open the main menu. On first start, choose a directory containing your own installed or extracted Emperor files (the GOG installer itself is not such a directory). Choose a supported standalone map and one of the five OpenEmperor sandbox rule profiles, then start an empty sandbox. Industry v5 is preselected in this menu; Demo arrangement is off unless selected. Escape or the visible Menu action retains the current World, camera, pause and speed state; Resume continues that same session. F5/Save writes a new OpenEmperor sandbox save under the application preferences folder. Load Save lists those files or opens an external OpenEmperor save through a native file dialog. Replacing a changed session or quitting asks whether to save, discard, or cancel. Direct CLI modes and their defaults remain available below.
 
@@ -184,7 +225,7 @@ ctest --test-dir build --output-on-failure
 
 Sandbox `F5` saves and `F9` reloads the configured OpenEmperor save. Loading starts paused at the saved tick; Space resumes and `.` steps. In the production, household, settlement, and industry profiles, `6` selects road removal; an occupied road or begun edge is protected, and a courier waits with its cargo/reservation if the rest of its route is cut. Household mode adds `7` to place a one-cell House; settlement mode uses the same tool for up to four houses. The own schema-4/5 JSON formats support all five sandbox profiles, read valid schema-1/2/3/4 saves through explicit compatibility paths, and requires the same original map and matching decoded buildability mask. It is **not compatible with original Emperor savegames** and contains no original map or image bytes. Save files belong outside `--data`, such as ignored `.local/saves/`; see [save schema and routing rules](docs/gameplay-sandbox.md#openemperor-sandbox-saves).
 
-The Sandbox has a clickable bottom tool/control bar, a compact status line and a collapsible building inspector on the right. Choose a building tool, then press and release on a buildable map cell. With Road selected, drag from the first to the last cell to preview an orthogonal X-then-Y connection; release on the map to place the entire valid path or reject it without changes. Existing sandbox roads are reused. Right-click or Escape cancels an open gesture; Escape without one exits. Tab toggles the inspector and F1 toggles the small debug readout. Buttons and their keyboard shortcuts share actions; Save/Load buttons use the same configured path and validation as F5/F9. An unfinished preview and UI selection are never written to a save. The building list and map both select the actual instance, whose stock, progress and courier status appear in the inspector. The map remains available outside the top status bar, bottom bar and optional right panel; wheel zoom is map-only, while wheel over the panel scrolls it. See [sandbox mouse controls](docs/gameplay-sandbox.md) for gesture cancellation and rule limits.
+The Sandbox has a clickable bottom tool/control bar, a compact status line and a collapsible building inspector on the right. Choose a building tool, then press and release on a buildable map cell. With Road selected, drag from the first to the last cell to preview an orthogonal X-then-Y connection; release on the map to place the entire valid path or reject it without changes. Existing sandbox roads are reused. Right-click or Escape cancels an open gesture; Escape without one exits. Tab toggles the inspector and F1 toggles the small debug readout. Press H or ? for the compact control guide. F2/F3/F4/F6/F7 are advanced visual diagnostics and are never required for normal play. Buttons and their keyboard shortcuts share actions; Save/Load buttons use the same configured path and validation as F5/F9. An unfinished preview and UI selection are never written to a save. The building list and map both select the actual instance, whose stock, progress and courier status appear in the inspector. The map remains available outside the top status bar, bottom bar and optional right panel; wheel zoom is map-only, while wheel over the panel scrolls it. See [sandbox mouse controls](docs/gameplay-sandbox.md) for gesture cancellation and rule limits.
 
 `--data` checks that the directory exists and prints its absolute path. The application's `--sg3` and `--image` options must be supplied together and cannot be combined with `--preview`. The direct preview resolves the `.555` source, checks each **effective** range against the actual file size, reads only those ranges, and renders without writing an intermediary. For internal version-214 Type-256 records with nonzero alpha and stored `alpha_offset == data_offset + 2 * data_length`, the effective alpha starts at `data_offset + data_length`. This equality is a conservative observed profile marker; the original meaning of `alpha_offset` remains unknown. Other alpha-bearing profiles fail explicitly in normal loading. `openemperor-inspect` prints generic file metadata for other files and structured SG3 JSON with raw and effective alpha fields. Its `--image <index>` export can write headerless RGBA8 or PNG when requested. `--preview <exported.png>` displays that PNG with nearest-neighbor scaling; the current reader supports only the RGBA8, filter-0, stored-DEFLATE subset written by this project. Keep decoded files under ignored `.local/` and do not distribute original game assets or decoded image copies.
 

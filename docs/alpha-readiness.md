@@ -49,3 +49,7 @@ Industry-v5 is OpenEmperor's own deterministic sandbox. It is not a reconstructi
 ## Interpreting a pass
 
 A pass shows deterministic behavior over the tested simulated duration, exact tested save continuations, bounded project-owned texture lifetimes, stable render initialization counters, successful tested session turnover, and successful build/package checks on that machine. It does not prove the absence of every defect or claim feature parity with Emperor.
+
+## Release management
+
+Public source release licensing decision pending. This does not block a local or private alpha candidate build, but the repository must not claim a specific open-source license until the owner chooses and adds one.

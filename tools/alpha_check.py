@@ -191,19 +191,35 @@ def package_check() -> dict[str, object]:
     app = ROOT / "dist/OpenEmperor.app"
     if not app.is_dir():
         raise CheckFailure("packaging did not produce OpenEmperor.app")
-    bundled = {path.name for path in app.rglob("*") if path.is_file()}
+    bundled_paths = [path for path in app.rglob("*") if path.is_file()]
+    bundled = {path.name for path in bundled_paths}
     if bundled & forbidden:
         raise CheckFailure("local visual profiles or alpha reports entered the app bundle")
+    forbidden_suffixes = {".map", ".sg3", ".555", ".exe", ".oesave", ".png", ".jpg", ".jpeg"}
+    if any(path.suffix.lower() in forbidden_suffixes for path in bundled_paths):
+        raise CheckFailure("original data, saves, or local screenshots entered the app bundle")
+    build_info = json.loads((app / "Contents/Resources/BuildInfo.json").read_text())
+    required_build_info = {"display_version", "project_version", "revision", "dirty",
+                           "architecture", "build_type", "deployment_target"}
+    if (not required_build_info.issubset(build_info) or
+            build_info.get("display_version") != "0.1.0-alpha.1" or
+            build_info.get("architecture") != "arm64" or
+            build_info.get("build_type") != "Release"):
+        raise CheckFailure("packaged BuildInfo lacks alpha candidate provenance")
     archives = sorted((ROOT / "dist").glob("OpenEmperor-*-macos-arm64.zip"),
                       key=lambda path: path.stat().st_mtime_ns)
     if not archives:
         raise CheckFailure("packaging did not produce an arm64 ZIP")
     with zipfile.ZipFile(archives[-1]) as archive:
-        names = {Path(name).name for name in archive.namelist()}
+        archive_paths = [Path(name) for name in archive.namelist() if not name.endswith("/")]
+        names = {path.name for path in archive_paths}
     if names & forbidden:
         raise CheckFailure("local visual profiles or alpha reports entered the ZIP")
+    if any(path.suffix.lower() in forbidden_suffixes for path in archive_paths):
+        raise CheckFailure("original data, saves, or local screenshots entered the ZIP")
     return {"requested": True, "result": "pass", "local_profiles_absent": True,
-            "alpha_reports_absent": True, "seconds": round(elapsed, 3),
+            "alpha_reports_absent": True, "original_assets_absent": True,
+            "build_info": build_info, "seconds": round(elapsed, 3),
             "summary": safe_text(output).splitlines()[-1] if output.strip() else "packaged"}
 
 
@@ -267,7 +283,10 @@ def main() -> int:
         report["sessions"] = session_stress(debug)
         report["ui_stress"] = {"result": "pass", "gesture_resize_high_dpi":
             "covered_by_sandbox-software-view", "dialog_lifetime_settings_failures":
-            "covered_by_menu-session-flow"}
+            "covered_by_menu-session-flow", "fresh_user_flow": "pass",
+            "without_visual_profiles": "pass",
+            "deleted_optional_profile_restart": "pass",
+            "human_readable_errors": "pass", "help_world_mutation": "none"}
         file_output, _ = run(["file", str(release / "openemperor")])
         if "arm64" not in file_output:
             raise CheckFailure("Release application binary is not arm64")

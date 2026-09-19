@@ -140,13 +140,22 @@ def main():
                  "codesign", "ditto", "brew"):
         if not shutil.which(tool):
             raise RuntimeError("required build tool missing: " + tool)
-    revision = call("git", "rev-parse", "--short=12", "HEAD").strip()
-    dirty = bool(call("git", "status", "--porcelain").strip())
     cmake_args = ("cmake", "-S", str(ROOT), "-B", str(BUILD), "-DCMAKE_BUILD_TYPE=Release",
                   "-DCMAKE_OSX_ARCHITECTURES=arm64", f"-DCMAKE_OSX_DEPLOYMENT_TARGET={MIN_OS}",
                   "-DOPENEMPEROR_BUILD_MACOS_APP=ON", "-DOPENEMPEROR_USE_SYSTEM_SDL3=ON")
     print(call(*cmake_args), flush=True)
     print(call("cmake", "--build", str(BUILD), "--parallel", "6"), flush=True)
+    build_info = json.loads((BUILD / "generated/BuildInfo.json").read_text())
+    required_build_info = {"display_version", "project_version", "revision", "dirty",
+                           "architecture", "build_type", "deployment_target"}
+    if (not required_build_info.issubset(build_info) or
+            build_info["architecture"] != "arm64" or
+            build_info["build_type"] != "Release" or
+            build_info["deployment_target"] != MIN_OS):
+        raise RuntimeError("CMake generated incomplete package provenance")
+    display_version = build_info["display_version"]
+    revision = build_info["revision"]
+    dirty = build_info["dirty"]
     release_tests = call("ctest", "--test-dir", str(BUILD), "--output-on-failure", "-j", "6")
     print(release_tests, flush=True)
     DIST.mkdir(exist_ok=True)
@@ -174,7 +183,9 @@ def main():
                     call("install_name_tool", "-delete_rpath", path, str(item))
         resources = app / "Contents/Resources"; resources.mkdir()
         with (app / "Contents/Info.plist").open("rb") as stream:
-            version = plistlib.load(stream)["CFBundleShortVersionString"]
+            project_version = plistlib.load(stream)["CFBundleShortVersionString"]
+        if build_info["project_version"] != project_version:
+            raise RuntimeError("generated and bundle project versions differ")
         sdl_prefix = Path(call("brew", "--prefix", "sdl3").strip()).resolve()
         openssl_prefix = Path(call("brew", "--prefix", "openssl@3").strip()).resolve()
         json_prefix = Path(call("brew", "--prefix", "nlohmann-json").strip()).resolve()
@@ -182,10 +193,9 @@ def main():
                              (openssl_prefix / "LICENSE.txt", "LICENSE-OpenSSL.txt"),
                              (json_prefix / "LICENSE.MIT", "LICENSE-nlohmann-json.txt")):
             shutil.copyfile(source, resources / name)
-        build_info = {"version": version, "revision": revision, "dirty": dirty,
-                      "target_architecture": "arm64", "deployment_target": MIN_OS,
-                      "sdl_version": sdl_prefix.name, "openssl_version": openssl_prefix.name,
-                      "nlohmann_json_version": json_prefix.name}
+        build_info.update({"sdl_version": sdl_prefix.name,
+                           "openssl_version": openssl_prefix.name,
+                           "nlohmann_json_version": json_prefix.name})
         (resources / "BuildInfo.json").write_text(json.dumps(build_info, indent=2) + "\n")
         for lib in sorted((app / "Contents/Frameworks").rglob("*.dylib")):
             if not lib.is_symlink():
@@ -237,7 +247,7 @@ def main():
                 original_files_unchanged = True
                 verify(moved)
                 signature_after_original = True
-            zip_name = f"OpenEmperor-{version}-dev-{revision}-macos-arm64.zip"
+            zip_name = f"OpenEmperor-{display_version}-{revision}-macos-arm64.zip"
             archive = stage / zip_name
             call("ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", str(app), str(archive))
             extracted = Path(move_root) / "Unzipped App"; extracted.mkdir()

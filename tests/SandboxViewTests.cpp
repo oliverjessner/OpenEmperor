@@ -727,6 +727,14 @@ int main(int argc,char** argv) {
         industry_view.set_building_visuals(building_manifest);
         industry_view.set_road_visuals(road_manifest);
         industry_view.initialize(window,renderer);
+        const auto help_baseline=industry_view.world().snapshot();
+        industry_view.handle_event(key(SDLK_H),running);
+        check(industry_view.help_open() && industry_view.render() &&
+              industry_view.world().snapshot()==help_baseline,
+              "opening and rendering Help changed the Industry World");
+        industry_view.handle_event(key(SDLK_H),running);
+        check(!industry_view.help_open() && industry_view.world().snapshot()==help_baseline,
+              "closing Help changed the Industry World");
         check(industry_view.walker_texture_count()==3,"industry role textures missing or duplicated");
         check(industry_view.building_texture_count()==4 &&
               openemperor::BuildingSprite::live_texture_count()==4,
