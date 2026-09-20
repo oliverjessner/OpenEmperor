@@ -1206,33 +1206,12 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 std::string("-"):std::to_string(static_cast<unsigned>(c.target)))+
                 " cargo "+std::to_string(c.cargo));
             lines.push_back(std::string("Phase ")+simulation::delivery_phase_name(c.phase));
-            std::string status=world_->courier_blockage(c.id);
-            if (status=="No eligible pottery route or space") {
-                bool free_target=false,reachable=false;
-                for (unsigned target_id=1;target_id<=9;++target_id) {
-                    const auto& target=world_->building(static_cast<simulation::BuildingId>(target_id));
-                    if (!target.placed || target.kind!=simulation::Object::Pottery ||
-                        target.input_clay+target.reserved_incoming>=
-                            simulation::Rules::pottery_input_capacity) continue;
-                    free_target=true;
-                    if (c.target_routes[target_id-1]) reachable=true;
-                }
-                status=!free_target ? "Target buffer full":
-                    !reachable ? "No road connection":"No eligible Pottery";
-            } else if (status=="No eligible household route or space") {
-                bool free_target=false,reachable=false;
-                for (unsigned target_id=4;target_id<8;++target_id) {
-                    const auto& target=world_->building(static_cast<simulation::BuildingId>(target_id));
-                    if (!target.placed || target.kind!=simulation::Object::Household ||
-                        target.pottery_stock+target.reserved_incoming>=
-                            simulation::Rules::household_capacity) continue;
-                    free_target=true;
-                    if (world_->household_route_available(target.id)) reachable=true;
-                }
-                status=!free_target ? "Target buffer full":
-                    !reachable ? "No road connection":"No eligible household";
-            }
-            lines.push_back("Status "+status);
+            const auto decision=world_->courier_dispatch_status(c.id);
+            lines.push_back(std::string("Status ")+
+                simulation::courier_dispatch_status_name(decision.status));
+            if (decision.selected_target)
+                lines.push_back("Next target "+
+                    std::to_string(static_cast<unsigned>(*decision.selected_target)));
             break;
         }
     } else if (b.kind==simulation::Object::Warehouse || b.kind==simulation::Object::Workshop) {

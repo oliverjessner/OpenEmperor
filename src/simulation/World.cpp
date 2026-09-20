@@ -31,6 +31,19 @@ const char* delivery_phase_name(CourierPhase phase) {
     }
     return "Unknown";
 }
+const char* courier_dispatch_status_name(CourierDispatchStatus status) {
+    switch (status) {
+    case CourierDispatchStatus::Ready: return "Ready";
+    case CourierDispatchStatus::NoStock: return "No stock";
+    case CourierDispatchStatus::NoRoad: return "No road connection";
+    case CourierDispatchStatus::TargetFull: return "Target buffer full";
+    case CourierDispatchStatus::NoTarget: return "No target building";
+    case CourierDispatchStatus::AlreadyMoving: return "Already moving";
+    case CourierDispatchStatus::WaitingForRoadRevision: return "Waiting for road revision";
+    case CourierDispatchStatus::Disabled: return "Disabled";
+    }
+    return "Unknown";
+}
 const char* rules_profile_name(RulesProfile profile) {
     switch (profile) {
     case RulesProfile::LogisticsV1: return profile_name;
@@ -353,45 +366,92 @@ void World::refresh_routes() {
 }
 
 std::optional<BuildingId> World::next_household_candidate() const {
-    if ((profile_!=RulesProfile::SettlementV4 && profile_!=RulesProfile::IndustryV5) ||
-        courier(CourierId::Household).phase!=CourierPhase::IdleAtWorkshop ||
-        !building(BuildingId::Warehouse).placed ||
-        building(BuildingId::Warehouse).pottery_stock<=0 ||
-        household_routes_revision_!=road_revision_) return std::nullopt;
-    const unsigned start=last_dispatched_household_ ?
-        static_cast<unsigned>(*last_dispatched_household_) : household_id_end-1U;
-    for (unsigned step=1;step<=household_limit;++step) {
-        const unsigned id=first_household_id+(start-first_household_id+step)%household_limit;
-        const auto& home=building(static_cast<BuildingId>(id));
-        if (home.placed && home.kind==Object::Household &&
-            home.pottery_stock+home.reserved_incoming<Rules::household_capacity &&
-            household_routes_[id-first_household_id]) return static_cast<BuildingId>(id);
-    }
-    return std::nullopt;
+    if (profile_!=RulesProfile::SettlementV4 && profile_!=RulesProfile::IndustryV5)
+        return std::nullopt;
+    const auto decision=courier_dispatch_status(CourierId::Household);
+    return decision.status==CourierDispatchStatus::Ready ? decision.selected_target:std::nullopt;
 }
 
 std::optional<BuildingId> World::next_pottery_candidate(CourierId id) const {
-    if (profile_!=RulesProfile::IndustryV5) return std::nullopt;
+    if (profile_!=RulesProfile::IndustryV5 || courier(id).role!=CourierRole::Clay)
+        return std::nullopt;
+    const auto decision=courier_dispatch_status(id);
+    return decision.status==CourierDispatchStatus::Ready ? decision.selected_target:std::nullopt;
+}
+
+CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
     const auto& c=courier(id);
-    if (!c.enabled || c.role!=CourierRole::Clay ||
-        c.phase!=CourierPhase::IdleAtWorkshop ||
-        building(c.owner).output<=0 || c.cached_revision!=road_revision_) return std::nullopt;
-    std::array<BuildingId,2> targets{};
-    unsigned count=0;
-    for (const auto& b:buildings_)
-        if (b.placed && b.kind==Object::Pottery) targets[count++]=b.id;
-    if (!count) return std::nullopt;
-    unsigned start=0;
-    if (c.last_dispatched_pottery)
-        for (unsigned i=0;i<count;++i)
-            if (targets[i]==*c.last_dispatched_pottery) start=(i+1)%count;
-    for (unsigned step=0;step<count;++step) {
-        const auto candidate=targets[(start+step)%count];
-        const auto& b=building(candidate);
-        if (b.input_clay+b.reserved_incoming<Rules::pottery_input_capacity &&
-            c.target_routes[static_cast<unsigned>(candidate)-1]) return candidate;
+    if (!c.enabled) return {CourierDispatchStatus::Disabled,std::nullopt};
+    if (c.route_pending) return {CourierDispatchStatus::NoRoad,c.target};
+    if (c.phase!=CourierPhase::IdleAtWorkshop)
+        return {CourierDispatchStatus::AlreadyMoving,c.target};
+    if (c.cached_revision!=road_revision_ ||
+        (c.role==CourierRole::Household &&
+         (profile_==RulesProfile::SettlementV4 || profile_==RulesProfile::IndustryV5) &&
+         household_routes_revision_!=road_revision_))
+        return {CourierDispatchStatus::WaitingForRoadRevision,std::nullopt};
+    const auto& source=building(c.owner);
+    if (!source.placed) return {CourierDispatchStatus::Disabled,std::nullopt};
+    const int source_stock=c.role==CourierRole::Household ? source.pottery_stock:source.output;
+    if (source_stock<=0) return {CourierDispatchStatus::NoStock,std::nullopt};
+
+    if (c.role==CourierRole::Clay && profile_==RulesProfile::IndustryV5) {
+        std::array<BuildingId,2> targets{};
+        unsigned count=0;
+        for (const auto& b:buildings_)
+            if (b.placed && b.kind==Object::Pottery) targets[count++]=b.id;
+        if (!count) return {CourierDispatchStatus::NoTarget,std::nullopt};
+        unsigned start=0;
+        if (c.last_dispatched_pottery)
+            for (unsigned i=0;i<count;++i)
+                if (targets[i]==*c.last_dispatched_pottery) start=(i+1)%count;
+        bool any_free=false;
+        for (unsigned step=0;step<count;++step) {
+            const auto candidate=targets[(start+step)%count];
+            const auto route_index=static_cast<unsigned>(candidate)-1U;
+            const auto& target=building(candidate);
+            if (target.input_clay+target.reserved_incoming>=Rules::pottery_input_capacity)
+                continue;
+            any_free=true;
+            if (c.target_routes[route_index])
+                return {CourierDispatchStatus::Ready,candidate};
+        }
+        return {any_free ? CourierDispatchStatus::NoRoad:CourierDispatchStatus::TargetFull,
+                std::nullopt};
     }
-    return std::nullopt;
+
+    if (c.role==CourierRole::Household &&
+        (profile_==RulesProfile::SettlementV4 || profile_==RulesProfile::IndustryV5)) {
+        if (next_household_id_==first_household_id)
+            return {CourierDispatchStatus::NoTarget,std::nullopt};
+        const unsigned start=last_dispatched_household_ ?
+            static_cast<unsigned>(*last_dispatched_household_) : household_id_end-1U;
+        bool any_free=false;
+        for (unsigned step=1;step<=household_limit;++step) {
+            const unsigned value=first_household_id+
+                (start-first_household_id+step)%household_limit;
+            const auto candidate=static_cast<BuildingId>(value);
+            const auto& target=building(candidate);
+            if (!target.placed || target.kind!=Object::Household) continue;
+            if (target.pottery_stock+target.reserved_incoming>=Rules::household_capacity)
+                continue;
+            any_free=true;
+            if (household_routes_[value-first_household_id])
+                return {CourierDispatchStatus::Ready,candidate};
+        }
+        return {any_free ? CourierDispatchStatus::NoRoad:CourierDispatchStatus::TargetFull,
+                std::nullopt};
+    }
+
+    const auto& target=building(c.target);
+    if (!target.placed) return {CourierDispatchStatus::NoTarget,std::nullopt};
+    if (!c.cached_route) return {CourierDispatchStatus::NoRoad,std::nullopt};
+    const int target_stock=c.role==CourierRole::Clay ? target.input_clay:target.pottery_stock;
+    const int capacity=c.role==CourierRole::Clay ? Rules::pottery_input_capacity :
+        c.role==CourierRole::Pottery ? Rules::warehouse_capacity:Rules::household_capacity;
+    if (target_stock+target.reserved_incoming>=capacity)
+        return {CourierDispatchStatus::TargetFull,std::nullopt};
+    return {CourierDispatchStatus::Ready,c.target};
 }
 
 bool World::household_route_available(BuildingId id) const {
@@ -468,15 +528,15 @@ void World::tick_production_v2() {
 }
 
 void World::dispatch_v2(CourierState& courier) {
-    if (!courier.enabled || courier.phase!=CourierPhase::IdleAtWorkshop) return;
+    const auto decision=courier_dispatch_status(courier.id);
+    if (decision.status!=CourierDispatchStatus::Ready || !decision.selected_target) return;
     const bool cycle_house=courier.role==CourierRole::Household &&
         (profile_==RulesProfile::SettlementV4 || profile_==RulesProfile::IndustryV5);
     const bool cycle_pottery=courier.role==CourierRole::Clay &&
         profile_==RulesProfile::IndustryV5;
-    const auto selected_home=cycle_house ? next_household_candidate():std::nullopt;
-    const auto selected_pottery=cycle_pottery ? next_pottery_candidate(courier.id):std::nullopt;
-    if ((cycle_house && !selected_home) || (cycle_pottery && !selected_pottery)) return;
-    const auto target_id=selected_home.value_or(selected_pottery.value_or(courier.target));
+    const auto selected_home=cycle_house ? decision.selected_target:std::nullopt;
+    const auto selected_pottery=cycle_pottery ? decision.selected_target:std::nullopt;
+    const auto target_id=*decision.selected_target;
     auto& source=mutable_building(courier.owner);
     auto& target=mutable_building(target_id);
     const std::vector<Cell>* route=nullptr;
@@ -690,30 +750,10 @@ std::optional<Position> World::courier_position(CourierId id) const {
 }
 const char* World::courier_blockage(CourierId id) const {
     const auto& c=courier(id);
-    if (!c.enabled) return "No source building";
     if (c.route_pending) return "Waiting for road connection";
     if (c.phase==CourierPhase::ToWarehouse) return "Delivery underway";
     if (c.phase==CourierPhase::Returning) return "Returning";
-    if (c.role==CourierRole::Household &&
-        (profile_==RulesProfile::SettlementV4 || profile_==RulesProfile::IndustryV5)) {
-        if (next_household_id_==first_household_id) return "No household";
-        if (building(BuildingId::Warehouse).pottery_stock==0) return "No Pottery output";
-        return next_household_candidate() ? "Ready":"No eligible household route or space";
-    }
-    if (c.role==CourierRole::Clay && profile_==RulesProfile::IndustryV5) {
-        if (building(c.owner).output==0) return "No Clay output";
-        return next_pottery_candidate(id) ? "Ready":"No eligible pottery route or space";
-    }
-    if (!building(c.target).placed) return "No target building";
-    if (!c.cached_route || c.cached_revision!=road_revision_) return "No road connection";
-    const auto& target=building(c.target);
-    const int stock=c.role==CourierRole::Clay ? target.input_clay : target.pottery_stock;
-    const int capacity=c.role==CourierRole::Clay ? Rules::pottery_input_capacity :
-        c.role==CourierRole::Pottery ? Rules::warehouse_capacity:Rules::household_capacity;
-    if (stock+target.reserved_incoming>=capacity) return "Target buffer full";
-    if ((c.role==CourierRole::Household ? building(c.owner).pottery_stock :
-         building(c.owner).output)==0) return c.good==Good::Clay ? "No Clay output" : "No Pottery output";
-    return "Ready";
+    return courier_dispatch_status_name(courier_dispatch_status(id).status);
 }
 const char* World::pottery_blockage() const {
     const auto& b=building(BuildingId::Pottery);

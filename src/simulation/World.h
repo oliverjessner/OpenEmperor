@@ -66,6 +66,21 @@ enum class Good { Goods, Clay, Pottery };
 enum class BuildingId : std::uint8_t { ClaySource=1, Pottery=2, Warehouse=3, Household=4 };
 enum class CourierId : std::uint8_t { Clay=1, Pottery=2, Household=3 };
 enum class CourierRole : std::uint8_t { None=0, Clay=1, Pottery=2, Household=3 };
+enum class CourierDispatchStatus : std::uint8_t {
+    Ready,
+    NoStock,
+    NoRoad,
+    TargetFull,
+    NoTarget,
+    AlreadyMoving,
+    WaitingForRoadRevision,
+    Disabled
+};
+const char* courier_dispatch_status_name(CourierDispatchStatus status);
+struct CourierDispatchDecision {
+    CourierDispatchStatus status=CourierDispatchStatus::Disabled;
+    std::optional<BuildingId> selected_target;
+};
 struct BuildingState {
     BuildingId id=BuildingId::ClaySource;
     Object kind=Object::Empty;
@@ -183,6 +198,7 @@ public:
     bool household_route_available(BuildingId id) const;
     const CourierState& courier(CourierId id) const;
     std::optional<Position> courier_position(CourierId id) const;
+    CourierDispatchDecision courier_dispatch_status(CourierId id) const;
     const char* courier_blockage(CourierId id) const;
     const char* pottery_blockage() const;
     std::uint64_t clay_extracted_total() const { return clay_extracted_total_; }

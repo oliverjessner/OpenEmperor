@@ -293,6 +293,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-industry-tests)
     add_test(NAME sandbox-industry-production COMMAND openemperor-sandbox-industry-tests)
     set_tests_properties(sandbox-industry-production PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-sandbox-courier-triage-tests
+        tests/SandboxCourierTriageTests.cpp)
+    target_link_libraries(openemperor-sandbox-courier-triage-tests PRIVATE openemperor-simulation)
+    openemperor_enable_warnings(openemperor-sandbox-courier-triage-tests)
+    add_test(NAME sandbox-courier-triage COMMAND openemperor-sandbox-courier-triage-tests)
+    set_tests_properties(sandbox-courier-triage PROPERTIES TIMEOUT 20)
     # Deliberately not registered with CTest: this 100k-tick executable belongs to
     # tools/alpha_check.py so the normal regression suite remains quick.
     add_executable(openemperor-alpha-endurance tests/AlphaEnduranceTests.cpp)
