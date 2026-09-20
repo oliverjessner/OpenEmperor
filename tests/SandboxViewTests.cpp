@@ -337,6 +337,15 @@ int main(int argc,char** argv) {
         check(SDL_CreateWindowAndRenderer("sandbox test",800,600,0,&window,&renderer),"window");
         openemperor::SandboxView view(fixture(temp),false);
         view.initialize(window,renderer);
+        bool running=true;
+        check(!view.debug_diagnostics(),"presentation diagnostics were not off by default");
+        const auto f1_world=view.world().snapshot();
+        const auto f1_dirty=view.dirty();
+        for (int i=0;i<50;++i) view.handle_event(key(SDLK_F1),running);
+        check(!view.debug_diagnostics() && view.world().snapshot()==f1_world &&
+              view.dirty()==f1_dirty,"50 F1 toggles changed World or dirty state");
+        view.handle_event(key(SDLK_F1),running);
+        check(view.debug_diagnostics(),"F1 did not enable technical diagnostics");
         const auto screen_for=[&](int x) {
             auto p=maps::terrain_world({static_cast<std::uint32_t>(x),114},72);
             p.y+=20;
@@ -347,7 +356,6 @@ int main(int argc,char** argv) {
         view.set_tool(2);
         check(view.preview({110,114}).accepted,"valid preview");
         check(!view.preview({116,114}).accepted,"invalid preview");
-        bool running=true;
         mouse_click(view,static_cast<float>(workshop.x),static_cast<float>(workshop.y),running);
         check(view.world().workshop()==simulation::Cell{110,114},"click did not place workshop");
         const auto before_zoom=view.camera().screen_to_world(workshop);
@@ -412,13 +420,31 @@ int main(int argc,char** argv) {
               "disabled Save button gave no explanation");
         view.shutdown();
 
+        openemperor::SandboxView builtin_failure_view(fixture(temp,true),false,
+            simulation::RulesProfile::ProductionV2);
+        builtin_failure_view.set_walker_visuals(temp.path/"missing-builtin-walkers.json",
+            openemperor::VisualProfileSource::Builtin);
+        builtin_failure_view.set_building_visuals(temp.path/"missing-builtin-buildings.json",
+            openemperor::VisualProfileSource::Builtin);
+        builtin_failure_view.set_road_visuals(temp.path/"missing-builtin-roads.json",
+            openemperor::VisualProfileSource::Builtin);
+        builtin_failure_view.initialize(window,renderer);
+        check(builtin_failure_view.walker_visual_source()==openemperor::VisualProfileSource::Fallback &&
+              builtin_failure_view.building_visual_source()==openemperor::VisualProfileSource::Fallback &&
+              builtin_failure_view.road_visual_source()==openemperor::VisualProfileSource::Fallback &&
+              builtin_failure_view.render(),
+              "broken built-in visual profiles blocked the sandbox or failed to fall back");
+        builtin_failure_view.shutdown();
+
         openemperor::SandboxView production_view(fixture(temp,true),false,
             simulation::RulesProfile::ProductionV2);
         const auto save_path=temp.path.parent_path()/
             (temp.path.filename().string()+"-viewer-save.json");
         production_view.configure_save(temp.path,"Cities/Synthetic.map",save_path);
         production_view.initialize(window,renderer);
-        check(std::string(SDL_GetWindowTitle(window)).find("Production Sandbox")!=std::string::npos,
+        production_view.handle_event(key(SDLK_F1),running);
+        check(production_view.debug_diagnostics(),"v2 diagnostics did not enable");
+        check(std::string(SDL_GetWindowTitle(window)).find("OpenEmperor 0.1.0-alpha.1 - Production v2")!=std::string::npos,
               "v2 window profile label");
         const auto v2_screen=[&](int x) {
             auto point=maps::terrain_world({static_cast<std::uint32_t>(x),114},72);
@@ -650,6 +676,8 @@ int main(int argc,char** argv) {
             simulation::RulesProfile::HouseholdV3);
         household_view.configure_save(temp.path,"Cities/Synthetic.map",save_path);
         household_view.initialize(window,renderer);
+        household_view.handle_event(key(SDLK_F1),running);
+        check(household_view.debug_diagnostics(),"v3 diagnostics did not enable");
         check(household_view.demo_origin()==simulation::Cell{110,114} &&
               household_view.world().building(simulation::BuildingId::Household).placed &&
               household_view.tool()==5 && household_view.preview({119,114}).accepted==false,

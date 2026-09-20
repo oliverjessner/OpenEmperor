@@ -245,6 +245,7 @@ void layer_case(SDL_Renderer* renderer,const Temp& temp) {
 void diagnostic_case(SDL_Renderer* renderer,const Temp& temp) {
     auto fixture=make_map(temp,1,false);
     openemperor::StoredGraphicsRenderer map(std::move(fixture.plan));
+    map.set_debug_diagnostics(false);
     map.initialize(renderer);
     check(map.plan().assets[0].status==maps::StoredStatus::DecodeFailed &&
           map.draw_items().size()==1,"malformed image did not retain one diagnostic item");
@@ -270,11 +271,16 @@ void diagnostic_case(SDL_Renderer* renderer,const Temp& temp) {
             "diagnostic marker lost in item-by-item drawing");
         const auto actual=pixel(renderer,160,160);
         if (direction<0)
-            check(actual[0]>70 && actual[2]>70 && actual[1]<80,
-                  "front stored diagnostic did not cover sandbox marker");
+            check(actual[0]>85 && actual[1]>85 && actual[2]<90,
+                  "front stored presentation fallback did not cover sandbox marker");
         else check(actual==std::array<std::uint8_t,4>{0,0,255,255},
                    "front sandbox marker did not cover stored diagnostic");
     }
+    check(openemperor::stored_presentation_fallback_color(maps::TerrainCategory::Water)==
+              std::array<std::uint8_t,3>{58,91,112} &&
+          openemperor::stored_presentation_fallback_color(maps::TerrainCategory::Unknown)==
+              std::array<std::uint8_t,3>{73,78,65},
+          "presentation fallback palette changed");
     map.shutdown();
 }
 } // namespace

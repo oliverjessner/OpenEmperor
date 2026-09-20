@@ -1,4 +1,5 @@
 #include "app/MenuSession.h"
+#include "app/ResourceLocator.h"
 #include "renderer/StoredGraphicsRenderer.h"
 #include "maps/StoredGraphicsPlan.h"
 #include <SDL3/SDL.h>
@@ -140,6 +141,16 @@ int main(int argc,char* argv[]) {
             return 0;
         }
         Temp t;
+        fs::create_directories(t.root/"plain-bin/resources");
+        fs::create_directories(t.root/"OpenEmperor.app/Contents/MacOS");
+        fs::create_directories(t.root/"OpenEmperor.app/Contents/Resources");
+        check(openemperor::locate_resource_root(t.root/"plain-bin")==
+                  fs::canonical(t.root/"plain-bin/resources") &&
+              openemperor::locate_resource_root(t.root/"OpenEmperor.app/Contents/MacOS")==
+                  fs::canonical(t.root/"OpenEmperor.app/Contents/Resources") &&
+              openemperor::locate_resource_root(t.root/"missing",t.root/"plain-bin/resources")==
+                  fs::canonical(t.root/"plain-bin/resources"),
+              "resource locator depended on cwd or missed build/bundle roots");
         auto fake=std::make_unique<FakeDialog>(); auto* dialog=fake.get();
         {
             Menu menu({},t.root/"app",std::move(fake)); menu.initialize(window,renderer);
@@ -160,10 +171,20 @@ int main(int argc,char* argv[]) {
             std::thread valid([&]{ dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
                 (t.root/"data").string()}); }); valid.join(); menu.advance();
             check(menu.state()==Menu::State::MainMenu,"valid root not accepted");
+            check(!menu.compatibility().compatible() &&
+                  menu.visual_selection().walker_source==openemperor::VisualProfileSource::Fallback &&
+                  menu.visual_selection().building_source==openemperor::VisualProfileSource::Fallback &&
+                  menu.visual_selection().road_source==openemperor::VisualProfileSource::Fallback,
+                  "unknown synthetic data did not select atomic visual fallbacks");
+            const auto detection_count=openemperor::assets::compatibility_detection_count();
+            for (int frame=0;frame<1000;++frame) check(menu.render(),"menu frame failed");
+            check(openemperor::assets::compatibility_detection_count()==detection_count,
+                  "compatibility files were hashed in the frame loop");
             check(fs::exists(t.root/"app/settings.json"),"settings not stored");
             click(menu,90,220); // New sandbox
             check(menu.state()==Menu::State::NewSandbox,"new sandbox menu");
-            click(menu,90,750); // Walker JSON through the existing dialog adapter.
+            click(menu,90,750); // Open Advanced visual previews.
+            click(menu,90,830); // Walker JSON through the existing dialog adapter.
             check(static_cast<bool>(dialog->callback),"walker dialog not opened");
             dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
                 (t.root/"missing-walker.json").string()}); menu.advance();
@@ -171,8 +192,8 @@ int main(int argc,char* argv[]) {
             check(menu.state()==Menu::State::NewSandbox &&
                   menu.message().find("walker manifest")!=std::string::npos,
                   "missing walker profile did not reject activation");
-            click(menu,500,750); // Clear the session-only profile selection.
-            click(menu,90,830); // Building JSON through the same session-only dialog.
+            click(menu,500,830); // Clear the session-only profile selection.
+            click(menu,90,910); // Building JSON through the same session-only dialog.
             check(static_cast<bool>(dialog->callback),"building dialog not opened");
             dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
                 (t.root/"missing-building.json").string()}); menu.advance();
@@ -180,8 +201,8 @@ int main(int argc,char* argv[]) {
             check(menu.state()==Menu::State::NewSandbox &&
                   menu.message().find("building manifest")!=std::string::npos,
                   "missing building profile did not reject activation");
-            click(menu,500,830); // Clear the building profile without persisting it.
-            click(menu,90,910); // Road JSON via the same visual-profile dialog adapter.
+            click(menu,500,910); // Clear the building profile without persisting it.
+            click(menu,90,990); // Road JSON via the same visual-profile dialog adapter.
             check(static_cast<bool>(dialog->callback),"road dialog not opened");
             dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
                 (t.root/"missing-roads.json").string()}); menu.advance();
@@ -189,7 +210,7 @@ int main(int argc,char* argv[]) {
             check(menu.state()==Menu::State::NewSandbox &&
                   menu.message().find("road manifest")!=std::string::npos,
                   "missing road profile did not reject activation");
-            click(menu,500,910); // Clear the independent road selection.
+            click(menu,500,990); // Clear the independent road selection.
             {
                 std::ifstream stored(t.root/"app/settings.json");
                 const std::string settings_text((std::istreambuf_iterator<char>(stored)),{});
@@ -206,6 +227,13 @@ int main(int argc,char* argv[]) {
                   !menu.sandbox()->building_visuals_active() &&
                   !menu.sandbox()->road_visuals_active(),
                   "new sandbox unexpectedly required optional visual profiles");
+            check(menu.sandbox()->walker_visual_source()==openemperor::VisualProfileSource::Fallback &&
+                  menu.sandbox()->building_visual_source()==openemperor::VisualProfileSource::Fallback &&
+                  menu.sandbox()->road_visual_source()==openemperor::VisualProfileSource::Fallback,
+                  "unknown data sandbox did not keep category fallbacks");
+            key(menu,SDLK_F2); key(menu,SDLK_F4); key(menu,SDLK_F6); key(menu,SDLK_W);
+            check(openemperor::assets::compatibility_detection_count()==detection_count,
+                  "visual toggles or camera input recomputed compatibility fingerprints");
             const auto first_save=menu.sandbox()->save_path();
             check(!fs::exists(first_save),"new sandbox wrote save prematurely");
             const auto& mask=menu.sandbox()->buildable_mask();
@@ -233,6 +261,8 @@ int main(int argc,char* argv[]) {
                   "resume changed world");
             key(menu,SDLK_F5);
             check(fs::exists(first_save) && !menu.sandbox()->dirty(),"explicit save failed");
+            check(openemperor::assets::compatibility_detection_count()==detection_count,
+                  "saving recomputed compatibility fingerprints");
             const auto saved=menu.sandbox()->world().snapshot();
             key(menu,SDLK_ESCAPE); click(menu,90,310); // Main, New
             click(menu,480,250); // Next map, Cities/B.map

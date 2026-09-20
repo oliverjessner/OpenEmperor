@@ -149,13 +149,15 @@ def original_check(args: argparse.Namespace, executable: Path) -> dict[str, obje
     data = args.data.resolve()
     required = [data / "Cities/Xia.map", data / "DATA/China_Terrain.sg3",
                 data / "DATA/China_Terrain.555", data / "DATA/China_Elevation.sg3",
-                data / "DATA/China_Elevation.555"]
+                data / "DATA/China_Elevation.555", data / "DATA/SprMain.sg3",
+                data / "DATA/SprMain.555", data / "DATA/China_General.sg3",
+                data / "DATA/China_General.555"]
     visual_args: list[str] = []
     for option, manifest in (("--sandbox-visuals", args.walker_visuals),
                              ("--building-visuals", args.building_visuals),
                              ("--road-visuals", args.road_visuals)):
         if manifest is None:
-            raise CheckFailure("--data requires all three visual profile arguments")
+            continue
         manifest = manifest.resolve()
         if not manifest.is_file():
             raise CheckFailure("configured visual profile is missing")
@@ -179,15 +181,31 @@ def original_check(args: argparse.Namespace, executable: Path) -> dict[str, obje
         raise CheckFailure("original files changed during the alpha smoke check")
     if not result.get("goods_balance_valid") or not result.get("resume", {}).get("continued_equal"):
         raise CheckFailure("original-data Industry check failed production or resume invariants")
+    compatibility = result.get("compatibility", {})
+    expected_sources = {
+        "walker": "custom" if args.walker_visuals else "builtin",
+        "building": "custom" if args.building_visuals else "builtin",
+        "road": "custom" if args.road_visuals else "builtin",
+    }
+    if (not compatibility.get("detected") or
+            compatibility.get("id") != "gog-derived-2.0.0.2-en-assetset-1" or
+            any(compatibility.get(key) != value for key, value in expected_sources.items())):
+        raise CheckFailure("known original data did not activate the expected automatic visual profiles")
+    if (result.get("walker_visuals", {}).get("unique_assets") != 48 or
+            result.get("building_visuals", {}).get("decoded_unique_assets") != 4 or
+            result.get("road_visuals", {}).get("unique_assets") != 12 or
+            result.get("road_visuals", {}).get("draws", 0) <= 0):
+        raise CheckFailure("automatic visual profiles did not decode and draw the validated asset set")
     return {"configured": True, "result": "pass", "files_verified_unchanged": len(before),
             "ticks": result.get("ticks"), "frames_rendered": result.get("frames_rendered"),
             "five_courier_frames": result.get("frames_with_five_couriers"),
+            "compatibility": compatibility,
             "seconds": round(elapsed, 3)}
 
 
 def package_check() -> dict[str, object]:
     output, elapsed = run([str(ROOT / "tools/package_macos.sh")], timeout=3600)
-    forbidden = {"walkers-v2.json", "buildings.json", "roads.json", "alpha-check.json"}
+    forbidden = {"walkers-v2.json", "alpha-check.json"}
     app = ROOT / "dist/OpenEmperor.app"
     if not app.is_dir():
         raise CheckFailure("packaging did not produce OpenEmperor.app")
@@ -195,6 +213,11 @@ def package_check() -> dict[str, object]:
     bundled = {path.name for path in bundled_paths}
     if bundled & forbidden:
         raise CheckFailure("local visual profiles or alpha reports entered the app bundle")
+    compatibility_root = app / "Contents/Resources/Compatibility/gog-derived-2.0.0.2-en-assetset-1"
+    compatibility_names = {"manifest.json", "walkers.json", "buildings.json", "roads.json"}
+    if (not compatibility_root.is_dir() or
+            {path.name for path in compatibility_root.iterdir()} != compatibility_names):
+        raise CheckFailure("packaged compatibility metadata is incomplete")
     forbidden_suffixes = {".map", ".sg3", ".555", ".exe", ".oesave", ".png", ".jpg", ".jpeg"}
     if any(path.suffix.lower() in forbidden_suffixes for path in bundled_paths):
         raise CheckFailure("original data, saves, or local screenshots entered the app bundle")
@@ -219,6 +242,8 @@ def package_check() -> dict[str, object]:
         raise CheckFailure("original data, saves, or local screenshots entered the ZIP")
     return {"requested": True, "result": "pass", "local_profiles_absent": True,
             "alpha_reports_absent": True, "original_assets_absent": True,
+            "compatibility_pack": "gog-derived-2.0.0.2-en-assetset-1",
+            "compatibility_json_files": sorted(compatibility_names),
             "build_info": build_info, "seconds": round(elapsed, 3),
             "summary": safe_text(output).splitlines()[-1] if output.strip() else "packaged"}
 
@@ -292,6 +317,8 @@ def main() -> int:
             raise CheckFailure("Release application binary is not arm64")
         report["build"]["release"]["architecture"] = "arm64"
         report["original_data"] = original_check(args, release / "openemperor")
+        if report["original_data"].get("compatibility"):
+            report["compatibility"] = report["original_data"]["compatibility"]
         report["packaging"] = package_check() if args.package else {
             "requested": False, "result": "not_requested"}
         report["performance"] = {"result": "diagnostic", "wall_seconds":

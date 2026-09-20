@@ -2,6 +2,7 @@
 #include "app/MenuDialog.h"
 #include "app/MenuStorage.h"
 #include "app/SandboxView.h"
+#include "app/VisualSelection.h"
 #include <SDL3/SDL.h>
 #include <deque>
 #include <memory>
@@ -12,7 +13,8 @@ class MenuSession {
 public:
     enum class State { DataSetup, MainMenu, NewSandbox, LoadSandbox, Loading, Playing, ConfirmLeave };
     MenuSession(std::filesystem::path explicit_data={},std::filesystem::path app_root={},
-                std::unique_ptr<DialogAdapter> dialog=std::make_unique<NativeDialog>());
+                std::unique_ptr<DialogAdapter> dialog=std::make_unique<NativeDialog>(),
+                std::filesystem::path resource_root={});
     ~MenuSession();
     void initialize(SDL_Window* window,SDL_Renderer* renderer);
     void shutdown();
@@ -27,6 +29,8 @@ public:
     const Settings& settings() const { return settings_; }
     const std::string& message() const { return message_; }
     const std::filesystem::path& app_root() const { return app_root_; }
+    const assets::CompatibilityResult& compatibility() const { return compatibility_; }
+    VisualSelection visual_selection() const;
 private:
     struct Inbox { std::mutex mutex; std::deque<std::pair<std::uint64_t,DialogResult>> results; };
     enum class DialogKind { None, Folder, SaveFile, VisualsFile, BuildingVisualsFile, RoadVisualsFile };
@@ -48,7 +52,7 @@ private:
     void set_state(State state);
     std::optional<SDL_FPoint> point(float x,float y) const;
     float menu_scale() const;
-    std::filesystem::path explicit_data_,app_root_,pending_save_path_;
+    std::filesystem::path explicit_data_,app_root_,pending_save_path_,resource_root_;
     std::filesystem::path candidate_map_;
     std::filesystem::path visual_profile_path_; // Session-only, never saved.
     std::filesystem::path building_profile_path_; // Session-only, never saved.
@@ -62,11 +66,13 @@ private:
     State confirm_return_state_=State::MainMenu;
     AfterConfirm after_confirm_=AfterConfirm::None;
     Settings settings_;
+    assets::CompatibilityResult compatibility_;
     maps::MapCatalog catalog_;
     SaveList saves_;
     std::unique_ptr<SandboxView> sandbox_,candidate_;
     std::size_t map_index_=0,save_index_=0,map_scroll_=0,save_scroll_=0;
     bool demo_=false,running_=true,initialized_=false,loading_drawn_=false,settings_reset_required_=false;
+    bool advanced_visuals_open_=false;
     int pressed_action_=-1;
     std::optional<int> pending_action_;
     std::vector<Button> buttons_;

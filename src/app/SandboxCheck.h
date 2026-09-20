@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include "app/VisualSelection.h"
 #include "simulation/World.h"
 
 namespace openemperor {
@@ -8,9 +9,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                       const std::filesystem::path& map_relative,
                       simulation::RulesProfile rules=simulation::RulesProfile::LogisticsV1,
                       bool resume_check=false,
-                      const std::filesystem::path& walker_visuals={},
-                      const std::filesystem::path& building_visuals={},
-                      const std::filesystem::path& road_visuals={});
+                      const VisualSelection& visuals={});
 int run_sandbox_routing_check(const std::filesystem::path& data_root,
                               const std::filesystem::path& map_relative);
 }

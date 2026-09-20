@@ -8,6 +8,8 @@
 #include "app/MenuSession.h"
 #include "app/MenuCheck.h"
 #include "app/SandboxCheck.h"
+#include "app/ResourceLocator.h"
+#include "app/VisualSelection.h"
 #include "assets/AssetCatalog.h"
 #include "assets/RgbaPngReader.h"
 #include "assets/Sg3ImageLoader.h"
@@ -334,6 +336,10 @@ int main(int argc, char* argv[]) {
     const bool menu_start=!sandbox_supplied && !load_sandbox_supplied && !preview_supplied &&
         !sg3_supplied && !browse_assets && !scene_supplied && !browse_maps && !map_debug_supplied &&
         !list_maps && !render_check;
+    std::error_code executable_error;
+    const auto executable=fs::canonical(argv[0],executable_error);
+    const auto resource_root=openemperor::locate_resource_root(
+        executable_error ? fs::path{} : executable.parent_path());
     if (app_root_supplied && (!menu_start || app_root_path.empty())) {
         print_usage(argv[0]);
         return 2;
@@ -375,9 +381,13 @@ int main(int argc, char* argv[]) {
         return openemperor::run_map_render_check(data_directory,map_debug_path,
             multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
             graphics_profile);
+    std::optional<openemperor::VisualSelection> sandbox_visual_selection;
+    if (sandbox_supplied || load_sandbox_supplied)
+        sandbox_visual_selection=openemperor::detect_and_select_visual_profiles(
+            data_directory,resource_root,sandbox_visuals_path,building_visuals_path,
+            road_visuals_path);
     if (sandbox_check) return openemperor::run_sandbox_check(data_directory,sandbox_path,
-        sandbox_rules,sandbox_resume_check,sandbox_visuals_path,building_visuals_path,
-        road_visuals_path);
+        sandbox_rules,sandbox_resume_check,*sandbox_visual_selection);
     if (sandbox_routing_check)
         return openemperor::run_sandbox_routing_check(data_directory,sandbox_path);
 
@@ -391,7 +401,8 @@ int main(int argc, char* argv[]) {
     if (!sandbox_supplied && !load_sandbox_supplied && !preview_supplied && !sg3_supplied &&
         !browse_assets && !scene_supplied && !browse_maps && !map_debug_supplied)
         menu_session=std::make_unique<openemperor::menu::MenuSession>(
-            data_supplied ? data_directory : fs::path{}, app_root_path);
+            data_supplied ? data_directory : fs::path{}, app_root_path,
+            std::make_unique<openemperor::menu::NativeDialog>(),resource_root);
     if (sandbox_supplied || load_sandbox_supplied) {
         try {
             std::optional<openemperor::persistence::SaveDocument> initial;
@@ -410,9 +421,15 @@ int main(int argc, char* argv[]) {
             sandbox_view=std::make_unique<openemperor::SandboxView>(std::move(session),sandbox_demo,
                                                                     sandbox_rules);
             sandbox_view->configure_save(data_directory,sandbox_path,sandbox_save_path,std::move(initial));
-            if (sandbox_visuals_supplied) sandbox_view->set_walker_visuals(sandbox_visuals_path);
-            if (building_visuals_supplied) sandbox_view->set_building_visuals(building_visuals_path);
-            if (road_visuals_supplied) sandbox_view->set_road_visuals(road_visuals_path);
+            const auto& visuals=*sandbox_visual_selection;
+            sandbox_view->set_compatibility(visuals.compatibility.compatible() ?
+                visuals.compatibility.profile->id:"unknown");
+            if (!visuals.walker.empty())
+                sandbox_view->set_walker_visuals(visuals.walker,visuals.walker_source);
+            if (!visuals.building.empty())
+                sandbox_view->set_building_visuals(visuals.building,visuals.building_source);
+            if (!visuals.road.empty())
+                sandbox_view->set_road_visuals(visuals.road,visuals.road_source);
             std::cout << "Sandbox: " << sandbox_path.generic_string()
                       << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
                       << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"

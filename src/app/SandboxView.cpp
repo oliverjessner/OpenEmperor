@@ -4,6 +4,7 @@
 #include "renderer/StoredCamera.h"
 #include "app/WalkerPose.h"
 #include "app/SandboxVisualOrder.h"
+#include "core/Version.h"
 
 #include <SDL3/SDL.h>
 
@@ -64,6 +65,16 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool) {
     default: return simulation::CommandType::PlaceWarehouse;
     }
 }
+const char* profile_title(simulation::RulesProfile rules) {
+    switch (rules) {
+    case simulation::RulesProfile::LogisticsV1: return "Logistics v1";
+    case simulation::RulesProfile::ProductionV2: return "Production v2";
+    case simulation::RulesProfile::HouseholdV3: return "Household v3";
+    case simulation::RulesProfile::SettlementV4: return "Settlement v4";
+    case simulation::RulesProfile::IndustryV5: return "Industry v5";
+    }
+    return "Sandbox";
+}
 }
 
 SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::RulesProfile rules)
@@ -114,10 +125,39 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     window_=window;
     renderer_=renderer;
     update_layout(false);
+    background_.set_debug_diagnostics(debug_open_);
     background_.initialize(renderer_);
-    if (!walker_manifest_.empty()) set_walker_visuals(walker_manifest_);
-    if (!building_manifest_.empty()) set_building_visuals(building_manifest_);
-    if (!road_manifest_.empty()) set_road_visuals(road_manifest_);
+    std::vector<std::string> builtin_errors;
+    if (!walker_manifest_.empty()) {
+        const auto manifest=walker_manifest_; const auto source=walker_source_;
+        walker_manifest_.clear();
+        try { set_walker_visuals(manifest,source); }
+        catch (const std::exception& error) {
+            if (source!=VisualProfileSource::Builtin) throw;
+            set_walker_visuals({});
+            builtin_errors.push_back(std::string("Built-in walker preview could not be loaded; using markers: ")+error.what());
+        }
+    }
+    if (!building_manifest_.empty()) {
+        const auto manifest=building_manifest_; const auto source=building_source_;
+        building_manifest_.clear();
+        try { set_building_visuals(manifest,source); }
+        catch (const std::exception& error) {
+            if (source!=VisualProfileSource::Builtin) throw;
+            set_building_visuals({});
+            builtin_errors.push_back(std::string("Built-in building preview could not be loaded; using markers: ")+error.what());
+        }
+    }
+    if (!road_manifest_.empty()) {
+        const auto manifest=road_manifest_; const auto source=road_source_;
+        road_manifest_.clear();
+        try { set_road_visuals(manifest,source); }
+        catch (const std::exception& error) {
+            if (source!=VisualProfileSource::Builtin) throw;
+            set_road_visuals({});
+            builtin_errors.push_back(std::string("Built-in road preview could not be loaded; using fallback tiles: ")+error.what());
+        }
+    }
     buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
     if (initial_save_) {
         world_=std::make_unique<simulation::World>(persistence::restore_save(*initial_save_,data_root_,
@@ -133,15 +173,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     if (initial_save_ == std::nullopt && !demo_) {
         saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     }
-    SDL_SetWindowTitle(window_,rules_==simulation::RulesProfile::IndustryV5 ?
-        "OpenEmperor | Industry Sandbox - prototype rules" :
-        rules_==simulation::RulesProfile::SettlementV4 ?
-        "OpenEmperor | Settlement Sandbox - prototype rules" :
-        rules_==simulation::RulesProfile::HouseholdV3 ?
-        "OpenEmperor | Household Sandbox - prototype rules" :
-        rules_==simulation::RulesProfile::ProductionV2 ?
-        "OpenEmperor | Production Sandbox - prototype rules" :
-        "OpenEmperor | Logistics Sandbox - prototype rules");
+    if (!builtin_errors.empty()) last_message_=builtin_errors.front();
+    const std::string title="OpenEmperor "+std::string(version::display)+" - "+profile_title(rules_);
+    SDL_SetWindowTitle(window_,title.c_str());
 }
 void SandboxView::shutdown() {
     cancel_gesture();
@@ -157,13 +191,15 @@ void SandboxView::shutdown() {
     window_=nullptr;
     renderer_=nullptr;
 }
-void SandboxView::set_walker_visuals(const std::filesystem::path& manifest) {
+void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
+                                     VisualProfileSource source) {
     if (manifest.empty()) {
         walker_sprites_.reset(); walker_profile_.reset(); walker_manifest_.clear();
+        walker_source_=VisualProfileSource::Fallback;
         walker_diagnostic_open_=false;
         return;
     }
-    if (!renderer_) { walker_manifest_=manifest; return; }
+    if (!renderer_) { walker_manifest_=manifest; walker_source_=source; return; }
     if (!simulation::production_profile(rules_))
         throw std::runtime_error("walker visuals require a production sandbox profile");
     auto profile=assets::load_walker_visual_profile(data_root_,manifest);
@@ -172,6 +208,7 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest) {
     walker_sprites_=std::move(textures);
     walker_profile_=std::move(profile);
     walker_manifest_=manifest;
+    walker_source_=source;
     walker_visuals_enabled_=true;
     walker_role_stats_={};
     walker_moving_drawn_.fill(false);
@@ -207,12 +244,14 @@ SandboxView::WalkerDisplayStats SandboxView::walker_display_stats() const {
     stats.invalid_edge_fallbacks=walker_invalid_edge_fallbacks_;
     return stats;
 }
-void SandboxView::set_building_visuals(const std::filesystem::path& manifest) {
+void SandboxView::set_building_visuals(const std::filesystem::path& manifest,
+                                       VisualProfileSource source) {
     if (manifest.empty()) {
         building_sprite_.reset();building_profile_.reset();building_manifest_.clear();
+        building_source_=VisualProfileSource::Fallback;
         return;
     }
-    if (!renderer_) { building_manifest_=manifest;return; }
+    if (!renderer_) { building_manifest_=manifest;building_source_=source;return; }
     if (!simulation::production_profile(rules_))
         throw std::runtime_error("Pottery visuals require a production sandbox profile");
     auto profile=assets::load_building_visual_profile(data_root_,manifest);
@@ -221,6 +260,7 @@ void SandboxView::set_building_visuals(const std::filesystem::path& manifest) {
     building_sprite_=std::move(texture);
     building_profile_=std::move(profile);
     building_manifest_=manifest;
+    building_source_=source;
     building_enabled_=true;
     building_drawn_instances_.fill(0);building_placeholder_fallbacks_.fill(0);
     last_message_="Curated building preview active";
@@ -237,17 +277,20 @@ SandboxView::BuildingDisplayStats SandboxView::building_display_stats() const {
             stats.configured_roles[assets::role_index(role)]=building_profile_->find(role)!=nullptr;
     return stats;
 }
-void SandboxView::set_road_visuals(const std::filesystem::path& manifest) {
+void SandboxView::set_road_visuals(const std::filesystem::path& manifest,
+                                   VisualProfileSource source) {
     if (manifest.empty()) {
-        road_sprites_.reset();road_profile_.reset();road_manifest_.clear();return;
+        road_sprites_.reset();road_profile_.reset();road_manifest_.clear();
+        road_source_=VisualProfileSource::Fallback;return;
     }
-    if (!renderer_) { road_manifest_=manifest;return; }
+    if (!renderer_) { road_manifest_=manifest;road_source_=source;return; }
     auto profile=assets::load_road_visual_profile(data_root_,manifest);
     auto sprites=std::make_unique<RoadSpriteSet>();
     sprites->initialize(renderer_,profile);
     road_sprites_=std::move(sprites);
     road_profile_=std::move(profile);
     road_manifest_=manifest;
+    road_source_=source;
     road_enabled_=true;
     road_masks_seen_.fill(false);road_draws_=road_fallbacks_current_=0;
     last_message_="Curated road preview active";
@@ -527,7 +570,10 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         cancel_gesture();
         panel_open_=!panel_open_;
         update_layout(true);
-    } else if (action==A::ToggleDebug) debug_open_=!debug_open_;
+    } else if (action==A::ToggleHelp) {
+        cancel_gesture(); help_open_=!help_open_;
+        last_message_=help_open_ ? "Help opened; press H or ? to close":"Help closed";
+    }
     refresh_hover();
 }
 std::optional<scene::Point> SandboxView::render_point(float x,float y) const {
@@ -588,7 +634,11 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             refresh_hover();
         }
         else if (event.key.key==SDLK_TAB) perform_action(sandbox_ui::Action::TogglePanel);
-        else if (event.key.key==SDLK_F1) perform_action(sandbox_ui::Action::ToggleDebug);
+        else if (event.key.key==SDLK_F1) {
+            debug_open_=!debug_open_;
+            background_.set_debug_diagnostics(debug_open_);
+            last_message_=debug_open_ ? "Debug diagnostics ON":"Debug diagnostics OFF";
+        }
         else if (event.key.key==SDLK_F2 && walker_profile_) {
             walker_visuals_enabled_=!walker_visuals_enabled_;
             last_message_=walker_visuals_enabled_ ? "Walker visuals ON" : "Walker visuals OFF";
@@ -633,7 +683,14 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             else if (event.key.key==SDLK_B) walker_diagnostic_light_=!walker_diagnostic_light_;
         }
     }
-    if (help_open_) return;
+    if (help_open_) {
+        if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
+            const auto point=render_point(event.button.x,event.button.y);
+            if (point && layout_.button_at(point->x,point->y)==sandbox_ui::Action::ToggleHelp)
+                perform_action(sandbox_ui::Action::ToggleHelp);
+        }
+        return;
+    }
     if (event.type==SDL_EVENT_MOUSE_WHEEL) {
         const auto point=render_point(event.wheel.mouse_x,event.wheel.mouse_y);
         if (point) {
@@ -823,8 +880,10 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 return true;
             }
             if (!new_preview) ++road_fallbacks_current_;
-            if (new_preview) return draw_diamond({top.x,top.y-20},45,230,110,true);
-            if (!draw_diamond({top.x,top.y-20},225,174,65,true)) return false;
+            if (new_preview) return draw_diamond({top.x,top.y-20},45,180,100,true);
+            const SDL_Color road_color=debug_open_ ? SDL_Color{225,174,65,255}:
+                SDL_Color{137,109,72,255};
+            if (!draw_diamond({top.x,top.y-20},road_color.r,road_color.g,road_color.b,true)) return false;
             for (const simulation::Cell next : {simulation::Cell{x+1,y},simulation::Cell{x,y+1},
                                                 simulation::Cell{x-1,y},simulation::Cell{x,y-1}}) {
                 const auto other=world_->object_at(next);
@@ -832,7 +891,9 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                     (other==simulation::Object::Road && (next.x<x || next.y<y))) continue;
                 const auto screen=camera_.world_to_screen(world_for({static_cast<double>(next.x),
                     static_cast<double>(next.y)}));
-                if (!SDL_SetRenderDrawColor(renderer_,255,215,94,255) ||
+                const SDL_Color line=debug_open_ ? SDL_Color{255,215,94,255}:
+                    SDL_Color{161,132,88,255};
+                if (!SDL_SetRenderDrawColor(renderer_,line.r,line.g,line.b,255) ||
                     !SDL_RenderLine(renderer_,static_cast<float>(center.x),static_cast<float>(center.y),
                         static_cast<float>(screen.x),static_cast<float>(screen.y))) return false;
             }
@@ -850,20 +911,22 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 if (placement_preview) return true;
                 ++building_placeholder_fallbacks_[assets::role_index(*role)];
             }
-            SDL_Color color{255,105,100,255};
+            SDL_Color color=debug_open_ ? SDL_Color{255,105,100,255}:SDL_Color{137,101,85,255};
             if (object==simulation::Object::Workshop || object==simulation::Object::ClaySource)
-                color={50,210,245,255};
-            if (object==simulation::Object::Pottery) color={220,95,245,255};
-            if (object==simulation::Object::Household) color={90,245,125,255};
+                color=debug_open_ ? SDL_Color{50,210,245,255}:SDL_Color{104,124,120,255};
+            if (object==simulation::Object::Pottery)
+                color=debug_open_ ? SDL_Color{220,95,245,255}:SDL_Color{135,101,125,255};
+            if (object==simulation::Object::Household)
+                color=debug_open_ ? SDL_Color{90,245,125,255}:SDL_Color{101,128,100,255};
             if (!draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true)) return false;
             const float size=static_cast<float>(std::max(5.0,11.0*camera_.zoom));
             const SDL_FRect rect{static_cast<float>(center.x)-size/2,
                 static_cast<float>(center.y)-size*1.5F,size,size};
             if (!SDL_SetRenderDrawColor(renderer_,color.r,color.g,color.b,255) ||
                 !SDL_RenderFillRect(renderer_,&rect)) return false;
-            if (object==simulation::Object::Household ||
+            if (debug_open_ && (object==simulation::Object::Household ||
                 (rules_==simulation::RulesProfile::IndustryV5 &&
-                 (object==simulation::Object::ClaySource || object==simulation::Object::Pottery))) {
+                 (object==simulation::Object::ClaySource || object==simulation::Object::Pottery)))) {
                 const auto id=world_->building_owner_at({x,y});
                 const char prefix=object==simulation::Object::Household ? 'H':
                     object==simulation::Object::ClaySource ? 'C':'P';
@@ -879,7 +942,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     const auto draw_agent=[&](simulation::Position position,SDL_Color body,SDL_Color cargo_color,
                               int cargo,int shift)->bool {
         const auto screen=camera_.world_to_screen(world_for(position));
-        const float size=static_cast<float>(std::max(5.0,10.0*camera_.zoom));
+        const double base=debug_open_ ? 10.0:7.0;
+        const float size=static_cast<float>(std::max(debug_open_ ? 5.0:4.0,base*camera_.zoom));
         const SDL_FRect marker{static_cast<float>(screen.x)-size/2+shift,
             static_cast<float>(screen.y)-size/2,size,size};
         if (!SDL_SetRenderDrawColor(renderer_,body.r,body.g,body.b,255) ||
@@ -940,9 +1004,11 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 ++walker_invalid_edge_fallbacks_;
                 ++walker_role_stats_[role_index].fallback_invalid_edge;
             }
-            if (!draw_agent(position,{255,90,60,255},cargo_color,courier.cargo,
+            const SDL_Color missing=debug_open_ ? SDL_Color{255,90,60,255}:
+                SDL_Color{126,126,116,255};
+            if (!draw_agent(position,missing,cargo_color,courier.cargo,
                             marker_shift)) return false;
-            return SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
+            return !debug_open_ || SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
                 static_cast<float>(ground.y)-20,"W?");
         }
         return draw_agent(position,marker_color,cargo_color,courier.cargo,marker_shift);
@@ -991,14 +1057,21 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         const auto& courier=world_->courier(instance.courier);
         const auto pending=courier.route_pending;
-        const SDL_Color color=pending ? SDL_Color{255,120,40,255}:
+        const SDL_Color color=debug_open_ ? (pending ? SDL_Color{255,120,40,255}:
             courier.role==simulation::CourierRole::Clay ?
                 (id==1 ? SDL_Color{100,240,255,255}:SDL_Color{50,175,255,255}):
             id==2 ? SDL_Color{255,225,130,255}:
-            id==3 ? SDL_Color{110,255,130,255}:SDL_Color{225,145,255,255};
-        const SDL_Color cargo=courier.role==simulation::CourierRole::Clay ?
+            id==3 ? SDL_Color{110,255,130,255}:SDL_Color{225,145,255,255}) :
+            (pending ? SDL_Color{151,104,74,255}:
+             courier.role==simulation::CourierRole::Clay ? SDL_Color{104,126,132,255}:
+             courier.role==simulation::CourierRole::Pottery ? SDL_Color{143,121,95,255}:
+             SDL_Color{112,132,108,255});
+        const SDL_Color cargo=debug_open_ ? (courier.role==simulation::CourierRole::Clay ?
             SDL_Color{25,95,255,255}:courier.role==simulation::CourierRole::Household ?
-            SDL_Color{255,90,150,255}:SDL_Color{240,45,190,255};
+            SDL_Color{255,90,150,255}:SDL_Color{240,45,190,255}) :
+            (courier.role==simulation::CourierRole::Clay ? SDL_Color{72,94,130,255}:
+             courier.role==simulation::CourierRole::Household ? SDL_Color{148,92,104,255}:
+             SDL_Color{133,86,119,255});
         const int shift=id==1 ? -5:id==2 ? 5:id==3 ? 0:id==4 ? -10:10;
         return draw_courier(instance.courier,position,color,cargo,shift);
     };
@@ -1170,14 +1243,14 @@ std::vector<std::string> SandboxView::inspection_lines() const {
 }
 bool SandboxView::draw_text(double x,double y,const std::string& value,int max_width) {
     if (max_width<=0) return true;
-    const int max_chars=max_width/(8*layout_.scale);
+    const float scale=1.25F*static_cast<float>(layout_.scale);
+    const int max_chars=static_cast<int>(static_cast<float>(max_width)/(8.0F*scale));
     if (max_chars<=0) return true;
     std::string text=value;
     if (static_cast<int>(text.size())>max_chars) {
         text.resize(static_cast<std::size_t>(max_chars));
         if (max_chars>=3) text.replace(text.size()-3,3,"...");
     }
-    const float scale=static_cast<float>(layout_.scale);
     if (!SDL_SetRenderScale(renderer_,scale,scale)) return false;
     const bool okay=SDL_RenderDebugText(renderer_,static_cast<float>(x/scale),
                                         static_cast<float>(y/scale),text.c_str());
@@ -1196,12 +1269,12 @@ bool SandboxView::draw_hud() {
         !fill(layout_.status,{13,21,31,255}) ||
         !fill(layout_.panel,{19,29,43,250})) return false;
     if (!SDL_SetRenderDrawColor(renderer_,230,236,244,255)) return false;
-    const std::string profile=simulation::rules_profile_name(rules_);
-    std::string overview=profile+" | Tick "+std::to_string(world_->ticks())+
-        (clock_.paused()?" PAUSED ":" RUNNING ")+std::to_string(clock_.speed())+"x";
+    const std::string profile=debug_open_ ? simulation::rules_profile_name(rules_):profile_title(rules_);
+    std::string overview=profile+" | Tick "+std::to_string(world_->ticks())+" | "+
+        (clock_.paused()?"Paused ":"Running ")+std::to_string(clock_.speed())+"x";
     if (simulation::production_profile(rules_)) overview+=" | Clay "+
-        std::to_string(world_->clay_extracted_total())+" Pottery "+
-        std::to_string(world_->pottery_completed_total())+" Store "+
+        std::to_string(world_->clay_extracted_total())+" | Pottery "+
+        std::to_string(world_->pottery_completed_total())+" | Store "+
         std::to_string(world_->building(simulation::BuildingId::Warehouse).pottery_stock);
     else overview+=" | Goods "+std::to_string(world_->total_produced());
     if (!draw_text(8*layout_.scale,18*layout_.scale,overview,
@@ -1211,7 +1284,7 @@ bool SandboxView::draw_hud() {
     std::string status=road_start_ && !road_preview_.valid ? road_preview_.reason :
         last_message_.empty() ? "OpenEmperor sandbox | Select a tool, then click the map" :
         last_message_;
-    if (walker_profile_) {
+    if (debug_open_ && walker_profile_) {
         status+=" | Walkers ";
         status+=walker_visuals_enabled_ ? "ON ":"OFF ";
         for (std::size_t r=0;r<3;++r) {
@@ -1240,7 +1313,7 @@ bool SandboxView::draw_hud() {
         case A::Save: return "Save F5";
         case A::Load: return "Load F9";
         case A::TogglePanel: return layout_.panel_open ? "Hide info":"Show info";
-        case A::ToggleDebug: return debug_open_ ? "Hide debug":"Debug";
+        case A::ToggleHelp: return help_open_ ? "Hide help":"Help";
         }
         return "";
     };
@@ -1316,9 +1389,11 @@ bool SandboxView::draw_hud() {
     }
     if (debug_open_) {
         if (!SDL_SetRenderDrawColor(renderer_,255,230,150,255)) return false;
+        const bool balance_valid=simulation::production_profile(rules_) ?
+            world_->production_balance_valid():world_->goods_balance_valid();
         const std::string debug="Road revision "+std::to_string(world_->road_revision())+
             " | Commands "+std::to_string(world_->command_sequence())+
-            " | Balance "+(world_->goods_balance_valid()?"OK":"ERROR");
+            " | Balance "+(balance_valid?"OK":"ERROR");
         if (!draw_text(8*layout_.scale,layout_.map.y+8*layout_.scale,debug,
                        layout_.map.w-16*layout_.scale)) return false;
         const auto roads=road_display_stats();
@@ -1334,6 +1409,16 @@ bool SandboxView::draw_hud() {
             std::to_string(painter_stats_.stored_items_visited)+" | sandbox "+
             std::to_string(painter_stats_.sandbox_items);
         if (!draw_text(8*layout_.scale,layout_.map.y+36*layout_.scale,depth_line,
+                       layout_.map.w-16*layout_.scale)) return false;
+        const auto debug_source=[](VisualProfileSource source) {
+            return source==VisualProfileSource::Builtin ? "auto":
+                visual_profile_source_name(source);
+        };
+        const std::string visual_line="Compatibility: "+compatibility_id_+
+            " | Walker: "+debug_source(walker_source_)+
+            " | Buildings: "+debug_source(building_source_)+
+            " | Roads: "+debug_source(road_source_);
+        if (!draw_text(8*layout_.scale,layout_.map.y+50*layout_.scale,visual_line,
                        layout_.map.w-16*layout_.scale)) return false;
     }
     return true;

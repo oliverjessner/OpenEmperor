@@ -112,6 +112,8 @@ add_executable(openemperor
     src/app/SandboxCheck.cpp
     src/app/SandboxRoutingCheck.cpp
     src/app/MenuCheck.cpp
+    src/app/ResourceLocator.cpp
+    src/app/VisualSelection.cpp
     src/renderer/TitleScreen.cpp
     src/renderer/ImagePreview.cpp
     src/renderer/SceneRenderer.cpp
@@ -125,7 +127,16 @@ add_executable(openemperor
 target_include_directories(openemperor PRIVATE src)
 target_link_libraries(openemperor PRIVATE SDL3::SDL3 openemperor-version)
 openemperor_enable_warnings(openemperor)
+set(OPENEMPEROR_COMPATIBILITY_PACK_ID "gog-derived-2.0.0.2-en-assetset-1")
+set(OPENEMPEROR_COMPATIBILITY_FILES
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/manifest.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/walkers.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/buildings.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/roads.json")
 if(OPENEMPEROR_BUILD_MACOS_APP)
+    set_source_files_properties(${OPENEMPEROR_COMPATIBILITY_FILES} PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources/Compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}")
+    target_sources(openemperor PRIVATE ${OPENEMPEROR_COMPATIBILITY_FILES})
     set_target_properties(openemperor PROPERTIES
         MACOSX_BUNDLE TRUE
         OUTPUT_NAME OpenEmperor
@@ -134,6 +145,15 @@ if(OPENEMPEROR_BUILD_MACOS_APP)
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}")
     install(TARGETS openemperor BUNDLE DESTINATION .)
+    set(OPENEMPEROR_TEST_RESOURCE_ROOT "$<TARGET_BUNDLE_CONTENT_DIR:openemperor>/Resources")
+else()
+    add_custom_command(TARGET openemperor POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:openemperor>/resources/Compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENEMPEROR_COMPATIBILITY_FILES}
+            "$<TARGET_FILE_DIR:openemperor>/resources/Compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}"
+        VERBATIM)
+    set(OPENEMPEROR_TEST_RESOURCE_ROOT "$<TARGET_FILE_DIR:openemperor>/resources")
 endif()
 
 add_executable(openemperor-inspect
@@ -153,11 +173,12 @@ add_library(openemperor-sg3 STATIC
     src/assets/WalkerVisualProfile.cpp
     src/assets/BuildingVisualProfile.cpp
     src/assets/RoadVisualProfile.cpp
+    src/assets/CompatibilityProfile.cpp
     src/assets/RgbaPngEncoder.cpp
     src/assets/RgbaPngReader.cpp
 )
 target_include_directories(openemperor-sg3 PUBLIC src)
-target_link_libraries(openemperor-sg3 PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(openemperor-sg3 PUBLIC nlohmann_json::nlohmann_json OpenSSL::Crypto)
 openemperor_enable_warnings(openemperor-sg3)
 target_include_directories(openemperor-inspect PRIVATE tools/asset-inspector)
 target_link_libraries(openemperor-inspect PRIVATE openemperor-sg3)
@@ -227,15 +248,18 @@ if(BUILD_TESTING)
     set_tests_properties(sandbox-production-chain PROPERTIES TIMEOUT 20)
     add_executable(openemperor-sandbox-view-tests tests/SandboxViewTests.cpp
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+        src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
     target_sources(openemperor-sandbox-view-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp)
-    target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3)
+    target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3
+        openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
     set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 45)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
+        src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
@@ -381,6 +405,12 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-road-visual-tests PRIVATE openemperor-sg3 SDL3::SDL3)
     openemperor_enable_warnings(openemperor-road-visual-tests)
     add_test(NAME road-visual-profile-pixels COMMAND openemperor-road-visual-tests)
+    add_executable(openemperor-compatibility-tests tests/CompatibilityProfileTests.cpp
+        src/app/VisualSelection.cpp)
+    target_link_libraries(openemperor-compatibility-tests PRIVATE openemperor-sg3)
+    openemperor_enable_warnings(openemperor-compatibility-tests)
+    add_test(NAME compatibility-profile-fingerprints COMMAND openemperor-compatibility-tests
+        "${OPENEMPEROR_TEST_RESOURCE_ROOT}")
     add_executable(openemperor-unified-painter-tests tests/UnifiedPainterTests.cpp
         src/renderer/StoredGraphicsRenderer.cpp)
     target_link_libraries(openemperor-unified-painter-tests PRIVATE openemperor-maps SDL3::SDL3)

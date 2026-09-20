@@ -2,6 +2,7 @@
 #include "maps/StoredMapSession.h"
 #include "persistence/SandboxSave.h"
 #include "core/Version.h"
+#include "app/ResourceLocator.h"
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
@@ -13,7 +14,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     MapPrev, MapNext, ProfilePrev, ProfileNext, Demo, Start, Back,
     SavePrev, SaveNext, OpenSave, ExternalSave, ConfirmSave, ConfirmDiscard, ConfirmCancel,
     ResetSettings, OpenMenu, VisualsFile, VisualsClear, BuildingVisualsFile, BuildingVisualsClear,
-    RoadVisualsFile, RoadVisualsClear,
+    RoadVisualsFile, RoadVisualsClear, AdvancedVisuals,
     MapSelectBase=1000, SaveSelectBase=2000 };
 constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::LogisticsV1,
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
@@ -29,7 +30,7 @@ const char* description(simulation::RulesProfile p) {
     return "";
 }
 std::string selection_label(const char* kind,const fs::path& path) {
-    std::string value=path.empty()?"not selected":path.filename().string();
+    std::string value=path.empty()?"AUTO":path.filename().string();
     if (value.size()>18) value=value.substr(0,15)+"...";
     return std::string(kind)+": "+value;
 }
@@ -38,11 +39,17 @@ std::string data_error(const std::exception& error) {
            "Select the game folder, not the GOG installer file. Details: "+std::string(error.what());
 }
 }
-MenuSession::MenuSession(fs::path explicit_data,fs::path app_root,std::unique_ptr<DialogAdapter> dialog)
-    : explicit_data_(std::move(explicit_data)),app_root_(std::move(app_root)),dialog_(std::move(dialog)) {}
+MenuSession::MenuSession(fs::path explicit_data,fs::path app_root,std::unique_ptr<DialogAdapter> dialog,
+                         fs::path resource_root)
+    : explicit_data_(std::move(explicit_data)),app_root_(std::move(app_root)),
+      resource_root_(std::move(resource_root)),dialog_(std::move(dialog)) {}
 MenuSession::~MenuSession() { shutdown(); }
 void MenuSession::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     window_=window; renderer_=renderer;
+    if (resource_root_.empty()) {
+        const char* base=SDL_GetBasePath();
+        if (base) resource_root_=locate_resource_root(base);
+    }
     if (app_root_.empty()) {
         char* pref=SDL_GetPrefPath("OpenEmperor","OpenEmperor");
         if (!pref) throw std::runtime_error(std::string("SDL_GetPrefPath: ")+SDL_GetError());
@@ -83,6 +90,8 @@ void MenuSession::accept_data(const fs::path& path) {
         visual_profile_path_.clear();building_profile_path_.clear();road_profile_path_.clear();
     }
     catalog_=found; settings_.data_root=found.data_root;
+    compatibility_=assets::detect_compatibility(settings_.data_root,
+        resource_root_.empty() ? fs::path{} : resource_root_/"Compatibility");
     auto it=std::find_if(catalog_.entries.begin(),catalog_.entries.end(),[&](const auto& e){
         return e.map_profile && e.relative_path==settings_.last_map; });
     if (it==catalog_.entries.end()) it=std::find_if(catalog_.entries.begin(),catalog_.entries.end(),
@@ -91,8 +100,14 @@ void MenuSession::accept_data(const fs::path& path) {
     map_scroll_=0; set_state(State::MainMenu);
     const auto invalid=std::count_if(catalog_.entries.begin(),catalog_.entries.end(),
         [](const auto& e){return !e.map_profile;});
-    message_=invalid ? std::to_string(invalid)+" map entries unreadable or unsupported" : "Original data ready";
+    message_=invalid ? std::to_string(invalid)+" map entries unreadable or unsupported" :
+        compatibility_.compatible() ? "Compatible original data detected" :
+        "Built-in visual preview unavailable for this data version";
     persist_settings();
+}
+VisualSelection MenuSession::visual_selection() const {
+    return select_visual_profiles(compatibility_,visual_profile_path_,building_profile_path_,
+                                  road_profile_path_);
 }
 void MenuSession::refresh_saves() {
     try { saves_=list_saves(app_root_); save_index_=0; save_scroll_=0; }
@@ -146,9 +161,12 @@ void MenuSession::finish_loading() {
         auto view=std::make_unique<SandboxView>(std::move(loaded),document ? false:demo_,profile);
         view->set_managed(true);
         view->configure_save(settings_.data_root,map,save_path,std::move(document));
-        if (!visual_profile_path_.empty()) view->set_walker_visuals(visual_profile_path_);
-        if (!building_profile_path_.empty()) view->set_building_visuals(building_profile_path_);
-        if (!road_profile_path_.empty()) view->set_road_visuals(road_profile_path_);
+        const auto visuals=visual_selection();
+        view->set_compatibility(visuals.compatibility.compatible() ?
+            visuals.compatibility.profile->id:"unknown");
+        if (!visuals.walker.empty()) view->set_walker_visuals(visuals.walker,visuals.walker_source);
+        if (!visuals.building.empty()) view->set_building_visuals(visuals.building,visuals.building_source);
+        if (!visuals.road.empty()) view->set_road_visuals(visuals.road,visuals.road_source);
         view->initialize(window_,renderer_);
         candidate_=std::move(view); candidate_map_=map; candidate_profile_=profile;
         if (sandbox_ && sandbox_->dirty()) confirm_or(AfterConfirm::Replace);
@@ -203,8 +221,8 @@ void MenuSession::perform(int action) {
         }
         switch (action) {
         case ChooseFolder: open_dialog(DialogKind::Folder); break;
-        case NewGame: set_state(State::NewSandbox); break;
-        case LoadGame: refresh_saves(); set_state(State::LoadSandbox); break;
+        case NewGame: advanced_visuals_open_=false; set_state(State::NewSandbox); break;
+        case LoadGame: advanced_visuals_open_=false; refresh_saves(); set_state(State::LoadSandbox); break;
         case Resume: if (sandbox_) set_state(State::Playing); break;
         case DataFolder: confirm_or(AfterConfirm::ChangeData); break;
         case Quit: confirm_or(AfterConfirm::Quit); break;
@@ -224,14 +242,15 @@ void MenuSession::perform(int action) {
         case OpenSave: if (!saves_.entries.empty()) start_load(saves_.entries.at(save_index_).path); break;
         case ExternalSave: open_dialog(DialogKind::SaveFile); break;
         case VisualsFile: open_dialog(DialogKind::VisualsFile); break;
-        case VisualsClear: visual_profile_path_.clear(); message_="Walker visuals disabled for next session";
+        case VisualsClear: visual_profile_path_.clear(); message_="Walker override cleared; automatic visuals selected";
             rebuild_buttons(); break;
         case BuildingVisualsFile: open_dialog(DialogKind::BuildingVisualsFile); break;
         case BuildingVisualsClear: building_profile_path_.clear();
-            message_="Building visuals disabled for next session";rebuild_buttons();break;
+            message_="Building override cleared; automatic visuals selected";rebuild_buttons();break;
         case RoadVisualsFile: open_dialog(DialogKind::RoadVisualsFile);break;
         case RoadVisualsClear: road_profile_path_.clear();
-            message_="Road visuals disabled for next session";rebuild_buttons();break;
+            message_="Road override cleared; automatic visuals selected";rebuild_buttons();break;
+        case AdvancedVisuals: advanced_visuals_open_=!advanced_visuals_open_;rebuild_buttons();break;
         case ConfirmSave:
             if (sandbox_) { sandbox_->save_now(); record_save(); }
             [[fallthrough]];
@@ -373,11 +392,14 @@ void MenuSession::rebuild_buttons() {
         add(ProfilePrev,"Previous rules",40,205); add(ProfileNext,"Next rules",230,205);
         add(Demo,demo_?"Demo: ON":"Demo: OFF",40,270);
         add(Start,"Start sandbox",40,315); add(Back,"Back",230,315);
-        add(VisualsFile,"Choose walker JSON...",40,360); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,360);
-        add(BuildingVisualsFile,"Building JSON...",40,400);
-        add(BuildingVisualsClear,selection_label("Buildings",building_profile_path_),230,400);
-        add(RoadVisualsFile,"Road JSON...",40,440);
-        add(RoadVisualsClear,selection_label("Roads",road_profile_path_),230,440);
+        add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",40,360,210);
+        if (advanced_visuals_open_) {
+            add(VisualsFile,"Choose walker JSON...",40,400); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,400);
+            add(BuildingVisualsFile,"Building JSON...",40,440);
+            add(BuildingVisualsClear,selection_label("Buildings",building_profile_path_),230,440);
+            add(RoadVisualsFile,"Road JSON...",40,480);
+            add(RoadVisualsClear,selection_label("Roads",road_profile_path_),230,480);
+        }
         const auto begin=map_index_>4?map_index_-4:0;
         map_scroll_=begin;
         for (std::size_t i=begin;i<catalog_.entries.size() && i<begin+11;++i) {
@@ -393,11 +415,14 @@ void MenuSession::rebuild_buttons() {
         add(SavePrev,"Previous save",40,120); add(SaveNext,"Next save",230,120);
         add(OpenSave,"Open selected",40,270); add(ExternalSave,"Open save file...",230,270);
         add(Back,"Back",40,315);
-        add(VisualsFile,"Choose walker JSON...",40,360); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,360);
-        add(BuildingVisualsFile,"Building JSON...",40,400);
-        add(BuildingVisualsClear,selection_label("Buildings",building_profile_path_),230,400);
-        add(RoadVisualsFile,"Road JSON...",40,440);
-        add(RoadVisualsClear,selection_label("Roads",road_profile_path_),230,440);
+        add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",40,360,210);
+        if (advanced_visuals_open_) {
+            add(VisualsFile,"Choose walker JSON...",40,400); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,400);
+            add(BuildingVisualsFile,"Building JSON...",40,440);
+            add(BuildingVisualsClear,selection_label("Buildings",building_profile_path_),230,440);
+            add(RoadVisualsFile,"Road JSON...",40,480);
+            add(RoadVisualsClear,selection_label("Roads",road_profile_path_),230,480);
+        }
         const auto begin=save_index_>4?save_index_-4:0;
         save_scroll_=begin;
         for (std::size_t i=begin;i<saves_.entries.size() && i<begin+11;++i) {
@@ -440,7 +465,7 @@ bool MenuSession::render() {
     } else if (state_==State::MainMenu) {
         if (!label(40,56,std::string(version::display))) return false;
         if (!label(40,70,"Experimental sandbox using your own Emperor game data")) return false;
-        if (!label(280,105,"Data: "+settings_.data_root.generic_string())) return false;
+        if (!label(280,105,"Original data: Ready")) return false;
         if (sandbox_ && !label(280,125,"Retained tick "+std::to_string(sandbox_->world().ticks())+
             (sandbox_->dirty()?" (unsaved)":" (saved)"))) return false;
     } else if (state_==State::NewSandbox && map_index_<catalog_.entries.size()) {
@@ -450,7 +475,9 @@ bool MenuSession::render() {
         if (!label(40,165,"Declared size: "+(e.declared_size?std::to_string(*e.declared_size):"unsupported")+
             (e.error.empty()?"":" - "+e.error))) return false;
         if (!label(40,245,std::string(simulation::rules_profile_name(settings_.profile))+" - "+description(settings_.profile))) return false;
-        if (!label(40,345,"Advanced visual previews (optional diagnostics)")) return false;
+        if (!label(40,345,compatibility_.compatible() ?
+            "Visuals: Compatible preview detected":"Visuals: Diagnostic fallback")) return false;
+        if (advanced_visuals_open_ && !label(40,385,"Advanced visual previews (developer overrides)")) return false;
     } else if (state_==State::LoadSandbox) {
         if (!label(40,85,"Saves: "+std::to_string(saves_.entries.size())+(saves_.truncated?" (list limited)":""))) return false;
         if (!saves_.entries.empty()) {
@@ -459,7 +486,9 @@ bool MenuSession::render() {
             if (e.error.empty() && !label(40,185,e.profile+" | tick "+std::to_string(e.tick)+
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
         }
-        if (!label(40,345,"Advanced visual previews (optional diagnostics)")) return false;
+        if (!label(40,345,compatibility_.compatible() ?
+            "Visuals: Compatible preview detected":"Visuals: Diagnostic fallback")) return false;
+        if (advanced_visuals_open_ && !label(40,385,"Advanced visual previews (developer overrides)")) return false;
     } else if (state_==State::Loading) {
         const auto item=pending_save_path_.empty() && map_index_<catalog_.entries.size()
             ? catalog_.entries[map_index_].relative_path.filename().string()

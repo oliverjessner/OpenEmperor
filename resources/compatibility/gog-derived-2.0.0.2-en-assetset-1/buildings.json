@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "mode": "curated_building_preview",
+  "buildings": {
+    "clay_source": {
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2789,
+      "ground_anchor": [
+        79,
+        76
+      ],
+      "evidence": "Local browser review: excavated earth pit and lifting structure; plausible ClaySource preview, original identity and pivot unverified"
+    },
+    "pottery": {
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2810,
+      "ground_anchor": [
+        79,
+        120
+      ],
+      "evidence": "Local visual comparison: domed kiln and ceramic vessels; curated Pottery preview, original building identity and pivot unverified"
+    },
+    "warehouse": {
+      "archive": "DATA/China_General.sg3",
+      "image_index": 637,
+      "ground_anchor": [
+        79,
+        116
+      ],
+      "evidence": "Local browser review: roofed store with containers and loading platforms in storage/distribution group; original identity and pivot unverified"
+    },
+    "household": {
+      "archive": "DATA/China_General.sg3",
+      "image_index": 1512,
+      "ground_anchor": [
+        79,
+        79
+      ],
+      "evidence": "Local browser review: small inhabited thatched house in Housing group; preview stage only, original house progression and pivot unverified"
+    }
+  }
+}

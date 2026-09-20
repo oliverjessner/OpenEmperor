@@ -8,6 +8,7 @@
 #include "app/SandboxUiLayout.h"
 #include "app/RoadDrag.h"
 #include "app/RoadTopology.h"
+#include "app/VisualSelection.h"
 #include "assets/WalkerVisualProfile.h"
 #include "renderer/WalkerSpriteSet.h"
 #include "renderer/BuildingSprite.h"
@@ -20,6 +21,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 union SDL_Event;
@@ -72,9 +74,18 @@ public:
                         std::optional<persistence::SaveDocument> initial=std::nullopt);
     void save_now();
     void load_now();
-    void set_walker_visuals(const std::filesystem::path& manifest);
-    void set_building_visuals(const std::filesystem::path& manifest);
-    void set_road_visuals(const std::filesystem::path& manifest);
+    void set_walker_visuals(const std::filesystem::path& manifest,
+                            VisualProfileSource source=VisualProfileSource::Custom);
+    void set_building_visuals(const std::filesystem::path& manifest,
+                              VisualProfileSource source=VisualProfileSource::Custom);
+    void set_road_visuals(const std::filesystem::path& manifest,
+                          VisualProfileSource source=VisualProfileSource::Custom);
+    void set_compatibility(std::string id) { compatibility_id_=std::move(id); }
+    VisualProfileSource walker_visual_source() const { return walker_source_; }
+    VisualProfileSource building_visual_source() const { return building_source_; }
+    VisualProfileSource road_visual_source() const { return road_source_; }
+    const std::string& compatibility_id() const { return compatibility_id_; }
+    bool debug_diagnostics() const { return debug_open_; }
     bool road_visuals_active() const { return road_enabled_ && road_profile_.has_value(); }
     struct RoadDisplayStats {
         bool configured=false;
@@ -169,6 +180,7 @@ private:
     int last_courier_draws_=0;
     std::filesystem::path data_root_,map_relative_,save_path_;
     std::filesystem::path walker_manifest_;
+    VisualProfileSource walker_source_=VisualProfileSource::Fallback;
     std::optional<assets::WalkerVisualProfile> walker_profile_;
     std::unique_ptr<WalkerSpriteSet> walker_sprites_;
     bool walker_visuals_enabled_=true;
@@ -180,18 +192,21 @@ private:
     std::array<bool,4> walker_moving_drawn_{};
     std::uint64_t walker_unmapped_fallbacks_=0, walker_invalid_edge_fallbacks_=0;
     std::filesystem::path building_manifest_;
+    VisualProfileSource building_source_=VisualProfileSource::Fallback;
     std::optional<assets::BuildingVisualProfile> building_profile_;
     std::unique_ptr<BuildingSprite> building_sprite_;
     bool building_enabled_=true;
     std::array<std::uint64_t,assets::building_role_count> building_drawn_instances_{};
     std::array<std::uint64_t,assets::building_role_count> building_placeholder_fallbacks_{};
     std::filesystem::path road_manifest_;
+    VisualProfileSource road_source_=VisualProfileSource::Fallback;
     std::optional<assets::RoadVisualProfile> road_profile_;
     std::unique_ptr<RoadSpriteSet> road_sprites_;
     bool road_enabled_=true;
     std::array<bool,16> road_masks_seen_{};
     std::uint64_t road_draws_=0,road_fallbacks_current_=0;
     bool unified_depth_=true;
+    std::string compatibility_id_="unknown";
     PainterStats painter_stats_{};
     std::optional<persistence::SaveDocument> initial_save_;
     std::vector<std::uint8_t> buildable_mask_;

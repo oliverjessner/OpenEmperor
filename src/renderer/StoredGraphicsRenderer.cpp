@@ -17,6 +17,22 @@ namespace { std::atomic<std::size_t> live_textures{0}; }
 
 std::size_t StoredGraphicsRenderer::live_texture_count() { return live_textures.load(); }
 
+std::array<std::uint8_t,3> stored_presentation_fallback_color(
+    maps::TerrainCategory category) {
+    using C=maps::TerrainCategory;
+    switch (category) {
+    case C::Flood: case C::Water: return {58,91,112};
+    case C::Vegetation: case C::Bamboo: case C::Fertile: return {81,96,67};
+    case C::Rock: case C::Elevation: case C::Structure: case C::Monument:
+        return {103,94,78};
+    case C::Road: return {126,105,75};
+    case C::Empty: return {103,101,73};
+    case C::OffMap: return {48,50,45};
+    case C::OtherMarked: case C::Unknown: return {73,78,65};
+    }
+    return {73,78,65};
+}
+
 StoredGraphicsRenderer::StoredGraphicsRenderer(maps::StoredGraphicsPlan plan)
     : plan_(std::move(plan)) {}
 StoredGraphicsRenderer::~StoredGraphicsRenderer() { shutdown(); }
@@ -110,7 +126,8 @@ void StoredGraphicsRenderer::shutdown() {
 }
 
 bool StoredGraphicsRenderer::draw_diagnostic(scene::Point world,
-                                               const scene::Camera2D& camera, bool selected) {
+                                               const scene::Camera2D& camera, bool selected,
+                                               maps::TerrainCategory category) {
     const auto top = camera.world_to_screen(world);
     const float x = static_cast<float>(top.x), y = static_cast<float>(top.y);
     const float half_width = static_cast<float>(40.0 * camera.zoom);
@@ -118,14 +135,18 @@ bool StoredGraphicsRenderer::draw_diagnostic(scene::Point world,
     const SDL_FPoint points[] = {{x,y},{x+half_width,y+half_height},
                                 {x,y+2*half_height},{x-half_width,y+half_height}};
     if (!selected) {
-        const SDL_FColor fill{0.44F,0.12F,0.50F,1.0F};
+        const auto rgb=debug_diagnostics_ ? std::array<std::uint8_t,3>{112,31,128}:
+            stored_presentation_fallback_color(category);
+        const SDL_FColor fill{rgb[0]/255.0F,rgb[1]/255.0F,rgb[2]/255.0F,1.0F};
         const SDL_Vertex vertices[] = {{points[0],fill,{}},{points[1],fill,{}},
                                        {points[2],fill,{}},{points[3],fill,{}}};
         const int indices[] = {0,1,2,0,2,3};
         if (!SDL_RenderGeometry(renderer_,nullptr,vertices,4,indices,6)) return false;
     }
-    if (!SDL_SetRenderDrawColor(renderer_,255,selected ? 236 : 100,
-                                selected ? 55 : 190,255)) return false;
+    const auto outline=debug_diagnostics_ ? std::array<std::uint8_t,3>{255,100,190}:
+        stored_presentation_fallback_color(category);
+    if (!SDL_SetRenderDrawColor(renderer_,selected ? 255:outline[0],
+                                selected ? 236:outline[1],selected ? 55:outline[2],255)) return false;
     for (int i=0;i<4;++i)
         if (!SDL_RenderLine(renderer_,points[i].x,points[i].y,
                             points[(i+1)%4].x,points[(i+1)%4].y)) return false;
@@ -159,7 +180,8 @@ bool StoredGraphicsRenderer::draw_item(std::size_t renderer_index,
             for (const auto member : footprint.cell_indices) {
                 const auto& cell=plan_.cells[member];
                 if (!maps::stored_rect_visible({cell.world.x-40,cell.world.y},80,40,camera)) continue;
-                if (!draw_diagnostic(cell.world,camera,false)) return false;
+                if (!draw_diagnostic(cell.world,camera,false,
+                    maps::interpret_terrain(cell.terrain_raw,cell.objects_raw).category)) return false;
                 ++last_diagnostic_draws_;
             }
         }
@@ -167,7 +189,8 @@ bool StoredGraphicsRenderer::draw_item(std::size_t renderer_index,
         const auto& cell=plan_.cells[item.plan_index];
         const scene::Point origin{cell.world.x-40,cell.world.y};
         if (!maps::stored_rect_visible(origin,80,40,camera)) return true;
-        if (!draw_diagnostic(cell.world,camera,false)) return false;
+        if (!draw_diagnostic(cell.world,camera,false,
+            maps::interpret_terrain(cell.terrain_raw,cell.objects_raw).category)) return false;
         ++last_diagnostic_draws_;
     }
     ++last_drawn_instances_;

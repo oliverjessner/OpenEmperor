@@ -122,6 +122,21 @@ def check_negative(app, scratch):
     reject("invalid-plist", lambda p: (p / "Contents/Info.plist").write_text("invalid"))
     reject("missing-executable", lambda p: (p / "Contents/MacOS/OpenEmperor").unlink())
     reject("forbidden-asset", lambda p: (p / "Contents/Resources/original.sg3").write_bytes(b"synthetic"))
+    compatibility = Path("Contents/Resources/Compatibility/gog-derived-2.0.0.2-en-assetset-1")
+    reject("invalid-compatibility-json",
+           lambda p: (p / compatibility / "roads.json").write_text("invalid"))
+    reject("compatibility-proprietary-file",
+           lambda p: (p / compatibility / "original.png").write_bytes(b"synthetic"))
+    def traversal(p):
+        manifest = p / compatibility / "manifest.json"
+        document = json.loads(manifest.read_text())
+        document["files"][0]["path"] = "../escape.sg3"
+        manifest.write_text(json.dumps(document))
+    reject("compatibility-traversal", traversal)
+    def compatibility_symlink(p):
+        target = p / compatibility / "roads.json"
+        target.unlink(); target.symlink_to("/tmp/roads.json")
+    reject("compatibility-symlink", compatibility_symlink)
     reject("invalid-signature", lambda p: (p / "Contents/Resources/BuildInfo.json").write_text("changed"), signed=True)
     occupied = scratch / "write-failure"; occupied.write_bytes(b"occupied")
     try:
@@ -181,7 +196,7 @@ def main():
             for path in rpaths:
                 if path.startswith("/"):
                     call("install_name_tool", "-delete_rpath", path, str(item))
-        resources = app / "Contents/Resources"; resources.mkdir()
+        resources = app / "Contents/Resources"; resources.mkdir(exist_ok=True)
         with (app / "Contents/Info.plist").open("rb") as stream:
             project_version = plistlib.load(stream)["CFBundleShortVersionString"]
         if build_info["project_version"] != project_version:

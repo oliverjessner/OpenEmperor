@@ -18,9 +18,7 @@ namespace openemperor {
 int run_sandbox_check(const std::filesystem::path& data_root,
                       const std::filesystem::path& map_relative,
                       simulation::RulesProfile rules,bool resume_check,
-                      const std::filesystem::path& walker_visuals,
-                      const std::filesystem::path& building_visuals,
-                      const std::filesystem::path& road_visuals) {
+                      const VisualSelection& visuals) {
     SDL_Window* window=nullptr;
     SDL_Renderer* renderer=nullptr;
     struct TempCleanup {
@@ -37,9 +35,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         if (!SDL_CreateWindowAndRenderer("Sandbox check",1100,700,SDL_WINDOW_HIDDEN,
                                          &window,&renderer)) throw std::runtime_error(SDL_GetError());
         SandboxView view(std::move(session),true,rules);
-        if (!walker_visuals.empty()) view.set_walker_visuals(walker_visuals);
-        if (!building_visuals.empty()) view.set_building_visuals(building_visuals);
-        if (!road_visuals.empty()) view.set_road_visuals(road_visuals);
+        view.set_compatibility(visuals.compatibility.compatible() ?
+            visuals.compatibility.profile->id:"unknown");
+        if (!visuals.walker.empty()) view.set_walker_visuals(visuals.walker,visuals.walker_source);
+        if (!visuals.building.empty()) view.set_building_visuals(visuals.building,visuals.building_source);
+        if (!visuals.road.empty()) view.set_road_visuals(visuals.road,visuals.road_source);
         if (resume_check) {
             temporary.path=std::filesystem::canonical(std::filesystem::temp_directory_path())/
                 ("openemperor-resume-check-"+std::to_string(std::random_device{}()));
@@ -48,7 +48,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         }
         view.initialize(window,renderer);
         std::optional<simulation::World> walker_control;
-        if (!walker_visuals.empty() || !building_visuals.empty() || !road_visuals.empty())
+        if (!visuals.walker.empty() || !visuals.building.empty() || !visuals.road.empty())
             walker_control.emplace(simulation::World::restore(view.world().snapshot(),
                                                                view.buildable_mask()));
         bool simulation_neutral=true;
@@ -241,6 +241,12 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
                                {"fresh_world",fresh_world},{"direct_equal",direct_equal},
                                {"continued_equal",continued_equal}}}};
+                report["compatibility"]={{"detected",visuals.compatibility.compatible()},
+                    {"id",visuals.compatibility.compatible() ? visuals.compatibility.profile->id:"unknown"},
+                    {"status",assets::compatibility_status_name(visuals.compatibility.status)},
+                    {"walker",visual_profile_source_name(view.walker_visual_source())},
+                    {"building",visual_profile_source_name(view.building_visual_source())},
+                    {"road",visual_profile_source_name(view.road_visual_source())}};
                 const auto painter=view.painter_stats();
                 report["depth_painter"]={{"mode",view.unified_depth() ? "unified":"legacy"},
                     {"stored_items_visited",painter.stored_items_visited},
@@ -249,11 +255,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"sandbox_before_stored_count",painter.sandbox_before_stored_count},
                     {"stored_order_builds",painter.stored_order_builds},
                     {"manual_visual_review",false}};
-                if (!walker_visuals.empty()) {
+                if (view.walker_visual_source()!=VisualProfileSource::Fallback) {
                     report["walker"]=walker_report(); // Schema-1 check compatibility.
                     report["walker_visuals"]=walker_visuals_report();
                 }
-                if (!building_visuals.empty()) {
+                if (view.building_visual_source()!=VisualProfileSource::Fallback) {
                     const auto stats=view.building_display_stats();
                     nlohmann::json roles=nlohmann::json::array();
                     nlohmann::json draws=nlohmann::json::object(),fallbacks=nlohmann::json::object();
@@ -272,7 +278,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                         {"simulation_equal_to_control",simulation_neutral},
                         {"manual_visual_review",false}};
                 }
-                if (!road_visuals.empty()) {
+                if (view.road_visual_source()!=VisualProfileSource::Fallback) {
                     const auto stats=view.road_display_stats();
                     nlohmann::json masks=nlohmann::json::array(),seen=nlohmann::json::array();
                     for (std::size_t mask=0;mask<16;++mask) {

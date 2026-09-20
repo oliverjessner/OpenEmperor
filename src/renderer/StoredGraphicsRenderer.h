@@ -1,9 +1,12 @@
 #pragma once
 
 #include "maps/StoredGraphicsPlan.h"
+#include "maps/TerrainInterpretation.h"
 #include "scene/WorldDrawOrder.h"
 
 #include <cstddef>
+#include <array>
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -11,6 +14,9 @@ struct SDL_Renderer;
 struct SDL_Texture;
 
 namespace openemperor {
+
+std::array<std::uint8_t,3> stored_presentation_fallback_color(
+    maps::TerrainCategory category);
 
 struct StoredDrawItem {
     scene::WorldDrawKey key;
@@ -38,9 +44,12 @@ public:
     std::size_t last_texture_draws() const { return last_texture_draws_; }
     std::size_t last_diagnostic_draws() const { return last_diagnostic_draws_; }
     std::size_t stored_order_builds() const { return stored_order_builds_; }
+    void set_debug_diagnostics(bool enabled) { debug_diagnostics_=enabled; }
+    bool debug_diagnostics() const { return debug_diagnostics_; }
     static std::size_t live_texture_count(); // Textures owned by this renderer class.
 private:
-    bool draw_diagnostic(scene::Point world, const scene::Camera2D& camera, bool selected);
+    bool draw_diagnostic(scene::Point world, const scene::Camera2D& camera, bool selected,
+                         maps::TerrainCategory category=maps::TerrainCategory::Unknown);
     maps::StoredGraphicsPlan plan_;
     SDL_Renderer* renderer_ = nullptr;
     std::vector<SDL_Texture*> textures_;
@@ -49,6 +58,7 @@ private:
     std::size_t last_drawn_instances_ = 0;
     std::size_t last_texture_draws_ = 0;
     std::size_t last_diagnostic_draws_ = 0;
+    bool debug_diagnostics_ = true;
 };
 
 } // namespace openemperor

@@ -48,7 +48,7 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
         out.buttons[7+i]={controls[i],{pad+static_cast<int>(i)*control_w,
             out.toolbar.y+36*unit,std::max(0,control_w-pad),28*unit},true};
     out.buttons[15]={Action::TogglePanel,out.panel_toggle,true};
-    out.buttons[16]={Action::ToggleDebug,{std::max(0,width-186*unit),8*unit,
+    out.buttons[16]={Action::ToggleHelp,{std::max(0,width-186*unit),8*unit,
         84*unit,32*unit},true};
     return out;
 }

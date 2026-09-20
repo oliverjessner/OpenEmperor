@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "mode": "curated_road_preview",
+  "tiles": {
+    "0x0": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 799,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0x5": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 786,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0xa": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 782,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0x3": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 790,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0x6": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 791,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0xc": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 792,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0x9": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 793,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0x7": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 794,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0xb": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 795,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0xd": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 796,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0xe": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 797,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    },
+    "0xf": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 875,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+    }
+  }
+}

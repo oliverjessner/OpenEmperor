@@ -11,11 +11,42 @@ from pathlib import Path
 SYSTEM_PREFIXES = ("/usr/lib/", "/System/Library/")
 RESOURCE_FILES = {"BuildInfo.json", "LICENSE-SDL.txt", "LICENSE-OpenSSL.txt",
                   "LICENSE-nlohmann-json.txt"}
+COMPATIBILITY_ID = "gog-derived-2.0.0.2-en-assetset-1"
+COMPATIBILITY_FILES = {"manifest.json", "walkers.json", "buildings.json", "roads.json"}
+FORBIDDEN_COMPATIBILITY_SUFFIXES = {".sg3", ".555", ".map", ".pak", ".exe", ".png",
+                                    ".jpg", ".jpeg", ".bmp", ".rgba", ".raw"}
+MAX_COMPATIBILITY_JSON_BYTES = 256 * 1024
 
 
 def run(*args):
     return subprocess.run(args, check=True, text=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE).stdout
+
+
+def validate_compatibility_json(path):
+    if path.stat().st_size > MAX_COMPATIBILITY_JSON_BYTES:
+        raise ValueError("compatibility JSON exceeds size limit: " + path.name)
+    try:
+        document = json.loads(path.read_text())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid compatibility JSON: " + path.name) from error
+
+    def visit(value, key=""):
+        if isinstance(value, dict):
+            for child_key, child in value.items():
+                lowered = child_key.lower()
+                if any(token in lowered for token in ("blob", "binary", "pixels", "base64")):
+                    raise ValueError("binary/blob field in compatibility JSON: " + child_key)
+                visit(child, child_key)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child, key)
+        elif isinstance(value, str) and key in {"path", "archive", "walker", "building", "road"}:
+            candidate = Path(value)
+            if candidate.is_absolute() or ".." in candidate.parts or "." in candidate.parts or "\\" in value:
+                raise ValueError("unsafe path in compatibility JSON: " + value)
+    visit(document)
+    return document
 
 
 def verify(app, signature=True, required_arch="arm64"):
@@ -37,11 +68,16 @@ def verify(app, signature=True, required_arch="arm64"):
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise ValueError("bundle executable missing or not executable")
     allowed_dirs = {"Contents", "Contents/MacOS", "Contents/Frameworks",
-                    "Contents/Resources", "Contents/_CodeSignature"}
+                    "Contents/Resources", "Contents/_CodeSignature",
+                    "Contents/Resources/Compatibility",
+                    "Contents/Resources/Compatibility/" + COMPATIBILITY_ID}
     allowed_files = {"Contents/Info.plist", "Contents/MacOS/OpenEmperor",
                      "Contents/_CodeSignature/CodeResources"}
     for name in RESOURCE_FILES:
         allowed_files.add("Contents/Resources/" + name)
+    compatibility_prefix = "Contents/Resources/Compatibility/" + COMPATIBILITY_ID + "/"
+    for name in COMPATIBILITY_FILES:
+        allowed_files.add(compatibility_prefix + name)
     macho = [executable]
     framework_dir = contents / "Frameworks"
     if not framework_dir.is_dir():
@@ -58,6 +94,8 @@ def verify(app, signature=True, required_arch="arm64"):
             if relative not in allowed_dirs:
                 raise ValueError("unlisted bundle directory: " + relative)
         elif path.is_file():
+            if path.is_relative_to(contents / "Resources" / "Compatibility") and path.suffix.lower() in FORBIDDEN_COMPATIBILITY_SUFFIXES:
+                raise ValueError("proprietary/binary asset type in Compatibility: " + relative)
             if path.is_relative_to(framework_dir):
                 if path.suffix != ".dylib":
                     raise ValueError("unlisted Frameworks file: " + relative)
@@ -68,6 +106,20 @@ def verify(app, signature=True, required_arch="arm64"):
             raise ValueError("unlisted bundle item: " + relative)
     if not RESOURCE_FILES.issubset({p.name for p in (contents / "Resources").iterdir()}):
         raise ValueError("license or build info missing")
+    compatibility_dir = contents / "Resources" / "Compatibility" / COMPATIBILITY_ID
+    if (not compatibility_dir.is_dir() or compatibility_dir.is_symlink() or
+            {path.name for path in compatibility_dir.iterdir()} != COMPATIBILITY_FILES):
+        raise ValueError("compatibility metadata set is incomplete or unexpected")
+    compatibility_documents = {
+        name: validate_compatibility_json(compatibility_dir / name)
+        for name in sorted(COMPATIBILITY_FILES)
+    }
+    manifest = compatibility_documents["manifest.json"]
+    if (manifest.get("schema_version") != 1 or manifest.get("id") != COMPATIBILITY_ID or
+            manifest.get("profiles") != {"walker": "walkers.json",
+                                          "building": "buildings.json",
+                                          "road": "roads.json"}):
+        raise ValueError("compatibility manifest identity or profile allowlist changed")
     build_info_path = contents / "Resources" / "BuildInfo.json"
     try:
         build_info = json.loads(build_info_path.read_text())
@@ -159,7 +211,10 @@ def verify(app, signature=True, required_arch="arm64"):
     return {"bundle_id": info["CFBundleIdentifier"], "version": info["CFBundleShortVersionString"],
             "display_version": build_info["display_version"],
             "declared_minimum_macos": min_os, "mach_o": report,
-            "ad_hoc_signature_valid": bool(signature)}
+            "ad_hoc_signature_valid": bool(signature),
+            "compatibility_pack": COMPATIBILITY_ID,
+            "compatibility_json_files": sorted(COMPATIBILITY_FILES),
+            "proprietary_assets_in_compatibility": 0}
 
 
 def main():

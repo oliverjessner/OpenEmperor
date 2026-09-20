@@ -14,7 +14,7 @@ struct Rect {
 
 enum class Action {
     Select, Road, Clay, Pottery, Warehouse, RemoveRoad, Household,
-    Pause, Step, Speed1, Speed2, Speed4, Reset, Save, Load, TogglePanel, ToggleDebug
+    Pause, Step, Speed1, Speed2, Speed4, Reset, Save, Load, TogglePanel, ToggleHelp
 };
 
 struct Button { Action action; Rect rect; bool enabled=true; };
