@@ -57,7 +57,7 @@ private:
     std::filesystem::path visual_profile_path_; // Session-only, never saved.
     std::filesystem::path building_profile_path_; // Session-only, never saved.
     std::filesystem::path road_profile_path_; // Session-only, never saved.
-    simulation::RulesProfile candidate_profile_=simulation::RulesProfile::CityV6;
+    simulation::RulesProfile candidate_profile_=simulation::RulesProfile::CityV7;
     std::unique_ptr<DialogAdapter> dialog_;
     std::shared_ptr<Inbox> inbox_=std::make_shared<Inbox>();
     std::uint64_t dialog_generation_=0,seen_save_generation_=0;

@@ -289,9 +289,23 @@ int main(int argc,char** argv) {
             const auto hidpi=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
             check(hidpi.scale==2 && hidpi.map.w==1592 && hidpi.map.h==1104,
                   "2x display layout");
+            const auto farm_button=std::find_if(hidpi.buttons.begin(),hidpi.buttons.end(),
+                [](const auto& button) {
+                    return button.action==openemperor::sandbox_ui::Action::Farm;
+                });
+            check(farm_button!=hidpi.buttons.end() && farm_button->rect.w>0 &&
+                  farm_button->rect.x+farm_button->rect.w<=hidpi.toolbar.w,
+                  "City v7 Farm tool is not readable at 2x layout");
             const auto small=openemperor::sandbox_ui::make_layout(600,400,600,400,true);
             check(!small.panel_open && small.map.w==600 && small.map.h==252,
                   "small display map area");
+            const auto small_farm=std::find_if(small.buttons.begin(),small.buttons.end(),
+                [](const auto& button) {
+                    return button.action==openemperor::sandbox_ui::Action::Farm;
+                });
+            check(small_farm!=small.buttons.end() && small_farm->rect.w>0 &&
+                  small_farm->rect.x+small_farm->rect.w<=small.toolbar.w,
+                  "City v7 Farm tool is not readable in small layout");
             const auto closed=openemperor::sandbox_ui::make_layout(1100,700,1100,700,false);
             check(!closed.ui_at(900,200) && closed.map.w==1100,
                   "closed panel still blocks map");

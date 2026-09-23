@@ -53,7 +53,8 @@ SettingsRead read_settings(const fs::path& root) {
         bool found=false;
         for (const auto p:{simulation::RulesProfile::LogisticsV1,simulation::RulesProfile::ProductionV2,
              simulation::RulesProfile::HouseholdV3,simulation::RulesProfile::SettlementV4,
-             simulation::RulesProfile::IndustryV5,simulation::RulesProfile::CityV6})
+             simulation::RulesProfile::IndustryV5,simulation::RulesProfile::CityV6,
+             simulation::RulesProfile::CityV7})
             if (profile==simulation::rules_profile_name(p)) { result.value.profile=p; found=true; }
         if (!found) throw std::runtime_error("unknown settings profile");
     } catch (const std::exception& e) {

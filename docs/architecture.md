@@ -1,5 +1,11 @@
 # Architecture
 
+## City-v7 simulation boundary
+
+`simulation::World` keeps ten stable building slots and six courier slots; legacy saves serialize only the earlier profile-specific prefixes. City-v7 assigns Building ID 10 to the Farm and Courier ID 6 to Food. Food uses independent Household stocks, reservations, target routes and a cyclic dispatch cursor. The SDL-free core derives House level, staffing and goal state and checks Food conservation together with the existing production, navigation and treasury invariants.
+
+`persistence::SandboxSave` writes these fields only in schema 7. SDL consumes read-only queries and draws authored fallback markers for Farm and Food courier; it does not own Food, tax or development state. No original asset mapping or reverse-engineered economy semantic is introduced.
+
 ## City-v6 simulation boundary
 
 The SDL-free `simulation::World` owns City-v6 treasury counters and derives workforce and goal status from stable building records. Command validation checks funds before mutation, and the shared execution path charges only successful changed construction. Production and dispatch consult the deterministic Building-ID staffing calculation; active courier movement remains authoritative and continues independently. `persistence::SandboxSave` writes these economy counters only for City-v6 schema 6 and continues to map schemas 1–5 to their original rule profiles. SDL reads the public World queries for presentation and does not own economy state.

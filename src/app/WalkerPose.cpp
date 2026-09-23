@@ -6,6 +6,7 @@ std::optional<assets::WalkerVisualRole> walker_visual_role(simulation::CourierRo
     case simulation::CourierRole::Clay: return assets::WalkerVisualRole::Clay;
     case simulation::CourierRole::Pottery: return assets::WalkerVisualRole::Pottery;
     case simulation::CourierRole::Household: return assets::WalkerVisualRole::Household;
+    case simulation::CourierRole::Food: return std::nullopt;
     case simulation::CourierRole::None: return std::nullopt;
     }
     return std::nullopt;

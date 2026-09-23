@@ -1,5 +1,11 @@
 # Logistics sandbox (`sandbox-logistics-v1`)
 
+## City-v7 Food and House development
+
+`sandbox-city-v7` preserves City-v6 and adds the authored Farm → Household Food chain. A 160-fund Farm uses 4 workers, produces one Food per 80 staffed ticks, stores 12 and dispatches Courier 6 directly to Houses. Houses reserve and store Food independently from Pottery. Their 400-tick demand consumes one of each only when both are present. Derived levels begin at fulfilled-demand counts 2 and 5; resulting levels pay 25, 40 and 60 funds. The goal is four Level-2 Houses. See [City v7 rules](city-v7.md).
+
+The paid City-v7 demo costs 794 and leaves 206 funds. Its Food number is Farm output plus Food stored in Houses. Farm and Food courier deliberately use muted OpenEmperor marker fallbacks rather than an original asset assignment. Save schema 7 stores the new authoritative Food fields and cursor; schemas 1–6 keep their prior structures.
+
 ## City-v6 economy
 
 `sandbox-city-v6` retains the Industry-v5 production, routing, road-removal and capacity rules. It adds the authored treasury, paid construction, derived workforce, 25-fund successful-demand tax, and the four-house/three-fulfilled-demand goal described in [City v6 rules](city-v6.md). Industry-v5 remains available as the legacy alpha sandbox and receives none of these rules.
@@ -8,7 +14,7 @@ The City-v6 demo is a paid starter settlement with one production chain and two 
 
 ## Start from the menu
 
-`./build/openemperor` opens the normal main menu. Choose a folder containing installed or extracted original Emperor files, then select **New sandbox**, a supported standalone map, and an OpenEmperor rules profile. New settings preselect `sandbox-city-v6`; the demo arrangement is off by default. The GOG offline installer file alone is not a usable data folder. `--data <directory>` overrides the remembered folder for this launch without changing direct CLI mode semantics. The old `--sandbox` command below still starts directly with its historical v1 default.
+`./build/openemperor` opens the normal main menu. Choose a folder containing installed or extracted original Emperor files, then select **New sandbox**, a supported standalone map, and an OpenEmperor rules profile. New settings preselect `sandbox-city-v7`; the demo arrangement is off by default. The GOG offline installer file alone is not a usable data folder. `--data <directory>` overrides the remembered folder for this launch without changing direct CLI mode semantics. The old `--sandbox` command below still starts directly with its historical v1 default.
 
 The menu creates a unique save target for each new session but writes no save until the Save button or F5 is used. Escape first cancels an active road or UI gesture; otherwise Escape or **Menu** retains the session without advancing simulation. **Resume session** continues the same World and camera, with its previous pause/speed state. **Load save** shows bounded, validated OpenEmperor save entries and can open an external OpenEmperor save file. It checks the original map hash and decoded buildability mask before replacing any existing World. Loading starts paused at the saved tick. A changed World prompts Save / Without saving / Cancel before replacement or exit; failed writes keep the session. Window close uses the same prompt. Direct `--sandbox` retains its existing Escape-to-exit behavior.
 
@@ -159,6 +165,6 @@ An optional [curated road profile](road-visual-profile.md) replaces yellow road 
 For visual inspection, `Z` cycles the sandbox camera through 1×, 2× and 4× around the map viewport center. This changes only the camera; world positions, picking cells and save data stay unchanged.
 # Frozen alpha simulation scope
 
-The first alpha froze the authored `sandbox-industry-v5` scope: two Clay sources, two Pottery works, one warehouse, four households, five couriers, roads with live rerouting/removal, and OpenEmperor schema-5 save/load. City-v6 now layers its own schema-6 economy rules over that stable simulation without changing Industry-v5. Neither profile claims compatibility with Emperor's simulation or savegames.
+The first alpha froze the authored `sandbox-industry-v5` scope: two Clay sources, two Pottery works, one warehouse, four households, five couriers, roads with live rerouting/removal, and OpenEmperor schema-5 save/load. City-v6 layers its schema-6 economy rules over that stable simulation without changing Industry-v5. City-v7 adds only its schema-7 Food and House-development rules without changing City-v6. Neither profile claims compatibility with Emperor's simulation or savegames.
 
 The long acceptance test uses ordinary commands and the production `World::tick()` path for 100,000 ticks. Two independently constructed Worlds receive the same fixed command schedule, including road removals and replacements, and are compared throughout. Checkpoints cover direct snapshots, immediate `World::restore`, real JSON serialization, exact pre-tick equality, deterministic save bytes, and continued execution. Existing conservation and navigation validation is supplemented in the driver with bounded stock, reservations, IDs, courier roles, paths, positions, phases, and target checks. See [alpha readiness](alpha-readiness.md).

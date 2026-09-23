@@ -57,18 +57,20 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         bool delivered=false,returning=false,returned=false,balanced=true,rendered=true;
         bool pottery_processed=false,clay_delivered=false,house_delivered=false;
         std::array<int,4> house_arrivals{};
-        std::array<int,5> courier_arrivals{};
-        int frames_with_both=0,frames_with_three=0,frames_with_five=0;
+        std::array<int,6> courier_arrivals{};
+        int frames_with_both=0,frames_with_three=0,frames_with_five=0,frames_with_food=0;
         const int limit=rules==simulation::RulesProfile::IndustryV5 ? 8000 :
+            rules==simulation::RulesProfile::CityV7 ? 8000 :
             rules==simulation::RulesProfile::CityV6 ? 4000 :
             rules==simulation::RulesProfile::SettlementV4 ? 6000 :
             simulation::production_profile(rules) ? 3000 : 700;
         for (int i=0;i<limit;++i) {
             const auto before=simulation::household_profile(rules) ?
                 view.world().courier(simulation::CourierId::Household):simulation::CourierState{};
-            std::array<simulation::CourierPhase,5> previous{};
-            if (rules==simulation::RulesProfile::IndustryV5)
-                for (unsigned id=1;id<=5;++id)
+            std::array<simulation::CourierPhase,6> previous{};
+            if (rules==simulation::RulesProfile::IndustryV5 ||
+                rules==simulation::RulesProfile::CityV7)
+                for (unsigned id=1;id<=(rules==simulation::RulesProfile::CityV7 ? 6U:5U);++id)
                     previous[id-1]=view.world().courier(static_cast<simulation::CourierId>(id)).phase;
             view.tick_once();
             const auto& world=view.world();
@@ -77,8 +79,9 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 simulation_neutral=simulation_neutral &&
                     walker_control->snapshot()==world.snapshot();
             }
-            if (rules==simulation::RulesProfile::IndustryV5)
-                for (unsigned id=1;id<=5;++id)
+            if (rules==simulation::RulesProfile::IndustryV5 ||
+                rules==simulation::RulesProfile::CityV7)
+                for (unsigned id=1;id<=(rules==simulation::RulesProfile::CityV7 ? 6U:5U);++id)
                     if (previous[id-1]==simulation::CourierPhase::ToWarehouse &&
                         world.courier(static_cast<simulation::CourierId>(id)).phase==
                             simulation::CourierPhase::Returning)
@@ -104,7 +107,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             }
             if (simulation::production_profile(rules)) {
                 balanced=balanced && world.production_balance_valid() && world.navigation_valid() &&
-                    (rules!=simulation::RulesProfile::CityV6 || world.city_economy_valid());
+                    (!simulation::city_profile(rules) || world.city_economy_valid()) &&
+                    (rules!=simulation::RulesProfile::CityV7 || world.food_balance_valid());
                 const auto& p=world.building(simulation::BuildingId::Pottery);
                 clay_delivered=clay_delivered || p.input_clay>0 || p.active_recipe_clay>0;
                 pottery_processed=pottery_processed || world.pottery_completed_total()>0;
@@ -130,6 +134,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     ++frames_with_three;
                 if (rules==simulation::RulesProfile::IndustryV5 && view.last_courier_draws()==5)
                     ++frames_with_five;
+                if (rules==simulation::RulesProfile::CityV7 && view.last_courier_draws()>=4)
+                    ++frames_with_food;
             }
         }
         const auto walker_report=[&]() {
@@ -195,6 +201,50 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             const auto& b=world.courier(simulation::CourierId::Pottery);
             const auto& home=world.building(simulation::BuildingId::Household);
             const auto& supplier=world.courier(simulation::CourierId::Household);
+            if (rules==simulation::RulesProfile::CityV7) {
+                nlohmann::json houses=nlohmann::json::array();
+                std::uint64_t delivered_food=0,consumed_food=0;
+                for (unsigned id=4;id<8;++id) {
+                    const auto key=static_cast<simulation::BuildingId>(id);
+                    const auto& house=world.building(key);
+                    if (!house.placed) continue;
+                    delivered_food+=static_cast<std::uint64_t>(house.food_stock)+
+                        house.food_consumed_total;
+                    consumed_food+=house.food_consumed_total;
+                    houses.push_back({{"id",id},{"level",world.household_level(key)},
+                        {"fulfilled",house.fulfilled_demand},{"missed",house.missed_demand},
+                        {"pottery",house.pottery_stock},{"food",house.food_stock},
+                        {"food_consumed",house.food_consumed_total},
+                        {"tax_contributed",world.household_tax_contributed(key)}});
+                }
+                const bool success=houses.size()==2 && delivered_food>0 && consumed_food>0 &&
+                    world.food_produced_total()>0 && world.taxes_collected_total()>0 &&
+                    world.workforce_supply()==16 && world.workforce_used()==16 &&
+                    balanced && rendered && frames_with_food>0 &&
+                    (!resume_check || (saved && reparsed && fresh_world && direct_equal && continued_equal));
+                std::cout<<nlohmann::json{{"schema","openemperor-sandbox-check-v7"},
+                    {"rules",simulation::rules_profile_name(rules)},
+                    {"map",map_relative.generic_string()},{"ticks",world.ticks()},
+                    {"demo_origin",origin ? nlohmann::json::array({origin->x,origin->y}):nlohmann::json()},
+                    {"houses",houses},{"food_produced_total",world.food_produced_total()},
+                    {"food_delivered",delivered_food},{"food_consumed",consumed_food},
+                    {"treasury",world.treasury()},{"taxes_collected_total",world.taxes_collected_total()},
+                    {"construction_spent_total",world.construction_spent_total()},
+                    {"workforce_supply",world.workforce_supply()},
+                    {"workforce_required",world.workforce_required()},
+                    {"workforce_used",world.workforce_used()},
+                    {"goal_households_ready",world.settlement_goal_households_ready()},
+                    {"goal_reached",world.settlement_goal_reached()},
+                    {"production_balance_valid",world.production_balance_valid()},
+                    {"food_balance_valid",world.food_balance_valid()},
+                    {"economy_valid",world.city_economy_valid()},
+                    {"frames_rendered",rendered},{"frames_with_food_courier",frames_with_food},
+                    {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
+                               {"fresh_world",fresh_world},{"direct_equal",direct_equal},
+                               {"continued_equal",continued_equal}}}}.dump()<<'\n';
+                view.shutdown(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
+                return success ? 0:1;
+            }
             if (rules==simulation::RulesProfile::CityV6) {
                 nlohmann::json houses=nlohmann::json::array();
                 int supplied=0;

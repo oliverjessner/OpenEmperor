@@ -300,6 +300,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-city-tests)
     add_test(NAME sandbox-city-economy COMMAND openemperor-sandbox-city-tests)
     set_tests_properties(sandbox-city-economy PROPERTIES TIMEOUT 30)
+
+    add_executable(openemperor-sandbox-city-v7-tests tests/SandboxCityV7Tests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v7-tests PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-sandbox-city-v7-tests)
+    add_test(NAME sandbox-city-v7-food COMMAND openemperor-sandbox-city-v7-tests)
+    set_tests_properties(sandbox-city-v7-food PROPERTIES TIMEOUT 60)
     add_executable(openemperor-sandbox-courier-triage-tests
         tests/SandboxCourierTriageTests.cpp)
     target_link_libraries(openemperor-sandbox-courier-triage-tests PRIVATE openemperor-simulation)
