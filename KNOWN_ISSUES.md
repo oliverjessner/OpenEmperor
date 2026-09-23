@@ -11,6 +11,7 @@
 - Elevation and many original map graphics are incomplete.
 - Horizontal mirroring is parsed but not applied because its behavior is unverified.
 - Some original animation timing and pivot semantics remain unknown.
+- For the studied byte-59 flagged Omega walkers, OpenEmperor presents exact `0x7c00` shadow markers as 50% black RGBA. This closely models the verified original RGB555 destination-halving branch, but 8-bit source-over rounding is not bit-identical to its 5-bit framebuffer result. The behavior is deliberately limited to that verified sprite profile; an original-game side-by-side capture is still unavailable.
 - The developer app is ad-hoc signed and is not notarized, so macOS may show a security warning.
 - Only macOS on Apple Silicon (arm64) is currently supported and tested.
 - A public source license has not been selected yet.

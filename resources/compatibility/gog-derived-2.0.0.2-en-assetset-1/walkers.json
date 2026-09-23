@@ -4,7 +4,7 @@
   "roles": {
     "clay": {
       "ticks_per_frame": 4,
-      "evidence": "Local four-column SprMain physical 109-136 visual check at 4x. Same figure and four four-step directions; foot anchors chosen by eye at visible contact, not SG3 animation offsets. ticks_per_frame=4 is an OpenEmperor preview. Red 0x7c00 color literals are opaque in current decoder; original-game shadow/composition unknown.",
+      "evidence": "Local four-column SprMain physical 109-136 visual check at 4x. Same figure and four four-step directions; foot anchors chosen by eye at visible contact, not SG3 animation offsets. ticks_per_frame=4 is an OpenEmperor preview. Studied runtime byte-59 shadow composition is applied after the unchanged decoder.",
       "frames": [
         {
           "alias": "neg_x_0",

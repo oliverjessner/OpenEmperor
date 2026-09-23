@@ -55,6 +55,9 @@ struct Sg3Image {
     std::uint8_t isometric_size_flag = 0; // Size hint for Type 30; no other meaning assumed.
     std::uint8_t group_id = 0;
     std::uint8_t animation_speed_id = 0;
+    // Verified for the studied Emperor v213/v214 runtime: when nonzero on an
+    // Omega sprite, an exact RGB555 0x7c00 literal darkens the destination.
+    std::uint8_t shadow_marker_flag = 0;
     std::uint32_t alpha_offset = 0;
     std::uint32_t alpha_length = 0;
 };

@@ -161,8 +161,8 @@ void full_first_does_not_block_second() {
             world.courier(sim::CourierId::Clay).phase==sim::CourierPhase::IdleAtWorkshop;
     },"first Pottery did not reach a normal full-buffer state");
     check(world.courier_dispatch_status(sim::CourierId::Clay).status==
-              sim::CourierDispatchStatus::TargetFull,
-          "reachable full Pottery status is not TargetFull");
+              sim::CourierDispatchStatus::NoRoad,
+          "free but disconnected second Pottery status is not NoRoad");
     road(world,1,2);road(world,1,3);road(world,2,3);
     const auto second=static_cast<sim::BuildingId>(8);
     const auto decision=world.courier_dispatch_status(sim::CourierId::Clay);

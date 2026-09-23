@@ -48,7 +48,7 @@ Unknown synthetic data was accepted and started a sandbox with all three categor
 | Manual | Help visible, Debug absent from header, status/UI text readable | PASS |
 | Manual | F1 showed pack ID and automatic sources; simulation remained usable | PASS |
 
-The endurance run also verified 16 accepted topology changes, deterministic save bytes, equal parallel and restored Worlds, valid navigation and production balance, 998 completed pottery recipes, and supply to all four households. The presentation review used temporary captures outside the repository and deleted them afterward. It found the normal scene substantially closer to an early playable alpha than the former neon renderer-debug view. Known opaque red pixels in some selected walker payloads remain documented and were not reinterpreted.
+The endurance run also verified 16 accepted topology changes, deterministic save bytes, equal parallel and restored Worlds, valid navigation and production balance, 998 completed pottery recipes, and supply to all four households. The presentation review used temporary captures outside the repository and deleted them afterward. It found the normal scene substantially closer to an early playable alpha than the former neon renderer-debug view. At this validation date, known opaque red pixels in some selected walker payloads had not yet been reinterpreted; the verified follow-up below supersedes that open presentation issue.
 
 ## Package
 
@@ -74,3 +74,22 @@ python3 tools/alpha_check.py --system-sdl --package \
 ```
 
 The machine-readable local report remains under ignored `.local/reports/` and is not packaged.
+
+## 2026-09-23 red-payload blocker follow-up
+
+Review base `3a2692ec172d89db4f5df82e7e11f46a0b916e79`; validation result: **PASS** on the intentionally dirty milestone worktree. Bounded static inspection of the hash-verified local EXE established that byte-59 flagged Omega sprites treat exact RGB555 `0x7c00` literals as destination-halving shadow markers. The general decoder remains unchanged. The Walker profile now prepares a scoped straight-RGBA shadow representation once at load; Type-30 buildings, separate alpha profiles, the World, saves, and road routing are unchanged.
+
+The normal Debug CTest passed 36/36 after rebuilding everything. The final `alpha_check.py` run then passed 36/36 Debug, 36/36 Release, and 36/36 ASan/UBSan tests; 100,000 deterministic ticks in every configuration; 3,000 normal and 3,000 sanitized render-stress frames; and 100 menu/session lifecycles. The Xia Industry-v5 smoke ran 8,000 ticks and 401 five-courier frames with built-in compatibility visuals. It verified all nine used original files unchanged and retained valid production, navigation, deterministic saves, and continued resume. A stale triage-test expectation was corrected from `TargetFull` to `NoRoad` for the precise state where a second Pottery is free but disconnected; no simulation implementation defect was found.
+
+The rebuilt native window was inspected directly on the local Xia Industry-v5 demo at a running tick. The former solid-red Walker blocks were presented as shadows, the Select tool showed no invalid-hover diamond, the four unassigned road end masks retained their existing muted fallback, and production was active. This verifies OpenEmperor's new presentation path; no original-game side-by-side capture was available, and the 8-bit RGBA blend remains an approximation of the verified 5-bit destination-halving result.
+
+The package check passed with built-in automatic Walker, Building, and Road profiles. `dist/OpenEmperor.app/Contents/MacOS/OpenEmperor` is `Mach-O 64-bit executable arm64`, recursive strict signature verification passed, and the app/ZIP contain no original assets, local profiles, saves, screenshots, or alpha report. The generated ZIP is `OpenEmperor-0.1.0-alpha.1-3a2692ec172d-macos-arm64.zip`, 3,788,826 bytes, SHA-256 `61c0c99e991a292f3d2388f0caddd85c1b2e816c5b1ba6bc726dccd003a5f0f4`. It remains an ad-hoc signed local preview; the absent project license still blocks publication.
+
+The final command was:
+
+```sh
+python3 tools/alpha_check.py --system-sdl --package \
+  --data <local-emperor-data>
+```
+
+The new ignored machine report is `.local/reports/alpha-check.json` and reports overall `pass`.

@@ -159,6 +159,7 @@ endif()
 add_executable(openemperor-inspect
     tools/asset-inspector/main.cpp
     tools/asset-inspector/Sg3Inspect.cpp
+    tools/asset-inspector/Sg3RedAudit.cpp
 )
 add_library(openemperor-sg3 STATIC
     src/assets/Sg3Archive.cpp
@@ -169,6 +170,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/Sg3PayloadLayout.cpp
     src/assets/Sg3IsometricDecoder.cpp
     src/assets/Sg3ImageLoader.cpp
+    src/assets/Sg3ShadowComposition.cpp
     src/assets/AssetCatalog.cpp
     src/assets/WalkerVisualProfile.cpp
     src/assets/BuildingVisualProfile.cpp

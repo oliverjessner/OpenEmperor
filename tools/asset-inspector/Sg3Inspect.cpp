@@ -157,6 +157,7 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
            << ",\"isometric_size_flag\":" << static_cast<unsigned int>(image.isometric_size_flag)
            << ",\"group_id\":" << static_cast<unsigned int>(image.group_id)
            << ",\"animation_speed_id\":" << static_cast<unsigned int>(image.animation_speed_id);
+    output << ",\"shadow_marker_flag\":" << static_cast<unsigned int>(image.shadow_marker_flag);
     output << ',';
     json_key_string(output, "image_kind", openemperor::assets::sg3_image_kind_name(
         openemperor::assets::classify_sg3_image_type(image.image_type)));
@@ -202,7 +203,7 @@ void print_image(std::ostream& output, const Sg3Image& image, std::size_t index,
     output << ',';
     json_key_string(output, "unknown_57_hex", hex_bytes(std::span{image.raw}.subspan(57, 1)));
     output << ',';
-    json_key_string(output, "unknown_59_hex", hex_bytes(std::span{image.raw}.subspan(59, 1)));
+    json_key_string(output, "shadow_marker_flag_raw_hex", hex_bytes(std::span{image.raw}.subspan(59, 1)));
     output << ',';
     json_key_string(output, "documented_zero_60_63_hex", hex_bytes(std::span{image.raw}.subspan(60, 4)));
     output << '}';

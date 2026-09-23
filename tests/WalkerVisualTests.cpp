@@ -63,6 +63,7 @@ struct Fixture {
             u16(sg3,at+20,static_cast<std::uint16_t>(width));
             u16(sg3,at+22,static_cast<std::uint16_t>(height));
             u16(sg3,at+50,256);
+            if (index==1) sg3[at+59]=1; // Verified Omega destination-darkening flag.
         }
         write(data/"DATA/walker.sg3",sg3);
         Bytes bitmap{0,0,0,0};bitmap.insert(bitmap.end(),first.begin(),first.end());
@@ -107,6 +108,10 @@ void profile_checks(Fixture& fixture) {
           "physical SG3 indices shifted");
     check(clay.frames[0].image_index==clay.frames[2].image_index,"shared asset not deduped");
     check(clay.clips[0]==std::vector<std::size_t>({1,0,1}),"explicit clip order sorted");
+    check(profile.unique_images[0].pixels[4]==0 && profile.unique_images[0].pixels[7]==128 &&
+          profile.unique_images[1].pixels[0]==0 && profile.unique_images[1].pixels[1]==255 &&
+          profile.unique_images[1].pixels[3]==255,
+          "verified shadow marker was not prepared independently from ordinary color");
     auto invalid=fixture.valid();invalid["schema_version"]=3;fixture.save(invalid);
     rejects([&]{ openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest); },"version accepted");
     invalid=fixture.valid();invalid["clips"]["pos_x"]=Json::array();fixture.save(invalid);
@@ -309,18 +314,23 @@ void render_checks(const openemperor::assets::WalkerVisualProfile& profile) {
           "software renderer");
     openemperor::WalkerSpriteSet sprites;sprites.initialize(renderer,profile);
     check(sprites.texture_count()==2,"duplicate texture uploaded");
-    check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer),"clear");
+    check(SDL_SetRenderDrawColor(renderer,40,80,120,255) && SDL_RenderClear(renderer),"clear");
     const auto& clay=*profile.find(openemperor::assets::WalkerVisualRole::Clay);
     check(sprites.draw(0,{20,20},2,clay,profile,{0,0},{80,80}),"draw red");
-    check(pixel(renderer,18,14)==std::array<std::uint8_t,4>({0,0,0,255}),"transparent pixel overwritten");
-    check(pixel(renderer,20,20)[0]==255,"red foot placement");
+    check(pixel(renderer,18,14)==std::array<std::uint8_t,4>({40,80,120,255}),"transparent pixel overwritten");
+    const auto shadow=pixel(renderer,20,20);
+    const auto near=[](int actual,int expected){return std::abs(actual-expected)<=1;};
+    check(near(shadow[0],20) && near(shadow[1],40) && near(shadow[2],60),
+          "Omega shadow marker did not darken the existing destination");
     check(SDL_RenderClear(renderer),"clear second");
     check(sprites.draw(1,{20,20},2,clay,profile,{0,0},{80,80}),"draw green");
     check(pixel(renderer,17,19)[1]==255 && pixel(renderer,23,21)[1]==255,
           "green frame size, anchor or full image lost");
     check(SDL_RenderClear(renderer),"clear cull");
     check(sprites.draw(0,{20,81},2,clay,profile,{0,0},{80,80}),"edge draw");
-    check(pixel(renderer,20,75)[0]==255,"visible upper sprite culled with offscreen foot");
+    const auto edge_shadow=pixel(renderer,20,75);
+    check(near(edge_shadow[0],20) && near(edge_shadow[1],40) && near(edge_shadow[2],60),
+          "visible upper shadow sprite culled with offscreen foot");
     sprites.shutdown();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
 }
 openemperor::assets::WalkerVisualProfile four_direction_profile() {

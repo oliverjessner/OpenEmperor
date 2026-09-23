@@ -152,6 +152,7 @@ Sg3Archive parse_sg3(std::span<const std::uint8_t> table,
         image.isometric_size_flag = record[55];
         image.group_id = record[56];
         image.animation_speed_id = record[58];
+        image.shadow_marker_flag = record[59];
         if (stride == 72) {
             image.alpha_offset = reader.u32(offset + 64);
             image.alpha_length = reader.u32(offset + 68);

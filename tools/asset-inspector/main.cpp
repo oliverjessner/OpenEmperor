@@ -1,4 +1,5 @@
 #include "Sg3Inspect.h"
+#include "Sg3RedAudit.h"
 
 #include <array>
 #include <algorithm>
@@ -14,8 +15,9 @@
 
 int main(int argc, char* argv[]) {
     namespace fs = std::filesystem;
-    if (argc != 2 && argc != 3 && argc != 6 && argc != 7 && argc != 8) {
+    if (argc != 2 && argc != 3 && argc != 5 && argc != 6 && argc != 7 && argc != 8) {
         std::cerr << "Usage: " << argv[0] << " <file.sg3> [--summary | --image <index> (--rgba <output.rgba> | --png <output.png>) [--ignore-alpha | --alpha-addressing spec|contiguous|legacy]]\n"
+                  << "       " << argv[0] << " <file.sg3> --image <index> --red-audit\n"
                   << "       " << argv[0] << " <other-file>\n";
         return 2;
     }
@@ -48,18 +50,27 @@ int main(int argc, char* argv[]) {
                 }
                 summarize_sg3(absolute_path, std::cout);
             } else {
-                const std::string_view output_option{argv[4]};
-                if (std::string_view{argv[2]} != "--image" ||
-                    (output_option != "--rgba" && output_option != "--png")) {
-                    std::cerr << "Usage: " << argv[0] << " <file.sg3> --image <index> (--rgba <output.rgba> | --png <output.png>)\n";
-                    return 2;
-                }
                 std::uint32_t image_index = 0;
                 const std::string_view index_text{argv[3]};
                 const auto parsed = std::from_chars(index_text.data(),
                                                     index_text.data() + index_text.size(), image_index);
-                if (parsed.ec != std::errc{} || parsed.ptr != index_text.data() + index_text.size()) {
+                if (std::string_view{argv[2]} != "--image" || parsed.ec != std::errc{} ||
+                    parsed.ptr != index_text.data() + index_text.size()) {
                     std::cerr << "Image index must be a nonnegative integer\n";
+                    return 2;
+                }
+                if (argc == 5) {
+                    if (std::string_view{argv[4]} != "--red-audit") {
+                        std::cerr << "Usage: " << argv[0] << " <file.sg3> --image <index> --red-audit\n";
+                        return 2;
+                    }
+                    audit_sg3_red_pixels(absolute_path, image_index, std::cout);
+                    return 0;
+                }
+                const std::string_view output_option{argv[4]};
+                if (std::string_view{argv[2]} != "--image" ||
+                    (output_option != "--rgba" && output_option != "--png")) {
+                    std::cerr << "Usage: " << argv[0] << " <file.sg3> --image <index> (--rgba <output.rgba> | --png <output.png>)\n";
                     return 2;
                 }
                 bool ignore_alpha = false;

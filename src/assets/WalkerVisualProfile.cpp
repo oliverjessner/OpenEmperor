@@ -1,5 +1,6 @@
 #include "assets/WalkerVisualProfile.h"
 #include "assets/Sg3ImageLoader.h"
+#include "assets/Sg3ShadowComposition.h"
 #include <nlohmann/json.hpp>
 #include <cmath>
 #include <fstream>
@@ -127,6 +128,7 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state) {
             if (rgba.width!=metadata.width || rgba.height!=metadata.height ||
                 rgba.pixels.size()!=bytes)
                 throw std::runtime_error("walker decoded dimensions differ from SG3 metadata");
+            prepare_omega_shadow_composition(metadata,rgba);
             state.rgba_bytes+=bytes;
             frame.image_index=state.profile.unique_images.size();
             state.unique.emplace(key,frame.image_index);

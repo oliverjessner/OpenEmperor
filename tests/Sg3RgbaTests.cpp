@@ -1,4 +1,5 @@
 #include "assets/Sg3RgbaDecoder.h"
+#include "assets/Sg3ShadowComposition.h"
 #include "assets/RgbaPngEncoder.h"
 #include "assets/RgbaPngReader.h"
 
@@ -87,6 +88,28 @@ bool run_checks() {
     image.image_type = 13;
     image.data_length = 7;
     if (!rejects([&] { required_uncompressed_payload_size(image); })) return false;
+
+    Sg3Image sprite;
+    sprite.image_type = 256;
+    sprite.shadow_marker_flag = 1;
+    RgbaImage presentation{3, 1, {
+        255, 0, 0, 255,
+        247, 0, 0, 255,
+        0, 255, 0, 128,
+    }};
+    if (prepare_omega_shadow_composition(sprite, presentation) != 1 ||
+        presentation.pixels != std::vector<std::uint8_t>{
+            0, 0, 0, 128,
+            247, 0, 0, 255,
+            0, 255, 0, 128,
+        }) return false;
+    sprite.shadow_marker_flag = 0;
+    const auto unchanged = presentation.pixels;
+    if (prepare_omega_shadow_composition(sprite, presentation) != 0 ||
+        presentation.pixels != unchanged) return false;
+    sprite.shadow_marker_flag = 1;
+    sprite.alpha_length = 1;
+    if (!rejects([&] { prepare_omega_shadow_composition(sprite, presentation); })) return false;
     return true;
 }
 

@@ -1042,6 +1042,21 @@ int main(int argc,char** argv) {
               "invalid building hover changed World");
         press_action(openemperor::sandbox_ui::Action::Pottery); map_click(113,114);
         press_action(openemperor::sandbox_ui::Action::Road);
+        const auto invalid_road_hover=map_point(121,114);
+        ui.handle_event(motion(static_cast<float>(invalid_road_hover.x),
+                               static_cast<float>(invalid_road_hover.y)),running);
+        check(!ui.preview({121,114}).accepted && ui.render(),
+              "invalid road hover was not rendered");
+        const auto invalid_hover_pixel=pixel(renderer,static_cast<int>(invalid_road_hover.x),
+                                                       static_cast<int>(invalid_road_hover.y));
+        check(invalid_hover_pixel[0]==255 && invalid_hover_pixel[1]==65 &&
+              invalid_hover_pixel[2]==65,
+              "invalid road hover did not produce the red diagnostic diamond");
+        press_action(openemperor::sandbox_ui::Action::Select);
+        check(ui.render() && pixel(renderer,static_cast<int>(invalid_road_hover.x),
+                                  static_cast<int>(invalid_road_hover.y))!=invalid_hover_pixel,
+              "red diagnostic diamond survived switching to the Select tool");
+        press_action(openemperor::sandbox_ui::Action::Road);
         const auto first_start=map_point(111,114),first_end=map_point(112,114);
         const auto before_drag=ui.world().snapshot();
         ui.handle_event(click(static_cast<float>(first_start.x),static_cast<float>(first_start.y)),running);

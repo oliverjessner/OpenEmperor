@@ -40,6 +40,7 @@ std::vector<std::uint8_t> make_synthetic_archive() {
     write_u32(bytes, 40680 + 16, 0x12345678);
     write_u16(bytes, 40680 + 50, 13);
     bytes[40680 + 55] = 2;
+    bytes[40680 + 59] = 1;
     write_u32(bytes, 40680 + 64, 12);
     write_u32(bytes, 40680 + 68, 4);
     return bytes;
@@ -65,6 +66,7 @@ bool run_checks() {
         archive.images[0].uncompressed_length != 4 ||
         archive.images[0].horizontal_mirror_offset != 0x12345678 ||
         archive.images[0].isometric_size_flag != 2 ||
+        archive.images[0].shadow_marker_flag != 1 ||
         archive.images[0].image_type != 13 ||
         archive.images[0].alpha_offset != 12 || archive.images[0].alpha_length != 4) {
         return false;
