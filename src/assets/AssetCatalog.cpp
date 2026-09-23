@@ -118,6 +118,7 @@ void append_archive(AssetCatalog& catalog, const fs::path& archive_path,
         record.uncompressed_length = image.uncompressed_length;
         record.external_flag = image.external_flag;
         record.isometric_size_flag = image.isometric_size_flag;
+        record.animation_sprites = image.animation_sprites;
         record.alpha_offset = image.alpha_offset;
         record.alpha_length = image.alpha_length;
         const Sg3PayloadLayout layout = sg3_payload_layout(archive.header.version, image);

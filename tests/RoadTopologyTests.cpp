@@ -24,41 +24,70 @@ int main() {
             for (int bit=0;bit<4;++bit)
                 if ((expected & (1<<bit))!=0)
                     place(world,sim::CommandType::PlaceRoad,neighbors[static_cast<std::size_t>(bit)]);
-            check(ui::topology_for_road(world,{3,3})==expected,"one of 16 road masks wrong");
+            check(ui::road_neighbor_mask(world,{3,3})==expected,"one of 16 road masks wrong");
             check(world.object_at({3,3})==sim::Object::Road,"topology mutated road");
         }
         auto world=make_world();place(world,sim::CommandType::PlaceRoad,{3,3});
         const auto before=world.snapshot();
         const std::array<sim::Cell,2> proposed{{{4,3},{4,4}}};
-        check(ui::topology_for_preview(world,proposed,{3,3})==0x2 &&
-              ui::topology_for_preview(world,proposed,{4,3})==0xc &&
+        check(ui::road_neighbor_mask_for_preview(world,proposed,{3,3})==0x2 &&
+              ui::road_neighbor_mask_for_preview(world,proposed,{4,3})==0xc &&
               world.snapshot()==before,"preview topology changed World or L corner wrong");
-        place(world,sim::CommandType::PlaceClaySource,{3,2});
-        const auto adjacent=world.snapshot();
-        const auto route_before=world.find_route({3,3},{3,2});
-        check(ui::topology_for_road(world,{3,3})==0x1 &&
-              world.snapshot()==adjacent &&
-              world.find_route({3,3},{3,2})==route_before,
-              "building visual entrance altered navigation or World");
+
+        auto entrances=make_world();
+        for (const auto cell:std::array<sim::Cell,3>{{{2,3},{3,3},{4,3}}})
+            place(entrances,sim::CommandType::PlaceRoad,cell);
+        place(entrances,sim::CommandType::PlaceClaySource,{3,2});
+        place(entrances,sim::CommandType::PlacePottery,{3,4});
+        const auto adjacent=entrances.snapshot();
+        const auto route_before=entrances.find_route({2,3},{4,3});
+        check(ui::road_neighbor_mask(entrances,{3,3})==0xa &&
+              ui::entrance_mask(entrances,{3,3})==0x5 &&
+              ui::road_neighbor_mask_for_preview(entrances,{}, {3,3})==0xa &&
+              ui::entrance_mask_for_preview(entrances,{}, {3,3})==0x5 &&
+              entrances.snapshot()==adjacent &&
+              entrances.find_route({2,3},{4,3})==route_before,
+              "building entrances changed the road mask, navigation, or World");
+
+        auto one_road=make_world();
+        place(one_road,sim::CommandType::PlaceRoad,{3,3});
+        place(one_road,sim::CommandType::PlaceRoad,{3,2});
+        place(one_road,sim::CommandType::PlaceClaySource,{4,3});
+        check(ui::road_neighbor_mask(one_road,{3,3})==0x1 &&
+              ui::entrance_mask(one_road,{3,3})==0x2,
+              "one road plus one building did not retain separate masks");
+
+        auto preview_entrance=make_world();
+        place(preview_entrance,sim::CommandType::PlaceClaySource,{3,2});
+        const std::array<sim::Cell,3> planned{{{2,3},{3,3},{4,3}}};
+        const auto preview_before=preview_entrance.snapshot();
+        check(ui::road_neighbor_mask_for_preview(preview_entrance,planned,{3,3})==0xa &&
+              ui::entrance_mask_for_preview(preview_entrance,planned,{3,3})==0x1 &&
+              preview_entrance.snapshot()==preview_before,
+              "building changed drag-preview road mask or preview mutated World");
 
         auto live=make_world();
         for (const auto cell:std::array<sim::Cell,3>{{{2,3},{3,3},{4,3}}})
             place(live,sim::CommandType::PlaceRoad,cell);
-        check(ui::topology_for_road(live,{3,3})==0xa,"initial straight");
+        check(ui::road_neighbor_mask(live,{3,3})==0xa,"initial straight");
         place(live,sim::CommandType::PlaceRoad,{3,2});
-        check(ui::topology_for_road(live,{3,3})==0xb,"live T");
+        check(ui::road_neighbor_mask(live,{3,3})==0xb,"live T");
         place(live,sim::CommandType::PlaceRoad,{3,4});
-        check(ui::topology_for_road(live,{3,3})==0xf,"live crossing");
+        check(ui::road_neighbor_mask(live,{3,3})==0xf,"live crossing");
         place(live,sim::CommandType::RemoveRoad,{3,2});
-        check(ui::topology_for_road(live,{3,3})==0xe,"live remove to T");
+        check(ui::road_neighbor_mask(live,{3,3})==0xe,"live remove to T");
         place(live,sim::CommandType::RemoveRoad,{2,3});
-        check(ui::topology_for_road(live,{3,3})==0x6,"live remove to corner");
+        check(ui::road_neighbor_mask(live,{3,3})==0x6,"live remove to corner");
+        place(live,sim::CommandType::RemoveRoad,{3,4});
+        check(ui::road_neighbor_mask(live,{3,3})==0x2,"live remove to end");
+        place(live,sim::CommandType::RemoveRoad,{4,3});
+        check(ui::road_neighbor_mask(live,{3,3})==0x0,"live remove to isolated");
         const auto state=live.snapshot();
         const auto invalid=ui::plan_road(live,{3,3},{3,3});
         check(invalid.valid && live.snapshot()==state,"drag planning mutated World");
         check(!live.execute({sim::CommandType::RemoveRoad,{1,1}}).accepted &&
-              ui::topology_for_road(live,{3,3})==0x6,"rejected command changed topology");
-        std::cout<<"road topology: all 16 masks and live preview passed\n";
+              ui::road_neighbor_mask(live,{3,3})==0x0,"rejected command changed topology");
+        std::cout<<"road topology: all 16 road-only masks, entrances and live preview passed\n";
         return 0;
     } catch (const std::exception& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

@@ -37,6 +37,7 @@ struct AssetRecord {
     std::uint32_t uncompressed_length = 0;
     std::uint8_t external_flag = 0;
     std::uint8_t isometric_size_flag = 0;
+    std::uint16_t animation_sprites = 0;
     std::uint32_t alpha_offset = 0;
     std::uint32_t alpha_length = 0;
     std::optional<std::uint64_t> effective_alpha_offset;

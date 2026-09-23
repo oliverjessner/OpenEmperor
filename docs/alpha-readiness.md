@@ -46,7 +46,7 @@ python3 tools/alpha_check.py --system-sdl --package --data /path/to/emperor
 - Presentation mode is the default and uses subdued semantic fallback colors. F1 enables the previous bright technical diagnostics and reports the compatibility ID plus the automatic/custom/fallback source for each visual category.
 - Compatibility is fail-closed and atomic. All six relevant SG3/.555 files must match; a missing or mismatched file enables no built-in category.
 - A damaged built-in category falls back without blocking the sandbox. An explicitly selected invalid custom JSON continues to fail clearly.
-- Road end masks `0x1`, `0x2`, `0x4`, and `0x8` remain fallback tiles.
+- The exact-fingerprint compatibility pack configures all 16 road masks. One-neighbor masks reuse the matching straight from the same visual family because the bounded audit found no distinct matching end caps; original selection semantics remain unknown.
 - All original images are user-supplied. Bundled profiles contain only OpenEmperor mapping and fingerprint metadata.
 - Depth sorting treats whole decoded images as units and does not reconstruct split sprites or height.
 - Original pivots, timing, horizontal mirroring, and complete map rendering remain unverified.

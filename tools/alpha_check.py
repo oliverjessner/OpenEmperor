@@ -191,10 +191,12 @@ def original_check(args: argparse.Namespace, executable: Path) -> dict[str, obje
             compatibility.get("id") != "gog-derived-2.0.0.2-en-assetset-1" or
             any(compatibility.get(key) != value for key, value in expected_sources.items())):
         raise CheckFailure("known original data did not activate the expected automatic visual profiles")
+    road_visuals = result.get("road_visuals", {})
     if (result.get("walker_visuals", {}).get("unique_assets") != 48 or
             result.get("building_visuals", {}).get("decoded_unique_assets") != 4 or
-            result.get("road_visuals", {}).get("unique_assets") != 12 or
-            result.get("road_visuals", {}).get("draws", 0) <= 0):
+            road_visuals.get("unique_assets") != 12 or
+            road_visuals.get("draws", 0) <= 0 or
+            (not args.road_visuals and road_visuals.get("configured_masks") != list(range(16)))):
         raise CheckFailure("automatic visual profiles did not decode and draw the validated asset set")
     return {"configured": True, "result": "pass", "files_verified_unchanged": len(before),
             "ticks": result.get("ticks"), "frames_rendered": result.get("frames_rendered"),

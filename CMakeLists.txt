@@ -420,8 +420,9 @@ if(BUILD_TESTING)
     add_test(NAME road-topology-live-preview COMMAND openemperor-road-topology-tests)
 
     add_executable(openemperor-road-visual-tests tests/RoadVisualTests.cpp
-        src/renderer/RoadSpriteSet.cpp)
-    target_link_libraries(openemperor-road-visual-tests PRIVATE openemperor-sg3 SDL3::SDL3)
+        src/renderer/RoadSpriteSet.cpp src/app/RoadTopology.cpp)
+    target_link_libraries(openemperor-road-visual-tests PRIVATE openemperor-sg3
+        openemperor-simulation SDL3::SDL3)
     openemperor_enable_warnings(openemperor-road-visual-tests)
     add_test(NAME road-visual-profile-pixels COMMAND openemperor-road-visual-tests)
     add_executable(openemperor-compatibility-tests tests/CompatibilityProfileTests.cpp

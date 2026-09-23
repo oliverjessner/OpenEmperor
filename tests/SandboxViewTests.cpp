@@ -1080,16 +1080,18 @@ int main(int argc,char** argv) {
         check(ui.render() && ui.world().snapshot()==before_drag,
               "rendered held road changed simulation");
         check(ui.road_display_stats().draws==0 &&
-              openemperor::sandbox_ui::topology_for_preview(ui.world(),ui.road_preview().cells,
-                                                             {111,114})==0xa,
-              "drag preview did not use hypothetical building/road entrance mask");
+              openemperor::sandbox_ui::road_neighbor_mask_for_preview(ui.world(),ui.road_preview().cells,
+                                                             {111,114})==0x2 &&
+              openemperor::sandbox_ui::entrance_mask_for_preview(
+                  ui.world(),ui.road_preview().cells,{111,114})==0x8,
+              "drag preview did not separate hypothetical roads from building entrances");
         ui.handle_event(release(static_cast<float>(first_end.x),static_cast<float>(first_end.y)),running);
         check(ui.world().command_sequence()==before_drag.command_sequence+2 &&
               ui.world().object_at({111,114})==simulation::Object::Road &&
               ui.world().object_at({112,114})==simulation::Object::Road,
               "road drag did not commit exactly two commands");
         check(ui.render() && ui.road_display_stats().draws>=2 &&
-              ui.road_display_stats().masks_seen[0xa],"committed road visual did not render");
+              ui.road_display_stats().masks_seen[0x2],"committed road visual did not render");
         const auto road_center=map_point(111,114);
         const auto road_pixel=pixel(renderer,static_cast<int>(road_center.x),
                                             static_cast<int>(road_center.y));
@@ -1252,7 +1254,7 @@ int main(int argc,char** argv) {
         ui.handle_event(click(static_cast<float>(l_start.x),static_cast<float>(l_start.y)),running);
         ui.handle_event(motion(static_cast<float>(l_end.x),static_cast<float>(l_end.y)),running);
         check(ui.road_preview().valid && ui.road_preview().cells.size()==4 &&
-              openemperor::sandbox_ui::topology_for_preview(ui.world(),ui.road_preview().cells,
+              openemperor::sandbox_ui::road_neighbor_mask_for_preview(ui.world(),ui.road_preview().cells,
                                                              {119,112})==0xc &&
               ui.world().snapshot()==before_l && ui.render(),
               "L drag preview missing future corner or changed World");
@@ -1261,7 +1263,7 @@ int main(int argc,char** argv) {
                                                static_cast<int>(corner_screen.y));
         ui.handle_event(release(static_cast<float>(l_end.x),static_cast<float>(l_end.y)),running);
         check(ui.world().command_sequence()==before_l.command_sequence+4 &&
-              openemperor::sandbox_ui::topology_for_road(ui.world(),{119,112})==0xc &&
+              openemperor::sandbox_ui::road_neighbor_mask(ui.world(),{119,112})==0xc &&
               ui.render() &&
               pixel(renderer,static_cast<int>(corner_screen.x),static_cast<int>(corner_screen.y))!=
                   preview_corner_pixel,
@@ -1269,12 +1271,12 @@ int main(int argc,char** argv) {
         const auto committed_corner_pixel=pixel(renderer,static_cast<int>(corner_screen.x),
                                                  static_cast<int>(corner_screen.y));
         check(ui.execute({simulation::CommandType::PlaceRoad,{120,112}}).accepted &&
-              openemperor::sandbox_ui::topology_for_road(ui.world(),{119,112})==0xe &&
+              openemperor::sandbox_ui::road_neighbor_mask(ui.world(),{119,112})==0xe &&
               ui.render() &&
               pixel(renderer,static_cast<int>(corner_screen.x),static_cast<int>(corner_screen.y))!=
                   committed_corner_pixel,"new arm did not change live road pixel to T");
         check(ui.execute({simulation::CommandType::RemoveRoad,{120,112}}).accepted &&
-              openemperor::sandbox_ui::topology_for_road(ui.world(),{119,112})==0xc &&
+              openemperor::sandbox_ui::road_neighbor_mask(ui.world(),{119,112})==0xc &&
               ui.render() &&
               pixel(renderer,static_cast<int>(corner_screen.x),static_cast<int>(corner_screen.y))==
                   committed_corner_pixel,"road removal did not restore corner pixel");
@@ -1282,21 +1284,29 @@ int main(int argc,char** argv) {
         const auto junction_pixel=[&]{return pixel(renderer,static_cast<int>(junction.x),
                                                     static_cast<int>(junction.y));};
         check(ui.execute({simulation::CommandType::PlaceRoad,{118,113}}).accepted &&
-              openemperor::sandbox_ui::topology_for_road(ui.world(),{118,113})==0x7 &&
+              openemperor::sandbox_ui::road_neighbor_mask(ui.world(),{118,113})==0x7 &&
               ui.render(),"new road did not form T");
         const auto t_pixel=junction_pixel();
         check(ui.execute({simulation::CommandType::PlaceRoad,{117,113}}).accepted &&
-              openemperor::sandbox_ui::topology_for_road(ui.world(),{118,113})==0xf &&
+              openemperor::sandbox_ui::road_neighbor_mask(ui.world(),{118,113})==0xf &&
               ui.render() && junction_pixel()!=t_pixel,
               "added arm did not render a crossing pixel");
         check(ui.execute({simulation::CommandType::RemoveRoad,{117,113}}).accepted &&
-              openemperor::sandbox_ui::topology_for_road(ui.world(),{118,113})==0x7 &&
+              openemperor::sandbox_ui::road_neighbor_mask(ui.world(),{118,113})==0x7 &&
               ui.render() && junction_pixel()==t_pixel,
               "removed arm did not restore T pixel");
         check(ui.execute({simulation::CommandType::RemoveRoad,{119,113}}).accepted &&
-              openemperor::sandbox_ui::topology_for_road(ui.world(),{118,113})==0x5 &&
+              openemperor::sandbox_ui::road_neighbor_mask(ui.world(),{118,113})==0x5 &&
               ui.render() && junction_pixel()!=t_pixel,
               "second removal did not render straight pixel");
+        check(ui.execute({simulation::CommandType::PlaceRoad,{118,113}}).accepted,
+              "road selection no-op failed");
+        const auto road_details=ui.inspection_lines();
+        check(std::find(road_details.begin(),road_details.end(),"Road mask 0x5")!=road_details.end() &&
+              std::find(road_details.begin(),road_details.end(),"Road asset configured yes")!=
+                  road_details.end() &&
+              std::find(road_details.begin(),road_details.end(),"Entrances")!=road_details.end(),
+              "selected road F1 diagnostics missing mask, entrances, or asset state");
         const auto before_bad_profile=ui.road_display_stats().texture_uploads;
         bool bad_road_rejected=false;
         try { ui.set_road_visuals(temp.path/"missing-roads.json"); }

@@ -966,8 +966,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             const bool new_preview=road_start_ && road_preview_.valid &&
                 world_->object_at(cell)!=simulation::Object::Road;
             const auto mask=road_start_ && road_preview_.valid ?
-                sandbox_ui::topology_for_preview(*world_,road_preview_.cells,cell):
-                sandbox_ui::topology_for_road(*world_,cell);
+                sandbox_ui::road_neighbor_mask_for_preview(*world_,road_preview_.cells,cell):
+                sandbox_ui::road_neighbor_mask(*world_,cell);
             road_masks_seen_[mask]=true;
             const auto* entry=road_profile_ ? road_profile_->find(mask):nullptr;
             if (entry && road_visuals_active() && road_sprites_) {
@@ -1244,6 +1244,29 @@ std::optional<simulation::BuildingId> SandboxView::selected_building() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
+    if (selected_ && world_->object_at(*selected_)==simulation::Object::Road) {
+        constexpr const char* names[]{"neg_y","pos_x","pos_y","neg_x"};
+        constexpr char hex[]="0123456789abcdef";
+        const auto roads=sandbox_ui::road_neighbor_mask(*world_,*selected_);
+        const auto entrances=sandbox_ui::entrance_mask(*world_,*selected_);
+        lines.push_back("Road cell "+std::to_string(selected_->x)+", "+
+                        std::to_string(selected_->y));
+        lines.push_back(std::string("Road mask 0x")+hex[roads & 0x0fU]);
+        lines.push_back("Road neighbors");
+        for (unsigned bit=0;bit<4;++bit)
+            lines.push_back(std::string(names[bit])+" "+
+                ((roads & (1U<<bit))!=0 ? "yes":"no"));
+        lines.push_back("Entrances");
+        for (unsigned bit=0;bit<4;++bit)
+            lines.push_back(std::string(names[bit])+" "+
+                ((entrances & (1U<<bit))!=0 ? "building":"none"));
+        const auto* entry=road_profile_ ? road_profile_->find(roads):nullptr;
+        lines.push_back(std::string("Road asset configured ")+(entry ? "yes":"no"));
+        lines.push_back(std::string("Road visuals ")+(road_visuals_active() ? "ON":"OFF"));
+        if (entry) lines.push_back("SG3 "+entry->id.archive_relative_path.generic_string()+
+                                  " #"+std::to_string(entry->id.image_index));
+        return lines;
+    }
     const auto id=selected_building();
     if (!id) {
         lines.push_back("Select a building or list entry");

@@ -139,6 +139,10 @@ bool run_checks(const fs::path& root) {
     make_fixture(root);
     auto catalog = openemperor::assets::scan_asset_catalog(root);
     if (catalog.records.size() != 101) return false;
+    auto atlas_catalog = openemperor::assets::scan_asset_archive(root,"many.sg3");
+    openemperor::AssetBrowser atlas{std::move(atlas_catalog),false,
+        openemperor::assets::Sg3ImageKind::Plain,
+        openemperor::RoadAtlasRange{"many.sg3",20,5}};
     openemperor::AssetBrowser browser{std::move(catalog), false};
     if (browser.decode_attempts() != 0 || browser.cache_misses() != 0) return false;
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
@@ -150,8 +154,12 @@ bool run_checks(const fs::path& root) {
         SDL_Quit();
         throw std::runtime_error(SDL_GetError());
     }
+    atlas.initialize(window,renderer);
+    bool passed=atlas.visible_count()==5 && atlas.render() && atlas.decode_attempts()==5 &&
+                atlas.decode_failures()==0;
+    atlas.shutdown();
     browser.initialize(window, renderer);
-    bool passed = browser.render() && browser.decode_attempts() == 20 &&
+    passed = passed && browser.render() && browser.decode_attempts() == 20 &&
                   browser.decode_failures() == 0 && browser.cache_misses() == 20;
     bool running = true;
     SDL_Event event{};

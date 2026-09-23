@@ -45,6 +45,8 @@ void print_usage(const char* executable) {
               << " --alpha-addressing spec|contiguous|legacy (diagnostic)\n"
               << "       " << executable << " --data <directory> --browse-assets"
               << " [--kind plain|sprite|isometric] [--ignore-alpha]\n"
+              << "       " << executable << " --data <directory> --road-atlas <relative.sg3>"
+              << " --start <record> --count <1..512>\n"
               << "       " << executable << " --data <directory> --scene <scene.json>\n"
               << "       " << executable << " --data <directory> --map-debug <relative.map>"
               << " [--part <index>] [--layer terrain_raw|objects_raw]"
@@ -94,6 +96,9 @@ int main(int argc, char* argv[]) {
     bool sg3_supplied = false;
     bool image_supplied = false;
     bool browse_assets = false;
+    bool road_atlas_supplied = false;
+    bool atlas_start_supplied = false;
+    bool atlas_count_supplied = false;
     bool browse_maps = false;
     bool list_maps = false;
     bool render_check = false;
@@ -125,6 +130,7 @@ int main(int argc, char* argv[]) {
     std::optional<openemperor::assets::AlphaAddressing> diagnostic_alpha_addressing;
     std::optional<openemperor::assets::Sg3ImageKind> browser_kind;
     fs::path data_directory;
+    fs::path road_atlas_path;
     fs::path app_root_path;
     fs::path preview_path;
     fs::path sg3_path;
@@ -138,6 +144,8 @@ int main(int argc, char* argv[]) {
     fs::path load_sandbox_path;
     fs::path terrain_bindings_path;
     std::uint32_t image_index = 0;
+    std::uint32_t atlas_start = 0;
+    std::uint32_t atlas_count = 0;
     std::uint32_t map_part = 0;
     openemperor::maps::RawLayer map_layer = openemperor::maps::RawLayer::Terrain;
     openemperor::maps::MapViewMode map_view_mode = openemperor::maps::MapViewMode::Storage;
@@ -209,6 +217,8 @@ int main(int argc, char* argv[]) {
             building_visuals_path=argv[++index]; building_visuals_supplied=true;
         } else if (argument == "--road-visuals" && !road_visuals_supplied) {
             road_visuals_path=argv[++index]; road_visuals_supplied=true;
+        } else if (argument == "--road-atlas" && !road_atlas_supplied) {
+            road_atlas_path=argv[++index]; road_atlas_supplied=true;
         } else if (argument == "--sandbox-save" && !sandbox_save_supplied) {
             sandbox_save_path=argv[++index]; sandbox_save_supplied=true;
         } else if (argument == "--load-sandbox" && !load_sandbox_supplied) {
@@ -274,6 +284,19 @@ int main(int argc, char* argv[]) {
                 return 2;
             }
             image_supplied = true;
+        } else if ((argument == "--start" && !atlas_start_supplied) ||
+                   (argument == "--count" && !atlas_count_supplied)) {
+            const bool is_start=argument=="--start";
+            const std::string_view text{argv[++index]};
+            std::uint32_t parsed_value=0;
+            const auto parsed=std::from_chars(text.data(),text.data()+text.size(),parsed_value);
+            if (parsed.ec!=std::errc{} || parsed.ptr!=text.data()+text.size()) {
+                std::cerr << (is_start ? "Atlas start":"Atlas count")
+                          << " must be a nonnegative integer\n";
+                return 2;
+            }
+            if (is_start) { atlas_start=parsed_value;atlas_start_supplied=true; }
+            else { atlas_count=parsed_value;atlas_count_supplied=true; }
         } else if (argument == "--kind" && !browser_kind) {
             const std::string_view kind{argv[++index]};
             if (kind == "plain") browser_kind = openemperor::assets::Sg3ImageKind::Plain;
@@ -286,6 +309,12 @@ int main(int argc, char* argv[]) {
         }
     }
     if ((sg3_supplied != image_supplied) || (preview_supplied && sg3_supplied) ||
+        ((atlas_start_supplied || atlas_count_supplied) && !road_atlas_supplied) ||
+        (road_atlas_supplied && (!data_supplied || !atlas_start_supplied || !atlas_count_supplied ||
+            atlas_count==0 || atlas_count>512 || road_atlas_path.empty() ||
+            browse_assets || preview_supplied || sg3_supplied || scene_supplied || map_debug_supplied ||
+            browse_maps || list_maps || render_check || sandbox_supplied || load_sandbox_supplied ||
+            report_json || ignore_alpha || diagnostic_alpha_addressing || browser_kind)) ||
         (browse_assets && (!data_supplied || preview_supplied || sg3_supplied)) ||
         (browser_kind && !browse_assets) || (ignore_alpha && !browse_assets && !sg3_supplied) ||
         (diagnostic_alpha_addressing && (!sg3_supplied || ignore_alpha || browse_assets)) ||
@@ -338,7 +367,8 @@ int main(int argc, char* argv[]) {
     }
 
     const bool menu_start=!sandbox_supplied && !load_sandbox_supplied && !preview_supplied &&
-        !sg3_supplied && !browse_assets && !scene_supplied && !browse_maps && !map_debug_supplied &&
+        !sg3_supplied && !browse_assets && !road_atlas_supplied && !scene_supplied &&
+        !browse_maps && !map_debug_supplied &&
         !list_maps && !render_check;
     std::error_code executable_error;
     const auto executable=fs::canonical(argv[0],executable_error);
@@ -403,7 +433,7 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<openemperor::SandboxView> sandbox_view;
     std::unique_ptr<openemperor::menu::MenuSession> menu_session;
     if (!sandbox_supplied && !load_sandbox_supplied && !preview_supplied && !sg3_supplied &&
-        !browse_assets && !scene_supplied && !browse_maps && !map_debug_supplied)
+        !browse_assets && !road_atlas_supplied && !scene_supplied && !browse_maps && !map_debug_supplied)
         menu_session=std::make_unique<openemperor::menu::MenuSession>(
             data_supplied ? data_directory : fs::path{}, app_root_path,
             std::make_unique<openemperor::menu::NativeDialog>(),resource_root);
@@ -462,14 +492,20 @@ int main(int argc, char* argv[]) {
         const fs::path absolute_path = fs::absolute(sg3_path, error);
         std::cout << "SG3 image: " << (error ? sg3_path : absolute_path).lexically_normal().string()
                   << " index " << image_index << " (" << preview->width << 'x' << preview->height << ")\n";
-    } else if (browse_assets) {
+    } else if (browse_assets || road_atlas_supplied) {
         try {
-            auto catalog = openemperor::assets::scan_asset_catalog(data_directory);
+            auto catalog = road_atlas_supplied ?
+                openemperor::assets::scan_asset_archive(data_directory,road_atlas_path):
+                openemperor::assets::scan_asset_catalog(data_directory);
             std::cout << "Asset catalog: " << catalog.archive_count << " SG3 archives, "
                       << catalog.records.size() << " image records, "
                       << catalog.archive_errors.size() << " archive errors\n";
             browser = std::make_unique<openemperor::AssetBrowser>(
-                std::move(catalog), ignore_alpha, browser_kind);
+                std::move(catalog), ignore_alpha,
+                road_atlas_supplied ? std::optional{openemperor::assets::Sg3ImageKind::Isometric}:
+                                      browser_kind,
+                road_atlas_supplied ? std::optional{openemperor::RoadAtlasRange{
+                    road_atlas_path,atlas_start,atlas_count}}:std::nullopt);
         } catch (const std::exception& error_message) {
             std::cerr << "Asset browser scan failed: " << error_message.what() << '\n';
             return 1;

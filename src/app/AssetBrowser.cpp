@@ -28,8 +28,10 @@ std::string short_text(const std::string& text, std::size_t max_length) {
 } // namespace
 
 AssetBrowser::AssetBrowser(assets::AssetCatalog catalog, bool ignore_alpha,
-                           std::optional<assets::Sg3ImageKind> initial_kind)
-    : catalog_(std::move(catalog)), ignore_alpha_(ignore_alpha), kind_(initial_kind) {
+                           std::optional<assets::Sg3ImageKind> initial_kind,
+                           std::optional<RoadAtlasRange> road_atlas)
+    : catalog_(std::move(catalog)), ignore_alpha_(ignore_alpha), kind_(initial_kind),
+      road_atlas_(std::move(road_atlas)) {
     rebuild_visible();
 }
 
@@ -48,6 +50,13 @@ void AssetBrowser::rebuild_visible() {
     // Zero-sized/empty records remain in the CLI catalog but have no thumbnail.
     for (std::size_t index = 0; index < catalog_.records.size(); ++index) {
         const auto& record = catalog_.records[index];
+        if (road_atlas_) {
+            const std::uint64_t first=road_atlas_->start;
+            const std::uint64_t end=first+road_atlas_->count;
+            if (record.id.archive_relative_path.lexically_normal()!=
+                    road_atlas_->archive_relative_path.lexically_normal() ||
+                record.id.image_index<first || record.id.image_index>=end) continue;
+        }
         if (record.width <= 0 || record.height <= 0 || record.data_length == 0) continue;
         if (kind_ && record.image_kind != *kind_) continue;
         if (!show_all_candidates_ &&
@@ -72,7 +81,11 @@ void AssetBrowser::update_title() {
                  " — Type " + std::to_string(record.image_type) +
                  " — " + std::to_string(record.width) + "x" + std::to_string(record.height);
         if (detail_) {
+            const auto overlay=record.data_length>record.uncompressed_length ?
+                record.data_length-record.uncompressed_length:0U;
             title += " — group " + std::to_string(record.group_id) +
+                     " — overlay " + std::to_string(overlay) +
+                     " — animation " + std::to_string(record.animation_sprites) +
                      " — alpha " + (record.alpha_length != 0 ? "yes" : "no") +
                      " — policy " + (ignore_alpha_ ? "ignored_diagnostic" :
                          assets::alpha_policy_name(record.alpha_policy)) +
@@ -88,12 +101,17 @@ void AssetBrowser::enter_detail() {
     if (visible_.empty()) return;
     detail_ = true;
     const auto& record = catalog_.records[visible_[selected_]];
+    const auto overlay=record.data_length>record.uncompressed_length ?
+        record.data_length-record.uncompressed_length:0U;
     std::cout << "Asset " << record.id.archive_relative_path.generic_string()
               << '#' << record.id.image_index
               << " kind=" << assets::sg3_image_kind_name(record.image_kind)
               << " type=" << record.image_type
               << " dimensions=" << record.width << 'x' << record.height
               << " group=" << static_cast<unsigned int>(record.group_id)
+              << " group_file=" << record.group_filename
+              << " overlay_bytes=" << overlay
+              << " animation_sprites=" << record.animation_sprites
               << " alpha=" << (record.alpha_length != 0 ? "yes" : "no")
               << " alpha_policy=" << (ignore_alpha_ ? "ignored_diagnostic" :
                   assets::alpha_policy_name(record.alpha_policy))
@@ -244,8 +262,8 @@ bool AssetBrowser::render_grid() {
         !SDL_SetRenderDrawColor(renderer_, 22, 29, 43, 255) || !SDL_RenderClear(renderer_)) {
         return false;
     }
-    const std::string heading = "Assets " + std::to_string(visible_.size()) +
-        " | 0 all, 1 plain, 2 sprite, 3 iso, 4 " +
+    const std::string heading = (road_atlas_ ? "Road atlas " : "Assets ") +
+        std::to_string(visible_.size()) + " | 0 all, 1 plain, 2 sprite, 3 iso, 4 " +
         (show_all_candidates_ ? "ready" : "all candidates") +
         " | arrows/WASD, PgUp/PgDn, Enter, Esc";
     if (!SDL_SetRenderDrawColor(renderer_, 230, 236, 247, 255) ||
@@ -280,12 +298,21 @@ bool AssetBrowser::render_grid() {
                 !SDL_RenderDebugText(renderer_, frame.x + 10.0F, frame.y + 18.0F,
                                      "DECODE FAILED")) return false;
         }
+        const auto overlay=record.data_length>record.uncompressed_length ?
+            record.data_length-record.uncompressed_length:0U;
         const std::string label = "#" + std::to_string(record.id.image_index) +
-            " T" + std::to_string(record.image_type) + " " +
-            std::to_string(record.width) + "x" + std::to_string(record.height);
+            " G"+std::to_string(record.group_id)+" T"+std::to_string(record.image_type)+
+            " "+std::to_string(record.width)+"x"+std::to_string(record.height);
+        const std::string atlas_metadata="ov"+std::to_string(overlay)+
+            " m"+std::to_string(record.horizontal_mirror_offset)+
+            " a"+std::to_string(record.alpha_length)+
+            " anim"+std::to_string(record.animation_sprites);
         if (!SDL_SetRenderDrawColor(renderer_, 230, 236, 247, 255) ||
-            !SDL_RenderDebugText(renderer_, frame.x + 8.0F, frame.y + frame.h - 20.0F,
-                                 short_text(label, 24).c_str())) return false;
+            !SDL_RenderDebugText(renderer_, frame.x + 8.0F,
+                frame.y + frame.h - (road_atlas_ ? 31.0F:20.0F),
+                short_text(label, 28).c_str()) ||
+            (road_atlas_ && !SDL_RenderDebugText(renderer_,frame.x+8.0F,
+                frame.y+frame.h-18.0F,short_text(atlas_metadata,28).c_str()))) return false;
     }
     const std::string footer = "Page " + std::to_string(page_start / page_size + 1U) +
         "/" + std::to_string((visible_.size() + page_size - 1U) / page_size) +
@@ -307,12 +334,16 @@ bool AssetBrowser::render_detail() {
     }
     const std::size_t record_index = visible_[selected_];
     const auto& record = catalog_.records[record_index];
+    const auto overlay=record.data_length>record.uncompressed_length ?
+        record.data_length-record.uncompressed_length:0U;
     const std::string heading = record.id.archive_relative_path.generic_string() +
         " #" + std::to_string(record.id.image_index) +
         " | " + assets::sg3_image_kind_name(record.image_kind) +
         " T" + std::to_string(record.image_type) +
         " | " + std::to_string(record.width) + "x" + std::to_string(record.height);
-    const std::string details = "Group " + std::to_string(record.group_id) +
+    const std::string details = "Group " + std::to_string(record.group_id)+" "+record.group_filename+
+        " | overlay " + std::to_string(overlay)+
+        " | animation " + std::to_string(record.animation_sprites) +
         " | alpha " + (record.alpha_length != 0 ? "yes" : "no") +
         " | policy " + (ignore_alpha_ ? "ignored_diagnostic" :
             assets::alpha_policy_name(record.alpha_policy)) +

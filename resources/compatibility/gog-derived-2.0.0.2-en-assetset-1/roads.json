@@ -9,25 +9,25 @@
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as isolated center bounded by the matching stone edge; original selection semantics unverified."
     },
-    "0x5": {
+    "0x1": {
       "archive": "DATA/China_Terrain.sg3",
       "image_index": 786,
       "ground_anchor": [
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as neg_y end uses the matching y-axis straight because the bounded family has no distinct end caps; original selection semantics unverified."
     },
-    "0xa": {
+    "0x2": {
       "archive": "DATA/China_Terrain.sg3",
       "image_index": 782,
       "ground_anchor": [
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as pos_x end uses the matching x-axis straight because the bounded family has no distinct end caps; original selection semantics unverified."
     },
     "0x3": {
       "archive": "DATA/China_Terrain.sg3",
@@ -36,7 +36,25 @@
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as neg_y+pos_x corner; original selection semantics unverified."
+    },
+    "0x4": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 786,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as pos_y end uses the matching y-axis straight because the bounded family has no distinct end caps; original selection semantics unverified."
+    },
+    "0x5": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 786,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as neg_y+pos_y straight; original selection semantics unverified."
     },
     "0x6": {
       "archive": "DATA/China_Terrain.sg3",
@@ -45,25 +63,7 @@
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
-    },
-    "0xc": {
-      "archive": "DATA/China_Terrain.sg3",
-      "image_index": 792,
-      "ground_anchor": [
-        39,
-        20
-      ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
-    },
-    "0x9": {
-      "archive": "DATA/China_Terrain.sg3",
-      "image_index": 793,
-      "ground_anchor": [
-        39,
-        20
-      ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as pos_x+pos_y corner; original selection semantics unverified."
     },
     "0x7": {
       "archive": "DATA/China_Terrain.sg3",
@@ -72,7 +72,34 @@
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as neg_y+pos_x+pos_y T; original selection semantics unverified."
+    },
+    "0x8": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 782,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as neg_x end uses the matching x-axis straight because the bounded family has no distinct end caps; original selection semantics unverified."
+    },
+    "0x9": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 793,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as neg_y+neg_x corner; original selection semantics unverified."
+    },
+    "0xa": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 782,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as pos_x+neg_x straight; original selection semantics unverified."
     },
     "0xb": {
       "archive": "DATA/China_Terrain.sg3",
@@ -81,7 +108,16 @@
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as neg_y+pos_x+neg_x T; original selection semantics unverified."
+    },
+    "0xc": {
+      "archive": "DATA/China_Terrain.sg3",
+      "image_index": 792,
+      "ground_anchor": [
+        39,
+        20
+      ],
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as pos_y+neg_x corner; original selection semantics unverified."
     },
     "0xd": {
       "archive": "DATA/China_Terrain.sg3",
@@ -90,7 +126,7 @@
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as neg_y+pos_y+neg_x T; original selection semantics unverified."
     },
     "0xe": {
       "archive": "DATA/China_Terrain.sg3",
@@ -99,16 +135,16 @@
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as pos_x+pos_y+neg_x T; original selection semantics unverified."
     },
     "0xf": {
       "archive": "DATA/China_Terrain.sg3",
-      "image_index": 875,
+      "image_index": 798,
       "ground_anchor": [
         39,
         20
       ],
-      "evidence": "Local visual review of Type-30 China_Land3 tile; curated preview assignment, not original road ID"
+      "evidence": "China_Land3 782-799 road-family candidate; visually reviewed at 4x as four-way crossing; original selection semantics unverified."
     }
   }
 }

@@ -1,6 +1,8 @@
 #include "assets/RoadVisualProfile.h"
 #include "renderer/RoadSpriteSet.h"
 #include "app/SandboxVisualOrder.h"
+#include "app/RoadTopology.h"
+#include "simulation/World.h"
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -155,6 +157,47 @@ void render_tests(Fixture& f) {
           "4x road draw");
     check(pixel(renderer,150,100)[0]==profile.unique_images[0].pixels[(20U*78U+39U)*4U],
           "4x zoom shifted the shared ground anchor");
+
+    simulation::World cluster(7,7,std::vector<std::uint8_t>(49,1),
+                              simulation::RulesProfile::ProductionV2);
+    const simulation::Cell center{3,3};
+    const auto command=[&](simulation::CommandType type,simulation::Cell cell) {
+        check(cluster.execute({type,cell}).accepted,"cluster road command failed");
+    };
+    const auto center_signature=[&]() {
+        const auto mask=sandbox_ui::road_neighbor_mask(cluster,center);
+        check(SDL_SetRenderDrawColor(renderer,10,10,10,255) && SDL_RenderClear(renderer) &&
+              sprites.draw({100,60},1,profile,*profile.find(mask)),"cluster road draw");
+        const auto actual=pixel(renderer,100,60);
+        const auto& image=profile.unique_images.at(profile.find(mask)->image_index);
+        const std::size_t at=(20U*78U+39U)*4U;
+        check(actual[0]==image.pixels[at] && actual[1]==image.pixels[at+1] &&
+              actual[2]==image.pixels[at+2],"cluster mask selected wrong SDL pixels");
+        return std::pair{mask,actual};
+    };
+    command(simulation::CommandType::PlaceRoad,center);
+    check(center_signature().first==0x0,"cluster isolated mask");
+    command(simulation::CommandType::PlaceRoad,{3,2});
+    check(center_signature().first==0x1,"cluster end mask");
+    command(simulation::CommandType::PlaceRoad,{3,4});
+    check(center_signature().first==0x5,"cluster straight mask");
+    command(simulation::CommandType::PlaceRoad,{4,3});
+    check(center_signature().first==0x7,"cluster T mask");
+    command(simulation::CommandType::PlaceRoad,{2,3});
+    check(center_signature().first==0xf,"cluster cross mask");
+    command(simulation::CommandType::RemoveRoad,{3,2});
+    check(center_signature().first==0xe,"cluster remove to T");
+    command(simulation::CommandType::RemoveRoad,{2,3});
+    check(center_signature().first==0x6,"cluster remove to corner");
+    command(simulation::CommandType::RemoveRoad,{3,4});
+    check(center_signature().first==0x2,"cluster remove to end");
+    command(simulation::CommandType::RemoveRoad,{4,3});
+    const auto isolated=center_signature();
+    check(isolated.first==0x0,"cluster remove to isolated");
+    command(simulation::CommandType::PlaceClaySource,{3,2});
+    const auto beside_building=center_signature();
+    check(beside_building.first==0x0 && sandbox_ui::entrance_mask(cluster,center)==0x1 &&
+          beside_building.second==isolated.second,"building changed road texture pixels");
     // Same projected ground: road, then building, then walker. The final pixel is the walker.
     std::array<SandboxVisualKind,3> order{{SandboxVisualKind::Walker,
         SandboxVisualKind::Road,SandboxVisualKind::Building}};

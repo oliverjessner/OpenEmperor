@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -13,10 +14,17 @@
 
 namespace openemperor {
 
+struct RoadAtlasRange {
+    std::filesystem::path archive_relative_path;
+    std::uint32_t start = 0;
+    std::uint32_t count = 0;
+};
+
 class AssetBrowser {
 public:
     AssetBrowser(assets::AssetCatalog catalog, bool ignore_alpha,
-                 std::optional<assets::Sg3ImageKind> initial_kind = std::nullopt);
+                 std::optional<assets::Sg3ImageKind> initial_kind = std::nullopt,
+                 std::optional<RoadAtlasRange> road_atlas = std::nullopt);
     AssetBrowser(const AssetBrowser&) = delete;
     AssetBrowser& operator=(const AssetBrowser&) = delete;
     ~AssetBrowser();
@@ -30,6 +38,7 @@ public:
     std::size_t cache_misses() const { return cache_misses_; }
     std::size_t cache_peak_entries() const { return cache_peak_entries_; }
     std::uint64_t cache_peak_bytes() const { return cache_peak_bytes_; }
+    std::size_t visible_count() const { return visible_.size(); }
 
 private:
     struct CacheEntry {
@@ -53,6 +62,7 @@ private:
     assets::AssetCatalog catalog_;
     bool ignore_alpha_ = false;
     std::optional<assets::Sg3ImageKind> kind_;
+    std::optional<RoadAtlasRange> road_atlas_;
     bool show_all_candidates_ = false;
     std::vector<std::size_t> visible_;
     std::size_t selected_ = 0;

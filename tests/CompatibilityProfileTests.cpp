@@ -99,7 +99,7 @@ void validate_committed_pack(const fs::path& resource_root) {
           walkers.at("roles").size()==3,"walker compatibility schema changed");
     check(buildings.value("schema_version",0)==1 && buildings.at("buildings").size()==4,
           "building compatibility schema changed");
-    check(roads.value("schema_version",0)==1 && roads.at("tiles").size()==12,
+    check(roads.value("schema_version",0)==1 && roads.at("tiles").size()==16,
           "road compatibility schema changed");
     check(walkers.at("roles").contains("clay") && walkers.at("roles").contains("pottery") &&
           walkers.at("roles").contains("household"),"unknown/missing walker role");
@@ -109,8 +109,8 @@ void validate_committed_pack(const fs::path& resource_root) {
         (void)value;actual_buildings.insert(key);
     }
     check(actual_buildings==building_roles,"unknown/missing building role");
-    const std::set<std::string> road_masks={"0x0","0x3","0x5","0x6","0x7","0x9",
-        "0xa","0xb","0xc","0xd","0xe","0xf"};
+    const std::set<std::string> road_masks={"0x0","0x1","0x2","0x3","0x4","0x5",
+        "0x6","0x7","0x8","0x9","0xa","0xb","0xc","0xd","0xe","0xf"};
     std::set<std::string> actual_roads;
     for (const auto& [key,value]:roads.at("tiles").items()) { (void)value;actual_roads.insert(key); }
     check(actual_roads==road_masks,"built-in road masks changed");
@@ -125,9 +125,10 @@ void validate_committed_pack(const fs::path& resource_root) {
               item.at("ground_anchor").get<std::array<int,2>>()==expected_building_anchors.at(role),
               "curated building record or anchor changed");
     }
-    const std::map<std::string,std::uint32_t> expected_roads={{"0x0",799},{"0x5",786},
-        {"0xa",782},{"0x3",790},{"0x6",791},{"0xc",792},{"0x9",793},
-        {"0x7",794},{"0xb",795},{"0xd",796},{"0xe",797},{"0xf",875}};
+    const std::map<std::string,std::uint32_t> expected_roads={{"0x0",799},{"0x1",786},
+        {"0x2",782},{"0x3",790},{"0x4",786},{"0x5",786},{"0x6",791},
+        {"0x7",794},{"0x8",782},{"0x9",793},{"0xa",782},{"0xb",795},
+        {"0xc",792},{"0xd",796},{"0xe",797},{"0xf",798}};
     for (const auto& [mask,index]:expected_roads) {
         const auto& item=roads.at("tiles").at(mask);
         check(item.at("image_index").get<std::uint32_t>()==index &&
@@ -151,7 +152,7 @@ void validate_committed_pack(const fs::path& resource_root) {
     for (const auto* document:{&walkers,&buildings,&roads}) {
         reject_blob_keys(*document);validate_archive_entries(*document,archives);
     }
-    check(archives==64,"built-in profile archive entry count changed");
+    check(archives==68,"built-in profile archive entry count changed");
 }
 }
 

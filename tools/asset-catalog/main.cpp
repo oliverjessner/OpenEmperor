@@ -109,6 +109,7 @@ void print_json(const assets::AssetCatalog& catalog,
                << ",\"uncompressed_length\":" << record.uncompressed_length
                << ",\"external_flag\":" << static_cast<unsigned int>(record.external_flag)
                << ",\"isometric_size_flag\":" << static_cast<unsigned int>(record.isometric_size_flag)
+               << ",\"animation_sprites\":" << record.animation_sprites
                << ",\"alpha_offset\":" << record.alpha_offset
                << ",\"alpha_offset_raw\":" << record.alpha_offset
                << ",\"effective_alpha_offset\":";
