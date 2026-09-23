@@ -18,14 +18,16 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     MapSelectBase=1000, SaveSelectBase=2000 };
 constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::LogisticsV1,
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
-    simulation::RulesProfile::SettlementV4,simulation::RulesProfile::IndustryV5};
+    simulation::RulesProfile::SettlementV4,simulation::RulesProfile::IndustryV5,
+    simulation::RulesProfile::CityV6};
 const char* description(simulation::RulesProfile p) {
     switch (p) {
     case simulation::RulesProfile::LogisticsV1: return "Legacy prototype: goods delivery";
     case simulation::RulesProfile::ProductionV2: return "Legacy prototype: clay and pottery";
     case simulation::RulesProfile::HouseholdV3: return "Legacy prototype: one household";
     case simulation::RulesProfile::SettlementV4: return "Legacy prototype: four households";
-    case simulation::RulesProfile::IndustryV5: return "Alpha default: complete industry loop";
+    case simulation::RulesProfile::IndustryV5: return "Legacy alpha sandbox";
+    case simulation::RulesProfile::CityV6: return "Playable city loop: money, workers and taxes";
     }
     return "";
 }
@@ -231,7 +233,8 @@ void MenuSession::perform(int action) {
         case ProfilePrev: case ProfileNext: {
             auto it=std::find(std::begin(profiles),std::end(profiles),settings_.profile);
             int index=static_cast<int>(it-std::begin(profiles));
-            index=std::clamp(index+(action==ProfileNext?1:-1),0,4);
+            index=std::clamp(index+(action==ProfileNext?1:-1),0,
+                static_cast<int>(std::size(profiles))-1);
             settings_.profile=profiles[index]; rebuild_buttons(); break;
         }
         case Demo: demo_=!demo_; rebuild_buttons(); break;

@@ -18,9 +18,10 @@ RoadPlan plan_road(const simulation::World& world,simulation::Cell start,
     while (at.x!=end.x) { at.x+=end.x>at.x ? 1:-1; plan.cells.push_back(at); }
     while (at.y!=end.y) { at.y+=end.y>at.y ? 1:-1; plan.cells.push_back(at); }
     plan.valid=true;
+    auto candidate=world;
     for (const auto cell:plan.cells) {
-        if (world.object_at(cell)==simulation::Object::Road) continue;
-        const auto result=world.validate({simulation::CommandType::PlaceRoad,cell});
+        if (candidate.object_at(cell)==simulation::Object::Road) continue;
+        const auto result=candidate.execute({simulation::CommandType::PlaceRoad,cell});
         if (!result.accepted) {
             plan.valid=false;
             if (plan.reason.empty()) plan.reason=result.reason;

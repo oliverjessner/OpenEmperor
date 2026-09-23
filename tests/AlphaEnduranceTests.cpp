@@ -63,6 +63,33 @@ sim::World make_world() {
     return world;
 }
 
+sim::World make_city_world() {
+    sim::World world(width,height,buildable(),sim::RulesProfile::CityV6);
+    const auto road=[&](int x,int y) { require_command(world,sim::CommandType::PlaceRoad,x,y); };
+    require_command(world,sim::CommandType::PlaceClaySource,0,2);
+    road(1,2); road(2,2);
+    require_command(world,sim::CommandType::PlacePottery,3,2);
+    road(4,2); road(5,2);
+    require_command(world,sim::CommandType::PlaceWarehouse,6,2);
+    road(7,2); road(8,2); road(9,2);
+    require_command(world,sim::CommandType::PlaceHousehold,10,2);
+    road(7,1); road(8,1);
+    require_command(world,sim::CommandType::PlaceHousehold,9,1);
+    while (world.treasury()<482 && world.ticks()<20'000) world.tick();
+    check(world.treasury()>=482,"City endurance starter did not earn expansion funds");
+    require_command(world,sim::CommandType::PlaceClaySource,0,4);
+    road(1,4); road(2,4); road(2,3);
+    require_command(world,sim::CommandType::PlacePottery,3,4);
+    road(4,4); road(5,4); road(6,4); road(6,3);
+    road(7,3); road(8,3);
+    require_command(world,sim::CommandType::PlaceHousehold,9,3);
+    road(7,4); road(8,4);
+    require_command(world,sim::CommandType::PlaceHousehold,9,4);
+    check(world.city_economy_valid() && world.production_balance_valid() &&
+          world.navigation_valid(),"expanded City endurance world invalid");
+    return world;
+}
+
 struct ScheduledCommand {
     std::uint64_t before_tick;
     sim::Command command;
@@ -297,6 +324,20 @@ int main() {
                 ++supplied_households;
         check(supplied_households == 4, "not all four households consumed pottery");
 
+        auto city_a=make_city_world();
+        auto city_b=city_a;
+        const auto city_start_tick=city_a.ticks();
+        for (std::uint64_t tick=0;tick<tick_limit;++tick) {
+            city_a.tick(); city_b.tick();
+            if (tick%25==0) {
+                check(city_a.snapshot()==city_b.snapshot(),"City endurance worlds diverged");
+                check(city_a.city_economy_valid() && city_a.production_balance_valid() &&
+                      city_a.navigation_valid(),"City endurance invariant failed");
+            }
+        }
+        check(city_a.ticks()-city_start_tick==tick_limit && city_a.settlement_goal_reached(),
+              "City endurance did not complete 100k ticks or retain its goal");
+
         nlohmann::json states = nlohmann::json::object();
         for (const auto& [name, observed] : representative) states[name] = observed;
         std::cout << nlohmann::json{{"schema", "openemperor-alpha-endurance-v1"},
@@ -308,6 +349,10 @@ int main() {
             {"navigation_valid", true}, {"supplied_households", supplied_households},
             {"clay_extracted_total", world_a.clay_extracted_total()},
             {"pottery_completed_total", world_a.pottery_completed_total()},
+            {"city_ticks", tick_limit}, {"city_goal_reached",city_a.settlement_goal_reached()},
+            {"city_funds",city_a.treasury()},
+            {"city_taxes_collected_total",city_a.taxes_collected_total()},
+            {"city_economy_valid",city_a.city_economy_valid()},
             {"result", "pass"}}.dump() << '\n';
         return 0;
     } catch (const std::exception& error) {

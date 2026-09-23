@@ -40,6 +40,7 @@ const char* courier_dispatch_status_name(CourierDispatchStatus status) {
     case CourierDispatchStatus::NoTarget: return "No target building";
     case CourierDispatchStatus::AlreadyMoving: return "Already moving";
     case CourierDispatchStatus::WaitingForRoadRevision: return "Waiting for road revision";
+    case CourierDispatchStatus::Unstaffed: return "Building unstaffed";
     case CourierDispatchStatus::Disabled: return "Disabled";
     }
     return "Unknown";
@@ -51,6 +52,7 @@ const char* rules_profile_name(RulesProfile profile) {
     case RulesProfile::HouseholdV3: return household_profile_name;
     case RulesProfile::SettlementV4: return settlement_profile_name;
     case RulesProfile::IndustryV5: return industry_profile_name;
+    case RulesProfile::CityV6: return city_profile_name;
     }
     return "unknown";
 }
@@ -62,8 +64,9 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         throw std::invalid_argument("invalid bounded sandbox grid");
     if (profile!=RulesProfile::LogisticsV1 && profile!=RulesProfile::ProductionV2 &&
         profile!=RulesProfile::HouseholdV3 && profile!=RulesProfile::SettlementV4 &&
-        profile!=RulesProfile::IndustryV5)
+        profile!=RulesProfile::IndustryV5 && profile!=RulesProfile::CityV6)
         throw std::invalid_argument("unknown sandbox rules profile");
+    treasury_=profile==RulesProfile::CityV6 ? Rules::starting_treasury:0;
     objects_.assign(buildable_.size(),Object::Empty);
     owners_.assign(buildable_.size(),0);
     buildings_[0].id=BuildingId::ClaySource;
@@ -129,6 +132,119 @@ CourierState& World::mutable_courier(CourierId id) {
     if (value<1 || value>5) throw std::out_of_range("invalid courier ID");
     return couriers_[value-1];
 }
+
+std::int64_t World::construction_cost(CommandType type) const {
+    if (profile_!=RulesProfile::CityV6) return 0;
+    switch (type) {
+    case CommandType::PlaceRoad: return Rules::road_cost;
+    case CommandType::PlaceClaySource: return Rules::clay_source_cost;
+    case CommandType::PlacePottery: return Rules::pottery_cost;
+    case CommandType::PlaceWarehouse: return Rules::warehouse_cost;
+    case CommandType::PlaceHousehold: return Rules::household_cost;
+    case CommandType::PlaceWorkshop:
+    case CommandType::RemoveRoad: return 0;
+    }
+    return 0;
+}
+
+int World::workforce_required(BuildingId id) const {
+    const auto& value=building(id);
+    if (!value.placed) return 0;
+    switch (value.kind) {
+    case Object::ClaySource: return Rules::clay_source_workers;
+    case Object::Pottery: return Rules::pottery_workers;
+    case Object::Warehouse: return Rules::warehouse_workers;
+    default: return 0;
+    }
+}
+
+int World::workforce_supply() const {
+    if (profile_!=RulesProfile::CityV6) return 0;
+    int households=0;
+    for (unsigned id=first_household_id;id<household_id_end;++id)
+        if (building(static_cast<BuildingId>(id)).placed) ++households;
+    return households*Rules::household_workers;
+}
+
+int World::workforce_required() const {
+    if (profile_!=RulesProfile::CityV6) return 0;
+    int total=0;
+    for (unsigned id=1;id<=9;++id) total+=workforce_required(static_cast<BuildingId>(id));
+    return total;
+}
+
+bool World::building_staffed(BuildingId id) const {
+    if (profile_!=RulesProfile::CityV6) return true;
+    const auto requested=static_cast<unsigned>(id);
+    int available=workforce_supply();
+    for (unsigned value=1;value<=9;++value) {
+        const int need=workforce_required(static_cast<BuildingId>(value));
+        const bool staffed=need==0 || available>=need;
+        if (need!=0 && staffed) available-=need;
+        if (value==requested) return staffed;
+    }
+    throw std::out_of_range("invalid building ID");
+}
+
+int World::workforce_used() const {
+    if (profile_!=RulesProfile::CityV6) return 0;
+    int used=0;
+    for (unsigned id=1;id<=9;++id) {
+        const auto building_id=static_cast<BuildingId>(id);
+        if (building_staffed(building_id)) used+=workforce_required(building_id);
+    }
+    return used;
+}
+
+int World::settlement_goal_households_ready() const {
+    if (profile_!=RulesProfile::CityV6) return 0;
+    int ready=0;
+    for (unsigned id=first_household_id;id<household_id_end;++id) {
+        const auto& home=building(static_cast<BuildingId>(id));
+        if (home.placed && home.fulfilled_demand>=Rules::settlement_goal_fulfilled_demands) ++ready;
+    }
+    return ready;
+}
+
+bool World::settlement_goal_reached() const {
+    return profile_==RulesProfile::CityV6 && next_household_id_==household_id_end &&
+        settlement_goal_households_ready()==household_limit;
+}
+
+bool World::city_economy_valid() const {
+    if (profile_!=RulesProfile::CityV6)
+        return treasury_==0 && taxes_collected_total_==0 && construction_spent_total_==0;
+    if (treasury_<0 || taxes_collected_total_>
+        static_cast<std::uint64_t>(INT64_MAX-Rules::starting_treasury)) return false;
+    std::uint64_t fulfilled=0;
+    for (unsigned id=first_household_id;id<household_id_end;++id) {
+        const auto count=building(static_cast<BuildingId>(id)).fulfilled_demand;
+        if (fulfilled>UINT64_MAX-count) return false;
+        fulfilled+=count;
+    }
+    const auto tax_rate=static_cast<std::uint64_t>(Rules::tax_income_per_fulfilled_demand);
+    if (fulfilled>UINT64_MAX/tax_rate || taxes_collected_total_!=fulfilled*tax_rate) return false;
+    std::uint64_t expected_spending=0;
+    const auto add_cost=[&](std::uint64_t count,std::uint64_t cost) {
+        if (count>UINT64_MAX/cost || expected_spending>UINT64_MAX-count*cost) return false;
+        expected_spending+=count*cost;
+        return true;
+    };
+    if (!add_cost(roads_placed_total_,static_cast<std::uint64_t>(Rules::road_cost))) return false;
+    for (const auto& value:buildings_) if (value.placed) {
+        const auto cost=value.kind==Object::ClaySource ? Rules::clay_source_cost:
+            value.kind==Object::Pottery ? Rules::pottery_cost:
+            value.kind==Object::Warehouse ? Rules::warehouse_cost:
+            value.kind==Object::Household ? Rules::household_cost:0;
+        if (cost<=0 || !add_cost(1,static_cast<std::uint64_t>(cost))) return false;
+    }
+    if (construction_spent_total_!=expected_spending) return false;
+    const auto available=static_cast<std::uint64_t>(Rules::starting_treasury)+taxes_collected_total_;
+    if (construction_spent_total_>available ||
+        treasury_!=static_cast<std::int64_t>(available-construction_spent_total_) ||
+        workforce_used()>workforce_supply() || workforce_used()>workforce_required()) return false;
+    return true;
+}
 CommandResult World::validate(Command command) const {
     if (command_sequence_==UINT64_MAX) throw std::overflow_error("sandbox command counter exhausted");
     CommandResult result{false,false,"",command_sequence_+1,ticks_};
@@ -186,7 +302,7 @@ CommandResult World::validate(Command command) const {
             Object::ClaySource:Object::Pottery;
         unsigned count=0;
         for (const auto& b:buildings_) if (b.placed && b.kind==kind) ++count;
-        if (count>=(profile_==RulesProfile::IndustryV5 ? 2U:1U)) {
+        if (count>=(industry_profile(profile_) ? 2U:1U)) {
             result.reason=kind==Object::ClaySource ? "Clay source limit reached":
                 "Pottery limit reached"; return result;
         }
@@ -204,10 +320,16 @@ CommandResult World::validate(Command command) const {
         (command.type==CommandType::PlaceRoad && roads_placed_total_==UINT64_MAX)) {
         result.reason="Road counter exhausted"; return result;
     }
+    const auto cost=construction_cost(command.type);
+    if (cost>treasury_) { result.reason="Not enough money"; return result; }
+    if (cost>0 && construction_spent_total_>UINT64_MAX-static_cast<std::uint64_t>(cost)) {
+        result.reason="Construction spending counter exhausted"; return result;
+    }
     return {true,true,"Placed",result.sequence,ticks_};
 }
 CommandResult World::execute(Command command) {
     auto result=validate(command);
+    if (profile_==RulesProfile::CityV6 && !result.accepted) return result;
     ++command_sequence_;
     result.sequence=command_sequence_;
     if (!result.accepted || !result.changed) return result;
@@ -245,7 +367,7 @@ CommandResult World::execute(Command command) {
             static_cast<BuildingId>(next_production_id_++):BuildingId::ClaySource;
         auto& b=mutable_building(id);
         b.placed=true; b.kind=Object::ClaySource; b.cell=command.cell;
-        if (profile_==RulesProfile::IndustryV5) b.placed_tick=ticks_;
+        if (industry_profile(profile_)) b.placed_tick=ticks_;
         owners_[index(command.cell)]=static_cast<std::uint8_t>(b.id);
         auto& courier=mutable_courier(id==BuildingId::ClaySource ? CourierId::Clay:
             static_cast<CourierId>(next_courier_id_++));
@@ -259,7 +381,7 @@ CommandResult World::execute(Command command) {
             static_cast<BuildingId>(next_production_id_++):BuildingId::Pottery;
         auto& b=mutable_building(id);
         b.placed=true; b.kind=Object::Pottery; b.cell=command.cell;
-        if (profile_==RulesProfile::IndustryV5) b.placed_tick=ticks_;
+        if (industry_profile(profile_)) b.placed_tick=ticks_;
         owners_[index(command.cell)]=static_cast<std::uint8_t>(b.id);
         auto& courier=mutable_courier(id==BuildingId::Pottery ? CourierId::Pottery:
             static_cast<CourierId>(next_courier_id_++));
@@ -277,6 +399,11 @@ CommandResult World::execute(Command command) {
         ++next_household_id_;
         break;
     }
+    }
+    if (profile_==RulesProfile::CityV6) {
+        const auto cost=construction_cost(command.type);
+        treasury_-=cost;
+        construction_spent_total_+=static_cast<std::uint64_t>(cost);
     }
     ++road_revision_;
     cached_route_.reset();
@@ -347,14 +474,14 @@ void World::refresh_routes() {
             find_route(source.cell,target.cell) : std::nullopt;
         courier.cached_revision=road_revision_;
         for (auto& candidate:courier.target_routes) candidate.reset();
-        if (profile_==RulesProfile::IndustryV5 && courier.enabled &&
+        if (industry_profile(profile_) && courier.enabled &&
             courier.role==CourierRole::Clay && source.placed)
             for (const auto& pottery:buildings_)
                 if (pottery.placed && pottery.kind==Object::Pottery)
                     courier.target_routes[static_cast<unsigned>(pottery.id)-1]=
                         find_route(source.cell,pottery.cell);
     }
-    if (profile_==RulesProfile::SettlementV4 || profile_==RulesProfile::IndustryV5) {
+    if (profile_==RulesProfile::SettlementV4 || industry_profile(profile_)) {
         const auto& warehouse=building(BuildingId::Warehouse);
         for (std::size_t i=0;i<household_routes_.size();++i) {
             const auto& home=building(static_cast<BuildingId>(first_household_id+i));
@@ -366,14 +493,14 @@ void World::refresh_routes() {
 }
 
 std::optional<BuildingId> World::next_household_candidate() const {
-    if (profile_!=RulesProfile::SettlementV4 && profile_!=RulesProfile::IndustryV5)
+    if (profile_!=RulesProfile::SettlementV4 && !industry_profile(profile_))
         return std::nullopt;
     const auto decision=courier_dispatch_status(CourierId::Household);
     return decision.status==CourierDispatchStatus::Ready ? decision.selected_target:std::nullopt;
 }
 
 std::optional<BuildingId> World::next_pottery_candidate(CourierId id) const {
-    if (profile_!=RulesProfile::IndustryV5 || courier(id).role!=CourierRole::Clay)
+    if (!industry_profile(profile_) || courier(id).role!=CourierRole::Clay)
         return std::nullopt;
     const auto decision=courier_dispatch_status(id);
     return decision.status==CourierDispatchStatus::Ready ? decision.selected_target:std::nullopt;
@@ -387,15 +514,17 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
         return {CourierDispatchStatus::AlreadyMoving,c.target};
     if (c.cached_revision!=road_revision_ ||
         (c.role==CourierRole::Household &&
-         (profile_==RulesProfile::SettlementV4 || profile_==RulesProfile::IndustryV5) &&
+         (profile_==RulesProfile::SettlementV4 || industry_profile(profile_)) &&
          household_routes_revision_!=road_revision_))
         return {CourierDispatchStatus::WaitingForRoadRevision,std::nullopt};
     const auto& source=building(c.owner);
     if (!source.placed) return {CourierDispatchStatus::Disabled,std::nullopt};
+    if (profile_==RulesProfile::CityV6 && !building_staffed(c.owner))
+        return {CourierDispatchStatus::Unstaffed,std::nullopt};
     const int source_stock=c.role==CourierRole::Household ? source.pottery_stock:source.output;
     if (source_stock<=0) return {CourierDispatchStatus::NoStock,std::nullopt};
 
-    if (c.role==CourierRole::Clay && profile_==RulesProfile::IndustryV5) {
+    if (c.role==CourierRole::Clay && industry_profile(profile_)) {
         std::array<BuildingId,2> targets{};
         unsigned count=0;
         for (const auto& b:buildings_)
@@ -421,7 +550,7 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
     }
 
     if (c.role==CourierRole::Household &&
-        (profile_==RulesProfile::SettlementV4 || profile_==RulesProfile::IndustryV5)) {
+        (profile_==RulesProfile::SettlementV4 || industry_profile(profile_))) {
         if (next_household_id_==first_household_id)
             return {CourierDispatchStatus::NoTarget,std::nullopt};
         const unsigned start=last_dispatched_household_ ?
@@ -456,7 +585,7 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
 
 bool World::household_route_available(BuildingId id) const {
     const auto value=static_cast<unsigned>(id);
-    if ((profile_!=RulesProfile::SettlementV4 && profile_!=RulesProfile::IndustryV5) ||
+    if ((profile_!=RulesProfile::SettlementV4 && !industry_profile(profile_)) ||
         value<first_household_id ||
         value>=household_id_end || household_routes_revision_!=road_revision_)
         return false;
@@ -469,6 +598,7 @@ void World::tick_production_v2() {
     // Stable IDs within each kind: all Clay sources, then all Pottery works.
     // A newly started recipe gains no progress on its start tick.
     for (auto& source:buildings_) if (source.placed && source.kind==Object::ClaySource) {
+        if (profile_==RulesProfile::CityV6 && !building_staffed(source.id)) continue;
         if (source.output<Rules::clay_output_capacity) {
             if (++source.progress==Rules::clay_ticks) {
                 if (clay_extracted_total_==UINT64_MAX)
@@ -481,6 +611,7 @@ void World::tick_production_v2() {
         } else source.progress=0;
     }
     for (auto& pottery:buildings_) if (pottery.placed && pottery.kind==Object::Pottery) {
+        if (profile_==RulesProfile::CityV6 && !building_staffed(pottery.id)) continue;
         if (pottery.active_recipe_clay>0) {
             if (++pottery.progress==Rules::pottery_recipe_ticks) {
                 if (pottery_completed_total_==UINT64_MAX || pottery.recipes_completed==UINT64_MAX)
@@ -507,10 +638,20 @@ void World::tick_production_v2() {
                 if (home.pottery_stock>0) {
                     if (home.fulfilled_demand==UINT64_MAX || home.consumed_total==UINT64_MAX)
                         throw std::overflow_error("household fulfilled counter exhausted");
+                    if (profile_==RulesProfile::CityV6 &&
+                        (taxes_collected_total_>UINT64_MAX-
+                             static_cast<std::uint64_t>(Rules::tax_income_per_fulfilled_demand) ||
+                         treasury_>INT64_MAX-Rules::tax_income_per_fulfilled_demand))
+                        throw std::overflow_error("City tax counter exhausted");
                     --home.pottery_stock;
                     ++home.fulfilled_demand;
                     ++home.consumed_total;
                     home.last_demand_status=1;
+                    if (profile_==RulesProfile::CityV6) {
+                        taxes_collected_total_+=
+                            static_cast<std::uint64_t>(Rules::tax_income_per_fulfilled_demand);
+                        treasury_+=Rules::tax_income_per_fulfilled_demand;
+                    }
                 } else {
                     if (home.missed_demand==UINT64_MAX)
                         throw std::overflow_error("household missed counter exhausted");
@@ -523,7 +664,7 @@ void World::tick_production_v2() {
     // Stable courier ID order. Arrival is after production and household demand.
     for (auto& courier:couriers_) dispatch_v2(courier);
     for (auto& courier:couriers_) move_v2(courier);
-    if (!production_balance_valid() || !navigation_valid())
+    if (!production_balance_valid() || !navigation_valid() || !city_economy_valid())
         throw std::logic_error("sandbox production or navigation invariant violated");
 }
 
@@ -531,9 +672,9 @@ void World::dispatch_v2(CourierState& courier) {
     const auto decision=courier_dispatch_status(courier.id);
     if (decision.status!=CourierDispatchStatus::Ready || !decision.selected_target) return;
     const bool cycle_house=courier.role==CourierRole::Household &&
-        (profile_==RulesProfile::SettlementV4 || profile_==RulesProfile::IndustryV5);
+        (profile_==RulesProfile::SettlementV4 || industry_profile(profile_));
     const bool cycle_pottery=courier.role==CourierRole::Clay &&
-        profile_==RulesProfile::IndustryV5;
+        industry_profile(profile_);
     const auto selected_home=cycle_house ? decision.selected_target:std::nullopt;
     const auto selected_pottery=cycle_pottery ? decision.selected_target:std::nullopt;
     const auto target_id=*decision.selected_target;
@@ -758,6 +899,7 @@ const char* World::courier_blockage(CourierId id) const {
 const char* World::pottery_blockage() const {
     const auto& b=building(BuildingId::Pottery);
     if (!b.placed) return "No pottery building";
+    if (profile_==RulesProfile::CityV6 && !building_staffed(b.id)) return "Building unstaffed";
     if (b.active_recipe_clay>0) return "Processing Clay";
     if (b.output>=Rules::pottery_output_capacity) return "Pottery output full";
     if (b.input_clay<Rules::pottery_recipe_clay) return "No Clay input";
@@ -765,7 +907,7 @@ const char* World::pottery_blockage() const {
 }
 bool World::production_balance_valid() const {
     if (!production_profile(profile_)) return false;
-    if (profile_==RulesProfile::IndustryV5) return industry_balance_valid();
+    if (industry_profile(profile_)) return industry_balance_valid();
     for (unsigned id=1;id<household_id_end;++id) {
         const auto& instance=building(static_cast<BuildingId>(id));
         if (instance.id!=static_cast<BuildingId>(id) ||
@@ -1058,6 +1200,7 @@ std::string World::canonical_state() const {
        <<static_cast<unsigned>(next_courier_id_)<<':'
        <<static_cast<unsigned>(last_dispatched_household_.value_or(static_cast<BuildingId>(0)))
        <<':'<<clay_extracted_total_<<':'<<pottery_completed_total_
+       <<':'<<treasury_<<':'<<taxes_collected_total_<<':'<<construction_spent_total_
        <<':'<<total_produced_<<':'<<workshop_stock_<<':'<<production_progress_
        <<':'<<courier_cargo_<<':'<<warehouse_stock_<<':'<<static_cast<int>(phase_)
        <<':'<<path_vertex_<<':'<<edge_progress_;
@@ -1128,6 +1271,9 @@ WorldSnapshot World::snapshot() const {
     s.next_production_id=next_production_id_;
     s.next_courier_id=next_courier_id_;
     s.last_dispatched_household=last_dispatched_household_;
+    s.treasury=treasury_;
+    s.taxes_collected_total=taxes_collected_total_;
+    s.construction_spent_total=construction_spent_total_;
     for (int y=0;y<height_;++y) for (int x=0;x<width_;++x)
         if (object_at({x,y})==Object::Road) s.roads.push_back({x,y});
     s.workshop=workshop_; s.warehouse=warehouse_;
@@ -1199,7 +1345,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 fail("route interior is not a placed road");
         }
     };
-    if (s.profile==RulesProfile::IndustryV5) {
+    if (industry_profile(s.profile)) {
         if (s.workshop || s.warehouse || s.total_produced || s.workshop_stock ||
             s.production_progress || s.courier_cargo || s.warehouse_stock ||
             s.phase!=CourierPhase::IdleAtWorkshop || !s.path.empty() ||
@@ -1237,11 +1383,16 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
         }
         w.clay_extracted_total_=s.clay_extracted_total;
         w.pottery_completed_total_=s.pottery_completed_total;
-        if (!w.industry_balance_valid() || !w.navigation_valid())
+        w.treasury_=s.treasury;
+        w.taxes_collected_total_=s.taxes_collected_total;
+        w.construction_spent_total_=s.construction_spent_total;
+        if (!w.industry_balance_valid() || !w.navigation_valid() || !w.city_economy_valid())
             fail("invalid industry totals, targets, reservations or navigation");
         w.refresh_routes();
         return w;
     }
+    if (s.treasury || s.taxes_collected_total || s.construction_spent_total)
+        fail("older profile contains City economy state");
     if (s.next_production_id!=8 || s.next_courier_id!=4)
         fail("older profile contains industry IDs");
     for (std::size_t i=7;i<s.buildings.size();++i)

@@ -9,7 +9,7 @@
 namespace openemperor::menu {
 struct Settings {
     std::filesystem::path data_root, last_map, last_save;
-    simulation::RulesProfile profile=simulation::RulesProfile::IndustryV5;
+    simulation::RulesProfile profile=simulation::RulesProfile::CityV6;
 };
 struct SettingsRead {
     Settings value;

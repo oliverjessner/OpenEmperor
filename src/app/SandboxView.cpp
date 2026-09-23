@@ -72,6 +72,7 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::HouseholdV3: return "Household v3";
     case simulation::RulesProfile::SettlementV4: return "Settlement v4";
     case simulation::RulesProfile::IndustryV5: return "Industry v5";
+    case simulation::RulesProfile::CityV6: return "City v6";
     }
     return "Sandbox";
 }
@@ -313,7 +314,7 @@ void SandboxView::reset_camera() {
     camera_.offset.y+=layout_.map.y;
     if (demo_origin_) {
         const auto center=maps::terrain_world({static_cast<std::uint32_t>(demo_origin_->x+
-            (rules_==simulation::RulesProfile::IndustryV5 ? 6 :
+            (simulation::industry_profile(rules_) ? 6 :
              rules_==simulation::RulesProfile::SettlementV4 ? 6 :
              rules_==simulation::RulesProfile::HouseholdV3 ? 5 :
              rules_==simulation::RulesProfile::ProductionV2 ? 3 : 2)),
@@ -357,6 +358,35 @@ void SandboxView::update_layout(bool preserve_center) {
     refresh_hover();
 }
 void SandboxView::place_demo() {
+    if (rules_==simulation::RulesProfile::CityV6) {
+        for (int y=0;y+2<world_->height();++y) for (int x=0;x+11<=world_->width();++x) {
+            bool valid=true;
+            for (int dx=0;dx<11;++dx) valid=valid && world_->buildable({x+dx,y+1});
+            for (int dx : {7,8,9}) valid=valid && world_->buildable({x+dx,y});
+            if (!valid) continue;
+            const auto run=[&](simulation::CommandType type,int dx,int dy) {
+                if (!world_->execute({type,{x+dx,y+dy}}).accepted)
+                    throw std::logic_error("city demo command failed");
+            };
+            run(simulation::CommandType::PlaceClaySource,0,1);
+            run(simulation::CommandType::PlaceRoad,1,1);
+            run(simulation::CommandType::PlaceRoad,2,1);
+            run(simulation::CommandType::PlacePottery,3,1);
+            run(simulation::CommandType::PlaceRoad,4,1);
+            run(simulation::CommandType::PlaceRoad,5,1);
+            run(simulation::CommandType::PlaceWarehouse,6,1);
+            for (int dx=7;dx<=9;++dx) run(simulation::CommandType::PlaceRoad,dx,1);
+            run(simulation::CommandType::PlaceHousehold,10,1);
+            run(simulation::CommandType::PlaceRoad,7,0);
+            run(simulation::CommandType::PlaceRoad,8,0);
+            run(simulation::CommandType::PlaceHousehold,9,0);
+            demo_origin_=simulation::Cell{x,y+1};
+            reset_camera();
+            last_message_="City starter placed through paid commands";
+            return;
+        }
+        throw std::runtime_error("no suitable 11x3 sandbox-buildable city starter pattern");
+    }
     if (rules_==simulation::RulesProfile::IndustryV5) {
         for (int y=0;y+4<world_->height();++y) for (int x=0;x+11<=world_->width();++x) {
             bool valid=true;
@@ -503,6 +533,15 @@ void SandboxView::set_tool(int tool) {
 bool SandboxView::action_enabled(sandbox_ui::Action action) const {
     if (action==sandbox_ui::Action::Save || action==sandbox_ui::Action::Load)
         return !save_path_.empty();
+    if (rules_==simulation::RulesProfile::CityV6) {
+        std::optional<simulation::CommandType> command;
+        if (action==sandbox_ui::Action::Road) command=simulation::CommandType::PlaceRoad;
+        else if (action==sandbox_ui::Action::Clay) command=simulation::CommandType::PlaceClaySource;
+        else if (action==sandbox_ui::Action::Pottery) command=simulation::CommandType::PlacePottery;
+        else if (action==sandbox_ui::Action::Warehouse) command=simulation::CommandType::PlaceWarehouse;
+        else if (action==sandbox_ui::Action::Household) command=simulation::CommandType::PlaceHousehold;
+        if (command && world_->treasury()<world_->construction_cost(*command)) return false;
+    }
     if (action==sandbox_ui::Action::RemoveRoad)
         return simulation::production_profile(rules_);
     if (action==sandbox_ui::Action::Household)
@@ -521,7 +560,7 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
             const auto& b=world_->building(static_cast<simulation::BuildingId>(id));
             if (b.placed && b.kind==wanted) ++count;
         }
-        const int limit=(rules_==simulation::RulesProfile::IndustryV5 &&
+        const int limit=(simulation::industry_profile(rules_) &&
             (wanted==simulation::Object::ClaySource || wanted==simulation::Object::Pottery)) ? 2:1;
         return count<limit;
     }
@@ -540,7 +579,17 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     using A=sandbox_ui::Action;
     if (action==A::Save || action==A::Load) cancel_gesture();
     if (!action_enabled(action)) {
-        last_message_=save_path_.empty() && (action==A::Save || action==A::Load) ?
+        std::optional<simulation::CommandType> command;
+        if (action==A::Road) command=simulation::CommandType::PlaceRoad;
+        else if (action==A::Clay) command=simulation::CommandType::PlaceClaySource;
+        else if (action==A::Pottery) command=simulation::CommandType::PlacePottery;
+        else if (action==A::Warehouse) command=simulation::CommandType::PlaceWarehouse;
+        else if (action==A::Household) command=simulation::CommandType::PlaceHousehold;
+        if (rules_==simulation::RulesProfile::CityV6 && command &&
+            world_->treasury()<world_->construction_cost(*command))
+            last_message_="Need "+std::to_string(world_->construction_cost(*command))+
+                " funds; treasury "+std::to_string(world_->treasury());
+        else last_message_=save_path_.empty() && (action==A::Save || action==A::Load) ?
             "No sandbox save path configured" : "Tool unavailable or building limit reached";
         return;
     }
@@ -925,7 +974,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             if (!SDL_SetRenderDrawColor(renderer_,color.r,color.g,color.b,255) ||
                 !SDL_RenderFillRect(renderer_,&rect)) return false;
             if (debug_open_ && (object==simulation::Object::Household ||
-                (rules_==simulation::RulesProfile::IndustryV5 &&
+                (simulation::industry_profile(rules_) &&
                  (object==simulation::Object::ClaySource || object==simulation::Object::Pottery)))) {
                 const auto id=world_->building_owner_at({x,y});
                 const char prefix=object==simulation::Object::Household ? 'H':
@@ -1014,7 +1063,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         return draw_agent(position,marker_color,cargo_color,courier.cargo,marker_shift);
     };
     const unsigned courier_count=!simulation::production_profile(rules_) ? 1U:
-        rules_==simulation::RulesProfile::IndustryV5 ? 5U:
+        simulation::industry_profile(rules_) ? 5U:
         simulation::household_profile(rules_) ? 3U:2U;
     for (unsigned id=1;id<=courier_count;++id) {
         const auto courier=static_cast<simulation::CourierId>(id);
@@ -1140,6 +1189,17 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
     lines.push_back("Cell "+std::to_string(b.cell.x)+", "+std::to_string(b.cell.y));
+    if (rules_==simulation::RulesProfile::CityV6) {
+        if (b.kind==simulation::Object::Household)
+            lines.push_back("Workers supplied +"+
+                std::to_string(simulation::Rules::household_workers));
+        else {
+            const auto required=world_->workforce_required(*id);
+            lines.push_back("Workers "+std::to_string(world_->building_staffed(*id) ? required:0)+
+                "/"+std::to_string(required)+
+                (world_->building_staffed(*id) ? " staffed":" unstaffed"));
+        }
+    }
     if (b.kind==simulation::Object::Workshop) {
         lines.push_back("Output "+std::to_string(world_->workshop_stock())+"/8");
         lines.push_back("Progress "+std::to_string(world_->production_progress())+"/100");
@@ -1176,6 +1236,11 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Fulfilled "+std::to_string(b.fulfilled_demand)+
             " Missed "+std::to_string(b.missed_demand));
         lines.push_back("Consumed "+std::to_string(b.consumed_total));
+        if (rules_==simulation::RulesProfile::CityV6) {
+            lines.push_back("Tax per supplied demand 25");
+            lines.push_back("Taxes earned "+std::to_string(b.fulfilled_demand*
+                simulation::Rules::tax_income_per_fulfilled_demand));
+        }
         lines.push_back(b.last_demand_status==0 ? "Demand: not due" :
             b.last_demand_status==1 ? "Demand: supplied" : "Demand: unmet");
     }
@@ -1251,6 +1316,10 @@ bool SandboxView::draw_hud() {
     const std::string profile=debug_open_ ? simulation::rules_profile_name(rules_):profile_title(rules_);
     std::string overview=profile+" | Tick "+std::to_string(world_->ticks())+" | "+
         (clock_.paused()?"Paused ":"Running ")+std::to_string(clock_.speed())+"x";
+    if (rules_==simulation::RulesProfile::CityV6)
+        overview+=" | Funds "+std::to_string(world_->treasury())+" | Workers "+
+            std::to_string(world_->workforce_used())+"/"+
+            std::to_string(world_->workforce_supply());
     if (simulation::production_profile(rules_)) overview+=" | Clay "+
         std::to_string(world_->clay_extracted_total())+" | Pottery "+
         std::to_string(world_->pottery_completed_total())+" | Store "+
@@ -1263,6 +1332,27 @@ bool SandboxView::draw_hud() {
     std::string status=road_start_ && !road_preview_.valid ? road_preview_.reason :
         last_message_.empty() ? "OpenEmperor sandbox | Select a tool, then click the map" :
         last_message_;
+    if (rules_==simulation::RulesProfile::CityV6 && road_start_ &&
+        !road_preview_.valid && road_preview_.reason=="Not enough money") {
+        const auto count=std::count_if(road_preview_.cells.begin(),road_preview_.cells.end(),
+            [&](simulation::Cell cell) { return world_->object_at(cell)!=simulation::Object::Road; });
+        status="Need "+std::to_string(count*simulation::Rules::road_cost)+
+            " funds; treasury "+std::to_string(world_->treasury());
+    }
+    if (rules_==simulation::RulesProfile::CityV6 && hovered_ &&
+        tool_!=(simulation::production_profile(rules_) ? 5:4)) {
+        const auto result=preview(*hovered_);
+        if (!result.accepted && std::string_view(result.reason)=="Not enough money") {
+            const auto cost=world_->construction_cost(command_type(rules_,tool_));
+            status="Need "+std::to_string(cost)+" funds; treasury "+
+                std::to_string(world_->treasury());
+        }
+    }
+    if (rules_==simulation::RulesProfile::CityV6)
+        status+=world_->settlement_goal_reached() ?
+            " | GOAL REACHED - settlement supplied" :
+            " | Goal "+std::to_string(world_->settlement_goal_households_ready())+
+                "/4 households ready";
     if (debug_open_ && walker_profile_) {
         status+=" | Walkers ";
         status+=walker_visuals_enabled_ ? "ON ":"OFF ";
@@ -1277,12 +1367,14 @@ bool SandboxView::draw_hud() {
     const auto label=[&](A action)->std::string {
         switch (action) {
         case A::Select: return simulation::production_profile(rules_) ? "5 Select":"4 Select";
-        case A::Road: return "1 Road";
-        case A::Clay: return simulation::production_profile(rules_) ? "2 Clay" : "2 Workshop";
-        case A::Pottery: return "3 Pottery";
-        case A::Warehouse: return simulation::production_profile(rules_) ? "4 Store" : "3 Store";
+        case A::Road: return rules_==simulation::RulesProfile::CityV6 ? "1 Road $2":"1 Road";
+        case A::Clay: return rules_==simulation::RulesProfile::CityV6 ? "2 Clay $120":
+            simulation::production_profile(rules_) ? "2 Clay" : "2 Workshop";
+        case A::Pottery: return rules_==simulation::RulesProfile::CityV6 ? "3 Pottery $180":"3 Pottery";
+        case A::Warehouse: return rules_==simulation::RulesProfile::CityV6 ? "4 Store $150":
+            simulation::production_profile(rules_) ? "4 Store" : "3 Store";
         case A::RemoveRoad: return "6 Remove";
-        case A::Household: return "7 House";
+        case A::Household: return rules_==simulation::RulesProfile::CityV6 ? "7 House $80":"7 House";
         case A::Pause: return clock_.paused()?"Continue":"Pause";
         case A::Step: return "Step";
         case A::Speed1: return "1x";
@@ -1325,9 +1417,9 @@ bool SandboxView::draw_hud() {
             int count=0;
             for (const auto id:placed_buildings()) if (world_->building(id).kind==wanted) ++count;
             const int limit=button.action==A::Household ?
-                (rules_==simulation::RulesProfile::IndustryV5 ||
+                (simulation::industry_profile(rules_) ||
                  rules_==simulation::RulesProfile::SettlementV4 ? 4:1) :
-                rules_==simulation::RulesProfile::IndustryV5 &&
+                simulation::industry_profile(rules_) &&
                 (button.action==A::Clay || button.action==A::Pottery) ? 2:1;
             text+=" "+std::to_string(count)+"/"+std::to_string(limit);
         }
@@ -1370,9 +1462,14 @@ bool SandboxView::draw_hud() {
         if (!SDL_SetRenderDrawColor(renderer_,255,230,150,255)) return false;
         const bool balance_valid=simulation::production_profile(rules_) ?
             world_->production_balance_valid():world_->goods_balance_valid();
-        const std::string debug="Road revision "+std::to_string(world_->road_revision())+
+        std::string debug="Road revision "+std::to_string(world_->road_revision())+
             " | Commands "+std::to_string(world_->command_sequence())+
             " | Balance "+(balance_valid?"OK":"ERROR");
+        if (rules_==simulation::RulesProfile::CityV6)
+            debug+=" | Taxes "+std::to_string(world_->taxes_collected_total())+
+                " | Spent "+std::to_string(world_->construction_spent_total())+
+                " | Worker need "+std::to_string(world_->workforce_required())+
+                " | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/4";
         if (!draw_text(8*layout_.scale,layout_.map.y+8*layout_.scale,debug,
                        layout_.map.w-16*layout_.scale)) return false;
         const auto roads=road_display_stats();

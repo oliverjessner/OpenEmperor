@@ -11,19 +11,23 @@ namespace openemperor::simulation {
 
 inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
-enum class RulesProfile { LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5 };
+enum class RulesProfile { LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
 inline constexpr const char* industry_profile_name = "sandbox-industry-v5";
+inline constexpr const char* city_profile_name = "sandbox-city-v6";
 inline constexpr std::uint8_t first_household_id=4;
 inline constexpr std::uint8_t household_limit=4;
 inline constexpr std::uint8_t household_id_end=first_household_id+household_limit;
 constexpr bool household_profile(RulesProfile profile) {
     return profile==RulesProfile::HouseholdV3 || profile==RulesProfile::SettlementV4 ||
-           profile==RulesProfile::IndustryV5;
+           profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6;
 }
 constexpr bool production_profile(RulesProfile profile) {
     return profile==RulesProfile::ProductionV2 || household_profile(profile);
+}
+constexpr bool industry_profile(RulesProfile profile) {
+    return profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6;
 }
 const char* rules_profile_name(RulesProfile profile);
 struct Rules {
@@ -41,6 +45,18 @@ struct Rules {
     static constexpr int pottery_recipe_ticks = 150;
     static constexpr int household_capacity = 8;
     static constexpr int household_demand_ticks = 400;
+    static constexpr std::int64_t starting_treasury = 1000;
+    static constexpr std::int64_t road_cost = 2;
+    static constexpr std::int64_t clay_source_cost = 120;
+    static constexpr std::int64_t pottery_cost = 180;
+    static constexpr std::int64_t warehouse_cost = 150;
+    static constexpr std::int64_t household_cost = 80;
+    static constexpr int household_workers = 8;
+    static constexpr int clay_source_workers = 4;
+    static constexpr int pottery_workers = 6;
+    static constexpr int warehouse_workers = 2;
+    static constexpr std::int64_t tax_income_per_fulfilled_demand = 25;
+    static constexpr int settlement_goal_fulfilled_demands = 3;
 };
 
 struct Cell {
@@ -74,6 +90,7 @@ enum class CourierDispatchStatus : std::uint8_t {
     NoTarget,
     AlreadyMoving,
     WaitingForRoadRevision,
+    Unstaffed,
     Disabled
 };
 const char* courier_dispatch_status_name(CourierDispatchStatus status);
@@ -173,6 +190,9 @@ struct WorldSnapshot {
     std::uint8_t next_production_id=8;
     std::uint8_t next_courier_id=4;
     std::optional<BuildingId> last_dispatched_household;
+    std::int64_t treasury=0;
+    std::uint64_t taxes_collected_total=0;
+    std::uint64_t construction_spent_total=0;
     bool operator==(const WorldSnapshot&) const = default;
 };
 const char* delivery_phase_name(CourierPhase phase);
@@ -203,6 +223,18 @@ public:
     const char* pottery_blockage() const;
     std::uint64_t clay_extracted_total() const { return clay_extracted_total_; }
     std::uint64_t pottery_completed_total() const { return pottery_completed_total_; }
+    std::int64_t treasury() const { return treasury_; }
+    std::uint64_t taxes_collected_total() const { return taxes_collected_total_; }
+    std::uint64_t construction_spent_total() const { return construction_spent_total_; }
+    int workforce_supply() const;
+    int workforce_required() const;
+    int workforce_used() const;
+    int workforce_required(BuildingId id) const;
+    bool building_staffed(BuildingId id) const;
+    bool settlement_goal_reached() const;
+    int settlement_goal_households_ready() const;
+    bool city_economy_valid() const;
+    std::int64_t construction_cost(CommandType type) const;
     bool production_balance_valid() const;
     std::string canonical_state() const;
     WorldSnapshot snapshot() const;
@@ -261,6 +293,9 @@ private:
     std::uint64_t household_routes_revision_=UINT64_MAX;
     std::uint64_t clay_extracted_total_=0;
     std::uint64_t pottery_completed_total_=0;
+    std::int64_t treasury_=0;
+    std::uint64_t taxes_collected_total_=0;
+    std::uint64_t construction_spent_total_=0;
     std::optional<Cell> workshop_;
     std::optional<Cell> warehouse_;
     std::uint64_t ticks_=0;

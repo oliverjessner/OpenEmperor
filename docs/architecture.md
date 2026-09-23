@@ -1,5 +1,9 @@
 # Architecture
 
+## City-v6 simulation boundary
+
+The SDL-free `simulation::World` owns City-v6 treasury counters and derives workforce and goal status from stable building records. Command validation checks funds before mutation, and the shared execution path charges only successful changed construction. Production and dispatch consult the deterministic Building-ID staffing calculation; active courier movement remains authoritative and continues independently. `persistence::SandboxSave` writes these economy counters only for City-v6 schema 6 and continues to map schemas 1–5 to their original rule profiles. SDL reads the public World queries for presentation and does not own economy state.
+
 The optional macOS package changes the existing `openemperor` CMake target to
 `MACOSX_BUNDLE` only in a separate Release configuration. The same `main.cpp`,
 `Application`, `MenuSession`, map reader, renderer, `World`, and persistence
@@ -93,7 +97,7 @@ The no-mode `Application` path owns one SDL window and one `menu::MenuSession`. 
 `MenuStorage` uses the existing map catalog, safe source resolution and sandbox save parser. Its separate bounded settings v1 file is atomically replaced under SDL's fixed `OpenEmperor/OpenEmperor` preference path; tests inject a temporary root. Save targets are unique and under its `saves/` child, outside the original data root. `MenuDialog` is an adapter for native asynchronous SDL folder/file dialogs. A callback copies its path into owned memory, sends it through a synchronized inbox, and never touches SDL views or textures. Numeric tokens in a synchronized registry prevent late callbacks from dereferencing destroyed views; generation checks ignore stale results. The menu scales its renderer coordinates with SDL window pixel density and converts pointer coordinates back through SDL. Tests inject a fake adapter and synthetic game-format bytes.
 # Alpha hardening boundary
 
-The alpha acceptance path reuses the same `simulation::World`, `SandboxSave`, `SandboxView`, menu session, visual-profile loaders, and renderer classes as the application. `openemperor-alpha-endurance` is a test driver, not a second simulation: it issues normal Industry-v5 commands, advances two real Worlds for 100,000 ticks, compares snapshots, and performs real schema-5 JSON save/restore checkpoints. It is built with tests but deliberately not registered in the default CTest suite.
+The alpha acceptance path reuses the same `simulation::World`, `SandboxSave`, `SandboxView`, menu session, visual-profile loaders, and renderer classes as the application. `openemperor-alpha-endurance` is a test driver, not a second simulation: it retains the 100,000-tick Industry-v5 path and also advances two post-goal City-v6 Worlds for 100,000 ticks with economy, production, navigation, and snapshot checks. It is built with tests but deliberately not registered in the default CTest suite.
 
 `tools/alpha_check.py` orchestrates normal CTest, the endurance executable, the existing SDL software-view regressions in their opt-in render-stress mode, repeated menu/session lifecycles, arm64 inspection, optional original-data smoke, and optional packaging. Its report lives under ignored `.local/reports/` and records no absolute original-data path or original bytes. A requested original-data run fingerprints only the files actually used and requires identical size, modification time, and SHA-256 afterward.
 

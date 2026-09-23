@@ -106,7 +106,8 @@ void safe_relative(const fs::path& path) {
         require(part!=".." && part!="." && part!="", "unsafe map reference path");
 }
 json snapshot_json(const simulation::WorldSnapshot& s) {
-    const bool industry=s.profile==simulation::RulesProfile::IndustryV5;
+    const bool industry=simulation::industry_profile(s.profile);
+    const bool city=s.profile==simulation::RulesProfile::CityV6;
     json bs=json::array(),cs=json::array();
     for (std::size_t i=0;i<(industry ? 9U:7U);++i) {
         const auto& b=s.buildings[i];
@@ -157,6 +158,11 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         result["next_production_id"]=s.next_production_id;
         result["next_courier_id"]=s.next_courier_id;
     }
+    if (city) {
+        result["treasury"]=s.treasury;
+        result["taxes_collected_total"]=s.taxes_collected_total;
+        result["construction_spent_total"]=s.construction_spent_total;
+    }
     return result;
 }
 simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
@@ -189,8 +195,8 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     s.path_vertex=static_cast<std::size_t>(number(field(j,"path_vertex"),limit));
     s.edge_progress=small(field(j,"edge_progress"),Rules::edge_ticks);
     const auto& bs=field(j,"buildings"); const auto& cs=field(j,"couriers");
-    const std::size_t expected_buildings=schema==5 ? 9U:schema==4 ? 7U:schema==3 ? 4U:3U;
-    const std::size_t expected_couriers=schema==5 ? 5U:schema>=3 ? 3U:2U;
+    const std::size_t expected_buildings=schema>=5 ? 9U:schema==4 ? 7U:schema==3 ? 4U:3U;
+    const std::size_t expected_couriers=schema>=5 ? 5U:schema>=3 ? 3U:2U;
     require(bs.is_array() && bs.size()==expected_buildings &&
             cs.is_array() && cs.size()==expected_couriers,
             "invalid building or courier array length");
@@ -210,7 +216,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     std::array<bool,9> seen{};
     for (std::size_t i=0;i<expected_buildings;++i) {
         const auto& b=bs[i];
-        const auto id=small(field(b,"id"),schema==5 ? 9:schema==4 ? 7:4);
+        const auto id=small(field(b,"id"),schema>=5 ? 9:schema==4 ? 7:4);
         require(id>0 && (schema<4 || !seen[static_cast<std::size_t>(id-1)]),
                 "duplicate or invalid building ID");
         const auto slot=schema>=4 ? static_cast<std::size_t>(id-1):i;
@@ -233,7 +239,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             x.consumed_total=number(field(b,"consumed_total"));
             x.last_demand_status=small(field(b,"last_demand_status"),2);
         }
-        if (schema==5) x.clay_extracted=number(field(b,"clay_extracted"));
+        if (schema>=5) x.clay_extracted=number(field(b,"clay_extracted"));
     }
     if (schema<5) s.buildings[0].clay_extracted=s.clay_extracted_total;
     if (schema>=4) {
@@ -243,7 +249,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         const auto& last=field(j,"last_dispatched_household");
         if (!last.is_null()) s.last_dispatched_household=static_cast<BuildingId>(
             small(last,household_id_end-1));
-        if (schema==5) {
+        if (schema>=5) {
             s.next_production_id=static_cast<std::uint8_t>(small(field(j,"next_production_id"),10));
             s.next_courier_id=static_cast<std::uint8_t>(small(field(j,"next_courier_id"),6));
         }
@@ -251,16 +257,16 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     std::array<bool,5> seen_couriers{};
     for (std::size_t i=0;i<expected_couriers;++i) {
         const auto& c=cs[i];
-        const auto id=small(field(c,"id"),schema==5 ? 5:3);
-        require(id>0 && (schema!=5 || !seen_couriers[static_cast<std::size_t>(id-1)]),
+        const auto id=small(field(c,"id"),schema>=5 ? 5:3);
+        require(id>0 && (schema<5 || !seen_couriers[static_cast<std::size_t>(id-1)]),
             "duplicate or invalid courier ID");
-        const auto slot=schema==5 ? static_cast<std::size_t>(id-1):i;
+        const auto slot=schema>=5 ? static_cast<std::size_t>(id-1):i;
         seen_couriers[slot]=true;
         auto& x=s.couriers[slot];
         x.id=static_cast<CourierId>(id);
-        x.owner=static_cast<BuildingId>(small(field(c,"owner"),schema==5 ? 9:schema==4 ? 7:4));
-        x.target=static_cast<BuildingId>(small(field(c,"target"),schema==5 ? 9:schema==4 ? 7:4));
-        if (schema==5) {
+        x.owner=static_cast<BuildingId>(small(field(c,"owner"),schema>=5 ? 9:schema==4 ? 7:4));
+        x.target=static_cast<BuildingId>(small(field(c,"target"),schema>=5 ? 9:schema==4 ? 7:4));
+        if (schema>=5) {
             x.role=static_cast<CourierRole>(small(field(c,"role"),3));
             const auto& last=field(c,"last_dispatched_pottery");
             if (!last.is_null()) x.last_dispatched_pottery=static_cast<BuildingId>(small(last,9));
@@ -279,7 +285,15 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             x.reroute_attempts=number(field(c,"reroute_attempts"));
         }
     }
-    if (schema==5) for (bool present:seen_couriers) require(present,"missing courier ID");
+    if (schema>=5) for (bool present:seen_couriers) require(present,"missing courier ID");
+    if (schema==6) {
+        const auto treasury=field(j,"treasury");
+        require(treasury.is_number_integer(),"City treasury must be an integer");
+        s.treasury=treasury.get<std::int64_t>();
+        require(s.treasury>=0,"City treasury cannot be negative");
+        s.taxes_collected_total=number(field(j,"taxes_collected_total"));
+        s.construction_spent_total=number(field(j,"construction_spent_total"));
+    }
     if (schema==1) {
         const auto placed=s.profile==RulesProfile::LogisticsV1 ?
             static_cast<unsigned>(s.workshop.has_value())+static_cast<unsigned>(s.warehouse.has_value()) :
@@ -294,6 +308,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
 }
 json document_json(const SaveDocument& d) {
     return {{"format","openemperor-sandbox-save"},{"schema_version",
+             d.world.profile==simulation::RulesProfile::CityV6 ? 6:
              d.world.profile==simulation::RulesProfile::IndustryV5 ? 5:4},
         {"map",{{"relative_path",d.map_relative.generic_string()},{"sha256",d.map_sha256},
                 {"part_index",0},{"grid_width",d.world.width},{"grid_height",d.world.height}}},
@@ -307,7 +322,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=5,"unsupported save schema version");
+    require(schema>=1 && schema<=6,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -328,13 +343,16 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::household_profile_name) d.world.profile=simulation::RulesProfile::HouseholdV3;
     else if (id==simulation::settlement_profile_name) d.world.profile=simulation::RulesProfile::SettlementV4;
     else if (id==simulation::industry_profile_name) d.world.profile=simulation::RulesProfile::IndustryV5;
+    else if (id==simulation::city_profile_name) d.world.profile=simulation::RulesProfile::CityV6;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
     require(d.world.rule_version==(d.world.profile==simulation::RulesProfile::ProductionV2 && schema>=2 ? 2U:1U) &&
             (d.world.profile!=simulation::RulesProfile::HouseholdV3 || schema>=3) &&
             (d.world.profile!=simulation::RulesProfile::SettlementV4 || schema==4) &&
             (d.world.profile!=simulation::RulesProfile::IndustryV5 || schema==5) &&
-            (schema!=5 || d.world.profile==simulation::RulesProfile::IndustryV5),
+            (d.world.profile!=simulation::RulesProfile::CityV6 || schema==6) &&
+            (schema!=5 || d.world.profile==simulation::RulesProfile::IndustryV5) &&
+            (schema!=6 || d.world.profile==simulation::RulesProfile::CityV6),
             "unsupported sandbox rule version");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;
