@@ -1,5 +1,11 @@
 # Architecture
 
+## City-v9 simulation boundary
+
+`simulation::World` extends the existing eleven-building/seven-courier City-v8 state with one authoritative `population` integer per building. Only placed City-v9 Houses may hold a nonzero value. House capacities are derived from the existing fulfilled-demand level, while total population, workforce, staffing and goal progress are read-only calculations. At the start of each city tick, World captures one derived staffing allocation in stable Building-ID order. Production and dispatch share that allocation; House demand may change population between them, but the change affects staffing only on the next tick. The cache is transient and is neither exposed as authority nor serialized.
+
+`persistence::SandboxSave` writes population only in schema 9, still with exactly 11 building and 7 courier entries. Restore derives each House level from `fulfilled_demand` before validating population against the corresponding 6/10/16 capacity. Schema 8 remains City-v8 and contains no population field. SDL consumes World queries for the population, capacity, staffing and goal presentation; it does not mutate population or own simulation state. See [City-v9 rules](city-v9.md).
+
 ## City-v8 simulation boundary
 
 `simulation::World` now keeps eleven stable building slots and seven courier slots. City-v8 assigns Building ID 11 to the Service Post and Courier ID 7 to its cargo-free Service walker. The SDL-free core owns target-specific route caches, a separate cyclic target cursor and authoritative per-House coverage expiry ticks. It reuses the existing BFS, edge movement, live rerouting and road protection; rendering reads positions and derived coverage only.

@@ -120,7 +120,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 balanced=balanced && world.production_balance_valid() && world.navigation_valid() &&
                     (!simulation::city_profile(rules) || world.city_economy_valid()) &&
                     (!simulation::food_profile(rules) || world.food_balance_valid()) &&
-                    (!simulation::service_profile(rules) || world.service_state_valid());
+                    (!simulation::service_profile(rules) || world.service_state_valid()) &&
+                    (!simulation::population_profile(rules) || world.population_valid());
                 const auto& p=world.building(simulation::BuildingId::Pottery);
                 clay_delivered=clay_delivered || p.input_clay>0 || p.active_recipe_clay>0;
                 pottery_processed=pottery_processed || world.pottery_completed_total()>0;
@@ -148,7 +149,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     ++frames_with_five;
                 if (rules==simulation::RulesProfile::CityV7 && view.last_courier_draws()>=4)
                     ++frames_with_food;
-                if (rules==simulation::RulesProfile::CityV8 && view.last_courier_draws()>=5)
+                if (simulation::service_profile(rules) && view.last_courier_draws()>=5)
                     ++frames_with_service;
             }
         }
@@ -215,7 +216,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             const auto& b=world.courier(simulation::CourierId::Pottery);
             const auto& home=world.building(simulation::BuildingId::Household);
             const auto& supplier=world.courier(simulation::CourierId::Household);
-            if (rules==simulation::RulesProfile::CityV8) {
+            if (simulation::service_profile(rules)) {
                 nlohmann::json houses=nlohmann::json::array();
                 int placed_houses=0;
                 for (unsigned id=4;id<8;++id) {
@@ -227,17 +228,23 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                         {"fulfilled",house.fulfilled_demand},{"missed",house.missed_demand},
                         {"pottery",house.pottery_stock},{"food",house.food_stock},
                         {"service_active",world.household_service_active(key)},
-                        {"service_remaining",world.household_service_remaining(key)}});
+                        {"service_remaining",world.household_service_remaining(key)},
+                        {"population",world.household_population(key)},
+                        {"population_capacity",world.household_population_capacity(key)}});
                 }
                 const bool success=placed_houses==3 &&
                     world.building(simulation::BuildingId::ServicePost).placed &&
                     world.building_staffed(simulation::BuildingId::ServicePost) &&
                     courier_arrivals[6]>0 && first_service_visit_tick>0 &&
                     world.covered_households()>0 && world.taxes_collected_total()>0 &&
-                    world.workforce_supply()==24 && world.workforce_used()==18 &&
+                    world.workforce_supply()==(simulation::population_profile(rules) ?
+                        world.total_population():24) && world.workforce_used()==18 &&
+                    (!simulation::population_profile(rules) ||
+                        (world.total_population()>18 && world.population_valid())) &&
                     balanced && rendered && frames_with_service>0 &&
                     (!resume_check || (saved && reparsed && fresh_world && direct_equal && continued_equal));
-                std::cout<<nlohmann::json{{"schema","openemperor-sandbox-check-v8"},
+                std::cout<<nlohmann::json{{"schema",simulation::population_profile(rules) ?
+                        "openemperor-sandbox-check-v9":"openemperor-sandbox-check-v8"},
                     {"rules",simulation::rules_profile_name(rules)},
                     {"map",map_relative.generic_string()},{"ticks",world.ticks()},
                     {"demo_origin",origin ? nlohmann::json::array({origin->x,origin->y}):nlohmann::json()},
@@ -253,6 +260,9 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"workforce_supply",world.workforce_supply()},
                     {"workforce_required",world.workforce_required()},
                     {"workforce_used",world.workforce_used()},
+                    {"population",world.total_population()},
+                    {"population_capacity",world.total_population_capacity()},
+                    {"population_valid",world.population_valid()},
                     {"goal_households_ready",world.settlement_goal_households_ready()},
                     {"goal_reached",world.settlement_goal_reached()},
                     {"production_balance_valid",world.production_balance_valid()},

@@ -12,7 +12,8 @@ namespace openemperor::simulation {
 inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
 enum class RulesProfile {
-    LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8
+    LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8,
+    CityV9
 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
@@ -20,6 +21,7 @@ inline constexpr const char* industry_profile_name = "sandbox-industry-v5";
 inline constexpr const char* city_profile_name = "sandbox-city-v6";
 inline constexpr const char* city_v7_profile_name = "sandbox-city-v7";
 inline constexpr const char* city_v8_profile_name = "sandbox-city-v8";
+inline constexpr const char* city_v9_profile_name = "sandbox-city-v9";
 inline constexpr std::size_t legacy_max_buildings=9;
 inline constexpr std::size_t legacy_max_couriers=5;
 inline constexpr std::size_t city_v7_max_buildings=10;
@@ -32,24 +34,30 @@ inline constexpr std::uint8_t household_id_end=first_household_id+household_limi
 constexpr bool household_profile(RulesProfile profile) {
     return profile==RulesProfile::HouseholdV3 || profile==RulesProfile::SettlementV4 ||
            profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6 ||
-           profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8;
+           profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
+           profile==RulesProfile::CityV9;
 }
 constexpr bool production_profile(RulesProfile profile) {
     return profile==RulesProfile::ProductionV2 || household_profile(profile);
 }
 constexpr bool industry_profile(RulesProfile profile) {
     return profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6 ||
-           profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8;
+           profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
+           profile==RulesProfile::CityV9;
 }
 constexpr bool city_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV6 || profile==RulesProfile::CityV7 ||
-           profile==RulesProfile::CityV8;
+           profile==RulesProfile::CityV8 || profile==RulesProfile::CityV9;
 }
 constexpr bool food_profile(RulesProfile profile) {
-    return profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8;
+    return profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
+           profile==RulesProfile::CityV9;
 }
 constexpr bool service_profile(RulesProfile profile) {
-    return profile==RulesProfile::CityV8;
+    return profile==RulesProfile::CityV8 || profile==RulesProfile::CityV9;
+}
+constexpr bool population_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV9;
 }
 const char* rules_profile_name(RulesProfile profile);
 struct Rules {
@@ -92,6 +100,12 @@ struct Rules {
     static constexpr std::int64_t service_post_cost = 100;
     static constexpr int service_post_workers = 2;
     static constexpr std::uint64_t service_coverage_ticks = 1200;
+    static constexpr int household_initial_population = 6;
+    static constexpr int household_min_population = 2;
+    static constexpr int household_level0_capacity = 6;
+    static constexpr int household_level1_capacity = 10;
+    static constexpr int household_level2_capacity = 16;
+    static constexpr int city_v9_population_goal = 48;
 };
 
 struct Cell {
@@ -161,6 +175,7 @@ struct BuildingState {
     std::uint64_t food_consumed_total=0;
     std::uint64_t food_produced=0;
     std::uint64_t service_until_tick=0;
+    int population=0;
     bool operator==(const BuildingState&) const = default;
 };
 struct CourierState {
@@ -218,6 +233,7 @@ struct BuildingSnapshot {
     int food_stock=0, reserved_food_incoming=0;
     std::uint64_t food_consumed_total=0, food_produced=0;
     std::uint64_t service_until_tick=0;
+    int population=0;
     bool operator==(const BuildingSnapshot&) const = default;
 };
 struct WorldSnapshot {
@@ -298,6 +314,12 @@ public:
     bool household_service_active(BuildingId id) const;
     std::uint64_t household_service_remaining(BuildingId id) const;
     int covered_households() const;
+    int household_population(BuildingId id) const;
+    int household_population_capacity(BuildingId id) const;
+    int total_population() const;
+    int total_population_capacity() const;
+    int unemployed_workers() const;
+    bool population_valid() const;
     std::uint64_t household_tax_contributed(BuildingId id) const;
     std::int64_t construction_cost(CommandType type) const;
     bool production_balance_valid() const;
@@ -333,6 +355,8 @@ private:
     const std::vector<Cell>* route_for_revision();
     void refresh_routes();
     void tick_production_v2();
+    void capture_tick_staffing();
+    bool building_staffed_for_tick(BuildingId id) const;
     bool industry_balance_valid() const;
     void dispatch_v2(CourierState& courier);
     void move_v2(CourierState& courier);
@@ -368,6 +392,8 @@ private:
     std::uint64_t taxes_collected_total_=0;
     std::uint64_t construction_spent_total_=0;
     std::uint64_t food_produced_total_=0;
+    std::array<bool,max_buildings> tick_staffed_{};
+    bool tick_staffing_active_=false;
     std::optional<Cell> workshop_;
     std::optional<Cell> warehouse_;
     std::uint64_t ticks_=0;

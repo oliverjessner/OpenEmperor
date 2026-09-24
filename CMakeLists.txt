@@ -311,6 +311,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-city-v8-tests)
     add_test(NAME sandbox-city-v8-service COMMAND openemperor-sandbox-city-v8-tests)
     set_tests_properties(sandbox-city-v8-service PROPERTIES TIMEOUT 90)
+
+    add_executable(openemperor-sandbox-city-v9-tests tests/SandboxCityV9Tests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v9-tests PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-sandbox-city-v9-tests)
+    add_test(NAME sandbox-city-v9-population COMMAND openemperor-sandbox-city-v9-tests)
+    set_tests_properties(sandbox-city-v9-population PROPERTIES TIMEOUT 120)
     add_executable(openemperor-sandbox-courier-triage-tests
         tests/SandboxCourierTriageTests.cpp)
     target_link_libraries(openemperor-sandbox-courier-triage-tests PRIVATE openemperor-simulation)

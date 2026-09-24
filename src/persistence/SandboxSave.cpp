@@ -110,6 +110,7 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
     const bool city=simulation::city_profile(s.profile);
     const bool food=simulation::food_profile(s.profile);
     const bool service=simulation::service_profile(s.profile);
+    const bool population=simulation::population_profile(s.profile);
     json bs=json::array(),cs=json::array();
     for (std::size_t i=0;i<(service ? simulation::max_buildings:
                               food ? simulation::city_v7_max_buildings:
@@ -131,6 +132,7 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
             entry["food_produced"]=b.food_produced;
         }
         if (service) entry["service_until_tick"]=b.service_until_tick;
+        if (population) entry["population"]=b.population;
         bs.push_back(std::move(entry));
     }
     for (std::size_t i=0;i<(service ? simulation::max_couriers:
@@ -283,6 +285,17 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             x.food_produced=number(field(b,"food_produced"));
         }
         if (schema>=8) x.service_until_tick=number(field(b,"service_until_tick"));
+        if (schema>=9) {
+            x.population=small(field(b,"population"),Rules::household_level2_capacity);
+            const int capacity=x.fulfilled_demand>=Rules::city_v7_level2_demands ?
+                Rules::household_level2_capacity:
+                x.fulfilled_demand>=Rules::city_v7_level1_demands ?
+                    Rules::household_level1_capacity:Rules::household_level0_capacity;
+            require(x.placed && x.kind==Object::Household ?
+                    x.population>=Rules::household_min_population && x.population<=capacity:
+                    x.population==0,
+                    "invalid City v9 population");
+        }
     }
     if (schema<5) s.buildings[0].clay_extracted=s.clay_extracted_total;
     if (schema>=4) {
@@ -371,6 +384,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
 }
 json document_json(const SaveDocument& d) {
     return {{"format","openemperor-sandbox-save"},{"schema_version",
+             d.world.profile==simulation::RulesProfile::CityV9 ? 9:
              d.world.profile==simulation::RulesProfile::CityV8 ? 8:
              d.world.profile==simulation::RulesProfile::CityV7 ? 7:
              d.world.profile==simulation::RulesProfile::CityV6 ? 6:
@@ -387,7 +401,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=8,"unsupported save schema version");
+    require(schema>=1 && schema<=9,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -411,6 +425,7 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::city_profile_name) d.world.profile=simulation::RulesProfile::CityV6;
     else if (id==simulation::city_v7_profile_name) d.world.profile=simulation::RulesProfile::CityV7;
     else if (id==simulation::city_v8_profile_name) d.world.profile=simulation::RulesProfile::CityV8;
+    else if (id==simulation::city_v9_profile_name) d.world.profile=simulation::RulesProfile::CityV9;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
     require(d.world.rule_version==(d.world.profile==simulation::RulesProfile::ProductionV2 && schema>=2 ? 2U:1U) &&
@@ -420,10 +435,12 @@ SaveDocument parse_document(const json& j) {
             (d.world.profile!=simulation::RulesProfile::CityV6 || schema==6) &&
             (d.world.profile!=simulation::RulesProfile::CityV7 || schema==7) &&
             (d.world.profile!=simulation::RulesProfile::CityV8 || schema==8) &&
+            (d.world.profile!=simulation::RulesProfile::CityV9 || schema==9) &&
             (schema!=5 || d.world.profile==simulation::RulesProfile::IndustryV5) &&
             (schema!=6 || d.world.profile==simulation::RulesProfile::CityV6) &&
             (schema!=7 || d.world.profile==simulation::RulesProfile::CityV7) &&
-            (schema!=8 || d.world.profile==simulation::RulesProfile::CityV8),
+            (schema!=8 || d.world.profile==simulation::RulesProfile::CityV8) &&
+            (schema!=9 || d.world.profile==simulation::RulesProfile::CityV9),
             "unsupported sandbox rule version");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;
