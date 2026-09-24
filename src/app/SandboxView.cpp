@@ -27,6 +27,7 @@ const char* tool_name(simulation::RulesProfile rules,int tool) {
         case 6: return "Remove road";
         case 7: return "Household";
         case 8: return "Farm";
+        case 9: return "Service post";
         default: return "Select";
         }
     }
@@ -47,6 +48,7 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::Pottery: return "Pottery";
     case simulation::Object::Household: return "Household";
     case simulation::Object::Farm: return "Farm";
+    case simulation::Object::ServicePost: return "Service post";
     }
     return "Unknown";
 }
@@ -59,6 +61,7 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool) {
         case 4: return simulation::CommandType::PlaceWarehouse;
         case 6: return simulation::CommandType::RemoveRoad;
         case 8: return simulation::CommandType::PlaceFarm;
+        case 9: return simulation::CommandType::PlaceServicePost;
         default: return simulation::CommandType::PlaceHousehold;
         }
     }
@@ -77,6 +80,7 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::IndustryV5: return "Industry v5";
     case simulation::RulesProfile::CityV6: return "City v6";
     case simulation::RulesProfile::CityV7: return "City v7";
+    case simulation::RulesProfile::CityV8: return "City v8";
     }
     return "Sandbox";
 }
@@ -362,7 +366,56 @@ void SandboxView::update_layout(bool preserve_center) {
     refresh_hover();
 }
 void SandboxView::place_demo() {
-    if (rules_==simulation::RulesProfile::CityV7) {
+    if (rules_==simulation::RulesProfile::CityV8) {
+        for (int y=0;y+4<world_->height();++y) for (int x=0;x+12<=world_->width();++x) {
+            const std::array cells{
+                simulation::Cell{x+0,y+2},simulation::Cell{x+1,y+2},
+                simulation::Cell{x+2,y+2},simulation::Cell{x+3,y+2},
+                simulation::Cell{x+4,y+2},simulation::Cell{x+5,y+2},
+                simulation::Cell{x+6,y+2},simulation::Cell{x+7,y+2},
+                simulation::Cell{x+8,y+2},simulation::Cell{x+9,y+2},
+                simulation::Cell{x+10,y+2},simulation::Cell{x+7,y+1},
+                simulation::Cell{x+8,y+1},simulation::Cell{x+9,y+1},
+                simulation::Cell{x+6,y+4},simulation::Cell{x+7,y+4},
+                simulation::Cell{x+8,y+4},simulation::Cell{x+8,y+3},
+                simulation::Cell{x+9,y+3},simulation::Cell{x+10,y+3},
+                simulation::Cell{x+9,y+4},simulation::Cell{x+10,y+4},
+                simulation::Cell{x+11,y+4}};
+            if (!std::all_of(cells.begin(),cells.end(),[&](simulation::Cell cell) {
+                    return world_->buildable(cell); })) continue;
+            const auto run=[&](simulation::CommandType type,int dx,int dy) {
+                if (!world_->execute({type,{x+dx,y+dy}}).accepted)
+                    throw std::logic_error("City v8 demo command failed");
+            };
+            run(simulation::CommandType::PlaceClaySource,0,2);
+            run(simulation::CommandType::PlaceRoad,1,2);
+            run(simulation::CommandType::PlaceRoad,2,2);
+            run(simulation::CommandType::PlacePottery,3,2);
+            run(simulation::CommandType::PlaceRoad,4,2);
+            run(simulation::CommandType::PlaceRoad,5,2);
+            run(simulation::CommandType::PlaceWarehouse,6,2);
+            for (int dx=7;dx<=9;++dx) run(simulation::CommandType::PlaceRoad,dx,2);
+            run(simulation::CommandType::PlaceHousehold,10,2);
+            run(simulation::CommandType::PlaceRoad,7,1);
+            run(simulation::CommandType::PlaceRoad,8,1);
+            run(simulation::CommandType::PlaceHousehold,9,1);
+            run(simulation::CommandType::PlaceFarm,6,4);
+            run(simulation::CommandType::PlaceRoad,7,4);
+            run(simulation::CommandType::PlaceRoad,8,4);
+            run(simulation::CommandType::PlaceRoad,8,3);
+            run(simulation::CommandType::PlaceRoad,9,3);
+            run(simulation::CommandType::PlaceHousehold,10,3);
+            run(simulation::CommandType::PlaceRoad,9,4);
+            run(simulation::CommandType::PlaceRoad,10,4);
+            run(simulation::CommandType::PlaceServicePost,11,4);
+            demo_origin_=simulation::Cell{x,y+2};
+            reset_camera();
+            last_message_="City v8 service starter placed: 980 spent, 20 funds remain";
+            return;
+        }
+        throw std::runtime_error("no suitable 12x5 sandbox-buildable City v8 starter pattern");
+    }
+    if (simulation::food_profile(rules_)) {
         for (int y=0;y+4<world_->height();++y) for (int x=0;x+11<=world_->width();++x) {
             bool valid=true;
             for (int dx=0;dx<11;++dx) valid=valid && world_->buildable({x+dx,y+2});
@@ -567,6 +620,7 @@ void SandboxView::set_tool(int tool) {
     case 6: action=sandbox_ui::Action::RemoveRoad; break;
     case 7: action=sandbox_ui::Action::Household; break;
     case 8: action=sandbox_ui::Action::Farm; break;
+    case 9: action=sandbox_ui::Action::ServicePost; break;
     default: return;
     }
     if (action_enabled(action)) perform_action(action);
@@ -582,6 +636,8 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
         else if (action==sandbox_ui::Action::Warehouse) command=simulation::CommandType::PlaceWarehouse;
         else if (action==sandbox_ui::Action::Household) command=simulation::CommandType::PlaceHousehold;
         else if (action==sandbox_ui::Action::Farm) command=simulation::CommandType::PlaceFarm;
+        else if (action==sandbox_ui::Action::ServicePost)
+            command=simulation::CommandType::PlaceServicePost;
         if (command && world_->treasury()<world_->construction_cost(*command)) return false;
     }
     if (action==sandbox_ui::Action::RemoveRoad)
@@ -590,8 +646,11 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
         return simulation::household_profile(rules_) &&
             world_->next_household_id()<simulation::household_id_end;
     if (action==sandbox_ui::Action::Farm)
-        return rules_==simulation::RulesProfile::CityV7 &&
+        return simulation::food_profile(rules_) &&
             !world_->building(simulation::BuildingId::Farm).placed;
+    if (action==sandbox_ui::Action::ServicePost)
+        return simulation::service_profile(rules_) &&
+            !world_->building(simulation::BuildingId::ServicePost).placed;
     if (action==sandbox_ui::Action::Clay || action==sandbox_ui::Action::Pottery ||
         action==sandbox_ui::Action::Warehouse) {
         const auto wanted=action==sandbox_ui::Action::Clay ?
@@ -631,6 +690,7 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         else if (action==A::Warehouse) command=simulation::CommandType::PlaceWarehouse;
         else if (action==A::Household) command=simulation::CommandType::PlaceHousehold;
         else if (action==A::Farm) command=simulation::CommandType::PlaceFarm;
+        else if (action==A::ServicePost) command=simulation::CommandType::PlaceServicePost;
         if (simulation::city_profile(rules_) && command &&
             world_->treasury()<world_->construction_cost(*command))
             last_message_="Need "+std::to_string(world_->construction_cost(*command))+
@@ -641,12 +701,12 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     }
     if (action==A::Select || action==A::Road || action==A::Clay || action==A::Pottery ||
         action==A::Warehouse || action==A::RemoveRoad || action==A::Household ||
-        action==A::Farm) {
+        action==A::Farm || action==A::ServicePost) {
         cancel_gesture();
         tool_=action==A::Select ? (simulation::production_profile(rules_) ? 5:4) :
             action==A::Road ? 1 : action==A::Clay ? 2 : action==A::Pottery ? 3 :
             action==A::Warehouse ? (simulation::production_profile(rules_) ? 4:3) :
-            action==A::RemoveRoad ? 6:action==A::Household ? 7:8;
+            action==A::RemoveRoad ? 6:action==A::Household ? 7:action==A::Farm ? 8:9;
         last_message_=tool_name(rules_,tool_);
     } else if (action==A::Pause) clock_.toggle_pause();
     else if (action==A::Step) clock_.step_once(*world_);
@@ -710,7 +770,8 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
         if (help_open_) return;
         if (event.key.key>=SDLK_1 && event.key.key<=
-            (rules_==simulation::RulesProfile::CityV7 ? SDLK_8 :
+            (rules_==simulation::RulesProfile::CityV8 ? SDLK_9 :
+             rules_==simulation::RulesProfile::CityV7 ? SDLK_8 :
              simulation::household_profile(rules_) ? SDLK_7 :
              rules_==simulation::RulesProfile::ProductionV2 ? SDLK_6 : SDLK_4))
             set_tool(static_cast<int>(event.key.key-SDLK_1)+1);
@@ -1017,6 +1078,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 color=debug_open_ ? SDL_Color{90,245,125,255}:SDL_Color{101,128,100,255};
             if (object==simulation::Object::Farm)
                 color=debug_open_ ? SDL_Color{220,190,55,255}:SDL_Color{126,119,70,255};
+            if (object==simulation::Object::ServicePost)
+                color=debug_open_ ? SDL_Color{80,205,255,255}:SDL_Color{91,119,132,255};
             if (!draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true)) return false;
             const float size=static_cast<float>(std::max(5.0,11.0*camera_.zoom));
             const SDL_FRect rect{static_cast<float>(center.x)-size/2,
@@ -1024,11 +1087,13 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             if (!SDL_SetRenderDrawColor(renderer_,color.r,color.g,color.b,255) ||
                 !SDL_RenderFillRect(renderer_,&rect)) return false;
             if (debug_open_ && (object==simulation::Object::Household || object==simulation::Object::Farm ||
+                object==simulation::Object::ServicePost ||
                 (simulation::industry_profile(rules_) &&
                  (object==simulation::Object::ClaySource || object==simulation::Object::Pottery)))) {
                 const auto id=world_->building_owner_at({x,y});
                 const char prefix=object==simulation::Object::Household ? 'H':
                     object==simulation::Object::Farm ? 'F':
+                    object==simulation::Object::ServicePost ? 'S':
                     object==simulation::Object::ClaySource ? 'C':'P';
                 const std::string label=std::string(1,prefix)+
                     std::to_string(static_cast<unsigned>(*id));
@@ -1112,15 +1177,18 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 static_cast<float>(ground.y)-20,"W?");
         }
         if (!draw_agent(position,marker_color,cargo_color,courier.cargo,marker_shift)) return false;
-        if (debug_open_ && courier.role==simulation::CourierRole::Food) {
+        if (debug_open_ && (courier.role==simulation::CourierRole::Food ||
+                            courier.role==simulation::CourierRole::Service)) {
             const auto ground=camera_.world_to_screen(world_for(position));
             return SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
-                                       static_cast<float>(ground.y)-20,"F");
+                                       static_cast<float>(ground.y)-20,
+                courier.role==simulation::CourierRole::Food ? "F":"S");
         }
         return true;
     };
     const unsigned courier_count=!simulation::production_profile(rules_) ? 1U:
-        rules_==simulation::RulesProfile::CityV7 ? 6U:
+        simulation::service_profile(rules_) ? 7U:
+        simulation::food_profile(rules_) ? 6U:
         simulation::industry_profile(rules_) ? 5U:
         simulation::household_profile(rules_) ? 3U:2U;
     for (unsigned id=1;id<=courier_count;++id) {
@@ -1138,7 +1206,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==3 ? simulation::Object::Pottery:
             tool_==4 ? simulation::Object::Warehouse:
             tool_==7 ? simulation::Object::Household:
-            tool_==8 ? simulation::Object::Farm:simulation::Object::Empty;
+            tool_==8 ? simulation::Object::Farm:
+            tool_==9 ? simulation::Object::ServicePost:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
             building_visual_role(object):std::nullopt;
         if (result.accepted && role && building_visuals_active() && building_sprite_ &&
@@ -1171,11 +1240,13 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             id==2 ? SDL_Color{255,225,130,255}:
             id==3 ? SDL_Color{110,255,130,255}:
             courier.role==simulation::CourierRole::Food ? SDL_Color{235,200,70,255}:
+            courier.role==simulation::CourierRole::Service ? SDL_Color{120,205,220,255}:
             SDL_Color{225,145,255,255}) :
             (pending ? SDL_Color{151,104,74,255}:
              courier.role==simulation::CourierRole::Clay ? SDL_Color{104,126,132,255}:
              courier.role==simulation::CourierRole::Pottery ? SDL_Color{143,121,95,255}:
              courier.role==simulation::CourierRole::Food ? SDL_Color{137,125,77,255}:
+             courier.role==simulation::CourierRole::Service ? SDL_Color{105,120,126,255}:
              SDL_Color{112,132,108,255});
         const SDL_Color cargo=debug_open_ ? (courier.role==simulation::CourierRole::Clay ?
             SDL_Color{25,95,255,255}:courier.role==simulation::CourierRole::Food ?
@@ -1220,7 +1291,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==3 ? simulation::Object::Pottery:
             tool_==4 ? simulation::Object::Warehouse:
             tool_==7 ? simulation::Object::Household:
-            tool_==8 ? simulation::Object::Farm:simulation::Object::Empty;
+            tool_==8 ? simulation::Object::Farm:
+            tool_==9 ? simulation::Object::ServicePost:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
             building_visual_role(object):std::nullopt;
         const auto* entry=role && building_profile_ ? building_profile_->find(*role):nullptr;
@@ -1324,7 +1396,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Fulfilled "+std::to_string(b.fulfilled_demand)+
             " Missed "+std::to_string(b.missed_demand));
         lines.push_back("Consumed "+std::to_string(b.consumed_total));
-        if (rules_==simulation::RulesProfile::CityV7) {
+        if (simulation::food_profile(rules_)) {
             const auto next=b.fulfilled_demand+1;
             const auto next_tax=next>=simulation::Rules::city_v7_level2_demands ? 60:
                 next>=simulation::Rules::city_v7_level1_demands ? 40:25;
@@ -1334,6 +1406,21 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Food consumed "+std::to_string(b.food_consumed_total));
             lines.push_back("Next fulfilled tax "+std::to_string(next_tax));
             lines.push_back("Taxes earned "+std::to_string(world_->household_tax_contributed(*id)));
+            if (simulation::service_profile(rules_)) {
+                lines.push_back(std::string("Service ")+
+                    (world_->household_service_active(*id) ? "active":"expired"));
+                lines.push_back("Coverage remaining "+
+                    std::to_string(world_->household_service_remaining(*id))+" ticks");
+                std::string missing;
+                const auto add_missing=[&](const char* value) {
+                    if (!missing.empty()) missing+=" + ";
+                    missing+=value;
+                };
+                if (b.pottery_stock==0) add_missing("Pottery");
+                if (b.food_stock==0) add_missing("Food");
+                if (!world_->household_service_active(*id)) add_missing("Service");
+                lines.push_back(missing.empty() ? "Demand ready":"Missing "+missing);
+            }
         } else if (rules_==simulation::RulesProfile::CityV6) {
             lines.push_back("Tax per supplied demand 25");
             lines.push_back("Taxes earned "+std::to_string(world_->household_tax_contributed(*id)));
@@ -1344,6 +1431,20 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Food output "+std::to_string(b.output)+"/12");
         lines.push_back("Progress "+std::to_string(b.progress)+"/80");
         lines.push_back("Produced "+std::to_string(b.food_produced));
+    } else if (b.kind==simulation::Object::ServicePost) {
+        const auto& c=world_->courier(simulation::CourierId::Service);
+        lines.push_back("Covered houses "+std::to_string(world_->covered_households())+"/"+
+            std::to_string(static_cast<unsigned>(world_->next_household_id()-
+                simulation::first_household_id)));
+        lines.push_back(std::string("Walker phase ")+simulation::delivery_phase_name(c.phase));
+        lines.push_back("Current target "+(c.phase==simulation::CourierPhase::IdleAtWorkshop ?
+            std::string("-"):std::to_string(static_cast<unsigned>(c.target))));
+        const auto decision=world_->courier_dispatch_status(c.id);
+        lines.push_back(std::string("Road status ")+
+            simulation::courier_dispatch_status_name(decision.status));
+        if (world_->last_dispatched_service_household())
+            lines.push_back("Last target "+std::to_string(static_cast<unsigned>(
+                *world_->last_dispatched_service_household())));
     }
     if (const auto role=building_visual_role(b.kind)) {
         lines.push_back(std::string("Building visuals ")+(building_enabled_ ? "ON":"OFF"));
@@ -1362,14 +1463,16 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
     }
     if (simulation::production_profile(rules_)) {
-        const unsigned courier_limit=rules_==simulation::RulesProfile::CityV7 ? 6U:5U;
+        const unsigned courier_limit=simulation::service_profile(rules_) ? 7U:
+            simulation::food_profile(rules_) ? 6U:5U;
         for (unsigned courier_id=1;courier_id<=courier_limit;++courier_id) {
             const auto& c=world_->courier(static_cast<simulation::CourierId>(courier_id));
             if (!c.enabled || c.owner!=*id) continue;
             lines.push_back("Courier #"+std::to_string(courier_id)+" "+
                 (c.role==simulation::CourierRole::Clay ? "Clay" :
                  c.role==simulation::CourierRole::Pottery ? "Pottery" :
-                 c.role==simulation::CourierRole::Food ? "Food" : "House supply"));
+                 c.role==simulation::CourierRole::Food ? "Food" :
+                 c.role==simulation::CourierRole::Service ? "Service" : "House supply"));
             lines.push_back("Target "+(c.phase==simulation::CourierPhase::IdleAtWorkshop ?
                 std::string("-"):std::to_string(static_cast<unsigned>(c.target)))+
                 " cargo "+std::to_string(c.cargo));
@@ -1423,12 +1526,16 @@ bool SandboxView::draw_hud() {
         overview+=" | Funds "+std::to_string(world_->treasury())+" | Workers "+
             std::to_string(world_->workforce_used())+"/"+
             std::to_string(world_->workforce_supply());
-    if (rules_==simulation::RulesProfile::CityV7) {
+    if (simulation::food_profile(rules_)) {
         int food=world_->building(simulation::BuildingId::Farm).output;
         for (unsigned id=simulation::first_household_id;id<simulation::household_id_end;++id)
             food+=world_->building(static_cast<simulation::BuildingId>(id)).food_stock;
-        overview+=" | Food "+std::to_string(food)+" | Goal "+
-            std::to_string(world_->settlement_goal_households_ready())+"/4";
+        overview+=" | Food "+std::to_string(food);
+        if (simulation::service_profile(rules_))
+            overview+=" | Service "+std::to_string(world_->covered_households())+"/"+
+                std::to_string(static_cast<unsigned>(world_->next_household_id()-
+                    simulation::first_household_id));
+        overview+=" | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/4";
     }
     if (simulation::production_profile(rules_)) overview+=" | Clay "+
         std::to_string(world_->clay_extracted_total())+" | Pottery "+
@@ -1460,10 +1567,10 @@ bool SandboxView::draw_hud() {
     }
     if (simulation::city_profile(rules_))
         status+=world_->settlement_goal_reached() ?
-            (rules_==simulation::RulesProfile::CityV7 ?
+            (simulation::food_profile(rules_) ?
                 " | GOAL REACHED - all houses level 2":" | GOAL REACHED - settlement supplied") :
             " | Goal "+std::to_string(world_->settlement_goal_households_ready())+
-                (rules_==simulation::RulesProfile::CityV7 ?
+                (simulation::food_profile(rules_) ?
                     "/4 houses at level 2":"/4 households ready");
     if (debug_open_ && walker_profile_) {
         status+=" | Walkers ";
@@ -1488,6 +1595,7 @@ bool SandboxView::draw_hud() {
         case A::RemoveRoad: return "6 Remove";
         case A::Household: return simulation::city_profile(rules_) ? "7 House $80":"7 House";
         case A::Farm: return "8 Farm $160";
+        case A::ServicePost: return "9 Service $100";
         case A::Pause: return clock_.paused()?"Continue":"Pause";
         case A::Step: return "Step";
         case A::Speed1: return "1x";
@@ -1512,6 +1620,7 @@ bool SandboxView::draw_hud() {
         case A::RemoveRoad: active=tool_==6; break;
         case A::Household: active=tool_==7; break;
         case A::Farm: active=tool_==8; break;
+        case A::ServicePost: active=tool_==9; break;
         default: break;
         }
         const bool enabled=action_enabled(button.action);
@@ -1522,14 +1631,15 @@ bool SandboxView::draw_hud() {
         std::string text=label(button.action);
         if (button.action==A::Clay || button.action==A::Pottery ||
             button.action==A::Warehouse || button.action==A::Household ||
-            button.action==A::Farm) {
+            button.action==A::Farm || button.action==A::ServicePost) {
             const auto wanted=button.action==A::Clay ?
                 (simulation::production_profile(rules_) ? simulation::Object::ClaySource:
                  simulation::Object::Workshop) :
                 button.action==A::Pottery ? simulation::Object::Pottery :
                 button.action==A::Warehouse ? simulation::Object::Warehouse:
                 button.action==A::Household ? simulation::Object::Household:
-                simulation::Object::Farm;
+                button.action==A::Farm ? simulation::Object::Farm:
+                simulation::Object::ServicePost;
             int count=0;
             for (const auto id:placed_buildings()) if (world_->building(id).kind==wanted) ++count;
             const int limit=button.action==A::Household ?
@@ -1586,9 +1696,14 @@ bool SandboxView::draw_hud() {
                 " | Spent "+std::to_string(world_->construction_spent_total())+
                 " | Worker need "+std::to_string(world_->workforce_required())+
                 " | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/4";
-        if (rules_==simulation::RulesProfile::CityV7)
+        if (simulation::food_profile(rules_))
             debug+=" | Food produced "+std::to_string(world_->food_produced_total())+
                 " | Food balance "+(world_->food_balance_valid()?"OK":"ERROR");
+        if (simulation::service_profile(rules_))
+            debug+=" | Service "+std::to_string(world_->covered_households())+"/"+
+                std::to_string(static_cast<unsigned>(world_->next_household_id()-
+                    simulation::first_household_id))+
+                " | Service state "+(world_->service_state_valid()?"OK":"ERROR");
         if (!draw_text(8*layout_.scale,layout_.map.y+8*layout_.scale,debug,
                        layout_.map.w-16*layout_.scale)) return false;
         const auto roads=road_display_stats();
@@ -1695,8 +1810,9 @@ bool SandboxView::draw_help_overlay() {
     return text(0,0,"HELP - H / ? closes") &&
         text(0,2,"GAMEPLAY") && text(0,3,"1 Road | 2 Clay | 3 Pottery") &&
         text(0,4,"4 Store | 5 Select") && text(0,5,"6 Remove | 7 House | 8 Farm") &&
-        text(0,6,"Space Pause | . Single step") && text(0,7,"+ / - Simulation speed") &&
-        text(0,8,"F5 Save | F9 Load") &&
+        text(0,6,"9 Service (City v8)") &&
+        text(0,7,"Space Pause | . Single step") && text(0,8,"+ / - Simulation speed") &&
+        text(0,9,"F5 Save | F9 Load") &&
         text(0,10,"CAMERA AND MENU") && text(0,11,"WASD / Arrow keys Move") &&
         text(0,12,"Mouse wheel Zoom | R Reset") && text(0,13,"Tab Info panel | Esc Menu") &&
         text(1,2,"ADVANCED VISUAL DIAGNOSTICS") &&

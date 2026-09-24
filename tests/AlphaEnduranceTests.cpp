@@ -119,6 +119,38 @@ sim::World make_city_v7_world() {
     return world;
 }
 
+sim::World make_city_v8_world() {
+    sim::World world(width,height,buildable(),sim::RulesProfile::CityV8);
+    const auto road=[&](int x,int y) { require_command(world,sim::CommandType::PlaceRoad,x,y); };
+    require_command(world,sim::CommandType::PlaceClaySource,0,2);
+    road(1,2); road(2,2);
+    require_command(world,sim::CommandType::PlacePottery,3,2);
+    road(4,2); road(5,2);
+    require_command(world,sim::CommandType::PlaceWarehouse,6,2);
+    road(7,2); road(8,2); road(9,2);
+    require_command(world,sim::CommandType::PlaceHousehold,10,2);
+    road(7,1); road(8,1);
+    require_command(world,sim::CommandType::PlaceHousehold,9,1);
+    require_command(world,sim::CommandType::PlaceFarm,6,4);
+    road(7,4); road(8,4); road(8,3); road(9,3);
+    require_command(world,sim::CommandType::PlaceHousehold,10,3);
+    road(9,4); road(10,4);
+    require_command(world,sim::CommandType::PlaceServicePost,11,4);
+    while (world.treasury()<396 && world.ticks()<20'000) world.tick();
+    check(world.treasury()>=396,"City v8 endurance starter did not earn expansion funds");
+    require_command(world,sim::CommandType::PlaceClaySource,0,6);
+    road(1,6); road(2,6);
+    require_command(world,sim::CommandType::PlacePottery,3,6);
+    road(4,6); road(5,6); road(6,6); road(7,6); road(7,5); road(8,5);
+    require_command(world,sim::CommandType::PlaceHousehold,9,5);
+    while (!world.settlement_goal_reached() && world.ticks()<20'000) world.tick();
+    check(world.settlement_goal_reached() && world.city_economy_valid() &&
+          world.production_balance_valid() && world.food_balance_valid() &&
+          world.service_state_valid() && world.navigation_valid(),
+          "expanded City v8 endurance world invalid");
+    return world;
+}
+
 struct ScheduledCommand {
     std::uint64_t before_tick;
     sim::Command command;
@@ -385,6 +417,24 @@ int main() {
               city_v7_a.settlement_goal_reached(),
               "City v7 endurance did not complete 100k ticks or retain its goal");
 
+        auto city_v8_a=make_city_v8_world();
+        auto city_v8_b=city_v8_a;
+        const auto city_v8_start_tick=city_v8_a.ticks();
+        for (std::uint64_t tick=0;tick<tick_limit;++tick) {
+            city_v8_a.tick(); city_v8_b.tick();
+            if (tick%25==0) {
+                check(city_v8_a.snapshot()==city_v8_b.snapshot(),
+                      "City v8 endurance worlds diverged");
+                check(city_v8_a.city_economy_valid() &&
+                      city_v8_a.production_balance_valid() &&
+                      city_v8_a.food_balance_valid() && city_v8_a.service_state_valid() &&
+                      city_v8_a.navigation_valid(),"City v8 endurance invariant failed");
+            }
+        }
+        check(city_v8_a.ticks()-city_v8_start_tick==tick_limit &&
+              city_v8_a.settlement_goal_reached(),
+              "City v8 endurance did not complete 100k ticks or retain its goal");
+
         nlohmann::json states = nlohmann::json::object();
         for (const auto& [name, observed] : representative) states[name] = observed;
         std::cout << nlohmann::json{{"schema", "openemperor-alpha-endurance-v1"},
@@ -407,6 +457,15 @@ int main() {
             {"city_v7_food_produced_total",city_v7_a.food_produced_total()},
             {"city_v7_food_balance_valid",city_v7_a.food_balance_valid()},
             {"city_v7_economy_valid",city_v7_a.city_economy_valid()},
+            {"city_v8_ticks",tick_limit},
+            {"city_v8_goal_reached",city_v8_a.settlement_goal_reached()},
+            {"city_v8_funds",city_v8_a.treasury()},
+            {"city_v8_taxes_collected_total",city_v8_a.taxes_collected_total()},
+            {"city_v8_food_produced_total",city_v8_a.food_produced_total()},
+            {"city_v8_covered_households",city_v8_a.covered_households()},
+            {"city_v8_food_balance_valid",city_v8_a.food_balance_valid()},
+            {"city_v8_service_state_valid",city_v8_a.service_state_valid()},
+            {"city_v8_economy_valid",city_v8_a.city_economy_valid()},
             {"result", "pass"}}.dump() << '\n';
         return 0;
     } catch (const std::exception& error) {

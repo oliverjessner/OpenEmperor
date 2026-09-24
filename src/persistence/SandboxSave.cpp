@@ -108,9 +108,11 @@ void safe_relative(const fs::path& path) {
 json snapshot_json(const simulation::WorldSnapshot& s) {
     const bool industry=simulation::industry_profile(s.profile);
     const bool city=simulation::city_profile(s.profile);
-    const bool city_v7=s.profile==simulation::RulesProfile::CityV7;
+    const bool food=simulation::food_profile(s.profile);
+    const bool service=simulation::service_profile(s.profile);
     json bs=json::array(),cs=json::array();
-    for (std::size_t i=0;i<(city_v7 ? simulation::max_buildings:
+    for (std::size_t i=0;i<(service ? simulation::max_buildings:
+                              food ? simulation::city_v7_max_buildings:
                               industry ? simulation::legacy_max_buildings:7U);++i) {
         const auto& b=s.buildings[i];
         json entry={{"id",static_cast<int>(b.id)},
@@ -122,15 +124,17 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         {"fulfilled_demand",b.fulfilled_demand},{"missed_demand",b.missed_demand},
         {"consumed_total",b.consumed_total},{"last_demand_status",b.last_demand_status}};
         if (industry) entry["clay_extracted"]=b.clay_extracted;
-        if (city_v7) {
+        if (food) {
             entry["food_stock"]=b.food_stock;
             entry["reserved_food_incoming"]=b.reserved_food_incoming;
             entry["food_consumed_total"]=b.food_consumed_total;
             entry["food_produced"]=b.food_produced;
         }
+        if (service) entry["service_until_tick"]=b.service_until_tick;
         bs.push_back(std::move(entry));
     }
-    for (std::size_t i=0;i<(city_v7 ? simulation::max_couriers:
+    for (std::size_t i=0;i<(service ? simulation::max_couriers:
+                              food ? simulation::city_v7_max_couriers:
                               industry ? simulation::legacy_max_couriers:3U);++i) {
         const auto& c=s.couriers[i];
         json entry={{"id",static_cast<int>(c.id)},
@@ -172,10 +176,14 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         result["taxes_collected_total"]=s.taxes_collected_total;
         result["construction_spent_total"]=s.construction_spent_total;
     }
-    if (city_v7) {
+    if (food) {
         result["food_produced_total"]=s.food_produced_total;
         result["last_dispatched_food_household"]=s.last_dispatched_food_household ?
             json(static_cast<unsigned>(*s.last_dispatched_food_household)):json(nullptr);
+    }
+    if (service) {
+        result["last_dispatched_service_household"]=s.last_dispatched_service_household ?
+            json(static_cast<unsigned>(*s.last_dispatched_service_household)):json(nullptr);
     }
     return result;
 }
@@ -209,9 +217,11 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     s.path_vertex=static_cast<std::size_t>(number(field(j,"path_vertex"),limit));
     s.edge_progress=small(field(j,"edge_progress"),Rules::edge_ticks);
     const auto& bs=field(j,"buildings"); const auto& cs=field(j,"couriers");
-    const std::size_t expected_buildings=schema>=7 ? max_buildings:
+    const std::size_t expected_buildings=schema>=8 ? max_buildings:
+        schema==7 ? city_v7_max_buildings:
         schema>=5 ? legacy_max_buildings:schema==4 ? 7U:schema==3 ? 4U:3U;
-    const std::size_t expected_couriers=schema>=7 ? max_couriers:
+    const std::size_t expected_couriers=schema>=8 ? max_couriers:
+        schema==7 ? city_v7_max_couriers:
         schema>=5 ? legacy_max_couriers:schema>=3 ? 3U:2U;
     require(bs.is_array() && bs.size()==expected_buildings &&
             cs.is_array() && cs.size()==expected_couriers,
@@ -233,10 +243,15 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     s.couriers[5].owner=BuildingId::Farm;
     s.couriers[5].target=BuildingId::Household;
     s.couriers[5].good=Good::Food;
+    s.couriers[6].role=CourierRole::Service;
+    s.couriers[6].owner=BuildingId::ServicePost;
+    s.couriers[6].target=BuildingId::Household;
+    s.couriers[6].good=Good::Goods;
     std::array<bool,max_buildings> seen{};
     for (std::size_t i=0;i<expected_buildings;++i) {
         const auto& b=bs[i];
-        const auto id=small(field(b,"id"),schema>=7 ? max_buildings:
+        const auto id=small(field(b,"id"),schema>=8 ? max_buildings:
+            schema==7 ? city_v7_max_buildings:
             schema>=5 ? legacy_max_buildings:schema==4 ? 7:4);
         require(id>0 && (schema<4 || !seen[static_cast<std::size_t>(id-1)]),
                 "duplicate or invalid building ID");
@@ -244,7 +259,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         seen[slot]=true;
         auto& x=s.buildings[slot];
         x.id=static_cast<BuildingId>(id);
-        x.kind=static_cast<Object>(small(field(b,"kind"),schema>=7 ? 7:6));
+        x.kind=static_cast<Object>(small(field(b,"kind"),schema>=8 ? 8:schema==7 ? 7:6));
         x.cell=cell(field(b,"cell")); x.placed=boolean(field(b,"placed"));
         x.input_clay=small(field(b,"input_clay")); x.output=small(field(b,"output"));
         x.pottery_stock=small(field(b,"pottery_stock"));
@@ -267,6 +282,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             x.food_consumed_total=number(field(b,"food_consumed_total"));
             x.food_produced=number(field(b,"food_produced"));
         }
+        if (schema>=8) x.service_until_tick=number(field(b,"service_until_tick"));
     }
     if (schema<5) s.buildings[0].clay_extracted=s.clay_extracted_total;
     if (schema>=4) {
@@ -284,7 +300,8 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     std::array<bool,max_couriers> seen_couriers{};
     for (std::size_t i=0;i<expected_couriers;++i) {
         const auto& c=cs[i];
-        const auto id=small(field(c,"id"),schema>=7 ? max_couriers:
+        const auto id=small(field(c,"id"),schema>=8 ? max_couriers:
+            schema==7 ? city_v7_max_couriers:
             schema>=5 ? legacy_max_couriers:3);
         require(id>0 && (schema<5 || !seen_couriers[static_cast<std::size_t>(id-1)]),
             "duplicate or invalid courier ID");
@@ -292,15 +309,18 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         seen_couriers[slot]=true;
         auto& x=s.couriers[slot];
         x.id=static_cast<CourierId>(id);
-        x.owner=static_cast<BuildingId>(small(field(c,"owner"),schema>=7 ? max_buildings:
+        x.owner=static_cast<BuildingId>(small(field(c,"owner"),schema>=8 ? max_buildings:
+            schema==7 ? city_v7_max_buildings:
             schema>=5 ? legacy_max_buildings:schema==4 ? 7:4));
-        x.target=static_cast<BuildingId>(small(field(c,"target"),schema>=7 ? max_buildings:
+        x.target=static_cast<BuildingId>(small(field(c,"target"),schema>=8 ? max_buildings:
+            schema==7 ? city_v7_max_buildings:
             schema>=5 ? legacy_max_buildings:schema==4 ? 7:4));
         if (schema>=5) {
-            x.role=static_cast<CourierRole>(small(field(c,"role"),schema>=7 ? 4:3));
+            x.role=static_cast<CourierRole>(small(field(c,"role"),schema>=8 ? 5:schema==7 ? 4:3));
             const auto& last=field(c,"last_dispatched_pottery");
             if (!last.is_null()) x.last_dispatched_pottery=static_cast<BuildingId>(small(last,
-                schema>=7 ? max_buildings:legacy_max_buildings));
+                schema>=8 ? max_buildings:schema==7 ? city_v7_max_buildings:
+                legacy_max_buildings));
         }
         x.good=static_cast<Good>(small(field(c,"good"),schema>=7 ? 3:2));
         x.enabled=boolean(field(c,"enabled"));
@@ -326,10 +346,15 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         s.taxes_collected_total=number(field(j,"taxes_collected_total"));
         s.construction_spent_total=number(field(j,"construction_spent_total"));
     }
-    if (schema==7) {
+    if (schema>=7) {
         s.food_produced_total=number(field(j,"food_produced_total"));
         const auto& last=field(j,"last_dispatched_food_household");
         if (!last.is_null()) s.last_dispatched_food_household=static_cast<BuildingId>(
+            small(last,household_id_end-1));
+    }
+    if (schema>=8) {
+        const auto& last=field(j,"last_dispatched_service_household");
+        if (!last.is_null()) s.last_dispatched_service_household=static_cast<BuildingId>(
             small(last,household_id_end-1));
     }
     if (schema==1) {
@@ -346,6 +371,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
 }
 json document_json(const SaveDocument& d) {
     return {{"format","openemperor-sandbox-save"},{"schema_version",
+             d.world.profile==simulation::RulesProfile::CityV8 ? 8:
              d.world.profile==simulation::RulesProfile::CityV7 ? 7:
              d.world.profile==simulation::RulesProfile::CityV6 ? 6:
              d.world.profile==simulation::RulesProfile::IndustryV5 ? 5:4},
@@ -361,7 +387,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=7,"unsupported save schema version");
+    require(schema>=1 && schema<=8,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -384,6 +410,7 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::industry_profile_name) d.world.profile=simulation::RulesProfile::IndustryV5;
     else if (id==simulation::city_profile_name) d.world.profile=simulation::RulesProfile::CityV6;
     else if (id==simulation::city_v7_profile_name) d.world.profile=simulation::RulesProfile::CityV7;
+    else if (id==simulation::city_v8_profile_name) d.world.profile=simulation::RulesProfile::CityV8;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
     require(d.world.rule_version==(d.world.profile==simulation::RulesProfile::ProductionV2 && schema>=2 ? 2U:1U) &&
@@ -392,9 +419,11 @@ SaveDocument parse_document(const json& j) {
             (d.world.profile!=simulation::RulesProfile::IndustryV5 || schema==5) &&
             (d.world.profile!=simulation::RulesProfile::CityV6 || schema==6) &&
             (d.world.profile!=simulation::RulesProfile::CityV7 || schema==7) &&
+            (d.world.profile!=simulation::RulesProfile::CityV8 || schema==8) &&
             (schema!=5 || d.world.profile==simulation::RulesProfile::IndustryV5) &&
             (schema!=6 || d.world.profile==simulation::RulesProfile::CityV6) &&
-            (schema!=7 || d.world.profile==simulation::RulesProfile::CityV7),
+            (schema!=7 || d.world.profile==simulation::RulesProfile::CityV7) &&
+            (schema!=8 || d.world.profile==simulation::RulesProfile::CityV8),
             "unsupported sandbox rule version");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;

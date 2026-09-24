@@ -11,33 +11,45 @@ namespace openemperor::simulation {
 
 inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
-enum class RulesProfile { LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7 };
+enum class RulesProfile {
+    LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8
+};
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
 inline constexpr const char* industry_profile_name = "sandbox-industry-v5";
 inline constexpr const char* city_profile_name = "sandbox-city-v6";
 inline constexpr const char* city_v7_profile_name = "sandbox-city-v7";
+inline constexpr const char* city_v8_profile_name = "sandbox-city-v8";
 inline constexpr std::size_t legacy_max_buildings=9;
 inline constexpr std::size_t legacy_max_couriers=5;
-inline constexpr std::size_t max_buildings=10;
-inline constexpr std::size_t max_couriers=6;
+inline constexpr std::size_t city_v7_max_buildings=10;
+inline constexpr std::size_t city_v7_max_couriers=6;
+inline constexpr std::size_t max_buildings=11;
+inline constexpr std::size_t max_couriers=7;
 inline constexpr std::uint8_t first_household_id=4;
 inline constexpr std::uint8_t household_limit=4;
 inline constexpr std::uint8_t household_id_end=first_household_id+household_limit;
 constexpr bool household_profile(RulesProfile profile) {
     return profile==RulesProfile::HouseholdV3 || profile==RulesProfile::SettlementV4 ||
            profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6 ||
-           profile==RulesProfile::CityV7;
+           profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8;
 }
 constexpr bool production_profile(RulesProfile profile) {
     return profile==RulesProfile::ProductionV2 || household_profile(profile);
 }
 constexpr bool industry_profile(RulesProfile profile) {
     return profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6 ||
-           profile==RulesProfile::CityV7;
+           profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8;
 }
 constexpr bool city_profile(RulesProfile profile) {
-    return profile==RulesProfile::CityV6 || profile==RulesProfile::CityV7;
+    return profile==RulesProfile::CityV6 || profile==RulesProfile::CityV7 ||
+           profile==RulesProfile::CityV8;
+}
+constexpr bool food_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8;
+}
+constexpr bool service_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV8;
 }
 const char* rules_profile_name(RulesProfile profile);
 struct Rules {
@@ -77,6 +89,9 @@ struct Rules {
     static constexpr std::int64_t city_v7_level0_tax = 25;
     static constexpr std::int64_t city_v7_level1_tax = 40;
     static constexpr std::int64_t city_v7_level2_tax = 60;
+    static constexpr std::int64_t service_post_cost = 100;
+    static constexpr int service_post_workers = 2;
+    static constexpr std::uint64_t service_coverage_ticks = 1200;
 };
 
 struct Cell {
@@ -84,9 +99,11 @@ struct Cell {
     int y=0;
     bool operator==(const Cell&) const = default;
 };
-enum class Object : std::uint8_t { Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm };
+enum class Object : std::uint8_t {
+    Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost
+};
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
-                         RemoveRoad, PlaceHousehold, PlaceFarm };
+                         RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost };
 struct Command { CommandType type; Cell cell; };
 struct CommandResult {
     bool accepted=false;
@@ -99,9 +116,13 @@ enum class CourierPhase { IdleAtWorkshop, ToWarehouse, Returning };
 const char* courier_phase_name(CourierPhase phase);
 struct Position { double x=0; double y=0; bool operator==(const Position&) const = default; };
 enum class Good { Goods, Clay, Pottery, Food };
-enum class BuildingId : std::uint8_t { ClaySource=1, Pottery=2, Warehouse=3, Household=4, Farm=10 };
-enum class CourierId : std::uint8_t { Clay=1, Pottery=2, Household=3, Food=6 };
-enum class CourierRole : std::uint8_t { None=0, Clay=1, Pottery=2, Household=3, Food=4 };
+enum class BuildingId : std::uint8_t {
+    ClaySource=1, Pottery=2, Warehouse=3, Household=4, Farm=10, ServicePost=11
+};
+enum class CourierId : std::uint8_t { Clay=1, Pottery=2, Household=3, Food=6, Service=7 };
+enum class CourierRole : std::uint8_t {
+    None=0, Clay=1, Pottery=2, Household=3, Food=4, Service=5
+};
 enum class CourierDispatchStatus : std::uint8_t {
     Ready,
     NoStock,
@@ -139,6 +160,7 @@ struct BuildingState {
     int reserved_food_incoming=0;
     std::uint64_t food_consumed_total=0;
     std::uint64_t food_produced=0;
+    std::uint64_t service_until_tick=0;
     bool operator==(const BuildingState&) const = default;
 };
 struct CourierState {
@@ -195,6 +217,7 @@ struct BuildingSnapshot {
     std::uint64_t clay_extracted=0;
     int food_stock=0, reserved_food_incoming=0;
     std::uint64_t food_consumed_total=0, food_produced=0;
+    std::uint64_t service_until_tick=0;
     bool operator==(const BuildingSnapshot&) const = default;
 };
 struct WorldSnapshot {
@@ -218,6 +241,7 @@ struct WorldSnapshot {
     std::uint8_t next_courier_id=4;
     std::optional<BuildingId> last_dispatched_household;
     std::optional<BuildingId> last_dispatched_food_household;
+    std::optional<BuildingId> last_dispatched_service_household;
     std::uint64_t food_produced_total=0;
     std::int64_t treasury=0;
     std::uint64_t taxes_collected_total=0;
@@ -243,6 +267,9 @@ public:
     std::uint8_t next_courier_id() const { return next_courier_id_; }
     std::optional<BuildingId> last_dispatched_household() const { return last_dispatched_household_; }
     std::optional<BuildingId> last_dispatched_food_household() const { return last_dispatched_food_household_; }
+    std::optional<BuildingId> last_dispatched_service_household() const {
+        return last_dispatched_service_household_;
+    }
     std::optional<BuildingId> next_household_candidate() const;
     std::optional<BuildingId> next_pottery_candidate(CourierId id) const;
     bool household_route_available(BuildingId id) const;
@@ -266,7 +293,11 @@ public:
     int settlement_goal_households_ready() const;
     bool city_economy_valid() const;
     bool food_balance_valid() const;
+    bool service_state_valid() const;
     int household_level(BuildingId id) const;
+    bool household_service_active(BuildingId id) const;
+    std::uint64_t household_service_remaining(BuildingId id) const;
+    int covered_households() const;
     std::uint64_t household_tax_contributed(BuildingId id) const;
     std::int64_t construction_cost(CommandType type) const;
     bool production_balance_valid() const;
@@ -324,10 +355,13 @@ private:
     std::uint8_t next_courier_id_=4;
     std::optional<BuildingId> last_dispatched_household_;
     std::optional<BuildingId> last_dispatched_food_household_;
+    std::optional<BuildingId> last_dispatched_service_household_;
     std::array<std::optional<std::vector<Cell>>,household_limit> household_routes_{};
     std::uint64_t household_routes_revision_=UINT64_MAX;
     std::array<std::optional<std::vector<Cell>>,household_limit> food_household_routes_{};
     std::uint64_t food_routes_revision_=UINT64_MAX;
+    std::array<std::optional<std::vector<Cell>>,household_limit> service_household_routes_{};
+    std::uint64_t service_routes_revision_=UINT64_MAX;
     std::uint64_t clay_extracted_total_=0;
     std::uint64_t pottery_completed_total_=0;
     std::int64_t treasury_=0;

@@ -280,14 +280,14 @@ int main(int argc,char** argv) {
         check(argc==1 || alpha_stress,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
-            check(layout.top.h==52 && layout.map.w==796 && layout.map.h==552 &&
-                  layout.toolbar.h==72 && layout.panel.w==304,
+            check(layout.top.h==52 && layout.map.w==796 && layout.map.h==516 &&
+                  layout.toolbar.h==108 && layout.panel.w==304,
                   "1100x700 map area/layout");
             check(layout.ui_at(900,200) && !layout.ui_at(400,200) &&
                   layout.button_at(1050,20)==openemperor::sandbox_ui::Action::TogglePanel,
                   "layout hit regions");
             const auto hidpi=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
-            check(hidpi.scale==2 && hidpi.map.w==1592 && hidpi.map.h==1104,
+            check(hidpi.scale==2 && hidpi.map.w==1592 && hidpi.map.h==1032,
                   "2x display layout");
             const auto farm_button=std::find_if(hidpi.buttons.begin(),hidpi.buttons.end(),
                 [](const auto& button) {
@@ -297,7 +297,7 @@ int main(int argc,char** argv) {
                   farm_button->rect.x+farm_button->rect.w<=hidpi.toolbar.w,
                   "City v7 Farm tool is not readable at 2x layout");
             const auto small=openemperor::sandbox_ui::make_layout(600,400,600,400,true);
-            check(!small.panel_open && small.map.w==600 && small.map.h==252,
+            check(!small.panel_open && small.map.w==600 && small.map.h==216,
                   "small display map area");
             const auto small_farm=std::find_if(small.buttons.begin(),small.buttons.end(),
                 [](const auto& button) {
@@ -306,6 +306,19 @@ int main(int argc,char** argv) {
             check(small_farm!=small.buttons.end() && small_farm->rect.w>0 &&
                   small_farm->rect.x+small_farm->rect.w<=small.toolbar.w,
                   "City v7 Farm tool is not readable in small layout");
+            for (const int width:{1440,1728,1920}) {
+                const auto responsive=openemperor::sandbox_ui::make_layout(
+                    width,900,width,900,true);
+                const auto service=std::find_if(responsive.buttons.begin(),responsive.buttons.end(),
+                    [](const auto& button) {
+                        return button.action==openemperor::sandbox_ui::Action::ServicePost;
+                    });
+                check(service!=responsive.buttons.end() && service->rect.w>=180 &&
+                      service->rect.x>=0 && service->rect.x+service->rect.w<=width &&
+                      service->rect.y>=responsive.toolbar.y &&
+                      service->rect.y+service->rect.h<=responsive.toolbar.y+responsive.toolbar.h,
+                      "City v8 Service tool does not fit responsive toolbar");
+            }
             const auto closed=openemperor::sandbox_ui::make_layout(1100,700,1100,700,false);
             check(!closed.ui_at(900,200) && closed.map.w==1100,
                   "closed panel still blocks map");
@@ -1010,7 +1023,7 @@ int main(int argc,char** argv) {
         ui.set_road_visuals(road_manifest);
         ui.initialize(window,renderer);
         check(ui.road_display_stats().texture_uploads==16,"road set upload");
-        check(ui.layout().map.w==796 && ui.layout().map.h==552,"end-to-end viewport");
+        check(ui.layout().map.w==796 && ui.layout().map.h==516,"end-to-end viewport");
         const auto button_point=[&](openemperor::sandbox_ui::Action action) {
             for (const auto& button:ui.layout().buttons) if (button.action==action)
                 return openemperor::scene::Point{button.rect.x+button.rect.w/2.0,

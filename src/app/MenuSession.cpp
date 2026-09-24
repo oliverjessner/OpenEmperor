@@ -19,7 +19,8 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
 constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::LogisticsV1,
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
     simulation::RulesProfile::SettlementV4,simulation::RulesProfile::IndustryV5,
-    simulation::RulesProfile::CityV6,simulation::RulesProfile::CityV7};
+    simulation::RulesProfile::CityV6,simulation::RulesProfile::CityV7,
+    simulation::RulesProfile::CityV8};
 const char* description(simulation::RulesProfile p) {
     switch (p) {
     case simulation::RulesProfile::LogisticsV1: return "Legacy prototype: goods delivery";
@@ -29,6 +30,7 @@ const char* description(simulation::RulesProfile p) {
     case simulation::RulesProfile::IndustryV5: return "Legacy alpha sandbox";
     case simulation::RulesProfile::CityV6: return "Previous city rules: money, workers, taxes";
     case simulation::RulesProfile::CityV7: return "Food and developing households";
+    case simulation::RulesProfile::CityV8: return "Food, services and developing houses";
     }
     return "";
 }

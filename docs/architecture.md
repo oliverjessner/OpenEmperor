@@ -1,5 +1,11 @@
 # Architecture
 
+## City-v8 simulation boundary
+
+`simulation::World` now keeps eleven stable building slots and seven courier slots. City-v8 assigns Building ID 11 to the Service Post and Courier ID 7 to its cargo-free Service walker. The SDL-free core owns target-specific route caches, a separate cyclic target cursor and authoritative per-House coverage expiry ticks. It reuses the existing BFS, edge movement, live rerouting and road protection; rendering reads positions and derived coverage only.
+
+`persistence::SandboxSave` writes the added state only in schema 8, with exactly 11 building and 7 courier entries. Schema 7 remains a 10/6 City-v7 document, and schemas 1–6 retain their earlier lengths. The renderer supplies neutral Service fallback markers and does not own service, demand, tax or route state. See [City-v8 rules](city-v8.md).
+
 ## City-v7 simulation boundary
 
 `simulation::World` keeps ten stable building slots and six courier slots; legacy saves serialize only the earlier profile-specific prefixes. City-v7 assigns Building ID 10 to the Farm and Courier ID 6 to Food. Food uses independent Household stocks, reservations, target routes and a cyclic dispatch cursor. The SDL-free core derives House level, staffing and goal state and checks Food conservation together with the existing production, navigation and treasury invariants.

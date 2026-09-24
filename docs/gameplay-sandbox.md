@@ -1,5 +1,11 @@
 # Logistics sandbox (`sandbox-logistics-v1`)
 
+## City-v8 Service coverage
+
+`sandbox-city-v8` extends City v7 with one 100-fund, two-worker Service Post and cargo-free Courier 7. The walker cycles over reachable Houses through placed sandbox Roads and gives each visited House 1,200 ticks of coverage. City-v8 demand consumes one Pottery and one Food only when coverage is active; any missing input records a miss without consuming either ware. The paid three-House demo costs 980, leaves 20 funds and staffs all core buildings at 18 of 24 available workers. Save schema 8 stores 11 buildings, 7 couriers, coverage expiry ticks and the independent service cursor. See [City-v8 rules](city-v8.md).
+
+City v7 remains independently selectable and retains Food-plus-Pottery demand without Service. Its schema 7 continues to use 10 building and 6 courier entries.
+
 ## City-v7 Food and House development
 
 `sandbox-city-v7` preserves City-v6 and adds the authored Farm → Household Food chain. A 160-fund Farm uses 4 workers, produces one Food per 80 staffed ticks, stores 12 and dispatches Courier 6 directly to Houses. Houses reserve and store Food independently from Pottery. Their 400-tick demand consumes one of each only when both are present. Derived levels begin at fulfilled-demand counts 2 and 5; resulting levels pay 25, 40 and 60 funds. The goal is four Level-2 Houses. See [City v7 rules](city-v7.md).
