@@ -1,5 +1,13 @@
 # Architecture
 
+## City-v10 scalable simulation storage
+
+City-v10 uses the same SDL-free `simulation::World` and tick order as the older profiles, but its authoritative building and courier collections are variable-length vectors in ascending stable-ID order. `BuildingId` and `CourierId` are 32-bit enum-backed identities. Lookups search by ID; simulation, validation and rendering iterate the stored entities and derive behavior from `Object` and `CourierRole`.
+
+Legacy profiles instantiate their historical placeholder entries inside the same collection layer, preserving schemas 1–9 and their numeric IDs. City-v10 has no placeholders or ID-to-index relationship. Its route cache is a bounded per-courier list of only the eligible target kind. Occupancy is rebuilt from entity cells during restore, while route caches remain derived and rebuild at the current road revision.
+
+Persistence keeps a single vector-based `WorldSnapshot`. The schema 1–9 adapter reads and writes the exact historical fixed lengths. Schema 10 writes only real entities, sorted by ID, and validates all references before publishing a restored World. See [City-v10 rules](city-v10.md).
+
 ## City-v9 simulation boundary
 
 `simulation::World` extends the existing eleven-building/seven-courier City-v8 state with one authoritative `population` integer per building. Only placed City-v9 Houses may hold a nonzero value. House capacities are derived from the existing fulfilled-demand level, while total population, workforce, staffing and goal progress are read-only calculations. At the start of each city tick, World captures one derived staffing allocation in stable Building-ID order. Production and dispatch share that allocation; House demand may change population between them, but the change affects staffing only on the next tick. The cache is transient and is neither exposed as authority nor serialized.

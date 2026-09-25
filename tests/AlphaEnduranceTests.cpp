@@ -192,6 +192,33 @@ sim::World make_city_v9_world() {
     return world;
 }
 
+sim::World make_city_v10_world() {
+    constexpr int w=40,h=24;
+    sim::World world(w,h,std::vector<std::uint8_t>(w*h,1),sim::RulesProfile::CityV10);
+    const auto put=[&](sim::CommandType type,int x,int y) { require_command(world,type,x,y); };
+    const auto road=[&](int x,int y) { put(sim::CommandType::PlaceRoad,x,y); };
+    put(sim::CommandType::PlaceClaySource,0,9); put(sim::CommandType::PlacePottery,2,9);
+    put(sim::CommandType::PlaceWarehouse,4,9); put(sim::CommandType::PlaceFarm,6,9);
+    put(sim::CommandType::PlaceServicePost,8,9);
+    for (int x:{10,12,14}) put(sim::CommandType::PlaceHousehold,x,9);
+    for (int x=0;x<=14;++x) road(x,10);
+    while (world.treasury()<4000 && world.ticks()<60'000) world.tick();
+    check(world.treasury()>=4000,"City v10 endurance starter did not finance expansion");
+    for (int x=15;x<=18;++x) road(x,10);
+    for (int x=0;x<=18;++x) road(x,20);
+    put(sim::CommandType::PlaceClaySource,16,9); put(sim::CommandType::PlacePottery,18,9);
+    for (int x:{0,2,4,6,8,10,12}) put(sim::CommandType::PlaceHousehold,x,11);
+    put(sim::CommandType::PlaceWarehouse,0,19); put(sim::CommandType::PlaceFarm,2,19);
+    put(sim::CommandType::PlaceServicePost,8,19);
+    put(sim::CommandType::PlaceClaySource,12,19); put(sim::CommandType::PlacePottery,14,19);
+    put(sim::CommandType::PlaceClaySource,16,19); put(sim::CommandType::PlacePottery,18,19);
+    for (int x:{0,2,4,6,8,10,12,14,16,18}) put(sim::CommandType::PlaceHousehold,x,21);
+    check(world.buildings().size()==34 && world.couriers().size()==14 &&
+          world.production_balance_valid() && world.city_economy_valid(),
+          "expanded City v10 endurance world invalid");
+    return world;
+}
+
 struct ScheduledCommand {
     std::uint64_t before_tick;
     sim::Command command;
@@ -495,6 +522,28 @@ int main() {
               city_v9_a.settlement_goal_reached() && city_v9_a.total_population()>=48,
               "City v9 endurance did not complete 100k ticks or retain its goal");
 
+        auto city_v10_a=make_city_v10_world();
+        auto city_v10_b=city_v10_a;
+        const auto city_v10_start_tick=city_v10_a.ticks();
+        const auto city_v10_route_refreshes=city_v10_a.route_refresh_count();
+        for (std::uint64_t tick=0;tick<tick_limit;++tick) {
+            city_v10_a.tick(); city_v10_b.tick();
+            if (tick%100==0) {
+                check(city_v10_a.snapshot()==city_v10_b.snapshot(),
+                      "City v10 endurance worlds diverged");
+                check(city_v10_a.city_economy_valid() &&
+                      city_v10_a.production_balance_valid() &&
+                      city_v10_a.food_balance_valid() && city_v10_a.service_state_valid() &&
+                      city_v10_a.population_valid() && city_v10_a.navigation_valid(),
+                      "City v10 endurance invariant failed");
+            }
+        }
+        check(city_v10_a.ticks()-city_v10_start_tick==tick_limit &&
+              city_v10_a.settlement_goal_reached() && city_v10_a.buildings().size()==34 &&
+              city_v10_a.couriers().size()==14 && city_v10_a.route_cache_entries()<=144 &&
+              city_v10_a.route_refresh_count()==city_v10_route_refreshes,
+              "City v10 did not complete bounded deterministic 100k endurance");
+
         nlohmann::json states = nlohmann::json::object();
         for (const auto& [name, observed] : representative) states[name] = observed;
         std::cout << nlohmann::json{{"schema", "openemperor-alpha-endurance-v1"},
@@ -538,6 +587,14 @@ int main() {
             {"city_v9_food_balance_valid",city_v9_a.food_balance_valid()},
             {"city_v9_service_state_valid",city_v9_a.service_state_valid()},
             {"city_v9_economy_valid",city_v9_a.city_economy_valid()},
+            {"city_v10_ticks",tick_limit},
+            {"city_v10_goal_reached",city_v10_a.settlement_goal_reached()},
+            {"city_v10_buildings",city_v10_a.buildings().size()},
+            {"city_v10_couriers",city_v10_a.couriers().size()},
+            {"city_v10_population",city_v10_a.total_population()},
+            {"city_v10_route_refreshes",city_v10_a.route_refresh_count()},
+            {"city_v10_route_cache_entries",city_v10_a.route_cache_entries()},
+            {"city_v10_economy_valid",city_v10_a.city_economy_valid()},
             {"result", "pass"}}.dump() << '\n';
         return 0;
     } catch (const std::exception& error) {

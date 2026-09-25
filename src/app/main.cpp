@@ -63,13 +63,13 @@ void print_usage(const char* executable) {
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]"
               << " --render-check --report-json\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
-              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9]"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9|sandbox-city-v10]"
               << " [--sandbox-demo] [--sandbox-visuals <walker-profile.json>]"
               << " [--building-visuals <building-profile.json>]"
               << " [--road-visuals <road-profile.json>]"
               << " [--sandbox-check [--sandbox-resume-check] --report-json]\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
-              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9]"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9|sandbox-city-v10]"
               << " [--sandbox-demo] [--sandbox-save <save.json>]\n"
               << "       " << executable << " --data <directory> --load-sandbox <save.json>\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
@@ -241,6 +241,8 @@ int main(int argc, char* argv[]) {
                 sandbox_rules=openemperor::simulation::RulesProfile::CityV8;
             else if (value==openemperor::simulation::city_v9_profile_name)
                 sandbox_rules=openemperor::simulation::RulesProfile::CityV9;
+            else if (value==openemperor::simulation::city_v10_profile_name)
+                sandbox_rules=openemperor::simulation::RulesProfile::CityV10;
             else if (value!=openemperor::simulation::profile_name) {
                 std::cerr << "Unknown sandbox rules profile: " << value << '\n'; return 2;
             }

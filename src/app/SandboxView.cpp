@@ -82,6 +82,7 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::CityV7: return "City v7";
     case simulation::RulesProfile::CityV8: return "City v8";
     case simulation::RulesProfile::CityV9: return "City v9";
+    case simulation::RulesProfile::CityV10: return "City v10";
     }
     return "Sandbox";
 }
@@ -628,6 +629,10 @@ void SandboxView::set_tool(int tool) {
     if (action_enabled(action)) perform_action(action);
 }
 bool SandboxView::action_enabled(sandbox_ui::Action action) const {
+    const auto count_kind=[&](simulation::Object kind) {
+        return std::count_if(world_->buildings().begin(),world_->buildings().end(),
+            [&](const simulation::BuildingState& b) { return b.placed && b.kind==kind; });
+    };
     if (action==sandbox_ui::Action::Save || action==sandbox_ui::Action::Load)
         return !save_path_.empty();
     if (simulation::city_profile(rules_)) {
@@ -645,14 +650,16 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
     if (action==sandbox_ui::Action::RemoveRoad)
         return simulation::production_profile(rules_);
     if (action==sandbox_ui::Action::Household)
-        return simulation::household_profile(rules_) &&
-            world_->next_household_id()<simulation::household_id_end;
+        return simulation::household_profile(rules_) && count_kind(simulation::Object::Household)<
+            (rules_==simulation::RulesProfile::CityV10 ? 20:4);
     if (action==sandbox_ui::Action::Farm)
         return simulation::food_profile(rules_) &&
-            !world_->building(simulation::BuildingId::Farm).placed;
+            count_kind(simulation::Object::Farm)<
+                (rules_==simulation::RulesProfile::CityV10 ? 2:1);
     if (action==sandbox_ui::Action::ServicePost)
         return simulation::service_profile(rules_) &&
-            !world_->building(simulation::BuildingId::ServicePost).placed;
+            count_kind(simulation::Object::ServicePost)<
+                (rules_==simulation::RulesProfile::CityV10 ? 2:1);
     if (action==sandbox_ui::Action::Clay || action==sandbox_ui::Action::Pottery ||
         action==sandbox_ui::Action::Warehouse) {
         const auto wanted=action==sandbox_ui::Action::Clay ?
@@ -662,11 +669,11 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
                 simulation::Object::Warehouse;
         if (action==sandbox_ui::Action::Pottery && !simulation::production_profile(rules_)) return false;
         int count=0;
-        for (unsigned id=1;id<=simulation::max_buildings;++id) {
-            const auto& b=world_->building(static_cast<simulation::BuildingId>(id));
-            if (b.placed && b.kind==wanted) ++count;
-        }
-        const int limit=(simulation::industry_profile(rules_) &&
+        count=static_cast<int>(count_kind(wanted));
+        const int limit=rules_==simulation::RulesProfile::CityV10 ?
+            (wanted==simulation::Object::ClaySource || wanted==simulation::Object::Pottery ? 4:
+             wanted==simulation::Object::Warehouse ? 2:1):
+            (simulation::industry_profile(rules_) &&
             (wanted==simulation::Object::ClaySource || wanted==simulation::Object::Pottery)) ? 2:1;
         return count<limit;
     }
@@ -1188,19 +1195,20 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         return true;
     };
-    const unsigned courier_count=!simulation::production_profile(rules_) ? 1U:
-        simulation::service_profile(rules_) ? 7U:
-        simulation::food_profile(rules_) ? 6U:
-        simulation::industry_profile(rules_) ? 5U:
-        simulation::household_profile(rules_) ? 3U:2U;
-    for (unsigned id=1;id<=courier_count;++id) {
-        const auto courier=static_cast<simulation::CourierId>(id);
-        const auto position=simulation::production_profile(rules_) ?
-            world_->courier_position(courier):world_->courier_position();
+    if (!simulation::production_profile(rules_)) {
+        const auto position=world_->courier_position();
+        if (position) {
+            const auto ground=world_for(*position);
+            instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxWalker,1},{},
+                                 simulation::Object::Empty,simulation::CourierId::Clay,*position});
+        }
+    } else for (const auto& state:world_->couriers()) {
+        const auto position=world_->courier_position(state.id);
         if (!position) continue;
         const auto ground=world_for(*position);
-        instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxWalker,id},{},
-                             simulation::Object::Empty,courier,*position});
+        instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxWalker,
+                              static_cast<std::uint32_t>(state.id)},{},
+                             simulation::Object::Empty,state.id,*position});
     }
     if (!road_start_ && hovered_ && tool_!=(simulation::production_profile(rules_) ? 5:4)) {
         const auto result=preview(*hovered_);
@@ -1307,10 +1315,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
 }
 std::vector<simulation::BuildingId> SandboxView::placed_buildings() const {
     std::vector<simulation::BuildingId> result;
-    for (unsigned id=1;id<=simulation::max_buildings;++id) {
-        const auto key=static_cast<simulation::BuildingId>(id);
-        if (world_->building(key).placed) result.push_back(key);
-    }
+    for (const auto& b:world_->buildings()) if (b.placed) result.push_back(b.id);
     return result;
 }
 std::optional<simulation::BuildingId> SandboxView::selected_building() const {
@@ -1438,10 +1443,15 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Progress "+std::to_string(b.progress)+"/80");
         lines.push_back("Produced "+std::to_string(b.food_produced));
     } else if (b.kind==simulation::Object::ServicePost) {
-        const auto& c=world_->courier(simulation::CourierId::Service);
+        const auto found=std::find_if(world_->couriers().begin(),world_->couriers().end(),
+            [&](const simulation::CourierState& c) { return c.owner==b.id; });
+        if (found==world_->couriers().end()) return lines;
+        const auto& c=*found;
         lines.push_back("Covered houses "+std::to_string(world_->covered_households())+"/"+
-            std::to_string(static_cast<unsigned>(world_->next_household_id()-
-                simulation::first_household_id)));
+            std::to_string(std::count_if(world_->buildings().begin(),world_->buildings().end(),
+                [](const simulation::BuildingState& value) {
+                    return value.placed && value.kind==simulation::Object::Household;
+                })));
         lines.push_back(std::string("Walker phase ")+simulation::delivery_phase_name(c.phase));
         lines.push_back("Current target "+(c.phase==simulation::CourierPhase::IdleAtWorkshop ?
             std::string("-"):std::to_string(static_cast<unsigned>(c.target))));
@@ -1469,12 +1479,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
     }
     if (simulation::production_profile(rules_)) {
-        const unsigned courier_limit=simulation::service_profile(rules_) ? 7U:
-            simulation::food_profile(rules_) ? 6U:5U;
-        for (unsigned courier_id=1;courier_id<=courier_limit;++courier_id) {
-            const auto& c=world_->courier(static_cast<simulation::CourierId>(courier_id));
+        for (const auto& c:world_->couriers()) {
             if (!c.enabled || c.owner!=*id) continue;
-            lines.push_back("Courier #"+std::to_string(courier_id)+" "+
+            lines.push_back("Courier #"+std::to_string(static_cast<std::uint32_t>(c.id))+" "+
                 (c.role==simulation::CourierRole::Clay ? "Clay" :
                  c.role==simulation::CourierRole::Pottery ? "Pottery" :
                  c.role==simulation::CourierRole::Food ? "Food" :
@@ -1540,23 +1547,30 @@ bool SandboxView::draw_hud() {
     if (simulation::population_profile(rules_))
         overview+=" | Pop "+std::to_string(world_->total_population());
     if (simulation::food_profile(rules_)) {
-        int food=world_->building(simulation::BuildingId::Farm).output;
-        for (unsigned id=simulation::first_household_id;id<simulation::household_id_end;++id)
-            food+=world_->building(static_cast<simulation::BuildingId>(id)).food_stock;
+        int food=0; std::size_t houses=0;
+        for (const auto& b:world_->buildings()) {
+            if (b.kind==simulation::Object::Farm) food+=b.output;
+            if (b.kind==simulation::Object::Household) { food+=b.food_stock; ++houses; }
+        }
         overview+=" | Food "+std::to_string(food);
         if (simulation::service_profile(rules_))
             overview+=" | Service "+std::to_string(world_->covered_households())+"/"+
-                std::to_string(static_cast<unsigned>(world_->next_household_id()-
-                    simulation::first_household_id));
-        overview+=" | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/4";
+                std::to_string(houses);
+        overview+=" | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/"+
+            std::to_string(rules_==simulation::RulesProfile::CityV10 ?
+                           simulation::Rules::city_v10_goal_level2_households:4);
         if (simulation::population_profile(rules_))
             overview+=" Pop "+std::to_string(world_->total_population())+"/"+
-                std::to_string(simulation::Rules::city_v9_population_goal);
+                std::to_string(rules_==simulation::RulesProfile::CityV10 ?
+                    simulation::Rules::city_v10_population_goal:
+                    simulation::Rules::city_v9_population_goal);
     }
-    if (simulation::production_profile(rules_)) overview+=" | Clay "+
-        std::to_string(world_->clay_extracted_total())+" | Pottery "+
-        std::to_string(world_->pottery_completed_total())+" | Store "+
-        std::to_string(world_->building(simulation::BuildingId::Warehouse).pottery_stock);
+    if (simulation::production_profile(rules_)) {
+        int stored=0; for (const auto& b:world_->buildings())
+            if (b.kind==simulation::Object::Warehouse) stored+=b.pottery_stock;
+        overview+=" | Clay "+std::to_string(world_->clay_extracted_total())+" | Pottery "+
+            std::to_string(world_->pottery_completed_total())+" | Store "+std::to_string(stored);
+    }
     else overview+=" | Goods "+std::to_string(world_->total_produced());
     if (!draw_text(8*layout_.scale,18*layout_.scale,overview,
         layout_.top.w-200*layout_.scale)) return false;
@@ -1589,10 +1603,12 @@ bool SandboxView::draw_hud() {
                 " | GOAL REACHED - all houses level 2":" | GOAL REACHED - settlement supplied") :
             " | Goal "+std::to_string(world_->settlement_goal_households_ready())+
                 (simulation::food_profile(rules_) ?
-                    "/4 houses at level 2":"/4 households ready");
+                    (rules_==simulation::RulesProfile::CityV10 ? "/8 houses at level 2":
+                     "/4 houses at level 2"):"/4 households ready");
     if (simulation::population_profile(rules_) && !world_->settlement_goal_reached())
         status+=" | Population "+std::to_string(world_->total_population())+"/"+
-            std::to_string(simulation::Rules::city_v9_population_goal);
+            std::to_string(rules_==simulation::RulesProfile::CityV10 ?
+                simulation::Rules::city_v10_population_goal:simulation::Rules::city_v9_population_goal);
     if (debug_open_ && walker_profile_) {
         status+=" | Walkers ";
         status+=walker_visuals_enabled_ ? "ON ":"OFF ";
@@ -1605,18 +1621,29 @@ bool SandboxView::draw_hud() {
     if (!draw_text(8*layout_.scale,layout_.status.y+7*layout_.scale,status,
                    layout_.status.w-16*layout_.scale)) return false;
     const auto label=[&](A action)->std::string {
+        const auto count=[&](simulation::Object kind) {
+            return std::count_if(world_->buildings().begin(),world_->buildings().end(),
+                [&](const simulation::BuildingState& b) { return b.placed && b.kind==kind; });
+        };
+        const bool v10=rules_==simulation::RulesProfile::CityV10;
         switch (action) {
         case A::Select: return simulation::production_profile(rules_) ? "5 Select":"4 Select";
         case A::Road: return simulation::city_profile(rules_) ? "1 Road $2":"1 Road";
-        case A::Clay: return simulation::city_profile(rules_) ? "2 Clay $120":
+        case A::Clay: return v10 ? "2 Clay "+std::to_string(count(simulation::Object::ClaySource))+
+            "/4 $120":simulation::city_profile(rules_) ? "2 Clay $120":
             simulation::production_profile(rules_) ? "2 Clay" : "2 Workshop";
-        case A::Pottery: return simulation::city_profile(rules_) ? "3 Pottery $180":"3 Pottery";
-        case A::Warehouse: return simulation::city_profile(rules_) ? "4 Store $150":
+        case A::Pottery: return v10 ? "3 Pottery "+std::to_string(count(simulation::Object::Pottery))+
+            "/4 $180":simulation::city_profile(rules_) ? "3 Pottery $180":"3 Pottery";
+        case A::Warehouse: return v10 ? "4 Store "+std::to_string(count(simulation::Object::Warehouse))+
+            "/2 $150":simulation::city_profile(rules_) ? "4 Store $150":
             simulation::production_profile(rules_) ? "4 Store" : "3 Store";
         case A::RemoveRoad: return "6 Remove";
-        case A::Household: return simulation::city_profile(rules_) ? "7 House $80":"7 House";
-        case A::Farm: return "8 Farm $160";
-        case A::ServicePost: return "9 Service $100";
+        case A::Household: return v10 ? "7 House "+std::to_string(count(simulation::Object::Household))+
+            "/20 $80":simulation::city_profile(rules_) ? "7 House $80":"7 House";
+        case A::Farm: return v10 ? "8 Farm "+std::to_string(count(simulation::Object::Farm))+
+            "/2 $160":"8 Farm $160";
+        case A::ServicePost: return v10 ? "9 Service "+
+            std::to_string(count(simulation::Object::ServicePost))+"/2 $100":"9 Service $100";
         case A::Pause: return clock_.paused()?"Continue":"Pause";
         case A::Step: return "Step";
         case A::Speed1: return "1x";
@@ -1716,25 +1743,27 @@ bool SandboxView::draw_hud() {
             debug+=" | Taxes "+std::to_string(world_->taxes_collected_total())+
                 " | Spent "+std::to_string(world_->construction_spent_total())+
                 " | Worker need "+std::to_string(world_->workforce_required())+
-                " | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/4";
+                " | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/"+
+                std::to_string(rules_==simulation::RulesProfile::CityV10 ? 8:4);
         if (simulation::food_profile(rules_))
             debug+=" | Food produced "+std::to_string(world_->food_produced_total())+
                 " | Food balance "+(world_->food_balance_valid()?"OK":"ERROR");
         if (simulation::service_profile(rules_))
             debug+=" | Service "+std::to_string(world_->covered_households())+"/"+
-                std::to_string(static_cast<unsigned>(world_->next_household_id()-
-                    simulation::first_household_id))+
+                std::to_string(std::count_if(world_->buildings().begin(),world_->buildings().end(),
+                    [](const simulation::BuildingState& b) {
+                        return b.placed && b.kind==simulation::Object::Household;
+                    }))+
                 " | Service state "+(world_->service_state_valid()?"OK":"ERROR");
         if (!draw_text(8*layout_.scale,layout_.map.y+8*layout_.scale,debug,
                        layout_.map.w-16*layout_.scale)) return false;
         int debug_row=22;
         if (simulation::population_profile(rules_)) {
             std::string staffing="Staffing order:";
-            for (unsigned id=1;id<=simulation::max_buildings;++id) {
-                const auto key=static_cast<simulation::BuildingId>(id);
-                if (!world_->building(key).placed || world_->workforce_required(key)==0) continue;
-                staffing+=" "+std::to_string(id)+" "+object_name(world_->building(key).kind)+
-                    (world_->building_staffed(key)?" yes":" no");
+            for (const auto& b:world_->buildings()) {
+                if (!b.placed || world_->workforce_required(b.id)==0) continue;
+                staffing+=" "+std::to_string(static_cast<std::uint32_t>(b.id))+" "+object_name(b.kind)+
+                    (world_->building_staffed(b.id)?" yes":" no");
             }
             if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,staffing,
                            layout_.map.w-16*layout_.scale)) return false;

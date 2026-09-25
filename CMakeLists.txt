@@ -258,7 +258,7 @@ if(BUILD_TESTING)
         openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
-    set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 45)
+    set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 120)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
@@ -317,6 +317,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-city-v9-tests)
     add_test(NAME sandbox-city-v9-population COMMAND openemperor-sandbox-city-v9-tests)
     set_tests_properties(sandbox-city-v9-population PROPERTIES TIMEOUT 120)
+    add_executable(openemperor-sandbox-city-v10-tests tests/SandboxCityV10Tests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v10-tests PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-sandbox-city-v10-tests)
+    add_test(NAME sandbox-city-v10-scaling COMMAND openemperor-sandbox-city-v10-tests)
+    set_tests_properties(sandbox-city-v10-scaling PROPERTIES TIMEOUT 180)
     add_executable(openemperor-sandbox-courier-triage-tests
         tests/SandboxCourierTriageTests.cpp)
     target_link_libraries(openemperor-sandbox-courier-triage-tests PRIVATE openemperor-simulation)

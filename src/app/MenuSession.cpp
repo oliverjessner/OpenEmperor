@@ -20,7 +20,8 @@ constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::Logisti
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
     simulation::RulesProfile::SettlementV4,simulation::RulesProfile::IndustryV5,
     simulation::RulesProfile::CityV6,simulation::RulesProfile::CityV7,
-    simulation::RulesProfile::CityV8,simulation::RulesProfile::CityV9};
+    simulation::RulesProfile::CityV8,simulation::RulesProfile::CityV9,
+    simulation::RulesProfile::CityV10};
 const char* description(simulation::RulesProfile p) {
     switch (p) {
     case simulation::RulesProfile::LogisticsV1: return "Legacy prototype: goods delivery";
@@ -32,6 +33,7 @@ const char* description(simulation::RulesProfile p) {
     case simulation::RulesProfile::CityV7: return "Food and developing households";
     case simulation::RulesProfile::CityV8: return "Food, services and developing houses";
     case simulation::RulesProfile::CityV9: return "Population growth and workforce pressure";
+    case simulation::RulesProfile::CityV10: return "Scalable city with independent districts";
     }
     return "";
 }

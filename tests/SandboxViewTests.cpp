@@ -235,6 +235,88 @@ openemperor::maps::StoredMapSession fixture(const Temp& temp,bool production=fal
     }
     return {std::move(map),std::move(plan)};
 }
+openemperor::maps::StoredMapSession city_v10_fixture(
+    const Temp& temp,std::vector<std::uint8_t>& buildable) {
+    auto session=fixture(temp);
+    auto& plan=session.plan;
+    plan.cells.clear();
+    plan.footprints.clear();
+    plan.cell_by_storage.assign(228U*228U,std::nullopt);
+    plan.status_by_storage.assign(228U*228U,maps::StoredStatus::Excluded);
+    buildable.assign(228U*228U,0);
+    const auto add=[&](std::uint32_t x,std::uint32_t y) {
+        const auto storage_index=static_cast<std::size_t>(y)*228U+x;
+        if (buildable.at(storage_index)) return;
+        buildable[storage_index]=1;
+        maps::StoredCell cell;
+        cell.storage={x,y};
+        cell.cell_index=storage_index;
+        cell.terrain_raw=0x80;
+        cell.objects_raw=0;
+        cell.status=maps::StoredStatus::DecodePending;
+        cell.asset_index=0;
+        cell.footprint_index=plan.footprints.size();
+        cell.world=maps::terrain_world(cell.storage,plan.border);
+        cell.image_origin=maps::stored_image_origin(cell.world,78,40);
+        const auto cell_index=plan.cells.size();
+        plan.cell_by_storage[storage_index]=cell_index;
+        plan.status_by_storage[storage_index]=cell.status;
+        plan.cells.push_back(cell);
+        maps::PlacedFootprint footprint;
+        footprint.id=plan.footprints.size();
+        footprint.asset_index=0;
+        footprint.origin=cell.storage;
+        footprint.cell_indices={cell_index};
+        footprint.image_origin=cell.image_origin;
+        footprint.status=maps::StoredStatus::DecodePending;
+        plan.footprints.push_back(footprint);
+    };
+    for (std::uint32_t x=100;x<=118;++x) {
+        add(x,100);
+        add(x,110);
+    }
+    for (const std::uint32_t x:{100U,102U,104U,106U,108U,110U,112U,114U,116U,118U}) {
+        add(x,99); add(x,101); add(x,109); add(x,111);
+    }
+    return session;
+}
+simulation::World city_v10_world(const std::vector<std::uint8_t>& buildable) {
+    simulation::World world(228,228,buildable,simulation::RulesProfile::CityV10);
+    const auto put=[&](simulation::CommandType type,int x,int y) {
+        const auto result=world.execute({type,{x,y}});
+        if (!result.accepted)
+            throw std::runtime_error(std::string("City-v10 UI fixture: ")+result.reason);
+    };
+    put(simulation::CommandType::PlaceClaySource,100,99);
+    put(simulation::CommandType::PlacePottery,102,99);
+    put(simulation::CommandType::PlaceWarehouse,104,99);
+    put(simulation::CommandType::PlaceFarm,106,99);
+    put(simulation::CommandType::PlaceServicePost,108,99);
+    put(simulation::CommandType::PlaceHousehold,110,99);
+    put(simulation::CommandType::PlaceHousehold,112,99);
+    put(simulation::CommandType::PlaceHousehold,114,99);
+    for (int x=100;x<=114;++x) put(simulation::CommandType::PlaceRoad,x,100);
+    for (int ticks=0;ticks<60000 && world.treasury()<4000;++ticks) world.tick();
+    check(world.treasury()>=4000,"City-v10 UI fixture did not earn expansion funds");
+    for (int x=115;x<=118;++x) put(simulation::CommandType::PlaceRoad,x,100);
+    for (int x=100;x<=118;++x) put(simulation::CommandType::PlaceRoad,x,110);
+    put(simulation::CommandType::PlaceClaySource,116,99);
+    put(simulation::CommandType::PlacePottery,118,99);
+    for (const int x:{100,102,104,106,108,110,112})
+        put(simulation::CommandType::PlaceHousehold,x,101);
+    put(simulation::CommandType::PlaceWarehouse,100,109);
+    put(simulation::CommandType::PlaceFarm,102,109);
+    put(simulation::CommandType::PlaceServicePost,108,109);
+    put(simulation::CommandType::PlaceClaySource,112,109);
+    put(simulation::CommandType::PlacePottery,114,109);
+    put(simulation::CommandType::PlaceClaySource,116,109);
+    put(simulation::CommandType::PlacePottery,118,109);
+    for (const int x:{100,102,104,106,108,110,112,114,116,118})
+        put(simulation::CommandType::PlaceHousehold,x,111);
+    check(world.buildings().size()==34 && world.couriers().size()==14,
+          "City-v10 UI fixture did not reach full entity counts");
+    return world;
+}
 std::array<std::uint8_t,4> pixel(SDL_Renderer* renderer,int x,int y) {
     SDL_Surface* surface=SDL_RenderReadPixels(renderer,nullptr);
     check(surface!=nullptr,"read software frame");
@@ -1362,6 +1444,54 @@ int main(int argc,char** argv) {
               "renderer viewport/clip/scale leaked after passes");
         ui.shutdown();
         check(openemperor::RoadSpriteSet::live_texture_count()==0,"road textures survived session");
+
+        std::vector<std::uint8_t> city_v10_buildable;
+        auto city_v10_session=city_v10_fixture(temp,city_v10_buildable);
+        auto city_v10_state=city_v10_world(city_v10_buildable);
+        auto city_v10_document=openemperor::persistence::make_document(
+            temp.path,"Cities/Synthetic.map",city_v10_buildable,city_v10_state);
+        openemperor::SandboxView city_v10_view(std::move(city_v10_session),false,
+            simulation::RulesProfile::CityV10);
+        city_v10_view.configure_save(temp.path,"Cities/Synthetic.map",
+            temp.path.parent_path()/(temp.path.filename().string()+"-city-v10-save.json"),
+            std::move(city_v10_document));
+        city_v10_view.initialize(window,renderer);
+        check(city_v10_view.world().buildings().size()==34 &&
+              city_v10_view.world().couriers().size()==14,
+              "large City-v10 view did not restore all entities");
+        const auto large_panel=city_v10_view.layout().panel;
+        const auto large_scale=city_v10_view.layout().scale;
+        const auto large_panel_x=large_panel.x+20*large_scale;
+        const auto row_y=[&](std::size_t index,int scroll) {
+            return large_panel.y+46*large_scale+static_cast<int>(index)*18*large_scale-
+                scroll+4*large_scale;
+        };
+        mouse_click(city_v10_view,static_cast<float>(large_panel_x),
+                    static_cast<float>(row_y(0,0)),running);
+        check(city_v10_view.selected_building()==static_cast<simulation::BuildingId>(1),
+              "large building list did not select first stable ID");
+        SDL_Event large_wheel{};
+        large_wheel.type=SDL_EVENT_MOUSE_WHEEL;
+        large_wheel.wheel.mouse_x=static_cast<float>(large_panel_x);
+        large_wheel.wheel.mouse_y=static_cast<float>(large_panel.y+100*large_scale);
+        large_wheel.wheel.y=-5;
+        city_v10_view.handle_event(large_wheel,running);
+        constexpr int middle_scroll=5*24;
+        mouse_click(city_v10_view,static_cast<float>(large_panel_x),
+                    static_cast<float>(row_y(17,middle_scroll*large_scale)),running);
+        check(city_v10_view.selected_building()==static_cast<simulation::BuildingId>(18),
+              "large building list confused middle stable ID with vector index");
+        const int row_count=34+static_cast<int>(city_v10_view.inspection_lines().size());
+        const int final_scroll=std::max(0,56*large_scale+
+            row_count*18*large_scale-large_panel.h);
+        large_wheel.wheel.y=-100;
+        city_v10_view.handle_event(large_wheel,running);
+        mouse_click(city_v10_view,static_cast<float>(large_panel_x),
+                    static_cast<float>(row_y(33,final_scroll)),running);
+        check(city_v10_view.selected_building()==static_cast<simulation::BuildingId>(34),
+              "large building list did not select final stable ID after scrolling");
+        check(city_v10_view.render(),"large City-v10 building panel frame");
+        city_v10_view.shutdown();
 
         const auto scaled=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
         const auto scaled_button=std::find_if(scaled.buttons.begin(),scaled.buttons.end(),

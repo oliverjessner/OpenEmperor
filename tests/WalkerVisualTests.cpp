@@ -192,7 +192,7 @@ void multi_role_profile_checks(Fixture& fixture) {
           walker_visual_role(simulation::CourierRole::Household)==assets::WalkerVisualRole::Household &&
           !walker_visual_role(simulation::CourierRole::None),"CourierRole mapping");
     simulation::CourierState courier;
-    courier.id=static_cast<simulation::CourierId>(5);
+    courier.id=static_cast<simulation::CourierId>(500);
     courier.role=simulation::CourierRole::Pottery;
     courier.enabled=true;courier.phase=simulation::CourierPhase::ToWarehouse;
     courier.path={{2,2},{3,2}};

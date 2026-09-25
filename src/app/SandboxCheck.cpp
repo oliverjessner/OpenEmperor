@@ -58,6 +58,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         bool pottery_processed=false,clay_delivered=false,house_delivered=false;
         std::array<int,4> house_arrivals{};
         std::array<int,7> courier_arrivals{};
+        std::uint64_t service_visits=0;
         int frames_with_both=0,frames_with_three=0,frames_with_five=0,frames_with_food=0;
         int frames_with_service=0;
         std::uint64_t first_service_visit_tick=0;
@@ -68,34 +69,43 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             rules==simulation::RulesProfile::SettlementV4 ? 6000 :
             simulation::production_profile(rules) ? 3000 : 700;
         for (int i=0;i<limit;++i) {
-            const auto before=simulation::household_profile(rules) ?
+            const auto before=simulation::household_profile(rules) &&
+                rules!=simulation::RulesProfile::CityV10 ?
                 view.world().courier(simulation::CourierId::Household):simulation::CourierState{};
-            std::array<simulation::CourierPhase,7> previous{};
-            const unsigned courier_count=simulation::service_profile(rules) ? 7U:
+            std::vector<std::pair<simulation::CourierId,simulation::CourierPhase>> previous;
+            const unsigned courier_count=rules==simulation::RulesProfile::CityV10 ?
+                static_cast<unsigned>(view.world().couriers().size()):
+                simulation::service_profile(rules) ? 7U:
                 simulation::food_profile(rules) ? 6U:
                 simulation::industry_profile(rules) ? 5U:0U;
-            if (courier_count)
+            if (rules==simulation::RulesProfile::CityV10) {
+                for (const auto& c:view.world().couriers()) previous.emplace_back(c.id,c.phase);
+            } else if (courier_count)
                 for (unsigned id=1;id<=courier_count;++id)
-                    previous[id-1]=view.world().courier(static_cast<simulation::CourierId>(id)).phase;
+                    previous.emplace_back(static_cast<simulation::CourierId>(id),
+                        view.world().courier(static_cast<simulation::CourierId>(id)).phase);
             view.tick_once();
             const auto& world=view.world();
-            if (simulation::service_profile(rules) &&
-                world.courier(simulation::CourierId::Service).phase!=
-                    simulation::CourierPhase::IdleAtWorkshop)
-                service_walker_activated=true;
+            if (simulation::service_profile(rules)) for (const auto& c:world.couriers())
+                if (c.role==simulation::CourierRole::Service &&
+                    c.phase!=simulation::CourierPhase::IdleAtWorkshop) service_walker_activated=true;
             if (walker_control) {
                 walker_control->tick();
                 simulation_neutral=simulation_neutral &&
                     walker_control->snapshot()==world.snapshot();
             }
             if (courier_count)
-                for (unsigned id=1;id<=courier_count;++id)
-                    if (previous[id-1]==simulation::CourierPhase::ToWarehouse &&
-                        world.courier(static_cast<simulation::CourierId>(id)).phase==
+                for (const auto& [id,phase]:previous)
+                    if (phase==simulation::CourierPhase::ToWarehouse &&
+                        world.courier(id).phase==
                             simulation::CourierPhase::Returning) {
-                        ++courier_arrivals[id-1];
-                        if (id==static_cast<unsigned>(simulation::CourierId::Service) &&
-                            first_service_visit_tick==0) first_service_visit_tick=world.ticks();
+                        const auto numeric=static_cast<std::uint32_t>(id);
+                        if (numeric>=1 && numeric<=courier_arrivals.size())
+                            ++courier_arrivals[numeric-1];
+                        if (world.courier(id).role==simulation::CourierRole::Service) {
+                            ++service_visits;
+                            if (first_service_visit_tick==0) first_service_visit_tick=world.ticks();
+                        }
                     }
             if (simulation::household_profile(rules) &&
                 before.phase==simulation::CourierPhase::ToWarehouse &&
@@ -208,6 +218,32 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         };
         const auto& world=view.world();
         const auto origin=view.demo_origin();
+        if (rules==simulation::RulesProfile::CityV10) {
+            std::size_t houses=0,warehouses=0,farms=0,posts=0;
+            for (const auto& b:world.buildings()) {
+                houses+=b.kind==simulation::Object::Household;
+                warehouses+=b.kind==simulation::Object::Warehouse;
+                farms+=b.kind==simulation::Object::Farm;
+                posts+=b.kind==simulation::Object::ServicePost;
+            }
+            const bool success=houses==3 && warehouses==1 && farms==1 && posts==1 &&
+                world.buildings().size()==8 && world.couriers().size()==5 && service_visits>0 &&
+                balanced && rendered && (!resume_check ||
+                    (saved && reparsed && fresh_world && direct_equal && continued_equal));
+            std::cout<<nlohmann::json{{"schema","openemperor-sandbox-check-v10"},
+                {"rules",simulation::rules_profile_name(rules)},
+                {"map",map_relative.generic_string()},{"ticks",world.ticks()},
+                {"building_count",world.buildings().size()},{"courier_count",world.couriers().size()},
+                {"house_count",houses},{"population",world.total_population()},
+                {"warehouses",warehouses},{"farms",farms},{"service_posts",posts},
+                {"district_independent_deliveries",nullptr},
+                {"district_delivery_scope","starter_single_district"},
+                {"service_visits",service_visits},{"production_balance_valid",world.production_balance_valid()},
+                {"economy_valid",world.city_economy_valid()},{"original_emperor_fidelity_claim",false}}
+                .dump()<<'\n';
+            view.shutdown(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
+            return success ? 0:1;
+        }
         if (simulation::production_profile(rules)) {
             const auto& source=world.building(simulation::BuildingId::ClaySource);
             const auto& pottery=world.building(simulation::BuildingId::Pottery);

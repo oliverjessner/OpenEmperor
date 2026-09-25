@@ -111,12 +111,14 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
     const bool food=simulation::food_profile(s.profile);
     const bool service=simulation::service_profile(s.profile);
     const bool population=simulation::population_profile(s.profile);
+    const bool v10=s.profile==simulation::RulesProfile::CityV10;
     json bs=json::array(),cs=json::array();
-    for (std::size_t i=0;i<(service ? simulation::max_buildings:
+    const std::size_t building_count=v10 ? s.buildings.size():(service ? simulation::max_buildings:
                               food ? simulation::city_v7_max_buildings:
-                              industry ? simulation::legacy_max_buildings:7U);++i) {
+                              industry ? simulation::legacy_max_buildings:7U);
+    for (std::size_t i=0;i<building_count;++i) {
         const auto& b=s.buildings[i];
-        json entry={{"id",static_cast<int>(b.id)},
+        json entry={{"id",static_cast<std::uint32_t>(b.id)},
         {"kind",static_cast<int>(b.kind)},{"cell",cell_json(b.cell)},{"placed",b.placed},
         {"input_clay",b.input_clay},{"output",b.output},{"pottery_stock",b.pottery_stock},
         {"reserved_incoming",b.reserved_incoming},{"progress",b.progress},
@@ -135,12 +137,13 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         if (population) entry["population"]=b.population;
         bs.push_back(std::move(entry));
     }
-    for (std::size_t i=0;i<(service ? simulation::max_couriers:
+    const std::size_t courier_count=v10 ? s.couriers.size():(service ? simulation::max_couriers:
                               food ? simulation::city_v7_max_couriers:
-                              industry ? simulation::legacy_max_couriers:3U);++i) {
+                              industry ? simulation::legacy_max_couriers:3U);
+    for (std::size_t i=0;i<courier_count;++i) {
         const auto& c=s.couriers[i];
-        json entry={{"id",static_cast<int>(c.id)},
-        {"owner",static_cast<int>(c.owner)},{"target",static_cast<int>(c.target)},
+        json entry={{"id",static_cast<std::uint32_t>(c.id)},
+        {"owner",static_cast<std::uint32_t>(c.owner)},{"target",static_cast<std::uint32_t>(c.target)},
         {"good",static_cast<int>(c.good)},{"enabled",c.enabled},{"phase",static_cast<int>(c.phase)},
         {"cargo",c.cargo},{"reserved",c.reserved},{"path",cells_json(c.path)},
         {"path_vertex",c.path_vertex},{"edge_progress",c.edge_progress},
@@ -152,6 +155,8 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
             entry["last_dispatched_pottery"]=c.last_dispatched_pottery ?
                 json(static_cast<unsigned>(*c.last_dispatched_pottery)):json(nullptr);
         }
+        if (v10) entry["last_dispatched_target"]=c.last_dispatched_target ?
+            json(static_cast<std::uint32_t>(*c.last_dispatched_target)):json(nullptr);
         cs.push_back(std::move(entry));
     }
     json result={{"width",s.width},{"height",s.height},{"ticks",s.ticks},
@@ -173,6 +178,7 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         result["next_production_id"]=s.next_production_id;
         result["next_courier_id"]=s.next_courier_id;
     }
+    if (v10) result["next_building_id"]=s.next_building_id;
     if (city) {
         result["treasury"]=s.treasury;
         result["taxes_collected_total"]=s.taxes_collected_total;
@@ -219,6 +225,84 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     s.path_vertex=static_cast<std::size_t>(number(field(j,"path_vertex"),limit));
     s.edge_progress=small(field(j,"edge_progress"),Rules::edge_ticks);
     const auto& bs=field(j,"buildings"); const auto& cs=field(j,"couriers");
+    if (schema==10) {
+        require(bs.is_array() && bs.size()<=Rules::city_v10_building_limit &&
+                cs.is_array() && cs.size()<=Rules::city_v10_courier_limit,
+                "invalid City-v10 entity array length");
+        std::uint32_t previous=0;
+        s.buildings.reserve(bs.size());
+        for (const auto& b:bs) {
+            BuildingSnapshot x;
+            const auto id=static_cast<std::uint32_t>(number(field(b,"id"),UINT32_MAX));
+            require(id>previous,"City-v10 building IDs must be positive, unique and sorted");
+            previous=id; x.id=static_cast<BuildingId>(id);
+            x.kind=static_cast<Object>(small(field(b,"kind"),8));
+            require(x.kind==Object::ClaySource || x.kind==Object::Pottery ||
+                    x.kind==Object::Warehouse || x.kind==Object::Household ||
+                    x.kind==Object::Farm || x.kind==Object::ServicePost,
+                    "invalid City-v10 building kind");
+            x.cell=cell(field(b,"cell")); x.placed=boolean(field(b,"placed"));
+            require(x.placed,"City-v10 saves may not contain building holes");
+            x.input_clay=small(field(b,"input_clay")); x.output=small(field(b,"output"));
+            x.pottery_stock=small(field(b,"pottery_stock"));
+            x.reserved_incoming=small(field(b,"reserved_incoming"));
+            x.progress=small(field(b,"progress"));
+            x.active_recipe_clay=small(field(b,"active_recipe_clay"));
+            x.recipes_completed=number(field(b,"recipes_completed"));
+            x.placed_tick=number(field(b,"placed_tick"));
+            x.demand_progress=small(field(b,"demand_progress"),Rules::household_demand_ticks-1);
+            x.fulfilled_demand=number(field(b,"fulfilled_demand"));
+            x.missed_demand=number(field(b,"missed_demand"));
+            x.consumed_total=number(field(b,"consumed_total"));
+            x.last_demand_status=small(field(b,"last_demand_status"),2);
+            x.clay_extracted=number(field(b,"clay_extracted"));
+            x.food_stock=small(field(b,"food_stock"));
+            x.reserved_food_incoming=small(field(b,"reserved_food_incoming"));
+            x.food_consumed_total=number(field(b,"food_consumed_total"));
+            x.food_produced=number(field(b,"food_produced"));
+            x.service_until_tick=number(field(b,"service_until_tick"));
+            x.population=small(field(b,"population"),Rules::household_level2_capacity);
+            s.buildings.push_back(x);
+        }
+        previous=0; s.couriers.reserve(cs.size());
+        for (const auto& c:cs) {
+            CourierSnapshot x;
+            const auto id=static_cast<std::uint32_t>(number(field(c,"id"),UINT32_MAX));
+            require(id>previous,"City-v10 courier IDs must be positive, unique and sorted");
+            previous=id; x.id=static_cast<CourierId>(id);
+            x.owner=static_cast<BuildingId>(number(field(c,"owner"),UINT32_MAX));
+            x.target=static_cast<BuildingId>(number(field(c,"target"),UINT32_MAX));
+            x.role=static_cast<CourierRole>(small(field(c,"role"),5));
+            require(x.role!=CourierRole::None,"invalid City-v10 courier role");
+            const auto& old_last=field(c,"last_dispatched_pottery");
+            if (!old_last.is_null()) x.last_dispatched_pottery=static_cast<BuildingId>(
+                number(old_last,UINT32_MAX));
+            const auto& last=field(c,"last_dispatched_target");
+            if (!last.is_null()) x.last_dispatched_target=static_cast<BuildingId>(
+                number(last,UINT32_MAX));
+            x.good=static_cast<Good>(small(field(c,"good"),3));
+            x.enabled=boolean(field(c,"enabled"));
+            x.phase=static_cast<CourierPhase>(small(field(c,"phase"),2));
+            x.cargo=small(field(c,"cargo")); x.reserved=small(field(c,"reserved"));
+            x.path=cells(field(c,"path"),limit);
+            x.path_vertex=static_cast<std::size_t>(number(field(c,"path_vertex"),limit));
+            x.edge_progress=small(field(c,"edge_progress"),Rules::edge_ticks);
+            x.route_pending=boolean(field(c,"route_pending"));
+            const auto& checked=field(c,"route_checked_revision");
+            if (!checked.is_null()) x.route_checked_revision=number(checked);
+            x.reroute_attempts=number(field(c,"reroute_attempts"));
+            s.couriers.push_back(std::move(x));
+        }
+        s.next_building_id=static_cast<std::uint32_t>(number(field(j,"next_building_id"),UINT32_MAX));
+        s.next_courier_id=static_cast<std::uint32_t>(number(field(j,"next_courier_id"),UINT32_MAX));
+        const auto treasury=field(j,"treasury");
+        require(treasury.is_number_integer(),"City treasury must be an integer");
+        s.treasury=treasury.get<std::int64_t>(); require(s.treasury>=0,"City treasury cannot be negative");
+        s.taxes_collected_total=number(field(j,"taxes_collected_total"));
+        s.construction_spent_total=number(field(j,"construction_spent_total"));
+        s.food_produced_total=number(field(j,"food_produced_total"));
+        return s;
+    }
     const std::size_t expected_buildings=schema>=8 ? max_buildings:
         schema==7 ? city_v7_max_buildings:
         schema>=5 ? legacy_max_buildings:schema==4 ? 7U:schema==3 ? 4U:3U;
@@ -228,6 +312,8 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     require(bs.is_array() && bs.size()==expected_buildings &&
             cs.is_array() && cs.size()==expected_couriers,
             "invalid building or courier array length");
+    s.buildings.resize(simulation::max_buildings);
+    s.couriers.resize(simulation::max_couriers);
     for (std::size_t i=0;i<s.buildings.size();++i)
         s.buildings[i].id=static_cast<BuildingId>(i+1);
     s.couriers[2].id=CourierId::Household;
@@ -384,6 +470,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
 }
 json document_json(const SaveDocument& d) {
     return {{"format","openemperor-sandbox-save"},{"schema_version",
+             d.world.profile==simulation::RulesProfile::CityV10 ? 10:
              d.world.profile==simulation::RulesProfile::CityV9 ? 9:
              d.world.profile==simulation::RulesProfile::CityV8 ? 8:
              d.world.profile==simulation::RulesProfile::CityV7 ? 7:
@@ -401,7 +488,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=9,"unsupported save schema version");
+    require(schema>=1 && schema<=10,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -426,6 +513,7 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::city_v7_profile_name) d.world.profile=simulation::RulesProfile::CityV7;
     else if (id==simulation::city_v8_profile_name) d.world.profile=simulation::RulesProfile::CityV8;
     else if (id==simulation::city_v9_profile_name) d.world.profile=simulation::RulesProfile::CityV9;
+    else if (id==simulation::city_v10_profile_name) d.world.profile=simulation::RulesProfile::CityV10;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
     require(d.world.rule_version==(d.world.profile==simulation::RulesProfile::ProductionV2 && schema>=2 ? 2U:1U) &&
@@ -436,11 +524,13 @@ SaveDocument parse_document(const json& j) {
             (d.world.profile!=simulation::RulesProfile::CityV7 || schema==7) &&
             (d.world.profile!=simulation::RulesProfile::CityV8 || schema==8) &&
             (d.world.profile!=simulation::RulesProfile::CityV9 || schema==9) &&
+            (d.world.profile!=simulation::RulesProfile::CityV10 || schema==10) &&
             (schema!=5 || d.world.profile==simulation::RulesProfile::IndustryV5) &&
             (schema!=6 || d.world.profile==simulation::RulesProfile::CityV6) &&
             (schema!=7 || d.world.profile==simulation::RulesProfile::CityV7) &&
             (schema!=8 || d.world.profile==simulation::RulesProfile::CityV8) &&
-            (schema!=9 || d.world.profile==simulation::RulesProfile::CityV9),
+            (schema!=9 || d.world.profile==simulation::RulesProfile::CityV9) &&
+            (schema!=10 || d.world.profile==simulation::RulesProfile::CityV10),
             "unsupported sandbox rule version");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;
