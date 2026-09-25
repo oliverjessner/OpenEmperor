@@ -12,6 +12,7 @@ build-pinned/
 build-release/
 build-macos-app/
 build-alpha-release/
+build-alpha-sanitize/
 build-sanitize/
 .next/
 coverage/

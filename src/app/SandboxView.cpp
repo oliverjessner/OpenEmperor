@@ -368,6 +368,35 @@ void SandboxView::update_layout(bool preserve_center) {
     refresh_hover();
 }
 void SandboxView::place_demo() {
+    if (rules_==simulation::RulesProfile::CityV10) {
+        for (int y=0;y+3<world_->height();++y) for (int x=0;x+16<world_->width();++x) {
+            std::vector<simulation::Command> commands{
+                {simulation::CommandType::PlaceClaySource,{x,y}},
+                {simulation::CommandType::PlacePottery,{x+3,y}},
+                {simulation::CommandType::PlaceWarehouse,{x+6,y}},
+                {simulation::CommandType::PlaceHousehold,{x+9,y}},
+                {simulation::CommandType::PlaceHousehold,{x+12,y}},
+                {simulation::CommandType::PlaceHousehold,{x+15,y}},
+                {simulation::CommandType::PlaceFarm,{x+6,y+3}},
+                {simulation::CommandType::PlaceServicePost,{x+8,y+3}}};
+            for (int dx=1;dx<=15;++dx)
+                commands.push_back({simulation::CommandType::PlaceRoad,{x+dx,y+2}});
+            bool valid=true;
+            for (const auto& command:commands) {
+                const auto result=world_->validate(command);
+                if (!result.accepted) { valid=false; break; }
+            }
+            if (!valid) continue;
+            for (const auto& command:commands)
+                if (!world_->execute(command).accepted)
+                    throw std::logic_error("City-v10 footprint demo command failed");
+            demo_origin_=simulation::Cell{x,y};
+            reset_camera();
+            last_message_="City v10 2x2 starter placed: 980 spent, 20 funds remain";
+            return;
+        }
+        throw std::runtime_error("no suitable 17x4 sandbox-buildable City-v10 starter pattern");
+    }
     if (simulation::service_profile(rules_)) {
         for (int y=0;y+4<world_->height();++y) for (int x=0;x+12<=world_->width();++x) {
             const std::array cells{
@@ -980,6 +1009,11 @@ scene::Point SandboxView::world_for(simulation::Position cell) const {
     const double v=cell.y-static_cast<double>(geometry_.border);
     return {(u-v)*40.0,(u+v)*20.0+20.0};
 }
+scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
+                                                  simulation::Object kind) const {
+    const auto front=simulation::building_front_cell(rules_,kind,origin);
+    return world_for({static_cast<double>(front.x),static_cast<double>(front.y)});
+}
 bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,std::uint8_t b,bool fill) {
     const auto p=camera_.world_to_screen(world);
     const float x=static_cast<float>(p.x),y=static_cast<float>(p.y);
@@ -1010,8 +1044,16 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const simulation::Cell cell{x,y};
         const auto object=world_->object_at(cell);
         if (object==simulation::Object::Empty) continue;
-        const auto ground=world_for({static_cast<double>(x),static_cast<double>(y)});
         const auto owner=world_->building_owner_at(cell);
+        simulation::Cell visual_cell=cell;
+        if (object!=simulation::Object::Road && owner) {
+            const auto& building=world_->building(*owner);
+            if (cell!=building.cell) continue;
+            visual_cell=simulation::building_front_cell(rules_,building.kind,building.cell);
+        }
+        const auto ground=object==simulation::Object::Road ?
+            world_for({static_cast<double>(visual_cell.x),static_cast<double>(visual_cell.y)}):
+            building_visual_ground(cell,object);
         const auto id=owner ? static_cast<unsigned>(*owner):
             static_cast<unsigned>(y*world_->width()+x);
         instances.push_back({{ground.y,ground.x,object==simulation::Object::Road ?
@@ -1030,7 +1072,11 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     const auto draw_object=[&](simulation::Cell cell,simulation::Object object,
                                bool placement_preview)->bool {
         const int x=cell.x,y=cell.y;
-        const auto top=world_for({static_cast<double>(x),static_cast<double>(y)});
+        const auto visual_cell=object==simulation::Object::Road ? cell:
+            simulation::building_front_cell(rules_,object,cell);
+        const auto top=object==simulation::Object::Road ?
+            world_for({static_cast<double>(visual_cell.x),static_cast<double>(visual_cell.y)}):
+            building_visual_ground(cell,object);
         const auto center=camera_.world_to_screen(top);
         if (object==simulation::Object::Road) {
             const bool new_preview=road_start_ && road_preview_.valid &&
@@ -1065,6 +1111,12 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                         static_cast<float>(screen.x),static_cast<float>(screen.y))) return false;
             }
         } else {
+            if (debug_open_) for (const auto footprint_cell:
+                simulation::building_footprint_cells(rules_,object,cell)) {
+                const auto logical=world_for({static_cast<double>(footprint_cell.x),
+                                              static_cast<double>(footprint_cell.y)});
+                if (!draw_diamond({logical.x,logical.y-20},80,210,245,false)) return false;
+            }
             const auto role=building_visual_role(object);
             if (role && building_profile_) {
                 const auto* entry=building_profile_->find(*role);
@@ -1222,8 +1274,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             building_visual_role(object):std::nullopt;
         if (result.accepted && role && building_visuals_active() && building_sprite_ &&
             building_profile_ && building_profile_->find(*role)) {
-            const auto ground=world_for({static_cast<double>(hovered_->x),
-                                         static_cast<double>(hovered_->y)});
+            const auto ground=building_visual_ground(*hovered_,object);
             instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxBuilding,
                                   std::numeric_limits<unsigned>::max()},*hovered_,object,
                                  simulation::CourierId::Clay,{},true});
@@ -1284,8 +1335,19 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             if (!draw_instance(i)) return false;
     }
     if (selected_) {
-        const auto top=world_for({static_cast<double>(selected_->x),static_cast<double>(selected_->y)});
-        if (!draw_diamond({top.x,top.y-20},255,255,255,false)) return false;
+        const auto owner=world_->building_owner_at(*selected_);
+        if (owner) {
+            const auto& building=world_->building(*owner);
+            for (const auto cell:simulation::building_footprint_cells(rules_,building.kind,
+                                                                       building.cell)) {
+                const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
+                if (!draw_diamond({top.x,top.y-20},255,255,255,false)) return false;
+            }
+        } else {
+            const auto top=world_for({static_cast<double>(selected_->x),
+                                      static_cast<double>(selected_->y)});
+            if (!draw_diamond({top.x,top.y-20},255,255,255,false)) return false;
+        }
     }
     if (road_start_) {
         if (!road_preview_.valid) for (const auto cell:road_preview_.cells) {
@@ -1295,7 +1357,6 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         return true;
     }
     if (hovered_ && tool_!=(simulation::production_profile(rules_) ? 5 : 4)) {
-        const auto top=world_for({static_cast<double>(hovered_->x),static_cast<double>(hovered_->y)});
         const auto result=preview(*hovered_);
         const auto object=tool_==2 ? simulation::Object::ClaySource:
             tool_==3 ? simulation::Object::Pottery:
@@ -1306,10 +1367,12 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const auto role=simulation::production_profile(rules_) ?
             building_visual_role(object):std::nullopt;
         const auto* entry=role && building_profile_ ? building_profile_->find(*role):nullptr;
-        if (result.accepted && entry && building_visuals_active() && building_sprite_) {
-            if (!draw_diamond({top.x,top.y-20},70,245,100,false)) return false;
-        } else if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
-            result.accepted?245:65,result.accepted?100:65,true)) return false;
+        for (const auto cell:simulation::building_footprint_cells(rules_,object,*hovered_)) {
+            const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
+            const bool outline=result.accepted && entry && building_visuals_active() && building_sprite_;
+            if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
+                result.accepted?245:65,result.accepted?100:65,!outline)) return false;
+        }
     }
     return true;
 }
@@ -1355,7 +1418,25 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     const auto& b=world_->building(*id);
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
-    lines.push_back("Cell "+std::to_string(b.cell.x)+", "+std::to_string(b.cell.y));
+    const auto footprint=simulation::building_footprint(rules_,b.kind);
+    const auto front=simulation::building_front_cell(rules_,b.kind,b.cell);
+    lines.push_back("Footprint "+std::to_string(footprint.width)+"x"+
+                    std::to_string(footprint.height));
+    lines.push_back("Origin "+std::to_string(b.cell.x)+", "+std::to_string(b.cell.y));
+    lines.push_back("Front "+std::to_string(front.x)+", "+std::to_string(front.y));
+    if (debug_open_) {
+        std::string occupied="Occupied";
+        for (const auto cell:simulation::building_footprint_cells(rules_,b.kind,b.cell))
+            occupied+=" "+std::to_string(cell.x)+","+std::to_string(cell.y);
+        lines.push_back(std::move(occupied));
+        const auto entrances=world_->building_entrances(*id);
+        lines.push_back("Active entrances "+std::to_string(entrances.size()));
+        for (const auto& entrance:entrances)
+            lines.push_back("Road "+std::to_string(entrance.road_cell.x)+","+
+                std::to_string(entrance.road_cell.y)+" -> cell "+
+                std::to_string(entrance.building_cell.x)+","+
+                std::to_string(entrance.building_cell.y));
+    }
     if (simulation::city_profile(rules_)) {
         if (b.kind==simulation::Object::Household)
             lines.push_back("Workers supplied "+std::to_string(

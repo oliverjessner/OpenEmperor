@@ -1,5 +1,15 @@
 # Research log
 
+## City-v10 logical footprints and road entrances (2026-09-25)
+
+Starting commit `43f38dd2f991f8594605973cb24438018b316d74`. The four already curated core building records are Type 30, size flag 2, width 158, with a 12,800-byte base. City-v10 now uses an independently authored uniform 2×2 logical footprint for their corresponding Clay Source, Pottery, Warehouse and Household roles. Origin is the rear/top storage cell and front is `origin+(1,1)`. This aligns gameplay occupancy and drawing with the decoded base scale, but does not establish Emperor's original placement pivot, footprint ownership or building mechanics. Farms and Service Posts remain authored 1×1 fallbacks.
+
+The existing exact-pack China terrain road matrix was evaluated as a separate road-only baseline and remained coherent across all 16 masks and larger line/L/T/network compositions at 1× and 4× (`road_only_coherent = true`). Consequently `roads.json` and physical records 782–799 were not changed. City-v10 roads now remain outside the logical foundations, while `EntranceMask` recognizes a road next to any occupied footprint cell without affecting the roads-only mask.
+
+No original bytes, decoded pixels or screenshots were added. Tests construct their maps and save mutations from synthetic state. The new entrance routing is OpenEmperor behavior: enumerate orthogonal perimeter roads, choose shortest source/target pair, then break ties by source and target storage order. It is not a claim about Emperor walker routing.
+
+The packaged Xia City-v10 demo was opened with the exact compatibility pack and viewed at its initial camera scale. The Clay Source, Pottery, Warehouse and House bases sat outside the road cells, roads met their foundation edges, and successive frames showed walkers changing road positions. The existing four building anchors were therefore left unchanged. Exact interactive 2× and 4× recaptures could not be completed through the available macOS UI automation window binding; synthetic SDL anchor tests still pass at 1× and 4×, but a fresh human 2×/4× Xia alignment review remains open.
+
 ## Initial shell
 
 - Scope: application lifecycle, SDL3 window, user-supplied data-directory validation, generic file inspection.

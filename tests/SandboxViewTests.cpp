@@ -271,13 +271,8 @@ openemperor::maps::StoredMapSession city_v10_fixture(
         footprint.status=maps::StoredStatus::DecodePending;
         plan.footprints.push_back(footprint);
     };
-    for (std::uint32_t x=100;x<=118;++x) {
-        add(x,100);
-        add(x,110);
-    }
-    for (const std::uint32_t x:{100U,102U,104U,106U,108U,110U,112U,114U,116U,118U}) {
-        add(x,99); add(x,101); add(x,109); add(x,111);
-    }
+    for (std::uint32_t y=101;y<=112;++y)
+        for (std::uint32_t x=100;x<=127;++x) add(x,y);
     return session;
 }
 simulation::World city_v10_world(const std::vector<std::uint8_t>& buildable) {
@@ -287,32 +282,39 @@ simulation::World city_v10_world(const std::vector<std::uint8_t>& buildable) {
         if (!result.accepted)
             throw std::runtime_error(std::string("City-v10 UI fixture: ")+result.reason);
     };
-    put(simulation::CommandType::PlaceClaySource,100,99);
-    put(simulation::CommandType::PlacePottery,102,99);
-    put(simulation::CommandType::PlaceWarehouse,104,99);
-    put(simulation::CommandType::PlaceFarm,106,99);
-    put(simulation::CommandType::PlaceServicePost,108,99);
-    put(simulation::CommandType::PlaceHousehold,110,99);
-    put(simulation::CommandType::PlaceHousehold,112,99);
-    put(simulation::CommandType::PlaceHousehold,114,99);
-    for (int x=100;x<=114;++x) put(simulation::CommandType::PlaceRoad,x,100);
+    put(simulation::CommandType::PlaceClaySource,100,101);
+    put(simulation::CommandType::PlacePottery,103,101);
+    put(simulation::CommandType::PlaceWarehouse,100,104);
+    put(simulation::CommandType::PlaceFarm,103,104);
+    put(simulation::CommandType::PlaceServicePost,104,104);
+    put(simulation::CommandType::PlaceHousehold,106,101);
+    put(simulation::CommandType::PlaceHousehold,109,101);
+    put(simulation::CommandType::PlaceHousehold,112,101);
+    for (int x=100;x<=114;++x) put(simulation::CommandType::PlaceRoad,x,103);
     for (int ticks=0;ticks<60000 && world.treasury()<4000;++ticks) world.tick();
     check(world.treasury()>=4000,"City-v10 UI fixture did not earn expansion funds");
-    for (int x=115;x<=118;++x) put(simulation::CommandType::PlaceRoad,x,100);
-    for (int x=100;x<=118;++x) put(simulation::CommandType::PlaceRoad,x,110);
-    put(simulation::CommandType::PlaceClaySource,116,99);
-    put(simulation::CommandType::PlacePottery,118,99);
-    for (const int x:{100,102,104,106,108,110,112})
-        put(simulation::CommandType::PlaceHousehold,x,101);
-    put(simulation::CommandType::PlaceWarehouse,100,109);
-    put(simulation::CommandType::PlaceFarm,102,109);
-    put(simulation::CommandType::PlaceServicePost,108,109);
-    put(simulation::CommandType::PlaceClaySource,112,109);
-    put(simulation::CommandType::PlacePottery,114,109);
-    put(simulation::CommandType::PlaceClaySource,116,109);
-    put(simulation::CommandType::PlacePottery,118,109);
-    for (const int x:{100,102,104,106,108,110,112,114,116,118})
-        put(simulation::CommandType::PlaceHousehold,x,111);
+    for (int x=115;x<=125;++x) put(simulation::CommandType::PlaceRoad,x,103);
+    for (int x=100;x<=125;++x) put(simulation::CommandType::PlaceRoad,x,110);
+    put(simulation::CommandType::PlaceClaySource,106,104);
+    put(simulation::CommandType::PlacePottery,109,104);
+    for (const auto cell:{simulation::Cell{115,101},simulation::Cell{118,101},
+                          simulation::Cell{112,104},simulation::Cell{115,104},
+                          simulation::Cell{118,104},simulation::Cell{121,104},
+                          simulation::Cell{124,104}})
+        put(simulation::CommandType::PlaceHousehold,cell.x,cell.y);
+    put(simulation::CommandType::PlaceWarehouse,100,111);
+    put(simulation::CommandType::PlaceFarm,103,111);
+    put(simulation::CommandType::PlaceServicePost,104,111);
+    put(simulation::CommandType::PlaceClaySource,100,108);
+    put(simulation::CommandType::PlacePottery,103,108);
+    put(simulation::CommandType::PlaceClaySource,106,111);
+    put(simulation::CommandType::PlacePottery,109,111);
+    for (const auto cell:{simulation::Cell{106,108},simulation::Cell{109,108},
+                          simulation::Cell{112,108},simulation::Cell{115,108},
+                          simulation::Cell{118,108},simulation::Cell{112,111},
+                          simulation::Cell{115,111},simulation::Cell{118,111},
+                          simulation::Cell{121,111},simulation::Cell{124,111}})
+        put(simulation::CommandType::PlaceHousehold,cell.x,cell.y);
     check(world.buildings().size()==34 && world.couriers().size()==14,
           "City-v10 UI fixture did not reach full entity counts");
     return world;

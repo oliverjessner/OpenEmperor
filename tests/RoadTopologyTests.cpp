@@ -66,6 +66,19 @@ int main() {
               preview_entrance.snapshot()==preview_before,
               "building changed drag-preview road mask or preview mutated World");
 
+        sim::World footprint(8,8,std::vector<std::uint8_t>(64,1),sim::RulesProfile::CityV10);
+        place(footprint,sim::CommandType::PlacePottery,{3,3});
+        for (const auto road_cell:std::array<sim::Cell,4>{{{3,2},{5,3},{4,5},{2,4}}})
+            place(footprint,sim::CommandType::PlaceRoad,road_cell);
+        check(ui::entrance_mask(footprint,{3,2})==0x4 &&
+              ui::entrance_mask(footprint,{5,3})==0x8 &&
+              ui::entrance_mask(footprint,{4,5})==0x1 &&
+              ui::entrance_mask(footprint,{2,4})==0x2,
+              "roads beside different 2x2 footprint cells were not building entrances");
+        for (const auto road_cell:std::array<sim::Cell,4>{{{3,2},{5,3},{4,5},{2,4}}})
+            check(ui::road_neighbor_mask(footprint,road_cell)==0,
+                  "2x2 footprint entrance changed the roads-only neighbor mask");
+
         auto live=make_world();
         for (const auto cell:std::array<sim::Cell,3>{{{2,3},{3,3},{4,3}}})
             place(live,sim::CommandType::PlaceRoad,cell);

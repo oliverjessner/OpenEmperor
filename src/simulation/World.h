@@ -131,6 +131,20 @@ struct Cell {
 enum class Object : std::uint8_t {
     Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost
 };
+struct BuildingFootprint {
+    int width=1;
+    int height=1;
+    bool operator==(const BuildingFootprint&) const = default;
+};
+BuildingFootprint building_footprint(RulesProfile profile,Object kind);
+std::vector<Cell> building_footprint_cells(RulesProfile profile,Object kind,Cell origin);
+Cell building_front_cell(RulesProfile profile,Object kind,Cell origin);
+bool building_footprint_contains(RulesProfile profile,Object kind,Cell origin,Cell cell);
+struct BuildingEntrance {
+    Cell road_cell{};
+    Cell building_cell{};
+    bool operator==(const BuildingEntrance&) const = default;
+};
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
                          RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost };
 struct Command { CommandType type; Cell cell; };
@@ -354,6 +368,8 @@ public:
     void tick();
     std::optional<std::vector<Cell>> find_route() const;
     std::optional<std::vector<Cell>> find_route(Cell start,Cell goal) const;
+    std::vector<BuildingEntrance> building_entrances(BuildingId id) const;
+    std::optional<std::vector<Cell>> find_building_route(BuildingId source,BuildingId target) const;
     std::optional<Position> courier_position() const;
     const std::vector<Cell>& courier_path() const { return path_; }
     std::optional<Cell> workshop() const { return workshop_; }
@@ -376,6 +392,8 @@ public:
     bool goods_balance_valid() const;
 private:
     std::size_t index(Cell cell) const;
+    std::optional<std::vector<Cell>> find_road_route(Cell start,Cell goal) const;
+    std::optional<std::vector<Cell>> find_route_to_building(Cell start,BuildingId target) const;
     const std::vector<Cell>* route_for_revision();
     void refresh_routes();
     void tick_production_v2();

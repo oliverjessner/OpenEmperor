@@ -65,6 +65,10 @@ The one-neighbor assignments are a presentation decision: the bounded family con
 
 The common anchor remains `[39,20]`, the center-bottom reference of the 78×40 footprint. OpenEmperor's logical projection steps by 80×40. At nearest-neighbor 4× review the family retained a common ground position; the two-pixel width difference is the source footprint geometry and is not stretched or patched. Transparent pixels outside the Type-30 diamond continue to reveal the stored terrain underlay.
 
+### City-v10 road-only baseline
+
+The footprint milestone classified the current exact-pack road-only matrix separately from buildings: `road_only_coherent = true`. The baseline covers the isolated tile, all four one-neighbor directions, both straights, four corners, four T junctions, the crossing, a long line, L and T compositions, and a small 5×5 network at 1× and 4×. The roads-only mask tests still cover all 16 combinations and composite topology after the footprint change. No road mapping changed, and records 783–785 and 787–789 were not substituted because the existing 782–799 assignments did not show a concrete orientation error. The one-neighbor straight reuse remains the documented presentation choice.
+
 The Xia saved-graphics snapshot was also checked as read-only evidence. Its 58 cells classified by the reference-derived terrain layer as roads resolve mainly to physical records 552/553 and singly to 557–563/619 under the studied runtime-table hypothesis. Those decoded records are unrelated terrain/building images, so they do not corroborate the 782–799 selection and reinforce the existing warning that saved IDs may be replaced before first draw. None of the table above is marked map-correlated.
 
 ## Bounded atlas

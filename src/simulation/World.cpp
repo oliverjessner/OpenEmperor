@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <deque>
+#include <iterator>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
@@ -14,6 +15,18 @@ namespace {
 constexpr std::array<Cell,4> neighbors{{{0,-1},{-1,0},{1,0},{0,1}}};
 Cell add(Cell a,Cell b) { return {a.x+b.x,a.y+b.y}; }
 bool scalable(RulesProfile profile) { return profile==RulesProfile::CityV10; }
+bool storage_less(Cell a,Cell b) { return a.y!=b.y ? a.y<b.y:a.x<b.x; }
+std::optional<Object> placed_object(CommandType type) {
+    switch (type) {
+    case CommandType::PlaceWarehouse: return Object::Warehouse;
+    case CommandType::PlaceClaySource: return Object::ClaySource;
+    case CommandType::PlacePottery: return Object::Pottery;
+    case CommandType::PlaceHousehold: return Object::Household;
+    case CommandType::PlaceFarm: return Object::Farm;
+    case CommandType::PlaceServicePost: return Object::ServicePost;
+    default: return std::nullopt;
+    }
+}
 std::size_t building_limit(RulesProfile profile,Object kind) {
     if (!scalable(profile)) {
         if (kind==Object::Household) return household_limit;
@@ -31,6 +44,7 @@ std::size_t building_limit(RulesProfile profile,Object kind) {
     default: return 0;
     }
 }
+
 const std::optional<std::vector<Cell>>* dynamic_route(const CourierState& courier,
                                                        BuildingId target) {
     const auto found=std::lower_bound(courier.dynamic_target_routes.begin(),
@@ -38,6 +52,34 @@ const std::optional<std::vector<Cell>>* dynamic_route(const CourierState& courie
         [](const auto& value,BuildingId key) { return value.first<key; });
     return found!=courier.dynamic_target_routes.end() && found->first==target ? &found->second:nullptr;
 }
+}
+
+BuildingFootprint building_footprint(RulesProfile profile,Object kind) {
+    if (profile==RulesProfile::CityV10 &&
+        (kind==Object::ClaySource || kind==Object::Pottery || kind==Object::Warehouse ||
+         kind==Object::Household)) return {2,2};
+    return {1,1};
+}
+
+std::vector<Cell> building_footprint_cells(RulesProfile profile,Object kind,Cell origin) {
+    const auto footprint=building_footprint(profile,kind);
+    std::vector<Cell> cells;
+    cells.reserve(static_cast<std::size_t>(footprint.width*footprint.height));
+    for (int y=0;y<footprint.height;++y)
+        for (int x=0;x<footprint.width;++x)
+            cells.push_back({origin.x+x,origin.y+y});
+    return cells;
+}
+
+Cell building_front_cell(RulesProfile profile,Object kind,Cell origin) {
+    const auto footprint=building_footprint(profile,kind);
+    return {origin.x+footprint.width-1,origin.y+footprint.height-1};
+}
+
+bool building_footprint_contains(RulesProfile profile,Object kind,Cell origin,Cell cell) {
+    const auto footprint=building_footprint(profile,kind);
+    return cell.x>=origin.x && cell.y>=origin.y &&
+        cell.x<origin.x+footprint.width && cell.y<origin.y+footprint.height;
 }
 
 const char* courier_phase_name(CourierPhase phase) {
@@ -462,6 +504,16 @@ CommandResult World::validate(Command command) const {
         }
         return {true,true,"Road removed",result.sequence,ticks_};
     }
+    if (scalable(profile_)) {
+        const auto kind=placed_object(command.type);
+        if (kind) for (const auto cell:building_footprint_cells(profile_,*kind,command.cell)) {
+            if (!in_bounds(cell)) { result.reason="Building footprint outside sandbox grid"; return result; }
+            if (!buildable(cell)) { result.reason="Building footprint is not sandbox-buildable"; return result; }
+            if (object_at(cell)!=Object::Empty) {
+                result.reason="Building footprint overlaps an occupied cell"; return result;
+            }
+        }
+    }
     if (!buildable(command.cell)) { result.reason="Not sandbox-buildable"; return result; }
     const auto occupied=object_at(command.cell);
     if (occupied!=Object::Empty) {
@@ -557,7 +609,10 @@ CommandResult World::execute(Command command) {
     const auto add_v10_building=[&](Object kind)->BuildingState& {
         const auto id=static_cast<BuildingId>(next_building_id_++);
         buildings_.push_back(BuildingState{id,kind,command.cell,true});
-        owners_[index(command.cell)]=static_cast<std::uint32_t>(id);
+        for (const auto cell:building_footprint_cells(profile_,kind,command.cell)) {
+            objects_[index(cell)]=kind;
+            owners_[index(cell)]=static_cast<std::uint32_t>(id);
+        }
         return buildings_.back();
     };
     const auto add_v10_courier=[&](BuildingId owner,CourierRole role,Good good) {
@@ -741,6 +796,106 @@ std::optional<std::vector<Cell>> World::find_route(Cell start,Cell goal) const {
     return std::nullopt;
 }
 
+std::vector<BuildingEntrance> World::building_entrances(BuildingId id) const {
+    const auto& value=building(id);
+    std::vector<BuildingEntrance> result;
+    if (!value.placed) return result;
+    for (const auto building_cell:building_footprint_cells(profile_,value.kind,value.cell))
+        for (const auto delta:neighbors) {
+            const auto road_cell=add(building_cell,delta);
+            if (object_at(road_cell)==Object::Road)
+                result.push_back({road_cell,building_cell});
+        }
+    std::sort(result.begin(),result.end(),[](const auto& a,const auto& b) {
+        if (a.road_cell!=b.road_cell) return storage_less(a.road_cell,b.road_cell);
+        return storage_less(a.building_cell,b.building_cell);
+    });
+    result.erase(std::unique(result.begin(),result.end()),result.end());
+    return result;
+}
+
+std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal) const {
+    if (object_at(start)!=Object::Road || object_at(goal)!=Object::Road) return std::nullopt;
+    if (start==goal) return std::vector<Cell>{start};
+    const auto start_index=index(start);
+    std::vector<std::size_t> previous(objects_.size(),objects_.size());
+    std::deque<Cell> queue;
+    previous[start_index]=start_index;
+    queue.push_back(start);
+    while (!queue.empty()) {
+        const auto current=queue.front(); queue.pop_front();
+        for (const auto delta:neighbors) {
+            const auto next=add(current,delta);
+            if (!in_bounds(next) || object_at(next)!=Object::Road ||
+                previous[index(next)]!=objects_.size()) continue;
+            previous[index(next)]=index(current);
+            if (next==goal) {
+                std::vector<Cell> route;
+                auto at=index(goal);
+                while (at!=start_index) {
+                    route.push_back({static_cast<int>(at%static_cast<std::size_t>(width_)),
+                                     static_cast<int>(at/static_cast<std::size_t>(width_))});
+                    at=previous[at];
+                }
+                route.push_back(start);
+                std::reverse(route.begin(),route.end());
+                return route;
+            }
+            queue.push_back(next);
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::vector<Cell>> World::find_building_route(BuildingId source_id,
+                                                             BuildingId target_id) const {
+    if (source_id==target_id) return std::nullopt;
+    const auto source=building_entrances(source_id);
+    const auto target=building_entrances(target_id);
+    std::optional<std::vector<Cell>> best;
+    for (const auto& from:source) for (const auto& to:target) {
+        const auto roads=find_road_route(from.road_cell,to.road_cell);
+        if (!roads) continue;
+        std::vector<Cell> route;
+        route.reserve(roads->size()+2);
+        route.push_back(from.building_cell);
+        route.insert(route.end(),roads->begin(),roads->end());
+        route.push_back(to.building_cell);
+        if (!best || route.size()<best->size()) best=std::move(route);
+    }
+    return best;
+}
+
+std::optional<std::vector<Cell>> World::find_route_to_building(Cell start,
+                                                                BuildingId target_id) const {
+    const auto target=building_entrances(target_id);
+    std::vector<BuildingEntrance> source;
+    if (object_at(start)==Object::Road) source.push_back({start,start});
+    else {
+        const auto owner=building_owner_at(start);
+        if (!owner) return std::nullopt;
+        source=building_entrances(*owner);
+        source.erase(std::remove_if(source.begin(),source.end(),[&](const auto& entrance) {
+            return entrance.building_cell!=start;
+        }),source.end());
+    }
+    std::optional<std::vector<Cell>> best;
+    for (const auto& from:source) for (const auto& to:target) {
+        const auto roads=find_road_route(from.road_cell,to.road_cell);
+        if (!roads) continue;
+        std::vector<Cell> route;
+        route.reserve(roads->size()+2);
+        route.push_back(start);
+        if (start!=from.road_cell) route.push_back(from.road_cell);
+        if (route.back()==roads->front())
+            route.insert(route.end(),std::next(roads->begin()),roads->end());
+        else route.insert(route.end(),roads->begin(),roads->end());
+        route.push_back(to.building_cell);
+        if (!best || route.size()<best->size()) best=std::move(route);
+    }
+    return best;
+}
+
 const std::vector<Cell>* World::route_for_revision() {
     if (cached_revision_!=road_revision_) {
         cached_route_=find_route();
@@ -760,7 +915,7 @@ void World::refresh_routes() {
             if (source.placed) for (const auto& target:buildings_)
                 if (target.placed && target.kind==target_kind)
                     courier.dynamic_target_routes.emplace_back(target.id,
-                        find_route(source.cell,target.cell));
+                        find_building_route(source.id,target.id));
             courier.cached_route.reset();
             courier.cached_revision=road_revision_;
         }
@@ -1284,7 +1439,9 @@ void World::reroute_v2(CourierState& courier) {
         throw std::overflow_error("courier reroute counter exhausted");
     ++courier.reroute_attempts;
     courier.route_checked_revision=road_revision_;
-    const auto route=find_route(courier.path.at(courier.path_vertex),destination.cell);
+    const auto route=scalable(profile_) ?
+        find_route_to_building(courier.path.at(courier.path_vertex),destination.id):
+        find_route(courier.path.at(courier.path_vertex),destination.cell);
     if (!route) return;
     courier.path=*route;
     courier.path_vertex=0;
@@ -1296,8 +1453,13 @@ void World::reroute_v2(CourierState& courier) {
 bool World::valid_return_path(const CourierState& courier) const {
     const auto& source=building(courier.owner);
     const auto& target=building(courier.target);
-    if (courier.path.size()<3 || courier.path.front()!=source.cell ||
-        courier.path.back()!=target.cell) return false;
+    const bool source_endpoint=scalable(profile_) ?
+        building_footprint_contains(profile_,source.kind,source.cell,courier.path.front()):
+        courier.path.front()==source.cell;
+    const bool target_endpoint=scalable(profile_) ?
+        building_footprint_contains(profile_,target.kind,target.cell,courier.path.back()):
+        courier.path.back()==target.cell;
+    if (courier.path.size()<3 || !source_endpoint || !target_endpoint) return false;
     for (std::size_t i=1;i+1<courier.path.size();++i)
         if (object_at(courier.path[i])!=Object::Road) return false;
     return true;
@@ -1347,7 +1509,7 @@ void World::move_v2(CourierState& courier) {
             std::reverse(courier.path.begin(),courier.path.end());
             courier.path_vertex=0;
         } else {
-            courier.path={target.cell};
+            courier.path={scalable(profile_) ? courier.path.back():target.cell};
             courier.path_vertex=0;
             courier.route_pending=true;
             courier.route_checked_revision.reset();
@@ -1422,7 +1584,11 @@ std::optional<Position> World::courier_position(CourierId id) const {
     const auto& source=building(c.owner);
     if (!source.placed) return std::nullopt;
     if (c.phase==CourierPhase::IdleAtWorkshop)
-        return Position{static_cast<double>(source.cell.x),static_cast<double>(source.cell.y)};
+    {
+        const auto cell=scalable(profile_) ?
+            building_front_cell(profile_,source.kind,source.cell):source.cell;
+        return Position{static_cast<double>(cell.x),static_cast<double>(cell.y)};
+    }
     if (c.route_pending && c.edge_progress==0)
         return Position{static_cast<double>(c.path.at(c.path_vertex).x),
                         static_cast<double>(c.path.at(c.path_vertex).y)};
@@ -1553,9 +1719,11 @@ bool World::industry_balance_valid() const {
         for (std::size_t i=0;i<buildings_.size();++i) {
             const auto& b=buildings_[i];
             if (!b.placed || static_cast<std::uint32_t>(b.id)==0 ||
-                (i && !(buildings_[i-1].id<b.id)) || !in_bounds(b.cell) ||
-                object_at(b.cell)!=b.kind || building_owner_at(b.cell)!=b.id || b.placed_tick>ticks_ ||
+                (i && !(buildings_[i-1].id<b.id)) || b.placed_tick>ticks_ ||
                 b.reserved_incoming<0 || b.reserved_food_incoming<0) return false;
+            for (const auto cell:building_footprint_cells(profile_,b.kind,b.cell))
+                if (!in_bounds(cell) || object_at(cell)!=b.kind ||
+                    building_owner_at(cell)!=b.id) return false;
             pottery_reservations.emplace_back(b.id,0); food_reservations.emplace_back(b.id,0);
             switch (b.kind) {
             case Object::ClaySource:
@@ -1966,7 +2134,10 @@ bool World::navigation_valid() const {
             if (c.path_vertex!=0 || c.path.size()!=(c.edge_progress>0 ? 2U:1U) ||
                 (c.edge_progress>0 && c.route_checked_revision)) return false;
         } else if (c.path.size()<2 || c.path_vertex+1>=c.path.size() ||
-                   c.path.back()!=destination.cell || c.route_checked_revision) return false;
+                   (scalable(profile_) ?
+                    !building_footprint_contains(profile_,destination.kind,destination.cell,
+                                                 c.path.back()):
+                    c.path.back()!=destination.cell) || c.route_checked_revision) return false;
         std::vector<std::uint8_t> visited(objects_.size(),0);
         for (std::size_t i=0;i<c.path.size();++i) {
             const auto point=c.path[i];
@@ -1976,11 +2147,17 @@ bool World::navigation_valid() const {
             if (i<c.path_vertex) continue; // Historical road may have been removed.
             const auto kind=object_at(point);
             if (i==c.path_vertex) {
-                if (kind!=Object::Road && point!=source.cell) return false;
+                if (kind!=Object::Road && (scalable(profile_) ?
+                    !building_footprint_contains(profile_,source.kind,source.cell,point):
+                    point!=source.cell)) return false;
             } else if (c.route_pending) {
-                if (kind!=Object::Road && point!=destination.cell) return false;
+                if (kind!=Object::Road && (scalable(profile_) ?
+                    !building_footprint_contains(profile_,destination.kind,destination.cell,point):
+                    point!=destination.cell)) return false;
             } else if (i+1==c.path.size()) {
-                if (point!=destination.cell) return false;
+                if (scalable(profile_) ?
+                    !building_footprint_contains(profile_,destination.kind,destination.cell,point):
+                    point!=destination.cell) return false;
             } else if (kind!=Object::Road) return false;
         }
     }
@@ -2138,15 +2315,16 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
     w.last_dispatched_service_household_=s.last_dispatched_service_household;
     w.food_produced_total_=s.food_produced_total;
     const auto route=[&](const std::vector<Cell>& path,std::size_t vertex,int edge,
-                         CourierPhase phase,Cell source,Cell target) {
+                         CourierPhase phase,Cell source,Cell target,bool pending) {
         if (phase==CourierPhase::IdleAtWorkshop) {
             if (!path.empty() || vertex!=0 || edge!=0) fail("idle courier has active route");
             return;
         }
-        if (path.size()<3 || path.size()>w.objects_.size() || vertex>=path.size()-1 ||
-            edge<0 || edge>=Rules::edge_ticks ||
-            path.front()!=(phase==CourierPhase::ToWarehouse ? source:target) ||
-            path.back()!=(phase==CourierPhase::ToWarehouse ? target:source))
+        if (path.empty() || path.size()>w.objects_.size() || edge<0 || edge>=Rules::edge_ticks ||
+            (pending ? (vertex!=0 || path.size()!=(edge>0 ? 2U:1U)) :
+             (path.size()<3 || vertex>=path.size()-1 ||
+              path.front()!=(phase==CourierPhase::ToWarehouse ? source:target) ||
+              path.back()!=(phase==CourierPhase::ToWarehouse ? target:source))))
             fail("invalid active courier route endpoints or progress");
         std::vector<std::uint8_t> visited(w.objects_.size(),0);
         for (std::size_t i=0;i<path.size();++i) {
@@ -2157,7 +2335,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 const auto dy=std::abs(path[i].y-path[i-1].y);
                 if (dx+dy!=1) fail("route has nonorthogonal edge");
             }
-            if (i>0 && i+1<path.size() && w.object_at(path[i])!=Object::Road)
+            if (!pending && i>0 && i+1<path.size() && w.object_at(path[i])!=Object::Road)
                 fail("route interior is not a placed road");
         }
     };
@@ -2170,7 +2348,8 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
             if (static_cast<std::uint32_t>(b.id)==0 || (i && !(s.buildings[i-1].id<b.id)) ||
                 !b.placed || b.kind==Object::Empty || b.kind==Object::Road ||
                 b.kind==Object::Workshop) fail("invalid City-v10 building identity or kind");
-            put(b.cell,b.kind,b.id);
+            for (const auto cell:building_footprint_cells(s.profile,b.kind,b.cell))
+                put(cell,b.kind,b.id);
             w.buildings_.push_back({b.id,b.kind,b.cell,b.placed,b.input_clay,b.output,
                 b.pottery_stock,b.reserved_incoming,b.progress,b.active_recipe_clay,
                 b.recipes_completed,b.placed_tick,b.demand_progress,b.fulfilled_demand,
@@ -2202,8 +2381,23 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 try { (void)w.building(*c.last_dispatched_target); }
                 catch (const std::out_of_range&) { fail("City-v10 courier cursor is missing"); }
             }
-            route(c.path,c.path_vertex,c.edge_progress,c.phase,w.building(c.owner).cell,
-                  w.building(c.target).cell);
+            const auto& owner=w.building(c.owner);
+            const auto& target=w.building(c.target);
+            if (c.phase!=CourierPhase::IdleAtWorkshop && !c.route_pending && !c.path.empty()) {
+                const auto& route_source=c.phase==CourierPhase::ToWarehouse ? owner:target;
+                const auto& route_target=c.phase==CourierPhase::ToWarehouse ? target:owner;
+                if (!building_footprint_contains(s.profile,route_source.kind,route_source.cell,
+                                                 c.path.front()) ||
+                    !building_footprint_contains(s.profile,route_target.kind,route_target.cell,
+                                                 c.path.back()))
+                    fail("invalid City-v10 route footprint endpoints");
+            }
+            route(c.path,c.path_vertex,c.edge_progress,c.phase,
+                  c.path.empty() ? owner.cell:
+                      (c.phase==CourierPhase::ToWarehouse ? c.path.front():c.path.back()),
+                  c.path.empty() ? target.cell:
+                      (c.phase==CourierPhase::ToWarehouse ? c.path.back():c.path.front()),
+                  c.route_pending);
             w.couriers_.push_back(std::move(out));
         }
         if (s.roads_placed_total<s.roads_removed_total ||
@@ -2337,7 +2531,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
         if (s.phase!=CourierPhase::ToWarehouse && s.courier_cargo!=0)
             fail("idle or returning logistics courier has cargo");
         route(s.path,s.path_vertex,s.edge_progress,s.phase,s.workshop.value_or(Cell{}),
-              s.warehouse.value_or(Cell{}));
+              s.warehouse.value_or(Cell{}),false);
         w.workshop_=s.workshop; w.warehouse_=s.warehouse;
         w.total_produced_=s.total_produced; w.workshop_stock_=s.workshop_stock;
         w.production_progress_=s.production_progress; w.courier_cargo_=s.courier_cargo;

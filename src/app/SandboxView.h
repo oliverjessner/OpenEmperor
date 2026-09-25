@@ -151,6 +151,8 @@ private:
     void update_layout(bool preserve_center);
     std::vector<simulation::BuildingId> placed_buildings() const;
     scene::Point world_for(simulation::Position cell) const;
+    scene::Point building_visual_ground(simulation::Cell origin,
+                                        simulation::Object kind) const;
     maps::MapGeometry geometry_;
     StoredGraphicsRenderer background_;
     std::unique_ptr<simulation::World> world_;

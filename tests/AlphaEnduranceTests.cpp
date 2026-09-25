@@ -193,26 +193,34 @@ sim::World make_city_v9_world() {
 }
 
 sim::World make_city_v10_world() {
-    constexpr int w=40,h=24;
+    constexpr int w=24,h=17;
     sim::World world(w,h,std::vector<std::uint8_t>(w*h,1),sim::RulesProfile::CityV10);
     const auto put=[&](sim::CommandType type,int x,int y) { require_command(world,type,x,y); };
     const auto road=[&](int x,int y) { put(sim::CommandType::PlaceRoad,x,y); };
-    put(sim::CommandType::PlaceClaySource,0,9); put(sim::CommandType::PlacePottery,2,9);
-    put(sim::CommandType::PlaceWarehouse,4,9); put(sim::CommandType::PlaceFarm,6,9);
-    put(sim::CommandType::PlaceServicePost,8,9);
-    for (int x:{10,12,14}) put(sim::CommandType::PlaceHousehold,x,9);
-    for (int x=0;x<=14;++x) road(x,10);
+    put(sim::CommandType::PlaceClaySource,12,3); put(sim::CommandType::PlacePottery,9,3);
+    put(sim::CommandType::PlaceWarehouse,9,6); put(sim::CommandType::PlaceFarm,11,4);
+    put(sim::CommandType::PlaceServicePost,14,4);
+    for (int x:{6,15,18}) put(sim::CommandType::PlaceHousehold,x,3);
+    for (int x=4;x<=18;++x) road(x,5);
     while (world.treasury()<4000 && world.ticks()<60'000) world.tick();
-    check(world.treasury()>=4000,"City v10 endurance starter did not finance expansion");
-    for (int x=15;x<=18;++x) road(x,10);
-    for (int x=0;x<=18;++x) road(x,20);
-    put(sim::CommandType::PlaceClaySource,16,9); put(sim::CommandType::PlacePottery,18,9);
-    for (int x:{0,2,4,6,8,10,12}) put(sim::CommandType::PlaceHousehold,x,11);
-    put(sim::CommandType::PlaceWarehouse,0,19); put(sim::CommandType::PlaceFarm,2,19);
-    put(sim::CommandType::PlaceServicePost,8,19);
-    put(sim::CommandType::PlaceClaySource,12,19); put(sim::CommandType::PlacePottery,14,19);
-    put(sim::CommandType::PlaceClaySource,16,19); put(sim::CommandType::PlacePottery,18,19);
-    for (int x:{0,2,4,6,8,10,12,14,16,18}) put(sim::CommandType::PlaceHousehold,x,21);
+    check(world.treasury()>=4000,"City v10 endurance starter did not finance expansion: treasury="+
+          std::to_string(world.treasury())+" population="+std::to_string(world.total_population())+
+          " ready="+std::to_string(world.settlement_goal_households_ready()));
+    for (int x=0;x<=3;++x) road(x,5);
+    for (int x=19;x<=22;++x) road(x,5);
+    for (int x=0;x<=22;++x) road(x,13);
+    put(sim::CommandType::PlaceClaySource,21,3); put(sim::CommandType::PlacePottery,21,6);
+    for (const auto cell:{sim::Cell{0,3},sim::Cell{3,3},sim::Cell{0,6},sim::Cell{3,6},
+                          sim::Cell{6,6},sim::Cell{15,6},sim::Cell{18,6}})
+        put(sim::CommandType::PlaceHousehold,cell.x,cell.y);
+    put(sim::CommandType::PlaceWarehouse,9,14); put(sim::CommandType::PlaceFarm,11,12);
+    put(sim::CommandType::PlaceServicePost,14,12);
+    put(sim::CommandType::PlaceClaySource,12,11); put(sim::CommandType::PlacePottery,9,11);
+    put(sim::CommandType::PlaceClaySource,21,11); put(sim::CommandType::PlacePottery,21,14);
+    for (const auto cell:{sim::Cell{0,11},sim::Cell{3,11},sim::Cell{6,11},sim::Cell{15,11},
+                          sim::Cell{18,11},sim::Cell{0,14},sim::Cell{3,14},sim::Cell{6,14},
+                          sim::Cell{15,14},sim::Cell{18,14}})
+        put(sim::CommandType::PlaceHousehold,cell.x,cell.y);
     check(world.buildings().size()==34 && world.couriers().size()==14 &&
           world.production_balance_valid() && world.city_economy_valid(),
           "expanded City v10 endurance world invalid");
