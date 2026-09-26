@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1d1712" />
+  <meta name="description" content="OpenEmperor is an open-source, clean-room effort to bring Emperor: Rise of the Middle Kingdom to modern systems." />
+  <title>OpenEmperor — Emperor, rebuilt for modern systems</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="https://github.com/oliverjessner/OpenEmperor" aria-label="OpenEmperor on GitHub">
+        <span class="seal" aria-hidden="true">開</span>
+        <span>OpenEmperor</span>
+      </a>
+      <nav>
+        <a href="#status">Status</a>
+        <a href="#works">What works</a>
+        <a class="nav-cta" href="https://github.com/oliverjessner/OpenEmperor">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span></span> Work in progress · Alpha</div>
+          <h1>Raise the Middle Kingdom again.</h1>
+          <p class="lede">
+            OpenEmperor is an open-source, clean-room effort to bring
+            <em>Emperor: Rise of the Middle Kingdom</em> to modern systems.
+          </p>
+
+          <div class="claim-card">
+            <strong>The first open-source recomp effort for Emperor.</strong>
+            <span>Built from research, reverse engineering and user-supplied original game data.</span>
+          </div>
+
+          <div class="actions">
+            <a class="button primary" href="https://github.com/oliverjessner/OpenEmperor">View on GitHub</a>
+            <a class="button secondary" href="https://github.com/oliverjessner/OpenEmperor#quick-start-for-testers">Try the alpha</a>
+          </div>
+
+          <p class="legal-note">
+            Experimental software. Not affiliated with Activision, Sierra, Impressions Games or the original rights holders.
+            Original game assets are not distributed.
+          </p>
+        </div>
+
+        <div class="hero-art" aria-hidden="true">
+          <div class="sun"></div>
+          <div class="mountain mountain-back"></div>
+          <div class="mountain mountain-mid"></div>
+          <div class="mountain mountain-front"></div>
+          <div class="city">
+            <span class="roof roof-a"></span>
+            <span class="roof roof-b"></span>
+            <span class="roof roof-c"></span>
+            <span class="wall"></span>
+            <span class="gate"></span>
+          </div>
+          <div class="river"></div>
+          <div class="stamp">帝</div>
+        </div>
+      </section>
+
+      <section class="status-grid" id="status">
+        <article>
+          <span class="number">01</span>
+          <h2>Native modern build</h2>
+          <p>Current target: macOS on Apple Silicon, with an architecture intended to support Linux and Windows later.</p>
+        </article>
+        <article>
+          <span class="number">02</span>
+          <h2>Original data, read-only</h2>
+          <p>You provide your own legally obtained Emperor game files. OpenEmperor does not ship proprietary assets.</p>
+        </article>
+        <article>
+          <span class="number">03</span>
+          <h2>Playable sandbox</h2>
+          <p>Roads, production, delivery, households, taxes, services, saves and a growing city simulation already work in the alpha sandbox.</p>
+        </article>
+      </section>
+
+      <section class="split-section" id="works">
+        <div>
+          <div class="eyebrow"><span></span> Current state</div>
+          <h2>A city is already taking shape.</h2>
+        </div>
+        <div class="feature-list">
+          <div><b>✓</b><span>SDL3 / C++20 application shell</span></div>
+          <div><b>✓</b><span>Original map and asset readers</span></div>
+          <div><b>✓</b><span>Road placement and live rerouting</span></div>
+          <div><b>✓</b><span>Production and delivery chains</span></div>
+          <div><b>✓</b><span>Households, services, population and taxes</span></div>
+          <div><b>✓</b><span>OpenEmperor save / load</span></div>
+          <div class="muted"><b>…</b><span>Campaigns, original economy and full rendering behavior are still ahead</span></div>
+        </div>
+      </section>
+
+      <section class="wip-panel">
+        <div class="stamp small">工</div>
+        <div>
+          <p class="kicker">WORK IN PROGRESS</p>
+          <h2>This is not a finished recreation.</h2>
+          <p>
+            OpenEmperor is an experimental alpha and active reverse-engineering project.
+            Expect missing systems, diagnostic visuals and breaking changes while the foundations are rebuilt.
+          </p>
+        </div>
+        <a class="button secondary light" href="https://github.com/oliverjessner/OpenEmperor/blob/main/KNOWN_ISSUES.md">Known issues</a>
+      </section>
+
+      <section class="final-cta">
+        <span class="ornament">◆</span>
+        <h2>Long live the city builder.</h2>
+        <p>Follow development, test the alpha or contribute on GitHub.</p>
+        <a class="button primary" href="https://github.com/oliverjessner/OpenEmperor">github.com/oliverjessner/OpenEmperor</a>
+      </section>
+    </main>
+
+    <footer>
+      <span>OpenEmperor</span>
+      <span>Open source · Experimental · Work in progress</span>
+    </footer>
+  </div>
+</body>
+</html>
