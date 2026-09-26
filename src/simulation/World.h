@@ -14,7 +14,7 @@ inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
 enum class RulesProfile {
     LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8,
-    CityV9, CityV10
+    CityV9, CityV10, CityV11
 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
@@ -24,6 +24,7 @@ inline constexpr const char* city_v7_profile_name = "sandbox-city-v7";
 inline constexpr const char* city_v8_profile_name = "sandbox-city-v8";
 inline constexpr const char* city_v9_profile_name = "sandbox-city-v9";
 inline constexpr const char* city_v10_profile_name = "sandbox-city-v10";
+inline constexpr const char* city_v11_profile_name = "sandbox-city-v11";
 inline constexpr std::size_t legacy_max_buildings=9;
 inline constexpr std::size_t legacy_max_couriers=5;
 inline constexpr std::size_t city_v7_max_buildings=10;
@@ -37,7 +38,8 @@ constexpr bool household_profile(RulesProfile profile) {
     return profile==RulesProfile::HouseholdV3 || profile==RulesProfile::SettlementV4 ||
            profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6 ||
            profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
-           profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10;
+           profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10 ||
+           profile==RulesProfile::CityV11;
 }
 constexpr bool production_profile(RulesProfile profile) {
     return profile==RulesProfile::ProductionV2 || household_profile(profile);
@@ -45,23 +47,26 @@ constexpr bool production_profile(RulesProfile profile) {
 constexpr bool industry_profile(RulesProfile profile) {
     return profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6 ||
            profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
-           profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10;
+           profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10 ||
+           profile==RulesProfile::CityV11;
 }
 constexpr bool city_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV6 || profile==RulesProfile::CityV7 ||
            profile==RulesProfile::CityV8 || profile==RulesProfile::CityV9 ||
-           profile==RulesProfile::CityV10;
+           profile==RulesProfile::CityV10 || profile==RulesProfile::CityV11;
 }
 constexpr bool food_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
-           profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10;
+           profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10 ||
+           profile==RulesProfile::CityV11;
 }
 constexpr bool service_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV8 || profile==RulesProfile::CityV9 ||
-           profile==RulesProfile::CityV10;
+           profile==RulesProfile::CityV10 || profile==RulesProfile::CityV11;
 }
 constexpr bool population_profile(RulesProfile profile) {
-    return profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10;
+    return profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10 ||
+           profile==RulesProfile::CityV11;
 }
 const char* rules_profile_name(RulesProfile profile);
 struct Rules {
@@ -121,7 +126,20 @@ struct Rules {
     static constexpr int city_v10_goal_households = 10;
     static constexpr int city_v10_goal_level2_households = 8;
     static constexpr int city_v10_population_goal = 100;
+    static constexpr std::int64_t city_v11_starting_treasury = 1300;
+    static constexpr std::int64_t market_cost = 140;
+    static constexpr int market_workers = 4;
+    static constexpr int market_pottery_capacity = 16;
+    static constexpr int market_food_capacity = 16;
+    static constexpr std::size_t city_v11_market_limit = 4;
+    static constexpr std::size_t city_v11_building_limit = 38;
+    static constexpr std::size_t city_v11_courier_limit = 22;
 };
+
+constexpr std::int64_t starting_treasury_for(RulesProfile profile) {
+    return profile==RulesProfile::CityV11 ? Rules::city_v11_starting_treasury:
+        Rules::starting_treasury;
+}
 
 struct Cell {
     int x=0;
@@ -129,7 +147,7 @@ struct Cell {
     bool operator==(const Cell&) const = default;
 };
 enum class Object : std::uint8_t {
-    Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost
+    Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost, Market
 };
 struct BuildingFootprint {
     int width=1;
@@ -146,7 +164,7 @@ struct BuildingEntrance {
     bool operator==(const BuildingEntrance&) const = default;
 };
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
-                         RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost };
+                         RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost, PlaceMarket };
 struct Command { CommandType type; Cell cell; };
 struct CommandResult {
     bool accepted=false;
@@ -164,7 +182,9 @@ enum class BuildingId : std::uint32_t {
 };
 enum class CourierId : std::uint32_t { Clay=1, Pottery=2, Household=3, Food=6, Service=7 };
 enum class CourierRole : std::uint8_t {
-    None=0, Clay=1, Pottery=2, Household=3, Food=4, Service=5
+    None=0, Clay=1, Pottery=2, Household=3, Food=4, Service=5,
+    MarketPotteryInbound=6, MarketFoodInbound=7,
+    MarketPotteryDistribution=8, MarketFoodDistribution=9
 };
 enum class CourierDispatchStatus : std::uint8_t {
     Ready,
@@ -189,7 +209,7 @@ struct BuildingState {
     bool placed=false;
     int input_clay=0;
     int output=0; // Clay at source; Pottery at pottery.
-    int pottery_stock=0; // Warehouse only.
+    int pottery_stock=0; // Warehouse, Household, or Market according to kind.
     int reserved_incoming=0;
     int progress=0;
     int active_recipe_clay=0;

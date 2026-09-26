@@ -14,14 +14,14 @@ struct Rect {
 
 enum class Action {
     Select, Road, Clay, Pottery, Warehouse, RemoveRoad, Household, Farm, ServicePost,
-    Pause, Step, Speed1, Speed2, Speed4, Reset, Save, Load, TogglePanel, ToggleHelp
+    Market, Pause, Step, Speed1, Speed2, Speed4, Reset, Save, Load, TogglePanel, ToggleHelp
 };
 
 struct Button { Action action; Rect rect; bool enabled=true; };
 
 struct Layout {
     Rect map,top,toolbar,status,panel,panel_toggle;
-    std::array<Button,19> buttons{};
+    std::array<Button,20> buttons{};
     bool panel_open=true;
     int scale=1;
     std::optional<Action> button_at(double x,double y) const;

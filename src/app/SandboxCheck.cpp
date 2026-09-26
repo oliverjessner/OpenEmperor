@@ -70,15 +70,18 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             simulation::production_profile(rules) ? 3000 : 700;
         for (int i=0;i<limit;++i) {
             const auto before=simulation::household_profile(rules) &&
-                rules!=simulation::RulesProfile::CityV10 ?
+                rules!=simulation::RulesProfile::CityV10 &&
+                rules!=simulation::RulesProfile::CityV11 ?
                 view.world().courier(simulation::CourierId::Household):simulation::CourierState{};
             std::vector<std::pair<simulation::CourierId,simulation::CourierPhase>> previous;
-            const unsigned courier_count=rules==simulation::RulesProfile::CityV10 ?
+            const unsigned courier_count=(rules==simulation::RulesProfile::CityV10 ||
+                rules==simulation::RulesProfile::CityV11) ?
                 static_cast<unsigned>(view.world().couriers().size()):
                 simulation::service_profile(rules) ? 7U:
                 simulation::food_profile(rules) ? 6U:
                 simulation::industry_profile(rules) ? 5U:0U;
-            if (rules==simulation::RulesProfile::CityV10) {
+            if (rules==simulation::RulesProfile::CityV10 ||
+                rules==simulation::RulesProfile::CityV11) {
                 for (const auto& c:view.world().couriers()) previous.emplace_back(c.id,c.phase);
             } else if (courier_count)
                 for (unsigned id=1;id<=courier_count;++id)
@@ -218,24 +221,33 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         };
         const auto& world=view.world();
         const auto origin=view.demo_origin();
-        if (rules==simulation::RulesProfile::CityV10) {
-            std::size_t houses=0,warehouses=0,farms=0,posts=0;
+        if (rules==simulation::RulesProfile::CityV10 ||
+            rules==simulation::RulesProfile::CityV11) {
+            const bool v11=rules==simulation::RulesProfile::CityV11;
+            std::size_t houses=0,warehouses=0,farms=0,posts=0,markets=0;
+            std::uint64_t fulfilled=0;
             for (const auto& b:world.buildings()) {
                 houses+=b.kind==simulation::Object::Household;
                 warehouses+=b.kind==simulation::Object::Warehouse;
                 farms+=b.kind==simulation::Object::Farm;
                 posts+=b.kind==simulation::Object::ServicePost;
+                markets+=b.kind==simulation::Object::Market;
+                if (b.kind==simulation::Object::Household) fulfilled+=b.fulfilled_demand;
             }
-            const bool success=houses==3 && warehouses==1 && farms==1 && posts==1 &&
-                world.buildings().size()==8 && world.couriers().size()==5 && service_visits>0 &&
+            const bool success=houses==(v11 ? 4U:3U) && warehouses==1 && farms==1 && posts==1 &&
+                markets==(v11 ? 1U:0U) && world.buildings().size()==(v11 ? 10U:8U) &&
+                world.couriers().size()==(v11 ? 7U:5U) && service_visits>0 &&
+                (!v11 || (fulfilled>0 && world.taxes_collected_total()>0)) &&
                 balanced && rendered && (!resume_check ||
                     (saved && reparsed && fresh_world && direct_equal && continued_equal));
-            std::cout<<nlohmann::json{{"schema","openemperor-sandbox-check-v10"},
+            std::cout<<nlohmann::json{{"schema",v11 ? "openemperor-sandbox-check-v11":
+                                                    "openemperor-sandbox-check-v10"},
                 {"rules",simulation::rules_profile_name(rules)},
                 {"map",map_relative.generic_string()},{"ticks",world.ticks()},
                 {"building_count",world.buildings().size()},{"courier_count",world.couriers().size()},
                 {"house_count",houses},{"population",world.total_population()},
                 {"warehouses",warehouses},{"farms",farms},{"service_posts",posts},
+                {"markets",markets},{"fulfilled_demands",fulfilled},
                 {"district_independent_deliveries",nullptr},
                 {"district_delivery_scope","starter_single_district"},
                 {"service_visits",service_visits},{"production_balance_valid",world.production_balance_valid()},

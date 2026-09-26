@@ -227,6 +227,40 @@ sim::World make_city_v10_world() {
     return world;
 }
 
+sim::World make_city_v11_world() {
+    constexpr int w=32,h=16;
+    sim::World world(w,h,std::vector<std::uint8_t>(w*h,1),sim::RulesProfile::CityV11);
+    const auto put=[&](sim::CommandType type,int x,int y) { require_command(world,type,x,y); };
+    put(sim::CommandType::PlaceClaySource,0,2); put(sim::CommandType::PlacePottery,0,5);
+    put(sim::CommandType::PlaceWarehouse,3,2); put(sim::CommandType::PlaceFarm,4,5);
+    put(sim::CommandType::PlaceMarket,3,5); put(sim::CommandType::PlaceServicePost,5,5);
+    for (int x=0;x<=14;++x) put(sim::CommandType::PlaceRoad,x,4);
+    int staged=0;
+    for (const auto cell:{sim::Cell{6,2},sim::Cell{6,5},sim::Cell{9,2},sim::Cell{9,5}}) {
+        put(sim::CommandType::PlaceHousehold,cell.x,cell.y);
+        if (++staged<4) for (int tick=0;tick<100;++tick) world.tick();
+    }
+    while (world.treasury()<2500 && world.ticks()<30000) world.tick();
+    check(world.treasury()>=2500,"City v11 starter did not finance endurance expansion");
+    for (int x=15;x<=20;++x) put(sim::CommandType::PlaceRoad,x,4);
+    for (int x:{12,15,18}) {
+        put(sim::CommandType::PlaceHousehold,x,2);
+        put(sim::CommandType::PlaceHousehold,x,5);
+    }
+    put(sim::CommandType::PlaceClaySource,0,9); put(sim::CommandType::PlacePottery,0,12);
+    put(sim::CommandType::PlaceWarehouse,3,9); put(sim::CommandType::PlaceFarm,4,12);
+    put(sim::CommandType::PlaceMarket,3,12); put(sim::CommandType::PlaceServicePost,5,12);
+    for (int x=0;x<=20;++x) put(sim::CommandType::PlaceRoad,x,11);
+    for (int x:{6,9,12,15,18}) {
+        put(sim::CommandType::PlaceHousehold,x,9);
+        put(sim::CommandType::PlaceHousehold,x,12);
+    }
+    check(world.buildings().size()==32 && world.couriers().size()==14 &&
+          world.production_balance_valid() && world.city_economy_valid(),
+          "City v11 large multi-Market endurance fixture invalid");
+    return world;
+}
+
 struct ScheduledCommand {
     std::uint64_t before_tick;
     sim::Command command;
@@ -552,6 +586,38 @@ int main() {
               city_v10_a.route_refresh_count()==city_v10_route_refreshes,
               "City v10 did not complete bounded deterministic 100k endurance");
 
+        auto city_v11_a=make_city_v11_world();
+        const auto city_v11_start_tick=city_v11_a.ticks();
+        const auto city_v11_route_refreshes=city_v11_a.route_refresh_count();
+        bool first_market_seen=false,second_market_seen=false;
+        for (std::uint64_t tick=0;tick<tick_limit;++tick) {
+            city_v11_a.tick();
+            std::size_t market_index=0;
+            for (const auto& building:city_v11_a.buildings())
+                if (building.kind==sim::Object::Market) {
+                    check(building.pottery_stock+building.reserved_incoming<=
+                              sim::Rules::market_pottery_capacity &&
+                          building.food_stock+building.reserved_food_incoming<=
+                              sim::Rules::market_food_capacity,
+                          "City v11 Market capacity exceeded during endurance");
+                    const bool stocked=building.pottery_stock>0 || building.food_stock>0;
+                    if (market_index++==0) first_market_seen=first_market_seen || stocked;
+                    else second_market_seen=second_market_seen || stocked;
+                }
+            if (tick%100==0) {
+                check(city_v11_a.city_economy_valid() &&
+                      city_v11_a.production_balance_valid() &&
+                      city_v11_a.food_balance_valid() && city_v11_a.service_state_valid() &&
+                      city_v11_a.population_valid() && city_v11_a.navigation_valid(),
+                      "City v11 endurance invariant failed");
+            }
+        }
+        check(city_v11_a.ticks()-city_v11_start_tick==tick_limit &&
+              city_v11_a.buildings().size()==32 && city_v11_a.couriers().size()==14 &&
+              first_market_seen && second_market_seen && city_v11_a.route_cache_entries()<=136 &&
+              city_v11_a.route_refresh_count()==city_v11_route_refreshes,
+              "City v11 did not complete bounded deterministic multi-Market 100k endurance");
+
         nlohmann::json states = nlohmann::json::object();
         for (const auto& [name, observed] : representative) states[name] = observed;
         std::cout << nlohmann::json{{"schema", "openemperor-alpha-endurance-v1"},
@@ -603,6 +669,13 @@ int main() {
             {"city_v10_route_refreshes",city_v10_a.route_refresh_count()},
             {"city_v10_route_cache_entries",city_v10_a.route_cache_entries()},
             {"city_v10_economy_valid",city_v10_a.city_economy_valid()},
+            {"city_v11_ticks",tick_limit},
+            {"city_v11_buildings",city_v11_a.buildings().size()},
+            {"city_v11_couriers",city_v11_a.couriers().size()},
+            {"city_v11_population",city_v11_a.total_population()},
+            {"city_v11_route_refreshes",city_v11_a.route_refresh_count()},
+            {"city_v11_route_cache_entries",city_v11_a.route_cache_entries()},
+            {"city_v11_economy_valid",city_v11_a.city_economy_valid()},
             {"result", "pass"}}.dump() << '\n';
         return 0;
     } catch (const std::exception& error) {

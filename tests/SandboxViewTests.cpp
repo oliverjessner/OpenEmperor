@@ -402,6 +402,15 @@ int main(int argc,char** argv) {
                       service->rect.y>=responsive.toolbar.y &&
                       service->rect.y+service->rect.h<=responsive.toolbar.y+responsive.toolbar.h,
                       "City v8 Service tool does not fit responsive toolbar");
+                const auto market=std::find_if(responsive.buttons.begin(),responsive.buttons.end(),
+                    [](const auto& button) {
+                        return button.action==openemperor::sandbox_ui::Action::Market;
+                    });
+                check(market!=responsive.buttons.end() && market->rect.w>0 &&
+                      market->rect.x>=0 && market->rect.x+market->rect.w<=width &&
+                      market->rect.y>=responsive.toolbar.y &&
+                      market->rect.y+market->rect.h<=responsive.toolbar.y+responsive.toolbar.h,
+                      "City v11 Market tool does not fit responsive toolbar");
             }
             const auto closed=openemperor::sandbox_ui::make_layout(1100,700,1100,700,false);
             check(!closed.ui_at(900,200) && closed.map.w==1100,

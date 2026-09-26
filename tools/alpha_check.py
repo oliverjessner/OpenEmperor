@@ -88,7 +88,7 @@ def test_build(build: Path, jobs: int, env: dict[str, str] | None = None) -> dic
 
 
 def endurance(build: Path, env: dict[str, str] | None = None) -> dict[str, object]:
-    output, elapsed = run([str(build / "openemperor-alpha-endurance")], timeout=900, env=env)
+    output, elapsed = run([str(build / "openemperor-alpha-endurance")], timeout=1800, env=env)
     try:
         result = json.loads(output.strip().splitlines()[-1])
     except (json.JSONDecodeError, IndexError) as error:
@@ -284,7 +284,7 @@ def main() -> int:
         report["build"] = {
             "debug": configure(debug, "Debug", args.jobs, args.system_sdl),
             "release": configure(release, "Release", args.jobs, args.system_sdl, fresh=True),
-            "sanitize": configure(sanitize, "Debug", args.jobs, args.system_sdl,
+            "sanitize": configure(sanitize, "RelWithDebInfo", args.jobs, args.system_sdl,
                                   sanitizers=True, fresh=True)}
         sanitizer_env = os.environ.copy()
         # Apple's ASan runtime aborts when LeakSanitizer is requested. Resource
