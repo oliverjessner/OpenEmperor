@@ -1,6 +1,7 @@
 # OpenEmperor 0.1.0-alpha.1 known issues
 
 - This alpha is an OpenEmperor sandbox, not Emperor gameplay parity.
+- City-v11 rules v2 pass synthetic cold-start, sustained 20-House, recovery, persistence and original-data offscreen checks, but a complete interactive desktop playthrough has not yet been performed; City-v10 therefore remains the menu default.
 - Original Emperor savegames are not supported. Only OpenEmperor sandbox saves are accepted.
 - The automatic curated walker, building, and road preview is enabled only when all six files in one locally validated GOG-derived asset set match exact SHA-256 fingerprints. Other data revisions use presentation fallbacks.
 - The bundled compatibility profiles contain only OpenEmperor metadata. They do not contain original pixels or other original game bytes. Their visual mappings, anchors, timing, and road topology remain curated preview conventions.

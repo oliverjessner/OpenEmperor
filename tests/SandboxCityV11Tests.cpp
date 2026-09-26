@@ -29,7 +29,7 @@ void put(sim::World& world,sim::CommandType type,int x,int y) {
 void road(sim::World& world,int x,int y) { put(world,sim::CommandType::PlaceRoad,x,y); }
 
 sim::World starter(bool include_market=true) {
-    sim::World world(width,height,mask(),sim::RulesProfile::CityV11);
+    sim::World world(width,height,mask(),sim::RulesProfile::CityV11,1);
     put(world,sim::CommandType::PlaceClaySource,0,2);
     put(world,sim::CommandType::PlacePottery,0,5);
     put(world,sim::CommandType::PlaceWarehouse,3,2);
@@ -155,7 +155,7 @@ void check_one_market_loop() {
 }
 
 sim::World separated_starter() {
-    sim::World world(width,height,mask(),sim::RulesProfile::CityV11);
+    sim::World world(width,height,mask(),sim::RulesProfile::CityV11,1);
     put(world,sim::CommandType::PlaceClaySource,0,2);
     put(world,sim::CommandType::PlacePottery,0,5);
     put(world,sim::CommandType::PlaceWarehouse,3,2);
@@ -308,7 +308,7 @@ void check_market_staffing_recovery() {
 double market_route_score(int market_x) {
     constexpr int route_width=24,route_height=8;
     sim::World world(route_width,route_height,
-        std::vector<std::uint8_t>(route_width*route_height,1),sim::RulesProfile::CityV11);
+        std::vector<std::uint8_t>(route_width*route_height,1),sim::RulesProfile::CityV11,1);
     put(world,sim::CommandType::PlaceWarehouse,0,1);
     put(world,sim::CommandType::PlaceFarm,2,4);
     put(world,sim::CommandType::PlaceMarket,market_x,4);
@@ -341,7 +341,7 @@ void check_market_placement_diagnostic() {
 void check_two_district_expansion_and_recovery() {
     constexpr int district_height=16;
     sim::World world(width,district_height,
-        std::vector<std::uint8_t>(width*district_height,1),sim::RulesProfile::CityV11);
+        std::vector<std::uint8_t>(width*district_height,1),sim::RulesProfile::CityV11,1);
     put(world,sim::CommandType::PlaceClaySource,0,2);
     put(world,sim::CommandType::PlacePottery,0,5);
     put(world,sim::CommandType::PlaceWarehouse,3,2);
@@ -436,7 +436,7 @@ void check_two_district_expansion_and_recovery() {
 }
 
 void check_market_limit_and_fairness() {
-    sim::World limit(width,height,mask(),sim::RulesProfile::CityV11);
+    sim::World limit(width,height,mask(),sim::RulesProfile::CityV11,1);
     for (int x=0;x<4;++x) put(limit,sim::CommandType::PlaceMarket,x,0);
     const auto building_next=limit.next_building_id(),courier_next=limit.next_courier_id();
     const auto rejected=limit.execute({sim::CommandType::PlaceMarket,{4,0}});
@@ -444,7 +444,7 @@ void check_market_limit_and_fairness() {
           limit.next_courier_id()==courier_next && limit.buildings().size()==4 &&
           limit.couriers().size()==8,"fifth Market consumed money or stable IDs");
 
-    sim::World world(width,height,mask(),sim::RulesProfile::CityV11);
+    sim::World world(width,height,mask(),sim::RulesProfile::CityV11,1);
     put(world,sim::CommandType::PlaceClaySource,0,2);
     put(world,sim::CommandType::PlacePottery,3,2);
     put(world,sim::CommandType::PlaceWarehouse,6,2);

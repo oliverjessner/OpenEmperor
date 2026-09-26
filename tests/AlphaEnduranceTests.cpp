@@ -235,10 +235,8 @@ sim::World make_city_v11_world() {
     put(sim::CommandType::PlaceWarehouse,3,2); put(sim::CommandType::PlaceFarm,4,5);
     put(sim::CommandType::PlaceMarket,3,5); put(sim::CommandType::PlaceServicePost,5,5);
     for (int x=0;x<=14;++x) put(sim::CommandType::PlaceRoad,x,4);
-    int staged=0;
     for (const auto cell:{sim::Cell{6,2},sim::Cell{6,5},sim::Cell{9,2},sim::Cell{9,5}}) {
         put(sim::CommandType::PlaceHousehold,cell.x,cell.y);
-        if (++staged<4) for (int tick=0;tick<100;++tick) world.tick();
     }
     while (world.treasury()<2500 && world.ticks()<30000) world.tick();
     check(world.treasury()>=2500,"City v11 starter did not finance endurance expansion");
@@ -590,6 +588,18 @@ int main() {
         const auto city_v11_start_tick=city_v11_a.ticks();
         const auto city_v11_route_refreshes=city_v11_a.route_refresh_count();
         bool first_market_seen=false,second_market_seen=false;
+        const auto demand_totals=[](const sim::World& world) {
+            std::pair<std::uint64_t,std::uint64_t> result{};
+            for (const auto& building:world.buildings())
+                if (building.kind==sim::Object::Household) {
+                    result.first+=building.fulfilled_demand;
+                    result.second+=building.missed_demand;
+                }
+            return result;
+        };
+        auto previous_demand=demand_totals(city_v11_a);
+        auto previous_taxes=city_v11_a.taxes_collected_total();
+        nlohmann::json city_v11_windows=nlohmann::json::array();
         for (std::uint64_t tick=0;tick<tick_limit;++tick) {
             city_v11_a.tick();
             std::size_t market_index=0;
@@ -610,6 +620,16 @@ int main() {
                       city_v11_a.food_balance_valid() && city_v11_a.service_state_valid() &&
                       city_v11_a.population_valid() && city_v11_a.navigation_valid(),
                       "City v11 endurance invariant failed");
+            }
+            if ((tick+1)%10'000==0) {
+                const auto demand=demand_totals(city_v11_a);
+                city_v11_windows.push_back({{"end_tick",city_v11_a.ticks()},
+                    {"fulfilled_delta",demand.first-previous_demand.first},
+                    {"missed_delta",demand.second-previous_demand.second},
+                    {"tax_delta",city_v11_a.taxes_collected_total()-previous_taxes},
+                    {"population",city_v11_a.total_population()}});
+                previous_demand=demand;
+                previous_taxes=city_v11_a.taxes_collected_total();
             }
         }
         check(city_v11_a.ticks()-city_v11_start_tick==tick_limit &&
@@ -673,6 +693,7 @@ int main() {
             {"city_v11_buildings",city_v11_a.buildings().size()},
             {"city_v11_couriers",city_v11_a.couriers().size()},
             {"city_v11_population",city_v11_a.total_population()},
+            {"city_v11_windows",city_v11_windows},
             {"city_v11_route_refreshes",city_v11_a.route_refresh_count()},
             {"city_v11_route_cache_entries",city_v11_a.route_cache_entries()},
             {"city_v11_economy_valid",city_v11_a.city_economy_valid()},

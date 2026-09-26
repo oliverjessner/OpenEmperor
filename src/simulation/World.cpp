@@ -177,8 +177,33 @@ const char* rules_profile_name(RulesProfile profile) {
     return "unknown";
 }
 
-World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfile profile)
-    : width_(width),height_(height),profile_(profile),buildable_(std::move(buildable)) {
+std::uint32_t current_rule_version(RulesProfile profile) {
+    return profile==RulesProfile::ProductionV2 || profile==RulesProfile::CityV11 ? 2U:1U;
+}
+
+bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
+    if (profile==RulesProfile::ProductionV2) return version==2;
+    if (profile==RulesProfile::CityV11) return version==1 || version==2;
+    return version==1;
+}
+
+const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
+    static constexpr ProfileRules legacy{};
+    static constexpr ProfileRules production_v2{2,Rules::clay_ticks,
+        Rules::pottery_recipe_ticks,Rules::farm_ticks,Rules::edge_ticks,0};
+    static constexpr ProfileRules city_v11_v2{2,32,64,32,5,800};
+    if (!rule_version_supported(profile,version))
+        throw std::invalid_argument("unsupported sandbox rule version");
+    if (profile==RulesProfile::ProductionV2) return production_v2;
+    if (profile==RulesProfile::CityV11 && version==2) return city_v11_v2;
+    return legacy;
+}
+
+World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfile profile,
+             std::uint32_t rule_version)
+    : width_(width),height_(height),profile_(profile),
+      rule_version_(rule_version==0 ? current_rule_version(profile):rule_version),
+      buildable_(std::move(buildable)) {
     if (width<=0 || height<=0 || width>512 || height>512 ||
         buildable_.size()!=static_cast<std::size_t>(width)*static_cast<std::size_t>(height))
         throw std::invalid_argument("invalid bounded sandbox grid");
@@ -189,6 +214,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         profile!=RulesProfile::CityV9 && profile!=RulesProfile::CityV10 &&
         profile!=RulesProfile::CityV11)
         throw std::invalid_argument("unknown sandbox rules profile");
+    (void)profile_rules(profile_,rule_version_);
     treasury_=city_profile(profile) ? starting_treasury_for(profile):0;
     objects_.assign(buildable_.size(),Object::Empty);
     owners_.assign(buildable_.size(),0);
@@ -456,6 +482,14 @@ bool World::household_service_active(BuildingId id) const {
 
 std::uint64_t World::household_service_remaining(BuildingId id) const {
     return household_service_active(id) ? building(id).service_until_tick-ticks_:0;
+}
+
+std::uint64_t World::household_move_in_grace_remaining(BuildingId id) const {
+    const auto& home=building(id);
+    if (!home.placed || home.kind!=Object::Household) return 0;
+    const auto grace=active_rules().household_move_in_grace_ticks;
+    if (grace==0 || ticks_<home.placed_tick || ticks_-home.placed_tick>=grace) return 0;
+    return grace-(ticks_-home.placed_tick);
 }
 
 int World::covered_households() const {
@@ -1250,12 +1284,13 @@ void World::tick_production_v2() {
     if (ticks_==UINT64_MAX) throw std::overflow_error("sandbox tick counter exhausted");
     if (city_profile(profile_)) capture_tick_staffing();
     ++ticks_;
+    const auto& rules=active_rules();
     // Stable IDs within each kind: all Clay sources, then all Pottery works.
     // A newly started recipe gains no progress on its start tick.
     for (auto& source:buildings_) if (source.placed && source.kind==Object::ClaySource) {
         if (city_profile(profile_) && !building_staffed_for_tick(source.id)) continue;
         if (source.output<Rules::clay_output_capacity) {
-            if (++source.progress==Rules::clay_ticks) {
+            if (++source.progress==rules.clay_ticks) {
                 if (clay_extracted_total_==UINT64_MAX)
                     throw std::overflow_error("Clay total exhausted");
                 source.progress=0;
@@ -1268,7 +1303,7 @@ void World::tick_production_v2() {
     for (auto& pottery:buildings_) if (pottery.placed && pottery.kind==Object::Pottery) {
         if (city_profile(profile_) && !building_staffed_for_tick(pottery.id)) continue;
         if (pottery.active_recipe_clay>0) {
-            if (++pottery.progress==Rules::pottery_recipe_ticks) {
+            if (++pottery.progress==rules.pottery_recipe_ticks) {
                 if (pottery_completed_total_==UINT64_MAX || pottery.recipes_completed==UINT64_MAX)
                     throw std::overflow_error("Pottery total exhausted");
                 pottery.progress=0;
@@ -1288,7 +1323,7 @@ void World::tick_production_v2() {
         for (auto& farm:buildings_) if (farm.placed && farm.kind==Object::Farm &&
                                          building_staffed_for_tick(farm.id)) {
             if (farm.output<Rules::farm_output_capacity) {
-                if (++farm.progress==Rules::farm_ticks) {
+                if (++farm.progress==rules.farm_ticks) {
                     if (food_produced_total_==UINT64_MAX || farm.food_produced==UINT64_MAX)
                         throw std::overflow_error("Food total exhausted");
                     farm.progress=0; ++farm.output; ++farm.food_produced; ++food_produced_total_;
@@ -1299,7 +1334,7 @@ void World::tick_production_v2() {
         auto& farm=mutable_building(BuildingId::Farm);
         if (farm.placed && building_staffed_for_tick(farm.id)) {
             if (farm.output<Rules::farm_output_capacity) {
-                if (++farm.progress==Rules::farm_ticks) {
+                if (++farm.progress==rules.farm_ticks) {
                     if (food_produced_total_==UINT64_MAX || farm.food_produced==UINT64_MAX)
                         throw std::overflow_error("Food total exhausted");
                     farm.progress=0;
@@ -1352,6 +1387,7 @@ void World::tick_production_v2() {
                     ++home.missed_demand;
                     home.last_demand_status=2;
                     if (population_profile(profile_) &&
+                        household_move_in_grace_remaining(home.id)==0 &&
                         home.population>Rules::household_min_population)
                         --home.population;
                 }
@@ -1570,7 +1606,7 @@ void World::move_v2(CourierState& courier) {
     }
     if (courier.path.size()<2 || courier.path_vertex+1>=courier.path.size())
         throw std::logic_error("invalid active courier route");
-    if (++courier.edge_progress<Rules::edge_ticks) return;
+    if (++courier.edge_progress<active_rules().courier_edge_ticks) return;
     courier.edge_progress=0;
     ++courier.path_vertex;
     if (courier.route_pending) {
@@ -1690,7 +1726,7 @@ std::optional<Position> World::courier_position(CourierId id) const {
         return Position{static_cast<double>(c.path.at(c.path_vertex).x),
                         static_cast<double>(c.path.at(c.path_vertex).y)};
     const auto from=c.path[c.path_vertex],to=c.path[c.path_vertex+1];
-    const double t=static_cast<double>(c.edge_progress)/Rules::edge_ticks;
+    const double t=static_cast<double>(c.edge_progress)/active_rules().courier_edge_ticks;
     return Position{from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t};
 }
 const char* World::courier_blockage(CourierId id) const {
@@ -1802,6 +1838,7 @@ bool World::production_balance_valid() const {
 
 bool World::industry_balance_valid() const {
     if (scalable(profile_)) {
+        const auto& rules=active_rules();
         const auto building_cap=market_profile(profile_) ? Rules::city_v11_building_limit:
             Rules::city_v10_building_limit;
         const auto courier_cap=market_profile(profile_) ? Rules::city_v11_courier_limit:
@@ -1827,13 +1864,17 @@ bool World::industry_balance_valid() const {
             pottery_reservations.emplace_back(b.id,0); food_reservations.emplace_back(b.id,0);
             switch (b.kind) {
             case Object::ClaySource:
-                ++clay_count; if (b.output<0 || b.output>Rules::clay_output_capacity) return false;
+                ++clay_count; if (b.output<0 || b.output>Rules::clay_output_capacity ||
+                    b.progress<0 || b.progress>=rules.clay_ticks ||
+                    (b.output==Rules::clay_output_capacity && b.progress!=0)) return false;
                 clay+=static_cast<std::uint64_t>(b.output); extracted+=b.clay_extracted; break;
             case Object::Pottery:
                 ++pottery_count;
                 if (b.input_clay<0 || b.input_clay+b.reserved_incoming>Rules::pottery_input_capacity ||
                     b.output<0 || b.output>Rules::pottery_output_capacity ||
-                    (b.active_recipe_clay!=0 && b.active_recipe_clay!=Rules::pottery_recipe_clay))
+                    (b.active_recipe_clay!=0 && b.active_recipe_clay!=Rules::pottery_recipe_clay) ||
+                    b.progress<0 || b.progress>=rules.pottery_recipe_ticks ||
+                    (b.active_recipe_clay==0 && b.progress!=0))
                     return false;
                 clay+=static_cast<std::uint64_t>(b.input_clay+b.active_recipe_clay);
                 pottery+=static_cast<std::uint64_t>(b.output); recipes+=b.recipes_completed; break;
@@ -1853,7 +1894,9 @@ bool World::industry_balance_valid() const {
                 pottery+=static_cast<std::uint64_t>(b.pottery_stock); food+=static_cast<std::uint64_t>(b.food_stock);
                 consumed+=b.consumed_total; consumed_food+=b.food_consumed_total; break;
             case Object::Farm:
-                ++farm_count; if (b.output<0 || b.output>Rules::farm_output_capacity) return false;
+                ++farm_count; if (b.output<0 || b.output>Rules::farm_output_capacity ||
+                    b.progress<0 || b.progress>=rules.farm_ticks ||
+                    (b.output==Rules::farm_output_capacity && b.progress!=0)) return false;
                 food+=static_cast<std::uint64_t>(b.output); produced_food+=b.food_produced; break;
             case Object::ServicePost: ++service_count; break;
             case Object::Market:
@@ -2282,7 +2325,7 @@ bool World::navigation_valid() const {
         const auto& destination=building(c.phase==CourierPhase::ToWarehouse ? c.target:c.owner);
         if (!c.enabled || !source.placed || !destination.placed ||
             c.path.empty() || c.path.size()>objects_.size() ||
-            c.edge_progress<0 || c.edge_progress>=Rules::edge_ticks ||
+            c.edge_progress<0 || c.edge_progress>=active_rules().courier_edge_ticks ||
             c.path_vertex>=c.path.size() ||
             (c.route_checked_revision && *c.route_checked_revision>road_revision_)) return false;
         if (c.route_pending) {
@@ -2399,7 +2442,7 @@ bool World::goods_balance_valid() const {
 WorldSnapshot World::snapshot() const {
     WorldSnapshot s;
     s.width=width_; s.height=height_; s.profile=profile_;
-    s.rule_version=profile_==RulesProfile::ProductionV2 ? 2U:1U;
+    s.rule_version=rule_version_;
     s.ticks=ticks_; s.command_sequence=command_sequence_; s.road_revision=road_revision_;
     s.roads_placed_total=roads_placed_total_; s.roads_removed_total=roads_removed_total_;
     s.next_household_id=next_household_id_;
@@ -2443,9 +2486,9 @@ WorldSnapshot World::snapshot() const {
 }
 
 World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
-    if (s.rule_version!=(s.profile==RulesProfile::ProductionV2 ? 2U:1U))
+    if (!rule_version_supported(s.profile,s.rule_version))
         throw std::invalid_argument("unsupported sandbox rule version");
-    World w(s.width,s.height,std::move(mask),s.profile);
+    World w(s.width,s.height,std::move(mask),s.profile,s.rule_version);
     const auto fail=[](const char* message)->void { throw std::invalid_argument(message); };
     if (s.ticks==UINT64_MAX || s.command_sequence==UINT64_MAX || s.road_revision>s.command_sequence ||
         s.roads.size()>w.objects_.size() || s.command_sequence<s.roads.size())
@@ -2475,7 +2518,8 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
             if (!path.empty() || vertex!=0 || edge!=0) fail("idle courier has active route");
             return;
         }
-        if (path.empty() || path.size()>w.objects_.size() || edge<0 || edge>=Rules::edge_ticks ||
+        if (path.empty() || path.size()>w.objects_.size() || edge<0 ||
+            edge>=w.active_rules().courier_edge_ticks ||
             (pending ? (vertex!=0 || path.size()!=(edge>0 ? 2U:1U)) :
              (path.size()<3 || vertex>=path.size()-1 ||
               path.front()!=(phase==CourierPhase::ToWarehouse ? source:target) ||

@@ -408,16 +408,13 @@ void SandboxView::place_demo() {
                 if (!valid) break;
             }
             if (!valid) continue;
-            int houses=0;
             for (const auto& command:commands) {
                 if (!world_->execute(command).accepted)
                     throw std::logic_error("City-v11 Market demo command failed");
-                if (command.type==simulation::CommandType::PlaceHousehold && ++houses<4)
-                    for (int tick=0;tick<100;++tick) world_->tick();
             }
             demo_origin_=simulation::Cell{x,y};
             reset_camera();
-            last_message_="City v11 Market starter placed: 1200 spent, 100 funds remain";
+            last_message_="City v11 v2 tick-0 starter placed: 1200 spent, 100 funds remain";
             return;
         }
         throw std::runtime_error("no suitable 15x5 sandbox-buildable City-v11 starter pattern");
@@ -1550,7 +1547,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             "Output full" : "Workshop active");
     } else if (b.kind==simulation::Object::ClaySource) {
         lines.push_back("Clay output "+std::to_string(b.output)+"/8");
-        lines.push_back("Progress "+std::to_string(b.progress)+"/100");
+        lines.push_back("Progress "+std::to_string(b.progress)+"/"+
+            std::to_string(world_->active_rules().clay_ticks));
         lines.push_back("Extracted "+std::to_string(b.clay_extracted));
         lines.push_back(b.output==simulation::Rules::clay_output_capacity ? "Output full" :
             "Extraction active");
@@ -1558,7 +1556,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Clay input "+std::to_string(b.input_clay)+"/8");
         lines.push_back("Reserved input "+std::to_string(b.reserved_incoming));
         lines.push_back("Recipe Clay "+std::to_string(b.active_recipe_clay));
-        lines.push_back("Recipe "+std::to_string(b.progress)+"/150");
+        lines.push_back("Recipe "+std::to_string(b.progress)+"/"+
+            std::to_string(world_->active_rules().pottery_recipe_ticks));
         lines.push_back("Pottery output "+std::to_string(b.output)+"/8");
         lines.push_back("Completed "+std::to_string(b.recipes_completed));
         lines.push_back(b.active_recipe_clay>0 ? "Processing" :
@@ -1586,6 +1585,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             if (simulation::population_profile(rules_))
                 lines.push_back("Population "+std::to_string(b.population)+"/"+
                     std::to_string(world_->household_population_capacity(*id)));
+            if (world_->household_move_in_grace_remaining(*id)>0)
+                lines.push_back("Move-in grace "+
+                    std::to_string(world_->household_move_in_grace_remaining(*id))+" ticks");
             lines.push_back("Food stock "+std::to_string(b.food_stock)+"/8");
             lines.push_back("Food reserved "+std::to_string(b.reserved_food_incoming));
             lines.push_back("Food consumed "+std::to_string(b.food_consumed_total));
@@ -1614,9 +1616,12 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             b.last_demand_status==1 ? "Demand: supplied" : "Demand: unmet");
     } else if (b.kind==simulation::Object::Farm) {
         lines.push_back("Food output "+std::to_string(b.output)+"/12");
-        lines.push_back("Progress "+std::to_string(b.progress)+"/80");
+        lines.push_back("Progress "+std::to_string(b.progress)+"/"+
+            std::to_string(world_->active_rules().farm_ticks));
         lines.push_back("Produced "+std::to_string(b.food_produced));
     } else if (b.kind==simulation::Object::Market) {
+        lines.push_back(std::string("Market ")+
+            (world_->building_staffed(*id) ? "staffed":"unstaffed"));
         lines.push_back("Pottery stock "+std::to_string(b.pottery_stock)+"/16");
         lines.push_back("Pottery incoming "+std::to_string(b.reserved_incoming));
         lines.push_back("Food stock "+std::to_string(b.food_stock)+"/16");
@@ -1718,7 +1723,10 @@ bool SandboxView::draw_hud() {
         !fill(layout_.panel,{19,29,43,250})) return false;
     if (!SDL_SetRenderDrawColor(renderer_,230,236,244,255)) return false;
     const std::string profile=debug_open_ ? simulation::rules_profile_name(rules_):profile_title(rules_);
-    std::string overview=profile+" | Tick "+std::to_string(world_->ticks())+" | "+
+    std::string overview=profile;
+    if (rules_==simulation::RulesProfile::CityV11)
+        overview+=" v"+std::to_string(world_->rule_version());
+    overview+=" | Tick "+std::to_string(world_->ticks())+" | "+
         (clock_.paused()?"Paused ":"Running ")+std::to_string(clock_.speed())+"x";
     if (simulation::city_profile(rules_)) {
         overview+=" | Funds "+std::to_string(world_->treasury())+" | Workers ";

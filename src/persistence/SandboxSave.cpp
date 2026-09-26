@@ -523,7 +523,9 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::city_v11_profile_name) d.world.profile=simulation::RulesProfile::CityV11;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
-    require(d.world.rule_version==(d.world.profile==simulation::RulesProfile::ProductionV2 && schema>=2 ? 2U:1U) &&
+    require((d.world.profile==simulation::RulesProfile::ProductionV2 ?
+                d.world.rule_version==(schema==1 ? 1U:2U):
+                simulation::rule_version_supported(d.world.profile,d.world.rule_version)) &&
             (d.world.profile!=simulation::RulesProfile::HouseholdV3 || schema>=3) &&
             (d.world.profile!=simulation::RulesProfile::SettlementV4 || schema==4) &&
             (d.world.profile!=simulation::RulesProfile::IndustryV5 || schema==5) &&

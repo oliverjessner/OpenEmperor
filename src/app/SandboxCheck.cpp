@@ -243,6 +243,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             std::cout<<nlohmann::json{{"schema",v11 ? "openemperor-sandbox-check-v11":
                                                     "openemperor-sandbox-check-v10"},
                 {"rules",simulation::rules_profile_name(rules)},
+                {"rule_version",world.rule_version()},
                 {"map",map_relative.generic_string()},{"ticks",world.ticks()},
                 {"building_count",world.buildings().size()},{"courier_count",world.couriers().size()},
                 {"house_count",houses},{"population",world.total_population()},

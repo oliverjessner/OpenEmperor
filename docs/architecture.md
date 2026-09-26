@@ -4,7 +4,9 @@
 
 City-v11 reuses City-v10's SDL-free variable-length entity storage, footprint entrances, route cache, BFS, rerouting and stable-ID iteration. It appends `Market` and four courier roles without renumbering earlier values. Warehouse and Farm couriers target Markets; each Market owns independent Pottery and Food couriers targeting Houses. Role helpers select source stock, target kind, capacity and reservation field, so the same dispatch and arrival paths enforce Market and Household bounds. Active targets remain fixed through topology changes.
 
-Schema 11 serializes City-v11's Market records and appended roles. Restore validates each role's owner, active target, cyclic target cursor, reservations, inventory conservation and profile-specific limits before rebuilding occupancy and route caches. Schema 10 continues to reject those values. The Market layer has no SDL or asset dependency; the app adds only commands, diagnostics and fallback rendering. See [City-v11 rules](city-v11.md).
+`ProfileRules` is the single SDL-free lookup for production and movement intervals selected by `(RulesProfile, rules.version)`. Existing City-v11 v1 retains 100/150/80 production ticks, ten-tick road edges and no grace. New v2 Worlds use 32/64/32, five-tick edges and an 800-tick population-only move-in grace. Production, dispatch, movement, invariant validation, inspection and restore all read the active rule set. Other profiles keep their prior values.
+
+Schema 11 serializes City-v11's Market records, appended roles and rule version. Restore constructs the World with the saved version before validating progress, paths, owner/target roles, cyclic cursors, reservations and conservation. Version 1 and 2 remain distinct; unknown versions fail. Schema 10 continues to reject Market values. The Market layer has no SDL or asset dependency; the app adds only commands, diagnostics and fallback rendering. See [City-v11 rules](city-v11.md).
 
 ## City-v10 scalable simulation storage
 

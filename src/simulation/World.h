@@ -136,6 +136,20 @@ struct Rules {
     static constexpr std::size_t city_v11_courier_limit = 22;
 };
 
+struct ProfileRules {
+    std::uint32_t version=1;
+    int clay_ticks=Rules::clay_ticks;
+    int pottery_recipe_ticks=Rules::pottery_recipe_ticks;
+    int farm_ticks=Rules::farm_ticks;
+    int courier_edge_ticks=Rules::edge_ticks;
+    std::uint64_t household_move_in_grace_ticks=0;
+    bool operator==(const ProfileRules&) const = default;
+};
+
+std::uint32_t current_rule_version(RulesProfile profile);
+bool rule_version_supported(RulesProfile profile,std::uint32_t version);
+const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version);
+
 constexpr std::int64_t starting_treasury_for(RulesProfile profile) {
     return profile==RulesProfile::CityV11 ? Rules::city_v11_starting_treasury:
         Rules::starting_treasury;
@@ -322,8 +336,10 @@ const char* delivery_phase_name(CourierPhase phase);
 class World {
 public:
     World(int width,int height,std::vector<std::uint8_t> buildable,
-          RulesProfile profile=RulesProfile::LogisticsV1);
+          RulesProfile profile=RulesProfile::LogisticsV1,std::uint32_t rule_version=0);
     RulesProfile profile() const { return profile_; }
+    std::uint32_t rule_version() const { return rule_version_; }
+    const ProfileRules& active_rules() const { return profile_rules(profile_,rule_version_); }
     int width() const { return width_; }
     int height() const { return height_; }
     bool in_bounds(Cell cell) const;
@@ -369,6 +385,7 @@ public:
     int household_level(BuildingId id) const;
     bool household_service_active(BuildingId id) const;
     std::uint64_t household_service_remaining(BuildingId id) const;
+    std::uint64_t household_move_in_grace_remaining(BuildingId id) const;
     int covered_households() const;
     int household_population(BuildingId id) const;
     int household_population_capacity(BuildingId id) const;
@@ -431,6 +448,7 @@ private:
     int width_;
     int height_;
     RulesProfile profile_;
+    std::uint32_t rule_version_=1;
     std::vector<std::uint8_t> buildable_;
     std::vector<Object> objects_;
     std::vector<std::uint32_t> owners_;
