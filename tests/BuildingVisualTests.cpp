@@ -83,7 +83,7 @@ void profile_checks(Fixture& fixture) {
     check(pottery && pottery->id.image_index==3 && loaded.unique_images.size()==1 &&
           loaded.unique_images[pottery->image_index].width==158 &&
           loaded.unique_images[pottery->image_index].height==90 &&
-          pottery->ground_x==79 && pottery->ground_y==70,
+          pottery->ground_x==79 && pottery->ground_y==70 && pottery->footprint_side==2,
           "physical Type-30 building load");
     auto shared=fixture.valid();
     shared["buildings"]["warehouse"]=shared["buildings"]["pottery"];
@@ -100,19 +100,49 @@ void profile_checks(Fixture& fixture) {
         write(fixture.data/(std::string("DATA/")+name+".555"),bitmap);
     };
     make_copy("clay",0x03ff);make_copy("warehouse",0x7fe0);make_copy("house",0x03e0);
+    auto one_cell=fixture.sg3;
+    const std::size_t one_record=40680U+3U*72U;
+    u32(one_cell,one_record+4,3200);u32(one_cell,one_record+8,3200);
+    u16(one_cell,one_record+20,78);u16(one_cell,one_record+22,61);
+    one_cell[one_record+55]=1;
+    write(fixture.data/"DATA/one-cell.sg3",one_cell);
+    Bytes one_bitmap(3204,0);
+    for (std::size_t at=4;at<one_bitmap.size();at+=2) u16(one_bitmap,at,0x7c00);
+    write(fixture.data/"DATA/one-cell.555",one_bitmap);
     auto all=fixture.valid();
     for (const auto& [role,name]:std::array<std::pair<const char*,const char*>,3>{{
             {"clay_source","clay"},{"warehouse","warehouse"},{"household","house"}}}) {
         all["buildings"][role]=all["buildings"]["pottery"];
         all["buildings"][role]["archive"]=std::string("DATA/")+name+".sg3";
     }
+    for (const char* role:{"farm","service_post","market"}) {
+        all["buildings"][role]=all["buildings"]["pottery"];
+        all["buildings"][role]["archive"]="DATA/one-cell.sg3";
+    }
     fixture.save(all);
     const auto four=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
-    check(four.unique_images.size()==4 &&
+    check(four.unique_images.size()==5 &&
           std::all_of(openemperor::assets::building_roles.begin(),
                       openemperor::assets::building_roles.end(),
                       [&](auto role){return four.find(role)!=nullptr;}),
-          "four distinct building assets failed");
+          "seven-role profile or one-cell deduplication failed");
+    check(four.find(openemperor::assets::BuildingVisualRole::Farm)->footprint_side==1 &&
+          four.find(openemperor::assets::BuildingVisualRole::ServicePost)->image_index==
+              four.find(openemperor::assets::BuildingVisualRole::Farm)->image_index &&
+          four.find(openemperor::assets::BuildingVisualRole::Market)->image_index==
+              four.find(openemperor::assets::BuildingVisualRole::Farm)->image_index,
+          "new one-cell roles did not share their synthetic texture");
+    using O=openemperor::simulation::Object;
+    using R=openemperor::assets::BuildingVisualRole;
+    check(openemperor::building_visual_role(O::Farm)==R::Farm &&
+          openemperor::building_visual_role(O::ServicePost)==R::ServicePost &&
+          openemperor::building_visual_role(O::Market)==R::Market,
+          "new building visual roles are not selected from Object.kind");
+    auto wrong_footprint=fixture.valid();
+    wrong_footprint["buildings"]["farm"]=wrong_footprint["buildings"]["pottery"];
+    fixture.save(wrong_footprint);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "two-cell image accepted for a one-cell building role");
     const auto raw_duplicate=R"({"schema_version":1,"mode":"curated_building_preview","buildings":{"pottery":{},"pottery":{}}})";
     { std::ofstream out(fixture.manifest);out<<raw_duplicate; }
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},

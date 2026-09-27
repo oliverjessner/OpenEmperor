@@ -1504,6 +1504,48 @@ int main(int argc,char** argv) {
         check(city_v10_view.render(),"large City-v10 building panel frame");
         city_v10_view.shutdown();
 
+        std::vector<std::uint8_t> warning_buildable;
+        auto warning_session=city_v10_fixture(temp,warning_buildable);
+        simulation::World warning_world(228,228,warning_buildable,
+            simulation::RulesProfile::CityV11,2);
+        for (const auto cell:{simulation::Cell{100,101},simulation::Cell{103,101},
+                              simulation::Cell{106,101},simulation::Cell{109,101},
+                              simulation::Cell{112,101}})
+            check(warning_world.execute({simulation::CommandType::PlaceHousehold,cell}).accepted,
+                  "budget-warning House fixture");
+        auto warning_document=openemperor::persistence::make_document(
+            temp.path,"Cities/Synthetic.map",warning_buildable,warning_world);
+        openemperor::SandboxView warning_view(std::move(warning_session),false,
+            simulation::RulesProfile::CityV11);
+        warning_view.configure_save(temp.path,"Cities/Synthetic.map",
+            temp.path.parent_path()/(temp.path.filename().string()+"-warning-save.json"),
+            std::move(warning_document));
+        warning_view.initialize(window,renderer);
+        const simulation::Command warned{simulation::CommandType::PlaceHousehold,{115,101}};
+        const auto before_warning=warning_view.world().snapshot();
+        const auto requested=warning_view.request_execute(warned);
+        check(!requested.accepted && warning_view.budget_warning_pending() &&
+              warning_view.world().snapshot()==before_warning,
+              "starter reserve warning executed before confirmation");
+        warning_view.tick_once();
+        warning_view.update(1.0);
+        check(warning_view.world().snapshot()==before_warning && warning_view.render(),
+              "budget confirmation advanced or failed to render");
+        check(warning_view.resolve_budget_warning(false) &&
+              !warning_view.budget_warning_pending() &&
+              warning_view.world().snapshot()==before_warning,
+              "budget-warning Cancel changed funds, IDs, commands, ticks or World");
+        check(!warning_view.request_execute(warned).accepted &&
+              warning_view.budget_warning_pending() &&
+              warning_view.resolve_budget_warning(true),
+              "Build anyway confirmation path failed");
+        check(warning_view.world().command_sequence()==before_warning.command_sequence+1 &&
+              warning_view.world().treasury()==before_warning.treasury-
+                  simulation::Rules::household_cost &&
+              warning_view.world().next_building_id()==before_warning.next_building_id+1,
+              "Build anyway executed anything other than one revalidated command");
+        warning_view.shutdown();
+
         const auto scaled=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
         const auto scaled_button=std::find_if(scaled.buttons.begin(),scaled.buttons.end(),
             [](const auto& item) { return item.action==openemperor::sandbox_ui::Action::Clay; });

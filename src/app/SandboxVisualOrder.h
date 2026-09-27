@@ -36,6 +36,9 @@ inline std::optional<assets::BuildingVisualRole> building_visual_role(simulation
     case O::Pottery: return R::Pottery;
     case O::Warehouse: return R::Warehouse;
     case O::Household: return R::Household;
+    case O::Farm: return R::Farm;
+    case O::ServicePost: return R::ServicePost;
+    case O::Market: return R::Market;
     default: return std::nullopt;
     }
 }

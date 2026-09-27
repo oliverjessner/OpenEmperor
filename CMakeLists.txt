@@ -214,7 +214,9 @@ add_library(openemperor-maps STATIC
 target_include_directories(openemperor-maps PUBLIC src)
 target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohmann_json::nlohmann_json openemperor-scene)
 openemperor_enable_warnings(openemperor-maps)
-add_library(openemperor-simulation STATIC src/simulation/World.cpp)
+add_library(openemperor-simulation STATIC
+    src/simulation/World.cpp
+    src/simulation/CityStartGuidance.cpp)
 target_include_directories(openemperor-simulation PUBLIC src)
 openemperor_enable_warnings(openemperor-simulation)
 add_library(openemperor-persistence STATIC src/persistence/SandboxSave.cpp
@@ -336,6 +338,14 @@ if(BUILD_TESTING)
     add_test(NAME sandbox-city-v11-balance
         COMMAND openemperor-sandbox-city-v11-balance-tests)
     set_tests_properties(sandbox-city-v11-balance PROPERTIES TIMEOUT 180)
+    add_executable(openemperor-city-start-guidance-tests
+        tests/CityStartGuidanceTests.cpp)
+    target_link_libraries(openemperor-city-start-guidance-tests
+        PRIVATE openemperor-simulation)
+    openemperor_enable_warnings(openemperor-city-start-guidance-tests)
+    add_test(NAME city-v11-start-guidance
+        COMMAND openemperor-city-start-guidance-tests)
+    set_tests_properties(city-v11-start-guidance PROPERTIES TIMEOUT 60)
     add_executable(openemperor-sandbox-courier-triage-tests
         tests/SandboxCourierTriageTests.cpp)
     target_link_libraries(openemperor-sandbox-courier-triage-tests PRIVATE openemperor-simulation)

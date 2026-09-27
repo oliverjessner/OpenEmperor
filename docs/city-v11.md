@@ -23,6 +23,14 @@ The Pottery start tick still supplies no processing progress, so one v2 recipe o
 
 The 800-tick grace is derived only from `ticks - placed_tick`. Demand still runs every 400 ticks, records missing inputs normally, grants no goods, tax or growth, and consumes nothing on failure. During the grace only the population decrement is suppressed. It expires exactly at tick 800 for a House placed at tick 0.
 
+## Playable-start guidance
+
+The UI derives a read-only start diagnosis from `World`. It keeps missing building types, unstaffed buildings, courier routing status, unavailable goods, the Household demand clock and already paid taxes separate. Having enough workers for the currently placed buildings does not mean the revenue chain exists. A city with ClaySource, Pottery, Warehouse and Houses but no Farm, Market or ServicePost reports that tax is not yet possible and calculates the missing minimum as `farm_cost + market_cost + service_post_cost` (currently 400). Roads are explicitly excluded from that minimum.
+
+For a complete starter chain, the worker estimate compares actual population with the full placed requirement. Suggested fresh Houses are `ceil(shortfall / household_initial_population)`, limited by remaining House slots and accompanied by their actual cost and any funding gap. This is only a staffing estimate; it does not promise buildable land, road reachability or sustained future supply.
+
+Before a validated City-v11-v2 construction purchase would leave less money than the still-missing starter supply buildings cost, the app pauses simulation and asks **Build anyway** or **Cancel**. Cancel changes no World field. Approval revalidates and executes the ordinary command once. The conservative warning excludes roads from the reserve amount and is suppressed once supply infrastructure is complete or real tax has already been collected. It adds no credit, free stock, tax or automatic placement and changes neither rules version nor schema.
+
 ## Capacity and measured transport
 
 Twenty Houses require 20 Pottery and 20 Food per 400 ticks. The old v1 maximum was structurally insufficient:
@@ -54,4 +62,4 @@ Synthetic played-state checks independently cut a Market inbound bridge, a resid
 
 The profile starts with 1,300 funds and permits 20 Houses, four Clay Sources, four Potteries, two Warehouses, two Farms, two Service Posts and four Markets. Disconnected roads define local districts because couriers consider only reachable targets. The Inspector shows Market stock and inbound reservations separately, staffing, both distributor phases/statuses, target and cargo. A House shows current missing Pottery/Food/Service, historical last demand, population/capacity and remaining grace.
 
-Market graphics and couriers use OpenEmperor diagnostic fallbacks. These balance values and mechanics do not claim to reconstruct Emperor's economy. City-v10 remains the menu default until City-v11 receives an actual interactive desktop playtest.
+For the exactly fingerprinted compatibility pack, Farm, ServicePost and Market use the metadata-only static preview selections documented in [the building visual profile](building-visual-profile.md); unknown data sets retain honest diagnostic fallbacks. Couriers without a curated role still use OpenEmperor markers. These balance values and mechanics do not claim to reconstruct Emperor's economy. City-v10 remains the menu default until City-v11 receives an actual interactive desktop playtest.

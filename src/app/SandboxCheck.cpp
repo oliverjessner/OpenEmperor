@@ -35,17 +35,18 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         if (!SDL_CreateWindowAndRenderer("Sandbox check",1100,700,SDL_WINDOW_HIDDEN,
                                          &window,&renderer)) throw std::runtime_error(SDL_GetError());
         SandboxView view(std::move(session),true,rules);
+        if (resume_check) {
+            temporary.path=std::filesystem::canonical(std::filesystem::temp_directory_path())/
+                ("openemperor-resume-check-"+std::to_string(std::random_device{}()));
+            std::filesystem::create_directories(temporary.path);
+        }
+        view.configure_save(data_root,map_relative,
+            resume_check ? temporary.path/"resume.json":std::filesystem::path{});
         view.set_compatibility(visuals.compatibility.compatible() ?
             visuals.compatibility.profile->id:"unknown");
         if (!visuals.walker.empty()) view.set_walker_visuals(visuals.walker,visuals.walker_source);
         if (!visuals.building.empty()) view.set_building_visuals(visuals.building,visuals.building_source);
         if (!visuals.road.empty()) view.set_road_visuals(visuals.road,visuals.road_source);
-        if (resume_check) {
-            temporary.path=std::filesystem::canonical(std::filesystem::temp_directory_path())/
-                ("openemperor-resume-check-"+std::to_string(std::random_device{}()));
-            std::filesystem::create_directories(temporary.path);
-            view.configure_save(data_root,map_relative,temporary.path/"resume.json");
-        }
         view.initialize(window,renderer);
         std::optional<simulation::World> walker_control;
         if (!visuals.walker.empty() || !visuals.building.empty() || !visuals.road.empty())
@@ -224,6 +225,18 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         if (rules==simulation::RulesProfile::CityV10 ||
             rules==simulation::RulesProfile::CityV11) {
             const bool v11=rules==simulation::RulesProfile::CityV11;
+            const auto building_stats=view.building_display_stats();
+            const auto visual_role_ok=[&](assets::BuildingVisualRole role) {
+                const auto index=assets::role_index(role);
+                return building_stats.configured_roles[index] &&
+                    building_stats.drawn_instances[index]>0 &&
+                    building_stats.placeholder_fallbacks[index]==0;
+            };
+            const bool expected_builtin=visuals.building_source!=VisualProfileSource::Fallback;
+            const bool visual_ok=!expected_builtin ||
+                (visual_role_ok(assets::BuildingVisualRole::Farm) &&
+                 visual_role_ok(assets::BuildingVisualRole::ServicePost) &&
+                 (!v11 || visual_role_ok(assets::BuildingVisualRole::Market)));
             std::size_t houses=0,warehouses=0,farms=0,posts=0,markets=0;
             std::uint64_t fulfilled=0;
             for (const auto& b:world.buildings()) {
@@ -238,8 +251,17 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 markets==(v11 ? 1U:0U) && world.buildings().size()==(v11 ? 10U:8U) &&
                 world.couriers().size()==(v11 ? 7U:5U) && service_visits>0 &&
                 (!v11 || (fulfilled>0 && world.taxes_collected_total()>0)) &&
-                balanced && rendered && (!resume_check ||
+                balanced && rendered && visual_ok && (!resume_check ||
                     (saved && reparsed && fresh_world && direct_equal && continued_equal));
+            nlohmann::json configured=nlohmann::json::array();
+            nlohmann::json draws=nlohmann::json::object(),fallbacks=nlohmann::json::object();
+            for (const auto role:assets::building_roles) {
+                const auto index=assets::role_index(role);
+                const auto name=assets::building_role_name(role);
+                if (building_stats.configured_roles[index]) configured.push_back(name);
+                draws[name]=building_stats.drawn_instances[index];
+                fallbacks[name]=building_stats.placeholder_fallbacks[index];
+            }
             std::cout<<nlohmann::json{{"schema",v11 ? "openemperor-sandbox-check-v11":
                                                     "openemperor-sandbox-check-v10"},
                 {"rules",simulation::rules_profile_name(rules)},
@@ -252,7 +274,17 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 {"district_independent_deliveries",nullptr},
                 {"district_delivery_scope","starter_single_district"},
                 {"service_visits",service_visits},{"production_balance_valid",world.production_balance_valid()},
-                {"economy_valid",world.city_economy_valid()},{"original_emperor_fidelity_claim",false}}
+                {"economy_valid",world.city_economy_valid()},
+                {"compatibility",{{"detected",visuals.compatibility.compatible()},
+                    {"id",visuals.compatibility.compatible() ? visuals.compatibility.profile->id:"unknown"},
+                    {"building",visual_profile_source_name(view.building_visual_source())}}},
+                {"building_visuals",{{"configured_roles",configured},
+                    {"decoded_unique_assets",building_stats.decoded_assets},
+                    {"texture_uploads",building_stats.texture_uploads},
+                    {"draws_by_role",draws},{"placeholder_fallbacks_by_role",fallbacks},
+                    {"simulation_equal_to_control",simulation_neutral},
+                    {"manual_visual_review",false}}},
+                {"original_emperor_fidelity_claim",false}}
                 .dump()<<'\n';
             view.shutdown(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
             return success ? 0:1;

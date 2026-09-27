@@ -4,6 +4,7 @@
 #include "maps/MapGeometry.h"
 #include "renderer/StoredGraphicsRenderer.h"
 #include "simulation/World.h"
+#include "simulation/CityStartGuidance.h"
 #include "persistence/SandboxSave.h"
 #include "app/SandboxUiLayout.h"
 #include "app/RoadDrag.h"
@@ -60,6 +61,12 @@ public:
     bool render();
     void tick_once(); // Used by the finite, offscreen compatibility check.
     simulation::CommandResult execute(simulation::Command command);
+    simulation::CommandResult request_execute(simulation::Command command);
+    bool budget_warning_pending() const { return budget_warning_.has_value(); }
+    const std::optional<simulation::StarterBudgetWarning>& budget_warning() const {
+        return budget_warning_;
+    }
+    bool resolve_budget_warning(bool build_anyway);
     const simulation::World& world() const { return *world_; }
     std::optional<simulation::Cell> pick(scene::Point screen) const;
     simulation::CommandResult preview(simulation::Cell cell) const;
@@ -142,11 +149,15 @@ private:
     bool draw_walker_diagnostic();
     bool draw_hud();
     bool draw_help_overlay();
+    bool draw_budget_warning_overlay();
     bool draw_text(double x,double y,const std::string& text,int max_width);
     bool action_enabled(sandbox_ui::Action action) const;
     void perform_action(sandbox_ui::Action action);
     void cancel_gesture();
     void refresh_hover();
+    bool request_road(const sandbox_ui::RoadPlan& plan);
+    sandbox_ui::Rect budget_build_rect() const;
+    sandbox_ui::Rect budget_cancel_rect() const;
     std::optional<scene::Point> render_point(float x,float y) const;
     void update_layout(bool preserve_center);
     std::vector<simulation::BuildingId> placed_buildings() const;
@@ -215,6 +226,10 @@ private:
     std::uint64_t io_generation_=0;
     std::uint64_t save_generation_=0, saved_tick_=0, saved_command_=0;
     bool managed_=false, menu_requested_=false, menu_pressed_=false;
+    std::optional<simulation::StarterBudgetWarning> budget_warning_;
+    std::optional<simulation::Command> pending_command_;
+    std::optional<sandbox_ui::RoadPlan> pending_road_;
+    std::optional<bool> budget_button_pressed_;
     // Reused by draw_world(); its capacity remains bounded by the fixed World grid.
     std::vector<DrawInstance> draw_instances_;
 };

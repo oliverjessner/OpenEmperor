@@ -43,6 +43,9 @@ const char* building_role_name(BuildingVisualRole role) {
     case BuildingVisualRole::Pottery: return "pottery";
     case BuildingVisualRole::Warehouse: return "warehouse";
     case BuildingVisualRole::Household: return "household";
+    case BuildingVisualRole::Farm: return "farm";
+    case BuildingVisualRole::ServicePost: return "service_post";
+    case BuildingVisualRole::Market: return "market";
     }
     return "unknown";
 }
@@ -75,6 +78,7 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         throw std::runtime_error("unsupported building visual schema/mode/roles");
     BuildingVisualProfile result;
     std::vector<AssetId> decoded_ids;
+    std::vector<std::uint8_t> decoded_footprint_sides;
     std::uint64_t total_rgba=0;
     for (auto it=json.at("buildings").begin();it!=json.at("buildings").end();++it) {
         const auto role=parse_role(it.key());
@@ -109,6 +113,10 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         const auto found=std::find(decoded_ids.begin(),decoded_ids.end(),entry.id);
         if (found!=decoded_ids.end()) {
             entry.image_index=static_cast<std::size_t>(found-decoded_ids.begin());
+            entry.footprint_side=decoded_footprint_sides.at(entry.image_index);
+            if ((*role==BuildingVisualRole::Farm || *role==BuildingVisualRole::ServicePost ||
+                 *role==BuildingVisualRole::Market) && entry.footprint_side!=1)
+                throw std::runtime_error("building visual footprint does not match the 1x1 role");
             result.entries[role_index(*role)]=std::move(entry);
             continue;
         }
@@ -119,6 +127,20 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         if (record.image_type!=30 || record.width<=0 || record.height<=0 ||
             record.data_length==0 || record.horizontal_mirror_offset!=0)
             throw std::runtime_error("building requires supported unmirrored Type-30 image");
+        const auto side=static_cast<std::uint64_t>(record.isometric_size_flag);
+        const bool valid_side=side>=1 && side<=5;
+        const bool emperor_geometry=valid_side &&
+            static_cast<std::uint64_t>(record.width)==80U*side-2U &&
+            static_cast<std::uint64_t>(record.uncompressed_length)==3200U*side*side;
+        const bool classic_geometry=valid_side &&
+            static_cast<std::uint64_t>(record.width)==60U*side-2U &&
+            static_cast<std::uint64_t>(record.uncompressed_length)==1800U*side*side;
+        if (!emperor_geometry && !classic_geometry)
+            throw std::runtime_error("building Type-30 footprint geometry is unsupported");
+        entry.footprint_side=static_cast<std::uint8_t>(side);
+        if ((*role==BuildingVisualRole::Farm || *role==BuildingVisualRole::ServicePost ||
+             *role==BuildingVisualRole::Market) && entry.footprint_side!=1)
+            throw std::runtime_error("building visual footprint does not match the 1x1 role");
         const auto bytes=static_cast<std::uint64_t>(record.width)*
             static_cast<std::uint64_t>(record.height)*4U;
         if (bytes>max_rgba-total_rgba) throw std::runtime_error("building RGBA budget exceeded");
@@ -132,6 +154,7 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
             throw std::runtime_error("building decoded image differs from metadata");
         entry.image_index=result.unique_images.size();
         decoded_ids.push_back(entry.id);
+        decoded_footprint_sides.push_back(entry.footprint_side);
         result.unique_images.push_back(std::move(image));
         result.entries[role_index(*role)]=std::move(entry);
         total_rgba+=bytes;

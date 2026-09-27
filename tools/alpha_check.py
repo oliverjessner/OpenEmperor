@@ -193,7 +193,7 @@ def original_check(args: argparse.Namespace, executable: Path) -> dict[str, obje
         raise CheckFailure("known original data did not activate the expected automatic visual profiles")
     road_visuals = result.get("road_visuals", {})
     if (result.get("walker_visuals", {}).get("unique_assets") != 48 or
-            result.get("building_visuals", {}).get("decoded_unique_assets") != 4 or
+            result.get("building_visuals", {}).get("decoded_unique_assets") != 7 or
             road_visuals.get("unique_assets") != 12 or
             road_visuals.get("draws", 0) <= 0 or
             (not args.road_visuals and road_visuals.get("configured_masks") != list(range(16)))):

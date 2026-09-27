@@ -5,6 +5,7 @@
 #include "app/WalkerPose.h"
 #include "app/SandboxVisualOrder.h"
 #include "core/Version.h"
+#include "simulation/CityStartGuidance.h"
 
 #include <SDL3/SDL.h>
 
@@ -89,6 +90,15 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::CityV11: return "City v11";
     }
     return "Sandbox";
+}
+
+std::string joined_buildings(const std::vector<simulation::Object>& kinds) {
+    std::string result;
+    for (std::size_t i=0;i<kinds.size();++i) {
+        if (i) result+=i+1==kinds.size() ? " and ":", ";
+        result+=simulation::starter_building_name(kinds[i]);
+    }
+    return result;
 }
 }
 
@@ -779,6 +789,20 @@ void SandboxView::cancel_gesture() {
     road_preview_={};
     menu_pressed_=false;
 }
+
+sandbox_ui::Rect SandboxView::budget_build_rect() const {
+    const int w=std::min(540*layout_.scale,std::max(0,layout_.map.w-24*layout_.scale));
+    const int x=layout_.map.x+(layout_.map.w-w)/2;
+    const int y=layout_.map.y+layout_.map.h/2+28*layout_.scale;
+    return {x+12*layout_.scale,y,250*layout_.scale,34*layout_.scale};
+}
+
+sandbox_ui::Rect SandboxView::budget_cancel_rect() const {
+    auto rect=budget_build_rect();
+    rect.x+=266*layout_.scale;
+    rect.w=std::max(0,250*layout_.scale);
+    return rect;
+}
 void SandboxView::perform_action(sandbox_ui::Action action) {
     using A=sandbox_ui::Action;
     if (action==A::Save || action==A::Load) cancel_gesture();
@@ -850,6 +874,39 @@ void SandboxView::refresh_hover() {
 void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_QUIT || event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
         cancel_gesture(); if (managed_) menu_requested_=true; else running=false; return;
+    }
+    if (budget_warning_) {
+        if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST) {
+            budget_button_pressed_.reset(); return;
+        }
+        if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+            if (event.key.key==SDLK_ESCAPE || event.key.key==SDLK_N) {
+                (void)resolve_budget_warning(false); return;
+            }
+            if (event.key.key==SDLK_RETURN || event.key.key==SDLK_KP_ENTER ||
+                event.key.key==SDLK_Y) {
+                (void)resolve_budget_warning(true); return;
+            }
+        }
+        if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button==SDL_BUTTON_LEFT) {
+            const auto point=render_point(event.button.x,event.button.y);
+            if (point && budget_build_rect().contains(point->x,point->y))
+                budget_button_pressed_=true;
+            else if (point && budget_cancel_rect().contains(point->x,point->y))
+                budget_button_pressed_=false;
+            return;
+        }
+        if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
+            const auto point=render_point(event.button.x,event.button.y);
+            const auto pressed=budget_button_pressed_;
+            budget_button_pressed_.reset();
+            if (point && pressed && *pressed && budget_build_rect().contains(point->x,point->y))
+                (void)resolve_budget_warning(true);
+            else if (point && pressed && !*pressed && budget_cancel_rect().contains(point->x,point->y))
+                (void)resolve_budget_warning(false);
+            return;
+        }
+        return;
     }
     if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST) { cancel_gesture(); pointer_.reset(); refresh_hover(); return; }
     if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED || event.type==SDL_EVENT_WINDOW_RESIZED) {
@@ -1039,19 +1096,18 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         const auto cell=pointer_ ? pick(*pointer_) : std::nullopt;
         if (cell && road_start_ && tool_==1) {
             const auto plan=sandbox_ui::plan_road(*world_,*road_start_,*cell);
-            std::string reason;
-            if (!sandbox_ui::commit_road(*world_,plan,reason)) last_message_=reason;
-            else last_message_=reason;
+            (void)request_road(plan);
             selected_=cell;
         } else if (cell) {
             if (tool_==(simulation::production_profile(rules_) ? 5:4)) selected_=cell;
-            else (void)execute({command_type(rules_,tool_),*cell});
+            else (void)request_execute({command_type(rules_,tool_),*cell});
         }
         cancel_gesture();
         refresh_hover();
     }
 }
 void SandboxView::update(double seconds) {
+    if (budget_warning_) return;
     const bool* keys=SDL_GetKeyboardState(nullptr);
     const double movement=400.0*std::clamp(seconds,0.0,0.05);
     if (!road_start_) {
@@ -1063,12 +1119,69 @@ void SandboxView::update(double seconds) {
     }
     clock_.update(seconds,*world_);
 }
-void SandboxView::tick_once() { world_->tick(); }
+void SandboxView::tick_once() { if (!budget_warning_) world_->tick(); }
 simulation::CommandResult SandboxView::execute(simulation::Command command) {
     const auto result=world_->execute(command);
     last_message_=result.reason;
     selected_=command.cell;
     return result;
+}
+
+simulation::CommandResult SandboxView::request_execute(simulation::Command command) {
+    const auto validated=world_->validate(command);
+    if (!validated.accepted || !validated.changed) return execute(command);
+    if (const auto warning=simulation::starter_budget_warning(*world_,command)) {
+        cancel_gesture();
+        budget_warning_=warning;
+        pending_command_=command;
+        pending_road_.reset();
+        last_message_="This purchase leaves too little money for the missing starter supply buildings.";
+        return {false,false,"Budget confirmation required",world_->command_sequence()+1,
+                world_->ticks()};
+    }
+    return execute(command);
+}
+
+bool SandboxView::request_road(const sandbox_ui::RoadPlan& plan) {
+    std::vector<simulation::Command> commands;
+    for (const auto cell:plan.cells)
+        if (world_->object_at(cell)!=simulation::Object::Road)
+            commands.push_back({simulation::CommandType::PlaceRoad,cell});
+    if (plan.valid) if (const auto warning=simulation::starter_budget_warning(*world_,commands)) {
+        cancel_gesture();
+        budget_warning_=warning;
+        pending_road_=plan;
+        pending_command_.reset();
+        last_message_="This purchase leaves too little money for the missing starter supply buildings.";
+        return false;
+    }
+    std::string reason;
+    const bool okay=sandbox_ui::commit_road(*world_,plan,reason);
+    last_message_=reason;
+    return okay;
+}
+
+bool SandboxView::resolve_budget_warning(bool build_anyway) {
+    if (!budget_warning_) return false;
+    const auto command=pending_command_;
+    const auto road=pending_road_;
+    budget_warning_.reset(); pending_command_.reset(); pending_road_.reset();
+    budget_button_pressed_.reset();
+    if (!build_anyway) {
+        last_message_="Purchase cancelled";
+        return true;
+    }
+    if (command) {
+        const auto result=execute(*command); // World::execute revalidates against current state.
+        return result.accepted;
+    }
+    if (road) {
+        std::string reason;
+        const bool okay=sandbox_ui::commit_road(*world_,*road,reason);
+        last_message_=reason;
+        return okay;
+    }
+    return false;
 }
 scene::Point SandboxView::world_for(simulation::Position cell) const {
     const double u=cell.x-static_cast<double>(geometry_.border);
@@ -1476,6 +1589,64 @@ std::optional<simulation::BuildingId> SandboxView::selected_building() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
+    if (rules_==simulation::RulesProfile::CityV11) {
+        const auto guidance=simulation::inspect_city_start(*world_);
+        const auto facility_kinds=[&](simulation::StarterSupplyCondition condition) {
+            std::vector<simulation::Object> kinds;
+            for (const auto& facility:guidance.facilities)
+                if (facility.condition==condition) kinds.push_back(facility.kind);
+            return kinds;
+        };
+        const auto add_pipeline_state=[&]() {
+            const auto unstaffed=facility_kinds(simulation::StarterSupplyCondition::Unstaffed);
+            const auto no_target=facility_kinds(
+                simulation::StarterSupplyCondition::NoReachableTarget);
+            const auto awaiting=facility_kinds(simulation::StarterSupplyCondition::AwaitingGoods);
+            if (!unstaffed.empty()) lines.push_back("Unstaffed: "+joined_buildings(unstaffed)+".");
+            if (!no_target.empty())
+                lines.push_back("No reachable delivery target: "+joined_buildings(no_target)+".");
+            if (!awaiting.empty())
+                lines.push_back("Awaiting production or delivery: "+joined_buildings(awaiting)+".");
+            return !unstaffed.empty() || !no_target.empty() || !awaiting.empty();
+        };
+        lines.push_back("START STATUS");
+        if (!guidance.missing_supply_buildings.empty()) {
+            lines.push_back("No tax income possible yet.");
+            lines.push_back("Missing: "+joined_buildings(guidance.missing_supply_buildings)+".");
+            lines.push_back("Required building funds: "+
+                std::to_string(guidance.minimum_missing_building_funds)+
+                " minimum. Available: "+std::to_string(world_->treasury())+".");
+            lines.push_back("Workers now "+std::to_string(guidance.workforce_supply)+"/"+
+                std::to_string(guidance.workforce_required_now)+"; full starter "+
+                std::to_string(guidance.workforce_required_for_starter)+" required.");
+            (void)add_pipeline_state();
+        } else if (guidance.household_count==0) {
+            lines.push_back("No tax income possible yet: no House.");
+        } else if (guidance.starter_workforce_shortfall>0) {
+            lines.push_back("Worker shortage: "+std::to_string(guidance.workforce_supply)+
+                " available, "+std::to_string(guidance.workforce_required_for_starter)+" required.");
+            if (guidance.suggested_additional_houses>0 &&
+                guidance.affordable_suggested_houses==guidance.suggested_additional_houses)
+                lines.push_back(std::to_string(guidance.suggested_additional_houses)+
+                    " new Houses would initially add "+
+                    std::to_string(guidance.suggested_additional_houses*
+                                   simulation::Rules::household_initial_population)+" workers.");
+            else if (guidance.suggested_additional_houses>0)
+                lines.push_back("House workforce plan needs "+
+                    std::to_string(guidance.suggested_house_cost)+" funds; short "+
+                    std::to_string(guidance.suggested_house_funds_missing)+".");
+            if (guidance.household_slots_remaining<guidance.houses_needed_for_shortfall)
+                lines.push_back("House limit cannot cover the current worker shortfall.");
+            lines.push_back("Estimate only; roads and sustained supply still matter.");
+        } else {
+            if (guidance.taxes_have_been_collected)
+                lines.push_back("Complete demand has produced tax income.");
+            const bool delayed=add_pipeline_state();
+            if (!delayed && !guidance.taxes_have_been_collected)
+                lines.push_back("Supply ready; Houses are waiting for a demand deadline.");
+        }
+        lines.push_back("Tax requires Food, Pottery and active Service at the deadline.");
+    }
     if (selected_ && world_->object_at(*selected_)==simulation::Object::Road) {
         constexpr const char* names[]{"neg_y","pos_x","pos_y","neg_x"};
         constexpr char hex[]="0123456789abcdef";
@@ -1578,6 +1749,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             " Missed "+std::to_string(b.missed_demand));
         lines.push_back("Consumed "+std::to_string(b.consumed_total));
         if (simulation::food_profile(rules_)) {
+            lines.push_back("Tax requires Food, Pottery and Service at the demand deadline.");
             const auto next=b.fulfilled_demand+1;
             const auto next_tax=next>=simulation::Rules::city_v7_level2_demands ? 60:
                 next>=simulation::Rules::city_v7_level1_demands ? 40:25;
@@ -1585,9 +1757,11 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             if (simulation::population_profile(rules_))
                 lines.push_back("Population "+std::to_string(b.population)+"/"+
                     std::to_string(world_->household_population_capacity(*id)));
-            if (world_->household_move_in_grace_remaining(*id)>0)
-                lines.push_back("Move-in grace "+
-                    std::to_string(world_->household_move_in_grace_remaining(*id))+" ticks");
+            lines.push_back("Next demand in "+
+                std::to_string(std::max(0,simulation::Rules::household_demand_ticks-
+                    b.demand_progress))+" ticks");
+            lines.push_back("Move-in grace "+
+                std::to_string(world_->household_move_in_grace_remaining(*id))+" ticks");
             lines.push_back("Food stock "+std::to_string(b.food_stock)+"/8");
             lines.push_back("Food reserved "+std::to_string(b.reserved_food_incoming));
             lines.push_back("Food consumed "+std::to_string(b.food_consumed_total));
@@ -1612,8 +1786,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Tax per supplied demand 25");
             lines.push_back("Taxes earned "+std::to_string(world_->household_tax_contributed(*id)));
         }
-        lines.push_back(b.last_demand_status==0 ? "Demand: not due" :
-            b.last_demand_status==1 ? "Demand: supplied" : "Demand: unmet");
+        lines.push_back(b.last_demand_status==0 ? "Last demand: none yet" :
+            b.last_demand_status==1 ? "Last demand: supplied; tax paid" :
+                                      "Last demand: unmet; no tax");
     } else if (b.kind==simulation::Object::Farm) {
         lines.push_back("Food output "+std::to_string(b.output)+"/12");
         lines.push_back("Progress "+std::to_string(b.progress)+"/"+
@@ -1789,6 +1964,17 @@ bool SandboxView::draw_hud() {
             status="Need "+std::to_string(cost)+" funds; treasury "+
                 std::to_string(world_->treasury());
         }
+    }
+    if (rules_==simulation::RulesProfile::CityV11 && !budget_warning_) {
+        const auto guidance=simulation::inspect_city_start(*world_);
+        if (!guidance.missing_supply_buildings.empty())
+            status+=" | No tax: missing "+joined_buildings(guidance.missing_supply_buildings)+
+                " | minimum "+std::to_string(guidance.minimum_missing_building_funds)+" funds";
+        else if (guidance.starter_workforce_shortfall>0)
+            status+=" | Worker shortage "+std::to_string(guidance.workforce_supply)+"/"+
+                std::to_string(guidance.workforce_required_for_starter);
+        else if (guidance.taxes_have_been_collected)
+            status+=" | Complete demand has paid tax";
     }
     if (simulation::city_profile(rules_))
         status+=world_->settlement_goal_reached() ?
@@ -2085,8 +2271,8 @@ bool SandboxView::draw_help_overlay() {
         text(0,4,"4 Store | 5 Select") && text(0,5,"6 Remove | 7 House | 8 Farm") &&
         text(0,6,"9 Service | 0 Market (City v11)") &&
         text(0,7,"Markets distribute Food and Pottery") &&
-        text(0,8,"Space Pause | . Step | + / - Speed") &&
-        text(0,9,"F5 Save | F9 Load") &&
+        text(0,8,"Tax: Food + Pottery + Service at deadline") &&
+        text(0,9,"Space Pause | . Step | + / - Speed") &&
         text(0,10,"CAMERA AND MENU") && text(0,11,"WASD / Arrow keys Move") &&
         text(0,12,"Mouse wheel Zoom | R Reset") && text(0,13,"Tab Info panel | Esc Menu") &&
         text(1,2,"ADVANCED VISUAL DIAGNOSTICS") &&
@@ -2095,6 +2281,42 @@ bool SandboxView::draw_help_overlay() {
         text(1,7,"F7 Depth comparison") &&
         text(1,9,"DEBUG") && text(1,10,"F1 Runtime debug overlay") &&
         text(1,12,"These views are diagnostic") && text(1,13,"and do not change the world.");
+}
+
+bool SandboxView::draw_budget_warning_overlay() {
+    if (!budget_warning_) return true;
+    const int scale=layout_.scale;
+    const int width=std::min(540*scale,std::max(0,layout_.map.w-24*scale));
+    const int height=190*scale;
+    if (width<=0 || layout_.map.h<height) return true;
+    const int x=layout_.map.x+(layout_.map.w-width)/2;
+    const int y=layout_.map.y+(layout_.map.h-height)/2;
+    const SDL_FRect panel{static_cast<float>(x),static_cast<float>(y),
+                          static_cast<float>(width),static_cast<float>(height)};
+    if (!SDL_SetRenderDrawColor(renderer_,18,25,36,250) || !SDL_RenderFillRect(renderer_,&panel) ||
+        !SDL_SetRenderDrawColor(renderer_,244,238,220,255) ||
+        !draw_text(x+14*scale,y+16*scale,"STARTER BUDGET WARNING",width-28*scale) ||
+        !draw_text(x+14*scale,y+43*scale,
+            "This purchase leaves too little money for the missing starter supply buildings.",
+            width-28*scale) ||
+        !draw_text(x+14*scale,y+68*scale,
+            "Missing after purchase: "+joined_buildings(
+                budget_warning_->remaining_missing_supply_buildings)+".",width-28*scale) ||
+        !draw_text(x+14*scale,y+91*scale,
+            "Funds after: "+std::to_string(budget_warning_->funds_after_purchase)+
+            " | minimum buildings: "+
+            std::to_string(budget_warning_->minimum_remaining_building_funds)+
+            " (roads excluded)",width-28*scale)) return false;
+    const auto draw_button=[&](sandbox_ui::Rect rect,SDL_Color color,const char* label) {
+        const SDL_FRect area{static_cast<float>(rect.x),static_cast<float>(rect.y),
+                             static_cast<float>(rect.w),static_cast<float>(rect.h)};
+        return SDL_SetRenderDrawColor(renderer_,color.r,color.g,color.b,255) &&
+            SDL_RenderFillRect(renderer_,&area) &&
+            SDL_SetRenderDrawColor(renderer_,245,247,250,255) &&
+            draw_text(rect.x+10*scale,rect.y+11*scale,label,rect.w-20*scale);
+    };
+    return draw_button(budget_build_rect(),{117,74,48,255},"Build anyway (Y / Enter)") &&
+        draw_button(budget_cancel_rect(),{45,76,94,255},"Cancel (N / Esc)");
 }
 bool SandboxView::render() {
     resize_camera();
@@ -2112,7 +2334,8 @@ bool SandboxView::render() {
             draw_world(render_camera);
         if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
     }
-    const bool ui_ok=draw_hud() && draw_walker_diagnostic() && draw_help_overlay();
+    const bool ui_ok=draw_hud() && draw_walker_diagnostic() && draw_help_overlay() &&
+        draw_budget_warning_overlay();
     const bool reset=SDL_SetRenderClipRect(renderer_,nullptr) &&
         SDL_SetRenderViewport(renderer_,nullptr) && SDL_SetRenderScale(renderer_,1,1);
     if (!ui_ok || !reset) return false;
