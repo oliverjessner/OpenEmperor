@@ -41,19 +41,19 @@
     "farm": {
       "archive": "DATA/China_General.sg3",
       "image_index": 2415,
-      "ground_anchor": [39, 60],
+      "ground_anchor": [39, 41],
       "evidence": "Local 1x/4x review: cultivated green field in Fields and orchards; plausible static Farm preview, original farm identity unverified"
     },
     "service_post": {
       "archive": "DATA/China_General.sg3",
       "image_index": 2046,
-      "ground_anchor": [39, 47],
+      "ground_anchor": [39, 28],
       "evidence": "Local 1x/4x review: freestanding civic notice sign; generic Service Post preview only, no original profession claimed"
     },
     "market": {
       "archive": "DATA/China_General.sg3",
       "image_index": 645,
-      "ground_anchor": [39, 97],
+      "ground_anchor": [39, 78],
       "evidence": "Local 1x/4x review: staffed two-level stall with displayed goods in storage and distribution; plausible static Market preview"
     }
   }

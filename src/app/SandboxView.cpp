@@ -793,7 +793,7 @@ void SandboxView::cancel_gesture() {
 sandbox_ui::Rect SandboxView::budget_build_rect() const {
     const int w=std::min(540*layout_.scale,std::max(0,layout_.map.w-24*layout_.scale));
     const int x=layout_.map.x+(layout_.map.w-w)/2;
-    const int y=layout_.map.y+layout_.map.h/2+28*layout_.scale;
+    const int y=layout_.map.y+layout_.map.h/2+72*layout_.scale;
     return {x+12*layout_.scale,y,250*layout_.scale,34*layout_.scale};
 }
 
@@ -1135,7 +1135,7 @@ simulation::CommandResult SandboxView::request_execute(simulation::Command comma
         budget_warning_=warning;
         pending_command_=command;
         pending_road_.reset();
-        last_message_="This purchase leaves too little money for the missing starter supply buildings.";
+        last_message_="Starter budget confirmation required.";
         return {false,false,"Budget confirmation required",world_->command_sequence()+1,
                 world_->ticks()};
     }
@@ -1152,7 +1152,7 @@ bool SandboxView::request_road(const sandbox_ui::RoadPlan& plan) {
         budget_warning_=warning;
         pending_road_=plan;
         pending_command_.reset();
-        last_message_="This purchase leaves too little money for the missing starter supply buildings.";
+        last_message_="Starter budget confirmation required.";
         return false;
     }
     std::string reason;
@@ -1612,33 +1612,30 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("START STATUS");
         if (!guidance.missing_supply_buildings.empty()) {
             lines.push_back("No tax income possible yet.");
-            lines.push_back("Missing: "+joined_buildings(guidance.missing_supply_buildings)+".");
-            lines.push_back("Required building funds: "+
-                std::to_string(guidance.minimum_missing_building_funds)+
-                " minimum. Available: "+std::to_string(world_->treasury())+".");
+            lines.push_back("Still needed: "+joined_buildings(guidance.missing_supply_buildings)+".");
+            lines.push_back("Minimum building reserve: "+
+                std::to_string(guidance.minimum_missing_building_funds)+" funds, plus roads.");
             lines.push_back("Workers now "+std::to_string(guidance.workforce_supply)+"/"+
                 std::to_string(guidance.workforce_required_now)+"; full starter "+
                 std::to_string(guidance.workforce_required_for_starter)+" required.");
             (void)add_pipeline_state();
-        } else if (guidance.household_count==0) {
+        }
+        if (guidance.household_count==0 && guidance.missing_supply_buildings.empty()) {
             lines.push_back("No tax income possible yet: no House.");
-        } else if (guidance.starter_workforce_shortfall>0) {
-            lines.push_back("Worker shortage: "+std::to_string(guidance.workforce_supply)+
-                " available, "+std::to_string(guidance.workforce_required_for_starter)+" required.");
-            if (guidance.suggested_additional_houses>0 &&
-                guidance.affordable_suggested_houses==guidance.suggested_additional_houses)
-                lines.push_back(std::to_string(guidance.suggested_additional_houses)+
-                    " new Houses would initially add "+
-                    std::to_string(guidance.suggested_additional_houses*
-                                   simulation::Rules::household_initial_population)+" workers.");
-            else if (guidance.suggested_additional_houses>0)
-                lines.push_back("House workforce plan needs "+
-                    std::to_string(guidance.suggested_house_cost)+" funds; short "+
-                    std::to_string(guidance.suggested_house_funds_missing)+".");
-            if (guidance.household_slots_remaining<guidance.houses_needed_for_shortfall)
-                lines.push_back("House limit cannot cover the current worker shortfall.");
+        }
+        if (guidance.starter_workforce_shortfall>0) {
+            lines.push_back("Starter workforce incomplete.");
+            lines.push_back(std::to_string(guidance.houses_needed_for_shortfall)+
+                " more Houses would initially add "+
+                std::to_string(guidance.houses_needed_for_shortfall*
+                               simulation::Rules::household_initial_population)+" workers.");
+            lines.push_back("Reserve at least "+
+                std::to_string(guidance.minimum_house_funds_for_starter)+
+                " funds for those Houses, plus roads.");
+            if (!guidance.starter_workforce_within_house_limit)
+                lines.push_back("Starter workforce cannot be completed within the remaining house limit.");
             lines.push_back("Estimate only; roads and sustained supply still matter.");
-        } else {
+        } else if (guidance.missing_supply_buildings.empty() && guidance.household_count>0) {
             if (guidance.taxes_have_been_collected)
                 lines.push_back("Complete demand has produced tax income.");
             const bool delayed=add_pipeline_state();
@@ -2287,7 +2284,7 @@ bool SandboxView::draw_budget_warning_overlay() {
     if (!budget_warning_) return true;
     const int scale=layout_.scale;
     const int width=std::min(540*scale,std::max(0,layout_.map.w-24*scale));
-    const int height=190*scale;
+    const int height=260*scale;
     if (width<=0 || layout_.map.h<height) return true;
     const int x=layout_.map.x+(layout_.map.w-width)/2;
     const int y=layout_.map.y+(layout_.map.h-height)/2;
@@ -2295,18 +2292,34 @@ bool SandboxView::draw_budget_warning_overlay() {
                           static_cast<float>(width),static_cast<float>(height)};
     if (!SDL_SetRenderDrawColor(renderer_,18,25,36,250) || !SDL_RenderFillRect(renderer_,&panel) ||
         !SDL_SetRenderDrawColor(renderer_,244,238,220,255) ||
-        !draw_text(x+14*scale,y+16*scale,"STARTER BUDGET WARNING",width-28*scale) ||
-        !draw_text(x+14*scale,y+43*scale,
-            "This purchase leaves too little money for the missing starter supply buildings.",
-            width-28*scale) ||
-        !draw_text(x+14*scale,y+68*scale,
-            "Missing after purchase: "+joined_buildings(
-                budget_warning_->remaining_missing_supply_buildings)+".",width-28*scale) ||
-        !draw_text(x+14*scale,y+91*scale,
-            "Funds after: "+std::to_string(budget_warning_->funds_after_purchase)+
-            " | minimum buildings: "+
+        !draw_text(x+14*scale,y+16*scale,"STARTER BUDGET WARNING",width-28*scale)) return false;
+    std::vector<std::string> lines;
+    lines.push_back(budget_warning_->starter_workforce_within_house_limit ?
+        "This purchase leaves too little money for the complete starter reserve.":
+        "Starter workforce cannot be completed within the remaining house limit.");
+    if (!budget_warning_->remaining_missing_supply_buildings.empty()) {
+        lines.push_back("Still needed: "+joined_buildings(
+            budget_warning_->remaining_missing_supply_buildings)+".");
+        lines.push_back("Minimum building reserve: "+
             std::to_string(budget_warning_->minimum_remaining_building_funds)+
-            " (roads excluded)",width-28*scale)) return false;
+            " funds, plus roads.");
+    }
+    if (budget_warning_->additional_houses_needed>0) {
+        lines.push_back("Starter workforce incomplete: "+
+            std::to_string(budget_warning_->additional_houses_needed)+
+            " more Houses would initially add "+
+            std::to_string(budget_warning_->additional_houses_needed*
+                           simulation::Rules::household_initial_population)+" workers.");
+        lines.push_back("Reserve at least "+
+            std::to_string(budget_warning_->minimum_remaining_house_funds)+
+            " funds for those Houses, plus roads.");
+    }
+    lines.push_back("Funds after purchase: "+
+        std::to_string(budget_warning_->funds_after_purchase)+
+        " | total minimum: "+std::to_string(budget_warning_->minimum_remaining_start_cost));
+    for (std::size_t i=0;i<lines.size();++i)
+        if (!draw_text(x+14*scale,y+(43+21*static_cast<int>(i))*scale,
+                       lines[i],width-28*scale)) return false;
     const auto draw_button=[&](sandbox_ui::Rect rect,SDL_Color color,const char* label) {
         const SDL_FRect area{static_cast<float>(rect.x),static_cast<float>(rect.y),
                              static_cast<float>(rect.w),static_cast<float>(rect.h)};

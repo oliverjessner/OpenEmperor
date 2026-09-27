@@ -23,18 +23,6 @@ std::optional<CommandType> command_for(Object kind) {
     }
 }
 
-std::optional<Object> object_for(CommandType type) {
-    switch (type) {
-    case CommandType::PlaceClaySource: return Object::ClaySource;
-    case CommandType::PlacePottery: return Object::Pottery;
-    case CommandType::PlaceWarehouse: return Object::Warehouse;
-    case CommandType::PlaceFarm: return Object::Farm;
-    case CommandType::PlaceMarket: return Object::Market;
-    case CommandType::PlaceServicePost: return Object::ServicePost;
-    default: return std::nullopt;
-    }
-}
-
 bool has_kind(const World& world,Object kind) {
     return std::ranges::any_of(world.buildings(),[&](const BuildingState& building) {
         return building.placed && building.kind==kind;
@@ -77,6 +65,14 @@ StarterSupplyCondition facility_condition(const World& world,Object kind) {
 std::size_t house_limit(const World& world) {
     return world.profile()==RulesProfile::CityV10 || world.profile()==RulesProfile::CityV11 ?
         Rules::city_v10_household_limit:household_limit;
+}
+
+std::vector<std::uint8_t> copy_buildable_mask(const World& world) {
+    std::vector<std::uint8_t> result;
+    for (int y=0;y<world.height();++y)
+        for (int x=0;x<world.width();++x)
+            result.push_back(world.buildable({x,y}) ? 1U:0U);
+    return result;
 }
 
 } // namespace
@@ -134,15 +130,17 @@ CityStartGuidance inspect_city_start(const World& world) {
     result.taxes_have_been_collected=world.taxes_collected_total()>0;
     result.starter_workforce_shortfall=std::max(0,result.workforce_required_for_starter-
                                                     result.workforce_supply);
-    if (result.complete_supply_chain && result.starter_workforce_shortfall>0) {
+    if (result.starter_workforce_shortfall>0) {
         const auto per_house=static_cast<std::size_t>(Rules::household_initial_population);
         const auto desired=(static_cast<std::size_t>(result.starter_workforce_shortfall)+
                             per_house-1U)/per_house;
         result.houses_needed_for_shortfall=desired;
+        result.starter_workforce_within_house_limit=desired<=result.household_slots_remaining;
         result.suggested_additional_houses=std::min(desired,result.household_slots_remaining);
-        result.suggested_house_cost=static_cast<std::int64_t>(result.suggested_additional_houses)*
-            world.construction_cost(CommandType::PlaceHousehold);
         const auto house_cost=world.construction_cost(CommandType::PlaceHousehold);
+        result.minimum_house_funds_for_starter=static_cast<std::int64_t>(desired)*house_cost;
+        result.suggested_house_cost=static_cast<std::int64_t>(result.suggested_additional_houses)*
+            house_cost;
         result.affordable_suggested_houses=house_cost>0 ? std::min(result.suggested_additional_houses,
             static_cast<std::size_t>(std::max<std::int64_t>(0,world.treasury())/house_cost)):0;
         result.suggested_house_funds_missing=std::max<std::int64_t>(0,
@@ -160,32 +158,28 @@ std::optional<StarterBudgetWarning> starter_budget_warning(
     const World& world,std::span<const Command> commands) {
     if (world.profile()!=RulesProfile::CityV11 || world.rule_version()!=2 ||
         world.taxes_collected_total()>0) return std::nullopt;
-    std::int64_t purchase_cost=0;
-    auto status=inspect_city_start(world);
+    auto hypothetical=World::restore(world.snapshot(),copy_buildable_mask(world));
     for (const auto command:commands) {
-        const auto validated=world.validate(command);
-        if (!validated.accepted) return std::nullopt;
-        if (!validated.changed) continue;
-        const auto cost=world.construction_cost(command.type);
-        if (cost<0 || cost>std::numeric_limits<std::int64_t>::max()-purchase_cost)
-            return std::nullopt;
-        purchase_cost+=cost;
-        const auto placed=object_for(command.type);
-        if (placed) std::erase(status.missing_supply_buildings,*placed);
+        const auto result=hypothetical.execute(command);
+        if (!result.accepted) return std::nullopt;
     }
+    if (hypothetical.treasury()>world.treasury()) return std::nullopt;
+    const auto purchase_cost=world.treasury()-hypothetical.treasury();
     if (purchase_cost<=0 || purchase_cost>world.treasury()) return std::nullopt;
-    if (status.missing_supply_buildings.empty()) return std::nullopt;
-    std::int64_t reserve=0;
-    for (const auto kind:status.missing_supply_buildings) {
-        const auto needed=command_for(kind);
-        if (!needed || world.construction_cost(*needed)>std::numeric_limits<std::int64_t>::max()-reserve)
-            return std::nullopt;
-        reserve+=world.construction_cost(*needed);
-    }
-    const auto after=world.treasury()-purchase_cost;
-    if (after>=reserve) return std::nullopt;
-    return StarterBudgetWarning{purchase_cost,after,reserve,
-                                std::move(status.missing_supply_buildings)};
+    auto status=inspect_city_start(hypothetical);
+    const auto building_reserve=status.minimum_missing_building_funds;
+    const auto house_reserve=status.minimum_house_funds_for_starter;
+    if (building_reserve<0 || house_reserve<0 ||
+        house_reserve>std::numeric_limits<std::int64_t>::max()-building_reserve)
+        return std::nullopt;
+    const auto reserve=building_reserve+house_reserve;
+    const auto after=hypothetical.treasury();
+    if (status.starter_workforce_within_house_limit && after>=reserve)
+        return std::nullopt;
+    return StarterBudgetWarning{purchase_cost,after,building_reserve,house_reserve,reserve,
+        status.houses_needed_for_shortfall,status.household_slots_remaining,
+        status.starter_workforce_within_house_limit,
+        std::move(status.missing_supply_buildings)};
 }
 
 } // namespace openemperor::simulation

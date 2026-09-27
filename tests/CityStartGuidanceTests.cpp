@@ -1,6 +1,7 @@
 #include "simulation/CityStartGuidance.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -196,6 +197,141 @@ void budget_confirmation_contract() {
         "complete adequately funded supply emitted an irrelevant reserve warning");
 }
 
+void workforce_reserve_is_guarded() {
+    auto world=make_world();
+    build_one_house_chain(world);
+    std::vector<sim::Command> purchase;
+    // The complete one-House chain leaves 340 funds. Fifty-one ordinary,
+    // distinct road cells cost 102 and leave 238, two below the 240 needed
+    // for the three fresh Houses that supply the missing 16 workers.
+    for (int x=16;x<48;++x) purchase.push_back({sim::CommandType::PlaceRoad,{x,4}});
+    for (int x=16;x<35;++x) purchase.push_back({sim::CommandType::PlaceRoad,{x,5}});
+    require(purchase.size()==51,"workforce reserve purchase fixture differs");
+    const auto before=world.snapshot();
+    const auto warning=sim::starter_budget_warning(world,purchase);
+    require(warning && warning->purchase_cost==102 && warning->funds_after_purchase==238 &&
+            warning->minimum_remaining_building_funds==0 &&
+            warning->minimum_remaining_house_funds==240 &&
+            warning->minimum_remaining_start_cost==240 &&
+            warning->additional_houses_needed==3 &&
+            warning->starter_workforce_within_house_limit,
+        "complete infrastructure did not reserve the three required Houses");
+    require(world.snapshot()==before,"workforce reserve inspection changed World");
+}
+
+std::vector<sim::Command> road_purchase(std::size_t count) {
+    std::vector<sim::Command> result;
+    for (int y=4;y<12 && result.size()<count;++y)
+        for (int x=16;x<48 && result.size()<count;++x)
+            result.push_back({sim::CommandType::PlaceRoad,{x,y}});
+    require(result.size()==count,"road purchase fixture too small");
+    return result;
+}
+
+void post_purchase_reserve_cases() {
+    {
+        auto empty=make_world();
+        const auto purchase=road_purchase(66);
+        const auto warning=sim::starter_budget_warning(empty,purchase);
+        require(warning && warning->funds_after_purchase==1'168 &&
+                warning->minimum_remaining_building_funds==850 &&
+                warning->additional_houses_needed==4 &&
+                warning->minimum_remaining_house_funds==320 &&
+                warning->minimum_remaining_start_cost==1'170,
+            "combined facility and workforce reserves were omitted or double-counted");
+    }
+    {
+        auto world=make_world();
+        build_one_house_chain(world);
+        const sim::Command extra_industry{sim::CommandType::PlaceClaySource,{20,12}};
+        const auto warning=sim::starter_budget_warning(world,extra_industry);
+        require(warning && warning->purchase_cost==sim::Rules::clay_source_cost &&
+                warning->funds_after_purchase==220 && warning->additional_houses_needed==4 &&
+                warning->minimum_remaining_house_funds==320 &&
+                warning->minimum_remaining_start_cost==320,
+            "post-purchase industry demand did not increase the workforce reserve");
+    }
+    {
+        auto world=make_world();
+        build_one_house_chain(world);
+        std::vector<sim::Command> purchase{{sim::CommandType::PlaceHousehold,{9,2}}};
+        auto roads=road_purchase(51);
+        purchase.insert(purchase.end(),roads.begin(),roads.end());
+        const auto warning=sim::starter_budget_warning(world,purchase);
+        require(warning && warning->purchase_cost==182 && warning->funds_after_purchase==158 &&
+                warning->additional_houses_needed==2 &&
+                warning->minimum_remaining_house_funds==160,
+            "purchased House was charged or reserved twice");
+    }
+    {
+        auto exact=make_world();
+        build_one_house_chain(exact);
+        const auto roads=road_purchase(50);
+        require(!sim::starter_budget_warning(exact,roads),
+            "funds exactly equal to the starter reserve emitted a warning");
+        for (const auto command:roads) put(exact,command.type,command.cell.x,command.cell.y);
+        require(exact.treasury()==240,"exact reserve fixture differs");
+        const sim::Command one_new_road{sim::CommandType::PlaceRoad,{16,11}};
+        const std::array duplicate{one_new_road,one_new_road};
+        const auto warning=sim::starter_budget_warning(exact,duplicate);
+        require(warning && warning->purchase_cost==sim::Rules::road_cost &&
+                warning->funds_after_purchase==238 &&
+                warning->minimum_remaining_start_cost==240,
+            "underfunded reserve or duplicate-road accounting differs");
+    }
+    {
+        auto complete=make_world();
+        build_one_house_chain(complete);
+        for (const auto cell:{sim::Cell{6,5},sim::Cell{9,2},sim::Cell{9,5}})
+            put(complete,sim::CommandType::PlaceHousehold,cell.x,cell.y);
+        require(complete.treasury()==100 &&
+                !sim::starter_budget_warning(complete,
+                    {sim::CommandType::PlaceRoad,{20,4}}),
+            "paid four-House starter emitted an unnecessary reserve warning");
+    }
+}
+
+void exhausted_house_limit_is_explicit() {
+    auto world=make_world();
+    build_one_house_chain(world);
+    for (const auto cell:{sim::Cell{6,5},sim::Cell{9,2},sim::Cell{9,5}})
+        put(world,sim::CommandType::PlaceHousehold,cell.x,cell.y);
+    while (world.treasury()<3'200 && world.ticks()<20'000) world.tick();
+    require(world.treasury()>=3'200,"ordinary tax income did not fund house-limit fixture");
+    for (const auto cell:{sim::Cell{20,2},sim::Cell{23,2},sim::Cell{26,2}})
+        put(world,sim::CommandType::PlaceClaySource,cell.x,cell.y);
+    for (const auto cell:{sim::Cell{20,5},sim::Cell{23,5},sim::Cell{26,5}})
+        put(world,sim::CommandType::PlacePottery,cell.x,cell.y);
+    put(world,sim::CommandType::PlaceWarehouse,29,2);
+    put(world,sim::CommandType::PlaceFarm,29,5);
+    for (const auto cell:{sim::Cell{31,5},sim::Cell{32,5},sim::Cell{33,5}})
+        put(world,sim::CommandType::PlaceMarket,cell.x,cell.y);
+    put(world,sim::CommandType::PlaceServicePost,34,5);
+    for (int i=0;i<16;++i) put_house(world,i);
+    require(world.buildings().size()==sim::Rules::city_v11_building_limit &&
+            world.workforce_required()==72,
+        "house-limit fixture did not reach the authored City-v11 limits");
+
+    // Disconnect the compact starter through ordinary removals, then allow
+    // unmet demands to reduce population. A protected road is retried after
+    // normal ticks; no World field is injected.
+    for (int x=0;x<=14;++x) {
+        bool removed=false;
+        for (int attempt=0;attempt<2'000 && !removed;++attempt) {
+            const auto result=world.execute({sim::CommandType::RemoveRoad,{x,4}});
+            removed=result.accepted;
+            if (!removed) world.tick();
+        }
+    }
+    for (int i=0;i<7'000;++i) world.tick();
+    const auto status=sim::inspect_city_start(world);
+    require(status.household_count==sim::Rules::city_v10_household_limit &&
+            status.household_slots_remaining==0 && status.starter_workforce_shortfall>0 &&
+            status.houses_needed_for_shortfall>0 &&
+            !status.starter_workforce_within_house_limit,
+        "exhausted House limit falsely cleared an impossible workforce completion");
+}
+
 } // namespace
 
 int main() {
@@ -204,6 +340,9 @@ int main() {
         workforce_recovery_and_real_tax();
         shrunken_house_recommendation();
         budget_confirmation_contract();
+        workforce_reserve_is_guarded();
+        post_purchase_reserve_cases();
+        exhausted_house_limit_is_explicit();
         std::cout<<"City-v11 start diagnosis, recovery, tax and budget warning passed\n";
         return 0;
     } catch (const std::exception& error) {

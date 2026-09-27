@@ -270,6 +270,76 @@ void pixels_and_depth() {
     check(SandboxVisualKey{100,100,SandboxVisualKind::Building,1}<
           SandboxVisualKey{100,100,SandboxVisualKind::Walker,1},"tie breaker order");
     sprite.shutdown();check(BuildingSprite::live_texture_count()==0,"texture leaked");
+
+    // Independent one-cell ground contract: the decoded Type-30 base occupies
+    // the final 40 rows of each image. Its logical cell center is ground, so
+    // the base spans ground_y-20 through ground_y+19 at 1x, independently of
+    // any manifest parser or anchor computation in production code.
+    assets::BuildingVisualProfile one_cell;
+    const std::array<int,3> heights{61,48,98};
+    const std::array<assets::BuildingVisualRole,3> roles{
+        assets::BuildingVisualRole::Farm,assets::BuildingVisualRole::ServicePost,
+        assets::BuildingVisualRole::Market};
+    const std::array<std::array<std::uint8_t,4>,3> base_colors{{
+        {{240,40,20,255}},{{20,220,60,255}},{{30,80,240,255}}}};
+    for (std::size_t i=0;i<heights.size();++i) {
+        assets::RgbaImage ground_image;
+        ground_image.width=78;
+        ground_image.height=static_cast<std::uint16_t>(heights[i]);
+        ground_image.pixels.assign(static_cast<std::size_t>(78*heights[i]*4),0);
+        for (int y=heights[i]-40;y<heights[i];++y)
+            for (int x=0;x<78;++x) {
+                const auto at=static_cast<std::size_t>((y*78+x)*4);
+                std::copy(base_colors[i].begin(),base_colors[i].end(),
+                          ground_image.pixels.begin()+static_cast<std::ptrdiff_t>(at));
+            }
+        assets::BuildingVisualEntry ground_entry;
+        ground_entry.image_index=i;ground_entry.ground_x=39;
+        ground_entry.ground_y=heights[i]-20;ground_entry.footprint_side=1;
+        one_cell.entries[assets::role_index(roles[i])]=ground_entry;
+        one_cell.unique_images.push_back(std::move(ground_image));
+    }
+    sprite.initialize(renderer,one_cell);
+    constexpr std::array<std::uint8_t,4> background{20,30,40,255};
+    for (std::size_t i=0;i<roles.size();++i) {
+        const auto* ground_entry=one_cell.find(roles[i]);
+        check(ground_entry!=nullptr,"one-cell ground entry missing");
+        for (const int zoom:{1,2,4}) {
+            const scene::Point ground{300,250};
+            check(SDL_SetRenderDrawColor(renderer,background[0],background[1],background[2],255) &&
+                  SDL_RenderClear(renderer) &&
+                  sprite.draw(ground,zoom,one_cell,*ground_entry),
+                  "one-cell normal ground draw");
+            const int top=250-20*zoom,bottom=250+20*zoom-1;
+            const int left=300-39*zoom,right=300+39*zoom-1;
+            check(pixel(renderer,300,top)==base_colors[i] &&
+                  pixel(renderer,300,bottom)==base_colors[i] &&
+                  pixel(renderer,left,250)==base_colors[i] &&
+                  pixel(renderer,right,250)==base_colors[i] &&
+                  pixel(renderer,300,top-1)==background &&
+                  pixel(renderer,300,bottom+1)==background &&
+                  pixel(renderer,left-1,250)==background &&
+                  pixel(renderer,right+1,250)==background,
+                  "78x40 base missed the independent logical-cell boundary");
+        }
+        const scene::Point panned{337,279};
+        check(SDL_SetRenderDrawColor(renderer,background[0],background[1],background[2],255) &&
+              SDL_RenderClear(renderer) && sprite.draw(panned,2,one_cell,*ground_entry) &&
+              pixel(renderer,337,279-40)==base_colors[i] &&
+              pixel(renderer,337,279+39)==base_colors[i],
+              "camera pan changed one-cell base alignment");
+        check(SDL_SetRenderDrawColor(renderer,background[0],background[1],background[2],255) &&
+              SDL_RenderClear(renderer) &&
+              sprite.draw({300,250},1,one_cell,*ground_entry,true),
+              "one-cell placement preview draw");
+        const auto preview_top=pixel(renderer,300,230);
+        check(preview_top!=background && preview_top!=base_colors[i] &&
+              pixel(renderer,300,229)==background && pixel(renderer,300,269)!=background,
+              "placement preview used a different one-cell ground boundary");
+    }
+    sprite.shutdown();check(BuildingSprite::live_texture_count()==0,
+                            "one-cell ground textures leaked");
+
     assets::BuildingVisualProfile four;
     const std::array<std::array<std::uint8_t,4>,4> colors{{
         {{0,255,255,255}},{{255,0,255,255}},{{255,255,0,255}},{{0,255,0,255}}}};

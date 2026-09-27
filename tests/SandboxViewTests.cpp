@@ -1531,14 +1531,15 @@ int main(int argc,char** argv) {
         warning_view.update(1.0);
         check(warning_view.world().snapshot()==before_warning && warning_view.render(),
               "budget confirmation advanced or failed to render");
-        check(warning_view.resolve_budget_warning(false) &&
-              !warning_view.budget_warning_pending() &&
+        warning_view.handle_event(key(SDLK_ESCAPE),running);
+        check(!warning_view.budget_warning_pending() &&
               warning_view.world().snapshot()==before_warning,
-              "budget-warning Cancel changed funds, IDs, commands, ticks or World");
+              "budget-warning Escape/Cancel event changed funds, IDs, commands, ticks or World");
         check(!warning_view.request_execute(warned).accepted &&
-              warning_view.budget_warning_pending() &&
-              warning_view.resolve_budget_warning(true),
-              "Build anyway confirmation path failed");
+              warning_view.budget_warning_pending(),"second warning was not opened");
+        warning_view.handle_event(key(SDLK_RETURN),running);
+        check(!warning_view.budget_warning_pending(),
+              "Build anyway Return event did not close confirmation");
         check(warning_view.world().command_sequence()==before_warning.command_sequence+1 &&
               warning_view.world().treasury()==before_warning.treasury-
                   simulation::Rules::household_cost &&
