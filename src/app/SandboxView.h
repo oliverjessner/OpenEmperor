@@ -80,6 +80,9 @@ public:
                         std::filesystem::path save_path,
                         std::optional<persistence::SaveDocument> initial=std::nullopt);
     void save_now();
+    persistence::SaveDocument capture_save_document() const;
+    bool recovery_safe_point() const;
+    void set_recovery_status(std::string status) { recovery_status_=std::move(status); }
     void load_now();
     void set_walker_visuals(const std::filesystem::path& manifest,
                             VisualProfileSource source=VisualProfileSource::Custom);
@@ -192,6 +195,7 @@ private:
     int panel_scroll_=0;
     std::optional<scene::Point> pointer_;
     std::string last_message_;
+    std::string recovery_status_;
     bool demo_=false;
     int tool_=4;
     simulation::RulesProfile rules_;

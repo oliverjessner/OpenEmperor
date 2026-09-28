@@ -15,8 +15,9 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     SavePrev, SaveNext, OpenSave, ExternalSave, ConfirmSave, ConfirmDiscard, ConfirmCancel,
     ResetSettings, OpenMenu, VisualsFile, VisualsClear, BuildingVisualsFile, BuildingVisualsClear,
     RoadVisualsFile, RoadVisualsClear, AdvancedVisuals, UpgradeCopy, ConfirmUpgradeCopy,
-    CancelUpgrade,
-    MapSelectBase=1000, SaveSelectBase=2000 };
+    CancelUpgrade, ToggleAutosave, ToggleSaveView, DeleteRecovery, ConfirmDeleteRecovery,
+    CancelDeleteRecovery,
+    MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::LogisticsV1,
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
     simulation::RulesProfile::SettlementV4,simulation::RulesProfile::IndustryV5,
@@ -121,8 +122,30 @@ VisualSelection MenuSession::visual_selection() const {
                                   road_profile_path_);
 }
 void MenuSession::refresh_saves() {
-    try { saves_=list_saves(app_root_); save_index_=0; save_scroll_=0; }
-    catch (const std::exception& e) { saves_={}; message_="Save list could not be read: "+std::string(e.what()); }
+    saves_={};recoveries_={};recovery_entries_.clear();save_index_=0;save_scroll_=0;
+    try { saves_=list_saves(app_root_); }
+    catch (const std::exception& e) {
+        message_="Manual save list could not be read: "+std::string(e.what());
+    }
+    try {
+        persistence::RecoveryStore store(app_root_,settings_.data_root);
+        recoveries_=store.catalog();
+        for (const auto& history:recoveries_.histories) {
+            if (!history.error.empty()) {
+                persistence::RecoveryEntry broken; broken.history_id=history.history_id;
+                broken.filename="Invalid history";broken.error=history.error;
+                recovery_entries_.push_back(std::move(broken));
+            } else for (const auto& entry:history.entries) recovery_entries_.push_back(entry);
+        }
+        message_="Manual saves "+std::to_string(saves_.entries.size())+" | recovery points "+
+            std::to_string(recovery_entries_.size());
+        for (const auto& entry:saves_.entries)
+            if (!entry.error.empty()) message_+=" | invalid "+entry.name+": "+entry.error;
+    }
+    catch (const std::exception& e) {
+        message_="Recovery list could not be read: "+std::string(e.what())+
+            "; manual saves remain available";
+    }
 }
 void MenuSession::open_dialog(DialogKind kind) {
     if (dialog_kind_!=DialogKind::None) return;
@@ -145,12 +168,14 @@ void MenuSession::start_new() {
     const auto& map=catalog_.entries.at(map_index_);
     if (!map.map_profile) { message_="Selected map is unsupported"; return; }
     pending_save_path_.clear();
+    pending_recovery_parent_.reset();
     return_state_=State::NewSandbox; set_state(State::Loading); loading_drawn_=false;
 }
 void MenuSession::start_load(const fs::path& path) {
     std::error_code error;
     const auto resolved=fs::canonical(path,error);
     pending_save_path_=error ? path : resolved;
+    pending_recovery_parent_.reset();
     return_state_=State::LoadSandbox; set_state(State::Loading); loading_drawn_=false;
 }
 void MenuSession::finish_loading() {
@@ -159,6 +184,7 @@ void MenuSession::finish_loading() {
         fs::path map; simulation::RulesProfile profile=settings_.profile;
         std::optional<persistence::SaveDocument> document;
         fs::path save_path=pending_save_path_;
+        const bool recovery_load=pending_recovery_parent_.has_value();
         if (!save_path.empty()) {
             persistence::validate_save_target(save_path,settings_.data_root);
             document=persistence::read_save(save_path);
@@ -170,7 +196,7 @@ void MenuSession::finish_loading() {
         }
         auto loaded=maps::load_stored_map_session(settings_.data_root,map,
             maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8);
-        if (upgrade_copy_) {
+        if (upgrade_copy_ || recovery_load) {
             save_path=new_save_target(app_root_,settings_.data_root);
         }
         auto view=std::make_unique<SandboxView>(std::move(loaded),document ? false:demo_,profile);
@@ -188,7 +214,10 @@ void MenuSession::finish_loading() {
         if (upgrade_copy_)
             persistence::write_save(save_path,*upgraded_document,settings_.data_root,
                                     view->buildable_mask());
+        candidate_autosave_=std::make_unique<AutosaveController>(app_root_,settings_.data_root,
+                                                                 settings_.autosave_enabled);
         candidate_=std::move(view); candidate_map_=map; candidate_profile_=profile;
+        candidate_sets_last_save_=!pending_save_path_.empty() && !recovery_load;
         const bool upgraded=upgrade_copy_;
         upgrade_copy_=false;
         if (sandbox_ && sandbox_->dirty()) confirm_or(AfterConfirm::Replace);
@@ -196,6 +225,7 @@ void MenuSession::finish_loading() {
         if (upgraded) message_="Operation controls enabled in a new City-v11-v3 copy; original save unchanged.";
     } catch (const std::exception& e) {
         candidate_.reset();
+        candidate_autosave_.reset(); pending_recovery_parent_.reset();
         upgrade_copy_=false;
         const auto subject=pending_save_path_.empty()?"Map or optional visual preview":"Save";
         message_=std::string(subject)+" could not be loaded: "+e.what()+". Check the selected file and try again.";
@@ -206,8 +236,19 @@ void MenuSession::commit_candidate() {
     if (!candidate_) return;
     if (sandbox_) { sandbox_->shutdown(); sandbox_.reset(); }
     sandbox_=std::move(candidate_); seen_save_generation_=sandbox_->save_generation();
+    autosave_=std::move(candidate_autosave_);
+    if (autosave_) {
+        const auto result=autosave_->begin(sandbox_->capture_save_document(),
+                                           sandbox_->buildable_mask(),pending_recovery_parent_);
+        if (result.kind!=AutosaveResult::Kind::None) {
+            sandbox_->set_recovery_status(result.message+" ("+
+                std::to_string(result.duration.count())+" ms)");
+            if (result.kind==AutosaveResult::Kind::Failed) message_=result.message;
+        }
+    }
     settings_.last_map=candidate_map_; settings_.profile=candidate_profile_;
-    if (!pending_save_path_.empty()) settings_.last_save=sandbox_->save_path();
+    if (candidate_sets_last_save_) settings_.last_save=sandbox_->save_path();
+    candidate_sets_last_save_=false; pending_recovery_parent_.reset();
     persist_settings();
     set_state(State::Playing);
 }
@@ -231,8 +272,19 @@ void MenuSession::record_save() {
     } else message_+="; preferences not saved until reset";
     seen_save_generation_=sandbox_->save_generation();
 }
+void MenuSession::report_autosave(const AutosaveResult& result) {
+    if (!sandbox_ || result.kind==AutosaveResult::Kind::None) return;
+    const auto detail=result.message+" ("+std::to_string(result.duration.count())+" ms)";
+    sandbox_->set_recovery_status(detail);
+    if (result.kind==AutosaveResult::Kind::Failed) message_=result.message;
+}
 void MenuSession::perform(int action) {
     try {
+        if (action>=RecoverySelectBase) {
+            const auto index=save_scroll_+static_cast<std::size_t>(action-RecoverySelectBase);
+            if (index<recovery_entries_.size()) { save_index_=index; rebuild_buttons(); }
+            return;
+        }
         if (action>=SaveSelectBase) {
             const auto index=save_scroll_+static_cast<std::size_t>(action-SaveSelectBase);
             if (index<saves_.entries.size()) { save_index_=index; rebuild_buttons(); }
@@ -247,6 +299,21 @@ void MenuSession::perform(int action) {
         case ChooseFolder: open_dialog(DialogKind::Folder); break;
         case NewGame: advanced_visuals_open_=false; set_state(State::NewSandbox); break;
         case LoadGame: advanced_visuals_open_=false; refresh_saves(); set_state(State::LoadSandbox); break;
+        case ToggleAutosave:
+            settings_.autosave_enabled=!settings_.autosave_enabled;
+            persist_settings();
+            if (sandbox_) {
+                autosave_=std::make_unique<AutosaveController>(app_root_,settings_.data_root,
+                                                               settings_.autosave_enabled);
+                if (settings_.autosave_enabled)
+                    report_autosave(autosave_->begin(sandbox_->capture_save_document(),
+                                                     sandbox_->buildable_mask()));
+                else sandbox_->set_recovery_status("Autosave off");
+            }
+            message_=settings_.autosave_enabled?"Autosave enabled":"Autosave disabled";
+            rebuild_buttons(); break;
+        case ToggleSaveView:
+            recovery_view_=!recovery_view_;save_index_=0;save_scroll_=0;rebuild_buttons();break;
         case Resume: if (sandbox_) set_state(State::Playing); break;
         case DataFolder: confirm_or(AfterConfirm::ChangeData); break;
         case Quit: confirm_or(AfterConfirm::Quit); break;
@@ -263,10 +330,38 @@ void MenuSession::perform(int action) {
         case Start: start_new(); break;
         case Back: set_state(State::MainMenu); break;
         case SavePrev: if (save_index_>0) --save_index_; rebuild_buttons(); break;
-        case SaveNext: if (save_index_+1<saves_.entries.size()) ++save_index_; rebuild_buttons(); break;
-        case OpenSave: if (!saves_.entries.empty()) start_load(saves_.entries.at(save_index_).path); break;
+        case SaveNext:
+            if (save_index_+1<(recovery_view_?recovery_entries_.size():saves_.entries.size()))
+                ++save_index_;
+            rebuild_buttons(); break;
+        case OpenSave:
+            if (recovery_view_) {
+                if (!recovery_entries_.empty() && recovery_entries_.at(save_index_).loadable()) {
+                    const auto& entry=recovery_entries_.at(save_index_);
+                    pending_recovery_parent_=persistence::RecoveryParent{entry.history_id,entry.sequence};
+                    std::error_code error; const auto resolved=fs::canonical(entry.path,error);
+                    pending_save_path_=error?entry.path:resolved;
+                    return_state_=State::LoadSandbox;set_state(State::Loading);loading_drawn_=false;
+                }
+            } else if (!saves_.entries.empty())
+                start_load(saves_.entries.at(save_index_).path);
+            break;
+        case DeleteRecovery:
+            if (recovery_view_ && !recovery_entries_.empty()) {
+                set_state(State::ConfirmDeleteRecovery);
+                message_="Delete the selected recovery history and its checked checkpoints?";
+            }
+            break;
+        case ConfirmDeleteRecovery:
+            if (save_index_<recovery_entries_.size()) {
+                persistence::RecoveryStore store(app_root_,settings_.data_root);
+                store.delete_history(recovery_entries_[save_index_].history_id);
+            }
+            refresh_saves();recovery_view_=true;set_state(State::LoadSandbox);
+            message_="Checked files in the recovery history were deleted";break;
+        case CancelDeleteRecovery: set_state(State::LoadSandbox);message_="Deletion cancelled";break;
         case UpgradeCopy:
-            if (!saves_.entries.empty()) {
+            if (!recovery_view_ && !saves_.entries.empty()) {
                 pending_save_path_=saves_.entries.at(save_index_).path;
                 set_state(State::ConfirmUpgrade);
                 message_="The copy will use City-v11 rule version 3. The original save stays unchanged.";
@@ -302,6 +397,7 @@ void MenuSession::perform(int action) {
             after_confirm_=AfterConfirm::None; break;
         case ConfirmCancel:
             if (candidate_) { candidate_->shutdown(); candidate_.reset(); }
+            candidate_autosave_.reset();pending_recovery_parent_.reset();
             after_confirm_=AfterConfirm::None; set_state(sandbox_?confirm_return_state_:State::DataSetup); break;
         case ResetSettings:
             settings_reset_required_=false; write_settings(app_root_,settings_);
@@ -339,12 +435,14 @@ void MenuSession::handle_event(const SDL_Event& event) {
         if (event.key.key==SDLK_ESCAPE) {
             if (state_==State::ConfirmLeave) activate_button(ConfirmCancel);
             else if (state_==State::ConfirmUpgrade) activate_button(CancelUpgrade);
+            else if (state_==State::ConfirmDeleteRecovery) activate_button(CancelDeleteRecovery);
             else if (state_==State::NewSandbox || state_==State::LoadSandbox) activate_button(Back);
             else if (state_!=State::Loading) activate_button(Quit);
         } else if (event.key.key==SDLK_RETURN || event.key.key==SDLK_KP_ENTER) {
             if (state_==State::NewSandbox) activate_button(Start);
             else if (state_==State::LoadSandbox) activate_button(OpenSave);
             else if (state_==State::ConfirmUpgrade) activate_button(ConfirmUpgradeCopy);
+            else if (state_==State::ConfirmDeleteRecovery) activate_button(ConfirmDeleteRecovery);
         } else if (event.key.key==SDLK_UP) {
             if (state_==State::NewSandbox) activate_button(MapPrev);
             else if (state_==State::LoadSandbox) activate_button(SavePrev);
@@ -406,7 +504,12 @@ void MenuSession::advance() {
     finish_loading();
 }
 void MenuSession::update(double seconds) {
-    if (state_==State::Playing && sandbox_) sandbox_->update(seconds);
+    if (state_==State::Playing && sandbox_) {
+        sandbox_->update(seconds);
+        if (autosave_ && autosave_->due(sandbox_->world().ticks()) && sandbox_->recovery_safe_point())
+            report_autosave(autosave_->poll(sandbox_->capture_save_document(),
+                                            sandbox_->buildable_mask(),true));
+    }
 }
 void MenuSession::rebuild_buttons() {
     buttons_.clear();
@@ -426,6 +529,8 @@ void MenuSession::rebuild_buttons() {
         add(DataFolder,"Data folder",40,sandbox_?235:190,210);
         buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,sandbox_?280:235,210);
+        add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",
+            510,sandbox_?280:235,180);
         if (settings_reset_required_) add(ResetSettings,"Reset preferences",280,235,210);
     } else if (state_==State::NewSandbox) {
         add(MapPrev,"Previous map",40,120); add(MapNext,"Next map",230,120);
@@ -452,10 +557,14 @@ void MenuSession::rebuild_buttons() {
                 entry.map_profile});
         }
     } else if (state_==State::LoadSandbox) {
-        add(SavePrev,"Previous save",40,120); add(SaveNext,"Next save",230,120);
+        const auto count=recovery_view_?recovery_entries_.size():saves_.entries.size();
+        add(ToggleSaveView,recovery_view_?"Show manual saves":"Show recovery history",40,95,210);
+        add(SavePrev,"Previous",40,135); add(SaveNext,"Next",230,135);
         add(OpenSave,"Open selected",40,270); add(ExternalSave,"Open save file...",230,270);
         add(Back,"Back",40,315);
-        if (!saves_.entries.empty()) {
+        if (recovery_view_ && !recovery_entries_.empty())
+            add(DeleteRecovery,"Delete history...",230,315,210);
+        if (!recovery_view_ && !saves_.entries.empty()) {
             const auto& selected=saves_.entries.at(save_index_);
             if (selected.error.empty() && selected.profile==simulation::city_v11_profile_name &&
                 selected.rule_version==2)
@@ -471,12 +580,15 @@ void MenuSession::rebuild_buttons() {
         }
         const auto begin=save_index_>4?save_index_-4:0;
         save_scroll_=begin;
-        for (std::size_t i=begin;i<saves_.entries.size() && i<begin+11;++i) {
-            std::string name=saves_.entries[i].name;
+        for (std::size_t i=begin;i<count && i<begin+11;++i) {
+            std::string name=recovery_view_ ?
+                recovery_entries_[i].history_id.substr(recovery_entries_[i].history_id.size()>8 ?
+                    recovery_entries_[i].history_id.size()-8:0)+" / "+recovery_entries_[i].filename:
+                saves_.entries[i].name;
             if (name.size()>32) name=name.substr(0,29)+"...";
             buttons_.push_back({SDL_FRect{430.0f,95.0f+22.0f*static_cast<float>(i-begin),
                 280.0f,20.0f},(i==save_index_?"> ":"  ")+name,
-                SaveSelectBase+static_cast<int>(i-begin)});
+                (recovery_view_?RecoverySelectBase:SaveSelectBase)+static_cast<int>(i-begin)});
         }
     } else if (state_==State::ConfirmLeave) {
         const bool quitting=after_confirm_==AfterConfirm::Quit;
@@ -486,6 +598,9 @@ void MenuSession::rebuild_buttons() {
     } else if (state_==State::ConfirmUpgrade) {
         add(ConfirmUpgradeCopy,"Create v3 copy",40,160,210);
         add(CancelUpgrade,"Cancel",40,205,210);
+    } else if (state_==State::ConfirmDeleteRecovery) {
+        add(ConfirmDeleteRecovery,"Delete recovery history",40,160,240);
+        add(CancelDeleteRecovery,"Cancel",40,205,210);
     }
 }
 bool MenuSession::render() {
@@ -504,7 +619,8 @@ bool MenuSession::render() {
     const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?"OpenEmperor":state_==State::NewSandbox?"New sandbox":
         state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
-        state_==State::ConfirmUpgrade?"Enable operation controls in a copy":"Unsaved progress";
+        state_==State::ConfirmUpgrade?"Enable operation controls in a copy":
+        state_==State::ConfirmDeleteRecovery?"Delete recovery history":"Unsaved progress";
     if (!label(40,40,heading)) return false;
     if (state_==State::DataSetup) {
         if (!label(40,56,std::string(version::display)+" | Clean-room reimplementation")) return false;
@@ -532,8 +648,25 @@ bool MenuSession::render() {
             "Visuals: Compatible preview detected":"Visuals: Diagnostic fallback")) return false;
         if (advanced_visuals_open_ && !label(40,385,"Advanced visual previews (developer overrides)")) return false;
     } else if (state_==State::LoadSandbox) {
-        if (!label(40,85,"Saves: "+std::to_string(saves_.entries.size())+(saves_.truncated?" (list limited)":""))) return false;
-        if (!saves_.entries.empty()) {
+        if (recovery_view_) {
+            if (!label(280,105,"Recovery history: "+std::to_string(recovery_entries_.size())+
+                (recoveries_.truncated?" (list limited)":""))) return false;
+            if (!recovery_entries_.empty()) {
+                const auto& e=recovery_entries_[save_index_];
+                const auto kind=e.start_point?"Start point":"Autosave";
+                if (!label(40,175,e.error.empty()?e.map:e.error)) return false;
+                if (e.error.empty() && !label(40,159,"History "+e.history_id+
+                    (e.parent?" | branched from "+e.parent->history_id:""))) return false;
+                if (e.error.empty() && !label(40,195,e.profile+" rule "+std::to_string(e.rule_version)+
+                    " | tick "+std::to_string(e.tick)+" ("+std::to_string(e.tick/20)+"s) | schema "+
+                    std::to_string(e.schema))) return false;
+                if (e.error.empty() && !label(40,211,std::string(kind)+" | population "+
+                    std::to_string(e.population)+" | funds "+std::to_string(e.treasury)+
+                    " | "+e.created_local)) return false;
+            }
+        } else if (!label(280,105,"Manual saves: "+std::to_string(saves_.entries.size())+
+            (saves_.truncated?" (list limited)":""))) return false;
+        if (!recovery_view_ && !saves_.entries.empty()) {
             const auto& e=saves_.entries[save_index_];
             if (!label(40,165,e.name+" | "+(e.error.empty()?e.map:e.error))) return false;
             if (e.error.empty() && !label(40,185,e.profile+" | tick "+std::to_string(e.tick)+
@@ -556,6 +689,9 @@ bool MenuSession::render() {
         if (!label(40,96,"Tick, population, goods, routes and treasury are preserved.")) return false;
         if (!label(40,112,"All operations start Running at Normal priority; the original stays unchanged."))
             return false;
+    } else if (state_==State::ConfirmDeleteRecovery) {
+        if (!label(40,80,"This removes only the selected managed recovery history.")) return false;
+        if (!label(40,96,"Manual saves and other histories are kept.")) return false;
     }
     for (const auto& b:buttons_) {
         if (!SDL_SetRenderDrawColor(renderer_,b.enabled?45:42,b.enabled?84:45,b.enabled?104:50,255) ||

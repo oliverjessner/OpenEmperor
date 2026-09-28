@@ -11,6 +11,7 @@ struct Settings {
     std::filesystem::path data_root, last_map, last_save;
     simulation::RulesProfile profile=simulation::RulesProfile::CityV11;
     bool prepared_starter=true;
+    bool autosave_enabled=true;
 };
 struct SettingsRead {
     Settings value;

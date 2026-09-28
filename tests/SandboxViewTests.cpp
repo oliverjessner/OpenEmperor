@@ -610,6 +610,15 @@ int main(int argc,char** argv) {
               "distinct courier body colors absent from composed frame");
         const auto before_save=production_view.world().snapshot();
         const auto before_position=production_view.world().courier_position(simulation::CourierId::Pottery);
+        const auto manual_generation=production_view.save_generation();
+        const auto manual_target=production_view.save_path();
+        const auto was_dirty=production_view.dirty();
+        const auto captured=production_view.capture_save_document();
+        check(captured.world==before_save && production_view.world().snapshot()==before_save &&
+              production_view.save_generation()==manual_generation &&
+              production_view.save_path()==manual_target && production_view.dirty()==was_dirty &&
+              !std::filesystem::exists(manual_target),
+              "recovery capture changed manual save state, target, dirty markers, or World");
         production_view.handle_event(key(SDLK_F5),running);
         check(production_view.last_message().find("Saved tick ")!=std::string::npos,
               "F5 did not report saved tick in HUD state");

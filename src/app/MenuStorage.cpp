@@ -56,6 +56,11 @@ SettingsRead read_settings(const fs::path& root) {
                 throw std::runtime_error("invalid settings field: prepared_starter");
             result.value.prepared_starter=j.at("prepared_starter").get<bool>();
         }
+        if (j.contains("autosave_enabled")) {
+            if (!j.at("autosave_enabled").is_boolean())
+                throw std::runtime_error("invalid settings field: autosave_enabled");
+            result.value.autosave_enabled=j.at("autosave_enabled").get<bool>();
+        }
         const auto profile=bounded_string(j,"profile");
         bool found=false;
         for (const auto p:{simulation::RulesProfile::LogisticsV1,simulation::RulesProfile::ProductionV2,
@@ -88,6 +93,7 @@ void write_settings(const fs::path& root,const Settings& settings) {
         {"last_map",settings.last_map.generic_string()},
         {"last_save",settings.last_save.generic_string()},
         {"prepared_starter",settings.prepared_starter},
+        {"autosave_enabled",settings.autosave_enabled},
         {"profile",simulation::rules_profile_name(settings.profile)}};
     platform::atomic_replace(file,j.dump(2),[&]{ if (fs::is_symlink(file))
         throw std::runtime_error("settings symlink rejected"); });

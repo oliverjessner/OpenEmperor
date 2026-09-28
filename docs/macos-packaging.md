@@ -40,6 +40,11 @@ under SDL's per-user OpenEmperor preference path, usually
 `~/Library/Application Support/OpenEmperor/OpenEmperor/`. No write into the
 bundle or original data directory is required.
 
+Personal `saves/` and `recovery/` directories are runtime preference data, not
+bundle resources. The package stage and ZIP contain neither. The verifier's
+extension and resource allowlists continue to reject save payloads, original
+assets, decoded images and local reports; recovery metadata is never staged.
+
 For a visible test launch without touching personal preferences, supply the
 diagnostic `--app-root` option through LaunchServices, for example
 `open -n -a dist/OpenEmperor.app --args --app-root /absolute/temporary/folder`.

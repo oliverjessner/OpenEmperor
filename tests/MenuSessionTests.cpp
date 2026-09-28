@@ -103,7 +103,11 @@ void key(Menu& menu,SDL_Keycode keycode) {
     menu.handle_event(e); menu.advance();
 }
 void finish_load(Menu& menu) {
-    check(menu.state()==Menu::State::Loading,"expected loading state");
+    static int load_number=0; ++load_number;
+    if (menu.state()!=Menu::State::Loading)
+        throw std::runtime_error("expected loading state at load "+std::to_string(load_number)+
+                                 ", state "+std::to_string(static_cast<int>(menu.state()))+
+                                 ", message "+menu.message());
     check(menu.render(),"loading frame"); menu.advance();
 }
 }
@@ -159,16 +163,17 @@ int main(int argc,char* argv[]) {
             const auto legacy=openemperor::menu::read_settings(legacy_root);
             check(!legacy.needs_reset &&
                   legacy.value.profile==openemperor::simulation::RulesProfile::CityV10 &&
-                  !legacy.value.prepared_starter,
+                  !legacy.value.prepared_starter && legacy.value.autosave_enabled,
                   "alpha.1 settings did not retain the empty-starter choice");
             auto explicit_settings=legacy.value;
             explicit_settings.profile=openemperor::simulation::RulesProfile::IndustryV5;
             explicit_settings.prepared_starter=false;
+            explicit_settings.autosave_enabled=false;
             openemperor::menu::write_settings(t.root/"roundtrip-settings",explicit_settings);
             const auto roundtrip=openemperor::menu::read_settings(t.root/"roundtrip-settings");
             check(!roundtrip.needs_reset &&
                   roundtrip.value.profile==openemperor::simulation::RulesProfile::IndustryV5 &&
-                  !roundtrip.value.prepared_starter,
+                  !roundtrip.value.prepared_starter && !roundtrip.value.autosave_enabled,
                   "explicit profile and starter choice did not survive settings restart");
         }
         fs::create_directories(t.root/"plain-bin/resources");
@@ -350,6 +355,37 @@ int main(int argc,char* argv[]) {
             menu.shutdown();
         }
         check(openemperor::StoredGraphicsRenderer::live_texture_count()==0,"texture leak after menu shutdown");
+        {
+            openemperor::persistence::RecoveryStore recovery_store(t.root/"app",t.root/"data");
+            const auto recovery_catalog=recovery_store.catalog();
+            check(!recovery_catalog.histories.empty() &&
+                  !recovery_catalog.histories.front().entries.empty(),
+                  "menu sessions did not persist a recovery start point");
+            const auto source=recovery_catalog.histories.front().entries.front().path;
+            std::ifstream source_before_file(source,std::ios::binary);
+            const std::string source_before((std::istreambuf_iterator<char>(source_before_file)),{});
+            const auto prior_settings=openemperor::menu::read_settings(t.root/"app").value;
+            Menu recovered({},t.root/"app",std::make_unique<FakeDialog>());
+            recovered.initialize(window,renderer);
+            click(recovered,90,310); // Load Save.
+            click(recovered,90,210); // Switch from Manual saves to Recovery history.
+            click(recovered,90,560); finish_load(recovered);
+            if (!(recovered.state()==Menu::State::Playing && recovered.sandbox() &&
+                  recovered.sandbox()->paused() && recovered.sandbox()->save_path()!=source &&
+                  recovered.settings().last_save==prior_settings.last_save))
+                throw std::runtime_error("recovery load did not pause, branch, or preserve manual last_save: "+
+                                         recovered.message());
+            const auto new_manual_target=recovered.sandbox()->save_path();
+            recovered.sandbox()->tick_once();key(recovered,SDLK_F5);
+            std::ifstream source_after_file(source,std::ios::binary);
+            const std::string source_after((std::istreambuf_iterator<char>(source_after_file)),{});
+            check(fs::exists(new_manual_target) && new_manual_target!=source &&
+                  source_after==source_before && recovered.settings().last_save==new_manual_target,
+                  "F5 after recovery did not use a fresh manual target or changed its source");
+            recovered.shutdown();
+            fs::remove(new_manual_target);
+            openemperor::menu::write_settings(t.root/"app",prior_settings);
+        }
         {
             std::ifstream before_file(v2_source,std::ios::binary);
             const std::string before((std::istreambuf_iterator<char>(before_file)),{});

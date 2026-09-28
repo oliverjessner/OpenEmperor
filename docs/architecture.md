@@ -1,5 +1,13 @@
 # Architecture
 
+## Autosave and recovery boundary
+
+`app::AutosaveController` is the menu-session scheduler. It observes completed World ticks and requests a capture when `current_tick >= next_due_tick`; its named interval is 1,200 ticks, or 60 simulated seconds at the existing 20 Hz tick rate. A large update produces at most one snapshot of the state actually reached. Unsafe UI transitions such as a road drag or budget confirmation defer capture. Paused frames, camera movement, selection, and other presentation state do not create periodic files. Direct CLI modes never construct this controller.
+
+`persistence::RecoveryStore` owns `<app-root>/recovery/<history-id>/`. It reuses `make_document`, `write_save`, and `read_save`; the World schema is unchanged. A history has one protected start point and up to five periodic checkpoints. The new file is atomically written and read back before versioned metadata is published, and old rotation candidates are removed only after that publication. A failed write retains every previously referenced point. Relative bounded filenames, symlink rejection, enumeration limits, a 1 MiB metadata limit, the existing 8 MiB save limit, and a 256 MiB aggregate budget bound the store.
+
+`SandboxView::capture_save_document()` is read-only with respect to World and manual-save state. It does not change `save_path_`, `saved_tick_`, `saved_command_`, or `save_generation_`. `MenuSession` creates a unique history only after a candidate session has passed its normal load/initialization checks and has been accepted. Loading a recovery point uses the same `read_save`/map/buildability/restore path as a manual save, starts paused, receives a fresh manual target, and records the source history/sequence as its parent. Resume keeps the live history. Recovery metadata is summary and navigation data; the checked save document remains authoritative.
+
 ## City-v11 Market distribution
 
 City-v11 reuses City-v10's SDL-free variable-length entity storage, footprint entrances, route cache, BFS, rerouting and stable-ID iteration. It appends `Market` and four courier roles without renumbering earlier values. Warehouse and Farm couriers target Markets; each Market owns independent Pottery and Food couriers targeting Houses. Role helpers select source stock, target kind, capacity and reservation field, so the same dispatch and arrival paths enforce Market and Household bounds. Active targets remain fixed through topology changes.

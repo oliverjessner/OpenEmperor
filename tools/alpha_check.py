@@ -231,6 +231,9 @@ def package_check() -> dict[str, object]:
     if not app.is_dir():
         raise CheckFailure("packaging did not produce OpenEmperor.app")
     bundled_paths = [path for path in app.rglob("*") if path.is_file()]
+    if any("recovery" in {part.lower() for part in path.relative_to(app).parts}
+           for path in bundled_paths):
+        raise CheckFailure("personal recovery history entered the app bundle")
     bundled = {path.name for path in bundled_paths}
     if bundled & forbidden:
         raise CheckFailure("local visual profiles or alpha reports entered the app bundle")

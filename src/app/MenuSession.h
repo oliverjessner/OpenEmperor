@@ -3,6 +3,7 @@
 #include "app/MenuStorage.h"
 #include "app/SandboxView.h"
 #include "app/VisualSelection.h"
+#include "app/AutosaveController.h"
 #include <SDL3/SDL.h>
 #include <deque>
 #include <memory>
@@ -12,7 +13,7 @@ namespace openemperor::menu {
 class MenuSession {
 public:
     enum class State { DataSetup, MainMenu, NewSandbox, LoadSandbox, Loading, Playing,
-                       ConfirmLeave, ConfirmUpgrade };
+                       ConfirmLeave, ConfirmUpgrade, ConfirmDeleteRecovery };
     MenuSession(std::filesystem::path explicit_data={},std::filesystem::path app_root={},
                 std::unique_ptr<DialogAdapter> dialog=std::make_unique<NativeDialog>(),
                 std::filesystem::path resource_root={});
@@ -48,6 +49,7 @@ private:
     void perform(int action);
     void persist_settings();
     void record_save();
+    void report_autosave(const AutosaveResult& result);
     void activate_button(int action);
     void rebuild_buttons();
     void set_state(State state);
@@ -70,10 +72,15 @@ private:
     assets::CompatibilityResult compatibility_;
     maps::MapCatalog catalog_;
     SaveList saves_;
+    persistence::RecoveryCatalog recoveries_;
+    std::vector<persistence::RecoveryEntry> recovery_entries_;
     std::unique_ptr<SandboxView> sandbox_,candidate_;
+    std::unique_ptr<AutosaveController> autosave_,candidate_autosave_;
+    std::optional<persistence::RecoveryParent> pending_recovery_parent_;
     std::size_t map_index_=0,save_index_=0,map_scroll_=0,save_scroll_=0;
     bool demo_=true,running_=true,initialized_=false,loading_drawn_=false,settings_reset_required_=false;
     bool upgrade_copy_=false;
+    bool recovery_view_=false,candidate_sets_last_save_=false;
     bool advanced_visuals_open_=false;
     int pressed_action_=-1;
     std::optional<int> pending_action_;

@@ -119,11 +119,22 @@ void SandboxView::configure_save(std::filesystem::path root,std::filesystem::pat
 
 void SandboxView::save_now() {
     if (save_path_.empty()) throw std::runtime_error("No sandbox save path configured");
-    const auto document=persistence::make_document(data_root_,map_relative_,buildable_mask_,*world_);
+    const auto document=capture_save_document();
     persistence::write_save(save_path_,document,data_root_,buildable_mask_);
     saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     ++save_generation_;
     last_message_="Saved tick "+std::to_string(world_->ticks());
+}
+
+persistence::SaveDocument SandboxView::capture_save_document() const {
+    if (!world_ || data_root_.empty() || map_relative_.empty())
+        throw std::runtime_error("sandbox has no valid save context");
+    return persistence::make_document(data_root_,map_relative_,buildable_mask_,*world_);
+}
+
+bool SandboxView::recovery_safe_point() const {
+    return world_ && !budget_warning_ && !road_start_ && !map_pressed_ && !ui_pressed_ &&
+        !pending_command_ && !pending_road_;
 }
 
 void SandboxView::load_now() {
@@ -2049,6 +2060,8 @@ bool SandboxView::draw_hud() {
         else if (guidance.taxes_have_been_collected)
             status+=" | Complete demand has paid tax";
     }
+    if (!recovery_status_.empty() && !budget_warning_ && !road_start_)
+        status+=" | "+recovery_status_;
     if (simulation::city_profile(rules_))
         status+=world_->settlement_goal_reached() ?
             (simulation::population_profile(rules_) ?
