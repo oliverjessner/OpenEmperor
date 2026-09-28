@@ -305,6 +305,109 @@ void check_recovery(sim::Cell removed,const char* label,int mode,SaveFixture& fi
              <<" population="<<world.total_population()<<'\n';
 }
 
+sim::BuildingId building_of(const sim::World& world,sim::Object kind) {
+    for (const auto& building:world.buildings()) if (building.kind==kind) return building.id;
+    throw std::runtime_error("recovery building kind missing");
+}
+
+void operation_recovery() {
+    auto crisis=recovery_city();
+    constexpr sim::Cell farm_entrance{6,4};
+    remove_when_free(crisis,farm_entrance);
+    const auto missed_before=total_missed(crisis);
+    const auto crisis_deadline=crisis.ticks()+20'000;
+    while ((crisis.total_population()>15 || total_missed(crisis)==missed_before) &&
+           crisis.ticks()<crisis_deadline) crisis.tick();
+    require(crisis.total_population()<=15 && total_missed(crisis)>missed_before,
+            "natural food interruption did not produce the bounded workforce crisis");
+    const auto crisis_population=crisis.total_population();
+    const auto crisis_taxes=crisis.taxes_collected_total();
+    const auto crisis_fulfilled=total_fulfilled(crisis);
+    const auto crisis_inventory=crisis.resource_inventory();
+
+    auto control=sim::World::restore(crisis.snapshot(),std::vector<std::uint8_t>(width*8,1));
+    save::SaveDocument source;
+    source.world=crisis.snapshot();
+    auto upgraded=save::upgrade_city_v11_v2_to_v3(source);
+    auto rescued=sim::World::restore(upgraded.world,std::vector<std::uint8_t>(width*8,1));
+    put(control,sim::CommandType::PlaceRoad,farm_entrance.x,farm_entrance.y);
+    put(rescued,sim::CommandType::PlaceRoad,farm_entrance.x,farm_entrance.y);
+
+    const auto clay=building_of(rescued,sim::Object::ClaySource);
+    const auto pottery=building_of(rescued,sim::Object::Pottery);
+    const auto farm=building_of(rescued,sim::Object::Farm);
+    const auto market=building_of(rescued,sim::Object::Market);
+    const auto service=building_of(rescued,sim::Object::ServicePost);
+    for (const auto command:{sim::set_building_operation(clay,false),
+                             sim::set_building_operation(pottery,false),
+                             sim::set_building_workforce_priority(farm,sim::WorkforcePriority::High),
+                             sim::set_building_workforce_priority(market,sim::WorkforcePriority::High),
+                             sim::set_building_workforce_priority(service,sim::WorkforcePriority::High)})
+        require(rescued.execute(command).accepted,"recovery operation command failed");
+    require(rescued.active_workforce_required()==12 && rescued.workforce_used()==12,
+            "recovery allocation did not reserve the 12-worker supply chain");
+
+    bool first_tax=false,pottery_restarted=false,clay_restarted=false,later_growth=false;
+    std::uint64_t first_tax_tick=0;
+    int first_tax_population=0;
+    std::uint64_t first_tax_fulfilled=0;
+    std::uint64_t first_tax_delta=0;
+    const auto rescue_deadline=rescued.ticks()+12'000;
+    while (rescued.ticks()<rescue_deadline && !later_growth) {
+        rescued.tick();
+        if (!first_tax && rescued.taxes_collected_total()>crisis_taxes) {
+            first_tax=true;
+            first_tax_tick=rescued.ticks();
+            first_tax_population=rescued.total_population();
+            first_tax_fulfilled=total_fulfilled(rescued);
+            first_tax_delta=rescued.taxes_collected_total()-crisis_taxes;
+            require(rescued.total_population()>crisis_population,
+                    "first recovered demand paid tax without population growth");
+            require(rescued.execute(sim::set_building_operation(pottery,true)).accepted &&
+                    rescued.execute(sim::set_building_workforce_priority(
+                        pottery,sim::WorkforcePriority::High)).accepted,
+                    "pottery restart decisions failed");
+            pottery_restarted=true;
+        }
+        if (pottery_restarted && !clay_restarted && rescued.total_population()>=22) {
+            require(rescued.execute(sim::set_building_operation(clay,true)).accepted,
+                    "clay restart decision failed");
+            clay_restarted=true;
+        }
+        later_growth=clay_restarted && rescued.total_population()>=crisis_population+8 &&
+            rescued.taxes_collected_total()>crisis_taxes+100;
+    }
+    for (int tick=0;tick<12'000;++tick) control.tick();
+    require(first_tax && pottery_restarted && clay_restarted && later_growth &&
+            rescued.production_balance_valid() && rescued.food_balance_valid() &&
+            rescued.service_state_valid() && rescued.population_valid(),
+            "operation-control crisis did not achieve sustained measured recovery");
+    require(control.total_population()<=crisis_population &&
+            control.taxes_collected_total()==crisis_taxes,
+            "unchanged v2 control unexpectedly recovered from the same staffing crisis");
+    std::cout<<"operation_crisis tick="<<crisis.ticks()<<" population="<<crisis_population
+             <<" stocks clay="<<(crisis_inventory.clay_source_output+
+                                  crisis_inventory.clay_courier_cargo+
+                                  crisis_inventory.pottery_clay_input+
+                                  crisis_inventory.recipe_clay)
+             <<" pottery="<<(crisis_inventory.pottery_producer_output+
+                              crisis_inventory.pottery_warehouse_stock+
+                              crisis_inventory.pottery_market_stock+
+                              crisis_inventory.pottery_household_stock+
+                              crisis_inventory.pottery_courier_cargo)
+             <<" food="<<(crisis_inventory.food_farm_output+
+                           crisis_inventory.food_market_stock+
+                           crisis_inventory.food_household_stock+
+                           crisis_inventory.food_courier_cargo)
+             <<" first_tax_tick="<<first_tax_tick
+             <<" first_tax_population="<<first_tax_population
+             <<" first_tax_fulfilled_delta="<<(first_tax_fulfilled-crisis_fulfilled)
+             <<" first_tax_delta="<<first_tax_delta
+             <<" recovered_population="<<rescued.total_population()
+             <<" recovered_fulfilled_delta="<<(total_fulfilled(rescued)-crisis_fulfilled)
+             <<" tax_delta="<<(rescued.taxes_collected_total()-crisis_taxes)<<'\n';
+}
+
 } // namespace
 
 int main() {
@@ -312,8 +415,15 @@ int main() {
         SaveFixture save_files;
         const auto& v1=sim::profile_rules(sim::RulesProfile::CityV11,1);
         const auto& v2=sim::profile_rules(sim::RulesProfile::CityV11,2);
-        require(sim::current_rule_version(sim::RulesProfile::CityV11)==2,
-            "new City-v11 Worlds do not select rules v2");
+        const auto& v3=sim::profile_rules(sim::RulesProfile::CityV11,3);
+        require(sim::current_rule_version(sim::RulesProfile::CityV11)==3,
+            "new City-v11 Worlds do not select rules v3");
+        require(v3.clay_ticks==v2.clay_ticks &&
+                v3.pottery_recipe_ticks==v2.pottery_recipe_ticks &&
+                v3.farm_ticks==v2.farm_ticks &&
+                v3.courier_edge_ticks==v2.courier_edge_ticks &&
+                v3.household_move_in_grace_ticks==v2.household_move_in_grace_ticks,
+            "City-v11 v3 changed v2 economic timing");
         require(v1.clay_ticks==100 && v1.pottery_recipe_ticks==150 && v1.farm_ticks==80 &&
                 v1.courier_edge_ticks==10 && v1.household_move_in_grace_ticks==0,
             "City-v11 v1 rules changed");
@@ -402,6 +512,7 @@ int main() {
         check_recovery({8,4},"market-inbound",0,save_files);
         check_recovery({12,4},"market-outbound",1,save_files);
         check_recovery({20,3},"service",2,save_files);
+        operation_recovery();
 
         auto v1_progress=sim::World(width,8,std::vector<std::uint8_t>(width*8,1),
             sim::RulesProfile::CityV11,1);
@@ -420,7 +531,7 @@ int main() {
             std::vector<std::uint8_t>(width*32,1));
         require(v2_restored.snapshot()==v2_snapshot && v2_restored.rule_version()==2,
             "City-v11 v2 restore changed state or rules");
-        auto unknown=v2_snapshot; unknown.rule_version=3;
+        auto unknown=v2_snapshot; unknown.rule_version=4;
         bool rejected=false;
         try { (void)sim::World::restore(unknown,std::vector<std::uint8_t>(width*32,1)); }
         catch (const std::invalid_argument&) { rejected=true; }

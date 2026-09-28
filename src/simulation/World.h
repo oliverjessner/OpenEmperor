@@ -177,9 +177,21 @@ struct BuildingEntrance {
     Cell building_cell{};
     bool operator==(const BuildingEntrance&) const = default;
 };
+enum class BuildingId : std::uint32_t;
+enum class WorkforcePriority : std::uint8_t { High=0, Normal=1, Low=2 };
+const char* workforce_priority_name(WorkforcePriority priority);
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
-                         RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost, PlaceMarket };
-struct Command { CommandType type; Cell cell; };
+                         RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost, PlaceMarket,
+                         SetBuildingOperation, SetBuildingWorkforcePriority };
+struct Command {
+    CommandType type;
+    Cell cell{};
+    BuildingId building_id=static_cast<BuildingId>(0);
+    bool operating_enabled=true;
+    WorkforcePriority workforce_priority=WorkforcePriority::Normal;
+};
+Command set_building_operation(BuildingId id,bool enabled);
+Command set_building_workforce_priority(BuildingId id,WorkforcePriority priority);
 struct CommandResult {
     bool accepted=false;
     bool changed=false;
@@ -209,6 +221,7 @@ enum class CourierDispatchStatus : std::uint8_t {
     AlreadyMoving,
     WaitingForRoadRevision,
     Unstaffed,
+    OperationPaused,
     Disabled
 };
 const char* courier_dispatch_status_name(CourierDispatchStatus status);
@@ -239,6 +252,8 @@ struct BuildingState {
     std::uint64_t food_produced=0;
     std::uint64_t service_until_tick=0;
     int population=0;
+    bool operating_enabled=true;
+    WorkforcePriority workforce_priority=WorkforcePriority::Normal;
     bool operator==(const BuildingState&) const = default;
 };
 struct CourierState {
@@ -300,6 +315,8 @@ struct BuildingSnapshot {
     std::uint64_t food_consumed_total=0, food_produced=0;
     std::uint64_t service_until_tick=0;
     int population=0;
+    bool operating_enabled=true;
+    WorkforcePriority workforce_priority=WorkforcePriority::Normal;
     bool operator==(const BuildingSnapshot&) const = default;
 };
 struct WorldSnapshot {
@@ -330,6 +347,14 @@ struct WorldSnapshot {
     std::uint64_t taxes_collected_total=0;
     std::uint64_t construction_spent_total=0;
     bool operator==(const WorldSnapshot&) const = default;
+};
+struct ResourceInventory {
+    int clay_source_output=0,clay_courier_cargo=0,pottery_clay_input=0,recipe_clay=0;
+    int pottery_producer_output=0,pottery_warehouse_stock=0,pottery_market_stock=0,
+        pottery_household_stock=0,pottery_courier_cargo=0;
+    int food_farm_output=0,food_market_stock=0,food_household_stock=0,food_courier_cargo=0;
+    int pottery_reservations=0,food_reservations=0;
+    bool operator==(const ResourceInventory&) const = default;
 };
 const char* delivery_phase_name(CourierPhase phase);
 
@@ -372,11 +397,18 @@ public:
     std::uint64_t taxes_collected_total() const { return taxes_collected_total_; }
     std::uint64_t construction_spent_total() const { return construction_spent_total_; }
     std::uint64_t food_produced_total() const { return food_produced_total_; }
+    ResourceInventory resource_inventory() const;
     int workforce_supply() const;
     int workforce_required() const;
+    int active_workforce_required() const;
     int workforce_used() const;
+    int workers_assigned(BuildingId id) const;
     int workforce_required(BuildingId id) const;
     bool building_staffed(BuildingId id) const;
+    bool operation_controls_supported() const {
+        return profile_==RulesProfile::CityV11 && rule_version_==3;
+    }
+    static bool operation_controllable(Object kind);
     bool settlement_goal_reached() const;
     int settlement_goal_households_ready() const;
     bool city_economy_valid() const;
@@ -435,6 +467,7 @@ private:
     void refresh_routes();
     void tick_production_v2();
     void capture_tick_staffing();
+    std::vector<bool> workforce_allocation() const;
     bool building_staffed_for_tick(BuildingId id) const;
     bool industry_balance_valid() const;
     void dispatch_v2(CourierState& courier);

@@ -30,10 +30,13 @@ bool has_kind(const World& world,Object kind) {
 }
 
 StarterSupplyCondition facility_condition(const World& world,Object kind) {
-    bool found=false,staffed=false,no_road=false,awaiting=false,active=false;
+    bool found=false,enabled=false,staffed=false,no_road=false,awaiting=false,active=false;
     for (const auto& building:world.buildings()) {
         if (!building.placed || building.kind!=kind) continue;
         found=true;
+        if (world.operation_controls_supported() && World::operation_controllable(building.kind) &&
+            !building.operating_enabled) continue;
+        enabled=true;
         if (!world.building_staffed(building.id)) continue;
         staffed=true;
         bool owns_courier=false;
@@ -56,6 +59,7 @@ StarterSupplyCondition facility_condition(const World& world,Object kind) {
         }
     }
     if (!found) return StarterSupplyCondition::MissingBuilding;
+    if (!enabled) return StarterSupplyCondition::Paused;
     if (!staffed) return StarterSupplyCondition::Unstaffed;
     if (no_road && !active) return StarterSupplyCondition::NoReachableTarget;
     if (awaiting && !active) return StarterSupplyCondition::AwaitingGoods;
@@ -95,9 +99,11 @@ CityStartGuidance inspect_city_start(const World& world) {
     result.applicable=world.profile()==RulesProfile::CityV11;
     if (!result.applicable) return result;
     result.workforce_supply=world.workforce_supply();
-    result.workforce_required_now=world.workforce_required();
+    result.workforce_required_now=world.active_workforce_required();
+    result.workforce_active_demand=world.active_workforce_required();
+    result.workforce_installed_demand=world.workforce_required();
     result.workforce_used=world.workforce_used();
-    result.workforce_required_for_starter=result.workforce_required_now;
+    result.workforce_required_for_starter=result.workforce_installed_demand;
     for (const auto kind:supply_kinds) {
         const bool present=has_kind(world,kind);
         result.facilities.push_back({kind,facility_condition(world,kind)});
@@ -156,7 +162,7 @@ std::optional<StarterBudgetWarning> starter_budget_warning(const World& world,Co
 
 std::optional<StarterBudgetWarning> starter_budget_warning(
     const World& world,std::span<const Command> commands) {
-    if (world.profile()!=RulesProfile::CityV11 || world.rule_version()!=2 ||
+    if (world.profile()!=RulesProfile::CityV11 || world.rule_version()<2 ||
         world.taxes_collected_total()>0) return std::nullopt;
     auto hypothetical=World::restore(world.snapshot(),copy_buildable_mask(world));
     for (const auto command:commands) {

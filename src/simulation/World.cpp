@@ -156,9 +156,33 @@ const char* courier_dispatch_status_name(CourierDispatchStatus status) {
     case CourierDispatchStatus::AlreadyMoving: return "Already moving";
     case CourierDispatchStatus::WaitingForRoadRevision: return "Waiting for road revision";
     case CourierDispatchStatus::Unstaffed: return "Building unstaffed";
+    case CourierDispatchStatus::OperationPaused: return "Operation paused";
     case CourierDispatchStatus::Disabled: return "Disabled";
     }
     return "Unknown";
+}
+
+const char* workforce_priority_name(WorkforcePriority priority) {
+    switch (priority) {
+    case WorkforcePriority::High: return "High";
+    case WorkforcePriority::Normal: return "Normal";
+    case WorkforcePriority::Low: return "Low";
+    }
+    return "Invalid";
+}
+
+Command set_building_operation(BuildingId id,bool enabled) {
+    Command command{CommandType::SetBuildingOperation};
+    command.building_id=id;
+    command.operating_enabled=enabled;
+    return command;
+}
+
+Command set_building_workforce_priority(BuildingId id,WorkforcePriority priority) {
+    Command command{CommandType::SetBuildingWorkforcePriority};
+    command.building_id=id;
+    command.workforce_priority=priority;
+    return command;
 }
 const char* rules_profile_name(RulesProfile profile) {
     switch (profile) {
@@ -178,12 +202,13 @@ const char* rules_profile_name(RulesProfile profile) {
 }
 
 std::uint32_t current_rule_version(RulesProfile profile) {
-    return profile==RulesProfile::ProductionV2 || profile==RulesProfile::CityV11 ? 2U:1U;
+    if (profile==RulesProfile::CityV11) return 3;
+    return profile==RulesProfile::ProductionV2 ? 2U:1U;
 }
 
 bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::ProductionV2) return version==2;
-    if (profile==RulesProfile::CityV11) return version==1 || version==2;
+    if (profile==RulesProfile::CityV11) return version>=1 && version<=3;
     return version==1;
 }
 
@@ -192,10 +217,12 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules production_v2{2,Rules::clay_ticks,
         Rules::pottery_recipe_ticks,Rules::farm_ticks,Rules::edge_ticks,0};
     static constexpr ProfileRules city_v11_v2{2,32,64,32,5,800};
+    static constexpr ProfileRules city_v11_v3{3,32,64,32,5,800};
     if (!rule_version_supported(profile,version))
         throw std::invalid_argument("unsupported sandbox rule version");
     if (profile==RulesProfile::ProductionV2) return production_v2;
     if (profile==RulesProfile::CityV11 && version==2) return city_v11_v2;
+    if (profile==RulesProfile::CityV11 && version==3) return city_v11_v3;
     return legacy;
 }
 
@@ -314,7 +341,9 @@ std::int64_t World::construction_cost(CommandType type) const {
     case CommandType::PlaceMarket:
         return market_profile(profile_) ? Rules::market_cost:0;
     case CommandType::PlaceWorkshop:
-    case CommandType::RemoveRoad: return 0;
+    case CommandType::RemoveRoad:
+    case CommandType::SetBuildingOperation:
+    case CommandType::SetBuildingWorkforcePriority: return 0;
     }
     return 0;
 }
@@ -333,6 +362,11 @@ int World::workforce_required(BuildingId id) const {
     }
 }
 
+bool World::operation_controllable(Object kind) {
+    return kind==Object::ClaySource || kind==Object::Pottery || kind==Object::Warehouse ||
+        kind==Object::Farm || kind==Object::ServicePost || kind==Object::Market;
+}
+
 int World::workforce_supply() const {
     if (!city_profile(profile_)) return 0;
     if (population_profile(profile_)) return total_population();
@@ -349,27 +383,57 @@ int World::workforce_required() const {
     return total;
 }
 
+int World::active_workforce_required() const {
+    if (!city_profile(profile_)) return 0;
+    int total=0;
+    for (const auto& b:buildings_) {
+        const int need=workforce_required(b.id);
+        if (!operation_controls_supported() || !operation_controllable(b.kind) ||
+            b.operating_enabled) total+=need;
+    }
+    return total;
+}
+
+std::vector<bool> World::workforce_allocation() const {
+    std::vector<bool> staffed(buildings_.size(),false);
+    std::vector<std::size_t> candidates;
+    candidates.reserve(buildings_.size());
+    for (std::size_t i=0;i<buildings_.size();++i) {
+        const auto& b=buildings_[i];
+        const int need=workforce_required(b.id);
+        if (need==0) { staffed[i]=true; continue; }
+        if (operation_controls_supported() && operation_controllable(b.kind) &&
+            !b.operating_enabled) continue;
+        candidates.push_back(i);
+    }
+    if (operation_controls_supported())
+        std::stable_sort(candidates.begin(),candidates.end(),[&](std::size_t a,std::size_t b) {
+            const auto& lhs=buildings_[a]; const auto& rhs=buildings_[b];
+            if (lhs.workforce_priority!=rhs.workforce_priority)
+                return lhs.workforce_priority<rhs.workforce_priority;
+            return lhs.id<rhs.id;
+        });
+    int available=workforce_supply();
+    for (const auto i:candidates) {
+        const int need=workforce_required(buildings_[i].id);
+        if (available<need) continue;
+        staffed[i]=true;
+        available-=need;
+    }
+    return staffed;
+}
+
 bool World::building_staffed(BuildingId id) const {
     if (!city_profile(profile_)) return true;
-    int available=workforce_supply();
-    for (const auto& value:buildings_) {
-        const int need=workforce_required(value.id);
-        const bool staffed=need==0 || available>=need;
-        if (need!=0 && staffed) available-=need;
-        if (value.id==id) return staffed;
-    }
-    throw std::out_of_range("invalid building ID");
+    const auto found=std::lower_bound(buildings_.begin(),buildings_.end(),id,
+        [](const BuildingState& value,BuildingId key) { return value.id<key; });
+    if (found==buildings_.end() || found->id!=id) throw std::out_of_range("invalid building ID");
+    const auto allocation=workforce_allocation();
+    return allocation[static_cast<std::size_t>(found-buildings_.begin())];
 }
 
 void World::capture_tick_staffing() {
-    tick_staffed_.assign(buildings_.size(),false);
-    int available=workforce_supply();
-    for (std::size_t i=0;i<buildings_.size();++i) {
-        const int need=workforce_required(buildings_[i].id);
-        const bool staffed=need==0 || available>=need;
-        tick_staffed_[i]=staffed;
-        if (need!=0 && staffed) available-=need;
-    }
+    tick_staffed_=workforce_allocation();
     tick_staffing_active_=true;
 }
 
@@ -388,6 +452,44 @@ int World::workforce_used() const {
         if (building_staffed(b.id)) used+=workforce_required(b.id);
     }
     return used;
+}
+
+ResourceInventory World::resource_inventory() const {
+    ResourceInventory result;
+    for (const auto& b:buildings_) {
+        if (!b.placed) continue;
+        switch (b.kind) {
+        case Object::ClaySource: result.clay_source_output+=b.output; break;
+        case Object::Pottery:
+            result.pottery_clay_input+=b.input_clay;
+            result.recipe_clay+=b.active_recipe_clay;
+            result.pottery_producer_output+=b.output;
+            break;
+        case Object::Warehouse: result.pottery_warehouse_stock+=b.pottery_stock; break;
+        case Object::Market:
+            result.pottery_market_stock+=b.pottery_stock;
+            result.food_market_stock+=b.food_stock;
+            break;
+        case Object::Household:
+            result.pottery_household_stock+=b.pottery_stock;
+            result.food_household_stock+=b.food_stock;
+            break;
+        case Object::Farm: result.food_farm_output+=b.output; break;
+        default: break;
+        }
+        result.pottery_reservations+=b.reserved_incoming;
+        result.food_reservations+=b.reserved_food_incoming;
+    }
+    for (const auto& c:couriers_) {
+        if (c.good==Good::Clay) result.clay_courier_cargo+=c.cargo;
+        else if (c.good==Good::Pottery) result.pottery_courier_cargo+=c.cargo;
+        else if (c.good==Good::Food) result.food_courier_cargo+=c.cargo;
+    }
+    return result;
+}
+
+int World::workers_assigned(BuildingId id) const {
+    return building_staffed(id) ? workforce_required(id):0;
 }
 
 int World::settlement_goal_households_ready() const {
@@ -559,6 +661,31 @@ bool World::city_economy_valid() const {
 CommandResult World::validate(Command command) const {
     if (command_sequence_==UINT64_MAX) throw std::overflow_error("sandbox command counter exhausted");
     CommandResult result{false,false,"",command_sequence_+1,ticks_};
+    if (command.type==CommandType::SetBuildingOperation ||
+        command.type==CommandType::SetBuildingWorkforcePriority) {
+        if (!operation_controls_supported()) {
+            result.reason="Operation controls require City-v11 rule version 3"; return result;
+        }
+        const auto found=std::lower_bound(buildings_.begin(),buildings_.end(),command.building_id,
+            [](const BuildingState& value,BuildingId key) { return value.id<key; });
+        if (found==buildings_.end() || found->id!=command.building_id) {
+            result.reason="Building does not exist"; return result;
+        }
+        if (!found->placed || !operation_controllable(found->kind)) {
+            result.reason="Building does not support operation controls"; return result;
+        }
+        if (command.type==CommandType::SetBuildingWorkforcePriority &&
+            command.workforce_priority!=WorkforcePriority::High &&
+            command.workforce_priority!=WorkforcePriority::Normal &&
+            command.workforce_priority!=WorkforcePriority::Low) {
+            result.reason="Invalid workforce priority"; return result;
+        }
+        const bool changed=command.type==CommandType::SetBuildingOperation ?
+            found->operating_enabled!=command.operating_enabled:
+            found->workforce_priority!=command.workforce_priority;
+        return {true,changed,changed ? "Operation setting changed":"Operation setting unchanged",
+                result.sequence,ticks_};
+    }
     if (command.type!=CommandType::PlaceRoad && command.type!=CommandType::PlaceWorkshop &&
         command.type!=CommandType::PlaceWarehouse && command.type!=CommandType::PlaceClaySource &&
         command.type!=CommandType::PlacePottery && command.type!=CommandType::RemoveRoad &&
@@ -704,6 +831,14 @@ CommandResult World::execute(Command command) {
     ++command_sequence_;
     result.sequence=command_sequence_;
     if (!result.accepted || !result.changed) return result;
+    if (command.type==CommandType::SetBuildingOperation) {
+        mutable_building(command.building_id).operating_enabled=command.operating_enabled;
+        return result;
+    }
+    if (command.type==CommandType::SetBuildingWorkforcePriority) {
+        mutable_building(command.building_id).workforce_priority=command.workforce_priority;
+        return result;
+    }
     const auto add_v10_building=[&](Object kind)->BuildingState& {
         const auto id=static_cast<BuildingId>(next_building_id_++);
         buildings_.push_back(BuildingState{id,kind,command.cell,true});
@@ -848,6 +983,9 @@ CommandResult World::execute(Command command) {
         add_v10_courier(id,CourierRole::MarketFoodDistribution,Good::Food);
         break;
     }
+    case CommandType::SetBuildingOperation:
+    case CommandType::SetBuildingWorkforcePriority:
+        throw std::logic_error("operation command reached placement path");
     }
     if (city_profile(profile_)) {
         const auto cost=construction_cost(command.type);
@@ -1125,6 +1263,9 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
         return {CourierDispatchStatus::WaitingForRoadRevision,std::nullopt};
     const auto& source=building(c.owner);
     if (!source.placed) return {CourierDispatchStatus::Disabled,std::nullopt};
+    if (operation_controls_supported() && operation_controllable(source.kind) &&
+        !source.operating_enabled)
+        return {CourierDispatchStatus::OperationPaused,std::nullopt};
     if (city_profile(profile_) && !building_staffed_for_tick(c.owner))
         return {CourierDispatchStatus::Unstaffed,std::nullopt};
 
@@ -2387,7 +2528,8 @@ std::string World::canonical_state() const {
            <<','<<b.missed_demand<<','<<b.consumed_total<<','<<b.last_demand_status
            <<','<<b.clay_extracted<<','<<b.food_stock<<','<<b.reserved_food_incoming
            <<','<<b.food_consumed_total<<','<<b.food_produced<<','<<b.service_until_tick
-           <<','<<b.population;
+           <<','<<b.population<<','<<b.operating_enabled<<','
+           <<static_cast<int>(b.workforce_priority);
     for (const auto& c:couriers_) {
         out<<'|'<<static_cast<int>(c.id)<<','<<static_cast<int>(c.role)<<','
            <<static_cast<int>(c.last_dispatched_pottery.value_or(static_cast<BuildingId>(0)))<<','
@@ -2472,7 +2614,8 @@ WorldSnapshot World::snapshot() const {
                         b.placed_tick,b.demand_progress,b.fulfilled_demand,b.missed_demand,
                         b.consumed_total,b.last_demand_status,b.clay_extracted,b.food_stock,
                         b.reserved_food_incoming,b.food_consumed_total,b.food_produced,
-                        b.service_until_tick,b.population});
+                        b.service_until_tick,b.population,b.operating_enabled,
+                        b.workforce_priority});
     }
     s.couriers.reserve(couriers_.size());
     for (std::size_t i=0;i<couriers_.size();++i) {
@@ -2551,6 +2694,15 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 !b.placed || b.kind==Object::Empty || b.kind==Object::Road ||
                 b.kind==Object::Workshop || (b.kind==Object::Market && !market_profile(s.profile)))
                 fail("invalid scalable City building identity or kind");
+            const bool valid_priority=b.workforce_priority==WorkforcePriority::High ||
+                b.workforce_priority==WorkforcePriority::Normal ||
+                b.workforce_priority==WorkforcePriority::Low;
+            if (!valid_priority ||
+                (s.profile==RulesProfile::CityV11 && s.rule_version==3 ?
+                    (!operation_controllable(b.kind) &&
+                     (!b.operating_enabled || b.workforce_priority!=WorkforcePriority::Normal)):
+                    (!b.operating_enabled || b.workforce_priority!=WorkforcePriority::Normal)))
+                fail("invalid building operation controls");
             for (const auto cell:building_footprint_cells(s.profile,b.kind,b.cell))
                 put(cell,b.kind,b.id);
             w.buildings_.push_back({b.id,b.kind,b.cell,b.placed,b.input_clay,b.output,
@@ -2558,7 +2710,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 b.recipes_completed,b.placed_tick,b.demand_progress,b.fulfilled_demand,
                 b.missed_demand,b.consumed_total,b.last_demand_status,b.clay_extracted,
                 b.food_stock,b.reserved_food_incoming,b.food_consumed_total,b.food_produced,
-                b.service_until_tick,b.population});
+                b.service_until_tick,b.population,b.operating_enabled,b.workforce_priority});
         }
         if ((!s.buildings.empty() && s.next_building_id<=
              static_cast<std::uint32_t>(s.buildings.back().id)) ||

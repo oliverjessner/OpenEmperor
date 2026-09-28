@@ -133,6 +133,7 @@ public:
     const sandbox_ui::RoadPlan& road_preview() const { return road_preview_; }
     const std::vector<std::uint8_t>& buildable_mask() const { return buildable_mask_; }
 private:
+    enum class OperationAction { Toggle, PriorityHigh, PriorityNormal, PriorityLow };
     struct DrawInstance {
         scene::WorldDrawKey key;
         simulation::Cell cell{};
@@ -158,6 +159,10 @@ private:
     bool request_road(const sandbox_ui::RoadPlan& plan);
     sandbox_ui::Rect budget_build_rect() const;
     sandbox_ui::Rect budget_cancel_rect() const;
+    std::optional<OperationAction> operation_action_at(double x,double y) const;
+    sandbox_ui::Rect operation_toggle_rect() const;
+    sandbox_ui::Rect operation_priority_rect(int index) const;
+    void perform_operation_action(OperationAction action);
     std::optional<scene::Point> render_point(float x,float y) const;
     void update_layout(bool preserve_center);
     std::vector<simulation::BuildingId> placed_buildings() const;
@@ -230,6 +235,7 @@ private:
     std::optional<simulation::Command> pending_command_;
     std::optional<sandbox_ui::RoadPlan> pending_road_;
     std::optional<bool> budget_button_pressed_;
+    std::optional<OperationAction> pressed_operation_action_;
     // Reused by draw_world(); its capacity remains bounded by the fixed World grid.
     std::vector<DrawInstance> draw_instances_;
 };

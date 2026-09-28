@@ -424,7 +424,8 @@ void SandboxView::place_demo() {
             }
             demo_origin_=simulation::Cell{x,y};
             reset_camera();
-            last_message_="City v11 v2 tick-0 starter placed: 1200 spent, 100 funds remain";
+            last_message_="City v11 v"+std::to_string(world_->rule_version())+
+                " tick-0 starter placed: 1200 spent, 100 funds remain";
             return;
         }
         throw std::runtime_error("no suitable 15x5 sandbox-buildable City-v11 starter pattern");
@@ -783,11 +784,50 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
 void SandboxView::cancel_gesture() {
     pressed_button_.reset();
     pressed_building_.reset();
+    pressed_operation_action_.reset();
     ui_pressed_=false;
     map_pressed_=false;
     road_start_.reset();
     road_preview_={};
     menu_pressed_=false;
+}
+
+sandbox_ui::Rect SandboxView::operation_toggle_rect() const {
+    return {layout_.panel.x+10*layout_.scale,
+            layout_.panel.y+layout_.panel.h-92*layout_.scale,
+            std::max(0,layout_.panel.w-20*layout_.scale),28*layout_.scale};
+}
+
+sandbox_ui::Rect SandboxView::operation_priority_rect(int index) const {
+    const int gap=4*layout_.scale;
+    const int width=std::max(0,(layout_.panel.w-20*layout_.scale-2*gap)/3);
+    return {layout_.panel.x+10*layout_.scale+index*(width+gap),
+            layout_.panel.y+layout_.panel.h-48*layout_.scale,width,28*layout_.scale};
+}
+
+std::optional<SandboxView::OperationAction> SandboxView::operation_action_at(double x,double y) const {
+    if (!layout_.panel_open || !world_ || !world_->operation_controls_supported())
+        return std::nullopt;
+    const auto id=selected_building();
+    if (!id || !simulation::World::operation_controllable(world_->building(*id).kind))
+        return std::nullopt;
+    if (operation_toggle_rect().contains(x,y)) return OperationAction::Toggle;
+    for (int i=0;i<3;++i) if (operation_priority_rect(i).contains(x,y))
+        return static_cast<OperationAction>(static_cast<int>(OperationAction::PriorityHigh)+i);
+    return std::nullopt;
+}
+
+void SandboxView::perform_operation_action(OperationAction action) {
+    const auto id=selected_building();
+    if (!id) return;
+    const auto& building=world_->building(*id);
+    simulation::Command command=action==OperationAction::Toggle ?
+        simulation::set_building_operation(*id,!building.operating_enabled):
+        simulation::set_building_workforce_priority(*id,
+            action==OperationAction::PriorityHigh ? simulation::WorkforcePriority::High:
+            action==OperationAction::PriorityNormal ? simulation::WorkforcePriority::Normal:
+            simulation::WorkforcePriority::Low);
+    (void)request_execute(command);
 }
 
 sandbox_ui::Rect SandboxView::budget_build_rect() const {
@@ -1040,6 +1080,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             pointer_->x>=layout_.top.w-88*layout_.scale) { menu_pressed_=true; return; }
         refresh_hover();
         if (!pointer_) return;
+        if (const auto action=operation_action_at(pointer_->x,pointer_->y)) {
+            pressed_operation_action_=action; ui_pressed_=true; return;
+        }
         if (const auto button=layout_.button_at(pointer_->x,pointer_->y)) {
             pressed_button_=button; return;
         }
@@ -1080,6 +1123,13 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             return;
         }
         if (ui_pressed_) {
+            if (pressed_operation_action_) {
+                const auto action=*pressed_operation_action_;
+                const bool matching=pointer_ && operation_action_at(pointer_->x,pointer_->y)==action;
+                cancel_gesture();
+                if (matching) perform_operation_action(action);
+                return;
+            }
             if (pressed_building_ && pointer_ && layout_.panel.contains(pointer_->x,pointer_->y)) {
                 const int relative=static_cast<int>(pointer_->y)-layout_.panel.y-
                     46*layout_.scale+panel_scroll_;
@@ -1123,7 +1173,9 @@ void SandboxView::tick_once() { if (!budget_warning_) world_->tick(); }
 simulation::CommandResult SandboxView::execute(simulation::Command command) {
     const auto result=world_->execute(command);
     last_message_=result.reason;
-    selected_=command.cell;
+    if (command.type!=simulation::CommandType::SetBuildingOperation &&
+        command.type!=simulation::CommandType::SetBuildingWorkforcePriority)
+        selected_=command.cell;
     return result;
 }
 
@@ -1598,16 +1650,18 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             return kinds;
         };
         const auto add_pipeline_state=[&]() {
+            const auto paused=facility_kinds(simulation::StarterSupplyCondition::Paused);
             const auto unstaffed=facility_kinds(simulation::StarterSupplyCondition::Unstaffed);
             const auto no_target=facility_kinds(
                 simulation::StarterSupplyCondition::NoReachableTarget);
             const auto awaiting=facility_kinds(simulation::StarterSupplyCondition::AwaitingGoods);
+            if (!paused.empty()) lines.push_back("Paused by player: "+joined_buildings(paused)+".");
             if (!unstaffed.empty()) lines.push_back("Unstaffed: "+joined_buildings(unstaffed)+".");
             if (!no_target.empty())
                 lines.push_back("No reachable delivery target: "+joined_buildings(no_target)+".");
             if (!awaiting.empty())
                 lines.push_back("Awaiting production or delivery: "+joined_buildings(awaiting)+".");
-            return !unstaffed.empty() || !no_target.empty() || !awaiting.empty();
+            return !paused.empty() || !unstaffed.empty() || !no_target.empty() || !awaiting.empty();
         };
         lines.push_back("START STATUS");
         if (!guidance.missing_supply_buildings.empty()) {
@@ -1702,9 +1756,24 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                     simulation::Rules::household_workers));
         else {
             const auto required=world_->workforce_required(*id);
-            lines.push_back(world_->building_staffed(*id) ?
-                "Workers "+std::to_string(required)+"/"+std::to_string(required)+" staffed":
-                "Unstaffed - need "+std::to_string(required)+" workers");
+            lines.push_back("Workers assigned "+std::to_string(world_->workers_assigned(*id))+
+                "/"+std::to_string(required));
+            if (world_->operation_controls_supported() &&
+                simulation::World::operation_controllable(b.kind)) {
+                lines.push_back(std::string("Operation: ")+
+                    (b.operating_enabled ? "Running":"Paused by player"));
+                lines.push_back(std::string("Worker priority: ")+
+                    simulation::workforce_priority_name(b.workforce_priority));
+                if (!b.operating_enabled) {
+                    const bool moving=std::any_of(world_->couriers().begin(),world_->couriers().end(),
+                        [&](const simulation::CourierState& courier) {
+                            return courier.owner==b.id &&
+                                courier.phase!=simulation::CourierPhase::IdleAtWorkshop;
+                        });
+                    lines.push_back(moving ? "Operation paused; current delivery is finishing.":
+                                           "Paused by player; production and new dispatch stopped.");
+                } else if (!world_->building_staffed(*id)) lines.push_back("Status: Unstaffed");
+            } else if (!world_->building_staffed(*id)) lines.push_back("Status: Unstaffed");
         }
     }
     if (b.kind==simulation::Object::Workshop) {
@@ -1717,9 +1786,10 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Clay output "+std::to_string(b.output)+"/8");
         lines.push_back("Progress "+std::to_string(b.progress)+"/"+
             std::to_string(world_->active_rules().clay_ticks));
-        lines.push_back("Extracted "+std::to_string(b.clay_extracted));
-        lines.push_back(b.output==simulation::Rules::clay_output_capacity ? "Output full" :
-            "Extraction active");
+        lines.push_back("Produced total "+std::to_string(b.clay_extracted));
+        if (b.operating_enabled)
+            lines.push_back(b.output==simulation::Rules::clay_output_capacity ? "Output full" :
+                "Extraction active");
     } else if (b.kind==simulation::Object::Pottery) {
         lines.push_back("Clay input "+std::to_string(b.input_clay)+"/8");
         lines.push_back("Reserved input "+std::to_string(b.reserved_incoming));
@@ -1727,10 +1797,10 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Recipe "+std::to_string(b.progress)+"/"+
             std::to_string(world_->active_rules().pottery_recipe_ticks));
         lines.push_back("Pottery output "+std::to_string(b.output)+"/8");
-        lines.push_back("Completed "+std::to_string(b.recipes_completed));
-        lines.push_back(b.active_recipe_clay>0 ? "Processing" :
+        lines.push_back("Produced total "+std::to_string(b.recipes_completed));
+        if (b.operating_enabled) lines.push_back(b.active_recipe_clay>0 ? "Processing" :
             b.output>=simulation::Rules::pottery_output_capacity ? "Output full" :
-            b.input_clay<simulation::Rules::pottery_recipe_clay ? "No Clay input" : "Ready");
+            b.input_clay<simulation::Rules::pottery_recipe_clay ? "Awaiting input" : "Ready");
     } else if (b.kind==simulation::Object::Warehouse) {
         const int stock=simulation::production_profile(rules_) ? b.pottery_stock :
             world_->warehouse_stock();
@@ -1790,9 +1860,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Food output "+std::to_string(b.output)+"/12");
         lines.push_back("Progress "+std::to_string(b.progress)+"/"+
             std::to_string(world_->active_rules().farm_ticks));
-        lines.push_back("Produced "+std::to_string(b.food_produced));
+        lines.push_back("Produced total "+std::to_string(b.food_produced));
     } else if (b.kind==simulation::Object::Market) {
-        lines.push_back(std::string("Market ")+
+        if (b.operating_enabled) lines.push_back(std::string("Market ")+
             (world_->building_staffed(*id) ? "staffed":"unstaffed"));
         lines.push_back("Pottery stock "+std::to_string(b.pottery_stock)+"/16");
         lines.push_back("Pottery incoming "+std::to_string(b.reserved_incoming));
@@ -1903,8 +1973,10 @@ bool SandboxView::draw_hud() {
     if (simulation::city_profile(rules_)) {
         overview+=" | Funds "+std::to_string(world_->treasury())+" | Workers ";
         if (simulation::population_profile(rules_))
-            overview+=std::to_string(world_->workforce_supply())+"/"+
-                std::to_string(world_->workforce_required());
+            overview+="avail "+std::to_string(world_->workforce_supply())+
+                " assigned "+std::to_string(world_->workforce_used())+
+                " active "+std::to_string(world_->active_workforce_required())+
+                " installed "+std::to_string(world_->workforce_required());
         else
             overview+=std::to_string(world_->workforce_used())+"/"+
                 std::to_string(world_->workforce_supply());
@@ -1915,9 +1987,12 @@ bool SandboxView::draw_hud() {
         int food=0; std::size_t houses=0;
         for (const auto& b:world_->buildings()) {
             if (b.kind==simulation::Object::Farm) food+=b.output;
-            if (b.kind==simulation::Object::Household) { food+=b.food_stock; ++houses; }
+            if (b.kind==simulation::Object::Market || b.kind==simulation::Object::Household)
+                food+=b.food_stock;
+            if (b.kind==simulation::Object::Household) ++houses;
         }
-        overview+=" | Food "+std::to_string(food);
+        for (const auto& c:world_->couriers()) if (c.good==simulation::Good::Food) food+=c.cargo;
+        overview+=" | Food stock "+std::to_string(food);
         if (simulation::service_profile(rules_))
             overview+=" | Service "+std::to_string(world_->covered_households())+"/"+
                 std::to_string(houses);
@@ -1935,8 +2010,9 @@ bool SandboxView::draw_hud() {
     if (simulation::production_profile(rules_)) {
         int stored=0; for (const auto& b:world_->buildings())
             if (b.kind==simulation::Object::Warehouse) stored+=b.pottery_stock;
-        overview+=" | Clay "+std::to_string(world_->clay_extracted_total())+" | Pottery "+
-            std::to_string(world_->pottery_completed_total())+" | Store "+std::to_string(stored);
+        overview+=" | Clay produced total "+std::to_string(world_->clay_extracted_total())+
+            " | Pottery produced total "+std::to_string(world_->pottery_completed_total())+
+            " | Warehouse stock "+std::to_string(stored);
     }
     else overview+=" | Goods "+std::to_string(world_->total_produced());
     if (!draw_text(8*layout_.scale,18*layout_.scale,overview,
@@ -2114,12 +2190,37 @@ bool SandboxView::draw_hud() {
         const int detail_y=layout_.panel.y+52*layout_.scale+
             static_cast<int>(entries.size())*18*layout_.scale-panel_scroll_;
         const auto details=inspection_lines();
+        const auto controls_id=selected_building();
+        const bool show_operation_controls=controls_id && world_->operation_controls_supported() &&
+            simulation::World::operation_controllable(world_->building(*controls_id).kind);
+        const int detail_bottom=layout_.panel.y+layout_.panel.h-
+            (show_operation_controls ? 104*layout_.scale:0);
         for (std::size_t i=0;i<details.size();++i) {
             const int y=detail_y+static_cast<int>(i)*17*layout_.scale;
-            if (y<layout_.panel.y || y+10*layout_.scale>=layout_.panel.y+layout_.panel.h) continue;
+            if (y<layout_.panel.y || y+10*layout_.scale>=detail_bottom) continue;
             if (!SDL_SetRenderDrawColor(renderer_,205,225,238,255) ||
                 !draw_text(layout_.panel.x+10*layout_.scale,y,details[i],
                            layout_.panel.w-20*layout_.scale)) return false;
+        }
+        if (show_operation_controls) {
+            const auto& selected=world_->building(*controls_id);
+            if (simulation::World::operation_controllable(selected.kind)) {
+                const auto toggle=operation_toggle_rect();
+                if (!fill(toggle,{38,82,105,255}) ||
+                    !draw_text(toggle.x+6*layout_.scale,toggle.y+9*layout_.scale,
+                        selected.operating_enabled ? "Pause operation":"Resume operation",
+                        toggle.w-12*layout_.scale)) return false;
+                constexpr std::array<const char*,3> labels{"High","Normal","Low"};
+                for (int i=0;i<3;++i) {
+                    const auto priority=static_cast<simulation::WorkforcePriority>(i);
+                    const auto rect=operation_priority_rect(i);
+                    if (!fill(rect,selected.workforce_priority==priority ?
+                        SDL_Color{38,100,125,255}:SDL_Color{38,58,77,255}) ||
+                        !draw_text(rect.x+5*layout_.scale,rect.y+9*layout_.scale,
+                                   labels[static_cast<std::size_t>(i)],
+                                   rect.w-10*layout_.scale)) return false;
+                }
+            }
         }
     }
     if (debug_open_) {
@@ -2157,6 +2258,36 @@ bool SandboxView::draw_hud() {
                     (world_->building_staffed(b.id)?" yes":" no");
             }
             if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,staffing,
+                           layout_.map.w-16*layout_.scale)) return false;
+            debug_row+=14;
+        }
+        if (rules_==simulation::RulesProfile::CityV11) {
+            const auto stock=world_->resource_inventory();
+            const std::string clay="Current Clay: source "+std::to_string(stock.clay_source_output)+
+                " courier "+std::to_string(stock.clay_courier_cargo)+" input "+
+                std::to_string(stock.pottery_clay_input)+" recipe "+
+                std::to_string(stock.recipe_clay)+" | Produced total "+
+                std::to_string(world_->clay_extracted_total());
+            if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,clay,
+                           layout_.map.w-16*layout_.scale)) return false;
+            debug_row+=14;
+            const std::string pottery="Current Pottery: producer "+
+                std::to_string(stock.pottery_producer_output)+" warehouse "+
+                std::to_string(stock.pottery_warehouse_stock)+" market "+
+                std::to_string(stock.pottery_market_stock)+" houses "+
+                std::to_string(stock.pottery_household_stock)+" courier "+
+                std::to_string(stock.pottery_courier_cargo)+" reservations "+
+                std::to_string(stock.pottery_reservations);
+            if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,pottery,
+                           layout_.map.w-16*layout_.scale)) return false;
+            debug_row+=14;
+            const std::string food="Current Food: farm "+std::to_string(stock.food_farm_output)+
+                " market "+std::to_string(stock.food_market_stock)+" houses "+
+                std::to_string(stock.food_household_stock)+" courier "+
+                std::to_string(stock.food_courier_cargo)+" reservations "+
+                std::to_string(stock.food_reservations)+" | Produced total "+
+                std::to_string(world_->food_produced_total());
+            if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,food,
                            layout_.map.w-16*layout_.scale)) return false;
             debug_row+=14;
         }

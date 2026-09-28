@@ -1,5 +1,6 @@
 #include "app/MenuSession.h"
 #include "maps/StoredMapSession.h"
+#include "maps/SandboxPlacement.h"
 #include "persistence/SandboxSave.h"
 #include "core/Version.h"
 #include "app/ResourceLocator.h"
@@ -14,7 +15,8 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     MapPrev, MapNext, ProfilePrev, ProfileNext, Demo, Start, Back,
     SavePrev, SaveNext, OpenSave, ExternalSave, ConfirmSave, ConfirmDiscard, ConfirmCancel,
     ResetSettings, OpenMenu, VisualsFile, VisualsClear, BuildingVisualsFile, BuildingVisualsClear,
-    RoadVisualsFile, RoadVisualsClear, AdvancedVisuals,
+    RoadVisualsFile, RoadVisualsClear, AdvancedVisuals, UpgradeCopy, ConfirmUpgradeCopy,
+    CancelUpgrade,
     MapSelectBase=1000, SaveSelectBase=2000 };
 constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::LogisticsV1,
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
@@ -160,6 +162,7 @@ void MenuSession::finish_loading() {
         if (!save_path.empty()) {
             persistence::validate_save_target(save_path,settings_.data_root);
             document=persistence::read_save(save_path);
+            if (upgrade_copy_) document=persistence::upgrade_city_v11_v2_to_v3(*document);
             map=document->map_relative; profile=document->world.profile;
         } else {
             map=catalog_.entries.at(map_index_).relative_path;
@@ -167,6 +170,12 @@ void MenuSession::finish_loading() {
         }
         auto loaded=maps::load_stored_map_session(settings_.data_root,map,
             maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8);
+        if (upgrade_copy_) {
+            save_path=new_save_target(app_root_,settings_.data_root);
+            const maps::MapGeometry geometry(loaded.map.declared_map_size);
+            const auto mask=maps::make_sandbox_buildable_mask(loaded.plan,geometry);
+            persistence::write_save(save_path,*document,settings_.data_root,mask);
+        }
         auto view=std::make_unique<SandboxView>(std::move(loaded),document ? false:demo_,profile);
         view->set_managed(true);
         view->configure_save(settings_.data_root,map,save_path,std::move(document));
@@ -178,10 +187,14 @@ void MenuSession::finish_loading() {
         if (!visuals.road.empty()) view->set_road_visuals(visuals.road,visuals.road_source);
         view->initialize(window_,renderer_);
         candidate_=std::move(view); candidate_map_=map; candidate_profile_=profile;
+        const bool upgraded=upgrade_copy_;
+        upgrade_copy_=false;
         if (sandbox_ && sandbox_->dirty()) confirm_or(AfterConfirm::Replace);
         else commit_candidate();
+        if (upgraded) message_="Operation controls enabled in a new City-v11-v3 copy; original save unchanged.";
     } catch (const std::exception& e) {
         candidate_.reset();
+        upgrade_copy_=false;
         const auto subject=pending_save_path_.empty()?"Map or optional visual preview":"Save";
         message_=std::string(subject)+" could not be loaded: "+e.what()+". Check the selected file and try again.";
         set_state(return_state_);
@@ -250,6 +263,19 @@ void MenuSession::perform(int action) {
         case SavePrev: if (save_index_>0) --save_index_; rebuild_buttons(); break;
         case SaveNext: if (save_index_+1<saves_.entries.size()) ++save_index_; rebuild_buttons(); break;
         case OpenSave: if (!saves_.entries.empty()) start_load(saves_.entries.at(save_index_).path); break;
+        case UpgradeCopy:
+            if (!saves_.entries.empty()) {
+                pending_save_path_=saves_.entries.at(save_index_).path;
+                set_state(State::ConfirmUpgrade);
+                message_="The copy will use City-v11 rule version 3. The original save stays unchanged.";
+            }
+            break;
+        case ConfirmUpgradeCopy:
+            upgrade_copy_=true; return_state_=State::LoadSandbox;
+            set_state(State::Loading); loading_drawn_=false; break;
+        case CancelUpgrade:
+            pending_save_path_.clear(); upgrade_copy_=false; set_state(State::LoadSandbox);
+            message_="Operation-control copy cancelled"; break;
         case ExternalSave: open_dialog(DialogKind::SaveFile); break;
         case VisualsFile: open_dialog(DialogKind::VisualsFile); break;
         case VisualsClear: visual_profile_path_.clear(); message_="Walker override cleared; automatic visuals selected";
@@ -310,11 +336,13 @@ void MenuSession::handle_event(const SDL_Event& event) {
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
         if (event.key.key==SDLK_ESCAPE) {
             if (state_==State::ConfirmLeave) activate_button(ConfirmCancel);
+            else if (state_==State::ConfirmUpgrade) activate_button(CancelUpgrade);
             else if (state_==State::NewSandbox || state_==State::LoadSandbox) activate_button(Back);
             else if (state_!=State::Loading) activate_button(Quit);
         } else if (event.key.key==SDLK_RETURN || event.key.key==SDLK_KP_ENTER) {
             if (state_==State::NewSandbox) activate_button(Start);
             else if (state_==State::LoadSandbox) activate_button(OpenSave);
+            else if (state_==State::ConfirmUpgrade) activate_button(ConfirmUpgradeCopy);
         } else if (event.key.key==SDLK_UP) {
             if (state_==State::NewSandbox) activate_button(MapPrev);
             else if (state_==State::LoadSandbox) activate_button(SavePrev);
@@ -425,6 +453,12 @@ void MenuSession::rebuild_buttons() {
         add(SavePrev,"Previous save",40,120); add(SaveNext,"Next save",230,120);
         add(OpenSave,"Open selected",40,270); add(ExternalSave,"Open save file...",230,270);
         add(Back,"Back",40,315);
+        if (!saves_.entries.empty()) {
+            const auto& selected=saves_.entries.at(save_index_);
+            if (selected.error.empty() && selected.profile==simulation::city_v11_profile_name &&
+                selected.rule_version==2)
+                add(UpgradeCopy,"Enable operation controls in a copy",230,315,300);
+        }
         add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",40,360,210);
         if (advanced_visuals_open_) {
             add(VisualsFile,"Choose walker JSON...",40,400); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,400);
@@ -447,6 +481,9 @@ void MenuSession::rebuild_buttons() {
         add(ConfirmSave,quitting?"Save and Quit":"Save and Continue",40,160,210);
         add(ConfirmDiscard,quitting?"Quit Without Saving":"Discard Changes",40,205,210);
         add(ConfirmCancel,"Cancel",40,250,210);
+    } else if (state_==State::ConfirmUpgrade) {
+        add(ConfirmUpgradeCopy,"Create v3 copy",40,160,210);
+        add(CancelUpgrade,"Cancel",40,205,210);
     }
 }
 bool MenuSession::render() {
@@ -465,7 +502,7 @@ bool MenuSession::render() {
     const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?"OpenEmperor":state_==State::NewSandbox?"New sandbox":
         state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
-        "Unsaved progress";
+        state_==State::ConfirmUpgrade?"Enable operation controls in a copy":"Unsaved progress";
     if (!label(40,40,heading)) return false;
     if (state_==State::DataSetup) {
         if (!label(40,56,std::string(version::display)+" | Clean-room reimplementation")) return false;
@@ -508,6 +545,11 @@ bool MenuSession::render() {
     } else if (state_==State::ConfirmLeave) {
         if (!label(40,80,"This sandbox has unsaved changes.")) return false;
         if (!label(40,96,"Choose whether to save before leaving the current session.")) return false;
+    } else if (state_==State::ConfirmUpgrade) {
+        if (!label(40,80,"A new save copy will use City-v11 rule version 3.")) return false;
+        if (!label(40,96,"Tick, population, goods, routes and treasury are preserved.")) return false;
+        if (!label(40,112,"All operations start Running at Normal priority; the original stays unchanged."))
+            return false;
     }
     for (const auto& b:buttons_) {
         if (!SDL_SetRenderDrawColor(renderer_,b.enabled?45:42,b.enabled?84:45,b.enabled?104:50,255) ||

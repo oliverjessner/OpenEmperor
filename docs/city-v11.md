@@ -1,4 +1,4 @@
-# City-v11 Markets and sustainable economy
+# City-v11 Markets, operations and sustainable economy
 
 `sandbox-city-v11` is an OpenEmperor-authored extension of City-v10. It keeps the same goods, Household demand, levels, population, taxes, Service, goal, costs, footprints and entity limits. It changes the delivery path:
 
@@ -12,14 +12,27 @@ A Market costs 140, requires four workers, occupies one cell, stores 16 Pottery 
 
 ## Rule versions
 
-Schema 11 stores both City-v11 rule versions. `rules.version` selects behavior independently from `schema_version`:
+`rules.version` selects behavior independently from `schema_version`:
 
 | Rule | Clay | Pottery work | Food | Road edge | Move-in grace |
 |---|---:|---:|---:|---:|---:|
 | v1 | 100 ticks | 150 processing ticks | 80 ticks | 10 ticks | none |
 | v2 | 32 ticks | 64 processing ticks | 32 ticks | 5 ticks | 800 ticks |
+| v3 | 32 ticks | 64 processing ticks | 32 ticks | 5 ticks | 800 ticks |
 
-The Pottery start tick still supplies no processing progress, so one v2 recipe occupies 65 ticks from start through completion. All capacities, two-Clay recipe input, courier load, costs, demand intervals and taxes remain unchanged. Existing v1 saves restore and continue with v1. New City-v11 Worlds use v2. Unknown versions are rejected; there is no automatic upgrade.
+The Pottery start tick still supplies no processing progress, so one v2/v3 recipe occupies 65 ticks from start through completion. All capacities, two-Clay recipe input, courier load, costs, demand intervals and taxes remain unchanged. Schema 11 retains City-v11 v1/v2 exactly. Schema 12 belongs only to City-v11 v3 and stores the authoritative operation controls described below. Existing v1/v2 saves restore with their saved rules and never gain controls implicitly. New City-v11 Worlds use v3. Unknown rule/schema combinations are rejected.
+
+## Operation and workforce controls
+
+Rule v3 adds two fields to each placed Clay Source, Pottery, Warehouse, Farm, Service Post and Market: `operating_enabled` (default `true`) and `workforce_priority` (`High`, `Normal` or `Low`, default `Normal`). Houses and Roads have no controls. Inspector buttons issue typed, free commands against the selected stable `BuildingId`. These commands change no money, goods, population, entity IDs, Roads, route revision or cached routes. An identical setting is accepted as unchanged.
+
+Staffing is one shared deterministic allocation used by production, dispatch and the UI projection. Paused operations are excluded. Active operations are ordered High, Normal, Low and then by ascending stable Building ID. Requirements remain all-or-nothing: a request that does not fit is skipped so a later smaller request may still receive workers. The allocation is captured once at tick start, so demand-driven population changes affect the next tick.
+
+A paused operation retains its footprint, stock, reservations, recipe input and progress. It receives zero workers, makes no production progress and starts no new owner courier trip. A trip already outbound or returning finishes under the normal navigation and rerouting rules. Inbound deliveries to a paused destination are still accepted against ordinary capacity and reservation checks. Reactivation resumes the stored state without reset.
+
+The HUD and Inspector distinguish **Available** population, **Assigned** workers, **Active demand** for enabled operations and **Installed demand** including paused operations. Current Clay, Pottery and Food diagnostics aggregate each physical storage and courier location separately from reservations and label historical production counters as totals.
+
+The Load Save screen offers **Enable operation controls in a copy** only for a valid City-v11-v2 save. A confirmation explains that the new file uses rule v3. The copy preserves tick, population, treasury, goods, counters, service expiry, IDs, Roads, active paths, edge progress, cargo, reservations and recipes; it initializes controls to Running/Normal. It uses a new checked save path outside the original data root. The source save is not overwritten, and no simulation tick runs during conversion.
 
 The 800-tick grace is derived only from `ticks - placed_tick`. Demand still runs every 400 ticks, records missing inputs normally, grants no goods, tax or growth, and consumes nothing on failure. During the grace only the population decrement is suppressed. It expires exactly at tick 800 for a House placed at tick 0.
 
@@ -29,7 +42,7 @@ The UI derives a read-only start diagnosis from `World`. It keeps missing buildi
 
 The worker estimate compares actual population with the requirement after all six starter facilities exist, including the worker demand of facilities that are still missing. Fresh Houses needed for that estimate are `ceil(shortfall / household_initial_population)`. The diagnosis retains the full calculated count when the remaining House limit cannot accommodate it and reports that completion as impossible; the actionable suggestion remains bounded by the available slots. This is only a staffing estimate. It does not promise buildable land, road reachability or sustained future supply.
 
-Before a validated City-v11-v2 construction purchase, the app applies the proposed commands to a temporary restored World and diagnoses that post-purchase state. The minimum starter reserve is the cost of still-missing facilities plus the cost of the fresh Houses required to cover the resulting worker shortfall. A purchased facility therefore adds its real worker demand, while a purchased House contributes its real initial population and is neither charged nor reserved twice. Sequential duplicate/no-op roads cost zero in the temporary transaction. Roads remain explicitly outside the future reserve.
+Before a validated City-v11-v2/v3 construction purchase, the app applies the proposed commands to a temporary restored World and diagnoses that post-purchase state. The minimum starter reserve is the cost of still-missing facilities plus the cost of the fresh Houses required to cover the resulting worker shortfall. A purchased facility therefore adds its real worker demand, while a purchased House contributes its real initial population and is neither charged nor reserved twice. Sequential duplicate/no-op roads cost zero in the temporary transaction. Roads remain explicitly outside the future reserve.
 
 If post-purchase funds fall below that combined reserve, or the required House count exceeds the remaining limit, the app pauses simulation and asks **Build anyway** or **Cancel**. Cancel changes no World field. Approval revalidates and executes the ordinary command or road transaction once. Exact reserve equality does not warn. The existing exemption after real tax collection remains scoped to already-paying cities. The warning adds no credit, free stock, tax or automatic placement and changes neither rules version nor schema.
 
@@ -61,6 +74,8 @@ A paid two-district run reached the shared City-v10 goal at tick 6,000 with popu
 ## Recovery and persistence
 
 Synthetic played-state checks independently cut a Market inbound bridge, a residential outbound bridge and a Service-only branch. Each test runs until the affected real buffer or coverage expires and a demand misses, repairs the same road through an ordinary paid command, then observes a later fulfilled demand. No stock, population or workforce is injected. Schema-11 checkpoints cover the paid Tick-0 state, both grace boundaries, active inbound/outbound Market trips, first taxes, each outage and recovery, and the reached goal. Immediate snapshots and continued ticks remain equal after restore.
+
+The operation-control recovery test starts from a normally played, fully supplied v2 city. It removes the Farm entrance with the normal road command, waits for real failed demands and population decline, then creates the explicit v3 state copy. At the measured crisis point (tick 12,000) population was 13, current Clay was 16, current Pottery 40 and current Food 34 across physical locations. The player sequence paused Clay and Pottery and set Farm, Market and Service to High, yielding 12 assigned workers for 12 active demand versus 22 installed demand. After the first real complete demand paid tax and grew population, Pottery and then Clay were restarted. The rescued world reached population 25 and collected 720 additional tax while the repaired but otherwise unchanged v2 control collected no further tax and did not regain population. This proves one bounded, buffered crisis is recoverable; it does not imply every depleted low-population city can recover.
 
 The profile starts with 1,300 funds and permits 20 Houses, four Clay Sources, four Potteries, two Warehouses, two Farms, two Service Posts and four Markets. Disconnected roads define local districts because couriers consider only reachable targets. The Inspector shows Market stock and inbound reservations separately, staffing, both distributor phases/statuses, target and cargo. A House shows current missing Pottery/Food/Service, historical last demand, population/capacity and remaining grace.
 

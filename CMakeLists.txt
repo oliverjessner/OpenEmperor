@@ -338,6 +338,15 @@ if(BUILD_TESTING)
     add_test(NAME sandbox-city-v11-balance
         COMMAND openemperor-sandbox-city-v11-balance-tests)
     set_tests_properties(sandbox-city-v11-balance PROPERTIES TIMEOUT 180)
+
+    add_executable(openemperor-sandbox-city-v11-operations-tests
+        tests/SandboxCityV11OperationsTests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v11-operations-tests
+        PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-sandbox-city-v11-operations-tests)
+    add_test(NAME sandbox-city-v11-operation-controls
+        COMMAND openemperor-sandbox-city-v11-operations-tests)
+    set_tests_properties(sandbox-city-v11-operation-controls PROPERTIES TIMEOUT 180)
     add_executable(openemperor-city-start-guidance-tests
         tests/CityStartGuidanceTests.cpp)
     target_link_libraries(openemperor-city-start-guidance-tests

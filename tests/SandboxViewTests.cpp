@@ -1547,6 +1547,48 @@ int main(int argc,char** argv) {
               "Build anyway executed anything other than one revalidated command");
         warning_view.shutdown();
 
+        std::vector<std::uint8_t> operations_buildable;
+        auto operations_session=city_v10_fixture(temp,operations_buildable);
+        openemperor::SandboxView operations_view(std::move(operations_session),false,
+            simulation::RulesProfile::CityV11);
+        operations_view.initialize(window,renderer);
+        const auto placed_operation=operations_view.execute(
+            {simulation::CommandType::PlaceClaySource,{100,101}});
+        check(placed_operation.accepted && operations_view.world().rule_version()==3,
+              "City-v11-v3 operation UI fixture failed");
+        const auto operation_id=*operations_view.selected_building();
+        const auto operation_panel=operations_view.layout().panel;
+        const int operation_scale=operations_view.layout().scale;
+        const auto operation_before=operations_view.world().snapshot();
+        const float toggle_x=static_cast<float>(operation_panel.x+operation_panel.w/2);
+        const float toggle_y=static_cast<float>(operation_panel.y+operation_panel.h-
+                                                78*operation_scale);
+        mouse_click(operations_view,toggle_x,toggle_y,running);
+        check(!operations_view.world().building(operation_id).operating_enabled &&
+              operations_view.world().workers_assigned(operation_id)==0 &&
+              operations_view.world().road_revision()==operation_before.road_revision &&
+              operations_view.world().command_sequence()==operation_before.command_sequence+1 &&
+              operations_view.dirty(),
+              "real SDL Pause operation event did not issue exactly one typed command");
+        const int priority_gap=4*operation_scale;
+        const int priority_width=(operation_panel.w-20*operation_scale-2*priority_gap)/3;
+        const float high_x=static_cast<float>(operation_panel.x+10*operation_scale+
+                                              priority_width/2);
+        const float priority_y=static_cast<float>(operation_panel.y+operation_panel.h-
+                                                  34*operation_scale);
+        mouse_click(operations_view,high_x,priority_y,running);
+        check(operations_view.world().building(operation_id).workforce_priority==
+                  simulation::WorkforcePriority::High &&
+              operations_view.world().command_sequence()==operation_before.command_sequence+2,
+              "real SDL priority event targeted the wrong building or command");
+        const auto after_controls=operations_view.world().snapshot();
+        mouse_click(operations_view,static_cast<float>(operation_panel.x+8*operation_scale),
+                    static_cast<float>(operation_panel.y+20*operation_scale),running);
+        check(operations_view.world().snapshot()==after_controls,
+              "operation inspector click-through issued a map command");
+        check(operations_view.render(),"operation controls did not render inside inspector");
+        operations_view.shutdown();
+
         const auto scaled=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
         const auto scaled_button=std::find_if(scaled.buttons.begin(),scaled.buttons.end(),
             [](const auto& item) { return item.action==openemperor::sandbox_ui::Action::Clay; });

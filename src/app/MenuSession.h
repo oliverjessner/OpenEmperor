@@ -11,7 +11,8 @@
 namespace openemperor::menu {
 class MenuSession {
 public:
-    enum class State { DataSetup, MainMenu, NewSandbox, LoadSandbox, Loading, Playing, ConfirmLeave };
+    enum class State { DataSetup, MainMenu, NewSandbox, LoadSandbox, Loading, Playing,
+                       ConfirmLeave, ConfirmUpgrade };
     MenuSession(std::filesystem::path explicit_data={},std::filesystem::path app_root={},
                 std::unique_ptr<DialogAdapter> dialog=std::make_unique<NativeDialog>(),
                 std::filesystem::path resource_root={});
@@ -72,6 +73,7 @@ private:
     std::unique_ptr<SandboxView> sandbox_,candidate_;
     std::size_t map_index_=0,save_index_=0,map_scroll_=0,save_scroll_=0;
     bool demo_=false,running_=true,initialized_=false,loading_drawn_=false,settings_reset_required_=false;
+    bool upgrade_copy_=false;
     bool advanced_visuals_open_=false;
     int pressed_action_=-1;
     std::optional<int> pending_action_;

@@ -12,6 +12,7 @@ namespace openemperor::simulation {
 
 enum class StarterSupplyCondition : std::uint8_t {
     MissingBuilding,
+    Paused,
     Unstaffed,
     NoReachableTarget,
     AwaitingGoods,
@@ -42,6 +43,8 @@ struct CityStartGuidance {
     std::int64_t minimum_missing_building_funds=0;
     int workforce_supply=0;
     int workforce_required_now=0;
+    int workforce_active_demand=0;
+    int workforce_installed_demand=0;
     int workforce_used=0;
     int workforce_required_for_starter=0;
     int starter_workforce_shortfall=0;
