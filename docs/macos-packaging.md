@@ -22,10 +22,12 @@ is a header-only compile-time dependency.
 The stage is signed ad hoc, inside out. It is moved to a path with spaces
 outside the repository and executed from another working directory with a
 restricted PATH, no DYLD or OpenSSL environment overrides, and injected
-temporary app storage. The bundled executable renders fresh setup frames,
-then loads synthetic SG3/map bytes, runs an Industry-v5 sandbox, saves and
-resumes it. If local original data exists, the same relocated executable runs
-a separate Xia.map smoke test. The ZIP is extracted and checked again. Negative
+temporary app storage. The bundled executable renders fresh setup frames, then
+loads independently constructed synthetic SG3/map bytes and verifies that fresh
+settings select the paid City-v11-v3 starter. It runs both the historical
+Industry-v5 regression and the City-v11 supply/tax/resume check. If local
+original data exists, the same relocated executable repeats those checks against
+Xia.map without modifying the inputs. The ZIP is extracted and checked again. Negative
 tests mutate disposable copies and require the verifier to reject missing or
 external libraries, symlink escape, incompatible architecture, invalid plist,
 missing executable, forbidden asset and broken signature.

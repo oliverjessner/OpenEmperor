@@ -1,4 +1,44 @@
-# OpenEmperor 0.1.0-alpha.1 validation
+# OpenEmperor validation history
+
+## OpenEmperor 0.1.0-alpha.2 local candidate
+
+Candidate: `0.1.0-alpha.2`
+
+Review base and recorded revision: `2724ae3cc57d68e17bffd1d1bd111d6afc9fdc4f`
+
+Validation date: `2026-09-28`
+
+Automated validation result: **PASS** on the intentionally dirty milestone worktree. This is a local candidate, not a publication build.
+
+The existing alpha pipeline passed 45/45 Debug, 45/45 Release, and 45/45 ASan/UBSan tests. Debug, Release, and sanitizer endurance each completed 100,000 deterministic ticks with twelve real JSON round trips, equal continued Worlds, valid balances, and sustained City-v11 supply. Both 3,000-frame render stresses and 100 menu/session lifecycles passed with project-owned texture counts returning to zero.
+
+The original-data check kept the Industry-v5 compatibility regression and added a separate City-v11-v3 paid-starter run. Starting at tick 0 with 100 funds and 1,200 construction spending, its first complete demand generated 75 tax at tick 400 and raised treasury to 175. At tick 8,000 the same run had 178 Service visits, 79 fulfilled demands, 4,360 total tax, 4,460 treasury, unchanged construction spending, valid production/economy invariants, and exact save continuation. Nine original inputs were unchanged by size, modification time, and SHA-256.
+
+The packaged executable was invoked in two separate processes against both synthetic and local original data. At tick 1,000 it saved population 27, treasury 320, active cargo/reservations and six moving couriers with the Farm paused and Market priority High. The next process loaded an equal recorded state, retained City-v11 rule 3 and the controls, then resumed the Farm from progress 8 to 9. The menu regression also confirms that a City-v11-v2/schema-11 save requires explicit confirmation, produces a new v3/schema-12 path, preserves all authoritative state, and leaves the source bytes unchanged.
+
+Package validation passed for the relocated app and extracted ZIP, recursive arm64 Mach-O dependencies, metadata-only compatibility resources, negative bundle mutations, and strict ad-hoc signature verification. The app and ZIP contain no original assets, `.local` content, personal saves, screenshots, private paths, or alpha report.
+
+- ZIP: `OpenEmperor-0.1.0-alpha.2-2724ae3cc57d-macos-arm64.zip`
+- ZIP size: 3,916,594 bytes
+- SHA-256: `e7a864610c3ebd4a91950bd370b2bce400da6929049587dcdef789dea708e18f`
+- Executable architecture: `Mach-O 64-bit executable arm64`
+- Project version: `0.1.0`
+- City profile/rule: `sandbox-city-v11` / `3`
+- City-v11-v3 save schema: `12`
+- Build type: `Release`
+- Deployment target: `26.0`
+- Signature: ad-hoc; Developer ID absent; not notarized
+
+Manual status is recorded separately from automation. The user's report that Funds increase is positive evidence for the real revenue chain. A complete visible packaged-app walkthrough covering fresh folder selection, Inspector pause/priority input, a 20–30 minute expansion, road repair, quit/relaunch, and the v2-copy dialog is **NOT RUN** for this candidate. Finder double-click/Gatekeeper behavior and an independent clean Mac are also **NOT RUN**. The repository still has no project LICENSE; publication remains blocked until the owner selects one and rebuilds from the reviewed committed state.
+
+The machine-readable ignored reports are `.local/reports/alpha-check.json` and `dist/package-report.json`. The full command was:
+
+```sh
+python3 tools/alpha_check.py --system-sdl --package \
+  --data <local-emperor-data> --jobs 8
+```
+
+## Historical OpenEmperor 0.1.0-alpha.1 validation
 
 Candidate: `0.1.0-alpha.1`
 

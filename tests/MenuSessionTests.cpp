@@ -2,6 +2,7 @@
 #include "app/ResourceLocator.h"
 #include "renderer/StoredGraphicsRenderer.h"
 #include "maps/StoredGraphicsPlan.h"
+#include "persistence/SandboxSave.h"
 #include <SDL3/SDL.h>
 #include <zlib.h>
 #include <algorithm>
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <thread>
@@ -118,10 +120,14 @@ int main(int argc,char* argv[]) {
             openemperor::menu::Settings settings;
             settings.data_root=data; settings.last_map="Cities/Xia.map";
             settings.profile=openemperor::simulation::RulesProfile::IndustryV5;
+            settings.prepared_starter=false;
             openemperor::menu::write_settings(app_root,settings);
             Menu local(data,app_root,std::make_unique<FakeDialog>());
             local.initialize(window,renderer);
-            check(local.state()==Menu::State::MainMenu,"local data rejected");
+            check(local.state()==Menu::State::MainMenu &&
+                  local.settings().profile==openemperor::simulation::RulesProfile::IndustryV5 &&
+                  !local.settings().prepared_starter,
+                  "existing explicit profile or starter preference was not preserved");
             click(local,90,220); click(local,90,650); finish_load(local);
             if (local.state()!=Menu::State::Playing) throw std::runtime_error("local Xia load: "+local.message());
             local.sandbox()->tick_once(); key(local,SDLK_F5);
@@ -141,6 +147,30 @@ int main(int argc,char* argv[]) {
             return 0;
         }
         Temp t;
+        fs::path v2_source;
+        fs::path upgrade_root;
+        std::optional<openemperor::simulation::WorldSnapshot> v2_expected;
+        {
+            const auto legacy_root=t.root/"legacy-settings";
+            fs::create_directories(legacy_root);
+            std::ofstream(legacy_root/"settings.json") <<
+                "{\"version\":1,\"data_root\":\"\",\"last_map\":\"\","
+                "\"last_save\":\"\",\"profile\":\"sandbox-city-v10\"}";
+            const auto legacy=openemperor::menu::read_settings(legacy_root);
+            check(!legacy.needs_reset &&
+                  legacy.value.profile==openemperor::simulation::RulesProfile::CityV10 &&
+                  !legacy.value.prepared_starter,
+                  "alpha.1 settings did not retain the empty-starter choice");
+            auto explicit_settings=legacy.value;
+            explicit_settings.profile=openemperor::simulation::RulesProfile::IndustryV5;
+            explicit_settings.prepared_starter=false;
+            openemperor::menu::write_settings(t.root/"roundtrip-settings",explicit_settings);
+            const auto roundtrip=openemperor::menu::read_settings(t.root/"roundtrip-settings");
+            check(!roundtrip.needs_reset &&
+                  roundtrip.value.profile==openemperor::simulation::RulesProfile::IndustryV5 &&
+                  !roundtrip.value.prepared_starter,
+                  "explicit profile and starter choice did not survive settings restart");
+        }
         fs::create_directories(t.root/"plain-bin/resources");
         fs::create_directories(t.root/"OpenEmperor.app/Contents/MacOS");
         fs::create_directories(t.root/"OpenEmperor.app/Contents/Resources");
@@ -171,6 +201,9 @@ int main(int argc,char* argv[]) {
             std::thread valid([&]{ dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
                 (t.root/"data").string()}); }); valid.join(); menu.advance();
             check(menu.state()==Menu::State::MainMenu,"valid root not accepted");
+            check(menu.settings().profile==openemperor::simulation::RulesProfile::CityV11 &&
+                  menu.settings().prepared_starter,
+                  "fresh settings did not recommend City-v11 with the prepared starter");
             check(!menu.compatibility().compatible() &&
                   menu.visual_selection().walker_source==openemperor::VisualProfileSource::Fallback &&
                   menu.visual_selection().building_source==openemperor::VisualProfileSource::Fallback &&
@@ -183,6 +216,7 @@ int main(int argc,char* argv[]) {
             check(fs::exists(t.root/"app/settings.json"),"settings not stored");
             click(menu,90,220); // New sandbox
             check(menu.state()==Menu::State::NewSandbox,"new sandbox menu");
+            check(menu.render(),"City-v11 recommended profile description did not render");
             click(menu,90,750); // Open Advanced visual previews.
             click(menu,90,830); // Walker JSON through the existing dialog adapter.
             check(static_cast<bool>(dialog->callback),"walker dialog not opened");
@@ -223,6 +257,13 @@ int main(int argc,char* argv[]) {
             finish_load(menu);
             if (!(menu.state()==Menu::State::Playing && menu.sandbox()))
                 throw std::runtime_error("sandbox not opened: "+menu.message());
+            check(menu.sandbox()->world().profile()==openemperor::simulation::RulesProfile::CityV11 &&
+                  menu.sandbox()->world().rule_version()==
+                      openemperor::simulation::current_rule_version(
+                          openemperor::simulation::RulesProfile::CityV11) &&
+                  menu.sandbox()->world().ticks()==0 && menu.sandbox()->world().treasury()==100 &&
+                  menu.sandbox()->world().construction_spent_total()==1200,
+                  "prepared starter did not use the current City-v11 rules and normal budget");
             check(!menu.sandbox()->walker_visuals_active() &&
                   !menu.sandbox()->building_visuals_active() &&
                   !menu.sandbox()->road_visuals_active(),
@@ -264,6 +305,25 @@ int main(int argc,char* argv[]) {
             check(openemperor::assets::compatibility_detection_count()==detection_count,
                   "saving recomputed compatibility fingerprints");
             const auto saved=menu.sandbox()->world().snapshot();
+            {
+                auto document=openemperor::persistence::read_save(first_save);
+                document.world.rule_version=2;
+                const auto old_world=openemperor::simulation::World::restore(
+                    document.world,menu.sandbox()->buildable_mask());
+                upgrade_root=fs::canonical(t.root)/"upgrade-app";
+                fs::create_directories(upgrade_root/"saves");
+                v2_source=upgrade_root/"saves/city-v11-v2.json";
+                openemperor::persistence::write_save(v2_source,document,t.root/"data",
+                                                     menu.sandbox()->buildable_mask());
+                openemperor::menu::Settings upgrade_settings;
+                upgrade_settings.data_root=t.root/"data";
+                upgrade_settings.last_map="Cities/A.map";
+                upgrade_settings.last_save=v2_source;
+                upgrade_settings.profile=openemperor::simulation::RulesProfile::CityV11;
+                upgrade_settings.prepared_starter=true;
+                openemperor::menu::write_settings(upgrade_root,upgrade_settings);
+                v2_expected=old_world.snapshot();
+            }
             key(menu,SDLK_ESCAPE); click(menu,90,310); // Main, New
             click(menu,480,250); // Next map, Cities/B.map
             click(menu,90,650); finish_load(menu);
@@ -291,19 +351,49 @@ int main(int argc,char* argv[]) {
         }
         check(openemperor::StoredGraphicsRenderer::live_texture_count()==0,"texture leak after menu shutdown");
         {
+            std::ifstream before_file(v2_source,std::ios::binary);
+            const std::string before((std::istreambuf_iterator<char>(before_file)),{});
+            Menu upgrade({},upgrade_root,std::make_unique<FakeDialog>());
+            upgrade.initialize(window,renderer);
+            check(upgrade.state()==Menu::State::MainMenu,"upgrade menu did not initialize");
+            click(upgrade,90,310);
+            check(upgrade.state()==Menu::State::LoadSandbox,"upgrade save list did not open");
+            click(upgrade,480,650);
+            check(upgrade.state()==Menu::State::ConfirmUpgrade &&
+                  upgrade.message().find("original save stays unchanged")!=std::string::npos,
+                  "v2 upgrade did not require explicit confirmation");
+            click(upgrade,90,335); finish_load(upgrade);
+            if (!(upgrade.state()==Menu::State::Playing && upgrade.sandbox() &&
+                  upgrade.sandbox()->paused() && upgrade.sandbox()->world().rule_version()==3 &&
+                  upgrade.sandbox()->save_path()!=v2_source))
+                throw std::runtime_error("confirmed v2 upgrade did not create a separate v3 session: "+
+                    upgrade.message()+" state="+std::to_string(static_cast<int>(upgrade.state())));
+            auto comparable=upgrade.sandbox()->world().snapshot();
+            comparable.rule_version=2;
+            check(v2_expected && comparable==*v2_expected,
+                  "v2 upgrade changed authoritative state beyond control defaults and version");
+            std::ifstream after_file(v2_source,std::ios::binary);
+            const std::string after((std::istreambuf_iterator<char>(after_file)),{});
+            check(before==after &&
+                  openemperor::persistence::read_save(upgrade.sandbox()->save_path()).source_schema_version==12,
+                  "v2 upgrade modified its source or did not write schema 12");
+            upgrade.shutdown();
+        }
+        {
             auto fake_restart=std::make_unique<FakeDialog>(); auto* restart_dialog=fake_restart.get();
             Menu restarted({},t.root/"app",std::move(fake_restart));
             restarted.initialize(window,renderer);
-            check(restarted.state()==Menu::State::MainMenu,"restart did not read settings");
-            click(restarted,90,220); click(restarted,90,650); finish_load(restarted);
-            check(restarted.state()==Menu::State::Playing &&
+            check(restarted.state()==Menu::State::MainMenu &&
+                  restarted.settings().profile==openemperor::simulation::RulesProfile::CityV11 &&
+                  restarted.settings().prepared_starter,
+                  "restart did not retain the selected profile and starter choice");
+            click(restarted,90,310);
+            click(restarted,90,560); finish_load(restarted);
+            check(restarted.state()==Menu::State::Playing && restarted.sandbox()->paused() &&
                   !restarted.sandbox()->walker_visuals_active() &&
                   !restarted.sandbox()->building_visuals_active() &&
                   !restarted.sandbox()->road_visuals_active(),
-                  "restart depended on a deleted optional visual profile");
-            key(restarted,SDLK_ESCAPE); click(restarted,90,400);
-            click(restarted,90,560); finish_load(restarted);
-            check(restarted.state()==Menu::State::Playing && restarted.sandbox()->paused(),"restart load failed");
+                  "restart load failed or depended on a deleted optional visual profile");
             const auto baseline=restarted.sandbox()->world().snapshot();
             const auto external=t.root/"external.json";
             fs::copy_file(restarted.sandbox()->save_path(),external);

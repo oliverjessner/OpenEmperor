@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 int main() {
-    if (openemperor::version::display != "0.1.0-alpha.1")
+    if (openemperor::version::display != "0.1.0-alpha.2")
         throw std::runtime_error("unexpected alpha display version");
     if (openemperor::version::project != "0.1.0")
         throw std::runtime_error("CMake project version must remain numeric");

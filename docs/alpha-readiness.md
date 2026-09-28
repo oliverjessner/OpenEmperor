@@ -2,16 +2,18 @@
 
 ## Alpha scope
 
-The first OpenEmperor alpha is a native macOS arm64 development build with the main menu and original-data setup, supported original maps, the authored `sandbox-industry-v5` sandbox, road placement/removal and live rerouting, two Clay sources, two Pottery works, one warehouse, four households, five couriers, and OpenEmperor save/load. Stored-map and sandbox visuals share the preview depth painter.
+The alpha.2 candidate is a native macOS arm64 development build with the main menu and original-data setup, supported original maps, and City-v11 rule 3 as the fresh-settings entry point. Its paid prepared starter includes Markets, Food, Service, population, taxes, operation pause/resume, workforce priorities, road placement/removal, live routing, and schema-12 OpenEmperor save/load. Existing explicit profile preferences and historical saves keep their selected rules. Stored-map and sandbox visuals share the preview depth painter.
 
 For one exactly fingerprinted, locally validated GOG-derived asset set, the app automatically loads bundled metadata-only walker, building, and road compatibility profiles. Those profiles select original images from the user's own files and contain no original pixels. Unknown data revisions remain playable with presentation fallbacks. Advanced custom JSON profiles remain session-only per-category overrides. `tools/package_macos.sh` produces the development `OpenEmperor.app` and includes only the explicit compatibility JSON allowlist.
 
-This list is frozen for hardening. The acceptance work changes validation, diagnostics, tests, and resource handling only.
+This candidate integrates the existing City-v11 economy and operation controls; it adds no new economy, good, building, Service, format semantics, or renderer architecture. Follow [the alpha.2 tester guide](testing-alpha.2.md).
+
+The 2026-09-28 local dirty-workspace candidate passed the full automated alpha pipeline, including separate-process packaged-app save/load with a paused Farm and High-priority Market, the confirmed v2-to-v3 copy path, and a City-v11 original-data run that first collected 75 tax at tick 400. The complete visible 20–30 minute desktop walkthrough, Finder/Gatekeeper behavior and an independent clean Mac remain **NOT RUN**; see [the validation history](alpha-validation.md).
 
 ## Explicitly outside the alpha
 
 - Emperor's original simulation or save compatibility
-- Additional goods, food, markets, taxes, trade, buildings, rules, roads, or walkers
+- Additional goods, trade, buildings, rules, roads, walkers, or a new City/save version
 - Complete original visual fidelity, elevation, every original object, or recovered draw semantics
 - Verified original pivots, timing, mirroring, road selection, or whole-image depth behavior
 - General or official GOG-version support beyond the one exact fingerprint set
@@ -31,11 +33,11 @@ The command fails closed and writes `.local/reports/alpha-check.json`. A pass re
 - a deterministic 100,000-tick Industry-v5 run with two equal Worlds and scheduled topology changes;
 - twelve snapshot and real JSON save/restore checkpoints, continued restored Worlds, deterministic save bytes, conservation, navigation, stock, reservation, identity, path, position, and target validation;
 - a 3,000-frame SDL software render stress with no new decode, texture upload, stored-order build, or compatibility hashing;
-- 100 successful synthetic menu/session lifecycle processes and zero OpenEmperor-owned textures after session shutdown;
+- 100 successful synthetic menu/session lifecycles and zero OpenEmperor-owned textures after session shutdown;
 - corrupt-save, settings, native-dialog lifetime, gesture, resize, small-window, high-DPI, presentation/debug, compatibility-fingerprint, and resource-location regressions;
 - an arm64 Release executable.
 
-Use `--package` to include bundle/ZIP validation. Original-data checking is optional unless `--data` is passed. For the recognized data set, this user-flow check needs only `--data`: it requires atomic exact compatibility detection, activates all three built-in profiles through their ordinary loaders, runs the real Xia Industry-v5 application check, observes 48 walker assets, four building assets, twelve road assets and actual draws, and verifies that every used map/SG3/.555 file retained its size, modification time and SHA-256. Optional profile arguments remain advanced developer overrides. The report records no private data root or original bytes.
+Use `--package` to include bundle/ZIP validation. Original-data checking is optional unless `--data` is passed. For the recognized data set, this user-flow check needs only `--data`: it requires atomic exact compatibility detection, activates all three built-in profiles through their ordinary loaders, retains the real Xia Industry-v5 visual regression, and separately runs the paid City-v11-v3 starter until Service, complete demand, real tax income, and deterministic save continuation are observed. It verifies that every used map/SG3/.555 file retained its size, modification time and SHA-256. Optional profile arguments remain advanced developer overrides. The report records no private data root or original bytes.
 
 ```sh
 python3 tools/alpha_check.py --system-sdl --package --data /path/to/emperor
@@ -54,7 +56,7 @@ python3 tools/alpha_check.py --system-sdl --package --data /path/to/emperor
 
 ## Known gameplay limits
 
-Industry-v5 is OpenEmperor's own deterministic sandbox. It is not a reconstruction of Emperor's economy. The alpha has no additional goods, food, markets, taxes, trade, campaign progression, or original-save import.
+City-v11 is OpenEmperor's own deterministic sandbox. It is not a reconstruction of Emperor's economy. The candidate has no trade, campaign progression, original-save import, or claim of original simulation parity. Not every city depleted of both population and goods can be recovered by operation controls.
 
 ## Interpreting a pass
 

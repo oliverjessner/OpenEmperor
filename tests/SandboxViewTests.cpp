@@ -564,7 +564,7 @@ int main(int argc,char** argv) {
         production_view.initialize(window,renderer);
         production_view.handle_event(key(SDLK_F1),running);
         check(production_view.debug_diagnostics(),"v2 diagnostics did not enable");
-        check(std::string(SDL_GetWindowTitle(window)).find("OpenEmperor 0.1.0-alpha.1 - Production v2")!=std::string::npos,
+        check(std::string(SDL_GetWindowTitle(window)).find("OpenEmperor 0.1.0-alpha.2 - Production v2")!=std::string::npos,
               "v2 window profile label");
         const auto v2_screen=[&](int x) {
             auto point=maps::terrain_world({static_cast<std::uint32_t>(x),114},72);

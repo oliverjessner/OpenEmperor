@@ -1,7 +1,7 @@
-# OpenEmperor 0.1.0-alpha.1 known issues
+# OpenEmperor 0.1.0-alpha.2 candidate known issues
 
 - This alpha is an OpenEmperor sandbox, not Emperor gameplay parity.
-- City-v11 rules v3 pass synthetic staffing, 20,000-tick determinism, natural buffered crisis/recovery, schema-12 persistence and SDL inspector-event checks. The current machine run still lacks a complete manual desktop recovery/save/reload playthrough in the packaged app; City-v10 therefore remains the menu default.
+- City-v11 rules v3 are the fresh-settings menu default and pass synthetic staffing, 20,000-tick determinism, natural buffered crisis/recovery, schema-12 persistence and SDL inspector-event checks. Automated packaged-app checks cover separate-process operation-state reload and the confirmed v2-copy path, and the user has manually observed real tax income. The complete visible 20–30 minute packaged-app walkthrough, Finder/Gatekeeper launch and an independent clean-Mac test remain unperformed.
 - Original Emperor savegames are not supported. Only OpenEmperor sandbox saves are accepted.
 - The automatic curated walker, building, and road preview is enabled only when all six files in one locally validated GOG-derived asset set match exact SHA-256 fingerprints. Other data revisions use presentation fallbacks.
 - The bundled compatibility profiles contain only OpenEmperor metadata. They do not contain original pixels or other original game bytes. Their visual mappings, anchors, timing, and road topology remain curated preview conventions.

@@ -48,6 +48,48 @@ def run_industry_check(executable, data, workdir, environment):
             "distinct_supplied": result["distinct_supplied"], "resume": result["resume"]}
 
 
+def run_city_check(executable, data, workdir, environment):
+    output = call(str(executable), "--data", str(data), "--sandbox", "Cities/Xia.map",
+                  "--sandbox-rules", "sandbox-city-v11", "--sandbox-demo", "--sandbox-check",
+                  "--sandbox-resume-check", "--report-json", cwd=workdir,
+                  env=environment, timeout=240)
+    result = json.loads(output)
+    if (result.get("rule_version") != 3 or result.get("ticks_before") != 0 or
+            result.get("treasury_before") != 100 or
+            result.get("construction_spent_before") != 1200 or
+            result.get("first_tax_tick", 0) <= 0 or
+            result.get("taxes_collected_total", 0) <= 0 or
+            result.get("treasury_delta", 0) <= 0 or
+            result.get("fulfilled_demands", 0) <= 0 or
+            result.get("service_visits", 0) <= 0 or
+            not result.get("resume", {}).get("continued_equal")):
+        raise RuntimeError("City-v11 check did not supply, tax and resume the paid starter")
+    return {key: result[key] for key in ("rules", "rule_version", "ticks_before", "ticks",
+            "treasury_before", "treasury", "treasury_delta", "taxes_collected_total",
+            "first_tax_tick", "first_tax_total", "treasury_at_first_tax",
+            "fulfilled_demands", "service_visits", "households", "resume")}
+
+
+def run_city_process_restart(executable, data, workdir, environment, app_root):
+    saved_output = call(str(executable), "--menu-check", "--app-root", str(app_root),
+                        "--data", str(data), "--city-save-controls", cwd=workdir,
+                        env=environment, timeout=240)
+    loaded_output = call(str(executable), "--menu-check", "--app-root", str(app_root),
+                         "--data", str(data), "--city-load-controls", cwd=workdir,
+                         env=environment, timeout=240)
+    saved = json.loads(saved_output.strip().splitlines()[-1])
+    loaded = json.loads(loaded_output.strip().splitlines()[-1])
+    if (not saved.get("menu_city_v11_process_save") or
+            not loaded.get("menu_city_v11_process_load") or
+            saved.get("saved") != loaded.get("loaded") or
+            loaded.get("loaded", {}).get("farm_running") is not False or
+            loaded.get("loaded", {}).get("market_priority") != "High" or
+            loaded.get("resumed_progress") != loaded.get("loaded", {}).get("farm_progress", -2) + 1):
+        raise RuntimeError("City-v11 process restart changed saved operation state")
+    return {"saved": saved["saved"], "loaded_equal": True,
+            "farm_resumed_progress": loaded["resumed_progress"]}
+
+
 def u16(data, offset, value):
     struct.pack_into("<H", data, offset, value)
 
@@ -237,13 +279,18 @@ def main():
             synthetic_data(fixture)
             synthetic_result = call(str(relocated_exe), "--menu-check", "--app-root",
                                     str(Path(move_root) / "synthetic preferences"), "--data",
-                                    str(fixture), "--industry", cwd=Path(move_root),
+                                    str(fixture), "--city", cwd=Path(move_root),
                                     env=clean_env, timeout=120)
             print(synthetic_result, flush=True)
             synthetic_industry = run_industry_check(relocated_exe, fixture, Path(move_root), clean_env)
+            synthetic_city = run_city_check(relocated_exe, fixture, Path(move_root), clean_env)
+            synthetic_process_restart = run_city_process_restart(relocated_exe, fixture,
+                Path(move_root), clean_env, Path(move_root) / "synthetic process preferences")
             original_data = ROOT / ".local/gog-extracted/app"
             original_result = "not_available"
             original_industry = "not_available"
+            original_city = "not_available"
+            original_process_restart = "not_available"
             original_files_unchanged = None
             signature_after_original = None
             if (original_data.is_dir() and (original_data / "Cities/Xia.map").is_file()):
@@ -253,10 +300,14 @@ def main():
                 originals_before = {path.name: sha256(path) for path in originals}
                 original_result = call(str(relocated_exe), "--menu-check", "--app-root",
                                        str(Path(move_root) / "original preferences"), "--data",
-                                       str(original_data), "--industry", cwd=Path(move_root),
+                                       str(original_data), "--city", cwd=Path(move_root),
                                        env=clean_env, timeout=180).strip()
                 original_industry = run_industry_check(relocated_exe, original_data,
                                                        Path(move_root), clean_env)
+                original_city = run_city_check(relocated_exe, original_data,
+                                               Path(move_root), clean_env)
+                original_process_restart = run_city_process_restart(relocated_exe, original_data,
+                    Path(move_root), clean_env, Path(move_root) / "original process preferences")
                 if originals_before != {path.name: sha256(path) for path in originals}:
                     raise RuntimeError("original data changed during smoke check")
                 original_files_unchanged = True
@@ -282,8 +333,12 @@ def main():
                       "checks": {"release_ctest": "passed", "fresh_menu": menu_result.strip(),
                                  "synthetic_menu_save_resume": synthetic_result.strip(),
                                  "synthetic_industry": synthetic_industry,
+                                 "synthetic_city_v11": synthetic_city,
+                                 "synthetic_process_restart": synthetic_process_restart,
                                  "original_data_smoke": original_result,
                                  "original_industry": original_industry,
+                                 "original_city_v11": original_city,
+                                 "original_process_restart": original_process_restart,
                                  "original_files_unchanged": original_files_unchanged,
                                  "bundle_signature_after_original": signature_after_original,
                                  "unzipped_menu": zip_result, "negative": negative},

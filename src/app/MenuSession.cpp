@@ -1,6 +1,5 @@
 #include "app/MenuSession.h"
 #include "maps/StoredMapSession.h"
-#include "maps/SandboxPlacement.h"
 #include "persistence/SandboxSave.h"
 #include "core/Version.h"
 #include "app/ResourceLocator.h"
@@ -26,17 +25,17 @@ constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::Logisti
     simulation::RulesProfile::CityV10,simulation::RulesProfile::CityV11};
 const char* description(simulation::RulesProfile p) {
     switch (p) {
-    case simulation::RulesProfile::LogisticsV1: return "Legacy prototype: goods delivery";
-    case simulation::RulesProfile::ProductionV2: return "Legacy prototype: clay and pottery";
-    case simulation::RulesProfile::HouseholdV3: return "Legacy prototype: one household";
-    case simulation::RulesProfile::SettlementV4: return "Legacy prototype: four households";
-    case simulation::RulesProfile::IndustryV5: return "Legacy alpha sandbox";
-    case simulation::RulesProfile::CityV6: return "Previous city rules: money, workers, taxes";
-    case simulation::RulesProfile::CityV7: return "Food and developing households";
-    case simulation::RulesProfile::CityV8: return "Food, services and developing houses";
-    case simulation::RulesProfile::CityV9: return "Population growth and workforce pressure";
-    case simulation::RulesProfile::CityV10: return "Scalable city with independent districts";
-    case simulation::RulesProfile::CityV11: return "Markets and local goods distribution";
+    case simulation::RulesProfile::LogisticsV1: return "Older sandbox: goods delivery";
+    case simulation::RulesProfile::ProductionV2: return "Older sandbox: clay and pottery";
+    case simulation::RulesProfile::HouseholdV3: return "Older sandbox: one household";
+    case simulation::RulesProfile::SettlementV4: return "Older sandbox: four households";
+    case simulation::RulesProfile::IndustryV5: return "Older sandbox: industry alpha";
+    case simulation::RulesProfile::CityV6: return "Older city: money, workers and taxes";
+    case simulation::RulesProfile::CityV7: return "Older city: food and developing households";
+    case simulation::RulesProfile::CityV8: return "Older city: food and services";
+    case simulation::RulesProfile::CityV9: return "Older city: population and workforce";
+    case simulation::RulesProfile::CityV10: return "Older city: scalable independent districts";
+    case simulation::RulesProfile::CityV11: return "City - markets, population and workforce controls";
     }
     return "";
 }
@@ -68,6 +67,7 @@ void MenuSession::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     }
     const auto read=read_settings(app_root_);
     settings_=read.value; settings_reset_required_=read.needs_reset;
+    demo_=settings_.prepared_starter;
     if (read.needs_reset) message_="Settings unavailable: "+read.message+". Confirm reset to save new settings.";
     const auto wanted=explicit_data_.empty()?settings_.data_root:explicit_data_;
     if (!wanted.empty()) {
@@ -172,12 +172,11 @@ void MenuSession::finish_loading() {
             maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8);
         if (upgrade_copy_) {
             save_path=new_save_target(app_root_,settings_.data_root);
-            const maps::MapGeometry geometry(loaded.map.declared_map_size);
-            const auto mask=maps::make_sandbox_buildable_mask(loaded.plan,geometry);
-            persistence::write_save(save_path,*document,settings_.data_root,mask);
         }
         auto view=std::make_unique<SandboxView>(std::move(loaded),document ? false:demo_,profile);
         view->set_managed(true);
+        const auto upgraded_document=upgrade_copy_ ? document:
+            std::optional<persistence::SaveDocument>{};
         view->configure_save(settings_.data_root,map,save_path,std::move(document));
         const auto visuals=visual_selection();
         view->set_compatibility(visuals.compatibility.compatible() ?
@@ -186,6 +185,9 @@ void MenuSession::finish_loading() {
         if (!visuals.building.empty()) view->set_building_visuals(visuals.building,visuals.building_source);
         if (!visuals.road.empty()) view->set_road_visuals(visuals.road,visuals.road_source);
         view->initialize(window_,renderer_);
+        if (upgrade_copy_)
+            persistence::write_save(save_path,*upgraded_document,settings_.data_root,
+                                    view->buildable_mask());
         candidate_=std::move(view); candidate_map_=map; candidate_profile_=profile;
         const bool upgraded=upgrade_copy_;
         upgrade_copy_=false;
@@ -257,7 +259,7 @@ void MenuSession::perform(int action) {
                 static_cast<int>(std::size(profiles))-1);
             settings_.profile=profiles[index]; rebuild_buttons(); break;
         }
-        case Demo: demo_=!demo_; rebuild_buttons(); break;
+        case Demo: demo_=!demo_; settings_.prepared_starter=demo_; rebuild_buttons(); break;
         case Start: start_new(); break;
         case Back: set_state(State::MainMenu); break;
         case SavePrev: if (save_index_>0) --save_index_; rebuild_buttons(); break;
@@ -428,7 +430,7 @@ void MenuSession::rebuild_buttons() {
     } else if (state_==State::NewSandbox) {
         add(MapPrev,"Previous map",40,120); add(MapNext,"Next map",230,120);
         add(ProfilePrev,"Previous rules",40,205); add(ProfileNext,"Next rules",230,205);
-        add(Demo,demo_?"Demo: ON":"Demo: OFF",40,270);
+        add(Demo,demo_?"Prepared starter settlement":"Empty city",40,270,260);
         add(Start,"Start sandbox",40,315); add(Back,"Back",230,315);
         add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",40,360,210);
         if (advanced_visuals_open_) {
@@ -521,7 +523,11 @@ bool MenuSession::render() {
             ": "+e.relative_path.generic_string())) return false;
         if (!label(40,165,"Declared size: "+(e.declared_size?std::to_string(*e.declared_size):"unsupported")+
             (e.error.empty()?"":" - "+e.error))) return false;
-        if (!label(40,245,std::string(simulation::rules_profile_name(settings_.profile))+" - "+description(settings_.profile))) return false;
+        if (!label(40,245,description(settings_.profile))) return false;
+        if (!label(40,258,std::string("Technical: ")+simulation::rules_profile_name(settings_.profile)+
+            " | rule "+std::to_string(simulation::current_rule_version(settings_.profile)))) return false;
+        if (!label(310,278,demo_ ?
+            "Connected starter; normal budget, no goods or ticks":"No buildings are placed")) return false;
         if (!label(40,345,compatibility_.compatible() ?
             "Visuals: Compatible preview detected":"Visuals: Diagnostic fallback")) return false;
         if (advanced_visuals_open_ && !label(40,385,"Advanced visual previews (developer overrides)")) return false;

@@ -2395,20 +2395,27 @@ bool SandboxView::draw_help_overlay() {
         return draw_text(x+pad+col*column,y+pad+row*line,value,column-pad);
     };
     return text(0,0,"HELP - H / ? closes") &&
-        text(0,2,"GAMEPLAY") && text(0,3,"1 Road | 2 Clay | 3 Pottery") &&
-        text(0,4,"4 Store | 5 Select") && text(0,5,"6 Remove | 7 House | 8 Farm") &&
-        text(0,6,"9 Service | 0 Market (City v11)") &&
-        text(0,7,"Markets distribute Food and Pottery") &&
-        text(0,8,"Tax: Food + Pottery + Service at deadline") &&
-        text(0,9,"Space Pause | . Step | + / - Speed") &&
-        text(0,10,"CAMERA AND MENU") && text(0,11,"WASD / Arrow keys Move") &&
-        text(0,12,"Mouse wheel Zoom | R Reset") && text(0,13,"Tab Info panel | Esc Menu") &&
-        text(1,2,"ADVANCED VISUAL DIAGNOSTICS") &&
-        text(1,3,"F2 Walker graphics") && text(1,4,"F3 Walker frame inspector") &&
-        text(1,5,"F4 Building graphics") && text(1,6,"F6 Road graphics") &&
-        text(1,7,"F7 Depth comparison") &&
-        text(1,9,"DEBUG") && text(1,10,"F1 Runtime debug overlay") &&
-        text(1,12,"These views are diagnostic") && text(1,13,"and do not change the world.");
+        text(0,2,"BUILD AND NAVIGATE") && text(0,3,"1 Road | 2 Clay | 3 Pottery") &&
+        text(0,4,"4 Store | 5 Select | 6 Remove") &&
+        text(0,5,"7 House | 8 Farm | 9 Service") &&
+        text(0,6,"0 Market (City v11)") &&
+        text(0,7,"Space Pause | . Step | + / - Speed") &&
+        text(0,8,"WASD / Arrows Move | Wheel Zoom") &&
+        text(0,9,"F5 Save | F9 Load | Esc Menu") &&
+        text(0,11,"DIAGNOSTICS") &&
+        text(0,12,"F1 Runtime | F2/F4/F6 Visuals") &&
+        text(0,13,"Diagnostics do not change the world") &&
+        text(1,2,"ECONOMY AND WORKFORCE") &&
+        text(1,3,"Houses pay tax after full supply") &&
+        text(1,4,"Farm, Market and Service enable tax") &&
+        text(1,5,"Residents provide Available workers") &&
+        text(1,6,"Assigned is actual staffed workforce") &&
+        text(1,7,"Active demand excludes paused work") &&
+        text(1,8,"Select a business in the Inspector") &&
+        text(1,9,"Pause/Resume preserves goods/building") &&
+        text(1,10,"High/Normal/Low controls staffing") &&
+        text(1,11,"Current deliveries finish when paused") &&
+        text(1,13,"Paused work can resume without reset");
 }
 
 bool SandboxView::draw_budget_warning_overlay() {

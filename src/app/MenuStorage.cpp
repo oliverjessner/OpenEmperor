@@ -49,6 +49,13 @@ SettingsRead read_settings(const fs::path& root) {
         result.value.data_root=bounded_string(j,"data_root");
         result.value.last_map=bounded_string(j,"last_map");
         result.value.last_save=bounded_string(j,"last_save");
+        // Alpha.1 settings predate this field and used an empty sandbox by default.
+        result.value.prepared_starter=false;
+        if (j.contains("prepared_starter")) {
+            if (!j.at("prepared_starter").is_boolean())
+                throw std::runtime_error("invalid settings field: prepared_starter");
+            result.value.prepared_starter=j.at("prepared_starter").get<bool>();
+        }
         const auto profile=bounded_string(j,"profile");
         bool found=false;
         for (const auto p:{simulation::RulesProfile::LogisticsV1,simulation::RulesProfile::ProductionV2,
@@ -80,6 +87,7 @@ void write_settings(const fs::path& root,const Settings& settings) {
     const nlohmann::json j={{"version",1},{"data_root",settings.data_root.generic_string()},
         {"last_map",settings.last_map.generic_string()},
         {"last_save",settings.last_save.generic_string()},
+        {"prepared_starter",settings.prepared_starter},
         {"profile",simulation::rules_profile_name(settings.profile)}};
     platform::atomic_replace(file,j.dump(2),[&]{ if (fs::is_symlink(file))
         throw std::runtime_error("settings symlink rejected"); });

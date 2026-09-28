@@ -4,8 +4,7 @@ project(OpenEmperor VERSION 0.1.0 LANGUAGES C CXX)
 
 # CMake's project version remains numeric for platform metadata. This display
 # version is the single source used by the executable and release packaging.
-set(OPENEMPEROR_DISPLAY_VERSION "0.1.0-alpha.1" CACHE STRING
-    "Human-readable OpenEmperor release version")
+set(OPENEMPEROR_DISPLAY_VERSION "0.1.0-alpha.2")
 
 execute_process(COMMAND git rev-parse --short=12 HEAD
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"

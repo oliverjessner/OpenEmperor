@@ -174,13 +174,27 @@ def original_check(args: argparse.Namespace, executable: Path) -> dict[str, obje
     command = [str(executable), "--data", str(data), "--sandbox", "Cities/Xia.map",
                "--sandbox-rules", "sandbox-industry-v5", "--sandbox-demo", "--sandbox-check",
                "--sandbox-resume-check", "--report-json", *visual_args]
-    output, elapsed = run(command, timeout=300, data_root=data)
+    output, industry_elapsed = run(command, timeout=300, data_root=data)
     result = json.loads(output.strip().splitlines()[-1])
+    city_command = [str(executable), "--data", str(data), "--sandbox", "Cities/Xia.map",
+                    "--sandbox-rules", "sandbox-city-v11", "--sandbox-demo", "--sandbox-check",
+                    "--sandbox-resume-check", "--report-json", *visual_args]
+    city_output, city_elapsed = run(city_command, timeout=300, data_root=data)
+    city = json.loads(city_output.strip().splitlines()[-1])
     after = {item["path"]: item for item in (fingerprint(path, data) for path in sorted(expanded))}
     if before != after:
         raise CheckFailure("original files changed during the alpha smoke check")
     if not result.get("goods_balance_valid") or not result.get("resume", {}).get("continued_equal"):
         raise CheckFailure("original-data Industry check failed production or resume invariants")
+    if (city.get("rules") != "sandbox-city-v11" or city.get("rule_version") != 3 or
+            city.get("ticks_before") != 0 or city.get("treasury_before") != 100 or
+            city.get("construction_spent_before") != 1200 or
+            city.get("first_tax_tick", 0) <= 0 or city.get("first_tax_total", 0) <= 0 or
+            city.get("taxes_collected_total", 0) <= 0 or city.get("treasury_delta", 0) <= 0 or
+            city.get("fulfilled_demands", 0) <= 0 or city.get("service_visits", 0) <= 0 or
+            not city.get("production_balance_valid") or not city.get("economy_valid") or
+            not city.get("resume", {}).get("continued_equal")):
+        raise CheckFailure("original-data City-v11 starter did not supply, tax and resume")
     compatibility = result.get("compatibility", {})
     expected_sources = {
         "walker": "custom" if args.walker_visuals else "builtin",
@@ -199,10 +213,15 @@ def original_check(args: argparse.Namespace, executable: Path) -> dict[str, obje
             (not args.road_visuals and road_visuals.get("configured_masks") != list(range(16)))):
         raise CheckFailure("automatic visual profiles did not decode and draw the validated asset set")
     return {"configured": True, "result": "pass", "files_verified_unchanged": len(before),
-            "ticks": result.get("ticks"), "frames_rendered": result.get("frames_rendered"),
+            "industry_ticks": result.get("ticks"), "frames_rendered": result.get("frames_rendered"),
             "five_courier_frames": result.get("frames_with_five_couriers"),
             "compatibility": compatibility,
-            "seconds": round(elapsed, 3)}
+            "candidate_city": {key: city.get(key) for key in ("rules", "rule_version",
+                "ticks_before", "ticks", "treasury_before", "treasury", "treasury_delta",
+                "taxes_collected_total", "first_tax_tick", "first_tax_total",
+                "treasury_at_first_tax", "fulfilled_demands", "service_visits", "households",
+                "operation_states", "resume")},
+            "seconds": round(industry_elapsed + city_elapsed, 3)}
 
 
 def package_check() -> dict[str, object]:
@@ -227,7 +246,7 @@ def package_check() -> dict[str, object]:
     required_build_info = {"display_version", "project_version", "revision", "dirty",
                            "architecture", "build_type", "deployment_target"}
     if (not required_build_info.issubset(build_info) or
-            build_info.get("display_version") != "0.1.0-alpha.1" or
+            build_info.get("display_version") != "0.1.0-alpha.2" or
             build_info.get("architecture") != "arm64" or
             build_info.get("build_type") != "Release"):
         raise CheckFailure("packaged BuildInfo lacks alpha candidate provenance")

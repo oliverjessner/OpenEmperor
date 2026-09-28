@@ -58,7 +58,7 @@ private:
     std::filesystem::path visual_profile_path_; // Session-only, never saved.
     std::filesystem::path building_profile_path_; // Session-only, never saved.
     std::filesystem::path road_profile_path_; // Session-only, never saved.
-    simulation::RulesProfile candidate_profile_=simulation::RulesProfile::CityV10;
+    simulation::RulesProfile candidate_profile_=simulation::RulesProfile::CityV11;
     std::unique_ptr<DialogAdapter> dialog_;
     std::shared_ptr<Inbox> inbox_=std::make_shared<Inbox>();
     std::uint64_t dialog_generation_=0,seen_save_generation_=0;
@@ -72,7 +72,7 @@ private:
     SaveList saves_;
     std::unique_ptr<SandboxView> sandbox_,candidate_;
     std::size_t map_index_=0,save_index_=0,map_scroll_=0,save_scroll_=0;
-    bool demo_=false,running_=true,initialized_=false,loading_drawn_=false,settings_reset_required_=false;
+    bool demo_=true,running_=true,initialized_=false,loading_drawn_=false,settings_reset_required_=false;
     bool upgrade_copy_=false;
     bool advanced_visuals_open_=false;
     int pressed_action_=-1;

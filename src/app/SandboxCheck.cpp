@@ -48,6 +48,10 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         if (!visuals.building.empty()) view.set_building_visuals(visuals.building,visuals.building_source);
         if (!visuals.road.empty()) view.set_road_visuals(visuals.road,visuals.road_source);
         view.initialize(window,renderer);
+        const auto initial_ticks=view.world().ticks();
+        const auto initial_treasury=view.world().treasury();
+        const auto initial_taxes=view.world().taxes_collected_total();
+        const auto initial_construction_spent=view.world().construction_spent_total();
         std::optional<simulation::World> walker_control;
         if (!visuals.walker.empty() || !visuals.building.empty() || !visuals.road.empty())
             walker_control.emplace(simulation::World::restore(view.world().snapshot(),
@@ -63,6 +67,9 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         int frames_with_both=0,frames_with_three=0,frames_with_five=0,frames_with_food=0;
         int frames_with_service=0;
         std::uint64_t first_service_visit_tick=0;
+        std::uint64_t first_tax_tick=0;
+        std::uint64_t first_tax_total=0;
+        std::int64_t treasury_at_first_tax=initial_treasury;
         bool service_walker_activated=false;
         const int limit=rules==simulation::RulesProfile::IndustryV5 ? 8000 :
             simulation::food_profile(rules) ? 8000 :
@@ -90,6 +97,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                         view.world().courier(static_cast<simulation::CourierId>(id)).phase);
             view.tick_once();
             const auto& world=view.world();
+            if (first_tax_tick==0 && world.taxes_collected_total()>initial_taxes) {
+                first_tax_tick=world.ticks();
+                first_tax_total=world.taxes_collected_total()-initial_taxes;
+                treasury_at_first_tax=world.treasury();
+            }
             if (simulation::service_profile(rules)) for (const auto& c:world.couriers())
                 if (c.role==simulation::CourierRole::Service &&
                     c.phase!=simulation::CourierPhase::IdleAtWorkshop) service_walker_activated=true;
@@ -239,13 +251,26 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                  (!v11 || visual_role_ok(assets::BuildingVisualRole::Market)));
             std::size_t houses=0,warehouses=0,farms=0,posts=0,markets=0;
             std::uint64_t fulfilled=0;
+            nlohmann::json household_states=nlohmann::json::array();
+            nlohmann::json operation_states=nlohmann::json::array();
             for (const auto& b:world.buildings()) {
                 houses+=b.kind==simulation::Object::Household;
                 warehouses+=b.kind==simulation::Object::Warehouse;
                 farms+=b.kind==simulation::Object::Farm;
                 posts+=b.kind==simulation::Object::ServicePost;
                 markets+=b.kind==simulation::Object::Market;
-                if (b.kind==simulation::Object::Household) fulfilled+=b.fulfilled_demand;
+                if (b.kind==simulation::Object::Household) {
+                    fulfilled+=b.fulfilled_demand;
+                    household_states.push_back({{"id",static_cast<std::uint32_t>(b.id)},
+                        {"fulfilled",b.fulfilled_demand},{"missed",b.missed_demand},
+                        {"pottery",b.pottery_stock},{"food",b.food_stock},
+                        {"service_active",world.household_service_active(b.id)},
+                        {"population",world.household_population(b.id)}});
+                }
+                if (v11 && simulation::World::operation_controllable(b.kind))
+                    operation_states.push_back({{"id",static_cast<std::uint32_t>(b.id)},
+                        {"running",b.operating_enabled},
+                        {"priority",simulation::workforce_priority_name(b.workforce_priority)}});
             }
             const bool success=houses==(v11 ? 4U:3U) && warehouses==1 && farms==1 && posts==1 &&
                 markets==(v11 ? 1U:0U) && world.buildings().size()==(v11 ? 10U:8U) &&
@@ -266,11 +291,21 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                                                     "openemperor-sandbox-check-v10"},
                 {"rules",simulation::rules_profile_name(rules)},
                 {"rule_version",world.rule_version()},
-                {"map",map_relative.generic_string()},{"ticks",world.ticks()},
+                {"map",map_relative.generic_string()},{"ticks_before",initial_ticks},
+                {"ticks",world.ticks()},
                 {"building_count",world.buildings().size()},{"courier_count",world.couriers().size()},
                 {"house_count",houses},{"population",world.total_population()},
                 {"warehouses",warehouses},{"farms",farms},{"service_posts",posts},
                 {"markets",markets},{"fulfilled_demands",fulfilled},
+                {"households",household_states},{"operation_states",operation_states},
+                {"treasury_before",initial_treasury},{"treasury",world.treasury()},
+                {"treasury_delta",world.treasury()-initial_treasury},
+                {"taxes_before",initial_taxes},
+                {"taxes_collected_total",world.taxes_collected_total()},
+                {"construction_spent_before",initial_construction_spent},
+                {"construction_spent_total",world.construction_spent_total()},
+                {"first_tax_tick",first_tax_tick},{"first_tax_total",first_tax_total},
+                {"treasury_at_first_tax",treasury_at_first_tax},
                 {"district_independent_deliveries",nullptr},
                 {"district_delivery_scope","starter_single_district"},
                 {"service_visits",service_visits},{"production_balance_valid",world.production_balance_valid()},
@@ -284,6 +319,9 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"draws_by_role",draws},{"placeholder_fallbacks_by_role",fallbacks},
                     {"simulation_equal_to_control",simulation_neutral},
                     {"manual_visual_review",false}}},
+                {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
+                    {"fresh_world",fresh_world},{"direct_equal",direct_equal},
+                    {"continued_equal",continued_equal}}},
                 {"original_emperor_fidelity_claim",false}}
                 .dump()<<'\n';
             view.shutdown(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit();
