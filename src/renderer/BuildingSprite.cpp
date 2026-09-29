@@ -1,4 +1,5 @@
 #include "renderer/BuildingSprite.h"
+#include "core/PerformanceDiagnostics.h"
 #include <SDL3/SDL.h>
 #include <stdexcept>
 
@@ -19,6 +20,7 @@ void BuildingSprite::initialize(SDL_Renderer* renderer,
             !SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST)) {
             const std::string message=SDL_GetError();shutdown();throw std::runtime_error(message);
         }
+        performance::increment(performance::Counter::TextureUploads);
     }
 }
 void BuildingSprite::shutdown() {

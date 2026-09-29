@@ -1,4 +1,5 @@
 #include "app/AutosaveController.h"
+#include "core/PerformanceDiagnostics.h"
 
 #include <limits>
 #include <stdexcept>
@@ -30,6 +31,7 @@ AutosaveResult AutosaveController::begin(const persistence::SaveDocument& docume
     last_checkpoint_tick_=document.world.ticks;next_due_tick_=due_after(document.world.ticks);
     if (!enabled_) return {};
     const auto before=std::chrono::steady_clock::now();
+    performance::ScopedTimer write_timer(performance::Timing::AutosaveWrite);
     try {
         history_id_=store().create_history(document,buildable,std::move(parent),faults);
         return {AutosaveResult::Kind::Saved,"Recovery start point saved",
@@ -50,6 +52,7 @@ AutosaveResult AutosaveController::poll(const persistence::SaveDocument& documen
     if (tick==last_observed_tick_ || tick<next_due_tick_ || !safe) return {};
     last_observed_tick_=tick;
     const auto before=std::chrono::steady_clock::now();
+    performance::ScopedTimer write_timer(performance::Timing::AutosaveWrite);
     try {
         store().write_checkpoint(history_id_,document,buildable,faults);
         last_checkpoint_tick_=tick;next_due_tick_=due_after(tick);last_error_.clear();

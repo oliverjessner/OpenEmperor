@@ -22,6 +22,7 @@
 #include "maps/StoredMapSession.h"
 #include "persistence/SandboxSave.h"
 #include "core/Version.h"
+#include "core/PerformanceDiagnostics.h"
 
 #include <nlohmann/json.hpp>
 
@@ -39,7 +40,7 @@
 namespace {
 
 void print_usage(const char* executable) {
-    std::cerr << "Usage: " << executable << " [--data <directory>] [--app-root <test-directory>] [--preview <exported.png>]\n"
+    std::cerr << "Usage: " << executable << " [--performance-diagnostics] [--data <directory>] [--app-root <test-directory>] [--preview <exported.png>]\n"
               << "       " << executable << " [--data <directory>] --sg3 <file.sg3> --image <index> [--ignore-alpha]\n"
               << "       " << executable << " --sg3 <file.sg3> --image <index>"
               << " --alpha-addressing spec|contiguous|legacy (diagnostic)\n"
@@ -113,6 +114,7 @@ int main(int argc, char* argv[]) {
     bool sandbox_rules_supplied = false;
     bool sandbox_save_supplied = false;
     bool load_sandbox_supplied = false;
+    bool performance_diagnostics = false;
     auto sandbox_rules = openemperor::simulation::RulesProfile::LogisticsV1;
     bool report_json = false;
     bool ignore_alpha = false;
@@ -154,6 +156,8 @@ int main(int argc, char* argv[]) {
         const std::string_view argument{argv[index]};
         if (argument == "--browse-assets" && !browse_assets) {
             browse_assets = true;
+        } else if (argument == "--performance-diagnostics" && !performance_diagnostics) {
+            performance_diagnostics=true;
         } else if (argument == "--browse-maps" && !browse_maps) {
             browse_maps = true;
         } else if (argument == "--list-maps" && !list_maps) {
@@ -316,6 +320,7 @@ int main(int argc, char* argv[]) {
             return 2;
         }
     }
+    if (performance_diagnostics) openemperor::performance::set_enabled(true);
     if ((sg3_supplied != image_supplied) || (preview_supplied && sg3_supplied) ||
         ((atlas_start_supplied || atlas_count_supplied) && !road_atlas_supplied) ||
         (road_atlas_supplied && (!data_supplied || !atlas_start_supplied || !atlas_count_supplied ||

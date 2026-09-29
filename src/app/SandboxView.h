@@ -134,6 +134,7 @@ public:
     std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
     std::vector<std::string> inspection_lines() const;
     const sandbox_ui::RoadPlan& road_preview() const { return road_preview_; }
+    std::uint64_t road_plan_build_count() const { return road_plan_build_count_; }
     const std::vector<std::uint8_t>& buildable_mask() const { return buildable_mask_; }
 private:
     enum class OperationAction { Toggle, PriorityHigh, PriorityNormal, PriorityLow };
@@ -158,7 +159,8 @@ private:
     bool action_enabled(sandbox_ui::Action action) const;
     void perform_action(sandbox_ui::Action action);
     void cancel_gesture();
-    void refresh_hover();
+    void refresh_hover(bool force_road_plan=false);
+    void invalidate_road_preview_cache();
     bool request_road(const sandbox_ui::RoadPlan& plan);
     sandbox_ui::Rect budget_build_rect() const;
     sandbox_ui::Rect budget_cancel_rect() const;
@@ -194,6 +196,11 @@ private:
     bool help_open_=false;
     int panel_scroll_=0;
     std::optional<scene::Point> pointer_;
+    bool hover_dirty_=true;
+    std::optional<simulation::Cell> planned_start_,planned_end_;
+    std::uint64_t planned_road_revision_=UINT64_MAX,planned_command_sequence_=UINT64_MAX;
+    std::int64_t planned_treasury_=INT64_MIN;
+    std::uint64_t road_plan_build_count_=0;
     std::string last_message_;
     std::string recovery_status_;
     bool demo_=false;

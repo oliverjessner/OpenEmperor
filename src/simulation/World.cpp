@@ -13,6 +13,11 @@
 namespace openemperor::simulation {
 namespace {
 constexpr std::array<Cell,4> neighbors{{{0,-1},{-1,0},{1,0},{0,1}}};
+struct BfsDiagnostics {
+    BfsDiagnostics() { performance::increment(performance::Counter::BfsCalls); }
+    ~BfsDiagnostics() { performance::increment(performance::Counter::BfsVisitedCells,visited); }
+    std::uint64_t visited=0;
+};
 Cell add(Cell a,Cell b) { return {a.x+b.x,a.y+b.y}; }
 bool scalable(RulesProfile profile) {
     return profile==RulesProfile::CityV10 || profile==RulesProfile::CityV11;
@@ -825,7 +830,69 @@ CommandResult World::validate(Command command) const {
     }
     return {true,true,"Placed",result.sequence,ticks_};
 }
+RoadBatchValidation World::validate_road_batch(std::span<const Cell> cells) const {
+    RoadBatchValidation batch;
+    if (cells.empty()) { batch.reason="Invalid road drag"; return batch; }
+    if (cells.size()>256) { batch.reason="Road drag exceeds 256 cells"; return batch; }
+    std::vector<Cell> new_cells;
+    new_cells.reserve(cells.size());
+    for (const auto cell:cells) {
+        if (object_at(cell)==Object::Road ||
+            std::find(new_cells.begin(),new_cells.end(),cell)!=new_cells.end()) continue;
+        const auto result=validate({CommandType::PlaceRoad,cell});
+        if (!result.accepted) { batch.reason=result.reason; return batch; }
+        new_cells.push_back(cell);
+    }
+    const auto count=static_cast<std::uint64_t>(new_cells.size());
+    if (count>UINT64_MAX-command_sequence_) {
+        batch.reason="Sandbox command counter exhausted"; return batch;
+    }
+    if (count>UINT64_MAX-road_revision_ || count>UINT64_MAX-roads_placed_total_) {
+        batch.reason="Road counter exhausted"; return batch;
+    }
+    const auto cost=construction_cost(CommandType::PlaceRoad);
+    if (cost<0 || (cost>0 && count>static_cast<std::uint64_t>(INT64_MAX/cost))) {
+        batch.reason="Road cost overflow"; return batch;
+    }
+    const auto total=static_cast<std::int64_t>(count)*cost;
+    if (total>treasury_) { batch.reason="Not enough money"; return batch; }
+    if (total>0 && static_cast<std::uint64_t>(total)>UINT64_MAX-construction_spent_total_) {
+        batch.reason="Construction spending counter exhausted"; return batch;
+    }
+    batch.accepted=true;
+    batch.reason=new_cells.empty() ? "Road already present":"Road ready";
+    batch.new_road_count=new_cells.size();
+    batch.total_cost=total;
+    return batch;
+}
+
+CommandResult World::execute_road_batch(std::span<const Cell> cells) {
+    const auto batch=validate_road_batch(cells);
+    if (!batch.accepted)
+        return {false,false,batch.reason,command_sequence_==UINT64_MAX ? command_sequence_:
+            command_sequence_+1,ticks_};
+    if (batch.new_road_count==0)
+        return {true,false,batch.reason,command_sequence_+1,ticks_};
+    auto candidate=*this;
+    CommandResult last;
+    for (const auto cell:cells) {
+        if (candidate.object_at(cell)==Object::Road) continue;
+        last=candidate.execute_impl({CommandType::PlaceRoad,cell},false);
+        if (!last.accepted || !last.changed)
+            return {false,false,last.reason,command_sequence_+1,ticks_};
+    }
+    if (production_profile(candidate.profile_)) candidate.refresh_routes();
+    *this=std::move(candidate);
+    last.reason="Road placed";
+    return last;
+}
+
 CommandResult World::execute(Command command) {
+    return execute_impl(command,true);
+}
+
+CommandResult World::execute_impl(Command command,bool refresh_after) {
+    performance::increment(performance::Counter::WorldExecutes);
     auto result=validate(command);
     if (city_profile(profile_) && !result.accepted) return result;
     ++command_sequence_;
@@ -994,7 +1061,7 @@ CommandResult World::execute(Command command) {
     }
     ++road_revision_;
     cached_route_.reset();
-    if (production_profile(profile_)) refresh_routes();
+    if (refresh_after && production_profile(profile_)) refresh_routes();
     return result;
 }
 
@@ -1011,9 +1078,11 @@ std::optional<std::vector<Cell>> World::find_route(Cell start,Cell goal) const {
     const auto start_index=index(start);
     std::vector<std::size_t> previous(objects_.size(),objects_.size());
     std::deque<Cell> queue;
+    BfsDiagnostics diagnostics;
     previous[start_index]=start_index;
     queue.push_back(start);
     while (!queue.empty()) {
+        ++diagnostics.visited;
         const auto current=queue.front(); queue.pop_front();
         for (const auto delta:neighbors) {
             const auto next=add(current,delta);
@@ -1067,9 +1136,11 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal) co
     const auto start_index=index(start);
     std::vector<std::size_t> previous(objects_.size(),objects_.size());
     std::deque<Cell> queue;
+    BfsDiagnostics diagnostics;
     previous[start_index]=start_index;
     queue.push_back(start);
     while (!queue.empty()) {
+        ++diagnostics.visited;
         const auto current=queue.front(); queue.pop_front();
         for (const auto delta:neighbors) {
             const auto next=add(current,delta);
@@ -1152,6 +1223,8 @@ const std::vector<Cell>* World::route_for_revision() {
 }
 
 void World::refresh_routes() {
+    performance::ScopedTimer timer(performance::Timing::RouteRefresh);
+    performance::increment(performance::Counter::RouteRefreshes);
     if (route_refresh_count_!=UINT64_MAX) ++route_refresh_count_;
     if (scalable(profile_)) {
         for (auto& courier:couriers_) {
@@ -1821,6 +1894,7 @@ void World::move_courier() {
 }
 
 void World::tick() {
+    performance::increment(performance::Counter::SimulationTicks);
     if (production_profile(profile_)) { tick_production_v2(); return; }
     if (ticks_==UINT64_MAX) throw std::overflow_error("sandbox tick counter exhausted");
     ++ticks_;
@@ -2629,6 +2703,7 @@ WorldSnapshot World::snapshot() const {
 }
 
 World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
+    performance::increment(performance::Counter::WorldRestores);
     if (!rule_version_supported(s.profile,s.rule_version))
         throw std::invalid_argument("unsupported sandbox rule version");
     World w(s.width,s.height,std::move(mask),s.profile,s.rule_version);

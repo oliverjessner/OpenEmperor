@@ -81,6 +81,8 @@ std::optional<StarterBudgetWarning> starter_budget_warning(const World& world,
                                                            Command command);
 std::optional<StarterBudgetWarning> starter_budget_warning(const World& world,
                                                            std::span<const Command> commands);
+std::optional<StarterBudgetWarning> starter_budget_warning_for_road_purchase(
+    const World& world,std::int64_t purchase_cost);
 
 const char* starter_building_name(Object kind);
 

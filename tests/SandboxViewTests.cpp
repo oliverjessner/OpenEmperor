@@ -1190,8 +1190,18 @@ int main(int argc,char** argv) {
         const auto before_drag=ui.world().snapshot();
         ui.handle_event(click(static_cast<float>(first_start.x),static_cast<float>(first_start.y)),running);
         ui.handle_event(motion(static_cast<float>(first_end.x),static_cast<float>(first_end.y)),running);
+        ui.update(0.0);
         check(ui.world().snapshot()==before_drag && ui.road_preview().cells.size()==2,
               "road drag mutated world before release");
+        const auto plan_builds=ui.road_plan_build_count();
+        for (int i=0;i<500;++i)
+            ui.handle_event(motion(static_cast<float>(first_end.x),
+                                   static_cast<float>(first_end.y)),running);
+        check(ui.road_plan_build_count()==plan_builds,
+              "mouse-motion burst rebuilt a RoadPlan inside event handling");
+        ui.update(0.0);
+        check(ui.road_plan_build_count()==plan_builds,
+              "unchanged start/end cell rebuilt the cached RoadPlan");
         check(ui.render() && ui.world().snapshot()==before_drag,
               "rendered held road changed simulation");
         check(ui.road_display_stats().draws==0 &&
@@ -1368,6 +1378,7 @@ int main(int argc,char** argv) {
         const auto before_l=ui.world().snapshot();
         ui.handle_event(click(static_cast<float>(l_start.x),static_cast<float>(l_start.y)),running);
         ui.handle_event(motion(static_cast<float>(l_end.x),static_cast<float>(l_end.y)),running);
+        ui.update(0.0);
         check(ui.road_preview().valid && ui.road_preview().cells.size()==4 &&
               openemperor::sandbox_ui::road_neighbor_mask_for_preview(ui.world(),ui.road_preview().cells,
                                                              {119,112})==0xc &&

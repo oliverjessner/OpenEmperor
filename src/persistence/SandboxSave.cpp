@@ -1,4 +1,5 @@
 #include "persistence/SandboxSave.h"
+#include "core/PerformanceDiagnostics.h"
 
 #include "maps/MapCatalog.h"
 #include "maps/SandboxPlacement.h"
@@ -593,6 +594,7 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
     return d;
 }
 SaveDocument read_save(const fs::path& path) {
+    performance::increment(performance::Counter::FileReads);
     std::error_code error;
     const auto size=fs::file_size(path,error);
     require(!error && size>0 && size<=max_save_bytes,"save file is missing, empty or exceeds 8 MiB");
@@ -652,6 +654,7 @@ void validate_save_target(const fs::path& path,const fs::path& root) {
 }
 void write_save(const fs::path& path,const SaveDocument& d,const fs::path& root,
                 const std::vector<std::uint8_t>& mask,WriteFault fault) {
+    performance::increment(performance::Counter::FileWrites);
     validate_save_target(path,root);
     // Recheck original inputs and all world invariants before writing any bytes.
     (void)restore_save(d,root,mask);

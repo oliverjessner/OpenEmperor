@@ -1,4 +1,5 @@
 #include "renderer/StoredGraphicsRenderer.h"
+#include "core/PerformanceDiagnostics.h"
 
 #include "assets/Sg3ImageLoader.h"
 
@@ -77,6 +78,7 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
                 !SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND) ||
                 !SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST))
                 throw std::runtime_error(SDL_GetError());
+            performance::increment(performance::Counter::TextureUploads);
             asset.status = maps::StoredStatus::Rendered;
             ++plan_.texture_uploads;
             plan_.logical_texture_bytes += bytes;

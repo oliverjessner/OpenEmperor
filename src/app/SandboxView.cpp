@@ -127,6 +127,7 @@ void SandboxView::save_now() {
 }
 
 persistence::SaveDocument SandboxView::capture_save_document() const {
+    performance::ScopedTimer timer(performance::Timing::AutosaveCapture);
     if (!world_ || data_root_.empty() || map_relative_.empty())
         throw std::runtime_error("sandbox has no valid save context");
     return persistence::make_document(data_root_,map_relative_,buildable_mask_,*world_);
@@ -800,6 +801,7 @@ void SandboxView::cancel_gesture() {
     map_pressed_=false;
     road_start_.reset();
     road_preview_={};
+    invalidate_road_preview_cache();
     menu_pressed_=false;
 }
 
@@ -918,9 +920,30 @@ std::optional<scene::Point> SandboxView::render_point(float x,float y) const {
     if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&rx,&ry)) return std::nullopt;
     return scene::Point{rx,ry};
 }
-void SandboxView::refresh_hover() {
+void SandboxView::invalidate_road_preview_cache() {
+    planned_start_.reset(); planned_end_.reset();
+    planned_road_revision_=UINT64_MAX; planned_command_sequence_=UINT64_MAX;
+    planned_treasury_=INT64_MIN;
+}
+void SandboxView::refresh_hover(bool force_road_plan) {
+    performance::ScopedTimer timer(performance::Timing::HoverPicking);
     hovered_=pointer_ ? pick(*pointer_) : std::nullopt;
-    if (road_start_ && hovered_) road_preview_=sandbox_ui::plan_road(*world_,*road_start_,*hovered_);
+    hover_dirty_=false;
+    if (!road_start_ || !hovered_) {
+        if (road_start_) road_preview_={};
+        return;
+    }
+    const bool stale=force_road_plan || planned_start_!=road_start_ || planned_end_!=hovered_ ||
+        planned_road_revision_!=world_->road_revision() ||
+        planned_command_sequence_!=world_->command_sequence() ||
+        planned_treasury_!=world_->treasury();
+    if (!stale) return;
+    road_preview_=sandbox_ui::plan_road(*world_,*road_start_,*hovered_);
+    ++road_plan_build_count_;
+    planned_start_=road_start_; planned_end_=hovered_;
+    planned_road_revision_=world_->road_revision();
+    planned_command_sequence_=world_->command_sequence();
+    planned_treasury_=world_->treasury();
 }
 void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_QUIT || event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
@@ -1079,7 +1102,11 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     }
     if (event.type==SDL_EVENT_MOUSE_MOTION) {
         pointer_=render_point(event.motion.x,event.motion.y);
-        refresh_hover();
+        {
+            performance::ScopedTimer timer(performance::Timing::HoverPicking);
+            hovered_=pointer_ ? pick(*pointer_) : std::nullopt;
+        }
+        hover_dirty_=true;
     }
     if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN) {
         if (event.button.button==SDL_BUTTON_RIGHT) {
@@ -1116,6 +1143,11 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (tool_==1) {
             road_start_=cell;
             road_preview_=sandbox_ui::plan_road(*world_,*cell,*cell);
+            ++road_plan_build_count_;
+            planned_start_=cell; planned_end_=cell;
+            planned_road_revision_=world_->road_revision();
+            planned_command_sequence_=world_->command_sequence();
+            planned_treasury_=world_->treasury();
         }
     }
     if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
@@ -1125,7 +1157,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 pointer_->x>=layout_.top.w-88*layout_.scale;
             cancel_gesture(); if (hit) menu_requested_=true; return;
         }
-        refresh_hover();
+        refresh_hover(true);
         if (pressed_button_) {
             const auto action=*pressed_button_;
             const bool matching=pointer_ && layout_.button_at(pointer_->x,pointer_->y)==action;
@@ -1156,7 +1188,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (!map_pressed_) return;
         const auto cell=pointer_ ? pick(*pointer_) : std::nullopt;
         if (cell && road_start_ && tool_==1) {
-            const auto plan=sandbox_ui::plan_road(*world_,*road_start_,*cell);
+            const auto plan=road_preview_;
             (void)request_road(plan);
             selected_=cell;
         } else if (cell) {
@@ -1168,6 +1200,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     }
 }
 void SandboxView::update(double seconds) {
+    performance::ScopedTimer timer(performance::Timing::SimulationUpdate);
     if (budget_warning_) return;
     const bool* keys=SDL_GetKeyboardState(nullptr);
     const double movement=400.0*std::clamp(seconds,0.0,0.05);
@@ -1176,8 +1209,9 @@ void SandboxView::update(double seconds) {
         if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) camera_.offset.x-=movement;
         if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) camera_.offset.y+=movement;
         if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) camera_.offset.y-=movement;
-        refresh_hover();
+        hover_dirty_=true;
     }
+    if (hover_dirty_ || road_start_) refresh_hover();
     clock_.update(seconds,*world_);
 }
 void SandboxView::tick_once() { if (!budget_warning_) world_->tick(); }
@@ -1193,6 +1227,7 @@ simulation::CommandResult SandboxView::execute(simulation::Command command) {
 simulation::CommandResult SandboxView::request_execute(simulation::Command command) {
     const auto validated=world_->validate(command);
     if (!validated.accepted || !validated.changed) return execute(command);
+    performance::ScopedTimer timer(performance::Timing::BudgetCheck);
     if (const auto warning=simulation::starter_budget_warning(*world_,command)) {
         cancel_gesture();
         budget_warning_=warning;
@@ -1206,13 +1241,15 @@ simulation::CommandResult SandboxView::request_execute(simulation::Command comma
 }
 
 bool SandboxView::request_road(const sandbox_ui::RoadPlan& plan) {
-    std::vector<simulation::Command> commands;
-    for (const auto cell:plan.cells)
-        if (world_->object_at(cell)!=simulation::Object::Road)
-            commands.push_back({simulation::CommandType::PlaceRoad,cell});
-    if (plan.valid) if (const auto warning=simulation::starter_budget_warning(*world_,commands)) {
+    std::optional<simulation::StarterBudgetWarning> warning;
+    {
+        performance::ScopedTimer timer(performance::Timing::BudgetCheck);
+        if (plan.valid) warning=simulation::starter_budget_warning_for_road_purchase(
+            *world_,plan.total_cost);
+    }
+    if (warning) {
         cancel_gesture();
-        budget_warning_=warning;
+        budget_warning_=std::move(warning);
         pending_road_=plan;
         pending_command_.reset();
         last_message_="Starter budget confirmation required.";
@@ -2483,6 +2520,7 @@ bool SandboxView::draw_budget_warning_overlay() {
         draw_button(budget_cancel_rect(),{45,76,94,255},"Cancel (N / Esc)");
 }
 bool SandboxView::render() {
+    if (hover_dirty_) refresh_hover();
     resize_camera();
     if (!SDL_SetRenderViewport(renderer_,nullptr) ||
         !SDL_SetRenderClipRect(renderer_,nullptr) ||
@@ -2494,16 +2532,26 @@ bool SandboxView::render() {
         auto render_camera=camera_;
         render_camera.viewport_width=layout_.map.x+layout_.map.w;
         render_camera.viewport_height=layout_.map.y+layout_.map.h;
-        const bool map_ok=(!unified_depth_ ? background_.render(render_camera,std::nullopt):true) &&
-            draw_world(render_camera);
+        bool map_ok=false;
+        {
+            performance::ScopedTimer timer(performance::Timing::WorldRender);
+            map_ok=(!unified_depth_ ? background_.render(render_camera,std::nullopt):true) &&
+                draw_world(render_camera);
+        }
         if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
     }
-    const bool ui_ok=draw_hud() && draw_walker_diagnostic() && draw_help_overlay() &&
-        draw_budget_warning_overlay();
+    bool ui_ok=false;
+    {
+        performance::ScopedTimer timer(performance::Timing::HudRender);
+        ui_ok=draw_hud() && draw_walker_diagnostic() && draw_help_overlay() &&
+            draw_budget_warning_overlay();
+    }
     const bool reset=SDL_SetRenderClipRect(renderer_,nullptr) &&
         SDL_SetRenderViewport(renderer_,nullptr) && SDL_SetRenderScale(renderer_,1,1);
     if (!ui_ok || !reset) return false;
-    return SDL_GetRenderTarget(renderer_) ? true:SDL_RenderPresent(renderer_);
+    if (SDL_GetRenderTarget(renderer_)) return true;
+    performance::ScopedTimer timer(performance::Timing::Present);
+    return SDL_RenderPresent(renderer_);
 }
 
 } // namespace openemperor

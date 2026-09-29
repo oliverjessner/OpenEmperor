@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/PerformanceDiagnostics.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <array>
@@ -198,6 +200,12 @@ struct CommandResult {
     const char* reason="";
     std::uint64_t sequence=0;
     std::uint64_t tick=0;
+};
+struct RoadBatchValidation {
+    bool accepted=false;
+    const char* reason="";
+    std::size_t new_road_count=0;
+    std::int64_t total_cost=0;
 };
 enum class CourierPhase { IdleAtWorkshop, ToWarehouse, Returning };
 const char* courier_phase_name(CourierPhase phase);
@@ -434,6 +442,8 @@ public:
     void import_snapshot(const WorldSnapshot& snapshot);
     CommandResult validate(Command command) const;
     CommandResult execute(Command command);
+    RoadBatchValidation validate_road_batch(std::span<const Cell> cells) const;
+    CommandResult execute_road_batch(std::span<const Cell> cells);
     void tick();
     std::optional<std::vector<Cell>> find_route() const;
     std::optional<std::vector<Cell>> find_route(Cell start,Cell goal) const;
@@ -460,6 +470,7 @@ public:
     int warehouse_stock() const { return warehouse_stock_; }
     bool goods_balance_valid() const;
 private:
+    CommandResult execute_impl(Command command,bool refresh_after);
     std::size_t index(Cell cell) const;
     std::optional<std::vector<Cell>> find_road_route(Cell start,Cell goal) const;
     std::optional<std::vector<Cell>> find_route_to_building(Cell start,BuildingId target) const;
@@ -527,6 +538,7 @@ private:
     std::vector<Cell> path_;
     std::size_t path_vertex_=0;
     int edge_progress_=0;
+    performance::WorldCopyProbe performance_copy_probe_;
 };
 
 // Application adapter only: explicit fixed ticks, bounded catch-up, no wall clock.

@@ -1,4 +1,5 @@
 #include "renderer/WalkerSpriteSet.h"
+#include "core/PerformanceDiagnostics.h"
 #include <SDL3/SDL.h>
 #include <stdexcept>
 
@@ -19,6 +20,7 @@ void WalkerSpriteSet::initialize(SDL_Renderer* renderer,const assets::WalkerVisu
                 !SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND) ||
                 !SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST))
                 throw std::runtime_error(SDL_GetError());
+            performance::increment(performance::Counter::TextureUploads);
         }
     } catch (...) { shutdown(); throw; }
 }

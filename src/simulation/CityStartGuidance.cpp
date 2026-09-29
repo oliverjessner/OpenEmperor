@@ -188,4 +188,24 @@ std::optional<StarterBudgetWarning> starter_budget_warning(
         std::move(status.missing_supply_buildings)};
 }
 
+std::optional<StarterBudgetWarning> starter_budget_warning_for_road_purchase(
+    const World& world,std::int64_t purchase_cost) {
+    if (world.profile()!=RulesProfile::CityV11 || world.rule_version()<2 ||
+        world.taxes_collected_total()>0 || purchase_cost<=0 || purchase_cost>world.treasury())
+        return std::nullopt;
+    auto status=inspect_city_start(world);
+    const auto building_reserve=status.minimum_missing_building_funds;
+    const auto house_reserve=status.minimum_house_funds_for_starter;
+    if (building_reserve<0 || house_reserve<0 ||
+        house_reserve>std::numeric_limits<std::int64_t>::max()-building_reserve)
+        return std::nullopt;
+    const auto reserve=building_reserve+house_reserve;
+    const auto after=world.treasury()-purchase_cost;
+    if (status.starter_workforce_within_house_limit && after>=reserve) return std::nullopt;
+    return StarterBudgetWarning{purchase_cost,after,building_reserve,house_reserve,reserve,
+        status.houses_needed_for_shortfall,status.household_slots_remaining,
+        status.starter_workforce_within_house_limit,
+        std::move(status.missing_supply_buildings)};
+}
+
 } // namespace openemperor::simulation

@@ -1,4 +1,5 @@
 #include "assets/Sg3ImageLoader.h"
+#include "core/PerformanceDiagnostics.h"
 #include "assets/Sg3AlphaDecoder.h"
 #include "assets/Sg3IsometricDecoder.h"
 #include "assets/Sg3OmegaDecoder.h"
@@ -66,6 +67,7 @@ std::vector<std::uint8_t> read_bitmap_range(std::ifstream& input,
     if (!input) {
         throw Sg3LoadError(std::string{"cannot seek to selected image "} + description + " offset");
     }
+    performance::increment(performance::Counter::FileReads);
     std::vector<std::uint8_t> bytes(static_cast<std::size_t>(length));
     input.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     if (input.gcount() != static_cast<std::streamsize>(bytes.size())) {
@@ -177,6 +179,7 @@ Sg3BitmapLocation resolve_sg3_image_bitmap(const fs::path& archive_path,
 }
 
 LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
+    performance::increment(performance::Counter::FileReads);
     std::error_code error;
     const fs::path archive_path = fs::absolute(request.archive_path, error);
     if (error) {
@@ -238,6 +241,7 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
             input, bitmap_size, layout.alpha->offset, layout.alpha->length, "alpha");
         apply_omega_alpha_mask(alpha, rgba);
     }
+    performance::increment(performance::Counter::AssetDecodes);
     return {std::move(rgba), std::move(bitmap)};
 }
 

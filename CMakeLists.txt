@@ -478,6 +478,17 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-road-topology-tests)
     add_test(NAME road-topology-live-preview COMMAND openemperor-road-topology-tests)
 
+    add_executable(openemperor-road-responsiveness-tests tests/RoadResponsivenessTests.cpp
+        src/app/RoadDrag.cpp)
+    target_link_libraries(openemperor-road-responsiveness-tests PRIVATE openemperor-simulation)
+    openemperor_enable_warnings(openemperor-road-responsiveness-tests)
+    add_test(NAME road-responsive-preview-batch COMMAND openemperor-road-responsiveness-tests)
+
+    add_executable(openemperor-frame-pacing-tests tests/FramePacingTests.cpp)
+    target_include_directories(openemperor-frame-pacing-tests PRIVATE src)
+    openemperor_enable_warnings(openemperor-frame-pacing-tests)
+    add_test(NAME frame-pacing-remainder COMMAND openemperor-frame-pacing-tests)
+
     add_executable(openemperor-road-visual-tests tests/RoadVisualTests.cpp
         src/renderer/RoadSpriteSet.cpp src/app/RoadTopology.cpp)
     target_link_libraries(openemperor-road-visual-tests PRIVATE openemperor-sg3

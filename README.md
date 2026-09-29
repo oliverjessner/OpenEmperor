@@ -44,6 +44,7 @@ cmake --build build --parallel
 - City-v11 start diagnostics distinguish missing infrastructure, staffing, routing, goods and demand timing; risky purchases require an explicit Build anyway/Cancel decision
 - City-v6 treasury, construction costs, deterministic workforce, household taxes, and its preserved four-house goal
 - Road placement/removal, production, supply, routing and live rerouting
+- Pure, coalesced road-drag previews and transactional multi-road commits with one final route refresh
 - OpenEmperor save/load, plus an explicit non-destructive City-v11-v2 to v3 save-copy flow
 - Menu-session autosaves with one protected start point, five rotating checkpoints, and branch-safe recovery loading
 - Automatic curated walker, building, and road previews for one exactly fingerprinted GOG-derived data set, with safe fallback for other versions
@@ -143,6 +144,11 @@ remain available and do not require the bundle option.
 For GUI testing with disposable settings, pass `--app-root <temporary-directory>`
 to the menu executable; a normal Finder launch continues to use the existing
 per-user preference directory.
+
+For a bounded end-of-run performance summary while reproducing road input,
+add `--performance-diagnostics` to an interactive command. It reports
+median/p95/maximum timings and copy/routing/BFS/tick/asset counters without
+logging every frame or mouse event. See [the road responsiveness measurements](docs/road-responsiveness.md).
 
 Install Xcode Command Line Tools, CMake, and OpenSSL (for example `brew install openssl@3`). The map reader also uses the system zlib library through CMake's `find_package(ZLIB REQUIRED)`. The default CMake configuration fetches a fixed SDL3 source commit and the checksum-pinned nlohmann/json 3.12.0 release if no exact system package exists; network access may be needed the first time.
 

@@ -5,7 +5,9 @@
 #include "app/MapBrowser.h"
 #include "app/SandboxView.h"
 #include "app/MenuSession.h"
+#include "app/FramePacing.h"
 #include "core/Version.h"
+#include "core/PerformanceDiagnostics.h"
 
 #include "renderer/TitleScreen.h"
 #include "renderer/ImagePreview.h"
@@ -14,6 +16,8 @@
 
 #include <iostream>
 #include <limits>
+#include <cstdlib>
+#include <string_view>
 #include <utility>
 
 namespace openemperor {
@@ -34,6 +38,9 @@ Application::~Application() {
 }
 
 bool Application::initialize() {
+    if (const char* diagnostics=std::getenv("OPENEMPEROR_PERF_DIAGNOSTICS");
+        diagnostics && std::string_view(diagnostics)=="1")
+        performance::set_enabled(true);
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "SDL initialization failed: " << SDL_GetError() << '\n';
         return false;
@@ -110,10 +117,16 @@ bool Application::initialize() {
 int Application::run() {
     bool running = true;
     std::uint64_t last_ticks = SDL_GetTicksNS();
+    const auto run_started=last_ticks;
+    const auto run_started_simulation_ticks=
+        performance::counter(performance::Counter::SimulationTicks);
     while (running) {
+        const auto frame_start=SDL_GetTicksNS();
         const auto sandbox_io=sandbox_ ? sandbox_->io_generation() : 0;
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
+        {
+            performance::ScopedTimer event_timer(performance::Timing::EventHandling);
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
             if (menu_) menu_->handle_event(event);
             else if (sandbox_) {
                 sandbox_->handle_event(event,running);
@@ -132,6 +145,7 @@ int Application::run() {
             } else if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
                 (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) {
                 running = false;
+            }
             }
         }
 
@@ -152,7 +166,13 @@ int Application::run() {
             std::cerr << "SDL rendering failed: " << SDL_GetError() << '\n';
             return 1;
         }
-        SDL_Delay(16);
+        const auto work_end=SDL_GetTicksNS();
+        const auto work_time=work_end-frame_start;
+        const auto wait=frame_wait_nanoseconds(work_time);
+        if (wait>0) {
+            performance::ScopedTimer wait_timer(performance::Timing::FrameWait);
+            SDL_DelayPrecise(wait);
+        }
     }
     if (browser_) {
         std::cout << "Browser decode attempts: " << browser_->decode_attempts()
@@ -163,6 +183,16 @@ int Application::run() {
     }
     if (scene_) std::cout << "Scene final frame: " << scene_->last_drawn_instances()
                           << " drawn instances, " << scene_->texture_count() << " textures\n";
+    performance::print_summary(std::cout);
+    if (performance::enabled()) {
+        const auto run_ns=SDL_GetTicksNS()-run_started;
+        const auto ticks=performance::counter(performance::Counter::SimulationTicks)-
+            run_started_simulation_ticks;
+        const auto rate=run_ns==0 ? 0.0:static_cast<double>(ticks)*1'000'000'000.0/
+            static_cast<double>(run_ns);
+        std::cout<<"  observed_simulation_ticks_per_wall_second="<<rate
+                 <<" (includes paused/menu time)\n";
+    }
     return 0;
 }
 

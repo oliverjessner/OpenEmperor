@@ -1,4 +1,5 @@
 #include "renderer/RoadSpriteSet.h"
+#include "core/PerformanceDiagnostics.h"
 #include <SDL3/SDL.h>
 #include <stdexcept>
 
@@ -18,6 +19,7 @@ void RoadSpriteSet::initialize(SDL_Renderer* renderer,const assets::RoadVisualPr
             !SDL_SetTextureScaleMode(texture,SDL_SCALEMODE_NEAREST)) {
             const std::string error=SDL_GetError();shutdown();throw std::runtime_error(error);
         }
+        performance::increment(performance::Counter::TextureUploads);
     }
 }
 void RoadSpriteSet::shutdown() {
