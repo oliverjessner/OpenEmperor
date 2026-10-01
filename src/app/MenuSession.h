@@ -80,6 +80,7 @@ private:
     std::size_t map_index_=0,save_index_=0,map_scroll_=0,save_scroll_=0;
     bool demo_=true,running_=true,initialized_=false,loading_drawn_=false,settings_reset_required_=false;
     bool upgrade_copy_=false;
+    std::uint32_t upgrade_target_version_=3;
     bool recovery_view_=false,candidate_sets_last_save_=false;
     bool advanced_visuals_open_=false;
     int pressed_action_=-1;

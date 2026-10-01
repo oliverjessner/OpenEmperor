@@ -176,6 +176,12 @@ const char* workforce_priority_name(WorkforcePriority priority) {
     return "Invalid";
 }
 
+Command demolish_building(BuildingId id) {
+    Command command{CommandType::DemolishBuilding};
+    command.building_id=id;
+    return command;
+}
+
 Command set_building_operation(BuildingId id,bool enabled) {
     Command command{CommandType::SetBuildingOperation};
     command.building_id=id;
@@ -207,13 +213,15 @@ const char* rules_profile_name(RulesProfile profile) {
 }
 
 std::uint32_t current_rule_version(RulesProfile profile) {
+    // Keep new games on v3 until the native v4 replanning acceptance is complete.
+    // Explicit v4 restores and confirmed copy upgrades remain supported.
     if (profile==RulesProfile::CityV11) return 3;
     return profile==RulesProfile::ProductionV2 ? 2U:1U;
 }
 
 bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::ProductionV2) return version==2;
-    if (profile==RulesProfile::CityV11) return version>=1 && version<=3;
+    if (profile==RulesProfile::CityV11) return version>=1 && version<=4;
     return version==1;
 }
 
@@ -223,11 +231,13 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
         Rules::pottery_recipe_ticks,Rules::farm_ticks,Rules::edge_ticks,0};
     static constexpr ProfileRules city_v11_v2{2,32,64,32,5,800};
     static constexpr ProfileRules city_v11_v3{3,32,64,32,5,800};
+    static constexpr ProfileRules city_v11_v4{4,32,64,32,5,800};
     if (!rule_version_supported(profile,version))
         throw std::invalid_argument("unsupported sandbox rule version");
     if (profile==RulesProfile::ProductionV2) return production_v2;
     if (profile==RulesProfile::CityV11 && version==2) return city_v11_v2;
     if (profile==RulesProfile::CityV11 && version==3) return city_v11_v3;
+    if (profile==RulesProfile::CityV11 && version==4) return city_v11_v4;
     return legacy;
 }
 
@@ -348,7 +358,8 @@ std::int64_t World::construction_cost(CommandType type) const {
     case CommandType::PlaceWorkshop:
     case CommandType::RemoveRoad:
     case CommandType::SetBuildingOperation:
-    case CommandType::SetBuildingWorkforcePriority: return 0;
+    case CommandType::SetBuildingWorkforcePriority:
+    case CommandType::DemolishBuilding: return 0;
     }
     return 0;
 }
@@ -631,14 +642,21 @@ bool World::city_economy_valid() const {
         return treasury_==0 && taxes_collected_total_==0 && construction_spent_total_==0;
     if (treasury_<0 || taxes_collected_total_>
         static_cast<std::uint64_t>(INT64_MAX-starting_treasury_for(profile_))) return false;
-    std::uint64_t expected_taxes=0;
+    const auto& history=demolition_history_;
+    if ((!demolition_supported() && history!=DemolitionHistory{}) ||
+        history.buildings>=UINT32_MAX || history.food_consumed!=history.pottery_consumed ||
+        (history.buildings==0 && history!=DemolitionHistory{}) ||
+        history.construction_spent<history.buildings*static_cast<std::uint64_t>(Rules::household_cost) ||
+        history.construction_spent>history.buildings*static_cast<std::uint64_t>(Rules::pottery_cost) ||
+        history.taxes>taxes_collected_total_) return false;
+    std::uint64_t expected_taxes=history.taxes;
     for (const auto& b:buildings_) if (b.kind==Object::Household) {
         const auto tax=household_tax_contributed(b.id);
         if (expected_taxes>UINT64_MAX-tax) return false;
         expected_taxes+=tax;
     }
     if (taxes_collected_total_!=expected_taxes) return false;
-    std::uint64_t expected_spending=0;
+    std::uint64_t expected_spending=demolition_history_.construction_spent;
     const auto add_cost=[&](std::uint64_t count,std::uint64_t cost) {
         if (count>UINT64_MAX/cost || expected_spending>UINT64_MAX-count*cost) return false;
         expected_spending+=count*cost;
@@ -663,9 +681,61 @@ bool World::city_economy_valid() const {
         workforce_used()>workforce_supply() || workforce_used()>workforce_required()) return false;
     return true;
 }
+DemolitionStatus World::demolition_status(BuildingId id) const {
+    DemolitionStatus status;
+    if (!demolition_supported()) {
+        status.reason="Building demolition requires City-v11 rule version 4";
+        return status;
+    }
+    const auto found=std::lower_bound(buildings_.begin(),buildings_.end(),id,
+        [](const BuildingState& b,BuildingId key) { return b.id<key; });
+    if (found==buildings_.end() || found->id!=id || !found->placed) {
+        status.reason="Building does not exist"; return status;
+    }
+    const auto& b=*found;
+    if (b.kind!=Object::ClaySource && b.kind!=Object::Pottery && b.kind!=Object::Warehouse &&
+        b.kind!=Object::Household && b.kind!=Object::Farm && b.kind!=Object::ServicePost &&
+        b.kind!=Object::Market) {
+        status.reason="Building kind does not support demolition"; return status;
+    }
+    // Collect diagnostics without routes, caches, mutation or a hypothetical World.
+    bool owned_payload=false;
+    for (const auto& c:couriers_) {
+        if (c.owner==id) {
+            if (c.phase!=CourierPhase::IdleAtWorkshop) ++status.active_couriers;
+            owned_payload=owned_payload || c.cargo!=0 || c.reserved!=0;
+        } else if (c.target==id && c.phase!=CourierPhase::IdleAtWorkshop)
+            ++status.incoming_deliveries; // Includes return trips retaining this target.
+    }
+    const auto stock=[&](int amount,const char* good) {
+        if (!amount) return;
+        if (!status.stored_goods_summary.empty()) status.stored_goods_summary+=", ";
+        status.stored_goods_summary+=std::to_string(amount)+" "+good;
+    };
+    stock(b.input_clay,"input Clay"); stock(b.active_recipe_clay,"recipe Clay");
+    stock(b.output,b.kind==Object::ClaySource ? "Clay":b.kind==Object::Farm ? "Food":"Pottery");
+    stock(b.pottery_stock,"Pottery"); stock(b.food_stock,"Food");
+    if (status.active_couriers) status.reason="Cannot demolish: owned courier is delivering or returning.";
+    else if (status.incoming_deliveries) status.reason="Cannot demolish: another courier has this active target.";
+    else if (b.reserved_incoming || b.reserved_food_incoming)
+        status.reason="Cannot demolish: incoming delivery reserved.";
+    else if (owned_payload) status.reason="Cannot demolish: owned courier still carries cargo or a reservation.";
+    else if (b.active_recipe_clay) status.reason="Cannot demolish: active recipe in progress.";
+    else if (!status.stored_goods_summary.empty())
+        status.reason="Cannot demolish: still contains "+status.stored_goods_summary+".";
+    else if (road_revision_==UINT64_MAX || command_sequence_==UINT64_MAX)
+        status.reason="Cannot demolish: topology or command counter exhausted.";
+    else { status.allowed=true; status.reason="Ready to demolish. No refund."; }
+    return status;
+}
+
 CommandResult World::validate(Command command) const {
     if (command_sequence_==UINT64_MAX) throw std::overflow_error("sandbox command counter exhausted");
     CommandResult result{false,false,"",command_sequence_+1,ticks_};
+    if (command.type==CommandType::DemolishBuilding) {
+        const auto status=demolition_status(command.building_id);
+        return {status.allowed,status.allowed,status.reason,result.sequence,ticks_};
+    }
     if (command.type==CommandType::SetBuildingOperation ||
         command.type==CommandType::SetBuildingWorkforcePriority) {
         if (!operation_controls_supported()) {
@@ -894,7 +964,8 @@ CommandResult World::execute(Command command) {
 CommandResult World::execute_impl(Command command,bool refresh_after) {
     performance::increment(performance::Counter::WorldExecutes);
     auto result=validate(command);
-    if (city_profile(profile_) && !result.accepted) return result;
+    if ((city_profile(profile_) || command.type==CommandType::DemolishBuilding) && !result.accepted)
+        return result;
     ++command_sequence_;
     result.sequence=command_sequence_;
     if (!result.accepted || !result.changed) return result;
@@ -904,6 +975,47 @@ CommandResult World::execute_impl(Command command,bool refresh_after) {
     }
     if (command.type==CommandType::SetBuildingWorkforcePriority) {
         mutable_building(command.building_id).workforce_priority=command.workforce_priority;
+        return result;
+    }
+    if (command.type==CommandType::DemolishBuilding) {
+        const auto id=command.building_id;
+        const auto& b=building(id);
+        // Preserve historical accounting before erasing the entity. All physical
+        // stocks/reservations/recipes are zero by the shared validation above.
+        ++demolition_history_.buildings;
+        if (b.kind==Object::ClaySource) demolition_history_.clay_extracted+=b.clay_extracted;
+        if (b.kind==Object::Pottery) demolition_history_.pottery_completed+=b.recipes_completed;
+        if (b.kind==Object::Farm) demolition_history_.food_produced+=b.food_produced;
+        if (b.kind==Object::Household) {
+            demolition_history_.pottery_consumed+=b.consumed_total;
+            demolition_history_.food_consumed+=b.food_consumed_total;
+            demolition_history_.taxes+=household_tax_contributed(id);
+        }
+        const auto type=b.kind==Object::ClaySource ? CommandType::PlaceClaySource:
+            b.kind==Object::Pottery ? CommandType::PlacePottery:
+            b.kind==Object::Warehouse ? CommandType::PlaceWarehouse:
+            b.kind==Object::Household ? CommandType::PlaceHousehold:
+            b.kind==Object::Farm ? CommandType::PlaceFarm:
+            b.kind==Object::ServicePost ? CommandType::PlaceServicePost:CommandType::PlaceMarket;
+        demolition_history_.construction_spent+=static_cast<std::uint64_t>(construction_cost(type));
+        for (const auto cell:building_footprint_cells(profile_,b.kind,b.cell)) {
+            objects_[index(cell)]=Object::Empty; owners_[index(cell)]=0;
+        }
+        std::erase_if(couriers_,[&](const CourierState& c) { return c.owner==id; });
+        for (auto& c:couriers_) {
+            if (c.last_dispatched_target==id) c.last_dispatched_target.reset();
+            if (c.last_dispatched_pottery==id) c.last_dispatched_pottery.reset();
+            if (c.target==id) c.target=c.owner; // Only idle references can reach here.
+        }
+        if (last_dispatched_household_==id) last_dispatched_household_.reset();
+        if (last_dispatched_food_household_==id) last_dispatched_food_household_.reset();
+        if (last_dispatched_service_household_==id) last_dispatched_service_household_.reset();
+        std::erase_if(buildings_,[&](const BuildingState& value) { return value.id==id; });
+        tick_staffed_.clear(); tick_staffing_active_=false;
+        ++road_revision_;
+        cached_route_.reset();
+        if (refresh_after) refresh_routes();
+        result.reason="Building demolished. No refund.";
         return result;
     }
     const auto add_v10_building=[&](Object kind)->BuildingState& {
@@ -1052,6 +1164,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after) {
     }
     case CommandType::SetBuildingOperation:
     case CommandType::SetBuildingWorkforcePriority:
+    case CommandType::DemolishBuilding:
         throw std::logic_error("operation command reached placement path");
     }
     if (city_profile(profile_)) {
@@ -2063,8 +2176,16 @@ bool World::industry_balance_valid() const {
              next_building_id_<=static_cast<std::uint32_t>(buildings_.back().id)) ||
             (!couriers_.empty() && next_courier_id_<=static_cast<std::uint32_t>(couriers_.back().id)))
             return false;
-        std::uint64_t clay=0,pottery=0,food=0,extracted=0,recipes=0,produced_food=0,consumed=0,
-            consumed_food=0;
+        const auto add=[](std::uint64_t& total,std::uint64_t value) {
+            if (value>UINT64_MAX-total) return false;
+            total+=value; return true;
+        };
+        std::uint64_t clay=0,pottery=0,food=0;
+        auto extracted=demolition_history_.clay_extracted;
+        auto recipes=demolition_history_.pottery_completed;
+        auto produced_food=demolition_history_.food_produced;
+        auto consumed=demolition_history_.pottery_consumed;
+        auto consumed_food=demolition_history_.food_consumed;
         std::size_t clay_count=0,pottery_count=0,warehouse_count=0,house_count=0,farm_count=0,
             service_count=0,market_count=0;
         std::vector<std::pair<BuildingId,int>> pottery_reservations,food_reservations;
@@ -2082,7 +2203,7 @@ bool World::industry_balance_valid() const {
                 ++clay_count; if (b.output<0 || b.output>Rules::clay_output_capacity ||
                     b.progress<0 || b.progress>=rules.clay_ticks ||
                     (b.output==Rules::clay_output_capacity && b.progress!=0)) return false;
-                clay+=static_cast<std::uint64_t>(b.output); extracted+=b.clay_extracted; break;
+                clay+=static_cast<std::uint64_t>(b.output); if (!add(extracted,b.clay_extracted)) return false; break;
             case Object::Pottery:
                 ++pottery_count;
                 if (b.input_clay<0 || b.input_clay+b.reserved_incoming>Rules::pottery_input_capacity ||
@@ -2092,7 +2213,7 @@ bool World::industry_balance_valid() const {
                     (b.active_recipe_clay==0 && b.progress!=0))
                     return false;
                 clay+=static_cast<std::uint64_t>(b.input_clay+b.active_recipe_clay);
-                pottery+=static_cast<std::uint64_t>(b.output); recipes+=b.recipes_completed; break;
+                pottery+=static_cast<std::uint64_t>(b.output); if (!add(recipes,b.recipes_completed)) return false; break;
             case Object::Warehouse:
                 ++warehouse_count;
                 if (b.pottery_stock<0 || b.pottery_stock+b.reserved_incoming>Rules::warehouse_capacity)
@@ -2107,12 +2228,14 @@ bool World::industry_balance_valid() const {
                     b.consumed_total!=b.fulfilled_demand ||
                     b.food_consumed_total!=b.fulfilled_demand) return false;
                 pottery+=static_cast<std::uint64_t>(b.pottery_stock); food+=static_cast<std::uint64_t>(b.food_stock);
-                consumed+=b.consumed_total; consumed_food+=b.food_consumed_total; break;
+                if (!add(consumed,b.consumed_total) || !add(consumed_food,b.food_consumed_total))
+                    return false;
+                break;
             case Object::Farm:
                 ++farm_count; if (b.output<0 || b.output>Rules::farm_output_capacity ||
                     b.progress<0 || b.progress>=rules.farm_ticks ||
                     (b.output==Rules::farm_output_capacity && b.progress!=0)) return false;
-                food+=static_cast<std::uint64_t>(b.output); produced_food+=b.food_produced; break;
+                food+=static_cast<std::uint64_t>(b.output); if (!add(produced_food,b.food_produced)) return false; break;
             case Object::ServicePost: ++service_count; break;
             case Object::Market:
                 if (!market_profile(profile_) || b.pottery_stock<0 ||
@@ -2210,6 +2333,8 @@ bool World::industry_balance_valid() const {
         for (std::size_t i=0;i<buildings_.size();++i)
             if (buildings_[i].reserved_incoming!=pottery_reservations[i].second ||
                 buildings_[i].reserved_food_incoming!=food_reservations[i].second) return false;
+        if (recipes>(UINT64_MAX-clay)/Rules::pottery_recipe_clay ||
+            consumed>UINT64_MAX-pottery || consumed_food>UINT64_MAX-food) return false;
         clay+=static_cast<std::uint64_t>(Rules::pottery_recipe_clay)*recipes;
         return extracted==clay_extracted_total_ && recipes==pottery_completed_total_ &&
             produced_food==food_produced_total_ &&
@@ -2593,6 +2718,11 @@ std::string World::canonical_state() const {
        <<':'<<total_produced_<<':'<<workshop_stock_<<':'<<production_progress_
        <<':'<<courier_cargo_<<':'<<warehouse_stock_<<':'<<static_cast<int>(phase_)
        <<':'<<path_vertex_<<':'<<edge_progress_;
+    if (demolition_supported()) out<<":v4:"<<demolition_history_.buildings<<':'
+        <<demolition_history_.clay_extracted<<':'<<demolition_history_.pottery_completed<<':'
+        <<demolition_history_.food_produced<<':'<<demolition_history_.pottery_consumed<<':'
+        <<demolition_history_.food_consumed<<':'<<demolition_history_.taxes<<':'
+        <<demolition_history_.construction_spent;
     for (const auto& b:buildings_)
         out<<'|'<<static_cast<int>(b.id)<<','<<static_cast<int>(b.kind)<<','<<b.placed
            <<','<<b.cell.x<<','<<b.cell.y
@@ -2672,6 +2802,7 @@ WorldSnapshot World::snapshot() const {
     s.treasury=treasury_;
     s.taxes_collected_total=taxes_collected_total_;
     s.construction_spent_total=construction_spent_total_;
+    s.demolition_history=demolition_history_;
     for (int y=0;y<height_;++y) for (int x=0;x<width_;++x)
         if (object_at({x,y})==Object::Road) s.roads.push_back({x,y});
     s.workshop=workshop_; s.warehouse=warehouse_;
@@ -2707,6 +2838,9 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
     if (!rule_version_supported(s.profile,s.rule_version))
         throw std::invalid_argument("unsupported sandbox rule version");
     World w(s.width,s.height,std::move(mask),s.profile,s.rule_version);
+    if (!w.demolition_supported() && s.demolition_history!=DemolitionHistory{})
+        throw std::invalid_argument("demolition history requires City-v11 rule version 4");
+    w.demolition_history_=s.demolition_history;
     const auto fail=[](const char* message)->void { throw std::invalid_argument(message); };
     if (s.ticks==UINT64_MAX || s.command_sequence==UINT64_MAX || s.road_revision>s.command_sequence ||
         s.roads.size()>w.objects_.size() || s.command_sequence<s.roads.size())
@@ -2773,7 +2907,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 b.workforce_priority==WorkforcePriority::Normal ||
                 b.workforce_priority==WorkforcePriority::Low;
             if (!valid_priority ||
-                (s.profile==RulesProfile::CityV11 && s.rule_version==3 ?
+                (s.profile==RulesProfile::CityV11 && s.rule_version>=3 ?
                     (!operation_controllable(b.kind) &&
                      (!b.operating_enabled || b.workforce_priority!=WorkforcePriority::Normal)):
                     (!b.operating_enabled || b.workforce_priority!=WorkforcePriority::Normal)))
@@ -2853,11 +2987,15 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                   c.route_pending);
             w.couriers_.push_back(std::move(out));
         }
-        if (s.roads_placed_total<s.roads_removed_total ||
+        if (s.demolition_history.buildings>=UINT32_MAX ||
+            s.roads_placed_total<s.roads_removed_total ||
             s.roads_placed_total-s.roads_removed_total!=s.roads.size() ||
             s.road_revision<s.roads_placed_total ||
             s.road_revision-s.roads_placed_total<s.roads_removed_total ||
-            s.road_revision-s.roads_placed_total-s.roads_removed_total!=s.buildings.size())
+            s.road_revision-s.roads_placed_total-s.roads_removed_total!=
+                s.buildings.size()+2*s.demolition_history.buildings ||
+            (w.demolition_supported() && (s.demolition_history.buildings>=UINT32_MAX ||
+                s.buildings.size()+s.demolition_history.buildings+1!=s.next_building_id)))
             fail("City-v10 placement revision mismatch");
         w.clay_extracted_total_=s.clay_extracted_total;
         w.pottery_completed_total_=s.pottery_completed_total;

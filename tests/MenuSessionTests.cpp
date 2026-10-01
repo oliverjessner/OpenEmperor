@@ -151,7 +151,7 @@ int main(int argc,char* argv[]) {
             return 0;
         }
         Temp t;
-        fs::path v2_source;
+        fs::path v2_source,v3_source;
         fs::path upgrade_root;
         std::optional<openemperor::simulation::WorldSnapshot> v2_expected;
         {
@@ -413,6 +413,31 @@ int main(int argc,char* argv[]) {
             check(before==after &&
                   openemperor::persistence::read_save(upgrade.sandbox()->save_path()).source_schema_version==12,
                   "v2 upgrade modified its source or did not write schema 12");
+            v3_source=upgrade.sandbox()->save_path();
+            upgrade.shutdown();
+        }
+        {
+            const auto original=openemperor::persistence::read_save(v3_source);
+            std::ifstream source_file(v3_source,std::ios::binary);
+            const std::string source_bytes((std::istreambuf_iterator<char>(source_file)),{});
+            Menu upgrade({},upgrade_root,std::make_unique<FakeDialog>());
+            upgrade.initialize(window,renderer);click(upgrade,90,310);
+            click(upgrade,900,234); // Select the second (v3 copy) entry, not the historical v2 source.
+            click(upgrade,480,650);
+            check(upgrade.state()==Menu::State::ConfirmUpgrade,"v3 demolition copy needs confirmation");
+            key(upgrade,SDLK_ESCAPE);
+            check(upgrade.state()==Menu::State::LoadSandbox,"v3 upgrade cancel failed");
+            click(upgrade,480,650);click(upgrade,90,335);finish_load(upgrade);
+            check(upgrade.state()==Menu::State::Playing && upgrade.sandbox() &&
+                upgrade.sandbox()->paused() && upgrade.sandbox()->world().rule_version()==4 &&
+                upgrade.sandbox()->save_path()!=v3_source,"v3 copy did not enable v4 demolition separately");
+            auto common=upgrade.sandbox()->world().snapshot();common.rule_version=3;
+            check(common==original.world &&
+                openemperor::persistence::read_save(upgrade.sandbox()->save_path()).source_schema_version==13,
+                "v3 copy lost authoritative state or schema13");
+            std::ifstream unchanged(v3_source,std::ios::binary);
+            check(std::string((std::istreambuf_iterator<char>(unchanged)),{})==source_bytes,
+                "demolition copy overwrote v3 source");
             upgrade.shutdown();
         }
         {

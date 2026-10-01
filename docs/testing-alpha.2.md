@@ -14,3 +14,14 @@ For a City-v11 rule-2 save, normal load must remain v2. Use **Enable operation c
 
 Bug reports should include the display version and build revision, map, profile, rule version, exact steps, expected result, actual result, and, when useful, the affected **OpenEmperor JSON save**. Do not provide original Emperor files. OpenEmperor sends no logs or telemetry automatically.
 
+
+## Local demolition candidate
+
+Current source supports explicit City-v11 rule 4/schema 13; new games retain v3/schema 12 until native replanning acceptance. This is a local candidate, not a published release. See [demolition validation and outstanding manual acceptance](testing-city-v11-v4.md). Test with your own original files:
+
+```sh
+cmake --build build --parallel
+./build/openemperor --data "$PWD/.local/gog-extracted/app"
+```
+
+Create a City-v11 prepared starter, pause, F5 save, return to the menu, and choose its save in **Load Sandbox → Enable demolition in a copy**. Confirm the separate v4 copy. Then select a freshly placed empty building, cancel Demolish once, confirm and rebuild. Check a House removal lowers worker supply. A stocked Warehouse must explain its blocker; drain using normal deliveries/demand before removing it. A Market rebuild costs 140 and needs new roads as appropriate. Save, quit and load the same save paused; deleted entities and new IDs must persist. On a v3 save, ordinary Load keeps v3; explicitly choose **Enable demolition in a copy** for v4. Do not expect a stocked city to offer instant destruction or refunds.

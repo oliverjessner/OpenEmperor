@@ -115,7 +115,7 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
     const bool scalable=s.profile==simulation::RulesProfile::CityV10 ||
         s.profile==simulation::RulesProfile::CityV11;
     const bool operation_controls=s.profile==simulation::RulesProfile::CityV11 &&
-        s.rule_version==3;
+        s.rule_version>=3;
     json bs=json::array(),cs=json::array();
     const std::size_t building_count=scalable ? s.buildings.size():(service ? simulation::max_buildings:
                               food ? simulation::city_v7_max_buildings:
@@ -201,6 +201,14 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         result["last_dispatched_service_household"]=s.last_dispatched_service_household ?
             json(static_cast<unsigned>(*s.last_dispatched_service_household)):json(nullptr);
     }
+    if (s.profile==simulation::RulesProfile::CityV11 && s.rule_version==4) {
+        const auto& h=s.demolition_history;
+        result["demolition_history"]={{"buildings",h.buildings},
+            {"clay_extracted",h.clay_extracted},{"pottery_completed",h.pottery_completed},
+            {"food_produced",h.food_produced},{"pottery_consumed",h.pottery_consumed},
+            {"food_consumed",h.food_consumed},{"taxes",h.taxes},
+            {"construction_spent",h.construction_spent}};
+    }
     return result;
 }
 simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
@@ -233,7 +241,19 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     s.path_vertex=static_cast<std::size_t>(number(field(j,"path_vertex"),limit));
     s.edge_progress=small(field(j,"edge_progress"),Rules::edge_ticks);
     const auto& bs=field(j,"buildings"); const auto& cs=field(j,"couriers");
-    if (schema>=10 && schema<=12) {
+    if (schema==13) {
+        const auto& h=field(j,"demolition_history");
+        auto& out=s.demolition_history;
+        out.buildings=number(field(h,"buildings"),UINT32_MAX-1);
+        out.clay_extracted=number(field(h,"clay_extracted"));
+        out.pottery_completed=number(field(h,"pottery_completed"));
+        out.food_produced=number(field(h,"food_produced"));
+        out.pottery_consumed=number(field(h,"pottery_consumed"));
+        out.food_consumed=number(field(h,"food_consumed"));
+        out.taxes=number(field(h,"taxes"));
+        out.construction_spent=number(field(h,"construction_spent"));
+    }
+    if (schema>=10 && schema<=13) {
         const bool v11=schema>=11;
         require(bs.is_array() && bs.size()<=(v11 ? Rules::city_v11_building_limit:
                                                 Rules::city_v10_building_limit) &&
@@ -274,7 +294,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             x.food_produced=number(field(b,"food_produced"));
             x.service_until_tick=number(field(b,"service_until_tick"));
             x.population=small(field(b,"population"),Rules::household_level2_capacity);
-            if (schema==12) {
+            if (schema>=12) {
                 x.operating_enabled=boolean(field(b,"operating_enabled"));
                 x.workforce_priority=static_cast<WorkforcePriority>(
                     small(field(b,"workforce_priority"),2));
@@ -495,7 +515,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
 json document_json(const SaveDocument& d) {
     return {{"format","openemperor-sandbox-save"},{"schema_version",
              d.world.profile==simulation::RulesProfile::CityV11 ?
-                (d.world.rule_version==3 ? 12:11):
+                (d.world.rule_version==4 ? 13:d.world.rule_version==3 ? 12:11):
              d.world.profile==simulation::RulesProfile::CityV10 ? 10:
              d.world.profile==simulation::RulesProfile::CityV9 ? 9:
              d.world.profile==simulation::RulesProfile::CityV8 ? 8:
@@ -514,7 +534,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=12,"unsupported save schema version");
+    require(schema>=1 && schema<=13,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -556,7 +576,8 @@ SaveDocument parse_document(const json& j) {
             (d.world.profile!=simulation::RulesProfile::CityV10 || schema==10) &&
             (d.world.profile!=simulation::RulesProfile::CityV11 ||
                 (schema==11 ? d.world.rule_version<=2 :
-                 schema==12 && d.world.rule_version==3)) &&
+                 (schema==12 && d.world.rule_version==3) ||
+                 (schema==13 && d.world.rule_version==4))) &&
             (schema!=5 || d.world.profile==simulation::RulesProfile::IndustryV5) &&
             (schema!=6 || d.world.profile==simulation::RulesProfile::CityV6) &&
             (schema!=7 || d.world.profile==simulation::RulesProfile::CityV7) &&
@@ -566,7 +587,9 @@ SaveDocument parse_document(const json& j) {
             (schema!=11 || (d.world.profile==simulation::RulesProfile::CityV11 &&
                             d.world.rule_version<=2)) &&
             (schema!=12 || (d.world.profile==simulation::RulesProfile::CityV11 &&
-                            d.world.rule_version==3)),
+                            d.world.rule_version==3)) &&
+            (schema!=13 || (d.world.profile==simulation::RulesProfile::CityV11 &&
+                            d.world.rule_version==4)),
             "unsupported sandbox rule version");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;
@@ -623,6 +646,15 @@ SaveDocument upgrade_city_v11_v2_to_v3(const SaveDocument& source) {
         building.operating_enabled=true;
         building.workforce_priority=simulation::WorkforcePriority::Normal;
     }
+    return upgraded;
+}
+SaveDocument upgrade_city_v11_v3_to_v4(const SaveDocument& source) {
+    require(source.world.profile==simulation::RulesProfile::CityV11 &&
+            source.world.rule_version==3 && source.world.demolition_history==simulation::DemolitionHistory{},
+            "only unchanged City-v11 rule version 3 saves can enable demolition");
+    SaveDocument upgraded=source;
+    upgraded.world.rule_version=4;
+    upgraded.source_schema_version=13;
     return upgraded;
 }
 simulation::World restore_save(const SaveDocument& d,const fs::path& root,

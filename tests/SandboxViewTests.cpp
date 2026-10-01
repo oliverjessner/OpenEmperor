@@ -1,5 +1,6 @@
 #include "app/SandboxView.h"
 #include "app/WalkerPose.h"
+#include "core/PerformanceDiagnostics.h"
 #include "app/SandboxVisualOrder.h"
 #include "app/RoadTopology.h"
 #include "maps/TerrainRenderPlan.h"
@@ -1571,18 +1572,25 @@ int main(int argc,char** argv) {
         auto operations_session=city_v10_fixture(temp,operations_buildable);
         openemperor::SandboxView operations_view(std::move(operations_session),false,
             simulation::RulesProfile::CityV11);
+        // v4 is explicit until native acceptance permits changing new-game defaults.
+        const simulation::World operations_world(maps::stored_grid_width,maps::stored_grid_height,
+            operations_buildable,simulation::RulesProfile::CityV11,4);
+        operations_view.configure_save(temp.path,"Cities/Synthetic.map",save_path,
+            openemperor::persistence::make_document(temp.path,"Cities/Synthetic.map",
+                operations_buildable,operations_world));
+        operations_view.set_building_visuals(building_manifest);
         operations_view.initialize(window,renderer);
         const auto placed_operation=operations_view.execute(
             {simulation::CommandType::PlaceClaySource,{100,101}});
-        check(placed_operation.accepted && operations_view.world().rule_version()==3,
-              "City-v11-v3 operation UI fixture failed");
+        check(placed_operation.accepted && operations_view.world().rule_version()==4,
+              "City-v11-v4 operation UI fixture failed");
         const auto operation_id=*operations_view.selected_building();
         const auto operation_panel=operations_view.layout().panel;
         const int operation_scale=operations_view.layout().scale;
         const auto operation_before=operations_view.world().snapshot();
         const float toggle_x=static_cast<float>(operation_panel.x+operation_panel.w/2);
         const float toggle_y=static_cast<float>(operation_panel.y+operation_panel.h-
-                                                78*operation_scale);
+                                                154*operation_scale);
         mouse_click(operations_view,toggle_x,toggle_y,running);
         check(!operations_view.world().building(operation_id).operating_enabled &&
               operations_view.world().workers_assigned(operation_id)==0 &&
@@ -1595,7 +1603,7 @@ int main(int argc,char** argv) {
         const float high_x=static_cast<float>(operation_panel.x+10*operation_scale+
                                               priority_width/2);
         const float priority_y=static_cast<float>(operation_panel.y+operation_panel.h-
-                                                  34*operation_scale);
+                                                  110*operation_scale);
         mouse_click(operations_view,high_x,priority_y,running);
         check(operations_view.world().building(operation_id).workforce_priority==
                   simulation::WorkforcePriority::High &&
@@ -1607,6 +1615,96 @@ int main(int argc,char** argv) {
         check(operations_view.world().snapshot()==after_controls,
               "operation inspector click-through issued a map command");
         check(operations_view.render(),"operation controls did not render inside inspector");
+        // Real SDL events share the production inspector and modal command path.
+        const float demolish_x=toggle_x;
+        const float demolish_y=static_cast<float>(operation_panel.y+operation_panel.h-64*operation_scale);
+        mouse_click(operations_view,static_cast<float>(operation_panel.x+30*operation_scale),
+            static_cast<float>(operation_panel.y+55*operation_scale),running);
+        check(operations_view.selected_building()==operation_id,"building list picking failed");
+        check(operations_view.render(),"pre-demolition sprite render failed");
+        auto clay_ground=maps::terrain_world({101,102},72);clay_ground.y+=20;
+        const auto clay_screen=operations_view.camera().world_to_screen(clay_ground);
+        const auto sprite_pixel=pixel(renderer,static_cast<int>(clay_screen.x),static_cast<int>(clay_screen.y));
+        const auto texture_count=operations_view.building_texture_count();
+        check(texture_count==4,"synthetic building sprite set was not loaded");
+        operations_view.handle_event(key(SDLK_F5),running);
+        check(!operations_view.dirty(),"pre-demolition F5 did not establish a clean save");
+        const auto demolition_save_generation=operations_view.save_generation();
+        const auto before_demolition=operations_view.world().snapshot();
+        mouse_click(operations_view,demolish_x,demolish_y,running);
+        check(operations_view.demolition_pending() && !operations_view.recovery_safe_point(),
+            "Demolish did not open an unsafe-for-recovery confirmation");
+        operations_view.tick_once();operations_view.update(1);
+        check(operations_view.world().snapshot()==before_demolition && operations_view.render(),
+            "demolition modal advanced ticks or failed rendering");
+        operations_view.handle_event(key(SDLK_ESCAPE),running);
+        check(!operations_view.demolition_pending() && operations_view.world().snapshot()==before_demolition &&
+            !operations_view.dirty() && operations_view.save_generation()==demolition_save_generation,
+            "demolition Cancel mutated World or manual save state");
+        mouse_click(operations_view,demolish_x,demolish_y,running);
+        SDL_Event demolition_focus{};demolition_focus.type=SDL_EVENT_WINDOW_FOCUS_LOST;
+        operations_view.handle_event(demolition_focus,running);
+        operations_view.handle_event(release(demolish_x,demolish_y),running);
+        check(!operations_view.demolition_pending() && operations_view.world().snapshot()==before_demolition,
+            "focus loss or stray MouseUp confirmed demolition");
+        mouse_click(operations_view,demolish_x,demolish_y,running);
+        const auto map_rect=operations_view.layout().map;
+        const int modal_w=std::min(540*operation_scale,map_rect.w-24*operation_scale);
+        const int modal_x=map_rect.x+(map_rect.w-modal_w)/2;
+        const int modal_y=map_rect.y+(map_rect.h-260*operation_scale)/2;
+        const float confirm_x=static_cast<float>(modal_x+40*operation_scale);
+        const float confirm_y=static_cast<float>(modal_y+216*operation_scale);
+        operations_view.handle_event(click(confirm_x,confirm_y),running);
+        operations_view.handle_event(release(30,80),running);
+        check(operations_view.demolition_pending() && operations_view.world().snapshot()==before_demolition,
+            "modal press released on map leaked a command");
+        // Cancel button is distinct from confirmation, including revalidation.
+        mouse_click(operations_view,static_cast<float>(modal_x+290*operation_scale),confirm_y,running);
+        check(!operations_view.demolition_pending() && operations_view.world().snapshot()==before_demolition,
+            "Cancel button changed authoritative state");
+        mouse_click(operations_view,demolish_x,demolish_y,running);
+        namespace perf=openemperor::performance;
+        perf::reset();perf::set_enabled(true);
+        mouse_click(operations_view,confirm_x,confirm_y,running);
+        check(!operations_view.demolition_pending() && !operations_view.selected_building() &&
+            operations_view.world().buildings().empty() && operations_view.world().couriers().empty() &&
+            operations_view.world().command_sequence()==before_demolition.command_sequence+1 &&
+            operations_view.dirty() && operations_view.save_generation()==demolition_save_generation &&
+            operations_view.render(),"confirmed demolition left an entity or failed to mark the view dirty");
+        check(perf::counter(perf::Counter::AssetDecodes)==0 &&
+            perf::counter(perf::Counter::TextureUploads)==0 &&
+            perf::counter(perf::Counter::WorldCopies)==0 &&
+            perf::counter(perf::Counter::RouteRefreshes)==1,"demolition decoded/uploaded/copied or refreshed repeatedly");
+        perf::set_enabled(false);
+        check(operations_view.building_texture_count()==texture_count &&
+            pixel(renderer,static_cast<int>(clay_screen.x),static_cast<int>(clay_screen.y))!=sprite_pixel,
+            "demolished sprite remained visible or shared textures were reloaded");
+        for (const auto cell:simulation::building_footprint_cells(simulation::RulesProfile::CityV11,
+            simulation::Object::ClaySource,{100,101}))
+            check(!operations_view.world().building_owner_at(cell),"SDL demolition retained footprint owner");
+        for (const auto& line:operations_view.inspection_lines())
+            check(line.find("ClaySource #1")==std::string::npos,"old entity ID stayed in inspector");
+        const auto demolished_saved_world=operations_view.world().snapshot();
+        operations_view.handle_event(key(SDLK_F5),running);
+        check(!operations_view.dirty() &&
+            operations_view.save_generation()==demolition_save_generation+1,
+            "post-demolition F5 did not save exactly once");
+        check(operations_view.execute({simulation::CommandType::PlaceHousehold,{106,101}}).accepted &&
+            operations_view.execute({simulation::CommandType::PlaceClaySource,{100,101}}).accepted,
+            "rebuild after SDL demolition failed");
+        const auto rebuilt_id=*operations_view.selected_building();
+        for (int i=0;i<32;++i) operations_view.tick_once();
+        check(operations_view.world().building(rebuilt_id).output>0,"blocked UI fixture has no stock");
+        const auto blocked_before=operations_view.world().snapshot();
+        mouse_click(operations_view,demolish_x,demolish_y,running);
+        check(!operations_view.demolition_pending() && operations_view.world().snapshot()==blocked_before &&
+            operations_view.last_message().find("Clay")!=std::string::npos && operations_view.render(),
+            "blocked stock demolition opened modal or mutated World");
+        operations_view.handle_event(key(SDLK_F9),running);
+        check(operations_view.world().snapshot()==demolished_saved_world && operations_view.paused() &&
+            !operations_view.dirty() && !operations_view.selected_building() &&
+            operations_view.building_texture_count()==texture_count && operations_view.render(),
+            "F9 did not restore the exact demolished World paused without ghost entities");
         operations_view.shutdown();
 
         const auto scaled=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);

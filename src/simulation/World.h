@@ -184,7 +184,7 @@ enum class WorkforcePriority : std::uint8_t { High=0, Normal=1, Low=2 };
 const char* workforce_priority_name(WorkforcePriority priority);
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
                          RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost, PlaceMarket,
-                         SetBuildingOperation, SetBuildingWorkforcePriority };
+                         SetBuildingOperation, SetBuildingWorkforcePriority, DemolishBuilding };
 struct Command {
     CommandType type;
     Cell cell{};
@@ -192,18 +192,19 @@ struct Command {
     bool operating_enabled=true;
     WorkforcePriority workforce_priority=WorkforcePriority::Normal;
 };
+Command demolish_building(BuildingId id);
 Command set_building_operation(BuildingId id,bool enabled);
 Command set_building_workforce_priority(BuildingId id,WorkforcePriority priority);
 struct CommandResult {
     bool accepted=false;
     bool changed=false;
-    const char* reason="";
+    std::string reason;
     std::uint64_t sequence=0;
     std::uint64_t tick=0;
 };
 struct RoadBatchValidation {
     bool accepted=false;
-    const char* reason="";
+    std::string reason;
     std::size_t new_road_count=0;
     std::int64_t total_cost=0;
 };
@@ -327,6 +328,20 @@ struct BuildingSnapshot {
     WorkforcePriority workforce_priority=WorkforcePriority::Normal;
     bool operator==(const BuildingSnapshot&) const = default;
 };
+// Historical accounting only. No removed entities, goods, population or UI state.
+struct DemolitionHistory {
+    std::uint64_t buildings=0;
+    std::uint64_t clay_extracted=0, pottery_completed=0, food_produced=0;
+    std::uint64_t pottery_consumed=0, food_consumed=0;
+    std::uint64_t taxes=0, construction_spent=0;
+    bool operator==(const DemolitionHistory&) const = default;
+};
+struct DemolitionStatus {
+    bool allowed=false;
+    std::string reason;
+    std::string stored_goods_summary;
+    std::size_t active_couriers=0, incoming_deliveries=0;
+};
 struct WorldSnapshot {
     int width=0, height=0;
     RulesProfile profile=RulesProfile::LogisticsV1;
@@ -354,6 +369,7 @@ struct WorldSnapshot {
     std::int64_t treasury=0;
     std::uint64_t taxes_collected_total=0;
     std::uint64_t construction_spent_total=0;
+    DemolitionHistory demolition_history;
     bool operator==(const WorldSnapshot&) const = default;
 };
 struct ResourceInventory {
@@ -414,7 +430,7 @@ public:
     int workforce_required(BuildingId id) const;
     bool building_staffed(BuildingId id) const;
     bool operation_controls_supported() const {
-        return profile_==RulesProfile::CityV11 && rule_version_==3;
+        return profile_==RulesProfile::CityV11 && rule_version_>=3;
     }
     static bool operation_controllable(Object kind);
     bool settlement_goal_reached() const;
@@ -436,6 +452,10 @@ public:
     std::uint64_t household_tax_contributed(BuildingId id) const;
     std::int64_t construction_cost(CommandType type) const;
     bool production_balance_valid() const;
+    bool demolition_supported() const {
+        return profile_==RulesProfile::CityV11 && rule_version_==4;
+    }
+    DemolitionStatus demolition_status(BuildingId id) const;
     std::string canonical_state() const;
     WorldSnapshot snapshot() const;
     static World restore(const WorldSnapshot& snapshot,std::vector<std::uint8_t> buildable);
@@ -517,6 +537,7 @@ private:
     std::uint64_t taxes_collected_total_=0;
     std::uint64_t construction_spent_total_=0;
     std::uint64_t food_produced_total_=0;
+    DemolitionHistory demolition_history_;
     std::vector<bool> tick_staffed_;
     bool tick_staffing_active_=false;
     std::optional<Cell> workshop_;

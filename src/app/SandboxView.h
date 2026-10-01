@@ -67,6 +67,8 @@ public:
         return budget_warning_;
     }
     bool resolve_budget_warning(bool build_anyway);
+    bool demolition_pending() const { return pending_demolition_.has_value(); }
+    bool resolve_demolition(bool confirm);
     const simulation::World& world() const { return *world_; }
     std::optional<simulation::Cell> pick(scene::Point screen) const;
     simulation::CommandResult preview(simulation::Cell cell) const;
@@ -155,6 +157,9 @@ private:
     bool draw_hud();
     bool draw_help_overlay();
     bool draw_budget_warning_overlay();
+    bool draw_demolition_overlay();
+    sandbox_ui::Rect demolition_button_rect() const;
+    void request_demolition();
     bool draw_text(double x,double y,const std::string& text,int max_width);
     bool action_enabled(sandbox_ui::Action action) const;
     void perform_action(sandbox_ui::Action action);
@@ -242,6 +247,9 @@ private:
     std::uint64_t io_generation_=0;
     std::uint64_t save_generation_=0, saved_tick_=0, saved_command_=0;
     bool managed_=false, menu_requested_=false, menu_pressed_=false;
+    std::optional<simulation::BuildingId> pending_demolition_;
+    std::optional<bool> demolition_button_pressed_;
+    bool pressed_demolition_=false;
     std::optional<simulation::StarterBudgetWarning> budget_warning_;
     std::optional<simulation::Command> pending_command_;
     std::optional<sandbox_ui::RoadPlan> pending_road_;

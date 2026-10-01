@@ -28,6 +28,7 @@ SaveDocument make_document(const std::filesystem::path& data_root,
                            const simulation::World& world);
 SaveDocument read_save(const std::filesystem::path& path);
 SaveDocument upgrade_city_v11_v2_to_v3(const SaveDocument& document);
+SaveDocument upgrade_city_v11_v3_to_v4(const SaveDocument& document);
 simulation::World restore_save(const SaveDocument& document,
                                const std::filesystem::path& data_root,
                                std::vector<std::uint8_t> buildable);

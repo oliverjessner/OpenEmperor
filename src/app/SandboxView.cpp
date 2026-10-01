@@ -134,7 +134,7 @@ persistence::SaveDocument SandboxView::capture_save_document() const {
 }
 
 bool SandboxView::recovery_safe_point() const {
-    return world_ && !budget_warning_ && !road_start_ && !map_pressed_ && !ui_pressed_ &&
+    return world_ && !budget_warning_ && !pending_demolition_ && !road_start_ && !map_pressed_ && !ui_pressed_ &&
         !pending_command_ && !pending_road_;
 }
 
@@ -216,6 +216,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
 }
 void SandboxView::shutdown() {
     cancel_gesture();
+    pending_demolition_.reset(); demolition_button_pressed_.reset();
     walker_diagnostic_open_=false;
     walker_sprites_.reset();
     walker_profile_.reset();
@@ -797,6 +798,7 @@ void SandboxView::cancel_gesture() {
     pressed_button_.reset();
     pressed_building_.reset();
     pressed_operation_action_.reset();
+    pressed_demolition_=false;
     ui_pressed_=false;
     map_pressed_=false;
     road_start_.reset();
@@ -807,7 +809,7 @@ void SandboxView::cancel_gesture() {
 
 sandbox_ui::Rect SandboxView::operation_toggle_rect() const {
     return {layout_.panel.x+10*layout_.scale,
-            layout_.panel.y+layout_.panel.h-92*layout_.scale,
+            layout_.panel.y+layout_.panel.h-(world_->demolition_supported() ? 168:92)*layout_.scale,
             std::max(0,layout_.panel.w-20*layout_.scale),28*layout_.scale};
 }
 
@@ -815,7 +817,7 @@ sandbox_ui::Rect SandboxView::operation_priority_rect(int index) const {
     const int gap=4*layout_.scale;
     const int width=std::max(0,(layout_.panel.w-20*layout_.scale-2*gap)/3);
     return {layout_.panel.x+10*layout_.scale+index*(width+gap),
-            layout_.panel.y+layout_.panel.h-48*layout_.scale,width,28*layout_.scale};
+            layout_.panel.y+layout_.panel.h-(world_->demolition_supported() ? 124:48)*layout_.scale,width,28*layout_.scale};
 }
 
 std::optional<SandboxView::OperationAction> SandboxView::operation_action_at(double x,double y) const {
@@ -841,6 +843,32 @@ void SandboxView::perform_operation_action(OperationAction action) {
             action==OperationAction::PriorityNormal ? simulation::WorkforcePriority::Normal:
             simulation::WorkforcePriority::Low);
     (void)request_execute(command);
+}
+
+sandbox_ui::Rect SandboxView::demolition_button_rect() const {
+    return {layout_.panel.x+10*layout_.scale,
+        layout_.panel.y+layout_.panel.h-78*layout_.scale,
+        std::max(0,layout_.panel.w-20*layout_.scale),28*layout_.scale};
+}
+void SandboxView::request_demolition() {
+    const auto id=selected_building();
+    if (!id || !world_->demolition_supported()) return;
+    const auto status=world_->demolition_status(*id);
+    last_message_=status.reason;
+    if (!status.allowed) return;
+    cancel_gesture(); pending_demolition_=id;
+    demolition_button_pressed_.reset();
+}
+bool SandboxView::resolve_demolition(bool confirm) {
+    if (!pending_demolition_) return false;
+    const auto id=*pending_demolition_;
+    pending_demolition_.reset(); demolition_button_pressed_.reset();
+    cancel_gesture();
+    if (!confirm) { last_message_="Demolition cancelled."; return false; }
+    // Execute performs the single authoritative revalidation at approval.
+    const auto result=execute(simulation::demolish_building(id));
+    refresh_hover(true);
+    return result.accepted && result.changed;
 }
 
 sandbox_ui::Rect SandboxView::budget_build_rect() const {
@@ -947,7 +975,34 @@ void SandboxView::refresh_hover(bool force_road_plan) {
 }
 void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_QUIT || event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+        if (pending_demolition_) (void)resolve_demolition(false);
         cancel_gesture(); if (managed_) menu_requested_=true; else running=false; return;
+    }
+    if (pending_demolition_) {
+        if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST || event.type==SDL_EVENT_WINDOW_RESIZED ||
+            event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
+            (void)resolve_demolition(false); return;
+        }
+        if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+            if (event.key.key==SDLK_ESCAPE) { (void)resolve_demolition(false); return; }
+            if (event.key.key==SDLK_RETURN || event.key.key==SDLK_KP_ENTER) {
+                (void)resolve_demolition(true); return;
+            }
+        }
+        if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button==SDL_BUTTON_LEFT) {
+            demolition_button_pressed_.reset();
+            const auto point=render_point(event.button.x,event.button.y);
+            if (point && budget_build_rect().contains(point->x,point->y)) demolition_button_pressed_=true;
+            else if (point && budget_cancel_rect().contains(point->x,point->y)) demolition_button_pressed_=false;
+        } else if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
+            const auto point=render_point(event.button.x,event.button.y);
+            const auto pressed=demolition_button_pressed_;
+            demolition_button_pressed_.reset();
+            if (point && pressed && ((*pressed && budget_build_rect().contains(point->x,point->y)) ||
+                (!*pressed && budget_cancel_rect().contains(point->x,point->y))))
+                (void)resolve_demolition(*pressed);
+        }
+        return;
     }
     if (budget_warning_) {
         if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST) {
@@ -1118,6 +1173,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             pointer_->x>=layout_.top.w-88*layout_.scale) { menu_pressed_=true; return; }
         refresh_hover();
         if (!pointer_) return;
+        if (layout_.panel_open && world_->demolition_supported() && selected_building() &&
+            demolition_button_rect().contains(pointer_->x,pointer_->y)) {
+            pressed_demolition_=true; ui_pressed_=true; return;
+        }
         if (const auto action=operation_action_at(pointer_->x,pointer_->y)) {
             pressed_operation_action_=action; ui_pressed_=true; return;
         }
@@ -1166,6 +1225,12 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             return;
         }
         if (ui_pressed_) {
+            if (pressed_demolition_) {
+                const bool matching=pointer_ && demolition_button_rect().contains(pointer_->x,pointer_->y);
+                cancel_gesture();
+                if (matching) request_demolition();
+                return;
+            }
             if (pressed_operation_action_) {
                 const auto action=*pressed_operation_action_;
                 const bool matching=pointer_ && operation_action_at(pointer_->x,pointer_->y)==action;
@@ -1201,7 +1266,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
 }
 void SandboxView::update(double seconds) {
     performance::ScopedTimer timer(performance::Timing::SimulationUpdate);
-    if (budget_warning_) return;
+    if (budget_warning_ || pending_demolition_) return;
     const bool* keys=SDL_GetKeyboardState(nullptr);
     const double movement=400.0*std::clamp(seconds,0.0,0.05);
     if (!road_start_) {
@@ -1214,11 +1279,13 @@ void SandboxView::update(double seconds) {
     if (hover_dirty_ || road_start_) refresh_hover();
     clock_.update(seconds,*world_);
 }
-void SandboxView::tick_once() { if (!budget_warning_) world_->tick(); }
+void SandboxView::tick_once() { if (!budget_warning_ && !pending_demolition_) world_->tick(); }
 simulation::CommandResult SandboxView::execute(simulation::Command command) {
     const auto result=world_->execute(command);
     last_message_=result.reason;
-    if (command.type!=simulation::CommandType::SetBuildingOperation &&
+    if (command.type==simulation::CommandType::DemolishBuilding) {
+        if (result.changed) { selected_.reset(); cancel_gesture(); refresh_hover(true); }
+    } else if (command.type!=simulation::CommandType::SetBuildingOperation &&
         command.type!=simulation::CommandType::SetBuildingWorkforcePriority)
         selected_=command.cell;
     return result;
@@ -1776,6 +1843,11 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         return lines;
     }
     const auto& b=world_->building(*id);
+        if (world_->demolition_supported()) {
+            const auto status=world_->demolition_status(*id);
+            lines.push_back(status.reason);
+            if (!status.stored_goods_summary.empty()) lines.push_back("Stored: "+status.stored_goods_summary);
+        }
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
     const auto footprint=simulation::building_footprint(rules_,b.kind);
@@ -2086,7 +2158,7 @@ bool SandboxView::draw_hud() {
                 std::to_string(world_->treasury());
         }
     }
-    if (rules_==simulation::RulesProfile::CityV11 && !budget_warning_) {
+    if (rules_==simulation::RulesProfile::CityV11 && !budget_warning_ && !pending_demolition_) {
         const auto guidance=simulation::inspect_city_start(*world_);
         if (!guidance.missing_supply_buildings.empty())
             status+=" | No tax: missing "+joined_buildings(guidance.missing_supply_buildings)+
@@ -2097,7 +2169,7 @@ bool SandboxView::draw_hud() {
         else if (guidance.taxes_have_been_collected)
             status+=" | Complete demand has paid tax";
     }
-    if (!recovery_status_.empty() && !budget_warning_ && !road_start_)
+    if (!recovery_status_.empty() && !budget_warning_ && !pending_demolition_ && !road_start_)
         status+=" | "+recovery_status_;
     if (simulation::city_profile(rules_))
         status+=world_->settlement_goal_reached() ?
@@ -2243,8 +2315,10 @@ bool SandboxView::draw_hud() {
         const auto controls_id=selected_building();
         const bool show_operation_controls=controls_id && world_->operation_controls_supported() &&
             simulation::World::operation_controllable(world_->building(*controls_id).kind);
+        const bool show_demolition=controls_id && world_->demolition_supported();
         const int detail_bottom=layout_.panel.y+layout_.panel.h-
-            (show_operation_controls ? 104*layout_.scale:0);
+            (show_demolition ? (show_operation_controls ? 180:90)*layout_.scale:
+             show_operation_controls ? 104*layout_.scale:0);
         for (std::size_t i=0;i<details.size();++i) {
             const int y=detail_y+static_cast<int>(i)*17*layout_.scale;
             if (y<layout_.panel.y || y+10*layout_.scale>=detail_bottom) continue;
@@ -2252,11 +2326,22 @@ bool SandboxView::draw_hud() {
                 !draw_text(layout_.panel.x+10*layout_.scale,y,details[i],
                            layout_.panel.w-20*layout_.scale)) return false;
         }
+        if (show_demolition) {
+            const auto demolition=world_->demolition_status(*controls_id);
+            const auto rect=demolition_button_rect();
+            if (!fill(rect,demolition.allowed ? SDL_Color{117,65,45,255}:SDL_Color{55,55,61,255}) ||
+                !SDL_SetRenderDrawColor(renderer_,245,247,250,255) ||
+                !draw_text(rect.x+6*layout_.scale,rect.y+9*layout_.scale,"Demolish",rect.w-12*layout_.scale) ||
+                !draw_text(rect.x,rect.y+36*layout_.scale,
+                    demolition.allowed ? "Demolition gives no refund.":"Empty this building before demolition.",
+                    rect.w)) return false;
+        }
         if (show_operation_controls) {
             const auto& selected=world_->building(*controls_id);
             if (simulation::World::operation_controllable(selected.kind)) {
                 const auto toggle=operation_toggle_rect();
                 if (!fill(toggle,{38,82,105,255}) ||
+                    !SDL_SetRenderDrawColor(renderer_,245,247,250,255) ||
                     !draw_text(toggle.x+6*layout_.scale,toggle.y+9*layout_.scale,
                         selected.operating_enabled ? "Pause operation":"Resume operation",
                         toggle.w-12*layout_.scale)) return false;
@@ -2266,6 +2351,7 @@ bool SandboxView::draw_hud() {
                     const auto rect=operation_priority_rect(i);
                     if (!fill(rect,selected.workforce_priority==priority ?
                         SDL_Color{38,100,125,255}:SDL_Color{38,58,77,255}) ||
+                        !SDL_SetRenderDrawColor(renderer_,245,247,250,255) ||
                         !draw_text(rect.x+5*layout_.scale,rect.y+9*layout_.scale,
                                    labels[static_cast<std::size_t>(i)],
                                    rect.w-10*layout_.scale)) return false;
@@ -2519,6 +2605,31 @@ bool SandboxView::draw_budget_warning_overlay() {
     return draw_button(budget_build_rect(),{117,74,48,255},"Build anyway (Y / Enter)") &&
         draw_button(budget_cancel_rect(),{45,76,94,255},"Cancel (N / Esc)");
 }
+bool SandboxView::draw_demolition_overlay() {
+    if (!pending_demolition_) return true;
+    const auto& b=world_->building(*pending_demolition_);
+    const int scale=layout_.scale;
+    const int width=std::min(540*scale,std::max(0,layout_.map.w-24*scale));
+    const int height=260*scale;
+    const int x=layout_.map.x+(layout_.map.w-width)/2;
+    const int y=layout_.map.y+(layout_.map.h-height)/2;
+    const SDL_FRect panel{static_cast<float>(x),static_cast<float>(y),static_cast<float>(width),static_cast<float>(height)};
+    if (!SDL_SetRenderDrawColor(renderer_,18,25,36,250) || !SDL_RenderFillRect(renderer_,&panel) ||
+        !SDL_SetRenderDrawColor(renderer_,244,238,220,255) ||
+        !draw_text(x+14*scale,y+24*scale,"Demolish "+std::string(object_name(b.kind))+" #"+
+            std::to_string(static_cast<std::uint32_t>(b.id))+"?",width-28*scale) ||
+        !draw_text(x+14*scale,y+60*scale,"No refund. This cannot be undone.",width-28*scale) ||
+        !draw_text(x+14*scale,y+88*scale,b.kind==simulation::Object::Household ?
+            "Residents leave immediately.":"Only an empty building can be removed.",width-28*scale)) return false;
+    for (const bool confirm:{true,false}) {
+        const auto rect=confirm ? budget_build_rect():budget_cancel_rect();
+        const SDL_FRect area{static_cast<float>(rect.x),static_cast<float>(rect.y),static_cast<float>(rect.w),static_cast<float>(rect.h)};
+        if (!SDL_SetRenderDrawColor(renderer_,confirm ? 117:45,confirm ? 65:76,confirm ? 45:94,255) ||
+            !SDL_RenderFillRect(renderer_,&area) || !SDL_SetRenderDrawColor(renderer_,245,247,250,255) ||
+            !draw_text(rect.x+10*scale,rect.y+11*scale,confirm ? "Demolish (Enter)":"Cancel (Esc)",rect.w-20*scale)) return false;
+    }
+    return true;
+}
 bool SandboxView::render() {
     if (hover_dirty_) refresh_hover();
     resize_camera();
@@ -2544,7 +2655,7 @@ bool SandboxView::render() {
     {
         performance::ScopedTimer timer(performance::Timing::HudRender);
         ui_ok=draw_hud() && draw_walker_diagnostic() && draw_help_overlay() &&
-            draw_budget_warning_overlay();
+            draw_budget_warning_overlay() && draw_demolition_overlay();
     }
     const bool reset=SDL_SetRenderClipRect(renderer_,nullptr) &&
         SDL_SetRenderViewport(renderer_,nullptr) && SDL_SetRenderScale(renderer_,1,1);

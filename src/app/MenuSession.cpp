@@ -188,7 +188,9 @@ void MenuSession::finish_loading() {
         if (!save_path.empty()) {
             persistence::validate_save_target(save_path,settings_.data_root);
             document=persistence::read_save(save_path);
-            if (upgrade_copy_) document=persistence::upgrade_city_v11_v2_to_v3(*document);
+            if (upgrade_copy_) document=upgrade_target_version_==4 ?
+                persistence::upgrade_city_v11_v3_to_v4(*document):
+                persistence::upgrade_city_v11_v2_to_v3(*document);
             map=document->map_relative; profile=document->world.profile;
         } else {
             map=catalog_.entries.at(map_index_).relative_path;
@@ -222,7 +224,9 @@ void MenuSession::finish_loading() {
         upgrade_copy_=false;
         if (sandbox_ && sandbox_->dirty()) confirm_or(AfterConfirm::Replace);
         else commit_candidate();
-        if (upgraded) message_="Operation controls enabled in a new City-v11-v3 copy; original save unchanged.";
+        if (upgraded) message_=upgrade_target_version_==4 ?
+            "Demolition enabled in a new City-v11-v4 copy; original save unchanged.":
+            "Operation controls enabled in a new City-v11-v3 copy; original save unchanged.";
     } catch (const std::exception& e) {
         candidate_.reset();
         candidate_autosave_.reset(); pending_recovery_parent_.reset();
@@ -362,9 +366,13 @@ void MenuSession::perform(int action) {
         case CancelDeleteRecovery: set_state(State::LoadSandbox);message_="Deletion cancelled";break;
         case UpgradeCopy:
             if (!recovery_view_ && !saves_.entries.empty()) {
-                pending_save_path_=saves_.entries.at(save_index_).path;
+                const auto& selected=saves_.entries.at(save_index_);
+                if (!selected.error.empty() || selected.profile!=simulation::city_v11_profile_name ||
+                    (selected.rule_version!=2 && selected.rule_version!=3)) break;
+                pending_save_path_=selected.path;
+                upgrade_target_version_=selected.rule_version+1;
                 set_state(State::ConfirmUpgrade);
-                message_="The copy will use City-v11 rule version 3. The original save stays unchanged.";
+                message_="The original save stays unchanged.";
             }
             break;
         case ConfirmUpgradeCopy:
@@ -372,7 +380,7 @@ void MenuSession::perform(int action) {
             set_state(State::Loading); loading_drawn_=false; break;
         case CancelUpgrade:
             pending_save_path_.clear(); upgrade_copy_=false; set_state(State::LoadSandbox);
-            message_="Operation-control copy cancelled"; break;
+            message_="Upgrade copy cancelled"; break;
         case ExternalSave: open_dialog(DialogKind::SaveFile); break;
         case VisualsFile: open_dialog(DialogKind::VisualsFile); break;
         case VisualsClear: visual_profile_path_.clear(); message_="Walker override cleared; automatic visuals selected";
@@ -567,8 +575,9 @@ void MenuSession::rebuild_buttons() {
         if (!recovery_view_ && !saves_.entries.empty()) {
             const auto& selected=saves_.entries.at(save_index_);
             if (selected.error.empty() && selected.profile==simulation::city_v11_profile_name &&
-                selected.rule_version==2)
-                add(UpgradeCopy,"Enable operation controls in a copy",230,315,300);
+                (selected.rule_version==2 || selected.rule_version==3))
+                add(UpgradeCopy,selected.rule_version==3 ? "Enable demolition in a copy":
+                    "Enable operation controls in a copy",230,315,300);
         }
         add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",40,360,210);
         if (advanced_visuals_open_) {
@@ -596,7 +605,7 @@ void MenuSession::rebuild_buttons() {
         add(ConfirmDiscard,quitting?"Quit Without Saving":"Discard Changes",40,205,210);
         add(ConfirmCancel,"Cancel",40,250,210);
     } else if (state_==State::ConfirmUpgrade) {
-        add(ConfirmUpgradeCopy,"Create v3 copy",40,160,210);
+        add(ConfirmUpgradeCopy,upgrade_target_version_==4 ? "Create v4 copy":"Create v3 copy",40,160,210);
         add(CancelUpgrade,"Cancel",40,205,210);
     } else if (state_==State::ConfirmDeleteRecovery) {
         add(ConfirmDeleteRecovery,"Delete recovery history",40,160,240);
@@ -619,7 +628,7 @@ bool MenuSession::render() {
     const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?"OpenEmperor":state_==State::NewSandbox?"New sandbox":
         state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
-        state_==State::ConfirmUpgrade?"Enable operation controls in a copy":
+        state_==State::ConfirmUpgrade?(upgrade_target_version_==4 ? "Enable demolition in a copy":"Enable operation controls in a copy"):
         state_==State::ConfirmDeleteRecovery?"Delete recovery history":"Unsaved progress";
     if (!label(40,40,heading)) return false;
     if (state_==State::DataSetup) {
@@ -685,9 +694,10 @@ bool MenuSession::render() {
         if (!label(40,80,"This sandbox has unsaved changes.")) return false;
         if (!label(40,96,"Choose whether to save before leaving the current session.")) return false;
     } else if (state_==State::ConfirmUpgrade) {
-        if (!label(40,80,"A new save copy will use City-v11 rule version 3.")) return false;
+        if (!label(40,80,"A new save copy will use City-v11 rule version "+std::to_string(upgrade_target_version_)+".")) return false;
         if (!label(40,96,"Tick, population, goods, routes and treasury are preserved.")) return false;
-        if (!label(40,112,"All operations start Running at Normal priority; the original stays unchanged."))
+        if (!label(40,112,upgrade_target_version_==4 ? "Operations and priorities are preserved; the original stays unchanged.":
+                   "All operations start Running at Normal priority; the original stays unchanged."))
             return false;
     } else if (state_==State::ConfirmDeleteRecovery) {
         if (!label(40,80,"This removes only the selected managed recovery history.")) return false;

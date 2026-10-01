@@ -281,6 +281,23 @@ int main(int argc,char* argv[]) {
         for (int i=0;i<500;++i) {complex.tick();continued.tick();}
         check(continued.snapshot()==complex.snapshot() && !complex_id.empty(),
               "complex recovery continuation diverged");
+        const auto v4_document=recovery::upgrade_city_v11_v3_to_v4(complex_document);
+        auto v4=recovery::restore_save(v4_document,root/"data",complex_mask);
+        place(v4,sim::CommandType::PlaceHousehold,{23,5});
+        const auto new_house=*v4.building_owner_at({23,5});
+        const auto start_v4=recovery::make_document(root/"data",map,complex_mask,v4);
+        recovery::RecoveryStore v4_store(root/"v4",root/"data");
+        const auto v4_history=v4_store.create_history(start_v4,complex_mask);
+        check(v4.execute(sim::demolish_building(new_house)).changed,"recovery v4 demolition failed");
+        const auto removed_v4=recovery::make_document(root/"data",map,complex_mask,v4);
+        v4_store.write_checkpoint(v4_history,removed_v4,complex_mask);
+        const auto v4_entries=v4_store.catalog().histories.front().entries;
+        check(v4_entries.size()==2,"demolition checkpoint was not published");
+        for (const auto& entry:v4_entries) {
+            auto recovered_v4=recovery::restore_save(recovery::read_save(entry.path),root/"data",complex_mask);
+            check(recovered_v4.snapshot()==(entry.start_point ? start_v4.world:removed_v4.world),
+                "v4 protected start or post-demolition checkpoint changed");
+        }
         auto crisis=recovery::restore_save(recovery::read_save(complex_entry.path),
                                            root/"data",complex_mask);
         const auto missed_before=std::accumulate(crisis.buildings().begin(),crisis.buildings().end(),

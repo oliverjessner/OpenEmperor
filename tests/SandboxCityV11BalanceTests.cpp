@@ -417,7 +417,7 @@ int main() {
         const auto& v2=sim::profile_rules(sim::RulesProfile::CityV11,2);
         const auto& v3=sim::profile_rules(sim::RulesProfile::CityV11,3);
         require(sim::current_rule_version(sim::RulesProfile::CityV11)==3,
-            "new City-v11 Worlds do not select rules v3");
+            "new City-v11 Worlds enabled v4 before native acceptance");
         require(v3.clay_ticks==v2.clay_ticks &&
                 v3.pottery_recipe_ticks==v2.pottery_recipe_ticks &&
                 v3.farm_ticks==v2.farm_ticks &&
@@ -531,7 +531,7 @@ int main() {
             std::vector<std::uint8_t>(width*32,1));
         require(v2_restored.snapshot()==v2_snapshot && v2_restored.rule_version()==2,
             "City-v11 v2 restore changed state or rules");
-        auto unknown=v2_snapshot; unknown.rule_version=4;
+        auto unknown=v2_snapshot; unknown.rule_version=5;
         bool rejected=false;
         try { (void)sim::World::restore(unknown,std::vector<std::uint8_t>(width*32,1)); }
         catch (const std::invalid_argument&) { rejected=true; }

@@ -314,7 +314,7 @@ void defaults_and_determinism() {
 int main() {
     try {
         require(sim::current_rule_version(sim::RulesProfile::CityV11)==3,
-                "new City-v11 Worlds do not select rules v3");
+                "new City-v11 Worlds enabled v4 before native acceptance");
         staffing_and_commands();
         paused_progress_and_resume();
         recipes_and_couriers_finish();

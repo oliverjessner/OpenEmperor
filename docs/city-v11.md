@@ -19,8 +19,41 @@ A Market costs 140, requires four workers, occupies one cell, stores 16 Pottery 
 | v1 | 100 ticks | 150 processing ticks | 80 ticks | 10 ticks | none |
 | v2 | 32 ticks | 64 processing ticks | 32 ticks | 5 ticks | 800 ticks |
 | v3 | 32 ticks | 64 processing ticks | 32 ticks | 5 ticks | 800 ticks |
+| v4 | 32 ticks | 64 processing ticks | 32 ticks | 5 ticks | 800 ticks |
 
-The Pottery start tick still supplies no processing progress, so one v2/v3 recipe occupies 65 ticks from start through completion. All capacities, two-Clay recipe input, courier load, costs, demand intervals and taxes remain unchanged. Schema 11 retains City-v11 v1/v2 exactly. Schema 12 belongs only to City-v11 v3 and stores the authoritative operation controls described below. Existing v1/v2 saves restore with their saved rules and never gain controls implicitly. New City-v11 Worlds use v3. Unknown rule/schema combinations are rejected.
+The Pottery start tick still supplies no processing progress, so one v2/v3/v4 recipe occupies 65 ticks from start through completion. All capacities, two-Clay recipe input, courier load, costs, demand intervals and taxes remain unchanged. Schema 11 retains City-v11 v1/v2 exactly. Schema 12 belongs only to City-v11 v3 and stores the authoritative operation controls described below. Existing v1/v2 saves restore with their saved rules and never gain controls implicitly. New City-v11 Worlds retain v3 until the native v4 replanning acceptance is complete; v4 is available through an explicit confirmed copy upgrade or an existing v4 save. Schema 13 is exclusive to v4; ordinary v3 loads retain schema-12 semantics and cannot demolish. Unknown rule/schema combinations are rejected.
+
+## Safe demolition (v4 only)
+
+Select a building in the map or list and choose **Demolish** in its inspector. The read-only status explains the first deterministic blocker and reports stored goods. Empty buildings open **Demolish / Cancel** confirmation showing **No refund** and **This cannot be undone**. The modal blocks map input and simulation ticks; Escape, focus loss or resize cancels. A press released outside its original button cannot commit. Confirmation executes one normally validated typed command, clears selection and immediately frees every occupied cell. There is no relocation command: rebuilds pay the ordinary cost and receive new IDs.
+
+| Building | Required physical state |
+|---|---|
+| ClaySource | output zero; owned courier idle and empty |
+| Pottery | input Clay, active recipe Clay, output and incoming reservation zero; owned courier idle and empty |
+| Warehouse | Pottery and incoming reservation zero; owned courier idle and empty |
+| Farm | output zero; owned courier idle and empty |
+| Market | Pottery, Food and both incoming reservations zero; both owned couriers idle and empty |
+| Household | Pottery, Food and both incoming reservations zero |
+| ServicePost | owned courier idle and empty |
+
+Every kind also rejects another active courier retaining the building as its target, including a returning courier. An active recipe blocks even at processing progress zero. Pause and workforce priority do not bypass safety. Pausing producers stops additional production but also pauses new owner dispatch; resume as needed to drain through ordinary deliveries and Household demand. Mismatched or depleted supply can leave stock that cannot currently be drained. This milestone deliberately provides no discard, cancellation or guaranteed rescue mechanism.
+
+All removed House residents leave immediately. Worker supply and the next tick-start allocation reflect the remaining population; no residents move elsewhere. House development, demand clocks and Service expiry disappear with that entity. A new House starts at population six and Level 0 at its own placement tick. Delivered coverage on *other* Houses survives Service Post removal until its normal expiry. The settlement goal remains derived and may become false.
+
+Removal erases the active Building and its owned idle Courier records, frees exact 2×2/1×1 occupancy, releases role limits and retains monotone next IDs through save/load. The existing topology revision increments once. One final route-cache refresh removes deleted target entries; other active paths, edge progress, cargo and reservations are unchanged. A deleted idle target/cyclic cursor is reset, so subsequent selection starts at the first remaining eligible stable ID. No removed entity remains as a tombstone.
+
+### Why schema 13 is necessary
+
+Schema 12's variable collections can represent missing entities, but its invariants also derive lifetime extraction, completed recipes, Food production, Household consumption and taxes, and construction spending from those records. An empty *used* building still carries that accounting. Erasing it without additional persisted authority would invalidate conservation and treasury reconciliation.
+
+Schema 13 therefore stores `demolition_history`: removed building count, historical Clay extraction, completed Pottery, produced Food, consumed Pottery/Food, taxes and construction spending. These are history, not discarded goods, population or tombstones. Active records plus historical totals must still reconcile with global lifetime counters and unchanged treasury. Counts also validate placement/removal topology against monotone next Building ID; restored arithmetic is checked before overflow. No refund changes treasury or historical spending.
+
+Ordinary v1/v2/v3 loads keep their saved rules. In **Load Sandbox**, a v3 save offers **Enable demolition in a copy**; confirmation preserves all World authority and controls at the exact tick, creates a separate schema-13/v4 save and starts paused. The source file is untouched. The existing v2→v3 operation-control copy remains separate. Demolition marks normal command dirtiness and uses the ordinary autosave schedule; a protected start or older checkpoint can still recover the earlier city.
+
+### Verification
+
+Synthetic tests cover every empty role, stock/recipe/outbound/return/inbound blockers, footprint and courier erasure, population/workforce, Service expiry, an unrelated active district, monotone rebuild IDs, legacy rejection, schema-13 roundtrip, v3 copy and overflow rejection. SDL event tests exercise selection, disabled status, cancel/confirm, focus loss, no click-through, stopped modal ticks, cleared selection and zero decode/upload/copy work. The deterministic driver checks 20,000 ticks; its `--endurance` mode checks 100,000 ticks with repeated used Service Post drain/demolish/rebuild cycles and exact restore continuation. Recovery tests preserve a v4 start and a post-demolition checkpoint. These are authored sandbox rules, not reconstructed Emperor demolition behavior.
 
 ## Operation and workforce controls
 
@@ -42,7 +75,7 @@ The UI derives a read-only start diagnosis from `World`. It keeps missing buildi
 
 The worker estimate compares actual population with the requirement after all six starter facilities exist, including the worker demand of facilities that are still missing. Fresh Houses needed for that estimate are `ceil(shortfall / household_initial_population)`. The diagnosis retains the full calculated count when the remaining House limit cannot accommodate it and reports that completion as impossible; the actionable suggestion remains bounded by the available slots. This is only a staffing estimate. It does not promise buildable land, road reachability or sustained future supply.
 
-Before a validated City-v11-v2/v3 construction purchase, the app applies the proposed commands to a temporary restored World and diagnoses that post-purchase state. The minimum starter reserve is the cost of still-missing facilities plus the cost of the fresh Houses required to cover the resulting worker shortfall. A purchased facility therefore adds its real worker demand, while a purchased House contributes its real initial population and is neither charged nor reserved twice. Sequential duplicate/no-op roads cost zero in the temporary transaction. Roads remain explicitly outside the future reserve.
+For a validated City-v11-v2/v3/v4 building purchase, the app diagnoses a temporary restored World after applying that command, without changing the live World. Road batches instead use a read-only aggregate-cost projection without copying or executing a hypothetical World. The minimum starter reserve is the cost of still-missing facilities plus the cost of the fresh Houses required to cover the resulting worker shortfall. A purchased facility therefore adds its real worker demand, while a purchased House contributes its real initial population and is neither charged nor reserved twice. Duplicate/no-op roads cost zero in the batch projection. Roads remain explicitly outside the future reserve.
 
 If post-purchase funds fall below that combined reserve, or the required House count exceeds the remaining limit, the app pauses simulation and asks **Build anyway** or **Cancel**. Cancel changes no World field. Approval revalidates and executes the ordinary command or road transaction once. Exact reserve equality does not warn. The existing exemption after real tax collection remains scoped to already-paying cities. The warning adds no credit, free stock, tax or automatic placement and changes neither rules version nor schema.
 
@@ -73,7 +106,7 @@ A paid two-district run reached the shared City-v10 goal at tick 6,000 with popu
 
 ## Recovery and persistence
 
-Menu-managed City-v11 sessions use the general OpenEmperor recovery controller without changing rule version 3 or schema 12. The paid tick-0 starter is the protected start point exactly as constructed: 1,200 funds spent, 100 remaining, and no injected goods, service, taxes, population, or hidden ticks. Periodic points retain operation state and priority together with the normal schema-12 cargo, reservations, recipes, routes, population, service expiry, treasury and counters. Loading one follows the ordinary validation path, starts paused, and branches to a new history and manual-save target; there is no implicit v2-to-v3 migration or crisis repair.
+Menu-managed City-v11 sessions use the general OpenEmperor recovery controller without changing the saved rule version or schema (12 for v3, 13 for v4). The paid tick-0 starter is the protected start point exactly as constructed: 1,200 funds spent, 100 remaining, and no injected goods, service, taxes, population, or hidden ticks. Periodic points retain operation state and priority together with the normal cargo, reservations, recipes, routes, population, service expiry, treasury and counters. Loading one follows the ordinary validation path, starts paused, and branches to a new history and manual-save target; there is no implicit v2-to-v3 migration or crisis repair.
 
 Synthetic played-state checks independently cut a Market inbound bridge, a residential outbound bridge and a Service-only branch. Each test runs until the affected real buffer or coverage expires and a demand misses, repairs the same road through an ordinary paid command, then observes a later fulfilled demand. No stock, population or workforce is injected. Schema-11 checkpoints cover the paid Tick-0 state, both grace boundaries, active inbound/outbound Market trips, first taxes, each outage and recovery, and the reached goal. Immediate snapshots and continued ticks remain equal after restore.
 
@@ -81,4 +114,4 @@ The operation-control recovery test starts from a normally played, fully supplie
 
 The profile starts with 1,300 funds and permits 20 Houses, four Clay Sources, four Potteries, two Warehouses, two Farms, two Service Posts and four Markets. Disconnected roads define local districts because couriers consider only reachable targets. The Inspector shows Market stock and inbound reservations separately, staffing, both distributor phases/statuses, target and cargo. A House shows current missing Pottery/Food/Service, historical last demand, population/capacity and remaining grace.
 
-For the exactly fingerprinted compatibility pack, Farm, ServicePost and Market use the metadata-only static preview selections documented in [the building visual profile](building-visual-profile.md); unknown data sets retain honest diagnostic fallbacks. Couriers without a curated role still use OpenEmperor markers. These balance values and mechanics do not claim to reconstruct Emperor's economy. City-v11 rule 3 is the fresh-settings alpha.2 candidate default; existing explicit profile preferences, sessions and saves retain their selected rules.
+For the exactly fingerprinted compatibility pack, Farm, ServicePost and Market use the metadata-only static preview selections documented in [the building visual profile](building-visual-profile.md); unknown data sets retain honest diagnostic fallbacks. Couriers without a curated role still use OpenEmperor markers. These balance values and mechanics do not claim to reconstruct Emperor's economy. City-v11 rule 3 remains the fresh-settings local alpha.2 candidate default pending native v4 acceptance; existing explicit profile preferences, sessions and saves retain their selected rules.
