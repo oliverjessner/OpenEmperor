@@ -54,6 +54,7 @@ std::optional<Object> placed_object(CommandType type) {
     case CommandType::PlaceServicePost: return Object::ServicePost;
     case CommandType::PlaceMarket: return Object::Market;
     case CommandType::PlaceFireWatch: return Object::FireWatch;
+    case CommandType::PlaceWell: return Object::Well;
     default: return std::nullopt;
     }
 }
@@ -73,6 +74,7 @@ std::size_t building_limit(RulesProfile profile,Object kind) {
     case Object::ServicePost: return Rules::city_v10_service_post_limit;
     case Object::Market: return market_profile(profile) ? Rules::city_v11_market_limit:0;
     case Object::FireWatch: return fire_profile(profile) ? Rules::fire_watch_limit:0;
+    case Object::Well: return water_profile(profile) ? Rules::well_limit:0;
     default: return 0;
     }
 }
@@ -219,6 +221,7 @@ const char* rules_profile_name(RulesProfile profile) {
     case RulesProfile::CityV11: return city_v11_profile_name;
     case RulesProfile::CityV12: return city_v12_profile_name;
     case RulesProfile::CityV13: return city_v13_profile_name;
+    case RulesProfile::CityV14: return city_v14_profile_name;
     }
     return "unknown";
 }
@@ -269,7 +272,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         profile!=RulesProfile::CityV7 && profile!=RulesProfile::CityV8 &&
         profile!=RulesProfile::CityV9 && profile!=RulesProfile::CityV10 &&
         profile!=RulesProfile::CityV11 && profile!=RulesProfile::CityV12 &&
-        profile!=RulesProfile::CityV13)
+        profile!=RulesProfile::CityV13 && profile!=RulesProfile::CityV14)
         throw std::invalid_argument("unknown sandbox rules profile");
     (void)profile_rules(profile_,rule_version_);
     treasury_=city_profile(profile) ? starting_treasury_for(profile):0;
@@ -372,6 +375,8 @@ std::int64_t World::construction_cost(CommandType type) const {
         return market_profile(profile_) ? Rules::market_cost:0;
     case CommandType::PlaceFireWatch:
         return fire_profile(profile_) ? Rules::fire_watch_cost:0;
+    case CommandType::PlaceWell:
+        return water_profile(profile_) ? Rules::well_cost:0;
     case CommandType::PlaceWorkshop:
     case CommandType::RemoveRoad:
     case CommandType::SetBuildingOperation:
@@ -564,6 +569,7 @@ int World::household_level(BuildingId id) const {
     const auto& home=building(id);
     if (!home.placed || home.kind!=Object::Household) return 0;
     const auto historical=historical_household_level(id);
+    if (water_profile(profile_) && !household_has_water(id)) return 0;
     return desirability_profile(profile_) ?
         std::min(historical,desirability_level_cap(household_desirability(id))):historical;
 }
@@ -676,7 +682,7 @@ bool World::city_economy_valid() const {
     if ((!demolition_supported() && history!=DemolitionHistory{}) ||
         history.buildings>=UINT32_MAX || history.food_consumed!=history.pottery_consumed ||
         (history.buildings==0 && history!=DemolitionHistory{}) ||
-        history.construction_spent<history.buildings*static_cast<std::uint64_t>(Rules::household_cost) ||
+        history.construction_spent<history.buildings*static_cast<std::uint64_t>(water_profile(profile_) ? Rules::well_cost:Rules::household_cost) ||
         history.construction_spent>history.buildings*static_cast<std::uint64_t>(Rules::pottery_cost) ||
         history.taxes>taxes_collected_total_) return false;
     for (const auto& b:buildings_) {
@@ -714,7 +720,8 @@ bool World::city_economy_valid() const {
             value.kind==Object::Farm && food_profile(profile_) ? Rules::farm_cost:
             value.kind==Object::ServicePost && service_profile(profile_) ? Rules::service_post_cost:
             value.kind==Object::Market && market_profile(profile_) ? Rules::market_cost:
-            value.kind==Object::FireWatch && fire_profile(profile_) ? Rules::fire_watch_cost:0;
+            value.kind==Object::FireWatch && fire_profile(profile_) ? Rules::fire_watch_cost:
+            value.kind==Object::Well && water_profile(profile_) ? Rules::well_cost:0;
         if (cost<=0 || !add_cost(1,static_cast<std::uint64_t>(cost))) return false;
     }
     if (construction_spent_total_!=expected_spending) return false;
@@ -741,7 +748,8 @@ DemolitionStatus World::demolition_status(BuildingId id) const {
     const auto& b=*found;
     if (b.kind!=Object::ClaySource && b.kind!=Object::Pottery && b.kind!=Object::Warehouse &&
         b.kind!=Object::Household && b.kind!=Object::Farm && b.kind!=Object::ServicePost &&
-        b.kind!=Object::Market && !(fire_profile(profile_) && b.kind==Object::FireWatch)) {
+        b.kind!=Object::Market && !(fire_profile(profile_) && b.kind==Object::FireWatch) &&
+        !(water_profile(profile_) && b.kind==Object::Well)) {
         status.blocker=DemolitionBlocker::UnsupportedKind;
         status.reason="Building kind does not support demolition"; return status;
     }
@@ -824,7 +832,7 @@ CommandResult World::validate(Command command) const {
         command.type!=CommandType::PlacePottery && command.type!=CommandType::RemoveRoad &&
         command.type!=CommandType::PlaceHousehold && command.type!=CommandType::PlaceFarm &&
         command.type!=CommandType::PlaceServicePost && command.type!=CommandType::PlaceMarket &&
-        command.type!=CommandType::PlaceFireWatch) {
+        command.type!=CommandType::PlaceFireWatch && command.type!=CommandType::PlaceWell) {
         result.reason="Unknown placement command"; return result;
     }
     if ((profile_==RulesProfile::LogisticsV1 &&
@@ -835,7 +843,8 @@ CommandResult World::validate(Command command) const {
         (!food_profile(profile_) && command.type==CommandType::PlaceFarm) ||
         (!service_profile(profile_) && command.type==CommandType::PlaceServicePost) ||
         (!market_profile(profile_) && command.type==CommandType::PlaceMarket) ||
-        (!fire_profile(profile_) && command.type==CommandType::PlaceFireWatch)) {
+        (!fire_profile(profile_) && command.type==CommandType::PlaceFireWatch) ||
+        (!water_profile(profile_) && command.type==CommandType::PlaceWell)) {
         result.reason="Command unavailable in selected rules profile"; return result;
     }
     if (!in_bounds(command.cell)) { result.reason="Outside sandbox grid"; return result; }
@@ -941,6 +950,12 @@ CommandResult World::validate(Command command) const {
             return b.kind==Object::FireWatch;
         })>=static_cast<std::ptrdiff_t>(Rules::fire_watch_limit)) {
         result.reason="Fire Watch limit reached"; return result;
+    }
+    if (command.type==CommandType::PlaceWell &&
+        std::count_if(buildings_.begin(),buildings_.end(),[](const BuildingState& b) {
+            return b.kind==Object::Well;
+        })>=static_cast<std::ptrdiff_t>(Rules::well_limit)) {
+        result.reason="Well limit reached"; return result;
     }
     if (road_revision_==UINT64_MAX ||
         (command.type==CommandType::PlaceRoad && roads_placed_total_==UINT64_MAX)) {
@@ -1063,7 +1078,8 @@ CommandResult World::execute_impl(Command command,bool refresh_after) {
             b.kind==Object::Household ? CommandType::PlaceHousehold:
             b.kind==Object::Farm ? CommandType::PlaceFarm:
             b.kind==Object::ServicePost ? CommandType::PlaceServicePost:
-            b.kind==Object::FireWatch ? CommandType::PlaceFireWatch:CommandType::PlaceMarket;
+            b.kind==Object::FireWatch ? CommandType::PlaceFireWatch:
+            b.kind==Object::Well ? CommandType::PlaceWell:CommandType::PlaceMarket;
         demolition_history_.construction_spent+=static_cast<std::uint64_t>(construction_cost(type));
         for (const auto cell:building_footprint_cells(profile_,b.kind,b.cell)) {
             objects_[index(cell)]=Object::Empty; owners_[index(cell)]=0;
@@ -1203,6 +1219,11 @@ CommandResult World::execute_impl(Command command,bool refresh_after) {
         farm.placed=true; farm.kind=Object::Farm; farm.cell=command.cell; farm.placed_tick=ticks_;
         owners_[index(command.cell)]=static_cast<std::uint32_t>(farm.id);
         mutable_courier(CourierId::Food).enabled=true;
+        break;
+    }
+    case CommandType::PlaceWell: {
+        auto& well=add_v10_building(Object::Well);
+        well.placed_tick=ticks_;
         break;
     }
     case CommandType::PlaceFireWatch: {
@@ -1763,7 +1784,8 @@ void World::tick_production_v2() {
                     const auto resulting_count=home.fulfilled_demand+1;
                     const auto historical=resulting_count>=Rules::city_v7_level2_demands ? 2:
                         resulting_count>=Rules::city_v7_level1_demands ? 1:0;
-                    const auto effective=desirability_profile(profile_) ?
+                    const auto effective=water_profile(profile_) && !household_has_water(home.id) ? 0:
+                        desirability_profile(profile_) ?
                         std::min(historical,desirability_level_cap(household_desirability(home.id))):historical;
                     const std::int64_t tax=desirability_profile(profile_) ?
                         (effective==2 ? Rules::city_v7_level2_tax:
@@ -2289,7 +2311,7 @@ bool World::industry_balance_valid() const {
         auto consumed=demolition_history_.pottery_consumed;
         auto consumed_food=demolition_history_.food_consumed;
         std::size_t clay_count=0,pottery_count=0,warehouse_count=0,house_count=0,farm_count=0,
-            service_count=0,market_count=0,fire_watch_count=0;
+            service_count=0,market_count=0,fire_watch_count=0,well_count=0;
         std::vector<std::pair<BuildingId,int>> pottery_reservations,food_reservations;
         for (std::size_t i=0;i<buildings_.size();++i) {
             const auto& b=buildings_[i];
@@ -2339,14 +2361,16 @@ bool World::industry_balance_valid() const {
                     b.progress<0 || b.progress>=rules.farm_ticks ||
                     (b.output==Rules::farm_output_capacity && b.progress!=0)) return false;
                 food+=static_cast<std::uint64_t>(b.output); if (!add(produced_food,b.food_produced)) return false; break;
+            case Object::Well:
             case Object::FireWatch:
-                if (!fire_profile(profile_) || b.input_clay || b.output || b.pottery_stock ||
+                if ((b.kind==Object::Well ? !water_profile(profile_):!fire_profile(profile_)) || b.input_clay || b.output || b.pottery_stock ||
                     b.food_stock || b.reserved_incoming || b.reserved_food_incoming || b.progress ||
                     b.active_recipe_clay || b.recipes_completed || b.clay_extracted || b.food_produced ||
                     b.demand_progress || b.fulfilled_demand || b.missed_demand || b.consumed_total ||
                     b.food_consumed_total || b.last_demand_status || b.population || b.service_until_tick)
                     return false;
-                ++fire_watch_count; break;
+                if (b.kind==Object::Well) ++well_count; else ++fire_watch_count;
+                break;
             case Object::ServicePost: ++service_count; break;
             case Object::Market:
                 if (!market_profile(profile_) || b.pottery_stock<0 ||
@@ -2369,7 +2393,8 @@ bool World::industry_balance_valid() const {
             pottery_count>Rules::city_v10_pottery_limit || warehouse_count>Rules::city_v10_warehouse_limit ||
             farm_count>Rules::city_v10_farm_limit || service_count>Rules::city_v10_service_post_limit ||
             market_count>(market_profile(profile_) ? Rules::city_v11_market_limit:0U) ||
-            fire_watch_count>(fire_profile(profile_) ? Rules::fire_watch_limit:0U))
+            fire_watch_count>(fire_profile(profile_) ? Rules::fire_watch_limit:0U) ||
+            well_count>(water_profile(profile_) ? Rules::well_limit:0U))
             return false;
         std::size_t clay_couriers=0,pottery_couriers=0,house_couriers=0,food_couriers=0,
             service_couriers=0,market_pottery_inbound=0,market_food_inbound=0,
@@ -3027,7 +3052,8 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
             if (static_cast<std::uint32_t>(b.id)==0 || (i && !(s.buildings[i-1].id<b.id)) ||
                 !b.placed || b.kind==Object::Empty || b.kind==Object::Road ||
                 b.kind==Object::Workshop || (b.kind==Object::Market && !market_profile(s.profile)) ||
-                (b.kind==Object::FireWatch && !fire_profile(s.profile)))
+                (b.kind==Object::FireWatch && !fire_profile(s.profile)) ||
+                (b.kind==Object::Well && !water_profile(s.profile)))
                 fail("invalid scalable City building identity or kind");
             const bool valid_priority=b.workforce_priority==WorkforcePriority::High ||
                 b.workforce_priority==WorkforcePriority::Normal ||

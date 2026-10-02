@@ -219,6 +219,7 @@ add_library(openemperor-simulation STATIC
     src/simulation/World.cpp
     src/simulation/WorldFire.cpp
     src/simulation/WorldDesirability.cpp
+    src/simulation/WorldWater.cpp
     src/simulation/CityStartGuidance.cpp)
 target_include_directories(openemperor-simulation PUBLIC src)
 openemperor_enable_warnings(openemperor-simulation)
@@ -268,6 +269,8 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-recovery SDL3::SDL3
         openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
+    add_test(NAME sandbox-city-v14-view COMMAND openemperor-sandbox-view-tests --water-only)
+    set_tests_properties(sandbox-city-v14-view PROPERTIES TIMEOUT 240)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
     set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 240)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
@@ -384,6 +387,15 @@ if(BUILD_TESTING)
         add_test(NAME sandbox-city-v13-${quality_test}
             COMMAND openemperor-sandbox-city-v13-tests ${quality_test})
         set_tests_properties(sandbox-city-v13-${quality_test} PROPERTIES TIMEOUT 900)
+    endforeach()
+
+    add_executable(openemperor-sandbox-city-v14-tests tests/SandboxCityV14Tests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v14-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-sandbox-city-v14-tests)
+    foreach(water_test base persistence districts determinism endurance)
+        add_test(NAME sandbox-city-v14-${water_test}
+            COMMAND openemperor-sandbox-city-v14-tests ${water_test})
+        set_tests_properties(sandbox-city-v14-${water_test} PROPERTIES TIMEOUT 900)
     endforeach()
 
     add_executable(openemperor-city-start-guidance-tests

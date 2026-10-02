@@ -64,13 +64,13 @@ void print_usage(const char* executable) {
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]"
               << " --render-check --report-json\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
-              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9|sandbox-city-v10|sandbox-city-v11|sandbox-city-v12|sandbox-city-v13]"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9|sandbox-city-v10|sandbox-city-v11|sandbox-city-v12|sandbox-city-v13|sandbox-city-v14]"
               << " [--sandbox-demo] [--sandbox-visuals <walker-profile.json>]"
               << " [--building-visuals <building-profile.json>]"
               << " [--road-visuals <road-profile.json>]"
               << " [--sandbox-check [--sandbox-resume-check] --report-json]\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
-              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9|sandbox-city-v10|sandbox-city-v11|sandbox-city-v12|sandbox-city-v13]"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9|sandbox-city-v10|sandbox-city-v11|sandbox-city-v12|sandbox-city-v13|sandbox-city-v14]"
               << " [--sandbox-demo] [--sandbox-save <save.json>]\n"
               << "       " << executable << " --data <directory> --load-sandbox <save.json>\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
@@ -251,6 +251,8 @@ int main(int argc, char* argv[]) {
                 sandbox_rules=openemperor::simulation::RulesProfile::CityV11;
             else if (value==openemperor::simulation::city_v12_profile_name)
                 sandbox_rules=openemperor::simulation::RulesProfile::CityV12;
+            else if (value==openemperor::simulation::city_v14_profile_name)
+                sandbox_rules=openemperor::simulation::RulesProfile::CityV14;
             else if (value==openemperor::simulation::city_v13_profile_name)
                 sandbox_rules=openemperor::simulation::RulesProfile::CityV13;
             else if (value!=openemperor::simulation::profile_name) {

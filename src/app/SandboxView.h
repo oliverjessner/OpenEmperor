@@ -131,6 +131,10 @@ public:
     const std::filesystem::path& save_path() const { return save_path_; }
     bool paused() const { return clock_.paused(); }
     bool help_open() const { return help_open_; }
+    bool water_overlay() const { return water_overlay_; }
+    std::optional<bool> predicted_water() const { return predicted_water_; }
+    std::optional<simulation::World::WellCoverage> predicted_well_coverage() const { return predicted_well_coverage_; }
+    std::uint64_t water_preview_build_count() const { return water_preview_build_count_; }
     bool desirability_overlay() const { return desirability_overlay_; }
     std::optional<int> predicted_desirability() const { return predicted_desirability_; }
     std::uint64_t desirability_preview_build_count() const { return desirability_preview_build_count_; }
@@ -210,6 +214,13 @@ private:
     bool panel_open_=true;
     bool debug_open_=false;
     bool help_open_=false;
+    bool water_overlay_=false;
+    std::optional<bool> predicted_water_;
+    std::optional<simulation::World::WellCoverage> predicted_well_coverage_;
+    std::optional<simulation::Cell> water_preview_cell_;
+    std::uint64_t water_preview_revision_=UINT64_MAX;
+    std::uint64_t water_preview_build_count_=0;
+    int water_preview_tool_=-1;
     bool desirability_overlay_=false;
     std::optional<int> predicted_desirability_;
     std::optional<simulation::Cell> desirability_preview_cell_;

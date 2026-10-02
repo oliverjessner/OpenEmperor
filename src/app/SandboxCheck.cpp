@@ -292,6 +292,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                         {"population",world.household_population(b.id)}});
                     if (simulation::desirability_profile(rules)) {
                         auto& house=household_states.back();
+                        if (simulation::water_profile(rules)) house["water_available"]=world.household_has_water(b.id);
                         house["desirability"]=world.household_desirability(b.id);
                         house["historical_level"]=world.historical_household_level(b.id);
                         house["effective_level"]=world.household_level(b.id);
@@ -319,7 +320,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 draws[name]=building_stats.drawn_instances[index];
                 fallbacks[name]=building_stats.placeholder_fallbacks[index];
             }
-            std::cout<<nlohmann::json{{"schema",simulation::desirability_profile(rules) ? "openemperor-sandbox-check-v13":fire ? "openemperor-sandbox-check-v12":v11 ? "openemperor-sandbox-check-v11":
+            std::cout<<nlohmann::json{{"schema",simulation::water_profile(rules) ? "openemperor-sandbox-check-v14":simulation::desirability_profile(rules) ? "openemperor-sandbox-check-v13":fire ? "openemperor-sandbox-check-v12":v11 ? "openemperor-sandbox-check-v11":
                                                     "openemperor-sandbox-check-v10"},
                 {"rules",simulation::rules_profile_name(rules)},
                 {"rule_version",world.rule_version()},

@@ -250,8 +250,8 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     if (schema<14) for (const auto& b:bs)
         for (const auto* name:{"fire_risk","fire_protection_until_tick","fire_until_tick"})
             if (b.contains(name)) require(number(b.at(name),0)==0,"fire state in a non-fire schema");
-    if (schema!=15) for (const auto& b:bs)
-        require(!b.contains("taxes_paid_total"),"tax payment authority requires schema 15");
+    if (schema<15) for (const auto& b:bs)
+        require(!b.contains("taxes_paid_total"),"tax payment authority requires schema 15 or 16");
     if (schema>=13) {
         const auto& h=field(j,"demolition_history");
         auto& out=s.demolition_history;
@@ -264,7 +264,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         out.taxes=number(field(h,"taxes"));
         out.construction_spent=number(field(h,"construction_spent"));
     }
-    if (schema>=10 && schema<=15) {
+    if (schema>=10 && schema<=16) {
         const bool v11=schema>=11;
         require(bs.is_array() && bs.size()<=building_collection_limit(profile) &&
                 cs.is_array() && cs.size()<=courier_collection_limit(profile),
@@ -276,11 +276,11 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             const auto id=static_cast<std::uint32_t>(number(field(b,"id"),UINT32_MAX));
             require(id>previous,"City-v10 building IDs must be positive, unique and sorted");
             previous=id; x.id=static_cast<BuildingId>(id);
-            x.kind=static_cast<Object>(small(field(b,"kind"),schema>=14 ? 10:v11 ? 9:8));
+            x.kind=static_cast<Object>(small(field(b,"kind"),schema==16 ? 11:schema>=14 ? 10:v11 ? 9:8));
             require(x.kind==Object::ClaySource || x.kind==Object::Pottery ||
                     x.kind==Object::Warehouse || x.kind==Object::Household ||
                     x.kind==Object::Farm || x.kind==Object::ServicePost ||
-                    (v11 && x.kind==Object::Market) || (schema>=14 && x.kind==Object::FireWatch),
+                    (v11 && x.kind==Object::Market) || (schema>=14 && x.kind==Object::FireWatch) || (schema==16 && x.kind==Object::Well),
                     "invalid scalable City building kind");
             x.cell=cell(field(b,"cell")); x.placed=boolean(field(b,"placed"));
             require(x.placed,"City-v10 saves may not contain building holes");
@@ -320,7 +320,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
                 x.fire_protection_until_tick=number(field(b,"fire_protection_until_tick"));
                 x.fire_until_tick=number(field(b,"fire_until_tick"));
             }
-            if (schema==15) {
+            if (schema>=15) {
                 x.taxes_paid_total=number(field(b,"taxes_paid_total"));
                 require(x.kind==Object::Household || x.taxes_paid_total==0,
                         "non-Household tax payment authority must be zero");
@@ -533,6 +533,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
 }
 json document_json(const SaveDocument& d) {
     return {{"format","openemperor-sandbox-save"},{"schema_version",
+             d.world.profile==simulation::RulesProfile::CityV14 ? 16:
              d.world.profile==simulation::RulesProfile::CityV13 ? 15:
              d.world.profile==simulation::RulesProfile::CityV12 ? 14:
              d.world.profile==simulation::RulesProfile::CityV11 ?
@@ -555,7 +556,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=15,"unsupported save schema version");
+    require(schema>=1 && schema<=16,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -584,6 +585,7 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::city_v11_profile_name) d.world.profile=simulation::RulesProfile::CityV11;
     else if (id==simulation::city_v12_profile_name) d.world.profile=simulation::RulesProfile::CityV12;
     else if (id==simulation::city_v13_profile_name) d.world.profile=simulation::RulesProfile::CityV13;
+    else if (id==simulation::city_v14_profile_name) d.world.profile=simulation::RulesProfile::CityV14;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
     require((d.world.profile==simulation::RulesProfile::ProductionV2 ?
@@ -599,6 +601,7 @@ SaveDocument parse_document(const json& j) {
             (d.world.profile!=simulation::RulesProfile::CityV10 || schema==10) &&
             (d.world.profile!=simulation::RulesProfile::CityV12 || schema==14) &&
             (d.world.profile!=simulation::RulesProfile::CityV13 || schema==15) &&
+            (d.world.profile!=simulation::RulesProfile::CityV14 || schema==16) &&
             (d.world.profile!=simulation::RulesProfile::CityV11 ||
                 (schema==11 ? d.world.rule_version<=2 :
                  (schema==12 && d.world.rule_version==3) ||
@@ -618,6 +621,8 @@ SaveDocument parse_document(const json& j) {
             (schema!=14 || (d.world.profile==simulation::RulesProfile::CityV12 &&
                             d.world.rule_version==1)) &&
             (schema!=15 || (d.world.profile==simulation::RulesProfile::CityV13 &&
+                            d.world.rule_version==1)) &&
+            (schema!=16 || (d.world.profile==simulation::RulesProfile::CityV14 &&
                             d.world.rule_version==1)),
             "unsupported sandbox rule version");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);

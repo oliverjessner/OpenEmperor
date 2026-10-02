@@ -556,12 +556,133 @@ void household_stage_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* re
           "City-v12 unexpectedly adopted staged visuals");
     old.shutdown();
     std::cout<<"House stages: actual 0/1/2 supply, 100 command-driven reversals, pixels, picking, overlay, fire, save/recovery, legacy\n";
+
+}
+void city_v14_water_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
+    namespace perf=openemperor::performance;
+    namespace persistence=openemperor::persistence;
+    Bytes stage_archive(40680U+4U*72U,0),stage_bitmap(38404U,0);
+    u32(stage_archive,0,static_cast<std::uint32_t>(stage_archive.size()));u32(stage_archive,4,214);
+    u32(stage_archive,12,4);u32(stage_archive,16,4);u32(stage_archive,20,1);
+    const std::string group="synthetic-water-stages.bmp";
+    std::copy(group.begin(),group.end(),stage_archive.begin()+680);u32(stage_archive,804,4);
+    const std::array<std::uint16_t,3> colors{0x7c00,0x03e0,0x001f};
+    for (std::size_t n=0;n<3;++n) {
+        const auto at=40680U+(n+1U)*72U,offset=4U+n*12800U;
+        u32(stage_archive,at,static_cast<std::uint32_t>(offset));u32(stage_archive,at+4,12800);u32(stage_archive,at+8,12800);
+        u16(stage_archive,at+20,158);u16(stage_archive,at+22,90);u16(stage_archive,at+50,30);stage_archive[at+55]=2;
+        for (std::size_t q=offset;q<offset+12800U;q+=2) u16(stage_bitmap,q,colors[n]);
+    }
+    write(temp.path/"DATA/house-stages.sg3",stage_archive);write(temp.path/"DATA/house-stages.555",stage_bitmap);
+    nlohmann::json entries=nlohmann::json::object();
+    for (unsigned stage=0;stage<3;++stage)
+        entries["household_level_"+std::to_string(stage)]={{"archive","DATA/house-stages.sg3"},
+            {"image_index",stage+1},{"ground_anchor",{79,70}},{"evidence","Independent synthetic stage"}};
+    const auto manifest=temp.path/"water-stages.json";
+    {std::ofstream out(manifest);out<<nlohmann::json{{"schema_version",1},{"mode","curated_building_preview"},{"buildings",entries}};}
+    std::vector<std::uint8_t> mask;
+    auto session=city_v10_fixture(temp,mask);const auto border=session.plan.border;
+    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV14);
+    Temp outside;view.configure_save(temp.path,"Cities/Synthetic.map",outside.path/"water-save.json");
+    view.set_building_visuals(manifest);view.initialize(window,renderer);
+    const auto put=[&](simulation::CommandType type,simulation::Cell cell) {
+        const auto result=view.execute({type,cell});check(result.accepted && result.changed,"water view placement");
+        return *view.world().building_owner_at(cell);
+    };
+    put(simulation::CommandType::PlaceClaySource,{100,101});put(simulation::CommandType::PlacePottery,{100,104});
+    put(simulation::CommandType::PlaceWarehouse,{103,101});put(simulation::CommandType::PlaceFarm,{104,104});
+    put(simulation::CommandType::PlaceMarket,{103,104});put(simulation::CommandType::PlaceServicePost,{105,104});
+    for (int x=100;x<=114;++x) check(view.execute({simulation::CommandType::PlaceRoad,{x,103}}).accepted,"water starter road");
+    for (const auto cell:{simulation::Cell{106,101},simulation::Cell{106,104},simulation::Cell{109,101},simulation::Cell{109,104}})
+        put(simulation::CommandType::PlaceHousehold,cell);
+    put(simulation::CommandType::PlaceFireWatch,{114,104});
+    const auto house=*view.world().building_owner_at({109,104});
+    check(view.world().treasury()==20 && view.world().water_covered_households()==0,"water starter cost");
+    for (int i=0;i<2400;++i) view.tick_once();
+    check(view.world().historical_household_level(house)==2 && view.world().household_level(house)==0,"dry historic stage");
+    const auto ground=view.camera().world_to_screen(maps::terrain_ground({110,105},border));
+    const auto screen=[&](simulation::Cell cell) {return view.camera().world_to_screen(maps::terrain_ground(
+        {static_cast<std::uint32_t>(cell.x),static_cast<std::uint32_t>(cell.y)},border));};
+    bool running=true;
+    const auto house_screen=screen({110,105});mouse_click(view,static_cast<float>(house_screen.x),static_cast<float>(house_screen.y),running);
+    const auto contains=[&](const char* text) {const auto lines=view.inspection_lines();return std::any_of(lines.begin(),lines.end(),
+        [&](const auto& line) {return line.find(text)!=std::string::npos;});};
+    check(contains("No water access") && contains("Water cap: 0") && contains("Historical development:"),"dry inspector caps");
+    const auto check_stage=[&](unsigned expected) {
+        const auto before=view.world().snapshot();perf::set_enabled(true);perf::reset();
+        check(view.render(),"water stage rendering");
+        const auto color=pixel(renderer,static_cast<int>(ground.x),static_cast<int>(ground.y));
+        check(color[expected]==255 && view.world().household_level(house)==static_cast<int>(expected),"water stage pixel");
+        for (const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+            perf::Counter::AssetDecodes,perf::Counter::TextureUploads,perf::Counter::BfsCalls,
+            perf::Counter::RouteRefreshes,perf::Counter::FileReads,perf::Counter::FileWrites})
+            check(perf::counter(c)==0,"water stage reload/mutation");
+        check(view.world().snapshot()==before && view.building_texture_count()==3,"water stage authority changed");
+        perf::set_enabled(false);
+    };
+    check_stage(0);
+    view.handle_event(key(SDLK_I),running);check(view.tool()==12,"I Well shortcut");
+    const auto position=screen({108,106});
+    view.handle_event(motion(static_cast<float>(position.x),static_cast<float>(position.y)),running);
+    view.update(0);
+    check(view.predicted_well_coverage() && view.predicted_well_coverage()->households==4 &&
+        view.predicted_well_coverage()->currently_dry==4,"Well preview counts");
+    const auto count=view.water_preview_build_count();const auto before=view.world().snapshot();
+    perf::set_enabled(true);perf::reset();
+    for (int n=0;n<200;++n) view.handle_event(motion(static_cast<float>(position.x)+0.001F*static_cast<float>(n%10),
+        static_cast<float>(position.y)),running);
+    view.update(0);
+    check(view.water_preview_build_count()==count && view.world().snapshot()==before,"200 motions repeated water projection");
+    for (const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+        perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads})
+        check(perf::counter(c)==0,"water preview expensive work");
+    perf::set_enabled(false);
+    const auto well=put(simulation::CommandType::PlaceWell,{108,106});
+    view.handle_event(motion(static_cast<float>(position.x),static_cast<float>(position.y)),running);
+    view.update(0);
+    check(view.predicted_well_coverage() && view.predicted_well_coverage()->currently_dry==0 &&
+        view.water_preview_build_count()==count+1,"building revision did not refresh preview");
+    view.handle_event(key(SDLK_5),running);check_stage(2);
+    mouse_click(view,static_cast<float>(position.x),static_cast<float>(position.y),running);
+    check(contains("Well #") && contains("Covered Houses 4") && !contains("Worker") && !contains("Operation") &&
+        !contains("Priority") && !contains("Courier"),"Well inspector acquired operation UI");
+    const auto stable=view.world().snapshot();perf::set_enabled(true);perf::reset();
+    for (int n=0;n<100;++n) {view.handle_event(key(SDLK_U),running);check(view.render(),"water overlay render");}
+    check(!view.water_overlay() && view.world().snapshot()==stable,"100 Water toggles mutated World");
+    for (const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+        perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+        perf::Counter::FileReads,perf::Counter::FileWrites}) check(perf::counter(c)==0,"water overlay did work");
+    perf::set_enabled(false);
+    view.handle_event(key(SDLK_7),running);
+    const auto future=screen({112,104});view.handle_event(motion(static_cast<float>(future.x),static_cast<float>(future.y)),running);
+    view.update(0);
+    check(view.predicted_water()==true && view.predicted_desirability().has_value(),"House preview missing water/quality");
+    view.save_now();check(openemperor::persistence::read_save(view.save_path()).source_schema_version==16,"view save schema16");
+    check(view.execute(simulation::demolish_building(well)).accepted,"view Well removal");check_stage(0);
+    view.load_now();check(view.paused() && view.world().snapshot()==stable,"water load did not restore exact paused World");check_stage(2);
+    const auto stable_document=persistence::read_save(view.save_path());
+    check(view.execute(simulation::demolish_building(well)).accepted,"branch Well removal");
+    put(simulation::CommandType::PlaceWell,{120,112});view.save_now();
+    const auto far_document=persistence::read_save(view.save_path());
+    persistence::write_save(view.save_path(),stable_document,temp.path,mask);view.load_now();
+    check(view.execute(simulation::demolish_building(well)).accepted,"central branch removal");
+    put(simulation::CommandType::PlaceWell,{108,106});
+    check(view.world().road_revision()==far_document.world.road_revision,"branch revisions must match");
+    view.handle_event(key(SDLK_I),running);
+    view.handle_event(motion(static_cast<float>(position.x),static_cast<float>(position.y)),running);view.update(0);
+    check(view.predicted_well_coverage()->currently_dry==0,"central branch water");
+    const auto branch_count=view.water_preview_build_count();
+    persistence::write_save(view.save_path(),far_document,temp.path,mask);view.load_now();view.update(0);
+    check(view.predicted_well_coverage() && view.predicted_well_coverage()->currently_dry==4 &&
+        view.water_preview_build_count()==branch_count+1,"same-revision load retained stale water preview");
+    view.shutdown();std::cout<<"City-v14 view: 0/2 stages,100 pure Water toggles,200 coalesced motions,Well/House inspector,save/load\n";
 }
 }
 int main(int argc,char** argv) {
     try {
+        const bool water_only=argc==2 && std::string(argv[1])=="--water-only";
         const bool alpha_stress=argc==2 && std::string(argv[1])=="--alpha-stress";
-        check(argc==1 || alpha_stress,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
+        check(argc==1 || alpha_stress || water_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
             check(layout.top.h==52 && layout.map.w==796 && layout.map.h==516 &&
@@ -655,6 +776,10 @@ int main(int argc,char** argv) {
         SDL_Window* window=nullptr;
         SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("sandbox test",800,600,0,&window,&renderer),"window");
+        if (water_only) {
+            city_v14_water_checks(temp,window,renderer);
+            SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+        }
         household_stage_checks(temp,window,renderer);
         openemperor::SandboxView view(fixture(temp),false);
         view.initialize(window,renderer);

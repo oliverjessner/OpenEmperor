@@ -34,6 +34,7 @@ const char* tool_name(simulation::RulesProfile rules,int tool) {
         case 8: return "Farm";
         case 9: return "Service post";
         case 11: return "Fire Watch";
+        case 12: return "Well";
         default: return "Select";
         }
     }
@@ -56,6 +57,7 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::Farm: return "Farm";
     case simulation::Object::ServicePost: return "Service post";
     case simulation::Object::Market: return "Market";
+    case simulation::Object::Well: return "Well";
     case simulation::Object::FireWatch: return "Fire Watch";
     }
     return "Unknown";
@@ -72,6 +74,7 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool) {
         case 8: return simulation::CommandType::PlaceFarm;
         case 9: return simulation::CommandType::PlaceServicePost;
         case 11: return simulation::CommandType::PlaceFireWatch;
+        case 12: return simulation::CommandType::PlaceWell;
         default: return simulation::CommandType::PlaceHousehold;
         }
     }
@@ -95,6 +98,7 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::CityV10: return "City v10";
     case simulation::RulesProfile::CityV11: return "City v11";
     case simulation::RulesProfile::CityV12: return "City v12";
+    case simulation::RulesProfile::CityV14: return "City v14";
     case simulation::RulesProfile::CityV13: return "City v13";
     }
     return "Sandbox";
@@ -156,6 +160,13 @@ void SandboxView::load_now() {
     world_=std::make_unique<simulation::World>(std::move(replacement));
     saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     cancel_gesture();
+    if (simulation::water_profile(rules_)) {
+        // A loaded branch can have the same revision and different Well positions.
+        water_preview_cell_.reset();
+        predicted_water_.reset();
+        predicted_well_coverage_.reset();
+        hover_dirty_=true;
+    }
     if (selected_ && !world_->building_owner_at(*selected_)) selected_.reset();
     clock_.pause_and_reset();
     demo_origin_.reset();
@@ -391,7 +402,8 @@ void SandboxView::update_layout(bool preserve_center) {
     if (!SDL_GetWindowSize(window_,&window_width,&window_height))
         throw std::runtime_error(SDL_GetError());
     const auto next=sandbox_ui::make_layout(width,height,window_width,window_height,panel_open_,
-        simulation::fire_profile(rules_),simulation::desirability_profile(rules_));
+        simulation::fire_profile(rules_),simulation::desirability_profile(rules_),
+        simulation::water_profile(rules_));
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) return;
     scene::Point center{};
@@ -755,6 +767,7 @@ void SandboxView::set_tool(int tool) {
     case 8: action=sandbox_ui::Action::Farm; break;
     case 9: action=sandbox_ui::Action::ServicePost; break;
     case 11: action=sandbox_ui::Action::FireWatch; break;
+    case 12: action=sandbox_ui::Action::Well; break;
     default: return;
     }
     if (action_enabled(action)) perform_action(action);
@@ -780,8 +793,13 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
             command=simulation::CommandType::PlaceMarket;
         else if (action==sandbox_ui::Action::FireWatch)
             command=simulation::CommandType::PlaceFireWatch;
+        else if (action==sandbox_ui::Action::Well) command=simulation::CommandType::PlaceWell;
         if (command && world_->treasury()<world_->construction_cost(*command)) return false;
     }
+    if (action==sandbox_ui::Action::Water) return simulation::water_profile(rules_);
+    if (action==sandbox_ui::Action::Well)
+        return simulation::water_profile(rules_) && count_kind(simulation::Object::Well)<
+            static_cast<std::ptrdiff_t>(simulation::Rules::well_limit);
     if (action==sandbox_ui::Action::Desirability) return simulation::desirability_profile(rules_);
     if (action==sandbox_ui::Action::RemoveRoad)
         return simulation::production_profile(rules_);
@@ -926,6 +944,7 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         else if (action==A::ServicePost) command=simulation::CommandType::PlaceServicePost;
         else if (action==A::Market) command=simulation::CommandType::PlaceMarket;
         else if (action==A::FireWatch) command=simulation::CommandType::PlaceFireWatch;
+        else if (action==A::Well) command=simulation::CommandType::PlaceWell;
         if (simulation::city_profile(rules_) && command &&
             world_->treasury()<world_->construction_cost(*command))
             last_message_="Need "+std::to_string(world_->construction_cost(*command))+
@@ -936,14 +955,18 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     }
     if (action==A::Select || action==A::Road || action==A::Clay || action==A::Pottery ||
         action==A::Warehouse || action==A::RemoveRoad || action==A::Household ||
-        action==A::Farm || action==A::ServicePost || action==A::Market || action==A::FireWatch) {
+        action==A::Farm || action==A::ServicePost || action==A::Market || action==A::FireWatch || action==A::Well) {
         cancel_gesture();
         tool_=action==A::Select ? (simulation::production_profile(rules_) ? 5:4) :
             action==A::Road ? 1 : action==A::Clay ? 2 : action==A::Pottery ? 3 :
             action==A::Warehouse ? (simulation::production_profile(rules_) ? 4:3) :
             action==A::RemoveRoad ? 6:action==A::Household ? 7:action==A::Farm ? 8:
-            action==A::ServicePost ? 9:action==A::FireWatch ? 11:0;
+            action==A::ServicePost ? 9:action==A::FireWatch ? 11:action==A::Well ? 12:0;
         last_message_=tool_name(rules_,tool_);
+    } else if (action==A::Water) {
+        cancel_gesture();
+        water_overlay_=!water_overlay_;
+        last_message_=water_overlay_ ? "Water ON: cyan covered, amber without water":"Water OFF";
     } else if (action==A::Desirability) {
         cancel_gesture();
         desirability_overlay_=!desirability_overlay_;
@@ -1001,6 +1024,19 @@ void SandboxView::refresh_hover(bool force_road_plan) {
         }
     } else {
         predicted_desirability_.reset(); desirability_preview_cell_.reset();
+    }
+    if (simulation::water_profile(rules_) && (tool_==7 || tool_==12) && hovered_) {
+        if (water_preview_cell_!=hovered_ || water_preview_tool_!=tool_ ||
+            water_preview_revision_!=world_->road_revision()) {
+            predicted_water_.reset(); predicted_well_coverage_.reset();
+            if (tool_==7) predicted_water_=world_->household_has_water_at(*hovered_);
+            else predicted_well_coverage_=world_->well_coverage_at(*hovered_);
+            water_preview_cell_=hovered_; water_preview_tool_=tool_;
+            water_preview_revision_=world_->road_revision();
+            ++water_preview_build_count_;
+        }
+    } else {
+        predicted_water_.reset(); predicted_well_coverage_.reset(); water_preview_cell_.reset();
     }
     if (!road_start_ || !hovered_) {
         if (road_start_) road_preview_={};
@@ -1111,6 +1147,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_0 && simulation::market_profile(rules_))
             set_tool(0);
         else if (event.key.key==SDLK_F && simulation::fire_profile(rules_)) set_tool(11);
+        else if (event.key.key==SDLK_I && simulation::water_profile(rules_)) set_tool(12);
+        else if (event.key.key==SDLK_U && simulation::water_profile(rules_))
+            perform_action(sandbox_ui::Action::Water);
         else if (event.key.key==SDLK_D && simulation::desirability_profile(rules_))
             perform_action(sandbox_ui::Action::Desirability);
         else if (event.key.key==SDLK_SPACE) perform_action(sandbox_ui::Action::Pause);
@@ -1550,8 +1589,45 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                     if (!placement_preview) ++building_drawn_instances_[assets::role_index(*role)];
                     return draw_fire_overlay(cell,center,placement_preview);
                 }
-                if (placement_preview) return true;
+                if (placement_preview && object!=simulation::Object::Well) return true;
                 ++building_placeholder_fallbacks_[assets::role_index(*role)];
+            }
+            if (object==simulation::Object::Well) {
+                // Authored stone basin and timber frame, independent of original pixels.
+                const float zoom=static_cast<float>(camera_.zoom);
+                const auto ellipse=[&](float cy,float rx,float ry,SDL_Color color) {
+                    std::array<SDL_Vertex,18> vertices{};
+                    std::array<int,48> indices{};
+                    const SDL_FColor fc{color.r/255.0F,color.g/255.0F,color.b/255.0F,1};
+                    vertices[0]={{static_cast<float>(center.x),cy},fc,{0,0}};
+                    for (int i=0;i<=16;++i) {
+                        const double angle=static_cast<double>(i)*2.0*3.141592653589793/16.0;
+                        vertices[static_cast<std::size_t>(i+1)]={{static_cast<float>(center.x)+rx*static_cast<float>(std::cos(angle)),
+                            cy+ry*static_cast<float>(std::sin(angle))},fc,{0,0}};
+                        if (i<16) {indices[static_cast<std::size_t>(3*i)]=0;
+                            indices[static_cast<std::size_t>(3*i+1)]=i+1;
+                            indices[static_cast<std::size_t>(3*i+2)]=i+2;}
+                    }
+                    return SDL_RenderGeometry(renderer_,nullptr,vertices.data(),18,indices.data(),48);
+                };
+                const float cy=static_cast<float>(center.y);
+                const SDL_FRect stone{static_cast<float>(center.x)-15*zoom,cy-12*zoom,30*zoom,12*zoom};
+                if (!ellipse(cy+2*zoom,21*zoom,8*zoom,{59,61,56,255}) ||
+                    !SDL_SetRenderDrawColor(renderer_,139,142,130,255) ||
+                    !SDL_RenderFillRect(renderer_,&stone) ||
+                    !ellipse(cy,15*zoom,6*zoom,{124,129,119,255}) ||
+                    !ellipse(cy-12*zoom,15*zoom,6*zoom,{196,195,172,255}) ||
+                    !ellipse(cy-12*zoom,10*zoom,4*zoom,{39,106,137,255})) return false;
+                const std::array<SDL_FRect,3> wood{{
+                    {static_cast<float>(center.x)-12*zoom,cy-32*zoom,3*zoom,22*zoom},
+                    {static_cast<float>(center.x)+9*zoom,cy-32*zoom,3*zoom,22*zoom},
+                    {static_cast<float>(center.x)-15*zoom,cy-34*zoom,30*zoom,4*zoom}}};
+                if (!SDL_SetRenderDrawColor(renderer_,103,73,45,255) ||
+                    !SDL_RenderFillRects(renderer_,wood.data(),3) ||
+                    !SDL_SetRenderDrawColor(renderer_,218,204,162,255) ||
+                    !SDL_RenderLine(renderer_,static_cast<float>(center.x),cy-31*zoom,
+                        static_cast<float>(center.x),cy-14*zoom)) return false;
+                return true;
             }
             SDL_Color color=debug_open_ ? SDL_Color{255,105,100,255}:SDL_Color{137,101,85,255};
             if (object==simulation::Object::Workshop || object==simulation::Object::ClaySource)
@@ -1710,6 +1786,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==7 ? simulation::Object::Household:
             tool_==8 ? simulation::Object::Farm:
             tool_==9 ? simulation::Object::ServicePost:
+            tool_==12 ? simulation::Object::Well:
             tool_==11 ? simulation::Object::FireWatch:
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
@@ -1812,6 +1889,20 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             }
         }
     }
+    if (water_overlay_ && simulation::water_profile(rules_)) {
+        SDL_BlendMode previous=SDL_BLENDMODE_NONE;
+        if (!SDL_GetRenderDrawBlendMode(renderer_,&previous) ||
+            !SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND)) return false;
+        bool ok=true;
+        for (const auto& b:world_->buildings()) if (b.placed && b.kind==simulation::Object::Household) {
+            const auto color=world_->household_has_water(b.id) ? SDL_Color{45,195,230,65}:SDL_Color{220,160,60,65};
+            for (const auto cell:simulation::building_footprint_cells(rules_,b.kind,b.cell)) {
+                const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
+                ok=draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true,color.a/255.0F) && ok;
+            }
+        }
+        if (!SDL_SetRenderDrawBlendMode(renderer_,previous) || !ok) return false;
+    }
     if (selected_) {
         const auto owner=world_->building_owner_at(*selected_);
         if (owner) {
@@ -1842,6 +1933,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==7 ? simulation::Object::Household:
             tool_==8 ? simulation::Object::Farm:
             tool_==9 ? simulation::Object::ServicePost:
+            tool_==12 ? simulation::Object::Well:
             tool_==11 ? simulation::Object::FireWatch:
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
@@ -1870,7 +1962,8 @@ bool SandboxView::fire_watch_selected() const {
 }
 bool SandboxView::status_first_selected() const {
     const auto id=selected_building();
-    return fire_watch_selected() || (simulation::desirability_profile(rules_) && id &&
+    return (id && world_->building(*id).kind==simulation::Object::Well) ||
+        fire_watch_selected() || (simulation::desirability_profile(rules_) && id &&
         world_->building(*id).kind==simulation::Object::Household);
 }
 std::vector<std::string> SandboxView::wrap_panel_lines(const std::vector<std::string>& lines) const {
@@ -1934,17 +2027,37 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         return wrap_panel_lines(lines);
     }
     const auto house_id=selected_building();
+    if (house_id && world_->building(*house_id).kind==simulation::Object::Well) {
+        const auto& well=world_->building(*house_id);
+        lines.push_back("Well #"+std::to_string(static_cast<std::uint32_t>(*house_id)));
+        lines.push_back("Footprint 1x1; water radius "+std::to_string(simulation::Rules::water_radius));
+        lines.push_back("Covered Houses "+std::to_string(world_->well_coverage_at(well.cell).households));
+        lines.push_back("Local infrastructure; roads not required.");
+        lines.push_back("Fireproof; desirability impact 0.");
+        if (debug_open_) lines.push_back("Origin "+std::to_string(well.cell.x)+","+std::to_string(well.cell.y));
+        return wrap_panel_lines(lines);
+    }
     if (simulation::desirability_profile(rules_) && house_id &&
         world_->building(*house_id).kind==simulation::Object::Household) {
         const auto id=*house_id;
         const auto& b=world_->building(id);
         const int score=world_->household_desirability(id);
         lines.push_back("House #"+std::to_string(static_cast<std::uint32_t>(id)));
+        if (simulation::water_profile(rules_)) {
+            const auto well=world_->nearest_water_source(id);
+            lines.push_back(well ? "Water: Available":"No water access");
+            if (well) {
+                lines.push_back("Nearest Well #"+std::to_string(static_cast<std::uint32_t>(*well)));
+                lines.push_back("Distance "+std::to_string(world_->building_distance(id,*well))+"/"+
+                    std::to_string(simulation::Rules::water_radius));
+            }
+            lines.push_back("Water cap: "+std::to_string(well ? 2:0));
+        }
         lines.push_back("House Level: "+std::to_string(world_->household_level(id)));
         lines.push_back("Historical development: "+std::to_string(world_->historical_household_level(id)));
         lines.push_back("Desirability: "+std::to_string(score));
         const int cap=simulation::desirability_level_cap(score);
-        lines.push_back("Level cap: "+std::to_string(cap));
+        lines.push_back(std::string(simulation::water_profile(rules_) ? "Desirability cap: ":"Level cap: ")+std::to_string(cap));
         lines.push_back("Population: "+std::to_string(b.population)+" / "+
             std::to_string(world_->household_population_capacity(id)));
         if (b.population>world_->household_population_capacity(id))
@@ -1967,7 +2080,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Demand in "+std::to_string(simulation::Rules::household_demand_ticks-b.demand_progress)+" ticks");
         lines.push_back("Fulfilled "+std::to_string(b.fulfilled_demand)+"; missed "+std::to_string(b.missed_demand));
         const auto next=b.fulfilled_demand+1;
-        const int next_level=std::min(cap,next>=simulation::Rules::city_v7_level2_demands ? 2:
+        const int next_level=simulation::water_profile(rules_) && !world_->household_has_water(id) ? 0:
+            std::min(cap,next>=simulation::Rules::city_v7_level2_demands ? 2:
             next>=simulation::Rules::city_v7_level1_demands ? 1:0);
         lines.push_back("Next supplied tax: "+std::to_string(next_level==2 ? 60:next_level==1 ? 40:25));
         lines.push_back("Taxes paid total: "+std::to_string(b.taxes_paid_total));
@@ -2330,6 +2444,13 @@ bool SandboxView::draw_hud() {
         overview+=" v"+std::to_string(world_->rule_version());
     overview+=" | Tick "+std::to_string(world_->ticks())+" | "+
         (clock_.paused()?"Paused ":"Running ")+std::to_string(clock_.speed())+"x";
+    if (simulation::water_profile(rules_)) {
+        const auto houses=std::count_if(world_->buildings().begin(),world_->buildings().end(),
+            [](const auto& b) { return b.kind==simulation::Object::Household; });
+        overview+=" | Funds "+std::to_string(world_->treasury())+" | Water "+
+            std::to_string(world_->water_covered_households())+"/"+std::to_string(houses)+
+            " | Pop "+std::to_string(world_->total_population());
+    }
     if (simulation::desirability_profile(rules_)) {
         int good=0,houses=0;
         for (const auto& b:world_->buildings()) if (b.kind==simulation::Object::Household) {
@@ -2341,7 +2462,7 @@ bool SandboxView::draw_hud() {
         overview+=" | Fire "+std::to_string(world_->protected_buildings())+"/"+
             std::to_string(world_->fire_eligible_buildings())+" protected, "+
             std::to_string(world_->burning_buildings())+" BURNING";
-    if (simulation::city_profile(rules_)) {
+    if (simulation::city_profile(rules_) && !simulation::water_profile(rules_)) {
         overview+=" | Funds "+std::to_string(world_->treasury())+" | Workers ";
         if (simulation::population_profile(rules_))
             overview+="avail "+std::to_string(world_->workforce_supply())+
@@ -2352,7 +2473,7 @@ bool SandboxView::draw_hud() {
             overview+=std::to_string(world_->workforce_used())+"/"+
                 std::to_string(world_->workforce_supply());
     }
-    if (simulation::population_profile(rules_))
+    if (simulation::population_profile(rules_) && !simulation::water_profile(rules_))
         overview+=" | Pop "+std::to_string(world_->total_population());
     if (simulation::food_profile(rules_)) {
         int food=0; std::size_t houses=0;
@@ -2420,6 +2541,18 @@ bool SandboxView::draw_hud() {
         else if (guidance.taxes_have_been_collected)
             status+=" | Complete demand has paid tax";
     }
+    if (simulation::water_profile(rules_)) {
+        if (world_->taxes_collected_total()>0 && world_->water_covered_households()==0 &&
+            std::all_of(world_->buildings().begin(),world_->buildings().end(),[&](const auto& b) {
+                return b.kind!=simulation::Object::Household || (b.pottery_stock>0 && b.food_stock>0 &&
+                    world_->household_service_active(b.id) && !world_->building_on_fire(b.id));
+            }))
+            status="Your city is supplied. Add water to improve housing. | "+status;
+        if (predicted_water_) status=std::string("Water: ")+(*predicted_water_ ? "Yes":"No")+" | "+status;
+        if (predicted_well_coverage_) status="Would supply water to "+
+            std::to_string(predicted_well_coverage_->households)+" Houses ("+
+            std::to_string(predicted_well_coverage_->currently_dry)+" currently without water) | "+status;
+    }
     if (predicted_desirability_) status="Predicted desirability at this location: "+
         std::to_string(*predicted_desirability_)+" | "+status;
     if (!recovery_status_.empty() && !budget_warning_ && !pending_demolition_ && !road_start_)
@@ -2474,6 +2607,8 @@ bool SandboxView::draw_hud() {
         case A::ServicePost: return scalable ? "9 Service "+
             std::to_string(count(simulation::Object::ServicePost))+"/2 $100":"9 Service $100";
         case A::Market: return "0 Market $140";
+        case A::Well: return "I Well $60";
+        case A::Water: return water_overlay_ ? "U Water ON":"U Water";
         case A::Desirability: return desirability_overlay_ ? "D Desirability ON":"D Desirability";
         case A::FireWatch: return "F Fire Watch $"+
             std::to_string(simulation::Rules::fire_watch_cost);
@@ -2504,6 +2639,8 @@ bool SandboxView::draw_hud() {
         case A::ServicePost: active=tool_==9; break;
         case A::Market: active=tool_==0; break;
         case A::FireWatch: active=tool_==11; break;
+        case A::Well: active=tool_==12; break;
+        case A::Water: active=water_overlay_; break;
         case A::Desirability: active=desirability_overlay_; break;
         default: break;
         }
@@ -2516,7 +2653,7 @@ bool SandboxView::draw_hud() {
         if (button.action==A::Clay || button.action==A::Pottery ||
             button.action==A::Warehouse || button.action==A::Household ||
             button.action==A::Farm || button.action==A::ServicePost ||
-            button.action==A::Market || button.action==A::FireWatch) {
+            button.action==A::Market || button.action==A::FireWatch || button.action==A::Well) {
             const auto wanted=button.action==A::Clay ?
                 (simulation::production_profile(rules_) ? simulation::Object::ClaySource:
                  simulation::Object::Workshop) :
@@ -2525,11 +2662,12 @@ bool SandboxView::draw_hud() {
                 button.action==A::Household ? simulation::Object::Household:
                 button.action==A::Farm ? simulation::Object::Farm:
                 button.action==A::ServicePost ? simulation::Object::ServicePost:
+                button.action==A::Well ? simulation::Object::Well:
                 button.action==A::FireWatch ? simulation::Object::FireWatch:
                 simulation::Object::Market;
             int count=0;
             for (const auto id:placed_buildings()) if (world_->building(id).kind==wanted) ++count;
-            const int limit=button.action==A::FireWatch ? 2:button.action==A::Market ? 4:
+            const int limit=button.action==A::Well ? 4:button.action==A::FireWatch ? 2:button.action==A::Market ? 4:
                 scalable ? (button.action==A::Household ? 20:
                     (button.action==A::Clay || button.action==A::Pottery) ? 4:
                     (button.action==A::Warehouse || button.action==A::Farm ||
@@ -2547,6 +2685,7 @@ bool SandboxView::draw_hud() {
     if (layout_.panel_open) {
         if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
         if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
+                       selected_building() && world_->building(*selected_building()).kind==simulation::Object::Well ? "WELL INSPECTOR":
                        fire_watch_selected() ? "FIRE WATCH INSPECTOR":
                        status_first_selected() ? "HOUSE INSPECTOR":"BUILDINGS",
                        layout_.panel.w-20*layout_.scale)) return false;
@@ -2794,7 +2933,7 @@ bool SandboxView::draw_help_overlay() {
         text(0,2,"BUILD AND NAVIGATE") && text(0,3,"1 Road | 2 Clay | 3 Pottery") &&
         text(0,4,"4 Store | 5 Select | 6 Remove") &&
         text(0,5,"7 House | 8 Farm | 9 Service") &&
-        text(0,6,"0 Market | F Fire Watch (v12/v13)") &&
+        text(0,6,simulation::water_profile(rules_) ? "0 Market | F Watch | I Well | U Water":"0 Market | F Fire Watch (v12/v13)") &&
         text(0,7,"Space Pause | . Step | + / - Speed") &&
         text(0,8,simulation::desirability_profile(rules_) ? "Arrows Move | D Desirability | Wheel Zoom":"WASD / Arrows Move | Wheel Zoom") &&
         text(0,9,"F5 Save | F9 Load | Esc Menu") &&

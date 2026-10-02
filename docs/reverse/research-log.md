@@ -1,5 +1,13 @@
 # Research log
 
+## City-v14 bounded Well visual audit (2026-10-02)
+
+Read-only local `DATA/China_General.sg3` metadata filtered supported unmirrored Type-30 records to size flag one, width 78 and base length 3,200. The ordinary shared inspector/decoder exported only selected candidates into ignored `.local/city-v14/`; no original/decoded bytes or atlas screenshots were added to the repository. Five atlas pages covered 205 candidates from Aesthetic (186), Government1 (4), Government2 (1), Guilds (14) and Aesthetic2 (0). Two additional pages covered 50 candidates from StorNDist (10), Husbandry (40) and Safety (0). All seven pages were visually reviewed. This is a bounded search, not an exhaustive archive or original-building identity audit.
+
+The inspected imagery contains vegetation, statues, paving, walls/gates, platforms, industry/landscape parts and existing distribution motifs. Government 1900–1903 reads as wood stages/platforms; 2046 is the existing Service preview. StorNDist 632–635 is decorative ground, 640–643 dock-like platforms, 645/646 the already reviewed Market alternatives. Husbandry 725–728 shows rocky water/rope enclosures, without sufficiently clear freestanding Well/building character. Those pools, wall/decorative pieces and the existing FireWatch record 383 were rejected as Well choices. Group labels alone establish no identity. **Original-like Well visual unresolved.** No physical record or original pivot was inferred, and built-in building metadata stayed unchanged.
+
+The optional presentation role still enforces the documented side-one geometry and conventional decoder-derived ground center `[39, image_height - 20]`. A separate independently drawn SDL basin/frame fallback was reviewed on native Xia at 1×/2×/4×. City-v14 proximity water rules are authored implementation behavior, not new observations about Emperor file semantics or original water distribution.
+
 ## City-v10 logical footprints and road entrances (2026-09-25)
 
 Starting commit `43f38dd2f991f8594605973cb24438018b316d74`. The four already curated core building records are Type 30, size flag 2, width 158, with a 12,800-byte base. City-v10 now uses an independently authored uniform 2×2 logical footprint for their corresponding Clay Source, Pottery, Warehouse and Household roles. Origin is the rear/top storage cell and front is `origin+(1,1)`. This aligns gameplay occupancy and drawing with the decoded base scale, but does not establish Emperor's original placement pivot, footprint ownership or building mechanics. Farms and Service Posts remain authored 1×1 fallbacks.

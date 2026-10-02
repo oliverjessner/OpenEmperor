@@ -16,7 +16,7 @@ inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
 enum class RulesProfile {
     LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8,
-    CityV9, CityV10, CityV11, CityV12, CityV13
+    CityV9, CityV10, CityV11, CityV12, CityV13, CityV14
 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
@@ -29,7 +29,11 @@ inline constexpr const char* city_v10_profile_name = "sandbox-city-v10";
 inline constexpr const char* city_v11_profile_name = "sandbox-city-v11";
 inline constexpr const char* city_v12_profile_name = "sandbox-city-v12";
 inline constexpr const char* city_v13_profile_name = "sandbox-city-v13";
-constexpr bool desirability_profile(RulesProfile profile) { return profile==RulesProfile::CityV13; }
+inline constexpr const char* city_v14_profile_name = "sandbox-city-v14";
+constexpr bool water_profile(RulesProfile profile) { return profile==RulesProfile::CityV14; }
+constexpr bool desirability_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV13 || water_profile(profile);
+}
 constexpr bool fire_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV12 || desirability_profile(profile);
 }
@@ -148,6 +152,10 @@ struct Rules {
     static constexpr std::size_t city_v11_market_limit = 4;
     static constexpr std::size_t city_v11_building_limit = 38;
     static constexpr std::size_t city_v11_courier_limit = 22;
+    static constexpr std::int64_t well_cost = 60;
+    static constexpr std::size_t well_limit = 4;
+    static constexpr int water_radius = 5;
+    static constexpr std::size_t city_v14_building_limit = 44;
     static constexpr std::int64_t fire_watch_cost = 80;
     static constexpr int fire_watch_workers = 2;
     static constexpr std::size_t fire_watch_limit = 2;
@@ -159,7 +167,8 @@ struct Rules {
     static constexpr std::uint64_t fire_incident_ticks = 600;
 };
 constexpr std::size_t building_collection_limit(RulesProfile profile) {
-    return fire_profile(profile) ? Rules::city_v12_building_limit:
+    return water_profile(profile) ? Rules::city_v14_building_limit:
+        fire_profile(profile) ? Rules::city_v12_building_limit:
         market_profile(profile) ? Rules::city_v11_building_limit:Rules::city_v10_building_limit;
 }
 constexpr std::size_t courier_collection_limit(RulesProfile profile) {
@@ -193,7 +202,7 @@ struct Cell {
 };
 enum class Object : std::uint8_t {
     Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost, Market,
-    FireWatch
+    FireWatch, Well
 };
 struct BuildingFootprint {
     int width=1;
@@ -228,7 +237,7 @@ const char* workforce_priority_name(WorkforcePriority priority);
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
                          RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost, PlaceMarket,
                          SetBuildingOperation, SetBuildingWorkforcePriority, DemolishBuilding,
-                         PlaceFireWatch };
+                         PlaceFireWatch, PlaceWell };
 struct Command {
     CommandType type;
     Cell cell{};
@@ -503,6 +512,14 @@ public:
     int household_desirability(BuildingId id) const;
     int household_desirability_at(Cell origin) const;
     std::vector<DesirabilitySource> household_desirability_sources(BuildingId id) const;
+    // Pure, road-independent infrastructure queries; no coverage is persisted.
+    bool household_has_water(BuildingId id) const;
+    bool household_has_water_at(Cell origin) const;
+    std::optional<BuildingId> nearest_water_source(BuildingId id) const;
+    std::optional<BuildingId> nearest_water_source_at(Cell origin) const;
+    int water_covered_households() const;
+    struct WellCoverage { int households=0, currently_dry=0; };
+    WellCoverage well_coverage_at(Cell origin) const;
     bool household_service_active(BuildingId id) const;
     std::uint64_t household_service_remaining(BuildingId id) const;
     std::uint64_t household_move_in_grace_remaining(BuildingId id) const;

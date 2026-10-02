@@ -32,7 +32,7 @@ bool Layout::ui_at(double x,double y) const {
         panel.contains(x,y);
 }
 
-Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability) {
+Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water) {
     Layout out;
     out.scale=std::max(1,static_cast<int>(std::lround(std::min(
         width/static_cast<double>(std::max(1,window_width)),
@@ -40,7 +40,7 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     const int unit=out.scale;
     const int top=std::min(height,52*unit);
     const int status=std::min(std::max(0,height-top),24*unit);
-    const bool wrapped_tools=width<(fire_watch ? 1980:1800)*unit;
+    const bool wrapped_tools=width<(water ? 2180:fire_watch ? 1980:1800)*unit;
     const int tool_rows=wrapped_tools ? (fire_watch ? 3:2):1;
     const int toolbar=std::min(std::max(0,height-top-status),(tool_rows+1)*36*unit);
     out.top={0,0,width,top};
@@ -56,6 +56,7 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
         Action::ServicePost,Action::Market};
     if (fire_watch) tools.push_back(Action::FireWatch);
     if (desirability) tools.push_back(Action::Desirability);
+    if (water) { tools.push_back(Action::Well); tools.push_back(Action::Water); }
     out.buttons.resize(tools.size()+10);
     constexpr std::array<Action,8> controls={Action::Pause,Action::Step,Action::Speed1,
         Action::Speed2,Action::Speed4,Action::Reset,Action::Save,Action::Load};

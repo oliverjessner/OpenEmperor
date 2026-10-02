@@ -69,7 +69,7 @@ SettingsRead read_settings(const fs::path& root) {
              simulation::RulesProfile::CityV7,simulation::RulesProfile::CityV8,
              simulation::RulesProfile::CityV9,simulation::RulesProfile::CityV10,
              simulation::RulesProfile::CityV11,simulation::RulesProfile::CityV12,
-             simulation::RulesProfile::CityV13})
+             simulation::RulesProfile::CityV13,simulation::RulesProfile::CityV14})
             if (profile==simulation::rules_profile_name(p)) { result.value.profile=p; found=true; }
         if (!found) throw std::runtime_error("unknown settings profile");
     } catch (const std::exception& e) {

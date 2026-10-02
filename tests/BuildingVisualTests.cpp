@@ -136,6 +136,22 @@ void profile_checks(Fixture& fixture) {
     const auto eight=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
     check(eight.unique_images.size()==5 && eight.find(openemperor::assets::BuildingVisualRole::FireWatch)->footprint_side==1,
           "optional eighth role failed or duplicated its existing image");
+    auto with_well=all;
+    with_well["buildings"]["well"]=all["buildings"]["farm"];
+    fixture.save(with_well);
+    const auto well_profile=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    check(well_profile.find(openemperor::assets::BuildingVisualRole::Well)->footprint_side==1 &&
+          well_profile.unique_images.size()==5,"optional Well role must deduplicate 1x1 asset");
+    auto invalid_well=fixture.valid();
+    invalid_well["buildings"].erase("pottery");
+    invalid_well["buildings"]["well"]=all["buildings"]["pottery"];
+    fixture.save(invalid_well);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "first-decode 2x2 Well accepted");
+    invalid_well["buildings"]["clay_source"]=all["buildings"]["pottery"];
+    fixture.save(invalid_well);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "deduplicated 2x2 Well bypassed geometry check");
     using R=openemperor::assets::BuildingVisualRole;
     for (unsigned level=0;level<3;++level)
         check(eight.household_role(level)==R::Household,
@@ -178,7 +194,8 @@ void profile_checks(Fixture& fixture) {
     check(openemperor::building_visual_role(O::Farm)==R::Farm &&
           openemperor::building_visual_role(O::ServicePost)==R::ServicePost &&
           openemperor::building_visual_role(O::Market)==R::Market &&
-          openemperor::building_visual_role(O::FireWatch)==R::FireWatch,
+          openemperor::building_visual_role(O::FireWatch)==R::FireWatch &&
+          openemperor::building_visual_role(O::Well)==R::Well,
           "new building visual roles are not selected from Object.kind");
     auto wrong_footprint=fixture.valid();
     wrong_footprint["buildings"]["farm"]=wrong_footprint["buildings"]["pottery"];
