@@ -2,6 +2,7 @@
 
 #include <array>
 #include <optional>
+#include <vector>
 
 namespace openemperor::sandbox_ui {
 
@@ -14,14 +15,15 @@ struct Rect {
 
 enum class Action {
     Select, Road, Clay, Pottery, Warehouse, RemoveRoad, Household, Farm, ServicePost,
-    Market, Pause, Step, Speed1, Speed2, Speed4, Reset, Save, Load, TogglePanel, ToggleHelp
+    Market, Pause, Step, Speed1, Speed2, Speed4, Reset, Save, Load, TogglePanel, ToggleHelp,
+    FireWatch
 };
 
 struct Button { Action action; Rect rect; bool enabled=true; };
 
 struct Layout {
     Rect map,top,toolbar,status,panel,panel_toggle;
-    std::array<Button,20> buttons{};
+    std::vector<Button> buttons;
     bool panel_open=true;
     int scale=1;
     std::optional<Action> button_at(double x,double y) const;
@@ -29,6 +31,6 @@ struct Layout {
 };
 
 Layout make_layout(int output_width,int output_height,int window_width,int window_height,
-                   bool panel_open);
+                   bool panel_open,bool fire_watch=false);
 
 } // namespace openemperor::sandbox_ui

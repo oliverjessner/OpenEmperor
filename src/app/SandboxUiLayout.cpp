@@ -16,7 +16,7 @@ bool Layout::ui_at(double x,double y) const {
         panel.contains(x,y);
 }
 
-Layout make_layout(int width,int height,int window_width,int window_height,bool open) {
+Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch) {
     Layout out;
     out.scale=std::max(1,static_cast<int>(std::lround(std::min(
         width/static_cast<double>(std::max(1,window_width)),
@@ -24,8 +24,9 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     const int unit=out.scale;
     const int top=std::min(height,52*unit);
     const int status=std::min(std::max(0,height-top),24*unit);
-    const bool wrapped_tools=width<1800*unit;
-    const int toolbar=std::min(std::max(0,height-top-status),(wrapped_tools ? 108:72)*unit);
+    const bool wrapped_tools=width<(fire_watch ? 1980:1800)*unit;
+    const int tool_rows=wrapped_tools ? (fire_watch ? 3:2):1;
+    const int toolbar=std::min(std::max(0,height-top-status),(tool_rows+1)*36*unit);
     out.top={0,0,width,top};
     out.status={0,height-status,width,status};
     out.toolbar={0,height-status-toolbar,width,toolbar};
@@ -34,14 +35,16 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     out.panel={width-panel_width,top,panel_width,std::max(0,height-top-status-toolbar)};
     out.map={0,top,std::max(0,width-panel_width),out.panel.h};
     out.panel_toggle={std::max(0,width-96*unit),8*unit,88*unit,32*unit};
-    constexpr std::array<Action,10> tools={Action::Select,Action::Road,Action::Clay,
+    std::vector<Action> tools={Action::Select,Action::Road,Action::Clay,
         Action::Pottery,Action::Warehouse,Action::RemoveRoad,Action::Household,Action::Farm,
         Action::ServicePost,Action::Market};
+    if (fire_watch) tools.push_back(Action::FireWatch);
+    out.buttons.resize(tools.size()+10);
     constexpr std::array<Action,8> controls={Action::Pause,Action::Step,Action::Speed1,
         Action::Speed2,Action::Speed4,Action::Reset,Action::Save,Action::Load};
     const int pad=4*unit;
     const int usable=std::max(0,width-2*pad);
-    const int tool_columns=wrapped_tools ? 5:10;
+    const int tool_columns=wrapped_tools ? 5:static_cast<int>(tools.size());
     const int tool_w=usable/tool_columns;
     const int control_w=usable/8;
     for (std::size_t i=0;i<tools.size();++i) {
@@ -51,11 +54,11 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
             out.toolbar.y+pad+row*36*unit,std::max(0,tool_w-pad),28*unit},true};
     }
     for (std::size_t i=0;i<controls.size();++i)
-        out.buttons[10+i]={controls[i],{pad+static_cast<int>(i)*control_w,
-            out.toolbar.y+(wrapped_tools ? 72:36)*unit,
+        out.buttons[tools.size()+i]={controls[i],{pad+static_cast<int>(i)*control_w,
+            out.toolbar.y+tool_rows*36*unit,
             std::max(0,control_w-pad),28*unit},true};
-    out.buttons[18]={Action::TogglePanel,out.panel_toggle,true};
-    out.buttons[19]={Action::ToggleHelp,{std::max(0,width-186*unit),8*unit,
+    out.buttons[tools.size()+8]={Action::TogglePanel,out.panel_toggle,true};
+    out.buttons[tools.size()+9]={Action::ToggleHelp,{std::max(0,width-186*unit),8*unit,
         84*unit,32*unit},true};
     return out;
 }

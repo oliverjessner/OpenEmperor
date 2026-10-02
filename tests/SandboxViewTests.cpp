@@ -1707,6 +1707,65 @@ int main(int argc,char** argv) {
             "F9 did not restore the exact demolished World paused without ghost entities");
         operations_view.shutdown();
 
+        // City-v12 keeps fire presentation read-only, including active incidents.
+        std::vector<std::uint8_t> fire_buildable;
+        auto fire_session=city_v10_fixture(temp,fire_buildable);
+        openemperor::SandboxView fire_view(std::move(fire_session),true,
+            simulation::RulesProfile::CityV12);
+        fire_view.configure_save(temp.path,"Cities/Synthetic.map",{});
+        fire_view.set_building_visuals(building_fixture(temp));
+        fire_view.set_walker_visuals(multi_role_walker_fixture(temp));
+        fire_view.initialize(window,renderer);
+        check(fire_view.world().ticks()==0 && fire_view.world().treasury()==20 &&
+            fire_view.world().workforce_used()==24 && fire_view.world().workforce_required()==24 &&
+            fire_view.world().buildings().size()==11 && fire_view.world().couriers().size()==8,
+            "City-v12 SDL starter is not paid or fully staffed");
+        const auto fire_button=std::find_if(fire_view.layout().buttons.begin(),fire_view.layout().buttons.end(),
+            [](const auto& button){return button.action==openemperor::sandbox_ui::Action::FireWatch;});
+        check(fire_button!=fire_view.layout().buttons.end() &&
+            fire_view.layout().button_at(fire_button->rect.x+1,fire_button->rect.y+1)==
+                openemperor::sandbox_ui::Action::FireWatch,"Fire Watch toolbar missing");
+        // The affordable tool is tested in a separate empty profile-specific view below.
+        const auto watch=std::find_if(fire_view.world().buildings().begin(),fire_view.world().buildings().end(),
+            [](const auto& b){return b.kind==simulation::Object::FireWatch;})->id;
+        check(fire_view.execute(simulation::set_building_operation(watch,false)).accepted,
+            "Watch pause command unavailable");
+        for (int i=0;i<2000;++i) fire_view.tick_once();
+        check(fire_view.world().burning_buildings()==10 && fire_view.world().fire_state_valid(),
+            "UI fixture natural incidents absent");
+        mouse_click(fire_view,static_cast<float>(fire_view.layout().panel.x+20),
+            static_cast<float>(fire_view.layout().panel.y+50),running);
+        check(fire_view.selected_building()==fire_view.world().buildings().front().id,
+            "fire inspector selection failed");
+        const auto fire_details=fire_view.inspection_lines();
+        check(std::find(fire_details.begin(),fire_details.end(),"On fire - operation suspended.")!=fire_details.end() &&
+            std::find(fire_details.begin(),fire_details.end(),"Status: Unstaffed")==fire_details.end(),
+            "burning building mislabeled unstaffed");
+        const auto before_fire_render=fire_view.world().snapshot();
+        perf::set_enabled(true);perf::reset();
+        for (int i=0;i<50;++i) {
+            for (const auto code:{SDLK_F1,SDLK_F2,SDLK_F4,SDLK_F6,SDLK_TAB})
+                fire_view.handle_event(key(code),running);
+            SDL_Event zoom{};zoom.type=SDL_EVENT_MOUSE_WHEEL;
+            zoom.wheel.mouse_x=300;zoom.wheel.mouse_y=240;zoom.wheel.y=i%2 ? -1.0F:1.0F;
+            fire_view.handle_event(zoom,running);
+            fire_view.handle_event(key(i%2 ? SDLK_LEFT:SDLK_RIGHT),running);
+            check(fire_view.render(),"fire primitive overlay render failed");
+        }
+        check(fire_view.world().snapshot()==before_fire_render &&
+            perf::counter(perf::Counter::AssetDecodes)==0 &&
+            perf::counter(perf::Counter::TextureUploads)==0 &&
+            perf::counter(perf::Counter::BfsCalls)==0 &&
+            perf::counter(perf::Counter::RouteRefreshes)==0 &&
+            perf::counter(perf::Counter::WorldCopies)==0,"fire render changed World or loaded assets/routes");
+        perf::set_enabled(false);fire_view.shutdown();
+        auto empty_fire_session=city_v10_fixture(temp,fire_buildable);
+        openemperor::SandboxView empty_fire(std::move(empty_fire_session),false,
+            simulation::RulesProfile::CityV12);
+        empty_fire.initialize(window,renderer);empty_fire.handle_event(key(SDLK_F),running);
+        check(empty_fire.tool()==11 && empty_fire.render(),"F does not select Fire Watch");
+        empty_fire.shutdown();
+
         const auto scaled=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);
         const auto scaled_button=std::find_if(scaled.buttons.begin(),scaled.buttons.end(),
             [](const auto& item) { return item.action==openemperor::sandbox_ui::Action::Clay; });

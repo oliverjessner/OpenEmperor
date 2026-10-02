@@ -215,6 +215,7 @@ target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohman
 openemperor_enable_warnings(openemperor-maps)
 add_library(openemperor-simulation STATIC
     src/simulation/World.cpp
+    src/simulation/WorldFire.cpp
     src/simulation/CityStartGuidance.cpp)
 target_include_directories(openemperor-simulation PUBLIC src)
 openemperor_enable_warnings(openemperor-simulation)
@@ -363,6 +364,15 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-city-v11-demolition-tests)
     add_test(NAME sandbox-city-v11-demolition COMMAND openemperor-sandbox-city-v11-demolition-tests)
     set_tests_properties(sandbox-city-v11-demolition PROPERTIES TIMEOUT 180)
+    add_executable(openemperor-sandbox-city-v12-tests tests/SandboxCityV12Tests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v12-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-sandbox-city-v12-tests)
+    foreach(fire_test base persistence determinism endurance)
+        add_test(NAME sandbox-city-v12-${fire_test}
+            COMMAND openemperor-sandbox-city-v12-tests ${fire_test})
+        set_tests_properties(sandbox-city-v12-${fire_test} PROPERTIES TIMEOUT 300)
+    endforeach()
+    set_tests_properties(sandbox-city-v12-endurance PROPERTIES TIMEOUT 900)
 
     add_executable(openemperor-city-start-guidance-tests
         tests/CityStartGuidanceTests.cpp)

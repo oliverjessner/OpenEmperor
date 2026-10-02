@@ -97,11 +97,16 @@ void active_city_commit(sim::RulesProfile profile) {
     execute(world,sim::CommandType::PlacePottery,{6,2});
     execute(world,sim::CommandType::PlaceWarehouse,{10,2});
     execute(world,sim::CommandType::PlaceFarm,{14,2});
-    if (profile==sim::RulesProfile::CityV11)
+    if (sim::market_profile(profile))
         execute(world,sim::CommandType::PlaceMarket,{19,3});
     execute(world,sim::CommandType::PlaceServicePost,{21,3});
     execute(world,sim::CommandType::PlaceHousehold,{24,2});
     for (int x=2;x<=27;++x) execute(world,sim::CommandType::PlaceRoad,{x,4});
+    if (sim::fire_profile(profile)) {
+        execute(world,sim::CommandType::PlaceFireWatch,{27,3});
+        require(world.execute(sim::set_building_workforce_priority(*world.building_owner_at({27,3}),
+            sim::WorkforcePriority::High)).accepted,"Watch priority failed");
+    }
     for (int i=0;i<50;++i) world.tick();
     const auto plan=road::plan_road(world,{1,9},{30,9});
     require(plan.valid,"active-city 30-cell plan failed");
@@ -178,8 +183,8 @@ void counter_overflow() {
             "aggregate command counter overflow was not rejected");
 }
 
-void city_v11_road_warning_is_pure() {
-    auto world=make_world(sim::RulesProfile::CityV11,80,8);
+void city_road_warning_is_pure(sim::RulesProfile profile) {
+    auto world=make_world(profile,80,8);
     std::vector<sim::Command> commands;
     for (int y=0;y<3;++y) for (int x=0;x<80 && commands.size()<200;++x)
         commands.push_back({sim::CommandType::PlaceRoad,{x,y}});
@@ -225,13 +230,17 @@ int main() {
     try {
         preview_has_no_side_effect_work(sim::RulesProfile::CityV10);
         preview_has_no_side_effect_work(sim::RulesProfile::CityV11);
+        preview_has_no_side_effect_work(sim::RulesProfile::CityV12);
         batch_lengths_and_atomicity(sim::RulesProfile::CityV10);
         batch_lengths_and_atomicity(sim::RulesProfile::CityV11);
+        batch_lengths_and_atomicity(sim::RulesProfile::CityV12);
         active_city_commit(sim::RulesProfile::CityV10);
         active_city_commit(sim::RulesProfile::CityV11);
+        active_city_commit(sim::RulesProfile::CityV12);
         mixtures_and_failures();
         counter_overflow();
-        city_v11_road_warning_is_pure();
+        city_road_warning_is_pure(sim::RulesProfile::CityV11);
+        city_road_warning_is_pure(sim::RulesProfile::CityV12);
         report_preview_timing();
         std::cout<<"responsive road preview and transactional batches passed\n";
         return 0;

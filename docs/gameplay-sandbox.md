@@ -1,5 +1,9 @@
 # Logistics sandbox (`sandbox-logistics-v1`)
 
+## City-v12 fire safety
+
+The separately selected `sandbox-city-v12` rule 1 retains City-v11-v4 economy, operations and safe demolition, adding authored deterministic temporary fires. Eligible buildings gain risk every 20 placement-relative ticks; threshold 100 starts a 600-tick incident. A connected, staffed 80-fund/two-worker Fire Watch sends its cargo-free Inspector through existing roads, preferring reachable burning targets before ordinary cyclic patrol. Actual arrival extinguishes and refreshes 2,400-tick protection. Fire Watch itself is immune. Burning work suspends production, worker assignment and new owner dispatch without deleting goods/recipes or blocking active/inbound trips. Houses keep supplying workforce but miss demands during fire with ordinary population decline and no consumption or tax. There is no destruction, RNG, new good or claim of original fire mechanics. Schema 14 stores exact fire state; old profiles remain unchanged. The paid prepared starter adds a Watch on an existing road, costs 1,280, leaves 20 and staffs 24/24. `F` selects its visible tool; primitive fire visuals are tick-derived. City-v11 stays the menu default. See [rules and validation](city-v12.md).
+
 ## City-v11 Market and operation profile
 
 `sandbox-city-v11` preserves City-v10 and changes only goods distribution. Warehouses deliver Pottery to reachable Markets and Farms deliver Food to reachable Markets. A staffed Market then uses two independent couriers to deliver those goods to Houses. Service Posts still visit Houses directly. There is no Market coverage flag or new good.

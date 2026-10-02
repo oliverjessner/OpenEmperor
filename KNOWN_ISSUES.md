@@ -1,5 +1,7 @@
 # OpenEmperor 0.1.0-alpha.2 candidate known issues
 
+- City-v12 fire safety is an opt-in authored prototype (rule 1/schema 14), not original Emperor fire parity. Incidents end naturally without destruction or goods loss. FireWatch and Inspector deliberately have fallback visuals. Protection requires road-connected, staffed patrol and is not guaranteed across arbitrary large layouts. Burning Houses retain workforce until ordinary missed-demand decline. The full native 20–30 minute fire-expansion/recovery acceptance is still pending; City-v11 remains the default. See [City-v12 validation](docs/city-v12.md).
+
 - Current source supports City-v11 v4 safe empty-building demolition through explicit copy upgrade/restore. New games retain v3 until native replanning acceptance. Stock, recipes and active/returning deliveries deliberately block removal; unmatched goods may require further supply to drain. No discard, refund or guaranteed recovery is implemented. Older v3 saves require an explicit copy upgrade.
 
 - The complete native demolition/replanning playthrough remains pending: SDL event logging showed that the UI automation tool's coordinate clicks arrived at `(0,0)`. Keyboard actions work; core and SDL event tests passed. See [validation and manual acceptance](docs/testing-city-v11-v4.md). Finder/Gatekeeper launch and an independent clean-Mac test also remain unperformed.

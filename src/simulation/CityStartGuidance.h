@@ -16,7 +16,8 @@ enum class StarterSupplyCondition : std::uint8_t {
     Unstaffed,
     NoReachableTarget,
     AwaitingGoods,
-    DeliveringOrReady
+    DeliveringOrReady,
+    OnFire
 };
 
 struct StarterFacilityStatus {

@@ -16,7 +16,7 @@ inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
 enum class RulesProfile {
     LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8,
-    CityV9, CityV10, CityV11
+    CityV9, CityV10, CityV11, CityV12
 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
@@ -27,6 +27,14 @@ inline constexpr const char* city_v8_profile_name = "sandbox-city-v8";
 inline constexpr const char* city_v9_profile_name = "sandbox-city-v9";
 inline constexpr const char* city_v10_profile_name = "sandbox-city-v10";
 inline constexpr const char* city_v11_profile_name = "sandbox-city-v11";
+inline constexpr const char* city_v12_profile_name = "sandbox-city-v12";
+constexpr bool fire_profile(RulesProfile profile) { return profile==RulesProfile::CityV12; }
+constexpr bool market_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV11 || fire_profile(profile);
+}
+constexpr bool scalable_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV10 || market_profile(profile);
+}
 inline constexpr std::size_t legacy_max_buildings=9;
 inline constexpr std::size_t legacy_max_couriers=5;
 inline constexpr std::size_t city_v7_max_buildings=10;
@@ -41,7 +49,7 @@ constexpr bool household_profile(RulesProfile profile) {
            profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6 ||
            profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
            profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10 ||
-           profile==RulesProfile::CityV11;
+           market_profile(profile);
 }
 constexpr bool production_profile(RulesProfile profile) {
     return profile==RulesProfile::ProductionV2 || household_profile(profile);
@@ -50,25 +58,25 @@ constexpr bool industry_profile(RulesProfile profile) {
     return profile==RulesProfile::IndustryV5 || profile==RulesProfile::CityV6 ||
            profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
            profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10 ||
-           profile==RulesProfile::CityV11;
+           market_profile(profile);
 }
 constexpr bool city_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV6 || profile==RulesProfile::CityV7 ||
            profile==RulesProfile::CityV8 || profile==RulesProfile::CityV9 ||
-           profile==RulesProfile::CityV10 || profile==RulesProfile::CityV11;
+           scalable_profile(profile);
 }
 constexpr bool food_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV7 || profile==RulesProfile::CityV8 ||
            profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10 ||
-           profile==RulesProfile::CityV11;
+           market_profile(profile);
 }
 constexpr bool service_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV8 || profile==RulesProfile::CityV9 ||
-           profile==RulesProfile::CityV10 || profile==RulesProfile::CityV11;
+           scalable_profile(profile);
 }
 constexpr bool population_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV9 || profile==RulesProfile::CityV10 ||
-           profile==RulesProfile::CityV11;
+           market_profile(profile);
 }
 const char* rules_profile_name(RulesProfile profile);
 struct Rules {
@@ -136,7 +144,24 @@ struct Rules {
     static constexpr std::size_t city_v11_market_limit = 4;
     static constexpr std::size_t city_v11_building_limit = 38;
     static constexpr std::size_t city_v11_courier_limit = 22;
+    static constexpr std::int64_t fire_watch_cost = 80;
+    static constexpr int fire_watch_workers = 2;
+    static constexpr std::size_t fire_watch_limit = 2;
+    static constexpr std::size_t city_v12_building_limit = 40;
+    static constexpr std::size_t city_v12_courier_limit = 24;
+    static constexpr std::uint64_t fire_risk_step_ticks = 20;
+    static constexpr int fire_risk_threshold = 100;
+    static constexpr std::uint64_t fire_protection_ticks = 2400;
+    static constexpr std::uint64_t fire_incident_ticks = 600;
 };
+constexpr std::size_t building_collection_limit(RulesProfile profile) {
+    return fire_profile(profile) ? Rules::city_v12_building_limit:
+        market_profile(profile) ? Rules::city_v11_building_limit:Rules::city_v10_building_limit;
+}
+constexpr std::size_t courier_collection_limit(RulesProfile profile) {
+    return fire_profile(profile) ? Rules::city_v12_courier_limit:
+        market_profile(profile) ? Rules::city_v11_courier_limit:Rules::city_v10_courier_limit;
+}
 
 struct ProfileRules {
     std::uint32_t version=1;
@@ -153,7 +178,7 @@ bool rule_version_supported(RulesProfile profile,std::uint32_t version);
 const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version);
 
 constexpr std::int64_t starting_treasury_for(RulesProfile profile) {
-    return profile==RulesProfile::CityV11 ? Rules::city_v11_starting_treasury:
+    return market_profile(profile) ? Rules::city_v11_starting_treasury:
         Rules::starting_treasury;
 }
 
@@ -163,7 +188,8 @@ struct Cell {
     bool operator==(const Cell&) const = default;
 };
 enum class Object : std::uint8_t {
-    Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost, Market
+    Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost, Market,
+    FireWatch
 };
 struct BuildingFootprint {
     int width=1;
@@ -184,7 +210,8 @@ enum class WorkforcePriority : std::uint8_t { High=0, Normal=1, Low=2 };
 const char* workforce_priority_name(WorkforcePriority priority);
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
                          RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost, PlaceMarket,
-                         SetBuildingOperation, SetBuildingWorkforcePriority, DemolishBuilding };
+                         SetBuildingOperation, SetBuildingWorkforcePriority, DemolishBuilding,
+                         PlaceFireWatch };
 struct Command {
     CommandType type;
     Cell cell{};
@@ -219,7 +246,7 @@ enum class CourierId : std::uint32_t { Clay=1, Pottery=2, Household=3, Food=6, S
 enum class CourierRole : std::uint8_t {
     None=0, Clay=1, Pottery=2, Household=3, Food=4, Service=5,
     MarketPotteryInbound=6, MarketFoodInbound=7,
-    MarketPotteryDistribution=8, MarketFoodDistribution=9
+    MarketPotteryDistribution=8, MarketFoodDistribution=9, FireInspector=10
 };
 enum class CourierDispatchStatus : std::uint8_t {
     Ready,
@@ -231,7 +258,8 @@ enum class CourierDispatchStatus : std::uint8_t {
     WaitingForRoadRevision,
     Unstaffed,
     OperationPaused,
-    Disabled
+    Disabled,
+    OnFire
 };
 const char* courier_dispatch_status_name(CourierDispatchStatus status);
 struct CourierDispatchDecision {
@@ -263,8 +291,12 @@ struct BuildingState {
     int population=0;
     bool operating_enabled=true;
     WorkforcePriority workforce_priority=WorkforcePriority::Normal;
+    int fire_risk=0;
+    std::uint64_t fire_protection_until_tick=0, fire_until_tick=0;
     bool operator==(const BuildingState&) const = default;
 };
+bool fire_eligible(Object kind);
+bool courier_can_target(CourierRole role,const BuildingState& target);
 struct CourierState {
     CourierId id=CourierId::Clay;
     CourierRole role=CourierRole::None;
@@ -326,6 +358,8 @@ struct BuildingSnapshot {
     int population=0;
     bool operating_enabled=true;
     WorkforcePriority workforce_priority=WorkforcePriority::Normal;
+    int fire_risk=0;
+    std::uint64_t fire_protection_until_tick=0, fire_until_tick=0;
     bool operator==(const BuildingSnapshot&) const = default;
 };
 // Historical accounting only. No removed entities, goods, population or UI state.
@@ -430,7 +464,7 @@ public:
     int workforce_required(BuildingId id) const;
     bool building_staffed(BuildingId id) const;
     bool operation_controls_supported() const {
-        return profile_==RulesProfile::CityV11 && rule_version_>=3;
+        return fire_profile(profile_) || (profile_==RulesProfile::CityV11 && rule_version_>=3);
     }
     static bool operation_controllable(Object kind);
     bool settlement_goal_reached() const;
@@ -453,8 +487,16 @@ public:
     std::int64_t construction_cost(CommandType type) const;
     bool production_balance_valid() const;
     bool demolition_supported() const {
-        return profile_==RulesProfile::CityV11 && rule_version_==4;
+        return fire_profile(profile_) || (profile_==RulesProfile::CityV11 && rule_version_==4);
     }
+    bool building_fire_protected(BuildingId id) const;
+    bool building_on_fire(BuildingId id) const;
+    std::uint64_t fire_protection_remaining(BuildingId id) const;
+    std::uint64_t fire_remaining(BuildingId id) const;
+    std::size_t fire_eligible_buildings() const;
+    std::size_t protected_buildings() const;
+    std::size_t burning_buildings() const;
+    bool fire_state_valid() const;
     DemolitionStatus demolition_status(BuildingId id) const;
     std::string canonical_state() const;
     WorldSnapshot snapshot() const;
@@ -490,6 +532,7 @@ public:
     int warehouse_stock() const { return warehouse_stock_; }
     bool goods_balance_valid() const;
 private:
+    void update_fire();
     CommandResult execute_impl(Command command,bool refresh_after);
     std::size_t index(Cell cell) const;
     std::optional<std::vector<Cell>> find_road_route(Cell start,Cell goal) const;

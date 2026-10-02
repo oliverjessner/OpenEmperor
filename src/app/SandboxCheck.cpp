@@ -78,18 +78,15 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             simulation::production_profile(rules) ? 3000 : 700;
         for (int i=0;i<limit;++i) {
             const auto before=simulation::household_profile(rules) &&
-                rules!=simulation::RulesProfile::CityV10 &&
-                rules!=simulation::RulesProfile::CityV11 ?
+                !simulation::scalable_profile(rules) ?
                 view.world().courier(simulation::CourierId::Household):simulation::CourierState{};
             std::vector<std::pair<simulation::CourierId,simulation::CourierPhase>> previous;
-            const unsigned courier_count=(rules==simulation::RulesProfile::CityV10 ||
-                rules==simulation::RulesProfile::CityV11) ?
+            const unsigned courier_count=(simulation::scalable_profile(rules)) ?
                 static_cast<unsigned>(view.world().couriers().size()):
                 simulation::service_profile(rules) ? 7U:
                 simulation::food_profile(rules) ? 6U:
                 simulation::industry_profile(rules) ? 5U:0U;
-            if (rules==simulation::RulesProfile::CityV10 ||
-                rules==simulation::RulesProfile::CityV11) {
+            if (simulation::scalable_profile(rules)) {
                 for (const auto& c:view.world().couriers()) previous.emplace_back(c.id,c.phase);
             } else if (courier_count)
                 for (unsigned id=1;id<=courier_count;++id)
@@ -234,9 +231,9 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         };
         const auto& world=view.world();
         const auto origin=view.demo_origin();
-        if (rules==simulation::RulesProfile::CityV10 ||
-            rules==simulation::RulesProfile::CityV11) {
-            const bool v11=rules==simulation::RulesProfile::CityV11;
+        if (simulation::scalable_profile(rules)) {
+            const bool v11=simulation::market_profile(rules);
+            const bool fire=simulation::fire_profile(rules);
             const auto building_stats=view.building_display_stats();
             const auto visual_role_ok=[&](assets::BuildingVisualRole role) {
                 const auto index=assets::role_index(role);
@@ -273,10 +270,10 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                         {"priority",simulation::workforce_priority_name(b.workforce_priority)}});
             }
             const bool success=houses==(v11 ? 4U:3U) && warehouses==1 && farms==1 && posts==1 &&
-                markets==(v11 ? 1U:0U) && world.buildings().size()==(v11 ? 10U:8U) &&
-                world.couriers().size()==(v11 ? 7U:5U) && service_visits>0 &&
+                markets==(v11 ? 1U:0U) && world.buildings().size()==(fire ? 11U:v11 ? 10U:8U) &&
+                world.couriers().size()==(fire ? 8U:v11 ? 7U:5U) && service_visits>0 &&
                 (!v11 || (fulfilled>0 && world.taxes_collected_total()>0)) &&
-                balanced && rendered && visual_ok && (!resume_check ||
+                balanced && world.fire_state_valid() && rendered && visual_ok && (!resume_check ||
                     (saved && reparsed && fresh_world && direct_equal && continued_equal));
             nlohmann::json configured=nlohmann::json::array();
             nlohmann::json draws=nlohmann::json::object(),fallbacks=nlohmann::json::object();
@@ -287,7 +284,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 draws[name]=building_stats.drawn_instances[index];
                 fallbacks[name]=building_stats.placeholder_fallbacks[index];
             }
-            std::cout<<nlohmann::json{{"schema",v11 ? "openemperor-sandbox-check-v11":
+            std::cout<<nlohmann::json{{"schema",fire ? "openemperor-sandbox-check-v12":v11 ? "openemperor-sandbox-check-v11":
                                                     "openemperor-sandbox-check-v10"},
                 {"rules",simulation::rules_profile_name(rules)},
                 {"rule_version",world.rule_version()},
@@ -296,7 +293,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 {"building_count",world.buildings().size()},{"courier_count",world.couriers().size()},
                 {"house_count",houses},{"population",world.total_population()},
                 {"warehouses",warehouses},{"farms",farms},{"service_posts",posts},
-                {"markets",markets},{"fulfilled_demands",fulfilled},
+                {"markets",markets},{"fire_protected",world.protected_buildings()},
+                {"fire_burning",world.burning_buildings()},{"fulfilled_demands",fulfilled},
                 {"households",household_states},{"operation_states",operation_states},
                 {"treasury_before",initial_treasury},{"treasury",world.treasury()},
                 {"treasury_delta",world.treasury()-initial_treasury},

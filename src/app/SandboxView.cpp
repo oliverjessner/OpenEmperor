@@ -30,6 +30,7 @@ const char* tool_name(simulation::RulesProfile rules,int tool) {
         case 7: return "Household";
         case 8: return "Farm";
         case 9: return "Service post";
+        case 11: return "Fire Watch";
         default: return "Select";
         }
     }
@@ -52,6 +53,7 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::Farm: return "Farm";
     case simulation::Object::ServicePost: return "Service post";
     case simulation::Object::Market: return "Market";
+    case simulation::Object::FireWatch: return "Fire Watch";
     }
     return "Unknown";
 }
@@ -66,6 +68,7 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool) {
         case 6: return simulation::CommandType::RemoveRoad;
         case 8: return simulation::CommandType::PlaceFarm;
         case 9: return simulation::CommandType::PlaceServicePost;
+        case 11: return simulation::CommandType::PlaceFireWatch;
         default: return simulation::CommandType::PlaceHousehold;
         }
     }
@@ -88,6 +91,7 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::CityV9: return "City v9";
     case simulation::RulesProfile::CityV10: return "City v10";
     case simulation::RulesProfile::CityV11: return "City v11";
+    case simulation::RulesProfile::CityV12: return "City v12";
     }
     return "Sandbox";
 }
@@ -371,7 +375,8 @@ void SandboxView::update_layout(bool preserve_center) {
         throw std::runtime_error(SDL_GetError());
     if (!SDL_GetWindowSize(window_,&window_width,&window_height))
         throw std::runtime_error(SDL_GetError());
-    const auto next=sandbox_ui::make_layout(width,height,window_width,window_height,panel_open_);
+    const auto next=sandbox_ui::make_layout(width,height,window_width,window_height,panel_open_,
+        simulation::fire_profile(rules_));
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) return;
     scene::Point center{};
@@ -395,7 +400,7 @@ void SandboxView::update_layout(bool preserve_center) {
     refresh_hover();
 }
 void SandboxView::place_demo() {
-    if (rules_==simulation::RulesProfile::CityV11) {
+    if (simulation::market_profile(rules_)) {
         for (int y=0;y+4<world_->height();++y) for (int x=0;x+14<world_->width();++x) {
             std::vector<simulation::Command> commands{
                 {simulation::CommandType::PlaceClaySource,{x,y}},
@@ -411,6 +416,8 @@ void SandboxView::place_demo() {
                 {simulation::CommandType::PlaceHousehold,{x+6,y+3}},
                 {simulation::CommandType::PlaceHousehold,{x+9,y}},
                 {simulation::CommandType::PlaceHousehold,{x+9,y+3}}});
+            if (simulation::fire_profile(rules_))
+                commands.push_back({simulation::CommandType::PlaceFireWatch,{x+14,y+3}});
             bool valid=true;
             for (const auto& command:commands) {
                 const auto kind=command.type==simulation::CommandType::PlaceClaySource ?
@@ -420,6 +427,7 @@ void SandboxView::place_demo() {
                     command.type==simulation::CommandType::PlaceMarket ? simulation::Object::Market:
                     command.type==simulation::CommandType::PlaceFarm ? simulation::Object::Farm:
                     command.type==simulation::CommandType::PlaceServicePost ? simulation::Object::ServicePost:
+                    command.type==simulation::CommandType::PlaceFireWatch ? simulation::Object::FireWatch:
                     command.type==simulation::CommandType::PlaceHousehold ? simulation::Object::Household:
                     simulation::Object::Road;
                 const auto cells=kind==simulation::Object::Road ?
@@ -433,15 +441,17 @@ void SandboxView::place_demo() {
             if (!valid) continue;
             for (const auto& command:commands) {
                 if (!world_->execute(command).accepted)
-                    throw std::logic_error("City-v11 Market demo command failed");
+                    throw std::logic_error("City starter command failed");
             }
             demo_origin_=simulation::Cell{x,y};
             reset_camera();
-            last_message_="City v11 v"+std::to_string(world_->rule_version())+
-                " tick-0 starter placed: 1200 spent, 100 funds remain";
+            last_message_=std::string(profile_title(rules_))+" v"+
+                std::to_string(world_->rule_version())+" tick-0 starter placed: "+
+                std::to_string(world_->construction_spent_total())+" spent, "+
+                std::to_string(world_->treasury())+" funds remain";
             return;
         }
-        throw std::runtime_error("no suitable 15x5 sandbox-buildable City-v11 starter pattern");
+        throw std::runtime_error("no suitable 15x5 sandbox-buildable city starter pattern");
     }
     if (rules_==simulation::RulesProfile::CityV10) {
         for (int y=0;y+3<world_->height();++y) for (int x=0;x+16<world_->width();++x) {
@@ -729,6 +739,7 @@ void SandboxView::set_tool(int tool) {
     case 7: action=sandbox_ui::Action::Household; break;
     case 8: action=sandbox_ui::Action::Farm; break;
     case 9: action=sandbox_ui::Action::ServicePost; break;
+    case 11: action=sandbox_ui::Action::FireWatch; break;
     default: return;
     }
     if (action_enabled(action)) perform_action(action);
@@ -752,26 +763,28 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
             command=simulation::CommandType::PlaceServicePost;
         else if (action==sandbox_ui::Action::Market)
             command=simulation::CommandType::PlaceMarket;
+        else if (action==sandbox_ui::Action::FireWatch)
+            command=simulation::CommandType::PlaceFireWatch;
         if (command && world_->treasury()<world_->construction_cost(*command)) return false;
     }
     if (action==sandbox_ui::Action::RemoveRoad)
         return simulation::production_profile(rules_);
     if (action==sandbox_ui::Action::Household)
         return simulation::household_profile(rules_) && count_kind(simulation::Object::Household)<
-            ((rules_==simulation::RulesProfile::CityV10 ||
-              rules_==simulation::RulesProfile::CityV11) ? 20:4);
+            ((simulation::scalable_profile(rules_)) ? 20:4);
     if (action==sandbox_ui::Action::Farm)
         return simulation::food_profile(rules_) &&
             count_kind(simulation::Object::Farm)<
-                ((rules_==simulation::RulesProfile::CityV10 ||
-                  rules_==simulation::RulesProfile::CityV11) ? 2:1);
+                ((simulation::scalable_profile(rules_)) ? 2:1);
     if (action==sandbox_ui::Action::ServicePost)
         return simulation::service_profile(rules_) &&
             count_kind(simulation::Object::ServicePost)<
-                ((rules_==simulation::RulesProfile::CityV10 ||
-                  rules_==simulation::RulesProfile::CityV11) ? 2:1);
+                ((simulation::scalable_profile(rules_)) ? 2:1);
+    if (action==sandbox_ui::Action::FireWatch)
+        return simulation::fire_profile(rules_) && count_kind(simulation::Object::FireWatch)<
+            static_cast<std::ptrdiff_t>(simulation::Rules::fire_watch_limit);
     if (action==sandbox_ui::Action::Market)
-        return rules_==simulation::RulesProfile::CityV11 &&
+        return simulation::market_profile(rules_) &&
             count_kind(simulation::Object::Market)<
                 static_cast<std::ptrdiff_t>(simulation::Rules::city_v11_market_limit);
     if (action==sandbox_ui::Action::Clay || action==sandbox_ui::Action::Pottery ||
@@ -784,8 +797,7 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
         if (action==sandbox_ui::Action::Pottery && !simulation::production_profile(rules_)) return false;
         int count=0;
         count=static_cast<int>(count_kind(wanted));
-        const int limit=(rules_==simulation::RulesProfile::CityV10 ||
-                         rules_==simulation::RulesProfile::CityV11) ?
+        const int limit=(simulation::scalable_profile(rules_)) ?
             (wanted==simulation::Object::ClaySource || wanted==simulation::Object::Pottery ? 4:
              wanted==simulation::Object::Warehouse ? 2:1):
             (simulation::industry_profile(rules_) &&
@@ -897,6 +909,7 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         else if (action==A::Farm) command=simulation::CommandType::PlaceFarm;
         else if (action==A::ServicePost) command=simulation::CommandType::PlaceServicePost;
         else if (action==A::Market) command=simulation::CommandType::PlaceMarket;
+        else if (action==A::FireWatch) command=simulation::CommandType::PlaceFireWatch;
         if (simulation::city_profile(rules_) && command &&
             world_->treasury()<world_->construction_cost(*command))
             last_message_="Need "+std::to_string(world_->construction_cost(*command))+
@@ -907,13 +920,13 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     }
     if (action==A::Select || action==A::Road || action==A::Clay || action==A::Pottery ||
         action==A::Warehouse || action==A::RemoveRoad || action==A::Household ||
-        action==A::Farm || action==A::ServicePost || action==A::Market) {
+        action==A::Farm || action==A::ServicePost || action==A::Market || action==A::FireWatch) {
         cancel_gesture();
         tool_=action==A::Select ? (simulation::production_profile(rules_) ? 5:4) :
             action==A::Road ? 1 : action==A::Clay ? 2 : action==A::Pottery ? 3 :
             action==A::Warehouse ? (simulation::production_profile(rules_) ? 4:3) :
             action==A::RemoveRoad ? 6:action==A::Household ? 7:action==A::Farm ? 8:
-            action==A::ServicePost ? 9:0;
+            action==A::ServicePost ? 9:action==A::FireWatch ? 11:0;
         last_message_=tool_name(rules_,tool_);
     } else if (action==A::Pause) clock_.toggle_pause();
     else if (action==A::Step) clock_.step_once(*world_);
@@ -1063,8 +1076,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
              simulation::household_profile(rules_) ? SDLK_7 :
              rules_==simulation::RulesProfile::ProductionV2 ? SDLK_6 : SDLK_4))
             set_tool(static_cast<int>(event.key.key-SDLK_1)+1);
-        else if (event.key.key==SDLK_0 && rules_==simulation::RulesProfile::CityV11)
+        else if (event.key.key==SDLK_0 && simulation::market_profile(rules_))
             set_tool(0);
+        else if (event.key.key==SDLK_F && simulation::fire_profile(rules_)) set_tool(11);
         else if (event.key.key==SDLK_SPACE) perform_action(sandbox_ui::Action::Pause);
         else if (event.key.key==SDLK_PERIOD) perform_action(sandbox_ui::Action::Step);
         else if (event.key.key==SDLK_PLUS || event.key.key==SDLK_EQUALS || event.key.key==SDLK_KP_PLUS)
@@ -1415,6 +1429,30 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                  simulation::Object::Road});
         }
     }
+    const auto draw_fire_overlay=[&](simulation::Cell cell,scene::Point center,
+                                     bool placement_preview)->bool {
+        if (placement_preview || !simulation::fire_profile(rules_)) return true;
+        const auto owner=world_->building_owner_at(cell);
+        if (!owner || !simulation::fire_eligible(world_->building(*owner).kind)) return true;
+        const bool burning=world_->building_on_fire(*owner);
+        if (burning) {
+            const float size=static_cast<float>(std::max(7.0,14.0*camera_.zoom));
+            const float flicker=static_cast<float>((world_->ticks()/4U)%3U)*size*0.15F;
+            const float x=static_cast<float>(center.x),y=static_cast<float>(center.y)-size;
+            const SDL_Vertex flame[]={{{x-size,y},{220,75,30,235},{}},
+                {{x+size,y},{245,125,35,235},{}},
+                {{x,y-size*2.5F-flicker},{255,205,65,245},{}}};
+            if (!SDL_RenderGeometry(renderer_,nullptr,flame,3,nullptr,0)) return false;
+        }
+        if (debug_open_) {
+            const auto text=std::string(burning ? "FIRE ":"Risk ")+
+                std::to_string(world_->building(*owner).fire_risk);
+            if (!SDL_SetRenderDrawColor(renderer_,burning ? 255:220,burning ? 170:230,95,255) ||
+                !SDL_RenderDebugText(renderer_,static_cast<float>(center.x)+8,
+                    static_cast<float>(center.y)-38,text.c_str())) return false;
+        }
+        return true;
+    };
     const auto draw_object=[&](simulation::Cell cell,simulation::Object object,
                                bool placement_preview)->bool {
         const int x=cell.x,y=cell.y;
@@ -1471,7 +1509,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                                 placement_preview))
                         return false;
                     if (!placement_preview) ++building_drawn_instances_[assets::role_index(*role)];
-                    return true;
+                    return draw_fire_overlay(cell,center,placement_preview);
                 }
                 if (placement_preview) return true;
                 ++building_placeholder_fallbacks_[assets::role_index(*role)];
@@ -1487,6 +1525,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 color=debug_open_ ? SDL_Color{220,190,55,255}:SDL_Color{126,119,70,255};
             if (object==simulation::Object::ServicePost)
                 color=debug_open_ ? SDL_Color{80,205,255,255}:SDL_Color{91,119,132,255};
+            if (object==simulation::Object::FireWatch)
+                color=debug_open_ ? SDL_Color{215,140,80,255}:SDL_Color{124,104,84,255};
             if (object==simulation::Object::Market)
                 color=debug_open_ ? SDL_Color{225,170,65,255}:SDL_Color{133,104,65,255};
             if (!draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true)) return false;
@@ -1497,6 +1537,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 !SDL_RenderFillRect(renderer_,&rect)) return false;
             if (debug_open_ && (object==simulation::Object::Household || object==simulation::Object::Farm ||
                 object==simulation::Object::ServicePost || object==simulation::Object::Market ||
+                object==simulation::Object::FireWatch ||
                 (simulation::industry_profile(rules_) &&
                  (object==simulation::Object::ClaySource || object==simulation::Object::Pottery)))) {
                 const auto id=world_->building_owner_at({x,y});
@@ -1505,14 +1546,15 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                     object==simulation::Object::ServicePost ? 'S':
                     object==simulation::Object::Market ? 'M':
                     object==simulation::Object::ClaySource ? 'C':'P';
-                const std::string label=std::string(1,prefix)+
+                const std::string label=(object==simulation::Object::FireWatch ?
+                    std::string("FW"):std::string(1,prefix))+
                     std::to_string(static_cast<unsigned>(*id));
                 if (!SDL_SetRenderDrawColor(renderer_,255,255,255,255) ||
                     !SDL_RenderDebugText(renderer_,static_cast<float>(center.x)+7,
                         static_cast<float>(center.y)-16,label.c_str())) return false;
             }
         }
-        return true;
+        return draw_fire_overlay(cell,center,placement_preview);
     };
     const auto draw_agent=[&](simulation::Position position,SDL_Color body,SDL_Color cargo_color,
                               int cargo,int shift)->bool {
@@ -1589,6 +1631,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         if (!draw_agent(position,marker_color,cargo_color,courier.cargo,marker_shift)) return false;
         if (debug_open_ && (courier.role==simulation::CourierRole::Food ||
                             courier.role==simulation::CourierRole::Service ||
+                            courier.role==simulation::CourierRole::FireInspector ||
                             courier.role==simulation::CourierRole::MarketPotteryInbound ||
                             courier.role==simulation::CourierRole::MarketFoodInbound ||
                             courier.role==simulation::CourierRole::MarketPotteryDistribution ||
@@ -1596,6 +1639,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             const auto ground=camera_.world_to_screen(world_for(position));
             const char* label=courier.role==simulation::CourierRole::Food ? "F":
                 courier.role==simulation::CourierRole::Service ? "S":
+                courier.role==simulation::CourierRole::FireInspector ? "FI":
                 courier.role==simulation::CourierRole::MarketPotteryInbound ? "WP":
                 courier.role==simulation::CourierRole::MarketFoodInbound ? "FF":
                 courier.role==simulation::CourierRole::MarketPotteryDistribution ? "MP":"MF";
@@ -1627,6 +1671,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==7 ? simulation::Object::Household:
             tool_==8 ? simulation::Object::Farm:
             tool_==9 ? simulation::Object::ServicePost:
+            tool_==11 ? simulation::Object::FireWatch:
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
             building_visual_role(object):std::nullopt;
@@ -1660,6 +1705,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             id==3 ? SDL_Color{110,255,130,255}:
             courier.role==simulation::CourierRole::Food ? SDL_Color{235,200,70,255}:
             courier.role==simulation::CourierRole::Service ? SDL_Color{120,205,220,255}:
+            courier.role==simulation::CourierRole::FireInspector ? SDL_Color{200,150,95,255}:
             courier.role==simulation::CourierRole::MarketPotteryInbound ? SDL_Color{205,145,90,255}:
             courier.role==simulation::CourierRole::MarketFoodInbound ? SDL_Color{180,165,70,255}:
             courier.role==simulation::CourierRole::MarketPotteryDistribution ? SDL_Color{210,125,120,255}:
@@ -1670,6 +1716,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
              courier.role==simulation::CourierRole::Pottery ? SDL_Color{143,121,95,255}:
              courier.role==simulation::CourierRole::Food ? SDL_Color{137,125,77,255}:
              courier.role==simulation::CourierRole::Service ? SDL_Color{105,120,126,255}:
+             courier.role==simulation::CourierRole::FireInspector ? SDL_Color{132,110,85,255}:
              courier.role==simulation::CourierRole::MarketPotteryInbound ? SDL_Color{128,104,79,255}:
              courier.role==simulation::CourierRole::MarketFoodInbound ? SDL_Color{121,112,73,255}:
              courier.role==simulation::CourierRole::MarketPotteryDistribution ? SDL_Color{132,91,87,255}:
@@ -1733,6 +1780,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==7 ? simulation::Object::Household:
             tool_==8 ? simulation::Object::Farm:
             tool_==9 ? simulation::Object::ServicePost:
+            tool_==11 ? simulation::Object::FireWatch:
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
             building_visual_role(object):std::nullopt;
@@ -1756,7 +1804,7 @@ std::optional<simulation::BuildingId> SandboxView::selected_building() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
-    if (rules_==simulation::RulesProfile::CityV11) {
+    if (simulation::market_profile(rules_)) {
         const auto guidance=simulation::inspect_city_start(*world_);
         const auto facility_kinds=[&](simulation::StarterSupplyCondition condition) {
             std::vector<simulation::Object> kinds;
@@ -1765,18 +1813,20 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             return kinds;
         };
         const auto add_pipeline_state=[&]() {
+            const auto burning=facility_kinds(simulation::StarterSupplyCondition::OnFire);
             const auto paused=facility_kinds(simulation::StarterSupplyCondition::Paused);
             const auto unstaffed=facility_kinds(simulation::StarterSupplyCondition::Unstaffed);
             const auto no_target=facility_kinds(
                 simulation::StarterSupplyCondition::NoReachableTarget);
             const auto awaiting=facility_kinds(simulation::StarterSupplyCondition::AwaitingGoods);
+            if (!burning.empty()) lines.push_back("On fire: "+joined_buildings(burning)+".");
             if (!paused.empty()) lines.push_back("Paused by player: "+joined_buildings(paused)+".");
             if (!unstaffed.empty()) lines.push_back("Unstaffed: "+joined_buildings(unstaffed)+".");
             if (!no_target.empty())
                 lines.push_back("No reachable delivery target: "+joined_buildings(no_target)+".");
             if (!awaiting.empty())
                 lines.push_back("Awaiting production or delivery: "+joined_buildings(awaiting)+".");
-            return !paused.empty() || !unstaffed.empty() || !no_target.empty() || !awaiting.empty();
+            return !burning.empty() || !paused.empty() || !unstaffed.empty() || !no_target.empty() || !awaiting.empty();
         };
         lines.push_back("START STATUS");
         if (!guidance.missing_supply_buildings.empty()) {
@@ -1850,6 +1900,15 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
+    if (simulation::fire_profile(rules_) && simulation::fire_eligible(b.kind)) {
+        lines.push_back("Fire risk: "+std::to_string(b.fire_risk)+"/"+
+            std::to_string(simulation::Rules::fire_risk_threshold));
+        lines.push_back(world_->building_on_fire(*id) ?
+            "ON FIRE - "+std::to_string(world_->fire_remaining(*id))+" ticks remaining":
+            world_->building_fire_protected(*id) ?
+            "Protection active - "+std::to_string(world_->fire_protection_remaining(*id))+" ticks":
+            "Unprotected");
+    }
     const auto footprint=simulation::building_footprint(rules_,b.kind);
     const auto front=simulation::building_front_cell(rules_,b.kind,b.cell);
     lines.push_back("Footprint "+std::to_string(footprint.width)+"x"+
@@ -1884,7 +1943,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                     (b.operating_enabled ? "Running":"Paused by player"));
                 lines.push_back(std::string("Worker priority: ")+
                     simulation::workforce_priority_name(b.workforce_priority));
-                if (!b.operating_enabled) {
+                if (world_->building_on_fire(*id))
+                    lines.push_back("On fire - operation suspended.");
+                else if (!b.operating_enabled) {
                     const bool moving=std::any_of(world_->couriers().begin(),world_->couriers().end(),
                         [&](const simulation::CourierState& courier) {
                             return courier.owner==b.id &&
@@ -1907,7 +1968,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Progress "+std::to_string(b.progress)+"/"+
             std::to_string(world_->active_rules().clay_ticks));
         lines.push_back("Produced total "+std::to_string(b.clay_extracted));
-        if (b.operating_enabled)
+        if (b.operating_enabled && !world_->building_on_fire(*id))
             lines.push_back(b.output==simulation::Rules::clay_output_capacity ? "Output full" :
                 "Extraction active");
     } else if (b.kind==simulation::Object::Pottery) {
@@ -1918,7 +1979,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             std::to_string(world_->active_rules().pottery_recipe_ticks));
         lines.push_back("Pottery output "+std::to_string(b.output)+"/8");
         lines.push_back("Produced total "+std::to_string(b.recipes_completed));
-        if (b.operating_enabled) lines.push_back(b.active_recipe_clay>0 ? "Processing" :
+        if (b.operating_enabled && !world_->building_on_fire(*id)) lines.push_back(b.active_recipe_clay>0 ? "Processing" :
             b.output>=simulation::Rules::pottery_output_capacity ? "Output full" :
             b.input_clay<simulation::Rules::pottery_recipe_clay ? "Awaiting input" : "Ready");
     } else if (b.kind==simulation::Object::Warehouse) {
@@ -1967,7 +2028,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 if (b.pottery_stock==0) add_missing("Pottery");
                 if (b.food_stock==0) add_missing("Food");
                 if (!world_->household_service_active(*id)) add_missing("Service");
-                lines.push_back(missing.empty() ? "Demand ready":"Missing "+missing);
+                lines.push_back(world_->building_on_fire(*id) ? "On fire - demand cannot be fulfilled":
+                    missing.empty() ? "Demand ready":"Missing "+missing);
             }
         } else if (rules_==simulation::RulesProfile::CityV6) {
             lines.push_back("Tax per supplied demand 25");
@@ -1982,12 +2044,18 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             std::to_string(world_->active_rules().farm_ticks));
         lines.push_back("Produced total "+std::to_string(b.food_produced));
     } else if (b.kind==simulation::Object::Market) {
-        if (b.operating_enabled) lines.push_back(std::string("Market ")+
+        if (b.operating_enabled && !world_->building_on_fire(*id)) lines.push_back(std::string("Market ")+
             (world_->building_staffed(*id) ? "staffed":"unstaffed"));
         lines.push_back("Pottery stock "+std::to_string(b.pottery_stock)+"/16");
         lines.push_back("Pottery incoming "+std::to_string(b.reserved_incoming));
         lines.push_back("Food stock "+std::to_string(b.food_stock)+"/16");
         lines.push_back("Food incoming "+std::to_string(b.reserved_food_incoming));
+    } else if (b.kind==simulation::Object::FireWatch) {
+        lines.push_back("Fire Watch - fireproof");
+        lines.push_back(std::string("Staffed ")+(world_->building_staffed(*id) ? "yes":"no"));
+        lines.push_back("Protected "+std::to_string(world_->protected_buildings())+"/"+
+            std::to_string(world_->fire_eligible_buildings()));
+        lines.push_back("Burning "+std::to_string(world_->burning_buildings()));
     } else if (b.kind==simulation::Object::ServicePost) {
         const auto found=std::find_if(world_->couriers().begin(),world_->couriers().end(),
             [&](const simulation::CourierState& c) { return c.owner==b.id; });
@@ -2031,6 +2099,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 c.role==simulation::CourierRole::Pottery ? "Pottery":
                 c.role==simulation::CourierRole::Food ? "Food":
                 c.role==simulation::CourierRole::Service ? "Service":
+                c.role==simulation::CourierRole::FireInspector ? "Fire Inspector":
                 c.role==simulation::CourierRole::MarketPotteryInbound ? "Pottery Market Supplier":
                 c.role==simulation::CourierRole::MarketFoodInbound ? "Market Food Supplier":
                 c.role==simulation::CourierRole::MarketPotteryDistribution ? "Pottery distributor":
@@ -2086,10 +2155,14 @@ bool SandboxView::draw_hud() {
     if (!SDL_SetRenderDrawColor(renderer_,230,236,244,255)) return false;
     const std::string profile=debug_open_ ? simulation::rules_profile_name(rules_):profile_title(rules_);
     std::string overview=profile;
-    if (rules_==simulation::RulesProfile::CityV11)
+    if (simulation::market_profile(rules_))
         overview+=" v"+std::to_string(world_->rule_version());
     overview+=" | Tick "+std::to_string(world_->ticks())+" | "+
         (clock_.paused()?"Paused ":"Running ")+std::to_string(clock_.speed())+"x";
+    if (simulation::fire_profile(rules_))
+        overview+=" | Fire "+std::to_string(world_->protected_buildings())+"/"+
+            std::to_string(world_->fire_eligible_buildings())+" protected, "+
+            std::to_string(world_->burning_buildings())+" BURNING";
     if (simulation::city_profile(rules_)) {
         overview+=" | Funds "+std::to_string(world_->treasury())+" | Workers ";
         if (simulation::population_profile(rules_))
@@ -2117,13 +2190,11 @@ bool SandboxView::draw_hud() {
             overview+=" | Service "+std::to_string(world_->covered_households())+"/"+
                 std::to_string(houses);
         overview+=" | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/"+
-            std::to_string((rules_==simulation::RulesProfile::CityV10 ||
-                            rules_==simulation::RulesProfile::CityV11) ?
+            std::to_string((simulation::scalable_profile(rules_)) ?
                            simulation::Rules::city_v10_goal_level2_households:4);
         if (simulation::population_profile(rules_))
             overview+=" Pop "+std::to_string(world_->total_population())+"/"+
-                std::to_string((rules_==simulation::RulesProfile::CityV10 ||
-                                rules_==simulation::RulesProfile::CityV11) ?
+                std::to_string((simulation::scalable_profile(rules_)) ?
                     simulation::Rules::city_v10_population_goal:
                     simulation::Rules::city_v9_population_goal);
     }
@@ -2135,8 +2206,10 @@ bool SandboxView::draw_hud() {
             " | Warehouse stock "+std::to_string(stored);
     }
     else overview+=" | Goods "+std::to_string(world_->total_produced());
+    if (world_->burning_buildings()>0 && !SDL_SetRenderDrawColor(renderer_,255,174,80,255)) return false;
     if (!draw_text(8*layout_.scale,18*layout_.scale,overview,
         layout_.top.w-200*layout_.scale)) return false;
+    if (!SDL_SetRenderDrawColor(renderer_,230,236,244,255)) return false;
     if (managed_ && !draw_text(layout_.top.w-82*layout_.scale,18*layout_.scale,
                                "[ MENU ]",80*layout_.scale)) return false;
     std::string status=road_start_ && !road_preview_.valid ? road_preview_.reason :
@@ -2158,7 +2231,7 @@ bool SandboxView::draw_hud() {
                 std::to_string(world_->treasury());
         }
     }
-    if (rules_==simulation::RulesProfile::CityV11 && !budget_warning_ && !pending_demolition_) {
+    if (simulation::market_profile(rules_) && !budget_warning_ && !pending_demolition_) {
         const auto guidance=simulation::inspect_city_start(*world_);
         if (!guidance.missing_supply_buildings.empty())
             status+=" | No tax: missing "+joined_buildings(guidance.missing_supply_buildings)+
@@ -2179,13 +2252,11 @@ bool SandboxView::draw_hud() {
                 " | GOAL REACHED - all houses level 2":" | GOAL REACHED - settlement supplied") :
             " | Goal "+std::to_string(world_->settlement_goal_households_ready())+
                 (simulation::food_profile(rules_) ?
-                    ((rules_==simulation::RulesProfile::CityV10 ||
-                      rules_==simulation::RulesProfile::CityV11) ? "/8 houses at level 2":
+                    ((simulation::scalable_profile(rules_)) ? "/8 houses at level 2":
                      "/4 houses at level 2"):"/4 households ready");
     if (simulation::population_profile(rules_) && !world_->settlement_goal_reached())
         status+=" | Population "+std::to_string(world_->total_population())+"/"+
-            std::to_string((rules_==simulation::RulesProfile::CityV10 ||
-                            rules_==simulation::RulesProfile::CityV11) ?
+            std::to_string((simulation::scalable_profile(rules_)) ?
                 simulation::Rules::city_v10_population_goal:simulation::Rules::city_v9_population_goal);
     if (debug_open_ && walker_profile_) {
         status+=" | Walkers ";
@@ -2198,8 +2269,7 @@ bool SandboxView::draw_hud() {
     }
     if (!draw_text(8*layout_.scale,layout_.status.y+7*layout_.scale,status,
                    layout_.status.w-16*layout_.scale)) return false;
-    const bool scalable=rules_==simulation::RulesProfile::CityV10 ||
-        rules_==simulation::RulesProfile::CityV11;
+    const bool scalable=simulation::scalable_profile(rules_);
     const auto label=[&](A action)->std::string {
         const auto count=[&](simulation::Object kind) {
             return std::count_if(world_->buildings().begin(),world_->buildings().end(),
@@ -2224,6 +2294,8 @@ bool SandboxView::draw_hud() {
         case A::ServicePost: return scalable ? "9 Service "+
             std::to_string(count(simulation::Object::ServicePost))+"/2 $100":"9 Service $100";
         case A::Market: return "0 Market $140";
+        case A::FireWatch: return "F Fire Watch $"+
+            std::to_string(simulation::Rules::fire_watch_cost);
         case A::Pause: return clock_.paused()?"Continue":"Pause";
         case A::Step: return "Step";
         case A::Speed1: return "1x";
@@ -2250,6 +2322,7 @@ bool SandboxView::draw_hud() {
         case A::Farm: active=tool_==8; break;
         case A::ServicePost: active=tool_==9; break;
         case A::Market: active=tool_==0; break;
+        case A::FireWatch: active=tool_==11; break;
         default: break;
         }
         const bool enabled=action_enabled(button.action);
@@ -2261,7 +2334,7 @@ bool SandboxView::draw_hud() {
         if (button.action==A::Clay || button.action==A::Pottery ||
             button.action==A::Warehouse || button.action==A::Household ||
             button.action==A::Farm || button.action==A::ServicePost ||
-            button.action==A::Market) {
+            button.action==A::Market || button.action==A::FireWatch) {
             const auto wanted=button.action==A::Clay ?
                 (simulation::production_profile(rules_) ? simulation::Object::ClaySource:
                  simulation::Object::Workshop) :
@@ -2270,10 +2343,11 @@ bool SandboxView::draw_hud() {
                 button.action==A::Household ? simulation::Object::Household:
                 button.action==A::Farm ? simulation::Object::Farm:
                 button.action==A::ServicePost ? simulation::Object::ServicePost:
+                button.action==A::FireWatch ? simulation::Object::FireWatch:
                 simulation::Object::Market;
             int count=0;
             for (const auto id:placed_buildings()) if (world_->building(id).kind==wanted) ++count;
-            const int limit=button.action==A::Market ? 4:
+            const int limit=button.action==A::FireWatch ? 2:button.action==A::Market ? 4:
                 scalable ? (button.action==A::Household ? 20:
                     (button.action==A::Clay || button.action==A::Pottery) ? 4:
                     (button.action==A::Warehouse || button.action==A::Farm ||
@@ -2371,8 +2445,7 @@ bool SandboxView::draw_hud() {
                 " | Spent "+std::to_string(world_->construction_spent_total())+
                 " | Worker need "+std::to_string(world_->workforce_required())+
                 " | Goal "+std::to_string(world_->settlement_goal_households_ready())+"/"+
-                std::to_string((rules_==simulation::RulesProfile::CityV10 ||
-                                rules_==simulation::RulesProfile::CityV11) ? 8:4);
+                std::to_string((simulation::scalable_profile(rules_)) ? 8:4);
         if (simulation::food_profile(rules_))
             debug+=" | Food produced "+std::to_string(world_->food_produced_total())+
                 " | Food balance "+(world_->food_balance_valid()?"OK":"ERROR");
@@ -2397,7 +2470,7 @@ bool SandboxView::draw_hud() {
                            layout_.map.w-16*layout_.scale)) return false;
             debug_row+=14;
         }
-        if (rules_==simulation::RulesProfile::CityV11) {
+        if (simulation::market_profile(rules_)) {
             const auto stock=world_->resource_inventory();
             const std::string clay="Current Clay: source "+std::to_string(stock.clay_source_output)+
                 " courier "+std::to_string(stock.clay_courier_cargo)+" input "+
@@ -2534,7 +2607,7 @@ bool SandboxView::draw_help_overlay() {
         text(0,2,"BUILD AND NAVIGATE") && text(0,3,"1 Road | 2 Clay | 3 Pottery") &&
         text(0,4,"4 Store | 5 Select | 6 Remove") &&
         text(0,5,"7 House | 8 Farm | 9 Service") &&
-        text(0,6,"0 Market (City v11)") &&
+        text(0,6,"0 Market | F Fire Watch (City v12)") &&
         text(0,7,"Space Pause | . Step | + / - Speed") &&
         text(0,8,"WASD / Arrows Move | Wheel Zoom") &&
         text(0,9,"F5 Save | F9 Load | Esc Menu") &&
@@ -2546,7 +2619,7 @@ bool SandboxView::draw_help_overlay() {
         text(1,4,"Farm, Market and Service enable tax") &&
         text(1,5,"Residents provide Available workers") &&
         text(1,6,"Assigned is actual staffed workforce") &&
-        text(1,7,"Active demand excludes paused work") &&
+        text(1,7,"Active excludes paused / burning work") &&
         text(1,8,"Select a business in the Inspector") &&
         text(1,9,"Pause/Resume preserves goods/building") &&
         text(1,10,"High/Normal/Low controls staffing") &&
