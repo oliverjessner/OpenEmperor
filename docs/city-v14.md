@@ -60,7 +60,56 @@ Schema-1 building profiles accept an optional `well` role through the ordinary s
 
 The read-only local `China_General.sg3` search visually reviewed **255** strict candidates: 205 from Aesthetic, Government1/2, Guilds and Aesthetic2, plus 50 from StorNDist, Husbandry and Safety. No sufficiently clear freestanding Well/cistern/water-pavilion candidate was selected. Wall/road decoration, Markets, the existing FireWatch record 383 and ambiguous rocky pools 725–728 were excluded. Group labels alone establish no original building identity. Built-in `buildings.json` remains unchanged; atlas pixels and exports stay under ignored `.local/`. See [research log](reverse/research-log.md#city-v14-bounded-well-visual-audit-2026-10-02).
 
-**Original-like Well visual unresolved.** The current fallback is an independently drawn stone basin with blue water, timber posts/beam and rope, positioned on its one-cell ground center. It uses SDL geometry, no original pixels or file loads. Native production-renderer review at **1×/2×/4×** shows a separate structure and one-cell base without road overlap; adjacent whole-image House art can obscure parts, as with existing depth sorting. This fallback review does **not** complete the requested original-like visual acceptance.
+Original-like Well asset remains unresolved. The authored fallback was redesigned for a quieter, period-consistent isometric presentation. It remains independently authored SDL geometry, with no original-pixel sampling, image file, external texture or additional asset registration. Adjacent whole-image House art can still obscure parts through the existing painter, and this is not an original Emperor Well reconstruction.
+
+## Well presentation polish
+
+Starting commit: `570f5f88ad8c047baf9bf7c014591e0df593c8c8`, clean working tree. This follow-up changes presentation only. Well kind/command, cost 60, radius five, four-instance limit, 1×1 footprint, water queries, House levels, taxes, population, desirability, demolition and schema 16 are unchanged. Defaults and original asset bindings are unchanged.
+
+The old ellipse stack, grey rectangular body, bright blue water and axis-aligned timber frame were rejected because they read as a clean technical/debug object. Three temporary, independently drawn variants were compared at **1×/2×/4×** in the same real Xia City-v14 scene, with Houses, Roads, Market, Pottery, Farm, FireWatch and **two paid Wells**:
+
+| Local variant | Scene decision |
+| --- | --- |
+| StoneRing | Lowest silhouette, but reads as an open basin rather than a clearly recognizable Well |
+| TimberWell | Selected: visible opening and thin lifting frame identify a Well without a roof dominating the cell |
+| RoofedWell | Rejected: the roof obscures the opening and adds a conspicuous flat canopy above a small structure |
+
+The selected open timber design then received a few fixed chipped stone and wood-grain facets. All temporary selectors and alternate designs were removed from production. Comparison code, scene saves and rendered screenshots remain under ignored `.local/well-polish/`, outside the bundle. The World was constructed with the paid starter, actual supply/tax income and ordinary `PlaceWell` commands: Wells at `(111,114)` / tick 400 and `(111,118)` / tick 800, reviewed at tick 6,800, with zero burning buildings. No funds, history, goods or coverage were fabricated. Camera framing is predefined QA, not a human construction playthrough.
+
+`WellFallbackRenderer` holds one compile-time mesh: **178 vertices / 94 triangles**, one untextured `SDL_RenderGeometry` submission, fixed stack vertices transformed per draw, shared constant indices, no heap-owned geometry or per-frame shape construction. Non-finite coordinates/zoom, non-positive zoom and transforms that could overflow floats fail before submission. The helper restores the caller's draw blend mode and leaves draw color unchanged. No World or asset layer is a dependency.
+
+| Palette element | RGB |
+| --- | --- |
+| Stone dark / mid / light | `(103,98,78)` / `(133,124,100)` / `(157,146,119)` |
+| Mortar / inner opening | `(87,81,63)` / `(51,49,38)` |
+| Small interior water | `(55,66,65)` |
+| Wood dark / mid / light | `(76,57,38)` / `(102,77,48)` / `(120,93,60)` |
+| Rope / subtle ground contact | `(132,116,81)` / `(78,76,53)` |
+
+The low, slightly irregular octagonal rim replaces the cylinder. The supports lean/offset slightly and the narrow beam follows an isometric axis. The opening contains a much smaller dark grey-green water facet; no cyan halo or large axis-aligned base is drawn. Maximum visual bounds relative to the **unchanged** projected `building_visual_ground` are **x [-21,21], y [-31,10]** logical pixels, scaled by zoom. The ground contact remains inside the 80×40 diamond; the top of the lifting beam is elevation above that footprint, not another occupied cell. 1× remains recognizable, 2× exposes the masonry joints, and 4× retains the same bounded faceted shape and small water surface. It remains a geometric fallback alongside detailed original sprites, not a pixel-perfect stylistic match.
+
+A valid I-tool placement now enters the existing building painter even when no original Well role is configured. It calls the same helper with **alpha 128/255** and the ordinary valid one-cell outline. Invalid placement retains the existing red diagnostic. Configured original Well roles still use the ordinary sprite path. U affects House overlays only; Well geometry/colors stay independent. Selection retains the existing white one-cell diamond and no additional halo or normal technical label. The existing post-painter House diagnosis pass is preserved: a neighboring House footprint overlay can cross raised timber, just as it can cross other elevated sprites; it does not assign a coverage tint to the Well. Stone and interior-water pixels in the selected native review remain unchanged with U.
+
+`well-fallback-pixels` renders independent synthetic terrain in an SDL software surface. It checks visible non-terrain pixels, bounded image and ground footprint, smaller/desaturated water, alpha-128 preview against opaque output, 1×/2×/4×, caller blend state and rejection of NaN/Inf/overflow/null renderer without pixels. `sandbox-city-v14-view` additionally proves a visible unplaced Well preview and **100 paused frames** with actual camera offset changes through anchored wheel events, all three zooms, U, Well selection and placement. Its entire authoritative snapshot is unchanged; World copy/restore/execute, tick, BFS/route refresh, decode/upload and file read/write counters stay zero. The existing texture count also stays unchanged.
+
+Follow-up validation (2026-10-02):
+
+| Check | Well polish result |
+| --- | --- |
+| Debug full CTest | **65/65 passed**, 322.53 seconds |
+| Release full CTest | **65/65 passed**, 28.29 seconds |
+| ASan/UBSan full CTest | **65/65 passed**, 84.61 seconds; `ASAN_OPTIONS=detect_leaks=0`, `UBSAN_OPTIONS=halt_on_error=1` |
+| Separate package Release CTest | **65/65 passed**, 15.14 seconds |
+| City-v14 / building visuals / SandboxView / road responsiveness / desirability / fire / autosave | Passed in all full suites |
+| Pixel coverage at 1× / 2× / 4× | 912 / 3,675 / 14,621 non-terrain pixels; water 40 / 161 / 644, stone 493 / 2,070 / 8,416; finite and bounded |
+| 100-frame view stress | Exact snapshot, no simulated ticks, zero prohibited counters and unchanged textures |
+| Real Xia final native renderer | SDL Metal target readback at 1×/2×/4×, U, selection and valid placement `(111,117)`; snapshot unchanged at tick 6,800 |
+| `file build/openemperor` / packaged executable | **Mach-O 64-bit executable arm64** |
+| `tools/package_macos.sh` | Recursive arm64/dependency checks, inside-out ad-hoc signing, relocated/unzipped execution and all 13 negative fixtures passed; original files unchanged |
+
+The package is `dist/OpenEmperor.app` plus `dist/OpenEmperor-0.1.0-alpha.2-570f5f88ad8c-macos-arm64.zip`, marked **dirty / local test candidate**, not published. Compiler builds have no errors or warnings. The two expected staging `install_name_tool` signature-invalidation notices are resolved by subsequent signing and verification. QA code, scene saves, comparison images and original data are absent from the bundle.
+
+Native final frames use the production view with a Metal render target so readback occurs before Present, then display that target in the window. They use predefined camera/selection/hover events, not human input. Native UI automation in this follow-up failed to start (`Sky Computer Use native pipe startup failed`); no human playtest is claimed. The existing long manual City-v14 gameplay acceptance remains open. The three-design scene comparison and this bounded presentation review do not reopen or replace the 255-candidate original-asset audit.
 
 ## Build and test
 

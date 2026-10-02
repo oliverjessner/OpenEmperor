@@ -2,6 +2,7 @@
 
 #include "maps/SandboxPlacement.h"
 #include "renderer/StoredCamera.h"
+#include "renderer/WellFallbackRenderer.h"
 #include "app/WalkerPose.h"
 #include "app/SandboxVisualOrder.h"
 #include "core/Version.h"
@@ -1592,43 +1593,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 if (placement_preview && object!=simulation::Object::Well) return true;
                 ++building_placeholder_fallbacks_[assets::role_index(*role)];
             }
-            if (object==simulation::Object::Well) {
-                // Authored stone basin and timber frame, independent of original pixels.
-                const float zoom=static_cast<float>(camera_.zoom);
-                const auto ellipse=[&](float cy,float rx,float ry,SDL_Color color) {
-                    std::array<SDL_Vertex,18> vertices{};
-                    std::array<int,48> indices{};
-                    const SDL_FColor fc{color.r/255.0F,color.g/255.0F,color.b/255.0F,1};
-                    vertices[0]={{static_cast<float>(center.x),cy},fc,{0,0}};
-                    for (int i=0;i<=16;++i) {
-                        const double angle=static_cast<double>(i)*2.0*3.141592653589793/16.0;
-                        vertices[static_cast<std::size_t>(i+1)]={{static_cast<float>(center.x)+rx*static_cast<float>(std::cos(angle)),
-                            cy+ry*static_cast<float>(std::sin(angle))},fc,{0,0}};
-                        if (i<16) {indices[static_cast<std::size_t>(3*i)]=0;
-                            indices[static_cast<std::size_t>(3*i+1)]=i+1;
-                            indices[static_cast<std::size_t>(3*i+2)]=i+2;}
-                    }
-                    return SDL_RenderGeometry(renderer_,nullptr,vertices.data(),18,indices.data(),48);
-                };
-                const float cy=static_cast<float>(center.y);
-                const SDL_FRect stone{static_cast<float>(center.x)-15*zoom,cy-12*zoom,30*zoom,12*zoom};
-                if (!ellipse(cy+2*zoom,21*zoom,8*zoom,{59,61,56,255}) ||
-                    !SDL_SetRenderDrawColor(renderer_,139,142,130,255) ||
-                    !SDL_RenderFillRect(renderer_,&stone) ||
-                    !ellipse(cy,15*zoom,6*zoom,{124,129,119,255}) ||
-                    !ellipse(cy-12*zoom,15*zoom,6*zoom,{196,195,172,255}) ||
-                    !ellipse(cy-12*zoom,10*zoom,4*zoom,{39,106,137,255})) return false;
-                const std::array<SDL_FRect,3> wood{{
-                    {static_cast<float>(center.x)-12*zoom,cy-32*zoom,3*zoom,22*zoom},
-                    {static_cast<float>(center.x)+9*zoom,cy-32*zoom,3*zoom,22*zoom},
-                    {static_cast<float>(center.x)-15*zoom,cy-34*zoom,30*zoom,4*zoom}}};
-                if (!SDL_SetRenderDrawColor(renderer_,103,73,45,255) ||
-                    !SDL_RenderFillRects(renderer_,wood.data(),3) ||
-                    !SDL_SetRenderDrawColor(renderer_,218,204,162,255) ||
-                    !SDL_RenderLine(renderer_,static_cast<float>(center.x),cy-31*zoom,
-                        static_cast<float>(center.x),cy-14*zoom)) return false;
-                return true;
-            }
+            if (object==simulation::Object::Well)
+                return draw_well_fallback(renderer_,center,camera_.zoom,placement_preview);
             SDL_Color color=debug_open_ ? SDL_Color{255,105,100,255}:SDL_Color{137,101,85,255};
             if (object==simulation::Object::Workshop || object==simulation::Object::ClaySource)
                 color=debug_open_ ? SDL_Color{50,210,245,255}:SDL_Color{104,124,120,255};
@@ -1791,8 +1757,9 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
             visual_role(*hovered_,object,true):std::nullopt;
-        if (result.accepted && role && building_visuals_active() && building_sprite_ &&
-            building_profile_ && building_profile_->find(*role)) {
+        if (result.accepted && (object==simulation::Object::Well ||
+            (role && building_visuals_active() && building_sprite_ &&
+             building_profile_ && building_profile_->find(*role)))) {
             const auto ground=building_visual_ground(*hovered_,object);
             instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxBuilding,
                                   std::numeric_limits<unsigned>::max()},*hovered_,object,
@@ -1941,7 +1908,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const auto* entry=role && building_profile_ ? building_profile_->find(*role):nullptr;
         for (const auto cell:simulation::building_footprint_cells(rules_,object,*hovered_)) {
             const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
-            const bool outline=result.accepted && entry && building_visuals_active() && building_sprite_;
+            const bool outline=result.accepted && (object==simulation::Object::Well ||
+                (entry && building_visuals_active() && building_sprite_));
             if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
                 result.accepted?245:65,result.accepted?100:65,!outline)) return false;
         }

@@ -675,7 +675,71 @@ void city_v14_water_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* ren
     persistence::write_save(view.save_path(),far_document,temp.path,mask);view.load_now();view.update(0);
     check(view.predicted_well_coverage() && view.predicted_well_coverage()->currently_dry==4 &&
         view.water_preview_build_count()==branch_count+1,"same-revision load retained stale water preview");
-    view.shutdown();std::cout<<"City-v14 view: 0/2 stages,100 pure Water toggles,200 coalesced motions,Well/House inspector,save/load\n";
+    const auto close_well=put(simulation::CommandType::PlaceWell,{108,106});
+    check(view.world().building(close_well).kind==simulation::Object::Well && view.paused(),
+        "Well presentation setup");
+    // Anchored zoom pairs translate the camera through ordinary view events.
+    // This exercises real offset changes without relying on OS keyboard state.
+    const auto wheel=[&](openemperor::scene::Point at,double factor) {
+        SDL_Event event{};event.type=SDL_EVENT_MOUSE_WHEEL;
+        event.wheel.mouse_x=static_cast<float>(at.x);event.wheel.mouse_y=static_cast<float>(at.y);
+        event.wheel.y=static_cast<float>(std::log(factor)/std::log(1.15));view.handle_event(event,running);
+    };
+    const auto focus=[&](int zoom) {
+        const auto map=view.layout().map;
+        const openemperor::scene::Point center{map.x+map.w*.5,map.y+map.h*.5};
+        wheel(center,zoom/view.camera().zoom);
+        for (int i=0;i<20;++i) {
+            const auto p=screen({108,106});
+            const openemperor::scene::Point delta{std::clamp(center.x-p.x,-200.0,200.0),
+                std::clamp(center.y-p.y,-100.0,100.0)};
+            if (std::abs(delta.x)+std::abs(delta.y)<.01) break;
+            wheel({center.x+delta.x*.5,center.y+delta.y*.5},.5);
+            wheel({center.x-delta.x*.5,center.y-delta.y*.5},2);
+        }
+    };
+    // Prove the integration draws the same geometry for a valid, unplaced Well.
+    // The sample lies inside the dark water and away from the footprint outline.
+    const simulation::Cell ghost_cell{108,108};
+    check(view.world().validate({simulation::CommandType::PlaceWell,ghost_cell}).accepted,
+        "Well preview fixture not buildable");
+    focus(2);view.set_tool(5);check(view.render(),"bare preview terrain");
+    const auto ghost_ground=screen(ghost_cell);
+    const int ghost_x=static_cast<int>(ghost_ground.x-4),ghost_y=static_cast<int>(ghost_ground.y-12);
+    const auto bare=pixel(renderer,ghost_x,ghost_y);
+    view.set_tool(12);view.handle_event(motion(static_cast<float>(ghost_ground.x),
+        static_cast<float>(ghost_ground.y)),running);view.update(0);
+    check(view.render() && pixel(renderer,ghost_x,ghost_y)!=bare,"Well fallback placement preview is missing");
+    const auto presentation_snapshot=view.world().snapshot();
+    const auto texture_count=view.building_texture_count();
+    const auto start_camera=view.camera();
+    perf::set_enabled(true);perf::reset();
+    for (int frame=0;frame<100;++frame) {
+        focus(frame%3==0 ? 1:frame%3==1 ? 2:4);
+        const auto map=view.layout().map;
+        const openemperor::scene::Point center{map.x+map.w*.5,map.y+map.h*.5};
+        wheel({center.x+4,center.y+2},.5);wheel({center.x-4,center.y-2},2);
+        view.set_tool(5);const auto selected=screen({108,106});
+        mouse_click(view,static_cast<float>(selected.x),static_cast<float>(selected.y),running);
+        check(view.selected_building()==close_well,"Well selection during camera changes");
+        view.handle_event(key(SDLK_U),running);
+        if (frame%2) {
+            view.set_tool(12);const auto ghost=screen(ghost_cell);
+            view.handle_event(motion(static_cast<float>(ghost.x),static_cast<float>(ghost.y)),running);
+        }
+        view.update(.016);check(view.render(),"Well camera/zoom/overlay/selection/preview frame");
+    }
+    check(view.world().snapshot()==presentation_snapshot && view.building_texture_count()==texture_count &&
+        !view.water_overlay(),"100 Well presentation frames changed authority/assets");
+    check(view.camera().offset.x!=start_camera.offset.x || view.camera().offset.y!=start_camera.offset.y,
+        "presentation stress did not move camera");
+    for (const auto counter:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+        perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,
+        perf::Counter::TextureUploads,perf::Counter::FileReads,perf::Counter::FileWrites,perf::Counter::SimulationTicks})
+        check(perf::counter(counter)==0,"Well presentation did expensive work");
+    perf::set_enabled(false);
+    view.shutdown();std::cout<<"City-v14 view: stages,100 pure Water toggles,200 coalesced motions,inspector,save/load; "
+        "100 pure Well frames with actual camera motion,1x/2x/4x,selection,overlay and visible preview\n";
 }
 }
 int main(int argc,char** argv) {

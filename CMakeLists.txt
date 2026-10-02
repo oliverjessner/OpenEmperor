@@ -121,6 +121,7 @@ add_executable(openemperor
     src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp
     src/renderer/BuildingSprite.cpp
+    src/renderer/WellFallbackRenderer.cpp
     src/renderer/RoadSpriteSet.cpp
 )
 target_include_directories(openemperor PRIVATE src)
@@ -260,12 +261,20 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-production-tests)
     add_test(NAME sandbox-production-chain COMMAND openemperor-sandbox-production-tests)
     set_tests_properties(sandbox-production-chain PROPERTIES TIMEOUT 20)
+    add_executable(openemperor-well-fallback-tests tests/WellFallbackRendererTests.cpp
+        src/renderer/WellFallbackRenderer.cpp)
+    target_include_directories(openemperor-well-fallback-tests PRIVATE src)
+    target_link_libraries(openemperor-well-fallback-tests PRIVATE SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-well-fallback-tests)
+    add_test(NAME well-fallback-pixels COMMAND openemperor-well-fallback-tests)
+    set_tests_properties(well-fallback-pixels PROPERTIES TIMEOUT 20)
     add_executable(openemperor-sandbox-view-tests tests/SandboxViewTests.cpp
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
-    target_sources(openemperor-sandbox-view-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp)
+    target_sources(openemperor-sandbox-view-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-recovery SDL3::SDL3
         openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
@@ -279,7 +288,8 @@ if(BUILD_TESTING)
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
-    target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp)
+    target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp)
     target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
