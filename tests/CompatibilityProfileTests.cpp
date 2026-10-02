@@ -117,11 +117,11 @@ void validate_committed_pack(const fs::path& resource_root) {
     check(actual_roads==road_masks,"built-in road masks changed");
     const std::map<std::string,std::uint32_t> expected_buildings={{"clay_source",2789},
         {"pottery",2810},{"warehouse",637},{"household",1512},{"farm",2415},
-        {"service_post",2046},{"market",645},{"fire_watch",921}};
+        {"service_post",2046},{"market",645},{"fire_watch",383}};
     const std::map<std::string,std::array<int,2>> expected_building_anchors={
         {"clay_source",{79,76}},{"pottery",{79,120}},
         {"warehouse",{79,116}},{"household",{79,79}},{"farm",{39,41}},
-        {"service_post",{39,28}},{"market",{39,78}},{"fire_watch",{39,84}}};
+        {"service_post",{39,28}},{"market",{39,78}},{"fire_watch",{39,59}}};
     for (const auto& [role,index]:expected_buildings) {
         const auto& item=buildings.at("buildings").at(role);
         check(item.at("image_index").get<std::uint32_t>()==index &&

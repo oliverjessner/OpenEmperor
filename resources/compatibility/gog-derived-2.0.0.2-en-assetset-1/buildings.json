@@ -52,9 +52,9 @@
     },
     "fire_watch": {
       "archive": "DATA/China_General.sg3",
-      "image_index": 921,
-      "ground_anchor": [39, 84],
-      "evidence": "Bounded local visual review: small crenellated stone watchtower with verified 1x1 base; curated Fire Watch depiction, original function and pivot unverified"
+      "image_index": 383,
+      "ground_anchor": [39, 59],
+      "evidence": "Bounded atlas and native City-v13 1x/2x/4x review: freestanding red-brick entrance house with tiled roof and verified 1x1 base; curated civic/watch-building preview, original building identity and pivot unverified"
     },
     "market": {
       "archive": "DATA/China_General.sg3",
