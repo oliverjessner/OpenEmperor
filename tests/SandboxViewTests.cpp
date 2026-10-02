@@ -1727,6 +1727,95 @@ int main(int argc,char** argv) {
             "F9 did not restore the exact demolished World paused without ghost entities");
         operations_view.shutdown();
 
+        // City-v13: presentation/placement projections never execute or copy a World.
+        std::vector<std::uint8_t> quality_mask;
+        auto quality_session=city_v10_fixture(temp,quality_mask);
+        const auto quality_border=quality_session.plan.border;
+        openemperor::SandboxView quality_view(std::move(quality_session),false,
+            simulation::RulesProfile::CityV13);
+        quality_view.configure_save(temp.path,"Cities/Synthetic.map",{});
+        quality_view.initialize(window,renderer);
+        check(quality_view.execute({simulation::CommandType::PlaceHousehold,{110,104}}).accepted &&
+            quality_view.execute({simulation::CommandType::PlacePottery,{112,104}}).accepted &&
+            quality_view.execute({simulation::CommandType::PlaceMarket,{114,104}}).accepted,
+            "City-v13 UI fixture commands failed");
+        const auto quality_house=*quality_view.world().building_owner_at({110,104});
+        quality_view.set_tool(5);
+        const auto house_screen=quality_view.camera().world_to_screen(maps::terrain_ground({110,104},quality_border));
+        mouse_click(quality_view,static_cast<float>(house_screen.x),static_cast<float>(house_screen.y),running);
+        check(quality_view.selected_building()==quality_house,"City-v13 House selection");
+        const auto quality_details=quality_view.inspection_lines();
+        const auto has_detail=[&](const std::string& value) {
+            return std::find(quality_details.begin(),quality_details.end(),value)!=quality_details.end();
+        };
+        check(has_detail("House Level: 0") && has_detail("Historical development: 0") &&
+            has_detail("Desirability: -13") && has_detail("Level cap: 1") &&
+            has_detail("Population: 6 / 6"),"City-v13 quality inspector missing authority/derived distinction");
+        const auto quality_before=quality_view.world().snapshot();
+        const auto quality_refresh=quality_view.world().route_refresh_count();
+        perf::set_enabled(true);perf::reset();
+        for (int i=0;i<100;++i) {
+            quality_view.handle_event(key(SDLK_D),running);
+            check(quality_view.desirability_overlay()==(i%2==0) && quality_view.render(),
+                "Desirability key/overlay failed");
+        }
+        check(quality_view.world().snapshot()==quality_before &&
+            quality_view.world().route_refresh_count()==quality_refresh &&
+            perf::counter(perf::Counter::WorldCopies)==0 &&
+            perf::counter(perf::Counter::WorldRestores)==0 &&
+            perf::counter(perf::Counter::WorldExecutes)==0 &&
+            perf::counter(perf::Counter::SimulationTicks)==0 &&
+            perf::counter(perf::Counter::BfsCalls)==0 &&
+            perf::counter(perf::Counter::RouteRefreshes)==0 &&
+            perf::counter(perf::Counter::AssetDecodes)==0 &&
+            perf::counter(perf::Counter::TextureUploads)==0 &&
+            perf::counter(perf::Counter::FileWrites)==0,"overlay changed World / did asset or route work");
+        const auto untouched=quality_view.camera().world_to_screen(maps::terrain_ground({107,104},quality_border));
+        const auto house_pixel_before=pixel(renderer,static_cast<int>(house_screen.x),static_cast<int>(house_screen.y));
+        const auto empty_pixel_before=pixel(renderer,static_cast<int>(untouched.x),static_cast<int>(untouched.y));
+        const auto quality_button=std::find_if(quality_view.layout().buttons.begin(),quality_view.layout().buttons.end(),
+            [](const auto& button){return button.action==openemperor::sandbox_ui::Action::Desirability;});
+        check(quality_button!=quality_view.layout().buttons.end(),"Desirability toolbar missing");
+        mouse_click(quality_view,static_cast<float>(quality_button->rect.x+10),
+            static_cast<float>(quality_button->rect.y+10),running);
+        check(quality_view.desirability_overlay() && quality_view.world().snapshot()==quality_before,
+            "Desirability toolbar changed authority");
+        check(quality_view.render() &&
+            pixel(renderer,static_cast<int>(house_screen.x),static_cast<int>(house_screen.y))!=house_pixel_before &&
+            pixel(renderer,static_cast<int>(untouched.x),static_cast<int>(untouched.y))==empty_pixel_before,
+            "overlay did not tint House / tinted a non-House cell");
+        const auto blended_house=pixel(renderer,static_cast<int>(house_screen.x),static_cast<int>(house_screen.y));
+        check(blended_house!=std::array<std::uint8_t,4>{204,169,81,255},
+            "House overlay was opaque instead of preserving the building below");
+        SDL_BlendMode after_overlay=SDL_BLENDMODE_BLEND;
+        check(SDL_GetRenderDrawBlendMode(renderer,&after_overlay) && after_overlay==SDL_BLENDMODE_NONE,
+            "overlay leaked blend mode into ordinary World/HUD rendering");
+        quality_view.set_tool(7);
+        const auto location=quality_view.camera().world_to_screen(maps::terrain_ground({107,104},quality_border));
+        quality_view.handle_event(motion(static_cast<float>(location.x),static_cast<float>(location.y)),running);
+        quality_view.update(0.0); // Pointer projections are coalesced at the frame boundary.
+        check(quality_view.predicted_desirability()==quality_view.world().household_desirability_at({107,104}),
+            "House preview score differs");
+        const auto quality_plans=quality_view.desirability_preview_build_count();
+        for (int i=0;i<200;++i) {
+            quality_view.handle_event(motion(static_cast<float>(location.x)+static_cast<float>(i%3),
+                static_cast<float>(location.y)),running);
+            quality_view.update(0.0);
+        }
+        check(quality_view.desirability_preview_build_count()==quality_plans &&
+            quality_view.world().snapshot()==quality_before &&
+            perf::counter(perf::Counter::WorldCopies)==0 && perf::counter(perf::Counter::BfsCalls)==0 &&
+            perf::counter(perf::Counter::WorldExecutes)==0,"per-pixel preview rebuilt or mutated");
+        perf::set_enabled(false);
+        check(quality_view.execute(simulation::demolish_building(
+            *quality_view.world().building_owner_at({112,104}))).accepted,"preview fixture safe demolition");
+        quality_view.handle_event(motion(static_cast<float>(location.x),static_cast<float>(location.y)),running);
+        quality_view.update(0.0); // Pointer projections are coalesced at the frame boundary.
+        check(quality_view.desirability_preview_build_count()==quality_plans+1 &&
+            quality_view.predicted_desirability()==quality_view.world().household_desirability_at({107,104}),
+            "building topology did not invalidate preview");
+        quality_view.shutdown();
+
         // City-v12 keeps fire presentation read-only, including active incidents.
         std::vector<std::uint8_t> fire_buildable;
         auto fire_session=city_v10_fixture(temp,fire_buildable);

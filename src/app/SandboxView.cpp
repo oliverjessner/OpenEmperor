@@ -18,6 +18,9 @@
 
 namespace openemperor {
 namespace {
+// Presentation palette: Poor, Neutral, Good. Simulation owns category thresholds.
+constexpr std::array<SDL_Color,3> housing_palette{{{210,83,75,45},
+    {204,169,81,45},{78,174,128,45}}};
 const char* tool_name(simulation::RulesProfile rules,int tool) {
     if (simulation::production_profile(rules)) {
         switch (tool) {
@@ -92,6 +95,7 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::CityV10: return "City v10";
     case simulation::RulesProfile::CityV11: return "City v11";
     case simulation::RulesProfile::CityV12: return "City v12";
+    case simulation::RulesProfile::CityV13: return "City v13";
     }
     return "Sandbox";
 }
@@ -376,7 +380,7 @@ void SandboxView::update_layout(bool preserve_center) {
     if (!SDL_GetWindowSize(window_,&window_width,&window_height))
         throw std::runtime_error(SDL_GetError());
     const auto next=sandbox_ui::make_layout(width,height,window_width,window_height,panel_open_,
-        simulation::fire_profile(rules_));
+        simulation::fire_profile(rules_),simulation::desirability_profile(rules_));
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) return;
     scene::Point center{};
@@ -767,6 +771,7 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
             command=simulation::CommandType::PlaceFireWatch;
         if (command && world_->treasury()<world_->construction_cost(*command)) return false;
     }
+    if (action==sandbox_ui::Action::Desirability) return simulation::desirability_profile(rules_);
     if (action==sandbox_ui::Action::RemoveRoad)
         return simulation::production_profile(rules_);
     if (action==sandbox_ui::Action::Household)
@@ -928,6 +933,11 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
             action==A::RemoveRoad ? 6:action==A::Household ? 7:action==A::Farm ? 8:
             action==A::ServicePost ? 9:action==A::FireWatch ? 11:0;
         last_message_=tool_name(rules_,tool_);
+    } else if (action==A::Desirability) {
+        cancel_gesture();
+        desirability_overlay_=!desirability_overlay_;
+        last_message_=desirability_overlay_ ? "Desirability ON: green Good, amber Neutral, red Poor":
+            "Desirability OFF";
     } else if (action==A::Pause) clock_.toggle_pause();
     else if (action==A::Step) clock_.step_once(*world_);
     else if (action==A::Speed1) clock_.set_speed(1);
@@ -970,6 +980,17 @@ void SandboxView::refresh_hover(bool force_road_plan) {
     performance::ScopedTimer timer(performance::Timing::HoverPicking);
     hovered_=pointer_ ? pick(*pointer_) : std::nullopt;
     hover_dirty_=false;
+    if (simulation::desirability_profile(rules_) && tool_==7 && hovered_) {
+        if (desirability_preview_cell_!=hovered_ ||
+            desirability_preview_revision_!=world_->road_revision()) {
+            predicted_desirability_=world_->household_desirability_at(*hovered_);
+            desirability_preview_cell_=hovered_;
+            desirability_preview_revision_=world_->road_revision();
+            ++desirability_preview_build_count_;
+        }
+    } else {
+        predicted_desirability_.reset(); desirability_preview_cell_.reset();
+    }
     if (!road_start_ || !hovered_) {
         if (road_start_) road_preview_={};
         return;
@@ -1079,6 +1100,8 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_0 && simulation::market_profile(rules_))
             set_tool(0);
         else if (event.key.key==SDLK_F && simulation::fire_profile(rules_)) set_tool(11);
+        else if (event.key.key==SDLK_D && simulation::desirability_profile(rules_))
+            perform_action(sandbox_ui::Action::Desirability);
         else if (event.key.key==SDLK_SPACE) perform_action(sandbox_ui::Action::Pause);
         else if (event.key.key==SDLK_PERIOD) perform_action(sandbox_ui::Action::Step);
         else if (event.key.key==SDLK_PLUS || event.key.key==SDLK_EQUALS || event.key.key==SDLK_KP_PLUS)
@@ -1287,7 +1310,8 @@ void SandboxView::update(double seconds) {
     const double movement=400.0*std::clamp(seconds,0.0,0.05);
     if (!road_start_) {
         if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT]) camera_.offset.x+=movement;
-        if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) camera_.offset.x-=movement;
+        if ((!simulation::desirability_profile(rules_) && keys[SDL_SCANCODE_D]) ||
+            keys[SDL_SCANCODE_RIGHT]) camera_.offset.x-=movement;
         if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) camera_.offset.y+=movement;
         if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) camera_.offset.y-=movement;
         hover_dirty_=true;
@@ -1378,13 +1402,13 @@ scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
     const auto front=simulation::building_front_cell(rules_,kind,origin);
     return world_for({static_cast<double>(front.x),static_cast<double>(front.y)});
 }
-bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,std::uint8_t b,bool fill) {
+bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,std::uint8_t b,bool fill,float alpha) {
     const auto p=camera_.world_to_screen(world);
     const float x=static_cast<float>(p.x),y=static_cast<float>(p.y);
     const float w=static_cast<float>(40*camera_.zoom),h=static_cast<float>(20*camera_.zoom);
     const SDL_FPoint points[]={{x,y},{x+w,y+h},{x,y+2*h},{x-w,y+h}};
     if (fill) {
-        const SDL_FColor color{r/255.0F,g/255.0F,b/255.0F,0.65F};
+        const SDL_FColor color{r/255.0F,g/255.0F,b/255.0F,alpha};
         const SDL_Vertex vertices[]={{points[0],color,{}},{points[1],color,{}},
                                      {points[2],color,{}},{points[3],color,{}}};
         const int indices[]={0,1,2,0,2,3};
@@ -1754,6 +1778,29 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         for (std::size_t i=0;i<instances.size();++i)
             if (!draw_instance(i)) return false;
     }
+    if (desirability_overlay_ && simulation::desirability_profile(rules_)) {
+        SDL_BlendMode previous_blend=SDL_BLENDMODE_NONE;
+        if (!SDL_GetRenderDrawBlendMode(renderer_,&previous_blend) ||
+            !SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND)) return false;
+        struct RestoreBlend {
+            SDL_Renderer* renderer;
+            SDL_BlendMode mode;
+            ~RestoreBlend() { (void)SDL_SetRenderDrawBlendMode(renderer,mode); }
+        } restore_blend{renderer_,previous_blend};
+        for (const auto& b:world_->buildings()) if (b.placed && b.kind==simulation::Object::Household) {
+            const auto score=world_->household_desirability(b.id);
+            const auto color=housing_palette[static_cast<std::size_t>(simulation::desirability_level_cap(score))];
+            for (const auto cell:simulation::building_footprint_cells(rules_,b.kind,b.cell)) {
+                const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
+                if (!draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true,color.a/255.0F)) return false;
+            }
+            if (debug_open_) {
+                const auto ground=camera_.world_to_screen(building_visual_ground(b.cell,b.kind));
+                if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255) ||
+                    !draw_text(ground.x,ground.y,std::to_string(score),80*layout_.scale)) return false;
+            }
+        }
+    }
     if (selected_) {
         const auto owner=world_->building_owner_at(*selected_);
         if (owner) {
@@ -1810,13 +1857,18 @@ bool SandboxView::fire_watch_selected() const {
     const auto id=selected_building();
     return id && world_->building(*id).kind==simulation::Object::FireWatch;
 }
+bool SandboxView::status_first_selected() const {
+    const auto id=selected_building();
+    return fire_watch_selected() || (simulation::desirability_profile(rules_) && id &&
+        world_->building(*id).kind==simulation::Object::Household);
+}
 std::vector<std::string> SandboxView::wrap_panel_lines(const std::vector<std::string>& lines) const {
     const auto columns=static_cast<std::size_t>(std::max(1,
         (layout_.panel.w-20*layout_.scale)/(10*layout_.scale)));
     return sandbox_ui::wrap_text(lines,columns);
 }
 int SandboxView::building_list_y() const {
-    return layout_.panel.y+(fire_watch_selected() ?
+    return layout_.panel.y+(status_first_selected() ?
         52+static_cast<int>(inspection_lines().size())*17:46)*layout_.scale;
 }
 std::vector<std::string> SandboxView::demolition_hint_lines() const {
@@ -1868,6 +1920,48 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back(entry ? "SG3 "+entry->id.archive_relative_path.generic_string()+
                 " #"+std::to_string(entry->id.image_index):"Fire Watch visual: fallback");
         }
+        return wrap_panel_lines(lines);
+    }
+    const auto house_id=selected_building();
+    if (simulation::desirability_profile(rules_) && house_id &&
+        world_->building(*house_id).kind==simulation::Object::Household) {
+        const auto id=*house_id;
+        const auto& b=world_->building(id);
+        const int score=world_->household_desirability(id);
+        lines.push_back("House #"+std::to_string(static_cast<std::uint32_t>(id)));
+        lines.push_back("House Level: "+std::to_string(world_->household_level(id)));
+        lines.push_back("Historical development: "+std::to_string(world_->historical_household_level(id)));
+        lines.push_back("Desirability: "+std::to_string(score));
+        const int cap=simulation::desirability_level_cap(score);
+        lines.push_back("Level cap: "+std::to_string(cap));
+        lines.push_back("Population: "+std::to_string(b.population)+" / "+
+            std::to_string(world_->household_population_capacity(id)));
+        if (b.population>world_->household_population_capacity(id))
+            lines.push_back("Over capacity: one resident leaves per demand.");
+        lines.push_back("Desirability sources:");
+        int negative=0,positive=0;
+        const auto sources=world_->household_desirability_sources(id);
+        for (const auto& source:sources) {
+            auto& count=source.contribution<0 ? negative:positive;
+            if (count++>=3) continue;
+            lines.push_back(object_name(source.kind)+std::string(" #")+
+                std::to_string(static_cast<std::uint32_t>(source.id))+" "+
+                (source.contribution>0 ? "+":"")+std::to_string(source.contribution));
+        }
+        if (sources.empty()) lines.push_back("None in radius 8.");
+        lines.push_back("Pottery "+std::to_string(b.pottery_stock)+"/8; Food "+std::to_string(b.food_stock)+"/8");
+        lines.push_back(std::string("Service: ")+(world_->household_service_active(id) ? "active":"missing"));
+        lines.push_back("Fire: "+std::string(world_->building_on_fire(id) ? "ON FIRE":
+            world_->building_fire_protected(id) ? "protected":"unprotected"));
+        lines.push_back("Demand in "+std::to_string(simulation::Rules::household_demand_ticks-b.demand_progress)+" ticks");
+        lines.push_back("Fulfilled "+std::to_string(b.fulfilled_demand)+"; missed "+std::to_string(b.missed_demand));
+        const auto next=b.fulfilled_demand+1;
+        const int next_level=std::min(cap,next>=simulation::Rules::city_v7_level2_demands ? 2:
+            next>=simulation::Rules::city_v7_level1_demands ? 1:0);
+        lines.push_back("Next supplied tax: "+std::to_string(next_level==2 ? 60:next_level==1 ? 40:25));
+        lines.push_back("Taxes paid total: "+std::to_string(b.taxes_paid_total));
+        lines.push_back("Full supply still required; score gives no goods or Service.");
+        if (debug_open_) lines.push_back("Origin "+std::to_string(b.cell.x)+","+std::to_string(b.cell.y));
         return wrap_panel_lines(lines);
     }
     if (simulation::market_profile(rules_)) {
@@ -2225,6 +2319,13 @@ bool SandboxView::draw_hud() {
         overview+=" v"+std::to_string(world_->rule_version());
     overview+=" | Tick "+std::to_string(world_->ticks())+" | "+
         (clock_.paused()?"Paused ":"Running ")+std::to_string(clock_.speed())+"x";
+    if (simulation::desirability_profile(rules_)) {
+        int good=0,houses=0;
+        for (const auto& b:world_->buildings()) if (b.kind==simulation::Object::Household) {
+            ++houses; if (world_->household_desirability(b.id)>=10) ++good;
+        }
+        overview+=" | Desirable homes "+std::to_string(good)+"/"+std::to_string(houses);
+    }
     if (simulation::fire_profile(rules_))
         overview+=" | Fire "+std::to_string(world_->protected_buildings())+"/"+
             std::to_string(world_->fire_eligible_buildings())+" protected, "+
@@ -2308,6 +2409,8 @@ bool SandboxView::draw_hud() {
         else if (guidance.taxes_have_been_collected)
             status+=" | Complete demand has paid tax";
     }
+    if (predicted_desirability_) status="Predicted desirability at this location: "+
+        std::to_string(*predicted_desirability_)+" | "+status;
     if (!recovery_status_.empty() && !budget_warning_ && !pending_demolition_ && !road_start_)
         status+=" | "+recovery_status_;
     if (simulation::city_profile(rules_))
@@ -2360,6 +2463,7 @@ bool SandboxView::draw_hud() {
         case A::ServicePost: return scalable ? "9 Service "+
             std::to_string(count(simulation::Object::ServicePost))+"/2 $100":"9 Service $100";
         case A::Market: return "0 Market $140";
+        case A::Desirability: return desirability_overlay_ ? "D Desirability ON":"D Desirability";
         case A::FireWatch: return "F Fire Watch $"+
             std::to_string(simulation::Rules::fire_watch_cost);
         case A::Pause: return clock_.paused()?"Continue":"Pause";
@@ -2389,6 +2493,7 @@ bool SandboxView::draw_hud() {
         case A::ServicePost: active=tool_==9; break;
         case A::Market: active=tool_==0; break;
         case A::FireWatch: active=tool_==11; break;
+        case A::Desirability: active=desirability_overlay_; break;
         default: break;
         }
         const bool enabled=action_enabled(button.action);
@@ -2431,14 +2536,15 @@ bool SandboxView::draw_hud() {
     if (layout_.panel_open) {
         if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
         if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
-                       fire_watch_selected() ? "FIRE WATCH INSPECTOR":"BUILDINGS",
+                       fire_watch_selected() ? "FIRE WATCH INSPECTOR":
+                       status_first_selected() ? "HOUSE INSPECTOR":"BUILDINGS",
                        layout_.panel.w-20*layout_.scale)) return false;
         const auto entries=placed_buildings();
         for (std::size_t i=0;i<entries.size();++i) {
             const auto& b=world_->building(entries[i]);
             const int y=building_list_y()+static_cast<int>(i)*18*layout_.scale-panel_scroll_;
             const int list_bottom=layout_.panel.y+layout_.panel.h-
-                (fire_watch_selected() ? 180*layout_.scale+demolition_hint_extra_height():0);
+                (status_first_selected() ? 180*layout_.scale+demolition_hint_extra_height():0);
             if (y<layout_.panel.y+40*layout_.scale || y+10*layout_.scale>=list_bottom) continue;
             const std::string text=std::to_string(static_cast<unsigned>(b.id))+" "+
                 object_name(b.kind)+" ("+std::to_string(b.cell.x)+","+
@@ -2451,7 +2557,7 @@ bool SandboxView::draw_hud() {
                 !draw_text(layout_.panel.x+10*layout_.scale,y,text,
                            layout_.panel.w-20*layout_.scale)) return false;
         }
-        const int detail_y=(fire_watch_selected() ? layout_.panel.y+46*layout_.scale:
+        const int detail_y=(status_first_selected() ? layout_.panel.y+46*layout_.scale:
             layout_.panel.y+52*layout_.scale+static_cast<int>(entries.size())*18*layout_.scale)-panel_scroll_;
         const auto details=inspection_lines();
         const auto controls_id=selected_building();
@@ -2463,7 +2569,7 @@ bool SandboxView::draw_hud() {
              show_operation_controls ? 104*layout_.scale:0)-demolition_hint_extra_height();
         for (std::size_t i=0;i<details.size();++i) {
             const int y=detail_y+static_cast<int>(i)*17*layout_.scale;
-            if (y<layout_.panel.y+(fire_watch_selected() ? 40*layout_.scale:0) ||
+            if (y<layout_.panel.y+(status_first_selected() ? 40*layout_.scale:0) ||
                 y+10*layout_.scale>=detail_bottom) continue;
             if (!SDL_SetRenderDrawColor(renderer_,205,225,238,255) ||
                 !draw_text(layout_.panel.x+10*layout_.scale,y,details[i],
@@ -2677,9 +2783,9 @@ bool SandboxView::draw_help_overlay() {
         text(0,2,"BUILD AND NAVIGATE") && text(0,3,"1 Road | 2 Clay | 3 Pottery") &&
         text(0,4,"4 Store | 5 Select | 6 Remove") &&
         text(0,5,"7 House | 8 Farm | 9 Service") &&
-        text(0,6,"0 Market | F Fire Watch (City v12)") &&
+        text(0,6,"0 Market | F Fire Watch (v12/v13)") &&
         text(0,7,"Space Pause | . Step | + / - Speed") &&
-        text(0,8,"WASD / Arrows Move | Wheel Zoom") &&
+        text(0,8,simulation::desirability_profile(rules_) ? "Arrows Move | D Desirability | Wheel Zoom":"WASD / Arrows Move | Wheel Zoom") &&
         text(0,9,"F5 Save | F9 Load | Esc Menu") &&
         text(0,11,"DIAGNOSTICS") &&
         text(0,12,"F1 Runtime | F2/F4/F6 Visuals") &&

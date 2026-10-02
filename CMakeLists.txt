@@ -216,6 +216,7 @@ openemperor_enable_warnings(openemperor-maps)
 add_library(openemperor-simulation STATIC
     src/simulation/World.cpp
     src/simulation/WorldFire.cpp
+    src/simulation/WorldDesirability.cpp
     src/simulation/CityStartGuidance.cpp)
 target_include_directories(openemperor-simulation PUBLIC src)
 openemperor_enable_warnings(openemperor-simulation)
@@ -373,6 +374,15 @@ if(BUILD_TESTING)
         set_tests_properties(sandbox-city-v12-${fire_test} PROPERTIES TIMEOUT 300)
     endforeach()
     set_tests_properties(sandbox-city-v12-endurance PROPERTIES TIMEOUT 900)
+
+    add_executable(openemperor-sandbox-city-v13-tests tests/SandboxCityV13Tests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v13-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-sandbox-city-v13-tests)
+    foreach(quality_test base persistence districts determinism endurance)
+        add_test(NAME sandbox-city-v13-${quality_test}
+            COMMAND openemperor-sandbox-city-v13-tests ${quality_test})
+        set_tests_properties(sandbox-city-v13-${quality_test} PROPERTIES TIMEOUT 900)
+    endforeach()
 
     add_executable(openemperor-city-start-guidance-tests
         tests/CityStartGuidanceTests.cpp)

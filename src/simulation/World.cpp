@@ -218,6 +218,7 @@ const char* rules_profile_name(RulesProfile profile) {
     case RulesProfile::CityV10: return city_v10_profile_name;
     case RulesProfile::CityV11: return city_v11_profile_name;
     case RulesProfile::CityV12: return city_v12_profile_name;
+    case RulesProfile::CityV13: return city_v13_profile_name;
     }
     return "unknown";
 }
@@ -267,7 +268,8 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         profile!=RulesProfile::IndustryV5 && profile!=RulesProfile::CityV6 &&
         profile!=RulesProfile::CityV7 && profile!=RulesProfile::CityV8 &&
         profile!=RulesProfile::CityV9 && profile!=RulesProfile::CityV10 &&
-        profile!=RulesProfile::CityV11 && profile!=RulesProfile::CityV12)
+        profile!=RulesProfile::CityV11 && profile!=RulesProfile::CityV12 &&
+        profile!=RulesProfile::CityV13)
         throw std::invalid_argument("unknown sandbox rules profile");
     (void)profile_rules(profile_,rule_version_);
     treasury_=city_profile(profile) ? starting_treasury_for(profile):0;
@@ -531,7 +533,8 @@ int World::settlement_goal_households_ready() const {
         if (home.kind!=Object::Household) continue;
         const auto threshold=food_profile(profile_) ?
             Rules::city_v7_level2_demands:Rules::settlement_goal_fulfilled_demands;
-        if (home.placed && home.fulfilled_demand>=static_cast<std::uint64_t>(threshold)) ++ready;
+        if (home.placed && (desirability_profile(profile_) ? household_level(home.id)==2:
+            home.fulfilled_demand>=static_cast<std::uint64_t>(threshold))) ++ready;
     }
     return ready;
 }
@@ -549,12 +552,20 @@ bool World::settlement_goal_reached() const {
         (!population_profile(profile_) || total_population()>=Rules::city_v9_population_goal);
 }
 
-int World::household_level(BuildingId id) const {
+int World::historical_household_level(BuildingId id) const {
     const auto& home=building(id);
     if (!food_profile(profile_) || !home.placed || home.kind!=Object::Household) return 0;
     if (home.fulfilled_demand>=Rules::city_v7_level2_demands) return 2;
     if (home.fulfilled_demand>=Rules::city_v7_level1_demands) return 1;
     return 0;
+}
+
+int World::household_level(BuildingId id) const {
+    const auto& home=building(id);
+    if (!home.placed || home.kind!=Object::Household) return 0;
+    const auto historical=historical_household_level(id);
+    return desirability_profile(profile_) ?
+        std::min(historical,desirability_level_cap(household_desirability(id))):historical;
 }
 
 int World::household_population(BuildingId id) const {
@@ -603,9 +614,11 @@ bool World::population_valid() const {
             continue;
         }
         if (value.population<Rules::household_min_population ||
-            value.population>household_population_capacity(key)) return false;
+            (desirability_profile(profile_) ? value.population>Rules::household_level2_capacity:
+             value.population>household_population_capacity(key))) return false;
     }
-    return !population_profile(profile_) || total_population()<=total_population_capacity();
+    return !population_profile(profile_) || desirability_profile(profile_) ||
+        total_population()<=total_population_capacity();
 }
 
 bool World::household_service_active(BuildingId id) const {
@@ -635,6 +648,7 @@ int World::covered_households() const {
 }
 
 std::uint64_t World::household_tax_contributed(BuildingId id) const {
+    if (desirability_profile(profile_)) return building(id).taxes_paid_total;
     const auto count=building(id).fulfilled_demand;
     if (profile_==RulesProfile::CityV6) {
         if (count>UINT64_MAX/static_cast<std::uint64_t>(Rules::tax_income_per_fulfilled_demand))
@@ -665,6 +679,19 @@ bool World::city_economy_valid() const {
         history.construction_spent<history.buildings*static_cast<std::uint64_t>(Rules::household_cost) ||
         history.construction_spent>history.buildings*static_cast<std::uint64_t>(Rules::pottery_cost) ||
         history.taxes>taxes_collected_total_) return false;
+    for (const auto& b:buildings_) {
+        if (!desirability_profile(profile_) || b.kind!=Object::Household) {
+            if (b.taxes_paid_total!=0) return false;
+        } else {
+            // Historical rates are no longer reconstructible from current geometry.
+            // Check necessary payment bounds with overflow-safe division.
+            if (b.taxes_paid_total%5!=0 ||
+                b.fulfilled_demand>b.taxes_paid_total/25 ||
+                b.taxes_paid_total/60>b.fulfilled_demand ||
+                (b.taxes_paid_total/60==b.fulfilled_demand && b.taxes_paid_total%60!=0))
+                return false;
+        }
+    }
     std::uint64_t expected_taxes=history.taxes;
     for (const auto& b:buildings_) if (b.kind==Object::Household) {
         const auto tax=household_tax_contributed(b.id);
@@ -1734,13 +1761,22 @@ void World::tick_production_v2() {
                         (food_profile(profile_) && home.food_consumed_total==UINT64_MAX))
                         throw std::overflow_error("household fulfilled counter exhausted");
                     const auto resulting_count=home.fulfilled_demand+1;
-                    const std::int64_t tax=food_profile(profile_) ?
+                    const auto historical=resulting_count>=Rules::city_v7_level2_demands ? 2:
+                        resulting_count>=Rules::city_v7_level1_demands ? 1:0;
+                    const auto effective=desirability_profile(profile_) ?
+                        std::min(historical,desirability_level_cap(household_desirability(home.id))):historical;
+                    const std::int64_t tax=desirability_profile(profile_) ?
+                        (effective==2 ? Rules::city_v7_level2_tax:
+                         effective==1 ? Rules::city_v7_level1_tax:Rules::city_v7_level0_tax):
+                        food_profile(profile_) ?
                         (resulting_count>=Rules::city_v7_level2_demands ? Rules::city_v7_level2_tax:
                          resulting_count>=Rules::city_v7_level1_demands ? Rules::city_v7_level1_tax:
                          Rules::city_v7_level0_tax):Rules::tax_income_per_fulfilled_demand;
                     if (city_profile(profile_) &&
                         (taxes_collected_total_>UINT64_MAX-
-                             static_cast<std::uint64_t>(tax) || treasury_>INT64_MAX-tax))
+                             static_cast<std::uint64_t>(tax) || treasury_>INT64_MAX-tax ||
+                         (desirability_profile(profile_) &&
+                          home.taxes_paid_total>UINT64_MAX-static_cast<std::uint64_t>(tax))))
                         throw std::overflow_error("City tax counter exhausted");
                     --home.pottery_stock;
                     if (food_profile(profile_)) {
@@ -1750,22 +1786,31 @@ void World::tick_production_v2() {
                     ++home.fulfilled_demand;
                     ++home.consumed_total;
                     home.last_demand_status=1;
-                    if (population_profile(profile_) &&
+                    if (!desirability_profile(profile_) && population_profile(profile_) &&
                         home.population<household_population_capacity(home.id))
                         ++home.population;
                     if (city_profile(profile_)) {
                         taxes_collected_total_+=static_cast<std::uint64_t>(tax);
                         treasury_+=tax;
+                        if (desirability_profile(profile_))
+                            home.taxes_paid_total+=static_cast<std::uint64_t>(tax);
                     }
                 } else {
                     if (home.missed_demand==UINT64_MAX)
                         throw std::overflow_error("household missed counter exhausted");
                     ++home.missed_demand;
                     home.last_demand_status=2;
-                    if (population_profile(profile_) &&
+                    if (!desirability_profile(profile_) && population_profile(profile_) &&
                         household_move_in_grace_remaining(home.id)==0 &&
                         home.population>Rules::household_min_population)
                         --home.population;
+                }
+                if (desirability_profile(profile_)) {
+                    const auto capacity=household_population_capacity(home.id);
+                    if (home.population>capacity) --home.population;
+                    else if (!fulfilled && household_move_in_grace_remaining(home.id)==0 &&
+                             home.population>Rules::household_min_population) --home.population;
+                    else if (fulfilled && home.population<capacity) ++home.population;
                 }
             }
         }
@@ -2281,7 +2326,8 @@ bool World::industry_balance_valid() const {
                 if (b.pottery_stock<0 || b.pottery_stock+b.reserved_incoming>Rules::household_capacity ||
                     b.food_stock<0 || b.food_stock+b.reserved_food_incoming>Rules::household_food_capacity ||
                     b.population<Rules::household_min_population ||
-                    b.population>household_population_capacity(b.id) ||
+                    (desirability_profile(profile_) ? b.population>Rules::household_level2_capacity:
+                     b.population>household_population_capacity(b.id)) ||
                     b.consumed_total!=b.fulfilled_demand ||
                     b.food_consumed_total!=b.fulfilled_demand) return false;
                 pottery+=static_cast<std::uint64_t>(b.pottery_stock); food+=static_cast<std::uint64_t>(b.food_stock);
@@ -2805,6 +2851,7 @@ std::string World::canonical_state() const {
            <<','<<b.food_consumed_total<<','<<b.food_produced<<','<<b.service_until_tick
            <<','<<b.population<<','<<b.operating_enabled<<','
            <<static_cast<int>(b.workforce_priority);
+        if (desirability_profile(profile_)) out<<",taxes:"<<b.taxes_paid_total;
         if (fire_profile(profile_)) out<<",fire:"<<b.fire_risk<<','
             <<b.fire_protection_until_tick<<','<<b.fire_until_tick;
     }
@@ -2894,7 +2941,7 @@ WorldSnapshot World::snapshot() const {
                         b.consumed_total,b.last_demand_status,b.clay_extracted,b.food_stock,
                         b.reserved_food_incoming,b.food_consumed_total,b.food_produced,
                         b.service_until_tick,b.population,b.operating_enabled,
-                        b.workforce_priority,b.fire_risk,b.fire_protection_until_tick,b.fire_until_tick});
+                        b.workforce_priority,b.fire_risk,b.fire_protection_until_tick,b.fire_until_tick,b.taxes_paid_total});
     }
     s.couriers.reserve(couriers_.size());
     for (std::size_t i=0;i<couriers_.size();++i) {
@@ -2912,6 +2959,9 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
     if (!rule_version_supported(s.profile,s.rule_version))
         throw std::invalid_argument("unsupported sandbox rule version");
     World w(s.width,s.height,std::move(mask),s.profile,s.rule_version);
+    for (const auto& b:s.buildings)
+        if ((!desirability_profile(s.profile) || b.kind!=Object::Household) && b.taxes_paid_total)
+            throw std::invalid_argument("tax payment authority requires a City-v13 Household");
     for (const auto& b:s.buildings)
         if (!fire_profile(s.profile) && (b.fire_risk || b.fire_protection_until_tick || b.fire_until_tick))
             throw std::invalid_argument("non-fire profile contains fire state");
@@ -2995,7 +3045,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 b.recipes_completed,b.placed_tick,b.demand_progress,b.fulfilled_demand,
                 b.missed_demand,b.consumed_total,b.last_demand_status,b.clay_extracted,
                 b.food_stock,b.reserved_food_incoming,b.food_consumed_total,b.food_produced,
-                b.service_until_tick,b.population,b.operating_enabled,b.workforce_priority,b.fire_risk,b.fire_protection_until_tick,b.fire_until_tick});
+                b.service_until_tick,b.population,b.operating_enabled,b.workforce_priority,b.fire_risk,b.fire_protection_until_tick,b.fire_until_tick,b.taxes_paid_total});
         }
         if ((!s.buildings.empty() && s.next_building_id<=
              static_cast<std::uint32_t>(s.buildings.back().id)) ||

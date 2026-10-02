@@ -16,7 +16,7 @@ inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
 enum class RulesProfile {
     LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8,
-    CityV9, CityV10, CityV11, CityV12
+    CityV9, CityV10, CityV11, CityV12, CityV13
 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
@@ -28,7 +28,11 @@ inline constexpr const char* city_v9_profile_name = "sandbox-city-v9";
 inline constexpr const char* city_v10_profile_name = "sandbox-city-v10";
 inline constexpr const char* city_v11_profile_name = "sandbox-city-v11";
 inline constexpr const char* city_v12_profile_name = "sandbox-city-v12";
-constexpr bool fire_profile(RulesProfile profile) { return profile==RulesProfile::CityV12; }
+inline constexpr const char* city_v13_profile_name = "sandbox-city-v13";
+constexpr bool desirability_profile(RulesProfile profile) { return profile==RulesProfile::CityV13; }
+constexpr bool fire_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV12 || desirability_profile(profile);
+}
 constexpr bool market_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV11 || fire_profile(profile);
 }
@@ -200,6 +204,19 @@ BuildingFootprint building_footprint(RulesProfile profile,Object kind);
 std::vector<Cell> building_footprint_cells(RulesProfile profile,Object kind,Cell origin);
 Cell building_front_cell(RulesProfile profile,Object kind,Cell origin);
 bool building_footprint_contains(RulesProfile profile,Object kind,Cell origin,Cell cell);
+// Pure authored City-v13 geometry/scoring helpers. No road or map semantics.
+inline constexpr int desirability_radius=8;
+enum class BuildingId : std::uint32_t;
+struct DesirabilitySource {
+    BuildingId id;
+    Object kind=Object::Empty;
+    int distance=0, contribution=0;
+};
+int footprint_distance(Cell a,BuildingFootprint af,Cell b,BuildingFootprint bf);
+int desirability_impact(Object kind);
+int desirability_contribution(Object kind,int distance);
+int desirability_level_cap(int score);
+int clamp_desirability(int score);
 struct BuildingEntrance {
     Cell road_cell{};
     Cell building_cell{};
@@ -293,6 +310,7 @@ struct BuildingState {
     WorkforcePriority workforce_priority=WorkforcePriority::Normal;
     int fire_risk=0;
     std::uint64_t fire_protection_until_tick=0, fire_until_tick=0;
+    std::uint64_t taxes_paid_total=0; // City-v13 only: actual payments, never inferred from level.
     bool operator==(const BuildingState&) const = default;
 };
 bool fire_eligible(Object kind);
@@ -360,6 +378,7 @@ struct BuildingSnapshot {
     WorkforcePriority workforce_priority=WorkforcePriority::Normal;
     int fire_risk=0;
     std::uint64_t fire_protection_until_tick=0, fire_until_tick=0;
+    std::uint64_t taxes_paid_total=0;
     bool operator==(const BuildingSnapshot&) const = default;
 };
 // Historical accounting only. No removed entities, goods, population or UI state.
@@ -478,7 +497,12 @@ public:
     bool city_economy_valid() const;
     bool food_balance_valid() const;
     bool service_state_valid() const;
+    int historical_household_level(BuildingId id) const;
     int household_level(BuildingId id) const;
+    int building_distance(BuildingId a,BuildingId b) const;
+    int household_desirability(BuildingId id) const;
+    int household_desirability_at(Cell origin) const;
+    std::vector<DesirabilitySource> household_desirability_sources(BuildingId id) const;
     bool household_service_active(BuildingId id) const;
     std::uint64_t household_service_remaining(BuildingId id) const;
     std::uint64_t household_move_in_grace_remaining(BuildingId id) const;

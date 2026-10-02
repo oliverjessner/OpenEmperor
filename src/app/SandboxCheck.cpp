@@ -290,6 +290,14 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                         {"pottery",b.pottery_stock},{"food",b.food_stock},
                         {"service_active",world.household_service_active(b.id)},
                         {"population",world.household_population(b.id)}});
+                    if (simulation::desirability_profile(rules)) {
+                        auto& house=household_states.back();
+                        house["desirability"]=world.household_desirability(b.id);
+                        house["historical_level"]=world.historical_household_level(b.id);
+                        house["effective_level"]=world.household_level(b.id);
+                        house["population_capacity"]=world.household_population_capacity(b.id);
+                        house["taxes_paid_total"]=b.taxes_paid_total;
+                    }
                 }
                 if (v11 && simulation::World::operation_controllable(b.kind))
                     operation_states.push_back({{"id",static_cast<std::uint32_t>(b.id)},
@@ -311,7 +319,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                 draws[name]=building_stats.drawn_instances[index];
                 fallbacks[name]=building_stats.placeholder_fallbacks[index];
             }
-            std::cout<<nlohmann::json{{"schema",fire ? "openemperor-sandbox-check-v12":v11 ? "openemperor-sandbox-check-v11":
+            std::cout<<nlohmann::json{{"schema",simulation::desirability_profile(rules) ? "openemperor-sandbox-check-v13":fire ? "openemperor-sandbox-check-v12":v11 ? "openemperor-sandbox-check-v11":
                                                     "openemperor-sandbox-check-v10"},
                 {"rules",simulation::rules_profile_name(rules)},
                 {"rule_version",world.rule_version()},

@@ -203,6 +203,34 @@ int main(int argc,char* argv[]) {
                 fire_menu.sandbox()->world().snapshot()==state,"City-v12 menu restore changed World");
             fire_menu.shutdown();
         }
+
+        {
+            auto quality_settings=openemperor::menu::Settings{};
+            quality_settings.data_root=t.root/"data";
+            quality_settings.profile=openemperor::simulation::RulesProfile::CityV13;
+            const auto quality_root=t.root/"quality-app";
+            openemperor::menu::write_settings(quality_root,quality_settings);
+            Menu quality_menu({},quality_root,std::make_unique<FakeDialog>());
+            quality_menu.initialize(window,renderer);
+            check(quality_menu.settings().profile==openemperor::simulation::RulesProfile::CityV13,
+                "explicit stored City-v13 profile was reset");
+            click(quality_menu,90,220);click(quality_menu,90,650);finish_load(quality_menu);
+            check(quality_menu.state()==Menu::State::Playing && quality_menu.sandbox() &&
+                quality_menu.sandbox()->world().profile()==openemperor::simulation::RulesProfile::CityV13 &&
+                quality_menu.sandbox()->world().rule_version()==1 &&
+                quality_menu.sandbox()->world().ticks()==0 && quality_menu.sandbox()->world().treasury()==20 &&
+                quality_menu.sandbox()->world().workforce_used()==24,"City-v13 menu starter failed");
+            key(quality_menu,SDLK_F5);
+            const auto state=quality_menu.sandbox()->world().snapshot();
+            const auto entries=openemperor::menu::list_saves(quality_root);
+            check(entries.entries.size()==1 && entries.entries[0].schema==15 &&
+                entries.entries[0].rule_version==1 && entries.entries[0].profile==
+                    openemperor::simulation::city_v13_profile_name,"City-v13 ordinary save list identity");
+            key(quality_menu,SDLK_ESCAPE);click(quality_menu,90,400);click(quality_menu,90,560);finish_load(quality_menu);
+            check(quality_menu.state()==Menu::State::Playing && quality_menu.sandbox()->paused() &&
+                quality_menu.sandbox()->world().snapshot()==state,"City-v13 menu restore changed World");
+            quality_menu.shutdown();
+        }
         fs::create_directories(t.root/"plain-bin/resources");
         fs::create_directories(t.root/"OpenEmperor.app/Contents/MacOS");
         fs::create_directories(t.root/"OpenEmperor.app/Contents/Resources");

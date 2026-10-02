@@ -131,6 +131,9 @@ public:
     const std::filesystem::path& save_path() const { return save_path_; }
     bool paused() const { return clock_.paused(); }
     bool help_open() const { return help_open_; }
+    bool desirability_overlay() const { return desirability_overlay_; }
+    std::optional<int> predicted_desirability() const { return predicted_desirability_; }
+    std::uint64_t desirability_preview_build_count() const { return desirability_preview_build_count_; }
     const sandbox_ui::Layout& layout() const { return layout_; }
     std::optional<simulation::BuildingId> selected_building() const;
     std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
@@ -141,6 +144,7 @@ public:
     const std::vector<std::uint8_t>& buildable_mask() const { return buildable_mask_; }
 private:
     bool fire_watch_selected() const;
+    bool status_first_selected() const;
     int building_list_y() const;
     int demolition_hint_extra_height() const;
     std::vector<std::string> wrap_panel_lines(const std::vector<std::string>& lines) const;
@@ -156,7 +160,7 @@ private:
     void reset_camera();
     void resize_camera();
     void place_demo();
-    bool draw_diamond(scene::Point world, std::uint8_t r, std::uint8_t g, std::uint8_t b, bool fill);
+    bool draw_diamond(scene::Point world, std::uint8_t r, std::uint8_t g, std::uint8_t b, bool fill, float alpha=0.65F);
     bool draw_world(const scene::Camera2D& render_camera);
     bool draw_walker_diagnostic();
     bool draw_hud();
@@ -204,6 +208,11 @@ private:
     bool panel_open_=true;
     bool debug_open_=false;
     bool help_open_=false;
+    bool desirability_overlay_=false;
+    std::optional<int> predicted_desirability_;
+    std::optional<simulation::Cell> desirability_preview_cell_;
+    std::uint64_t desirability_preview_revision_=UINT64_MAX;
+    std::uint64_t desirability_preview_build_count_=0;
     int panel_scroll_=0;
     std::optional<scene::Point> pointer_;
     bool hover_dirty_=true;

@@ -32,7 +32,7 @@ bool Layout::ui_at(double x,double y) const {
         panel.contains(x,y);
 }
 
-Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch) {
+Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability) {
     Layout out;
     out.scale=std::max(1,static_cast<int>(std::lround(std::min(
         width/static_cast<double>(std::max(1,window_width)),
@@ -55,6 +55,7 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
         Action::Pottery,Action::Warehouse,Action::RemoveRoad,Action::Household,Action::Farm,
         Action::ServicePost,Action::Market};
     if (fire_watch) tools.push_back(Action::FireWatch);
+    if (desirability) tools.push_back(Action::Desirability);
     out.buttons.resize(tools.size()+10);
     constexpr std::array<Action,8> controls={Action::Pause,Action::Step,Action::Speed1,
         Action::Speed2,Action::Speed4,Action::Reset,Action::Save,Action::Load};

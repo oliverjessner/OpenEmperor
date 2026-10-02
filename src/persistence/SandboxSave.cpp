@@ -147,6 +147,7 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
             entry["fire_protection_until_tick"]=b.fire_protection_until_tick;
             entry["fire_until_tick"]=b.fire_until_tick;
         }
+        if (simulation::desirability_profile(s.profile)) entry["taxes_paid_total"]=b.taxes_paid_total;
         bs.push_back(std::move(entry));
     }
     const std::size_t courier_count=scalable ? s.couriers.size():(service ? simulation::max_couriers:
@@ -246,9 +247,11 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     s.path_vertex=static_cast<std::size_t>(number(field(j,"path_vertex"),limit));
     s.edge_progress=small(field(j,"edge_progress"),Rules::edge_ticks);
     const auto& bs=field(j,"buildings"); const auto& cs=field(j,"couriers");
-    if (schema!=14) for (const auto& b:bs)
+    if (schema<14) for (const auto& b:bs)
         for (const auto* name:{"fire_risk","fire_protection_until_tick","fire_until_tick"})
             if (b.contains(name)) require(number(b.at(name),0)==0,"fire state in a non-fire schema");
+    if (schema!=15) for (const auto& b:bs)
+        require(!b.contains("taxes_paid_total"),"tax payment authority requires schema 15");
     if (schema>=13) {
         const auto& h=field(j,"demolition_history");
         auto& out=s.demolition_history;
@@ -261,7 +264,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         out.taxes=number(field(h,"taxes"));
         out.construction_spent=number(field(h,"construction_spent"));
     }
-    if (schema>=10 && schema<=14) {
+    if (schema>=10 && schema<=15) {
         const bool v11=schema>=11;
         require(bs.is_array() && bs.size()<=building_collection_limit(profile) &&
                 cs.is_array() && cs.size()<=courier_collection_limit(profile),
@@ -273,11 +276,11 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             const auto id=static_cast<std::uint32_t>(number(field(b,"id"),UINT32_MAX));
             require(id>previous,"City-v10 building IDs must be positive, unique and sorted");
             previous=id; x.id=static_cast<BuildingId>(id);
-            x.kind=static_cast<Object>(small(field(b,"kind"),schema==14 ? 10:v11 ? 9:8));
+            x.kind=static_cast<Object>(small(field(b,"kind"),schema>=14 ? 10:v11 ? 9:8));
             require(x.kind==Object::ClaySource || x.kind==Object::Pottery ||
                     x.kind==Object::Warehouse || x.kind==Object::Household ||
                     x.kind==Object::Farm || x.kind==Object::ServicePost ||
-                    (v11 && x.kind==Object::Market) || (schema==14 && x.kind==Object::FireWatch),
+                    (v11 && x.kind==Object::Market) || (schema>=14 && x.kind==Object::FireWatch),
                     "invalid scalable City building kind");
             x.cell=cell(field(b,"cell")); x.placed=boolean(field(b,"placed"));
             require(x.placed,"City-v10 saves may not contain building holes");
@@ -312,10 +315,15 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
                         (x.operating_enabled && x.workforce_priority==WorkforcePriority::Normal),
                         "operation controls are not valid for this building");
             }
-            if (schema==14) {
+            if (schema>=14) {
                 x.fire_risk=small(field(b,"fire_risk"),Rules::fire_risk_threshold-1);
                 x.fire_protection_until_tick=number(field(b,"fire_protection_until_tick"));
                 x.fire_until_tick=number(field(b,"fire_until_tick"));
+            }
+            if (schema==15) {
+                x.taxes_paid_total=number(field(b,"taxes_paid_total"));
+                require(x.kind==Object::Household || x.taxes_paid_total==0,
+                        "non-Household tax payment authority must be zero");
             }
             s.buildings.push_back(x);
         }
@@ -327,7 +335,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             previous=id; x.id=static_cast<CourierId>(id);
             x.owner=static_cast<BuildingId>(number(field(c,"owner"),UINT32_MAX));
             x.target=static_cast<BuildingId>(number(field(c,"target"),UINT32_MAX));
-            x.role=static_cast<CourierRole>(small(field(c,"role"),schema==14 ? 10:v11 ? 9:5));
+            x.role=static_cast<CourierRole>(small(field(c,"role"),schema>=14 ? 10:v11 ? 9:5));
             require(x.role!=CourierRole::None,"invalid scalable City courier role");
             const auto& old_last=field(c,"last_dispatched_pottery");
             if (!old_last.is_null()) x.last_dispatched_pottery=static_cast<BuildingId>(
@@ -525,6 +533,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
 }
 json document_json(const SaveDocument& d) {
     return {{"format","openemperor-sandbox-save"},{"schema_version",
+             d.world.profile==simulation::RulesProfile::CityV13 ? 15:
              d.world.profile==simulation::RulesProfile::CityV12 ? 14:
              d.world.profile==simulation::RulesProfile::CityV11 ?
                 (d.world.rule_version==4 ? 13:d.world.rule_version==3 ? 12:11):
@@ -546,7 +555,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=14,"unsupported save schema version");
+    require(schema>=1 && schema<=15,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -574,6 +583,7 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::city_v10_profile_name) d.world.profile=simulation::RulesProfile::CityV10;
     else if (id==simulation::city_v11_profile_name) d.world.profile=simulation::RulesProfile::CityV11;
     else if (id==simulation::city_v12_profile_name) d.world.profile=simulation::RulesProfile::CityV12;
+    else if (id==simulation::city_v13_profile_name) d.world.profile=simulation::RulesProfile::CityV13;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
     require((d.world.profile==simulation::RulesProfile::ProductionV2 ?
@@ -588,6 +598,7 @@ SaveDocument parse_document(const json& j) {
             (d.world.profile!=simulation::RulesProfile::CityV9 || schema==9) &&
             (d.world.profile!=simulation::RulesProfile::CityV10 || schema==10) &&
             (d.world.profile!=simulation::RulesProfile::CityV12 || schema==14) &&
+            (d.world.profile!=simulation::RulesProfile::CityV13 || schema==15) &&
             (d.world.profile!=simulation::RulesProfile::CityV11 ||
                 (schema==11 ? d.world.rule_version<=2 :
                  (schema==12 && d.world.rule_version==3) ||
@@ -605,6 +616,8 @@ SaveDocument parse_document(const json& j) {
             (schema!=13 || (d.world.profile==simulation::RulesProfile::CityV11 &&
                             d.world.rule_version==4)) &&
             (schema!=14 || (d.world.profile==simulation::RulesProfile::CityV12 &&
+                            d.world.rule_version==1)) &&
+            (schema!=15 || (d.world.profile==simulation::RulesProfile::CityV13 &&
                             d.world.rule_version==1)),
             "unsupported sandbox rule version");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
