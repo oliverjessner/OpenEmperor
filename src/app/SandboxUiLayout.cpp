@@ -5,6 +5,22 @@
 
 namespace openemperor::sandbox_ui {
 
+std::vector<std::string> wrap_text(const std::vector<std::string>& lines,std::size_t columns) {
+    columns=std::max<std::size_t>(1,columns);
+    std::vector<std::string> result;
+    for (auto remaining:lines) {
+        while (remaining.size()>columns) {
+            auto end=remaining.rfind(' ',columns);
+            if (end==std::string::npos || end==0) end=columns;
+            result.push_back(remaining.substr(0,end));
+            remaining.erase(0,end);
+            if (!remaining.empty() && remaining.front()==' ') remaining.erase(0,1);
+        }
+        result.push_back(std::move(remaining));
+    }
+    return result;
+}
+
 std::optional<Action> Layout::button_at(double x,double y) const {
     for (const auto& button:buttons)
         if (button.rect.contains(x,y)) return button.action;

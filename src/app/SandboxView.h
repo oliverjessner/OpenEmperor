@@ -135,10 +135,15 @@ public:
     std::optional<simulation::BuildingId> selected_building() const;
     std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
     std::vector<std::string> inspection_lines() const;
+    std::vector<std::string> demolition_hint_lines() const;
     const sandbox_ui::RoadPlan& road_preview() const { return road_preview_; }
     std::uint64_t road_plan_build_count() const { return road_plan_build_count_; }
     const std::vector<std::uint8_t>& buildable_mask() const { return buildable_mask_; }
 private:
+    bool fire_watch_selected() const;
+    int building_list_y() const;
+    int demolition_hint_extra_height() const;
+    std::vector<std::string> wrap_panel_lines(const std::vector<std::string>& lines) const;
     enum class OperationAction { Toggle, PriorityHigh, PriorityNormal, PriorityLow };
     struct DrawInstance {
         scene::WorldDrawKey key;

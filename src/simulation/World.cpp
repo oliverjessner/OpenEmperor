@@ -701,21 +701,25 @@ bool World::city_economy_valid() const {
 DemolitionStatus World::demolition_status(BuildingId id) const {
     DemolitionStatus status;
     if (!demolition_supported()) {
+        status.blocker=DemolitionBlocker::UnsupportedProfile;
         status.reason="Building demolition requires City-v11 rule version 4";
         return status;
     }
     const auto found=std::lower_bound(buildings_.begin(),buildings_.end(),id,
         [](const BuildingState& b,BuildingId key) { return b.id<key; });
     if (found==buildings_.end() || found->id!=id || !found->placed) {
+        status.blocker=DemolitionBlocker::MissingBuilding;
         status.reason="Building does not exist"; return status;
     }
     const auto& b=*found;
     if (b.kind!=Object::ClaySource && b.kind!=Object::Pottery && b.kind!=Object::Warehouse &&
         b.kind!=Object::Household && b.kind!=Object::Farm && b.kind!=Object::ServicePost &&
         b.kind!=Object::Market && !(fire_profile(profile_) && b.kind==Object::FireWatch)) {
+        status.blocker=DemolitionBlocker::UnsupportedKind;
         status.reason="Building kind does not support demolition"; return status;
     }
     if (building_on_fire(id)) {
+        status.blocker=DemolitionBlocker::OnFire;
         status.reason="Cannot demolish: building is on fire."; return status;
     }
     // Collect diagnostics without routes, caches, mutation or a hypothetical World.
@@ -735,16 +739,23 @@ DemolitionStatus World::demolition_status(BuildingId id) const {
     stock(b.input_clay,"input Clay"); stock(b.active_recipe_clay,"recipe Clay");
     stock(b.output,b.kind==Object::ClaySource ? "Clay":b.kind==Object::Farm ? "Food":"Pottery");
     stock(b.pottery_stock,"Pottery"); stock(b.food_stock,"Food");
-    if (status.active_couriers) status.reason="Cannot demolish: owned courier is delivering or returning.";
-    else if (status.incoming_deliveries) status.reason="Cannot demolish: another courier has this active target.";
+    const auto blocked=[&](DemolitionBlocker blocker,std::string reason) {
+        status.blocker=blocker; status.reason=std::move(reason);
+    };
+    if (status.active_couriers) blocked(DemolitionBlocker::OwnedActiveCourier,
+        "Cannot demolish: owned courier is delivering or returning.");
+    else if (status.incoming_deliveries) blocked(DemolitionBlocker::IncomingDelivery,
+        "Cannot demolish: another courier has this active target.");
     else if (b.reserved_incoming || b.reserved_food_incoming)
-        status.reason="Cannot demolish: incoming delivery reserved.";
-    else if (owned_payload) status.reason="Cannot demolish: owned courier still carries cargo or a reservation.";
-    else if (b.active_recipe_clay) status.reason="Cannot demolish: active recipe in progress.";
-    else if (!status.stored_goods_summary.empty())
-        status.reason="Cannot demolish: still contains "+status.stored_goods_summary+".";
+        blocked(DemolitionBlocker::IncomingReservation,"Cannot demolish: incoming delivery reserved.");
+    else if (owned_payload) blocked(DemolitionBlocker::OwnedPayload,
+        "Cannot demolish: owned courier still carries cargo or a reservation.");
+    else if (b.active_recipe_clay) blocked(DemolitionBlocker::ActiveRecipe,
+        "Cannot demolish: active recipe in progress.");
+    else if (!status.stored_goods_summary.empty()) blocked(DemolitionBlocker::StoredGoods,
+        "Cannot demolish: still contains "+status.stored_goods_summary+".");
     else if (road_revision_==UINT64_MAX || command_sequence_==UINT64_MAX)
-        status.reason="Cannot demolish: topology or command counter exhausted.";
+        blocked(DemolitionBlocker::ExhaustedCounter,"Cannot demolish: topology or command counter exhausted.");
     else { status.allowed=true; status.reason="Ready to demolish. No refund."; }
     return status;
 }

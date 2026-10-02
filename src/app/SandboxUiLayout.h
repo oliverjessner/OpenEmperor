@@ -2,6 +2,7 @@
 
 #include <array>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace openemperor::sandbox_ui {
@@ -32,5 +33,7 @@ struct Layout {
 
 Layout make_layout(int output_width,int output_height,int window_width,int window_height,
                    bool panel_open,bool fire_watch=false);
+// Wrap every character, including long tokens, without ellipsis.
+std::vector<std::string> wrap_text(const std::vector<std::string>& lines,std::size_t columns);
 
 } // namespace openemperor::sandbox_ui

@@ -149,6 +149,26 @@ std::filesystem::path building_fixture(const Temp& temp) {
     check(static_cast<bool>(output),"building manifest write");
     return path;
 }
+std::filesystem::path fire_watch_fixture(const Temp& temp) {
+    Bytes sg3(40680U+4U*72U,0);
+    u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,214);
+    u32(sg3,12,4);u32(sg3,16,4);u32(sg3,20,1);
+    const std::string name="synthetic.bmp";
+    std::copy(name.begin(),name.end(),sg3.begin()+680);u32(sg3,680+124,4);
+    const auto at=40680U+3U*72U;
+    u32(sg3,at,4);u32(sg3,at+4,3200);u32(sg3,at+8,3200);
+    u16(sg3,at+20,78);u16(sg3,at+22,104);u16(sg3,at+50,30);sg3[at+55]=1;
+    write(temp.path/"DATA/watch.sg3",sg3);
+    Bytes bitmap(3204,0);
+    for (std::size_t i=4;i<bitmap.size();i+=2) u16(bitmap,i,0x7c00);
+    write(temp.path/"DATA/watch.555",bitmap);
+    const auto path=temp.path/"watch.json";
+    std::ofstream out(path);
+    out<<nlohmann::json{{"schema_version",1},{"mode","curated_building_preview"},
+        {"buildings",{{"fire_watch",{{"archive","DATA/watch.sg3"},{"image_index",3},
+        {"ground_anchor",{39,84}},{"evidence","Independently authored one-cell base"}}}}}}.dump();
+    check(bool(out),"Watch fixture write");return path;
+}
 std::filesystem::path road_fixture(const Temp& temp) {
     Bytes sg3(40680U+17U*72U,0);
     u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,214);
@@ -1764,6 +1784,148 @@ int main(int argc,char** argv) {
             simulation::RulesProfile::CityV12);
         empty_fire.initialize(window,renderer);empty_fire.handle_event(key(SDLK_F),running);
         check(empty_fire.tool()==11 && empty_fire.render(),"F does not select Fire Watch");
+        const auto watch_manifest=fire_watch_fixture(temp);
+        Temp watch_saves;
+        empty_fire.configure_save(temp.path,"Cities/Synthetic.map",watch_saves.path/"watch-save.json");
+        perf::set_enabled(true);perf::reset();
+        empty_fire.set_building_visuals(watch_manifest);
+        check(empty_fire.building_texture_count()==1 &&
+            perf::counter(perf::Counter::AssetDecodes)==1 &&
+            perf::counter(perf::Counter::TextureUploads)==1,"Watch profile did not decode/upload once");
+        for (const auto command:std::vector<simulation::Command>{
+            {simulation::CommandType::PlaceHousehold,{100,101}},
+            {simulation::CommandType::PlaceFireWatch,{103,101}},
+            {simulation::CommandType::PlaceHousehold,{106,101}},
+            {simulation::CommandType::PlaceFireWatch,{109,101}}})
+            check(empty_fire.execute(command).accepted,"dynamic Watch fixture placement");
+        const auto second_watch=*empty_fire.selected_building();
+        std::vector<simulation::BuildingId> watches;
+        for (const auto& b:empty_fire.world().buildings())
+            if (b.kind==simulation::Object::FireWatch) watches.push_back(b.id);
+        check(watches.size()==2 && watches[0]!=watches[1] &&
+            second_watch==watches[1],"Watch kind was confused with ID");
+        for (int x=101;x<=109;++x)
+            check(empty_fire.execute({simulation::CommandType::PlaceRoad,{x,103}}).accepted,"Watch road");
+        for (const int x:{103,109})
+            check(empty_fire.execute({simulation::CommandType::PlaceRoad,{x,102}}).accepted,"Watch entrance");
+        // A no-op road selects no new entity; select the Watch by its occupied map cell.
+        empty_fire.set_tool(5);
+        const auto select_watch=[&]() {
+            const auto ground=empty_fire.camera().world_to_screen(
+                maps::terrain_ground({109,101},72));
+            mouse_click(empty_fire,static_cast<float>(ground.x),static_cast<float>(ground.y),running);
+            check(empty_fire.selected_building()==second_watch,"Watch map selection");
+        };
+        select_watch();
+        empty_fire.tick_once();
+        auto join=[](const auto& lines) {
+            std::string result;for (const auto& line:lines) { if (!result.empty()) result+=' ';result+=line; }
+            return result;
+        };
+        const auto watch_details=join(empty_fire.inspection_lines());
+        check(watch_details.starts_with("Fire Watch #") && watch_details.find("Workers assigned 2/2")!=std::string::npos &&
+            watch_details.find("Inspector phase:")!=std::string::npos && watch_details.find("Route status:")!=std::string::npos &&
+            watch_details.find("City-wide protected")!=std::string::npos && watch_details.find("...")==std::string::npos,
+            "Watch inspector priority, wrapping or city-wide attribution");
+        check(join(empty_fire.demolition_hint_lines())=="Inspector is still on patrol.",
+            "Watch demolition showed false empty-stock advice");
+        const auto before_watch_draw=empty_fire.world().snapshot();
+        const auto before_watch_stats=empty_fire.building_display_stats();
+        perf::reset();
+        for (int frame=0;frame<4;++frame) {
+            check(empty_fire.render(),"two Watch render");
+            empty_fire.handle_event(key(SDLK_F4),running);
+        }
+        const auto after_watch_stats=empty_fire.building_display_stats();
+        const auto role=openemperor::assets::role_index(openemperor::assets::BuildingVisualRole::FireWatch);
+        check(after_watch_stats.drawn_instances[role]-before_watch_stats.drawn_instances[role]==4 &&
+            after_watch_stats.placeholder_fallbacks[role]-before_watch_stats.placeholder_fallbacks[role]==4 &&
+            empty_fire.world().snapshot()==before_watch_draw && empty_fire.building_texture_count()==1 &&
+            perf::counter(perf::Counter::AssetDecodes)==0 && perf::counter(perf::Counter::TextureUploads)==0 &&
+            perf::counter(perf::Counter::BfsCalls)==0 && perf::counter(perf::Counter::RouteRefreshes)==0,
+            "F4 did not toggle both Watches with shared texture and unchanged World");
+        const auto preview_world=empty_fire.world().snapshot();
+        const auto point=[&](std::uint32_t x,std::uint32_t y) {
+            return empty_fire.camera().world_to_screen(maps::terrain_ground({x,y},72));
+        };
+        perf::reset();
+        empty_fire.set_tool(11);
+        const auto watch_hover=point(111,105);
+        empty_fire.handle_event(motion(static_cast<float>(watch_hover.x),static_cast<float>(watch_hover.y)),running);
+        check(empty_fire.render(),"Watch placement preview render");
+        empty_fire.set_tool(1);
+        const auto road_start=point(112,105),road_end=point(115,105);
+        empty_fire.handle_event(click(static_cast<float>(road_start.x),
+            static_cast<float>(road_start.y)),running);
+        empty_fire.handle_event(motion(static_cast<float>(road_end.x),static_cast<float>(road_end.y)),running);
+        check(empty_fire.render() && empty_fire.road_preview().valid,"road preview beside selected Watch");
+        empty_fire.handle_event(key(SDLK_ESCAPE),running);
+        check(empty_fire.world().snapshot()==preview_world && perf::counter(perf::Counter::WorldCopies)==0 &&
+            perf::counter(perf::Counter::BfsCalls)==0 && perf::counter(perf::Counter::RouteRefreshes)==0 &&
+            perf::counter(perf::Counter::AssetDecodes)==0 && perf::counter(perf::Counter::TextureUploads)==0,
+            "Watch/road preview did work or changed fire, population, funds or commands");
+        select_watch();
+        bool bad_profile_rejected=false;
+        try { empty_fire.set_building_visuals(temp.path/"missing-watch.json"); }
+        catch (const std::exception&) {bad_profile_rejected=true;}
+        check(bad_profile_rejected && empty_fire.building_texture_count()==1 &&
+            empty_fire.building_display_stats().configured_roles[role],"failed Watch change lost old profile");
+        // Existing operation hit path must not issue a map placement on mouse-up.
+        const auto sequence=empty_fire.world().command_sequence();
+        const auto& layout=empty_fire.layout();
+        mouse_click(empty_fire,static_cast<float>(layout.panel.x+30*layout.scale),
+            static_cast<float>(layout.panel.y+layout.panel.h-154*layout.scale),running);
+        check(!empty_fire.world().building(second_watch).operating_enabled &&
+            empty_fire.world().command_sequence()==sequence+1 && empty_fire.world().buildings().size()==4,
+            "Watch Pause clicked through into map or changed multiple commands");
+        check(empty_fire.execute({simulation::CommandType::RemoveRoad,{108,103}}).accepted,
+            "Inspector future-road interruption fixture");
+        select_watch();
+        check(join(empty_fire.demolition_hint_lines())=="Inspector route interrupted; reconnect roads.",
+            "interrupted Inspector hint falsely promised waiting alone");
+        check(empty_fire.execute({simulation::CommandType::PlaceRoad,{108,103}}).accepted,
+            "Inspector road reconnect fixture");
+        select_watch();
+        bool returned=false;
+        for (int tick=0;tick<600;++tick) {
+            empty_fire.tick_once();
+            const auto& c=*std::find_if(empty_fire.world().couriers().begin(),empty_fire.world().couriers().end(),
+                [&](const auto& value){return value.owner==second_watch;});
+            if (c.phase==simulation::CourierPhase::Returning)
+                check(join(empty_fire.demolition_hint_lines())=="Waiting for the Inspector to return.",
+                    "returning Watch demolition hint incorrect");
+            if (c.phase==simulation::CourierPhase::IdleAtWorkshop) {returned=true;break;}
+        }
+        check(returned && empty_fire.world().demolition_status(second_watch).allowed,
+            "paused Inspector did not finish with existing demolition semantics");
+        empty_fire.save_now();
+        const auto exact_watch_save=empty_fire.world().snapshot();
+        for (int tick=0;tick<20;++tick) empty_fire.tick_once();
+        empty_fire.load_now();
+        check(empty_fire.world().snapshot()==exact_watch_save && empty_fire.paused() &&
+            empty_fire.world().rule_version()==1 && empty_fire.world().buildings().size()==4,
+            "schema14 Watch visual load changed entities, paths, controls or fire deadlines");
+        // Empty, paused Watch can be demolished without changing the visual pipeline.
+        select_watch();
+        const auto before_watch_demolish=empty_fire.world().snapshot();
+        mouse_click(empty_fire,static_cast<float>(layout.panel.x+30*layout.scale),
+            static_cast<float>(layout.panel.y+layout.panel.h-64*layout.scale),running);
+        check(empty_fire.demolition_pending() && empty_fire.world().snapshot()==before_watch_demolish,
+            "Watch demolition button clicked through or mutated before confirmation");
+        check(empty_fire.resolve_demolition(true) && !empty_fire.world().building_owner_at({109,101}),
+            "safe Watch demolition failed");
+        const auto preview_before=empty_fire.world().snapshot();
+        perf::reset();empty_fire.set_tool(11);
+        const auto rebuilt_point=empty_fire.camera().world_to_screen(maps::terrain_ground({109,101},72));
+        empty_fire.handle_event(motion(static_cast<float>(rebuilt_point.x),static_cast<float>(rebuilt_point.y)),running);
+        check(empty_fire.preview({109,101}).accepted && empty_fire.render() &&
+            empty_fire.world().snapshot()==preview_before && perf::counter(perf::Counter::AssetDecodes)==0 &&
+            perf::counter(perf::Counter::BfsCalls)==0 && perf::counter(perf::Counter::WorldCopies)==0,
+            "valid partial-alpha Watch preview modified World or loaded per frame");
+        check(empty_fire.execute({simulation::CommandType::PlaceFireWatch,{109,101}}).accepted &&
+            *empty_fire.selected_building()!=second_watch && empty_fire.building_texture_count()==1,
+            "Watch rebuild reused IDs or uploaded another shared asset");
+        perf::set_enabled(false);
         empty_fire.shutdown();
 
         const auto scaled=openemperor::sandbox_ui::make_layout(2200,1400,1100,700,true);

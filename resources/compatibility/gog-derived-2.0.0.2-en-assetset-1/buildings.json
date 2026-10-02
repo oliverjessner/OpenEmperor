@@ -50,6 +50,12 @@
       "ground_anchor": [39, 28],
       "evidence": "Local 1x/4x review: freestanding civic notice sign; generic Service Post preview only, no original profession claimed"
     },
+    "fire_watch": {
+      "archive": "DATA/China_General.sg3",
+      "image_index": 921,
+      "ground_anchor": [39, 84],
+      "evidence": "Bounded local visual review: small crenellated stone watchtower with verified 1x1 base; curated Fire Watch depiction, original function and pivot unverified"
+    },
     "market": {
       "archive": "DATA/China_General.sg3",
       "image_index": 645,

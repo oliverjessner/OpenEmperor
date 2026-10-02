@@ -1,6 +1,7 @@
 #include "assets/BuildingVisualProfile.h"
 #include "app/SandboxVisualOrder.h"
 #include "renderer/BuildingSprite.h"
+#include "core/PerformanceDiagnostics.h"
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -123,9 +124,17 @@ void profile_checks(Fixture& fixture) {
     const auto four=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
     check(four.unique_images.size()==5 &&
           std::all_of(openemperor::assets::building_roles.begin(),
-                      openemperor::assets::building_roles.end(),
+                      openemperor::assets::building_roles.begin()+7,
                       [&](auto role){return four.find(role)!=nullptr;}),
           "seven-role profile or one-cell deduplication failed");
+    check(!four.find(openemperor::assets::BuildingVisualRole::FireWatch),
+          "old seven-role profile must leave only the Fire Watch fallback");
+    all["buildings"]["fire_watch"]=all["buildings"]["farm"];
+    all["buildings"]["fire_watch"]["ground_anchor"]={39,41};
+    fixture.save(all);
+    const auto eight=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    check(eight.unique_images.size()==5 && eight.find(openemperor::assets::BuildingVisualRole::FireWatch)->footprint_side==1,
+          "optional eighth role failed or duplicated its existing image");
     check(four.find(openemperor::assets::BuildingVisualRole::Farm)->footprint_side==1 &&
           four.find(openemperor::assets::BuildingVisualRole::ServicePost)->image_index==
               four.find(openemperor::assets::BuildingVisualRole::Farm)->image_index &&
@@ -136,13 +145,23 @@ void profile_checks(Fixture& fixture) {
     using R=openemperor::assets::BuildingVisualRole;
     check(openemperor::building_visual_role(O::Farm)==R::Farm &&
           openemperor::building_visual_role(O::ServicePost)==R::ServicePost &&
-          openemperor::building_visual_role(O::Market)==R::Market,
+          openemperor::building_visual_role(O::Market)==R::Market &&
+          openemperor::building_visual_role(O::FireWatch)==R::FireWatch,
           "new building visual roles are not selected from Object.kind");
     auto wrong_footprint=fixture.valid();
     wrong_footprint["buildings"]["farm"]=wrong_footprint["buildings"]["pottery"];
     fixture.save(wrong_footprint);
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
             "two-cell image accepted for a one-cell building role");
+    wrong_footprint=fixture.valid();
+    wrong_footprint["buildings"]["fire_watch"]=wrong_footprint["buildings"]["pottery"];
+    fixture.save(wrong_footprint);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "first-decode two-cell Fire Watch accepted");
+    wrong_footprint["buildings"]["clay_source"]=wrong_footprint["buildings"]["pottery"];
+    fixture.save(wrong_footprint); // clay_source sorts first and decodes before fire_watch.
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "deduplicated two-cell Fire Watch bypassed the one-cell check");
     const auto raw_duplicate=R"({"schema_version":1,"mode":"curated_building_preview","buildings":{"pottery":{},"pottery":{}}})";
     { std::ofstream out(fixture.manifest);out<<raw_duplicate; }
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
@@ -207,7 +226,7 @@ void profile_checks(Fixture& fixture) {
     write(fixture.data/"DATA/building.555",fixture.bitmap);
     fixture.save(fixture.valid());
 }
-void pixels_and_depth() {
+void pixels_and_depth(Fixture& fixture) {
     using namespace openemperor;
     check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL init");
     SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
@@ -340,6 +359,54 @@ void pixels_and_depth() {
     sprite.shutdown();check(BuildingSprite::live_texture_count()==0,
                             "one-cell ground textures leaked");
 
+    // Decode independent synthetic SG3 bytes, rather than painting an assumed
+    // rectangular base. Expected pixels are derived from the logical cell.
+    auto watch_json=fixture.valid();
+    watch_json["buildings"]=Json::object();
+    watch_json["buildings"]["fire_watch"]={{"archive","DATA/one-cell.sg3"},
+        {"image_index",3},{"ground_anchor",{39,41}},{"evidence","Synthetic watch base"}};
+    fixture.save(watch_json);
+    namespace perf=openemperor::performance;
+    perf::set_enabled(true);perf::reset();
+    const auto watch=assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    sprite.initialize(renderer,watch);
+    check(perf::counter(perf::Counter::AssetDecodes)==1 && sprite.texture_count()==1 &&
+          perf::counter(perf::Counter::TextureUploads)==1,"Watch decode/upload not shared");
+    const auto& watch_entry=*watch.find(assets::BuildingVisualRole::FireWatch);
+    perf::reset();
+    for (const int zoom:{1,2,4}) for (const bool preview:{false,true}) {
+        const scene::Point ground{300,250};
+        check(SDL_SetRenderDrawColor(renderer,20,30,40,255) && SDL_RenderClear(renderer),"Watch clear");
+        // Adjacent road center follows the independent 80x40 logical grid.
+        const float gx=static_cast<float>(ground.x+40*zoom),gy=static_cast<float>(ground.y+20*zoom);
+        const SDL_Vertex road[]={{{gx,gy-20*zoom},{0,0,1,1},{}},
+            {{gx+39*zoom,gy},{0,0,1,1},{}},{{gx,gy+19*zoom},{0,0,1,1},{}},
+            {{gx-39*zoom,gy},{0,0,1,1},{}}};
+        constexpr int indices[]{0,1,2,0,2,3};
+        check(SDL_RenderGeometry(renderer,nullptr,road,4,indices,6) &&
+              sprite.draw(ground,zoom,watch,watch_entry,preview),"Watch beside road draw");
+        const int top=250-20*zoom,bottom=250+20*zoom-1;
+        const auto red=pixel(renderer,300,top);
+        check(red[0]>100 && red[1]<30 && pixel(renderer,300,bottom)==red &&
+              pixel(renderer,300,top-1)==background &&
+              pixel(renderer,300,bottom+1)==background &&
+              pixel(renderer,300-39*zoom,250)==red &&
+              pixel(renderer,300-39*zoom-1,250)==background &&
+              pixel(renderer,300+40*zoom,250+20*zoom)[2]==255,
+              "decoded Watch base crossed its logical cell/adjacent road or stretched 78 to 80");
+        // Selection uses the one-cell contour outside the unchanged sprite base.
+        check(SDL_SetRenderDrawColor(renderer,255,255,255,255) &&
+              SDL_RenderLine(renderer,300,static_cast<float>(top),static_cast<float>(300+40*zoom),250),"Watch selection contour");
+        check(pixel(renderer,300+40*zoom,250)[0]==255,"selection did not use logical one-cell width");
+    }
+    check(SDL_RenderClear(renderer) && sprite.draw({337,279},2,watch,watch_entry) &&
+          pixel(renderer,337,239)[0]==255 && pixel(renderer,337,318)[0]==255,
+          "decoded Watch pan alignment");
+    check(sprite.draw({100,100},1,watch,watch_entry) && sprite.texture_count()==1 &&
+          perf::counter(perf::Counter::AssetDecodes)==0 &&
+          perf::counter(perf::Counter::TextureUploads)==0,"Watch instances uploaded per draw");
+    sprite.shutdown();perf::set_enabled(false);
+
     assets::BuildingVisualProfile four;
     const std::array<std::array<std::uint8_t,4>,4> colors{{
         {{0,255,255,255}},{{255,0,255,255}},{{255,255,0,255}},{{0,255,0,255}}}};
@@ -388,7 +455,7 @@ void pixels_and_depth() {
 }
 }
 int main() {
-    try { Fixture fixture;profile_checks(fixture);pixels_and_depth();
+    try { Fixture fixture;profile_checks(fixture);pixels_and_depth(fixture);
         std::cout<<"building manifest, anchor and software depth pixels passed\n";return 0;
     } catch (const std::exception& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

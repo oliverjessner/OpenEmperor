@@ -1,6 +1,6 @@
 # City-v12: deterministic fire safety
 
-`sandbox-city-v12`, rule version **1**, is an explicitly selected OpenEmperor-authored profile based on City-v11-v4. It retains the economy, Market distribution, population, operation controls, priorities, footprints and safe demolition. It adds temporary fire incidents and road-based prevention. This is not a reconstruction of Emperor's original fire mechanics. No original fire assets were researched or assigned, no goods were added, and original data remains read-only.
+`sandbox-city-v12`, rule version **1**, is an explicitly selected OpenEmperor-authored profile based on City-v11-v4. It retains the economy, Market distribution, population, operation controls, priorities, footprints and safe demolition. It adds temporary fire incidents and road-based prevention. This is not a reconstruction of Emperor's original fire mechanics. No goods were added, and original data remains read-only. The later presentation pass assigns a curated one-cell original watchtower to FireWatch, without claiming its original function; FireInspector still uses a marker.
 
 City-v11 stays the New Sandbox default (currently rule 3 pending its separate native v4 acceptance). Existing settings, CLI defaults and schemas 1–13 keep their identities. There is no City-v11-to-v12 migration.
 
@@ -51,9 +51,9 @@ Select **Fire safety and city services** in New Sandbox, or launch explicitly:
   --sandbox-save "$PWD/.local/saves/city-v12.json"
 ```
 
-Use your own installed/extracted data folder if that local path does not exist. `F` selects the visible Fire Watch tool. Fire Watch and Inspector use muted authored fallback shapes, with `FW`/`FI` labels in diagnostics. Burning buildings receive a small SDL primitive flame whose phase derives only from World tick. Rendering, camera, zoom and visual toggles neither advance nor edit fire and do not decode/upload assets per frame.
+Use your own installed/extracted data folder if that local path does not exist. `F` selects the visible Fire Watch tool. The exact-fingerprint compatibility pack automatically presents Fire Watch with the curated original 1×1 watchtower (record 921); absent/unknown profiles retain its muted fallback. FireInspector still uses the authored `FI` diagnostic marker. Burning buildings receive a small SDL primitive flame whose phase derives only from World tick. Rendering, camera, zoom and visual toggles neither advance nor edit fire and do not decode/upload assets per frame.
 
-The top status shows protected/eligible counts and burning count. The Inspector shows risk, protection or remaining fire time, and distinguishes **On fire — operation suspended**, **Paused by player**, and staffing. Fire Watch shows operation, priority, workers, Inspector phase/target/status and city protection counts. Starter supply guidance recognizes fire separately from workforce shortage; Fire Watch is not falsely treated as an income-chain requirement.
+The top status shows protected/eligible counts and burning count. The Inspector shows risk, protection or remaining fire time, and distinguishes **On fire — operation suspended**, **Paused by player**, and staffing. Fire Watch shows operation, priority, workers, Inspector phase/target/status and explicitly city-wide protection/burning counts, before general starter guidance. The blocked Demolish action explains the real patrol/return/interrupted-route or other authoritative safety blocker, rather than asking a cargo-free Watch to empty goods. Starter supply guidance recognizes fire separately from workforce shortage; Fire Watch is not falsely treated as an income-chain requirement.
 
 ## Persistence and validation
 
@@ -127,3 +127,32 @@ Modified files:
 - `CMakeLists.txt`, `AGENTS.md`, `README.md`, `KNOWN_ISSUES.md`, `docs/architecture.md`, `docs/gameplay-sandbox.md`
 
 Four new CTest entries use the synthetic City-v12 test executable: `sandbox-city-v12-base`, `sandbox-city-v12-persistence`, `sandbox-city-v12-determinism`, and `sandbox-city-v12-endurance`. Existing menu, road and SDL-view tests gained City-v12 cases. No proprietary fixtures or decoded assets were added.
+
+## Fire Watch presentation pass (2026-10-02)
+
+Starting commit `2ec9dfe2a9bcf32c03f0811036cb7aa09a51f39f`. The added optional visual role is appended after the previous seven. `DATA/China_General.sg3` physical record 921 is a visually reviewed stone watchtower, decoded at 78×104 with a verified one-cell 78×40 base and anchor [39,84]. The same six-file exact-fingerprint pack activates it without a custom profile or new fingerprint dependency. This is a presentation choice, not identification of Emperor's original fire station. See [visual details](building-visual-profile.md) and [candidate evidence](reverse/research-log.md).
+
+Rule 1, schema 14, all economy/fire/demolition parameters and City-v11 menu defaults are unchanged. No operation, ID, footprint, Inspector target/path/edge, coverage/risk/deadline or placement tick is reset by visual load/toggle. The derived demolition blocker tag is not World/save authority. Existing saves and recovery paths remain ordinary schema-14 state.
+
+Validation for this presentation pass:
+
+| Evidence | Result |
+| --- | --- |
+| Debug CTest | 53/53 passed (199.78 s); final panel-layout SDL/Road retest 2/2 passed (46.26 s) |
+| Final Release/NDEBUG CTest | 53/53 passed (11.83 s) |
+| Final ASan/UBSan CTest | 53/53 passed (37.98 s), existing macOS leak setting `detect_leaks=0`, UBSan halt on error |
+| Building/compatibility/road/fire/persistence | Included in the suites; no compiler warnings/errors. Final ASan original-data smoke also passed |
+| Independent synthetic SG3/SDL pixels | One-cell base at ground_y−20 through ground_y+19, 1×/2×/4×, pan, partial alpha, logical selection and adjacent road; no 78→80 stretching |
+| Synthetic Watch UI | Arbitrary dynamic IDs, two instances/one decode+upload, F4, per-role fallback, failed replacement preservation, route-break/return hints, pause and demolition hit/confirmation paths, normal paid rebuild, schema-14 exact roundtrip |
+| Road preview | Zero World copies/BFS/route refresh with selected/planned Watch; no decode/upload or World mutation |
+| Original-data final-bundle smoke | An explicit old seven-role custom profile also passed, with fallback only for Watch; automatic eight-role pack, eight unique building uploads, zero fallbacks, two Watches sharing one Watch texture, exact no-visual World control and save/resume continuation; bounded to 1,200 existing ticks |
+| Original SDL readbacks | Actual 1×/4× images with both selected watchtower instances, adjacent road and one-cell selection reviewed locally; no source/decoded pixels committed |
+| Existing local schema-14 save | Exact validated load of the prior City-v12 session; a second Watch added only by a normal paid command, saved and exactly reloaded |
+| Final app package | Separate Release, 53/53 package CTest, dependency relocation, ad-hoc signing, recursive Mach-O and negative validations passed; final bundled JSON contains record 921/[39,84] |
+| Architecture | `Mach-O 64-bit executable arm64` |
+| Native final-package process test | Both original tower instances visibly present, City-v12/two IDs loaded paused at tick 7074, F4 off/on (both markers observed), F5, whole-process quit/relaunch/F5; complete saved document equals its pre-test document |
+| Full native Watch interaction | **Pending**: selection, 1×/4× ground/selection review, pause/return and demolition/rebuild using actual pointer input |
+
+The original readbacks were a production SDL render driven by synthetic events over the user's original files, **not a native manual playthrough**. The native package used a separate ignored test save, no custom JSON, and did not alter personal saves. Initial desktop pointer actions failed with `noWindowsAvailable`; a later click moved the pointer but did not select the Watch. Keyboard F4/F5 worked. Both towers and their F4 markers were subsequently visible in the final native package. The keyboard layout required `y` to produce SDL's Z zoom action, but short arrow pulses did not pan the native camera, so the full native 1×/4× selection/close-up acceptance is not claimed. Native new-process save/load preserved the entire schema-14 document, including both Watch IDs/cells/controls/priorities and every Inspector path/edge/target and fire deadline. The test process was closed. The earlier full-fire native acceptance above remains separately pending, and City-v11 remains the menu default.
+
+All products are dirty-workspace **local test candidates** from `2ec9dfe2a9bc`; no commit, tag, push, release or publication was made. FireInspector remains its existing marker. Local reports/readbacks are under ignored `.local/fire-watch-review/`; the final package is `dist/OpenEmperor.app`.

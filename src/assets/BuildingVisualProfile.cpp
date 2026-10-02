@@ -46,6 +46,7 @@ const char* building_role_name(BuildingVisualRole role) {
     case BuildingVisualRole::Farm: return "farm";
     case BuildingVisualRole::ServicePost: return "service_post";
     case BuildingVisualRole::Market: return "market";
+    case BuildingVisualRole::FireWatch: return "fire_watch";
     }
     return "unknown";
 }
@@ -114,8 +115,7 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         if (found!=decoded_ids.end()) {
             entry.image_index=static_cast<std::size_t>(found-decoded_ids.begin());
             entry.footprint_side=decoded_footprint_sides.at(entry.image_index);
-            if ((*role==BuildingVisualRole::Farm || *role==BuildingVisualRole::ServicePost ||
-                 *role==BuildingVisualRole::Market) && entry.footprint_side!=1)
+            if (requires_one_cell(*role) && entry.footprint_side!=1)
                 throw std::runtime_error("building visual footprint does not match the 1x1 role");
             result.entries[role_index(*role)]=std::move(entry);
             continue;
@@ -138,8 +138,7 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         if (!emperor_geometry && !classic_geometry)
             throw std::runtime_error("building Type-30 footprint geometry is unsupported");
         entry.footprint_side=static_cast<std::uint8_t>(side);
-        if ((*role==BuildingVisualRole::Farm || *role==BuildingVisualRole::ServicePost ||
-             *role==BuildingVisualRole::Market) && entry.footprint_side!=1)
+        if (requires_one_cell(*role) && entry.footprint_side!=1)
             throw std::runtime_error("building visual footprint does not match the 1x1 role");
         const auto bytes=static_cast<std::uint64_t>(record.width)*
             static_cast<std::uint64_t>(record.height)*4U;

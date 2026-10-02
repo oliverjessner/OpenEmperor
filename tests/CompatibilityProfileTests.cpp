@@ -97,14 +97,14 @@ void validate_committed_pack(const fs::path& resource_root) {
     const auto roads=nlohmann::json::parse(road_stream);
     check(walkers.value("schema_version",0)==2 && walkers.value("mode","")=="curated_walker_preview" &&
           walkers.at("roles").size()==3,"walker compatibility schema changed");
-    check(buildings.value("schema_version",0)==1 && buildings.at("buildings").size()==7,
+    check(buildings.value("schema_version",0)==1 && buildings.at("buildings").size()==8,
           "building compatibility schema changed");
     check(roads.value("schema_version",0)==1 && roads.at("tiles").size()==16,
           "road compatibility schema changed");
     check(walkers.at("roles").contains("clay") && walkers.at("roles").contains("pottery") &&
           walkers.at("roles").contains("household"),"unknown/missing walker role");
     const std::set<std::string> building_roles={"clay_source","pottery","warehouse","household",
-        "farm","service_post","market"};
+        "farm","service_post","market","fire_watch"};
     std::set<std::string> actual_buildings;
     for (const auto& [key,value]:buildings.at("buildings").items()) {
         (void)value;actual_buildings.insert(key);
@@ -117,11 +117,11 @@ void validate_committed_pack(const fs::path& resource_root) {
     check(actual_roads==road_masks,"built-in road masks changed");
     const std::map<std::string,std::uint32_t> expected_buildings={{"clay_source",2789},
         {"pottery",2810},{"warehouse",637},{"household",1512},{"farm",2415},
-        {"service_post",2046},{"market",645}};
+        {"service_post",2046},{"market",645},{"fire_watch",921}};
     const std::map<std::string,std::array<int,2>> expected_building_anchors={
         {"clay_source",{79,76}},{"pottery",{79,120}},
         {"warehouse",{79,116}},{"household",{79,79}},{"farm",{39,41}},
-        {"service_post",{39,28}},{"market",{39,78}}};
+        {"service_post",{39,28}},{"market",{39,78}},{"fire_watch",{39,84}}};
     for (const auto& [role,index]:expected_buildings) {
         const auto& item=buildings.at("buildings").at(role);
         check(item.at("image_index").get<std::uint32_t>()==index &&
@@ -155,7 +155,7 @@ void validate_committed_pack(const fs::path& resource_root) {
     for (const auto* document:{&walkers,&buildings,&roads}) {
         reject_blob_keys(*document);validate_archive_entries(*document,archives);
     }
-    check(archives==71,"built-in profile archive entry count changed");
+    check(archives==72,"built-in profile archive entry count changed");
 }
 }
 

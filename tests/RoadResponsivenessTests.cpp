@@ -52,6 +52,7 @@ void preview_has_no_side_effect_work(sim::RulesProfile profile) {
     execute(world,sim::CommandType::PlaceClaySource,{2,2});
     execute(world,sim::CommandType::PlacePottery,{6,2});
     execute(world,sim::CommandType::PlaceWarehouse,{10,2});
+    if (sim::fire_profile(profile)) execute(world,sim::CommandType::PlaceFireWatch,{14,2});
     perf::reset(); perf::set_enabled(true);
     const auto before=world.snapshot();
     const auto plan=road::plan_road(world,{0,6},{29,6});

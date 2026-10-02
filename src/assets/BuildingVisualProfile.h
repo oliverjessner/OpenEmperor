@@ -8,12 +8,17 @@
 #include <vector>
 
 namespace openemperor::assets {
-enum class BuildingVisualRole { ClaySource, Pottery, Warehouse, Household, Farm, ServicePost, Market };
-constexpr std::size_t building_role_count=7;
-constexpr std::array<BuildingVisualRole,building_role_count> building_roles{
+enum class BuildingVisualRole { ClaySource, Pottery, Warehouse, Household, Farm, ServicePost, Market, FireWatch };
+constexpr std::array building_roles{
     BuildingVisualRole::ClaySource,BuildingVisualRole::Pottery,
     BuildingVisualRole::Warehouse,BuildingVisualRole::Household,
-    BuildingVisualRole::Farm,BuildingVisualRole::ServicePost,BuildingVisualRole::Market};
+    BuildingVisualRole::Farm,BuildingVisualRole::ServicePost,BuildingVisualRole::Market,
+    BuildingVisualRole::FireWatch};
+constexpr std::size_t building_role_count=building_roles.size();
+constexpr bool requires_one_cell(BuildingVisualRole role) {
+    return role==BuildingVisualRole::Farm || role==BuildingVisualRole::ServicePost ||
+           role==BuildingVisualRole::Market || role==BuildingVisualRole::FireWatch;
+}
 const char* building_role_name(BuildingVisualRole role);
 constexpr std::size_t role_index(BuildingVisualRole role) { return static_cast<std::size_t>(role); }
 

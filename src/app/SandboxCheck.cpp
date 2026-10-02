@@ -71,7 +71,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         std::uint64_t first_tax_total=0;
         std::int64_t treasury_at_first_tax=initial_treasury;
         bool service_walker_activated=false;
-        const int limit=rules==simulation::RulesProfile::IndustryV5 ? 8000 :
+        const int limit=simulation::fire_profile(rules) ? 1200 :
+            rules==simulation::RulesProfile::IndustryV5 ? 8000 :
             simulation::food_profile(rules) ? 8000 :
             rules==simulation::RulesProfile::CityV6 ? 4000 :
             rules==simulation::RulesProfile::SettlementV4 ? 6000 :
@@ -176,6 +177,28 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     ++frames_with_service;
             }
         }
+        // Bounded City-v12 presentation smoke: a normally paid second instance
+        // in the already validated starter area. Both controls receive the same
+        // command; no new tick or decoded texture is needed to display it.
+        bool second_watch_loaded=false;
+        if (simulation::fire_profile(rules)) {
+            const auto origin=view.demo_origin();
+            if (!origin) throw std::runtime_error("Fire Watch check has no starter origin");
+            const simulation::Command command{simulation::CommandType::PlaceFireWatch,
+                {origin->x+14,origin->y+1}};
+            const auto textures=view.building_texture_count();
+            if (!view.execute(command).accepted) throw std::runtime_error("second Fire Watch placement failed");
+            if (walker_control) {
+                if (!walker_control->execute(command).accepted) throw std::runtime_error("Watch control command failed");
+                simulation_neutral=simulation_neutral && walker_control->snapshot()==view.world().snapshot();
+            }
+            if (resumed) {
+                if (!resumed->execute(command).accepted) throw std::runtime_error("resumed Watch command failed");
+                continued_equal=continued_equal && resumed->snapshot()==view.world().snapshot();
+            }
+            rendered=rendered && view.render();
+            second_watch_loaded=view.building_texture_count()==textures;
+        }
         const auto walker_report=[&]() {
             const auto stats=view.walker_display_stats();
             constexpr const char* directions[]={"pos_x","neg_x","pos_y","neg_y"};
@@ -242,10 +265,14 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     building_stats.placeholder_fallbacks[index]==0;
             };
             const bool expected_builtin=visuals.building_source!=VisualProfileSource::Fallback;
+            const bool require_watch_visual=fire &&
+                (visuals.building_source==VisualProfileSource::Builtin ||
+                 building_stats.configured_roles[assets::role_index(assets::BuildingVisualRole::FireWatch)]);
             const bool visual_ok=!expected_builtin ||
                 (visual_role_ok(assets::BuildingVisualRole::Farm) &&
                  visual_role_ok(assets::BuildingVisualRole::ServicePost) &&
-                 (!v11 || visual_role_ok(assets::BuildingVisualRole::Market)));
+                 (!v11 || visual_role_ok(assets::BuildingVisualRole::Market)) &&
+                 (!require_watch_visual || visual_role_ok(assets::BuildingVisualRole::FireWatch)));
             std::size_t houses=0,warehouses=0,farms=0,posts=0,markets=0;
             std::uint64_t fulfilled=0;
             nlohmann::json household_states=nlohmann::json::array();
@@ -270,8 +297,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                         {"priority",simulation::workforce_priority_name(b.workforce_priority)}});
             }
             const bool success=houses==(v11 ? 4U:3U) && warehouses==1 && farms==1 && posts==1 &&
-                markets==(v11 ? 1U:0U) && world.buildings().size()==(fire ? 11U:v11 ? 10U:8U) &&
-                world.couriers().size()==(fire ? 8U:v11 ? 7U:5U) && service_visits>0 &&
+                markets==(v11 ? 1U:0U) && world.buildings().size()==(fire ? 12U:v11 ? 10U:8U) &&
+                world.couriers().size()==(fire ? 9U:v11 ? 7U:5U) && (!fire || second_watch_loaded) && service_visits>0 &&
                 (!v11 || (fulfilled>0 && world.taxes_collected_total()>0)) &&
                 balanced && world.fire_state_valid() && rendered && visual_ok && (!resume_check ||
                     (saved && reparsed && fresh_world && direct_equal && continued_equal));
@@ -312,6 +339,9 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"id",visuals.compatibility.compatible() ? visuals.compatibility.profile->id:"unknown"},
                     {"building",visual_profile_source_name(view.building_visual_source())}}},
                 {"building_visuals",{{"configured_roles",configured},
+                    {"two_fire_watch_instances_shared_texture",fire &&
+                        building_stats.configured_roles[assets::role_index(assets::BuildingVisualRole::FireWatch)] ?
+                        nlohmann::json(second_watch_loaded):nlohmann::json()},
                     {"decoded_unique_assets",building_stats.decoded_assets},
                     {"texture_uploads",building_stats.texture_uploads},
                     {"draws_by_role",draws},{"placeholder_fallbacks_by_role",fallbacks},

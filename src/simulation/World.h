@@ -370,8 +370,14 @@ struct DemolitionHistory {
     std::uint64_t taxes=0, construction_spent=0;
     bool operator==(const DemolitionHistory&) const = default;
 };
+enum class DemolitionBlocker {
+    None, UnsupportedProfile, MissingBuilding, UnsupportedKind, OnFire,
+    OwnedActiveCourier, IncomingDelivery, IncomingReservation, OwnedPayload,
+    ActiveRecipe, StoredGoods, ExhaustedCounter
+};
 struct DemolitionStatus {
     bool allowed=false;
+    DemolitionBlocker blocker=DemolitionBlocker::None; // Derived diagnostic, never persisted.
     std::string reason;
     std::string stored_goods_summary;
     std::size_t active_couriers=0, incoming_deliveries=0;
