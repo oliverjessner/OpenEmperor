@@ -8,13 +8,24 @@
 #include <vector>
 
 namespace openemperor::assets {
-enum class BuildingVisualRole { ClaySource, Pottery, Warehouse, Household, Farm, ServicePost, Market, FireWatch };
+enum class BuildingVisualRole {
+    ClaySource, Pottery, Warehouse, Household, Farm, ServicePost, Market, FireWatch,
+    HouseholdLevel0, HouseholdLevel1, HouseholdLevel2
+};
 constexpr std::array building_roles{
     BuildingVisualRole::ClaySource,BuildingVisualRole::Pottery,
     BuildingVisualRole::Warehouse,BuildingVisualRole::Household,
     BuildingVisualRole::Farm,BuildingVisualRole::ServicePost,BuildingVisualRole::Market,
-    BuildingVisualRole::FireWatch};
+    BuildingVisualRole::FireWatch,BuildingVisualRole::HouseholdLevel0,
+    BuildingVisualRole::HouseholdLevel1,BuildingVisualRole::HouseholdLevel2};
+constexpr std::array household_stage_roles{
+    BuildingVisualRole::HouseholdLevel0,BuildingVisualRole::HouseholdLevel1,
+    BuildingVisualRole::HouseholdLevel2};
 constexpr std::size_t building_role_count=building_roles.size();
+constexpr bool is_household_stage(BuildingVisualRole role) {
+    return role==BuildingVisualRole::HouseholdLevel0 ||
+           role==BuildingVisualRole::HouseholdLevel1 || role==BuildingVisualRole::HouseholdLevel2;
+}
 constexpr bool requires_one_cell(BuildingVisualRole role) {
     return role==BuildingVisualRole::Farm || role==BuildingVisualRole::ServicePost ||
            role==BuildingVisualRole::Market || role==BuildingVisualRole::FireWatch;
@@ -35,6 +46,10 @@ struct BuildingVisualProfile {
     const BuildingVisualEntry* find(BuildingVisualRole role) const {
         const auto& entry=entries[role_index(role)];
         return entry ? &*entry:nullptr;
+    }
+    BuildingVisualRole household_role(unsigned level) const {
+        const auto stage=household_stage_roles.at(level);
+        return find(stage) ? stage:BuildingVisualRole::Household;
     }
 };
 

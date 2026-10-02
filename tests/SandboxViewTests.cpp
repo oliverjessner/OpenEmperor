@@ -1,4 +1,5 @@
 #include "app/SandboxView.h"
+#include "app/AutosaveController.h"
 #include "app/WalkerPose.h"
 #include "core/PerformanceDiagnostics.h"
 #include "app/SandboxVisualOrder.h"
@@ -378,6 +379,184 @@ SDL_Event key(SDL_Keycode code) {
     event.key.key=code;
     return event;
 }
+void household_stage_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
+    namespace perf=openemperor::performance;
+    namespace persistence=openemperor::persistence;
+    using Role=openemperor::assets::BuildingVisualRole;
+    // Three independently authored RGB555 diamonds; no original game bytes.
+    Bytes sg3(40680U+4U*72U,0),bitmap(4U+3U*12800U,0);
+    u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,214);
+    u32(sg3,12,4);u32(sg3,16,4);u32(sg3,20,1);
+    const std::string group="synthetic-housing.bmp";
+    std::copy(group.begin(),group.end(),sg3.begin()+680);u32(sg3,680+124,4);
+    const std::array<std::uint16_t,3> colors{0x7c00,0x03e0,0x001f};
+    nlohmann::json entries=nlohmann::json::object();
+    for (std::size_t stage=0;stage<3;++stage) {
+        const auto at=40680U+(stage+1U)*72U,offset=4U+stage*12800U;
+        u32(sg3,at,static_cast<std::uint32_t>(offset));u32(sg3,at+4,12800);u32(sg3,at+8,12800);
+        u16(sg3,at+20,158);u16(sg3,at+22,90);u16(sg3,at+50,30);sg3[at+55]=2;
+        for (std::size_t p=offset;p<offset+12800U;p+=2) u16(bitmap,p,colors[stage]);
+        entries["household_level_"+std::to_string(stage)]={{"archive","DATA/house-stages.sg3"},
+            {"image_index",stage+1},{"ground_anchor",{79,70}},
+            {"evidence","Independent synthetic 2x2 stage color"}};
+    }
+    entries["household"]=entries["household_level_0"];
+    write(temp.path/"DATA/house-stages.sg3",sg3);write(temp.path/"DATA/house-stages.555",bitmap);
+    const auto manifest=temp.path/"house-stages.json";
+    const auto save_profile=[&](const nlohmann::json& roles) {
+        std::ofstream out(manifest);
+        out<<nlohmann::json{{"schema_version",1},{"mode","curated_building_preview"},{"buildings",roles}};
+        check(bool(out),"synthetic stage manifest");
+    };
+    save_profile(entries);
+    Temp app_temp; // Separate temporary preference/save root outside the original-data root.
+    const auto manual=app_temp.path/"manual.json";
+    std::vector<std::uint8_t> mask;
+    auto session=city_v10_fixture(temp,mask);const auto border=session.plan.border;
+    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV13);
+    view.configure_save(temp.path,"Cities/Synthetic.map",manual);
+    view.set_building_visuals(manifest);
+    perf::set_enabled(true);perf::reset();
+    view.initialize(window,renderer);
+    // The background has one additional synthetic image/texture.
+    check(view.building_texture_count()==3 && view.building_display_stats().decoded_assets==3 &&
+          perf::counter(perf::Counter::AssetDecodes)==4 &&
+          perf::counter(perf::Counter::TextureUploads)==4,"stage assets were not eagerly deduplicated");
+    perf::set_enabled(false);
+    const auto put=[&](simulation::CommandType type,simulation::Cell cell) {
+        const auto result=view.execute({type,cell});
+        if (!result.accepted || !result.changed) throw std::runtime_error("stage fixture: "+result.reason);
+        return *view.world().building_owner_at(cell);
+    };
+    put(simulation::CommandType::PlaceClaySource,{100,101});
+    put(simulation::CommandType::PlacePottery,{100,104});
+    put(simulation::CommandType::PlaceWarehouse,{103,101});
+    put(simulation::CommandType::PlaceFarm,{104,104});
+    put(simulation::CommandType::PlaceMarket,{103,104});
+    put(simulation::CommandType::PlaceServicePost,{105,104});
+    for (int x=100;x<=114;++x)
+        check(view.execute({simulation::CommandType::PlaceRoad,{x,103}}).accepted,"starter road");
+    for (const auto cell:{simulation::Cell{106,101},simulation::Cell{106,104},
+                          simulation::Cell{109,101},simulation::Cell{109,104}})
+        put(simulation::CommandType::PlaceHousehold,cell);
+    const auto watch=put(simulation::CommandType::PlaceFireWatch,{114,104});
+    const auto house=*view.world().building_owner_at({109,104});
+    check(view.world().ticks()==0 && view.world().treasury()==20 &&
+          view.world().household_desirability(house)==10,"paid stage starter changed");
+    const auto ground=view.camera().world_to_screen(maps::terrain_ground({110,105},border));
+    const auto pixels=[&]{return pixel(renderer,static_cast<int>(ground.x),static_cast<int>(ground.y));};
+    const std::array<std::array<std::uint8_t,4>,3> rgba{{{255,0,0,255},{0,255,0,255},{0,0,255,255}}};
+    bool running=true;
+    const auto check_stage=[&](int expected,bool overlay=false) {
+        const auto before=view.world().snapshot();const auto refresh=view.world().route_refresh_count();
+        perf::set_enabled(true);perf::reset();
+        check(view.world().household_level(house)==expected && view.render(),"effective stage render");
+        const auto color=pixels();
+        check(overlay ? color!=rgba.at(static_cast<std::size_t>(expected)):
+                        color==rgba.at(static_cast<std::size_t>(expected)),"wrong stage/overlay pixels");
+        if (overlay) check(color.at(static_cast<std::size_t>(expected))>150,
+                          "desirability overlay hid the stage instead of blending");
+        for (const auto counter:{perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+            perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::WorldCopies,
+            perf::Counter::WorldRestores,perf::Counter::WorldExecutes,perf::Counter::SimulationTicks,
+            perf::Counter::FileReads,perf::Counter::FileWrites})
+            check(perf::counter(counter)==0,"stage selection/render did IO, routes or mutation");
+        check(view.world().snapshot()==before && view.world().route_refresh_count()==refresh &&
+              view.building_texture_count()==3,"stage render changed World or textures");
+        perf::set_enabled(false);
+    };
+    check_stage(0);view.save_now();const auto level0=view.capture_save_document();
+    openemperor::AutosaveController recovery(app_temp.path,temp.path,true);
+    check(recovery.begin(level0,mask).kind==openemperor::AutosaveResult::Kind::Saved,"stage recovery start");
+    for (int i=0;i<1200;++i) view.tick_once();
+    check_stage(1);const auto level1=view.capture_save_document();
+    check(recovery.poll(level1,mask,true).kind==openemperor::AutosaveResult::Kind::Saved,"L1 checkpoint");
+    for (int i=0;i<1200;++i) view.tick_once();
+    check_stage(2);const auto level2=view.capture_save_document();
+    check(recovery.poll(level2,mask,true).kind==openemperor::AutosaveResult::Kind::Saved,"L2 checkpoint");
+    check(view.save_path()==manual && view.save_generation()==1 &&
+          persistence::read_save(manual).world==level0.world,"autosave altered manual state");
+    const auto catalog=recovery.store().catalog();
+    check(catalog.histories.size()==1 && catalog.histories[0].entries.size()==3,"stage recovery history");
+    for (const auto& entry:catalog.histories[0].entries) {
+        const auto document=persistence::read_save(entry.path);
+        const auto restored=persistence::restore_save(document,temp.path,mask);
+        check(document.source_schema_version==15 && restored.household_level(house)==
+              (entry.tick==0 ? 0:entry.tick==1200 ? 1:2),"recovery reconstructed wrong effective stage");
+        persistence::write_save(manual,document,temp.path,mask);view.load_now();
+        check_stage(restored.household_level(house));
+    }
+    persistence::write_save(manual,level2,temp.path,mask);view.load_now();check_stage(2);
+    // Earn every later construction cost through actual production/demand/tax.
+    while (view.world().ticks()<60000 && view.world().treasury()<8100) view.tick_once();
+    check(view.world().treasury()>=8100 && view.world().household_level(house)==2,
+          "stage fixture did not earn construction funds");
+    const auto stable_house=view.world().building(house);
+    for (int repeat=0;repeat<25;++repeat) {
+        const auto pottery=put(simulation::CommandType::PlacePottery,{112,104});
+        check_stage(1);
+        const auto clay=put(simulation::CommandType::PlaceClaySource,{112,101});
+        check_stage(0);
+        check(view.execute(simulation::demolish_building(clay)).accepted,"empty Clay removal");
+        check_stage(1);
+        check(view.execute(simulation::demolish_building(pottery)).accepted,"empty Pottery removal");
+        check_stage(2);
+        check(view.world().building(house)==stable_house,"geometry-driven stages recreated/changed House");
+        for (const auto cell:simulation::building_footprint_cells(view.world().profile(),
+            simulation::Object::Household,stable_house.cell)) {
+            const auto p=view.camera().world_to_screen(maps::terrain_ground(
+                {static_cast<std::uint32_t>(cell.x),static_cast<std::uint32_t>(cell.y)},border));
+            view.set_tool(5);mouse_click(view,static_cast<float>(p.x),static_cast<float>(p.y),running);
+            check(view.selected_building()==house,"stage changed footprint picking");
+        }
+        view.handle_event(key(SDLK_F4),running);const auto before=view.world().snapshot();
+        check(view.render() && view.world().snapshot()==before,"F4 mutated stage authority");
+        view.handle_event(key(SDLK_F4),running);
+    }
+    // Overlay blends on all reachable stages; poor/neutral/good caps follow the World.
+    view.handle_event(key(SDLK_D),running);check_stage(2,true);
+    const auto pottery=put(simulation::CommandType::PlacePottery,{112,104});check_stage(1,true);
+    const auto clay=put(simulation::CommandType::PlaceClaySource,{112,101});check_stage(0,true);
+    check(view.execute(simulation::demolish_building(clay)).accepted &&
+          view.execute(simulation::demolish_building(pottery)).accepted,"overlay fixture removal");
+    view.handle_event(key(SDLK_D),running);
+    view.save_now();const auto saved=view.world().snapshot();
+    put(simulation::CommandType::PlacePottery,{112,104});check_stage(1);
+    view.load_now();check(view.world().snapshot()==saved && view.paused(),"stage exact manual reload");
+    check_stage(2);
+    check(view.execute(simulation::set_building_operation(watch,false)).accepted,"pause Watch");
+    for (int ticks=0;ticks<10000 && !view.world().building_on_fire(house);++ticks) view.tick_once();
+    check(view.world().building_on_fire(house),"House fire visual fixture");
+    check_stage(2);
+    check(!view.world().demolition_status(house).allowed,"stage bypassed burning demolition safety");
+    view.load_now();check_stage(2);
+    save_profile({{"household",entries["household"]}});view.set_building_visuals(manifest);
+    check(view.render() && pixels()==rgba[0],"legacy-only custom profile did not supply L2");
+    save_profile({{"household",entries["household"]},{"household_level_0",entries["household_level_0"]}});
+    view.set_building_visuals(manifest);
+    check(view.render() && pixels()==rgba[0],"partial profile did not prefer legacy L2 fallback");
+    save_profile({{"household_level_0",entries["household_level_0"]}});view.set_building_visuals(manifest);
+    check(view.render() && pixels()!=rgba[2] && view.building_display_stats().placeholder_fallbacks[
+        openemperor::assets::role_index(Role::Household)]>0,"missing stage did not retain diagnostic fallback");
+    save_profile(entries);view.set_building_visuals(manifest);check_stage(2);
+    auto broken=entries;broken["household_level_2"]["image_index"]=99;save_profile(broken);
+    bool rejected=false;
+    try { view.set_building_visuals(manifest); } catch (const std::exception&) { rejected=true; }
+    check(rejected,"bad staged profile replacement accepted");check_stage(2);save_profile(entries);
+    view.shutdown();
+    // Earlier profiles use only the legacy image, even with stage keys configured.
+    std::vector<std::uint8_t> old_mask;
+    openemperor::SandboxView old(city_v10_fixture(temp,old_mask),false,simulation::RulesProfile::CityV12);
+    old.configure_save(temp.path,"Cities/Synthetic.map",{});old.set_building_visuals(manifest);
+    old.initialize(window,renderer);
+    check(old.execute({simulation::CommandType::PlaceHousehold,{109,104}}).accepted,"legacy House");
+    check(old.render() && pixel(renderer,static_cast<int>(ground.x),static_cast<int>(ground.y))==rgba[0] &&
+          old.building_display_stats().drawn_instances[openemperor::assets::role_index(Role::Household)]==1 &&
+          old.building_display_stats().drawn_instances[openemperor::assets::role_index(Role::HouseholdLevel0)]==0,
+          "City-v12 unexpectedly adopted staged visuals");
+    old.shutdown();
+    std::cout<<"House stages: actual 0/1/2 supply, 100 command-driven reversals, pixels, picking, overlay, fire, save/recovery, legacy\n";
+}
 }
 int main(int argc,char** argv) {
     try {
@@ -476,6 +655,7 @@ int main(int argc,char** argv) {
         SDL_Window* window=nullptr;
         SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("sandbox test",800,600,0,&window,&renderer),"window");
+        household_stage_checks(temp,window,renderer);
         openemperor::SandboxView view(fixture(temp),false);
         view.initialize(window,renderer);
         bool running=true;

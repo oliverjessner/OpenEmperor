@@ -36,6 +36,12 @@ std::optional<BuildingVisualRole> parse_role(const std::string& name) {
     for (const auto role:building_roles) if (name==building_role_name(role)) return role;
     return std::nullopt;
 }
+void check_footprint(BuildingVisualRole role,std::uint8_t side,std::uint16_t width) {
+    if (requires_one_cell(role) && side!=1)
+        throw std::runtime_error("building visual footprint does not match the 1x1 role");
+    if (is_household_stage(role) && (side!=2 || width!=158))
+        throw std::runtime_error("household stage requires an Emperor 2x2 Type-30 base (158 wide, 12800 bytes)");
+}
 }
 const char* building_role_name(BuildingVisualRole role) {
     switch (role) {
@@ -47,6 +53,9 @@ const char* building_role_name(BuildingVisualRole role) {
     case BuildingVisualRole::ServicePost: return "service_post";
     case BuildingVisualRole::Market: return "market";
     case BuildingVisualRole::FireWatch: return "fire_watch";
+    case BuildingVisualRole::HouseholdLevel0: return "household_level_0";
+    case BuildingVisualRole::HouseholdLevel1: return "household_level_1";
+    case BuildingVisualRole::HouseholdLevel2: return "household_level_2";
     }
     return "unknown";
 }
@@ -77,6 +86,11 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         !json.contains("buildings") || !json.at("buildings").is_object() ||
         json.at("buildings").empty() || json.at("buildings").size()>building_role_count)
         throw std::runtime_error("unsupported building visual schema/mode/roles");
+    for (const auto& [key,value]:json.items()) {
+        (void)value;
+        if (key!="schema_version" && key!="mode" && key!="buildings")
+            throw std::runtime_error("unknown building manifest key: "+key);
+    }
     BuildingVisualProfile result;
     std::vector<AssetId> decoded_ids;
     std::vector<std::uint8_t> decoded_footprint_sides;
@@ -91,6 +105,11 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
             item.at("ground_anchor").size()!=2 ||
             !item.contains("evidence") || !item.at("evidence").is_string())
             throw std::runtime_error("building visual entry malformed");
+        for (const auto& [key,value]:item.items()) {
+            (void)value;
+            if (key!="archive" && key!="image_index" && key!="ground_anchor" && key!="evidence")
+                throw std::runtime_error("unknown building visual entry key: "+key);
+        }
         BuildingVisualEntry entry;
         const auto archive_name=item.at("archive").get<std::string>();
         entry.id.archive_relative_path=fs::path(archive_name);
@@ -115,8 +134,7 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         if (found!=decoded_ids.end()) {
             entry.image_index=static_cast<std::size_t>(found-decoded_ids.begin());
             entry.footprint_side=decoded_footprint_sides.at(entry.image_index);
-            if (requires_one_cell(*role) && entry.footprint_side!=1)
-                throw std::runtime_error("building visual footprint does not match the 1x1 role");
+            check_footprint(*role,entry.footprint_side,result.unique_images.at(entry.image_index).width);
             result.entries[role_index(*role)]=std::move(entry);
             continue;
         }
@@ -138,8 +156,7 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         if (!emperor_geometry && !classic_geometry)
             throw std::runtime_error("building Type-30 footprint geometry is unsupported");
         entry.footprint_side=static_cast<std::uint8_t>(side);
-        if (requires_one_cell(*role) && entry.footprint_side!=1)
-            throw std::runtime_error("building visual footprint does not match the 1x1 role");
+        check_footprint(*role,entry.footprint_side,static_cast<std::uint16_t>(record.width));
         const auto bytes=static_cast<std::uint64_t>(record.width)*
             static_cast<std::uint64_t>(record.height)*4U;
         if (bytes>max_rgba-total_rgba) throw std::runtime_error("building RGBA budget exceeded");

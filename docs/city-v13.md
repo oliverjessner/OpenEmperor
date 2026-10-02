@@ -72,7 +72,7 @@ Select **City v13 - Residential quality and zoning** in New Sandbox, or use:
   --sandbox-save "$PWD/.local/saves/city-v13.json"
 ```
 
-Use an existing legally obtained installed/extracted data folder. F5 saves, F9 loads paused, Space runs/pauses, and `.` steps. Existing original visuals are reused through the same compatibility/profile loaders; FireInspector remains a marker.
+Use an existing legally obtained installed/extracted data folder. F5 saves, F9 loads paused, Space runs/pauses, and `.` steps. The exact-fingerprint building preview now shows three effective House stages through the same compatibility/profile loaders; FireInspector remains a marker. Legacy/custom fallbacks are preserved.
 
 The House inspector puts effective level, historical development, exact score, cap and population/capacity first. It shows at most **three negative and three positive sources**, sorted by absolute contribution descending, with Building ID as tie-break, followed by actual goods, Service, fire, demand timing and taxes. Key text wraps. Positive spatial facilities are not described as actual supply.
 
@@ -119,3 +119,37 @@ The final bundle also passes a separate `Cities/Xia.map` City-v13 finite check u
 Actual desktop testing launched the bundle with the original data and v13 starter, ran and paused the city, and exercised D/F1/F5/F9 and a new-process save restart. At tick 1,080, schema 15 holds 220 lifetime taxes and House payment totals 65/65/65/25. The complete save document is identical after paused save/load and a new-process restart. A native screenshot exposed an initially opaque overlay; the renderer now explicitly enables and restores blend mode for that overlay, a synthetic pixel regression guards it, and the final bundle visibly preserves the original House graphics beneath transparent amber/green tint.
 
 **Still open:** the required 20–30 minute native district-replanning and subjective balance acceptance. Desktop keyboard input works, but coordinate clicks attempted in this session do not change the selected House/panel. No product input workaround was added to accommodate automation. House inspector, placement, two-district supply and safe relocation are exercised by synthetic SDL/World tests; that does not replace manual play. The native acceptance should expand housing beside industry and along a separate residential branch, compare actual supply against spatial caps, pause/drain/demolish/relocate industry, observe recovery, allow a fire incident, exercise D/F1 and F5/F9, and assess whether threshold 10 adds understandable planning. No balance acceptance or original-game fidelity is claimed.
+
+
+## Visible House evolution (2026-10-02)
+
+House artwork now follows **`World::household_level(id)` alone**. The optional schema-1 presentation keys `household_level_0/1/2` select the curated 1512/1516/1520 Housing sequence, all true 2×2 foundations. Missing stages fall back to legacy `household`, then the ordinary marker. Older profiles retain their single House image. All configured assets are preloaded and physically deduplicated, so an immediate spatial downgrade/recovery only selects another existing texture. See [building visual profiles](building-visual-profile.md#city-v13-house-evolution-presentation).
+
+This is presentation only: City-v13 remains rule **1**, save schema **15**. House ID/origin/footprint, history, population, supply, couriers, entrances, tax and fire remain World-authoritative. Neither saves nor recovery metadata acquire a visual field. Whole-image depth sorting remains approximate.
+
+The local Xia review starts with the normal 1,280-fund paid starter, advances 10,000 real simulation ticks and uses earned tax for a second Service Post and two new Houses. This produces **two effective Level-0, two Level-1 and two Level-2 Houses**, with 4,060 funds and 58 residents. A native Cocoa window linked to the production SandboxView compares three complete candidate sequences at 1×/2×/4×, including Roads, Pottery, Market and FireWatch. Camera/selection comparisons are predefined in an ignored local runner; this is actual desktop review, not a free-form mouse placement or independent viewer study. Overlay and F4 preserve the paused World. Atlas and screenshots remain ignored under `.local/house-evolution/`.
+
+Synthetic SDL tests separately drive actual supplied development and **100** immediate 2→1→0→1→2 changes using normally paid Pottery/Clay placement and safe removal. The same House record is retained, rendering changes no World authority, and performance counters show zero new decode/upload/BFS/route refresh during each rendered switch. Manual saves and protected-start/periodic recovery states restore the appropriate 0/1/2 pixels with schema 15. The existing City-v13 mechanics/demolition tests remain authoritative for gameplay behavior. This visual milestone does not close the earlier long-form native replanning/balance acceptance.
+
+
+In that native review, a normally paid Pottery at (115,110) changes House #9 at (112,113) from score 12/effective Level 2 to score −4/Level 1, immediately switching 1520→1516. Safe removal restores 1516→1520 at the same tick 10,000. Cost 180 remains spent; the complete House record stays equal and rendering adds no decode/upload/BFS/routes. This verifies the central visual downgrade/recovery through ordinary commands, without claiming a manual pointer-placement playthrough.
+
+
+### House visual milestone validation
+
+Starting commit `01e566a20cdf1b46067f645633080674d4006a90`, initially clean. Final full-suite results on this arm64 host:
+
+| Configuration | Result |
+| --- | --- |
+| Debug | 58/58, 241.47 s |
+| Release | 58/58, 17.76 s |
+| ASan/UBSan | 58/58, 55.98 s; `ASAN_OPTIONS=detect_leaks=0`, `UBSAN_OPTIONS=halt_on_error=1` |
+| Separate Release package suite | 58/58, 16.91 s, plus packaging checks |
+
+Builds have no compiler warnings/errors. The suites include the extended BuildingVisual/SDL/compatibility scenarios, City-v13 base/district/persistence/determinism/endurance, fire, demolition, autosave and road responsiveness. The first two Debug attempts exposed stale copied compatibility JSON after a metadata-only edit; the CLI resource files now participate in the executable's build dependencies. The subsequent full Debug run and matching resource-copy checks pass.
+
+`tools/package_macos.sh` passes relocated/unzipped execution, recursive dependency/architecture/signature verification and all thirteen negative packaging fixtures. The refreshed local `dist/OpenEmperor.app` and `dist/OpenEmperor-0.1.0-alpha.2-01e566a20cdf-macos-arm64.zip` contain only the ordinary app/dependencies/notices and metadata resources. The binary is **Mach-O 64-bit executable arm64**, strictly ad-hoc signed. Dirty-workspace provenance remains visible: these are local test candidates, not a new release. The package script's `desktop_launch` field remains `not_checked`; the separate native review below does not rewrite that report.
+
+Original-data finite City-v13 and City-v12 checks both load eleven configured roles into ten unique textures, preserve exact control-World equality and pass direct/reparsed save continuation. City-v13 draws actual Level-0/1 stages in its bounded 1,200-tick smoke; Level 2 is established by the longer synthetic/native review, not claimed for that finite smoke. City-v12 draws only legacy Household and zero staged instances. An old seven-role custom profile uploads seven textures, uses legacy House and only the expected Watch fallback, with the same simulation/resume checks passing.
+
+Separately, the normal packaged app loads the local six-House schema-15 test city through F9, paused at tick 10,000, and visibly shows two hut/tiled/plastered homes each at 1×. F4 replaces/reinstates the graphics; D retains the ordinary overlay. F5/F9 leave the **complete save file SHA-256 identical**, and Escape exits normally. No personal settings/history or original files are changed. Original pixels, local save and review runners remain ignored. No commit, push, tag or publication is performed.

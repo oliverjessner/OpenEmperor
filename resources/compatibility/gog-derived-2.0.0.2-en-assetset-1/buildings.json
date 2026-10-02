@@ -38,6 +38,24 @@
       ],
       "evidence": "Local browser review: small inhabited thatched house in Housing group; preview stage only, original house progression and pivot unverified"
     },
+    "household_level_0": {
+      "archive": "DATA/China_General.sg3",
+      "image_index": 1512,
+      "ground_anchor": [79, 76],
+      "evidence": "Bounded Housing atlas and native City-v13 1x/2x/4x review: simple rounded thatched hut, confirmed Emperor 2x2 base; curated OpenEmperor housing progression preview, original stage mapping unverified"
+    },
+    "household_level_1": {
+      "archive": "DATA/China_General.sg3",
+      "image_index": 1516,
+      "ground_anchor": [79, 90],
+      "evidence": "Bounded Housing atlas and native City-v13 1x/2x/4x review: solid timber/stone house with grey tiled roof, confirmed Emperor 2x2 base; curated OpenEmperor housing progression preview, original stage mapping unverified"
+    },
+    "household_level_2": {
+      "archive": "DATA/China_General.sg3",
+      "image_index": 1520,
+      "ground_anchor": [79, 114],
+      "evidence": "Bounded Housing atlas and native City-v13 1x/2x/4x review: larger plastered three-wing house with raised central room, confirmed Emperor 2x2 base; curated OpenEmperor housing progression preview, original stage mapping unverified"
+    },
     "farm": {
       "archive": "DATA/China_General.sg3",
       "image_index": 2415,

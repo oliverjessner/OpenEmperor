@@ -146,6 +146,8 @@ if(OPENEMPEROR_BUILD_MACOS_APP)
     install(TARGETS openemperor BUNDLE DESTINATION .)
     set(OPENEMPEROR_TEST_RESOURCE_ROOT "$<TARGET_BUNDLE_CONTENT_DIR:openemperor>/Resources")
 else()
+    # Refresh the CLI's resource copy when only presentation metadata changes.
+    set_property(TARGET openemperor APPEND PROPERTY LINK_DEPENDS ${OPENEMPEROR_COMPATIBILITY_FILES})
     add_custom_command(TARGET openemperor POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory
             "$<TARGET_FILE_DIR:openemperor>/resources/Compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}"
@@ -263,7 +265,7 @@ if(BUILD_TESTING)
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
     target_sources(openemperor-sandbox-view-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp)
-    target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-persistence SDL3::SDL3
+    target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-recovery SDL3::SDL3
         openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)

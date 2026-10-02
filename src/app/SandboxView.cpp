@@ -323,6 +323,17 @@ SandboxView::BuildingDisplayStats SandboxView::building_display_stats() const {
             stats.configured_roles[assets::role_index(role)]=building_profile_->find(role)!=nullptr;
     return stats;
 }
+std::optional<assets::BuildingVisualRole> SandboxView::visual_role(simulation::Cell cell,
+    simulation::Object object,bool placement_preview) const {
+    const auto role=building_visual_role(object);
+    if (role==assets::BuildingVisualRole::Household && building_profile_ &&
+        simulation::desirability_profile(rules_)) {
+        const auto owner=placement_preview ? std::nullopt:world_->building_owner_at(cell);
+        const auto level=owner ? static_cast<unsigned>(world_->household_level(*owner)):0U;
+        return building_profile_->household_role(level);
+    }
+    return role;
+}
 void SandboxView::set_road_visuals(const std::filesystem::path& manifest,
                                    VisualProfileSource source) {
     if (manifest.empty()) {
@@ -1529,7 +1540,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                               static_cast<double>(footprint_cell.y)});
                 if (!draw_diamond({logical.x,logical.y-20},80,210,245,false)) return false;
             }
-            const auto role=building_visual_role(object);
+            const auto role=visual_role(cell,object,placement_preview);
             if (role && building_profile_) {
                 const auto* entry=building_profile_->find(*role);
                 if (entry && building_visuals_active() && building_sprite_) {
@@ -1702,7 +1713,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==11 ? simulation::Object::FireWatch:
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
-            building_visual_role(object):std::nullopt;
+            visual_role(*hovered_,object,true):std::nullopt;
         if (result.accepted && role && building_visuals_active() && building_sprite_ &&
             building_profile_ && building_profile_->find(*role)) {
             const auto ground=building_visual_ground(*hovered_,object);
@@ -1834,7 +1845,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==11 ? simulation::Object::FireWatch:
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
-            building_visual_role(object):std::nullopt;
+            visual_role(*hovered_,object,true):std::nullopt;
         const auto* entry=role && building_profile_ ? building_profile_->find(*role):nullptr;
         for (const auto cell:simulation::building_footprint_cells(rules_,object,*hovered_)) {
             const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
@@ -2236,7 +2247,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Last target "+std::to_string(static_cast<unsigned>(
                 *world_->last_dispatched_service_household())));
     }
-    if (const auto role=building_visual_role(b.kind)) {
+    if (const auto role=visual_role(b.cell,b.kind)) {
         lines.push_back(std::string("Building visuals ")+(building_enabled_ ? "ON":"OFF"));
         lines.push_back(std::string("Visual role ")+assets::building_role_name(*role));
         const auto* entry=building_profile_ ? building_profile_->find(*role):nullptr;

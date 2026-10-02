@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <tuple>
 #include <vector>
 
 namespace {
@@ -135,6 +136,38 @@ void profile_checks(Fixture& fixture) {
     const auto eight=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
     check(eight.unique_images.size()==5 && eight.find(openemperor::assets::BuildingVisualRole::FireWatch)->footprint_side==1,
           "optional eighth role failed or duplicated its existing image");
+    using R=openemperor::assets::BuildingVisualRole;
+    for (unsigned level=0;level<3;++level)
+        check(eight.household_role(level)==R::Household,
+              "legacy household must supply all three levels");
+    all["buildings"]["household_level_0"]=all["buildings"]["household"];
+    all["buildings"]["household_level_1"]=all["buildings"]["pottery"];
+    all["buildings"]["household_level_2"]=all["buildings"]["warehouse"];
+    fixture.save(all);
+    const auto staged=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    check(staged.unique_images.size()==5,"house stages duplicated physical assets");
+    for (unsigned level=0;level<3;++level) {
+        const auto role=openemperor::assets::household_stage_roles.at(level);
+        check(staged.household_role(level)==role && staged.find(role)->footprint_side==2,
+              "optional 2x2 household stage not selected");
+    }
+    check(staged.find(R::HouseholdLevel0)->image_index==staged.find(R::Household)->image_index,
+          "legacy/stage did not deduplicate the same physical record");
+    auto partial=all;
+    partial["buildings"].erase("household_level_1");
+    partial["buildings"].erase("household_level_2");
+    fixture.save(partial);
+    const auto partial_loaded=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    check(partial_loaded.household_role(0)==R::HouseholdLevel0 &&
+          partial_loaded.household_role(1)==R::Household && partial_loaded.household_role(2)==R::Household,
+          "missing optional stages must use legacy household");
+    fixture.save({{"schema_version",1},{"mode","curated_building_preview"},
+        {"buildings",{{"household_level_0",all["buildings"]["household_level_0"]}}}});
+    const auto only_stage=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    check(only_stage.find(only_stage.household_role(0)) &&
+          !only_stage.find(only_stage.household_role(1)) &&
+          !only_stage.find(only_stage.household_role(2)),
+          "stage-only profile must retain diagnostic fallback for absent levels");
     check(four.find(openemperor::assets::BuildingVisualRole::Farm)->footprint_side==1 &&
           four.find(openemperor::assets::BuildingVisualRole::ServicePost)->image_index==
               four.find(openemperor::assets::BuildingVisualRole::Farm)->image_index &&
@@ -142,7 +175,6 @@ void profile_checks(Fixture& fixture) {
               four.find(openemperor::assets::BuildingVisualRole::Farm)->image_index,
           "new one-cell roles did not share their synthetic texture");
     using O=openemperor::simulation::Object;
-    using R=openemperor::assets::BuildingVisualRole;
     check(openemperor::building_visual_role(O::Farm)==R::Farm &&
           openemperor::building_visual_role(O::ServicePost)==R::ServicePost &&
           openemperor::building_visual_role(O::Market)==R::Market &&
@@ -162,6 +194,29 @@ void profile_checks(Fixture& fixture) {
     fixture.save(wrong_footprint); // clay_source sorts first and decodes before fire_watch.
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
             "deduplicated two-cell Fire Watch bypassed the one-cell check");
+    auto wrong_stage=fixture.valid();
+    wrong_stage["buildings"].erase("pottery");
+    wrong_stage["buildings"]["household_level_0"]=all["buildings"]["farm"];
+    fixture.save(wrong_stage);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "first-decode 1x1 household stage accepted");
+    wrong_stage["buildings"]["farm"]=all["buildings"]["farm"];
+    fixture.save(wrong_stage);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "deduplicated 1x1 household stage bypassed geometry validation");
+    for (const auto [side,width,base]:{std::tuple{3U,238U,28800U},std::tuple{2U,118U,7200U}}) {
+        auto bad_geometry=fixture.sg3;
+        u16(bad_geometry,one_record+20,static_cast<std::uint16_t>(width));
+        u32(bad_geometry,one_record+8,base);
+        bad_geometry[one_record+55]=static_cast<std::uint8_t>(side);
+        write(fixture.data/"DATA/wrong-stage.sg3",bad_geometry);
+        write(fixture.data/"DATA/wrong-stage.555",fixture.bitmap);
+        wrong_stage["buildings"].erase("farm");
+        wrong_stage["buildings"]["household_level_0"]["archive"]="DATA/wrong-stage.sg3";
+        fixture.save(wrong_stage);
+        rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+                "non-Emperor-2x2 household stage accepted");
+    }
     const auto raw_duplicate=R"({"schema_version":1,"mode":"curated_building_preview","buildings":{"pottery":{},"pottery":{}}})";
     { std::ofstream out(fixture.manifest);out<<raw_duplicate; }
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
@@ -173,6 +228,16 @@ void profile_checks(Fixture& fixture) {
     fixture.save(bad);
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
             "unknown role accepted");
+    bad=fixture.valid();bad["buildings"]["household_level_3"]=bad["buildings"]["pottery"];
+    fixture.save(bad);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "unknown household stage accepted");
+    bad=fixture.valid();bad["unverified"]=true;fixture.save(bad);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "unknown root key accepted");
+    bad=fixture.valid();bad["buildings"]["pottery"]["unverified"]=true;fixture.save(bad);
+    rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "unknown entry key accepted");
     bad=fixture.valid();bad["buildings"]["pottery"]["image_index"]=4;fixture.save(bad);
     rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
             "outside record accepted");
@@ -451,6 +516,56 @@ void pixels_and_depth(Fixture& fixture) {
               "shared depth path did not occlude walkers by ground order");
     }
     sprite.shutdown();check(BuildingSprite::live_texture_count()==0,"four textures leaked");
+    // Independently decoded 2x2 bases of different total heights share the front
+    // cell ground: 80 base rows span ground_y-60 .. ground_y+19, not h/2.
+    Json housing={{"schema_version",1},{"mode","curated_building_preview"},
+                  {"buildings",Json::object()}};
+    const std::array<std::uint16_t,3> house_heights{96,110,134};
+    for (std::size_t stage=0;stage<house_heights.size();++stage) {
+        auto metadata=fixture.sg3;
+        u16(metadata,40680U+3U*72U+22U,house_heights[stage]);
+        auto payload=fixture.bitmap;
+        for (std::size_t p=4;p<payload.size();p+=2)
+            u16(payload,p,static_cast<std::uint16_t>(stage==0 ? 0x7c00:stage==1 ? 0x03e0:0x001f));
+        const auto name="stage-geometry-"+std::to_string(stage);
+        write(fixture.data/("DATA/"+name+".sg3"),metadata);
+        write(fixture.data/("DATA/"+name+".555"),payload);
+        housing["buildings"][assets::building_role_name(assets::household_stage_roles[stage])]={
+            {"archive","DATA/"+name+".sg3"},{"image_index",3},
+            {"ground_anchor",{79,house_heights[stage]-20}},
+            {"evidence","Independent synthetic 2x2 geometry and stage color"}};
+    }
+    fixture.save(housing);
+    const auto stage_profile=assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    SDL_Texture* stage_target=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA32,
+        SDL_TEXTUREACCESS_TARGET,800,800);
+    check(stage_target && SDL_SetRenderTarget(renderer,stage_target),"2x2 geometry target");
+    sprite.initialize(renderer,stage_profile);
+    perf::set_enabled(true);perf::reset();
+    for (unsigned stage=0;stage<3;++stage) for (const int zoom:{1,2,4}) {
+        const auto* item=stage_profile.find(stage_profile.household_role(stage));
+        const std::array<std::uint8_t,4> color=stage==0 ? std::array<std::uint8_t,4>{255,0,0,255}:
+            stage==1 ? std::array<std::uint8_t,4>{0,255,0,255}:std::array<std::uint8_t,4>{0,0,255,255};
+        check(item && SDL_SetRenderDrawColor(renderer,20,30,40,255) && SDL_RenderClear(renderer) &&
+              sprite.draw({400,500},zoom,stage_profile,*item),"2x2 stage geometry draw");
+        const int top=500-60*zoom,bottom=500+20*zoom-1;
+        check(pixel(renderer,400,top)==color && pixel(renderer,400,bottom)==color &&
+              pixel(renderer,400,top-1)==background && pixel(renderer,400,bottom+1)==background &&
+              pixel(renderer,400-79*zoom,500-20*zoom)==color &&
+              pixel(renderer,400+79*zoom-1,500-20*zoom)==color,
+              "2x2 stage foundation moved relative to the front cell");
+        check(SDL_RenderClear(renderer) && sprite.draw({420,520},zoom,stage_profile,*item) &&
+              pixel(renderer,420,520-60*zoom)==color,"2x2 stage pan moved the ground");
+        check(SDL_RenderClear(renderer) && sprite.draw({400,500},zoom,stage_profile,*item,true) &&
+              pixel(renderer,400,500)[stage]>100 && pixel(renderer,400,500)[stage]<200,
+              "2x2 stage placement alpha changed geometry");
+    }
+    check(perf::counter(perf::Counter::AssetDecodes)==0 &&
+          perf::counter(perf::Counter::TextureUploads)==0,"2x2 stage draw reloaded assets");
+    perf::set_enabled(false);sprite.shutdown();
+    check(SDL_SetRenderTarget(renderer,nullptr),"restore 2x2 geometry target");
+    SDL_DestroyTexture(stage_target);
+    check(BuildingSprite::live_texture_count()==0,"stage geometry textures leaked");
     SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
 }
 }
