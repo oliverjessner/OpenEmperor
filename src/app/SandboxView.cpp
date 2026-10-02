@@ -103,6 +103,7 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::CityV11: return "City v11";
     case simulation::RulesProfile::CityV12: return "City v12";
     case simulation::RulesProfile::CityV14: return "City v14";
+    case simulation::RulesProfile::CityV16: return "City v16";
     case simulation::RulesProfile::CityV15: return "City v15";
     case simulation::RulesProfile::CityV13: return "City v13";
     }
@@ -2019,6 +2020,20 @@ int SandboxView::demolition_hint_extra_height() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
+    const auto add_maintenance=[&](simulation::BuildingId id) {
+        const auto& b=world_->building(id);
+        const auto cost=simulation::maintenance_cost(rules_,b.kind);
+        if (!cost) {
+            if (debug_open_ && simulation::maintenance_profile(rules_) && b.kind==simulation::Object::Household)
+                lines.push_back("Maintenance none.");
+            return;
+        }
+        lines.push_back("Maintenance: "+std::to_string(cost)+" every "+
+            std::to_string(simulation::Rules::maintenance_interval_ticks)+" ticks");
+        const auto due=world_->maintenance_due_in(id);
+        if (due) lines.push_back(*due ? "Next due: "+std::to_string(*due)+" ticks":"Due this tick");
+        if (!b.operating_enabled) lines.push_back("Maintenance continues while paused.");
+    };
     if (fire_watch_selected()) {
         const auto id=*selected_building();
         const auto& b=world_->building(id);
@@ -2036,6 +2051,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             if (c.phase!=simulation::CourierPhase::IdleAtWorkshop && b.operating_enabled)
                 lines.push_back("Pause operation to prevent a new patrol.");
         }
+        add_maintenance(id);
         lines.push_back("City-wide protected "+std::to_string(world_->protected_buildings())+"/"+
             std::to_string(world_->fire_eligible_buildings()));
         lines.push_back("City-wide burning "+std::to_string(world_->burning_buildings()));
@@ -2063,6 +2079,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back(std::string("Route status: ")+simulation::courier_dispatch_status_name(
                 world_->courier_dispatch_status(c.id).status));
         }
+        add_maintenance(id);
         int houses=0,protected_houses=0,sick=0;
         for (const auto& h:world_->buildings()) if (h.kind==simulation::Object::Household) {
             ++houses; protected_houses+=world_->household_health_protected(h.id); sick+=world_->household_sick(h.id);
@@ -2078,6 +2095,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Well #"+std::to_string(static_cast<std::uint32_t>(*house_id)));
         lines.push_back("Footprint 1x1; water radius "+std::to_string(simulation::Rules::water_radius));
         lines.push_back("Covered Houses "+std::to_string(world_->well_coverage_at(well.cell).households));
+        add_maintenance(*house_id);
         lines.push_back("Local infrastructure; roads not required.");
         lines.push_back("Fireproof; desirability impact 0.");
         if (debug_open_) lines.push_back("Origin "+std::to_string(well.cell.x)+","+std::to_string(well.cell.y));
@@ -2089,6 +2107,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         const auto& b=world_->building(id);
         const int score=world_->household_desirability(id);
         lines.push_back("House #"+std::to_string(static_cast<std::uint32_t>(id)));
+        add_maintenance(id);
         if (simulation::health_profile(rules_)) {
             lines.push_back(std::string("Health: ")+(world_->household_sick(id) ? "Sick":
                 world_->household_health_protected(id) ? "Protected":"At risk"));
@@ -2240,6 +2259,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
+    add_maintenance(*id);
     if (simulation::fire_profile(rules_) && simulation::fire_eligible(b.kind)) {
         lines.push_back("Fire risk: "+std::to_string(b.fire_risk)+"/"+
             std::to_string(simulation::Rules::fire_risk_threshold));
@@ -2463,7 +2483,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back(std::string("Courier ")+simulation::courier_phase_name(world_->courier_phase()));
         lines.push_back("Cargo "+std::to_string(world_->courier_cargo()));
     }
-    return lines;
+    return simulation::maintenance_profile(rules_) ? wrap_panel_lines(lines):lines;
 }
 bool SandboxView::draw_text(double x,double y,const std::string& value,int max_width) {
     if (max_width<=0) return true;
@@ -2502,7 +2522,11 @@ bool SandboxView::draw_hud() {
     if (simulation::water_profile(rules_)) {
         const auto houses=std::count_if(world_->buildings().begin(),world_->buildings().end(),
             [](const auto& b) { return b.kind==simulation::Object::Household; });
-        overview+=" | Funds "+std::to_string(world_->treasury())+" | Water "+
+        overview+=" | Funds "+std::to_string(world_->treasury());
+        if (simulation::maintenance_profile(rules_))
+            overview+=" | Maint "+std::to_string(world_->current_maintenance_rate())+"/"+
+                std::to_string(simulation::Rules::maintenance_interval_ticks)+"t";
+        overview+=" | Water "+
             std::to_string(world_->water_covered_households())+"/"+std::to_string(houses)+
             " | Pop "+std::to_string(world_->total_population());
     }
@@ -2595,6 +2619,13 @@ bool SandboxView::draw_hud() {
                 std::to_string(guidance.workforce_required_for_starter);
         else if (guidance.taxes_have_been_collected)
             status+=" | Complete demand has paid tax";
+    }
+    if (simulation::maintenance_profile(rules_) && hovered_ && !road_start_ && tool_!=5 && tool_!=6) {
+        const auto type=command_type(rules_,tool_);
+        const auto cost=world_->construction_cost(type);
+        const auto kind=simulation::placed_object(type);
+        if (cost>0 && kind)
+            status="$"+std::to_string(cost)+" | upkeep $"+std::to_string(simulation::maintenance_cost(rules_,*kind))+"/400t | "+status;
     }
     if (tool_==13 && simulation::health_profile(rules_)) status="Road connection required. | "+status;
     if (simulation::water_profile(rules_)) {
@@ -2887,6 +2918,17 @@ bool SandboxView::draw_hud() {
                            layout_.map.w-16*layout_.scale)) return false;
             debug_row+=14;
         }
+        if (simulation::maintenance_profile(rules_)) {
+            std::size_t due=0;
+            for (const auto& b:world_->buildings()) {
+                const auto next=world_->maintenance_due_in(b.id);
+                if (next && *next>0 && *next<=100) ++due;
+            }
+            const auto line="Maintenance spent "+std::to_string(world_->maintenance_spent_total())+
+                " | Installed "+std::to_string(world_->current_maintenance_rate())+"/400t | Due next 100t "+std::to_string(due);
+            if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,line,layout_.map.w-16*layout_.scale)) return false;
+            debug_row+=14;
+        }
         const auto roads=road_display_stats();
         const std::string road_line=std::string("Road visuals ")+
             (road_visuals_active()?"ON":"OFF")+" | masks "+
@@ -2978,7 +3020,7 @@ bool SandboxView::draw_help_overlay() {
     const int x=layout_.map.x+margin;
     const int y=layout_.map.y+margin;
     const int width=std::max(0,layout_.map.w-2*margin);
-    const int height=std::max(0,std::min(layout_.map.h-2*margin,250*layout_.scale));
+    const int height=std::max(0,std::min(layout_.map.h-2*margin,(simulation::maintenance_profile(rules_) ? 350:250)*layout_.scale));
     if (width<=0 || height<=0) return true;
     const SDL_FRect panel{static_cast<float>(x),static_cast<float>(y),
         static_cast<float>(width),static_cast<float>(height)};
@@ -2986,10 +3028,38 @@ bool SandboxView::draw_help_overlay() {
         !SDL_SetRenderDrawColor(renderer_,235,241,248,255)) return false;
     const int pad=12*layout_.scale;
     const int line=16*layout_.scale;
+    if (simulation::maintenance_profile(rules_) && width<650*layout_.scale) {
+        constexpr std::array<const char*,20> compact{
+            "HELP - H / ? closes", "1-0 Build | F Watch | I Well | J Health",
+            "Arrows Move | Wheel Zoom | 5 Select", "Space Pause | . Step | + / - Speed",
+            "F5 Save | F9 Load | Esc Menu", "D Desirability | U Water | K Health",
+            "F1 Runtime | F2/F4/F6 Visuals", "Houses pay tax after full supply",
+            "Food, Pottery and Service enable tax", "Residents provide workers",
+            "Select a business: Pause / Resume", "High / Normal / Low controls staffing",
+            "Wells slow risk; road Health visits cure", "BUILDING MAINTENANCE",
+            "Upkeep starts 400 ticks after building", "Then every 400 ticks per building",
+            "Maint HUD = installed rates", "Funds may go negative; taxes repay debt",
+            "Paused buildings still pay upkeep", "Demolition stops future upkeep"};
+        for (std::size_t row=0;row<compact.size();++row)
+            if (!draw_text(x+pad,y+pad+static_cast<int>(row)*line,compact[row],width-2*pad)) return false;
+        return true;
+    }
     const int column=std::max(160*layout_.scale,(width-3*pad)/2);
     const auto text=[&](int col,int row,const std::string& value)->bool {
         return draw_text(x+pad+col*column,y+pad+row*line,value,column-pad);
     };
+    if (simulation::maintenance_profile(rules_)) {
+        if (!text(0,16,"BUILDING MAINTENANCE") ||
+            !text(0,17,"Upkeep starts 400t after building") ||
+            !text(0,18,"Each building has its own cycle") ||
+            !text(0,19,"Maint HUD = installed rates") ||
+            !text(0,20,"Houses and roads have no upkeep") ||
+            !text(1,16,"Upkeep can push Funds below zero") ||
+            !text(1,17,"Taxes repay debt automatically") ||
+            !text(1,18,"Paused buildings still pay upkeep") ||
+            !text(1,19,"Demolition stops future upkeep") ||
+            !text(1,20,"No interest or bankruptcy")) return false;
+    }
     if (simulation::health_profile(rules_)) {
         if (!text(0,14,"J Health Post | K Health") ||
             !text(1,11,"Wells slow risk: +1 vs +3") ||

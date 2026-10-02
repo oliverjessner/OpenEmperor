@@ -16,7 +16,7 @@ inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
 enum class RulesProfile {
     LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8,
-    CityV9, CityV10, CityV11, CityV12, CityV13, CityV14, CityV15
+    CityV9, CityV10, CityV11, CityV12, CityV13, CityV14, CityV15, CityV16
 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
@@ -31,7 +31,11 @@ inline constexpr const char* city_v12_profile_name = "sandbox-city-v12";
 inline constexpr const char* city_v13_profile_name = "sandbox-city-v13";
 inline constexpr const char* city_v14_profile_name = "sandbox-city-v14";
 inline constexpr const char* city_v15_profile_name = "sandbox-city-v15";
-constexpr bool health_profile(RulesProfile profile) { return profile==RulesProfile::CityV15; }
+inline constexpr const char* city_v16_profile_name = "sandbox-city-v16";
+constexpr bool maintenance_profile(RulesProfile profile) { return profile==RulesProfile::CityV16; }
+constexpr bool health_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV15 || maintenance_profile(profile);
+}
 constexpr bool water_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV14 || health_profile(profile);
 }
@@ -106,6 +110,7 @@ struct Rules {
     static constexpr int pottery_recipe_ticks = 150;
     static constexpr int household_capacity = 8;
     static constexpr int household_demand_ticks = 400;
+    static constexpr std::uint64_t maintenance_interval_ticks = 400;
     static constexpr std::int64_t starting_treasury = 1000;
     static constexpr std::int64_t road_cost = 2;
     static constexpr std::int64_t clay_source_cost = 120;
@@ -219,6 +224,7 @@ enum class Object : std::uint8_t {
     Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost, Market,
     FireWatch, Well, HealthPost
 };
+std::int64_t maintenance_cost(RulesProfile profile,Object kind);
 struct BuildingFootprint {
     int width=1;
     int height=1;
@@ -253,6 +259,8 @@ enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySour
                          RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost, PlaceMarket,
                          SetBuildingOperation, SetBuildingWorkforcePriority, DemolishBuilding,
                          PlaceFireWatch, PlaceWell, PlaceHealthPost };
+// Pure construction-command identity shared by validation and presentation.
+std::optional<Object> placed_object(CommandType type);
 struct Command {
     CommandType type;
     Cell cell{};
@@ -456,6 +464,7 @@ struct WorldSnapshot {
     std::int64_t treasury=0;
     std::uint64_t taxes_collected_total=0;
     std::uint64_t construction_spent_total=0;
+    std::uint64_t maintenance_spent_total=0;
     DemolitionHistory demolition_history;
     bool operator==(const WorldSnapshot&) const = default;
 };
@@ -507,6 +516,9 @@ public:
     std::int64_t treasury() const { return treasury_; }
     std::uint64_t taxes_collected_total() const { return taxes_collected_total_; }
     std::uint64_t construction_spent_total() const { return construction_spent_total_; }
+    std::uint64_t maintenance_spent_total() const { return maintenance_spent_total_; }
+    std::int64_t current_maintenance_rate() const;
+    std::optional<std::uint64_t> maintenance_due_in(BuildingId id) const;
     std::uint64_t food_produced_total() const { return food_produced_total_; }
     ResourceInventory resource_inventory() const;
     int workforce_supply() const;
@@ -613,6 +625,10 @@ private:
     const std::vector<Cell>* route_for_revision();
     void refresh_routes();
     void tick_production_v2();
+    std::int64_t household_demand_tax(const BuildingState& home,std::uint64_t resulting_count) const;
+    void preflight_maintenance_tick() const;
+    void bill_maintenance();
+    bool maintenance_economy_valid() const;
     void capture_tick_staffing();
     std::vector<bool> workforce_allocation() const;
     bool building_staffed_for_tick(BuildingId id) const;
@@ -652,6 +668,7 @@ private:
     std::int64_t treasury_=0;
     std::uint64_t taxes_collected_total_=0;
     std::uint64_t construction_spent_total_=0;
+    std::uint64_t maintenance_spent_total_=0;
     std::uint64_t food_produced_total_=0;
     DemolitionHistory demolition_history_;
     std::vector<bool> tick_staffed_;

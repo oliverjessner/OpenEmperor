@@ -46,21 +46,6 @@ Object courier_target_kind(CourierRole role) {
     }
 }
 bool storage_less(Cell a,Cell b) { return a.y!=b.y ? a.y<b.y:a.x<b.x; }
-std::optional<Object> placed_object(CommandType type) {
-    switch (type) {
-    case CommandType::PlaceWarehouse: return Object::Warehouse;
-    case CommandType::PlaceClaySource: return Object::ClaySource;
-    case CommandType::PlacePottery: return Object::Pottery;
-    case CommandType::PlaceHousehold: return Object::Household;
-    case CommandType::PlaceFarm: return Object::Farm;
-    case CommandType::PlaceServicePost: return Object::ServicePost;
-    case CommandType::PlaceMarket: return Object::Market;
-    case CommandType::PlaceFireWatch: return Object::FireWatch;
-    case CommandType::PlaceWell: return Object::Well;
-    case CommandType::PlaceHealthPost: return Object::HealthPost;
-    default: return std::nullopt;
-    }
-}
 std::size_t building_limit(RulesProfile profile,Object kind) {
     if (!scalable(profile)) {
         if (kind==Object::Household) return household_limit;
@@ -116,6 +101,21 @@ int courier_target_capacity(CourierRole role) {
 }
 }
 
+std::optional<Object> placed_object(CommandType type) {
+    switch (type) {
+    case CommandType::PlaceWarehouse: return Object::Warehouse;
+    case CommandType::PlaceClaySource: return Object::ClaySource;
+    case CommandType::PlacePottery: return Object::Pottery;
+    case CommandType::PlaceHousehold: return Object::Household;
+    case CommandType::PlaceFarm: return Object::Farm;
+    case CommandType::PlaceServicePost: return Object::ServicePost;
+    case CommandType::PlaceMarket: return Object::Market;
+    case CommandType::PlaceFireWatch: return Object::FireWatch;
+    case CommandType::PlaceWell: return Object::Well;
+    case CommandType::PlaceHealthPost: return Object::HealthPost;
+    default: return std::nullopt;
+    }
+}
 bool courier_can_target(CourierRole role,const BuildingState& target) {
     return target.placed && (role==CourierRole::FireInspector ?
         fire_eligible(target.kind):target.kind==courier_target_kind(role));
@@ -227,6 +227,7 @@ const char* rules_profile_name(RulesProfile profile) {
     case RulesProfile::CityV13: return city_v13_profile_name;
     case RulesProfile::CityV14: return city_v14_profile_name;
     case RulesProfile::CityV15: return city_v15_profile_name;
+    case RulesProfile::CityV16: return city_v16_profile_name;
     }
     return "unknown";
 }
@@ -278,7 +279,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         profile!=RulesProfile::CityV9 && profile!=RulesProfile::CityV10 &&
         profile!=RulesProfile::CityV11 && profile!=RulesProfile::CityV12 &&
         profile!=RulesProfile::CityV13 && profile!=RulesProfile::CityV14 &&
-        profile!=RulesProfile::CityV15)
+        profile!=RulesProfile::CityV15 && profile!=RulesProfile::CityV16)
         throw std::invalid_argument("unknown sandbox rules profile");
     (void)profile_rules(profile_,rule_version_);
     treasury_=city_profile(profile) ? starting_treasury_for(profile):0;
@@ -683,10 +684,11 @@ std::uint64_t World::household_tax_contributed(BuildingId id) const {
 }
 
 bool World::city_economy_valid() const {
+    if (!maintenance_profile(profile_) && maintenance_spent_total_!=0) return false;
     if (!city_profile(profile_))
         return treasury_==0 && taxes_collected_total_==0 && construction_spent_total_==0;
-    if (treasury_<0 || taxes_collected_total_>
-        static_cast<std::uint64_t>(INT64_MAX-starting_treasury_for(profile_))) return false;
+    if (!maintenance_profile(profile_) && (treasury_<0 || taxes_collected_total_>
+        static_cast<std::uint64_t>(INT64_MAX-starting_treasury_for(profile_)))) return false;
     const auto& history=demolition_history_;
     if ((!demolition_supported() && history!=DemolitionHistory{}) ||
         history.buildings>=UINT32_MAX || history.food_consumed!=history.pottery_consumed ||
@@ -735,11 +737,15 @@ bool World::city_economy_valid() const {
         if (cost<=0 || !add_cost(1,static_cast<std::uint64_t>(cost))) return false;
     }
     if (construction_spent_total_!=expected_spending) return false;
-    const auto available=static_cast<std::uint64_t>(starting_treasury_for(profile_))+
-        taxes_collected_total_;
-    if (construction_spent_total_>available ||
-        treasury_!=static_cast<std::int64_t>(available-construction_spent_total_) ||
-        workforce_used()>workforce_supply() || workforce_used()>workforce_required()) return false;
+    if (maintenance_profile(profile_)) {
+        if (!maintenance_economy_valid()) return false;
+    } else {
+        const auto available=static_cast<std::uint64_t>(starting_treasury_for(profile_))+
+            taxes_collected_total_;
+        if (construction_spent_total_>available ||
+            treasury_!=static_cast<std::int64_t>(available-construction_spent_total_)) return false;
+    }
+    if (workforce_used()>workforce_supply() || workforce_used()>workforce_required()) return false;
     return true;
 }
 DemolitionStatus World::demolition_status(BuildingId id) const {
@@ -1026,7 +1032,7 @@ RoadBatchValidation World::validate_road_batch(std::span<const Cell> cells) cons
         batch.reason="Road cost overflow"; return batch;
     }
     const auto total=static_cast<std::int64_t>(count)*cost;
-    if (total>treasury_) { batch.reason="Not enough money"; return batch; }
+    if (total>0 && total>treasury_) { batch.reason="Not enough money"; return batch; }
     if (total>0 && static_cast<std::uint64_t>(total)>UINT64_MAX-construction_spent_total_) {
         batch.reason="Construction spending counter exhausted"; return batch;
     }
@@ -1752,6 +1758,7 @@ void World::tick_production_v2() {
     if (health_profile(profile_) &&
         ticks_>=UINT64_MAX-std::max(Rules::health_protection_ticks,Rules::illness_ticks))
         throw std::overflow_error("Health deadline tick exhausted");
+    if (maintenance_profile(profile_)) preflight_maintenance_tick();
     if (city_profile(profile_)) capture_tick_staffing();
     ++ticks_;
     const auto& rules=active_rules();
@@ -1829,18 +1836,7 @@ void World::tick_production_v2() {
                         (food_profile(profile_) && home.food_consumed_total==UINT64_MAX))
                         throw std::overflow_error("household fulfilled counter exhausted");
                     const auto resulting_count=home.fulfilled_demand+1;
-                    const auto historical=resulting_count>=Rules::city_v7_level2_demands ? 2:
-                        resulting_count>=Rules::city_v7_level1_demands ? 1:0;
-                    const auto effective=water_profile(profile_) && !household_has_water(home.id) ? 0:
-                        desirability_profile(profile_) ?
-                        std::min(historical,desirability_level_cap(household_desirability(home.id))):historical;
-                    const std::int64_t tax=desirability_profile(profile_) ?
-                        (effective==2 ? Rules::city_v7_level2_tax:
-                         effective==1 ? Rules::city_v7_level1_tax:Rules::city_v7_level0_tax):
-                        food_profile(profile_) ?
-                        (resulting_count>=Rules::city_v7_level2_demands ? Rules::city_v7_level2_tax:
-                         resulting_count>=Rules::city_v7_level1_demands ? Rules::city_v7_level1_tax:
-                         Rules::city_v7_level0_tax):Rules::tax_income_per_fulfilled_demand;
+                    const std::int64_t tax=household_demand_tax(home,resulting_count);
                     if (city_profile(profile_) &&
                         (taxes_collected_total_>UINT64_MAX-
                              static_cast<std::uint64_t>(tax) || treasury_>INT64_MAX-tax ||
@@ -1884,7 +1880,8 @@ void World::tick_production_v2() {
             }
         }
     }
-    // Stable courier ID order. Arrival is after production and household demand.
+    bill_maintenance();
+    // Stable courier ID order. Arrival is after production, demand and maintenance.
     for (auto& courier:couriers_) dispatch_v2(courier);
     for (auto& courier:couriers_) move_v2(courier);
     update_health();
@@ -2928,6 +2925,7 @@ std::string World::canonical_state() const {
        <<':'<<total_produced_<<':'<<workshop_stock_<<':'<<production_progress_
        <<':'<<courier_cargo_<<':'<<warehouse_stock_<<':'<<static_cast<int>(phase_)
        <<':'<<path_vertex_<<':'<<edge_progress_;
+    if (maintenance_profile(profile_)) out<<":maintenance:"<<maintenance_spent_total_;
     if (demolition_supported()) out<<":v4:"<<demolition_history_.buildings<<':'
         <<demolition_history_.clay_extracted<<':'<<demolition_history_.pottery_completed<<':'
         <<demolition_history_.food_produced<<':'<<demolition_history_.pottery_consumed<<':'
@@ -3018,6 +3016,7 @@ WorldSnapshot World::snapshot() const {
     s.treasury=treasury_;
     s.taxes_collected_total=taxes_collected_total_;
     s.construction_spent_total=construction_spent_total_;
+    s.maintenance_spent_total=maintenance_spent_total_;
     s.demolition_history=demolition_history_;
     for (int y=0;y<height_;++y) for (int x=0;x<width_;++x)
         if (object_at({x,y})==Object::Road) s.roads.push_back({x,y});
@@ -3054,6 +3053,9 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
     if (!rule_version_supported(s.profile,s.rule_version))
         throw std::invalid_argument("unsupported sandbox rule version");
     World w(s.width,s.height,std::move(mask),s.profile,s.rule_version);
+    if (!maintenance_profile(s.profile) && s.maintenance_spent_total)
+        throw std::invalid_argument("maintenance authority requires City-v16");
+    w.maintenance_spent_total_=s.maintenance_spent_total;
     for (const auto& b:s.buildings)
         if ((!desirability_profile(s.profile) || b.kind!=Object::Household) && b.taxes_paid_total)
             throw std::invalid_argument("tax payment authority requires a City-v13 Household");

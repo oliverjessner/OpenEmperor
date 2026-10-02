@@ -154,8 +154,13 @@ CityStartGuidance inspect_city_start(const World& world) {
             house_cost;
         result.affordable_suggested_houses=house_cost>0 ? std::min(result.suggested_additional_houses,
             static_cast<std::size_t>(std::max<std::int64_t>(0,world.treasury())/house_cost)):0;
-        result.suggested_house_funds_missing=std::max<std::int64_t>(0,
-            result.suggested_house_cost-world.treasury());
+        const auto funds=world.treasury();
+        // City-v16 debt may be INT64_MIN. This display-only shortfall saturates
+        // when it cannot fit, without changing the construction reserve.
+        result.suggested_house_funds_missing=funds<0 &&
+            result.suggested_house_cost>std::numeric_limits<std::int64_t>::max()+funds ?
+            std::numeric_limits<std::int64_t>::max():
+            std::max<std::int64_t>(0,result.suggested_house_cost-funds);
     }
     return result;
 }

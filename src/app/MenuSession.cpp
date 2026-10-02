@@ -23,7 +23,7 @@ constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::Logisti
     simulation::RulesProfile::SettlementV4,simulation::RulesProfile::IndustryV5,
     simulation::RulesProfile::CityV6,simulation::RulesProfile::CityV7,
     simulation::RulesProfile::CityV8,simulation::RulesProfile::CityV9,
-    simulation::RulesProfile::CityV10,simulation::RulesProfile::CityV11,simulation::RulesProfile::CityV12,simulation::RulesProfile::CityV13,simulation::RulesProfile::CityV14,simulation::RulesProfile::CityV15};
+    simulation::RulesProfile::CityV10,simulation::RulesProfile::CityV11,simulation::RulesProfile::CityV12,simulation::RulesProfile::CityV13,simulation::RulesProfile::CityV14,simulation::RulesProfile::CityV15,simulation::RulesProfile::CityV16};
 const char* description(simulation::RulesProfile p) {
     switch (p) {
     case simulation::RulesProfile::LogisticsV1: return "Older sandbox: goods delivery";
@@ -38,6 +38,7 @@ const char* description(simulation::RulesProfile p) {
     case simulation::RulesProfile::CityV10: return "Older city: scalable independent districts";
     case simulation::RulesProfile::CityV11: return "City - markets, population and workforce controls";
     case simulation::RulesProfile::CityV12: return "Fire safety and city services";
+    case simulation::RulesProfile::CityV16: return "City v16 - Maintenance and city budget";
     case simulation::RulesProfile::CityV15: return "City v15 - Water, road-based health services and deterministic illness";
     case simulation::RulesProfile::CityV14: return "City v14 - Water and residential infrastructure";
     case simulation::RulesProfile::CityV13: return "City v13 - Residential quality and zoning";
@@ -653,6 +654,9 @@ bool MenuSession::render() {
         if (!label(40,165,"Declared size: "+(e.declared_size?std::to_string(*e.declared_size):"unsupported")+
             (e.error.empty()?"":" - "+e.error))) return false;
         if (!label(40,245,description(settings_.profile))) return false;
+        if (simulation::maintenance_profile(settings_.profile) &&
+            (!label(40,180,"Recurring building upkeep adds") ||
+             !label(40,192,"long-term budget pressure."))) return false;
         if (!label(40,258,std::string("Technical: ")+simulation::rules_profile_name(settings_.profile)+
             " | rule "+std::to_string(simulation::current_rule_version(settings_.profile)))) return false;
         if (!label(310,278,demo_ ?

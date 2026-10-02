@@ -826,12 +826,84 @@ void city_v15_health_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* re
     view.shutdown();std::cout<<"City-v15 UI: sick/save/load paused, inspectors, J/K/H, 100 overlay toggles at 4 and 20 Houses, 200 hover events, road preview pure\n";
 }
 
+void city_v16_maintenance_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
+    namespace perf=openemperor::performance;
+    std::vector<std::uint8_t> mask;auto session=city_v10_fixture(temp,mask);const auto border=session.plan.border;
+    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16);
+    Temp outside;view.configure_save(temp.path,"Cities/Synthetic.map",outside.path/"budget-save.json");
+    view.initialize(window,renderer);bool running=true;
+    const auto put=[&](simulation::CommandType type,simulation::Cell cell) {
+        const auto result=view.execute({type,cell});check(result.accepted && result.changed,"budget UI paid building");
+        return *view.world().building_owner_at(cell);
+    };
+    view.set_tool(3);check(view.tool()==3,"funded Pottery preview disabled");
+    const auto cost_before=view.world().snapshot();perf::set_enabled(true);perf::reset();
+    const auto cost_point=view.camera().world_to_screen(maps::terrain_ground({115,108},border));
+    for(int i=0;i<200;++i)view.handle_event(motion(static_cast<float>(cost_point.x),static_cast<float>(cost_point.y)),running);
+    view.update(0);check(view.render() && view.world().snapshot()==cost_before,"paid cost/upkeep preview mutation");
+    for(const auto counter:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::BfsCalls,
+        perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+        perf::Counter::FileReads,perf::Counter::FileWrites})check(perf::counter(counter)==0,"cost/upkeep preview did work");
+    perf::set_enabled(false);
+    for(int x:{100,103,106,109})put(simulation::CommandType::PlacePottery,{x,104});
+    for(int x:{100,103,106})put(simulation::CommandType::PlaceClaySource,{x,101});
+    const auto post=put(simulation::CommandType::PlaceHealthPost,{112,104});
+    put(simulation::CommandType::PlaceWell,{120,104});
+    for(int x=100;x<110;++x)check(view.execute({simulation::CommandType::PlaceRoad,{x,103}}).accepted,"budget UI roads");
+    const auto screen=[&](simulation::Cell cell){return view.camera().world_to_screen(maps::terrain_ground(
+        {static_cast<std::uint32_t>(cell.x),static_cast<std::uint32_t>(cell.y)},border));};
+    const auto select=[&](simulation::Cell cell){view.set_tool(5);const auto point=screen(cell);
+        mouse_click(view,static_cast<float>(point.x),static_cast<float>(point.y),running);};
+    const auto contains=[&](const char* wanted){std::string text;for(const auto& line:view.inspection_lines())text+=line+" ";return text.find(wanted)!=std::string::npos;};
+    view.set_tool(1);check(view.tool()==1,"funded Road tool disabled");
+    const auto road_start=screen({115,107}),road_end=screen({120,107});
+    const auto before_road=view.world().snapshot();perf::set_enabled(true);perf::reset();
+    view.handle_event(click(static_cast<float>(road_start.x),static_cast<float>(road_start.y)),running);
+    for(int i=0;i<100;++i)view.handle_event(motion(static_cast<float>(road_end.x),static_cast<float>(road_end.y)),running);
+    view.update(0);check(view.road_preview().cells.size()==6 && view.render(),"actual upkeep city road preview");
+    for(const auto counter:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::BfsCalls,
+        perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+        perf::Counter::FileReads,perf::Counter::FileWrites})check(perf::counter(counter)==0,"upkeep road preview did work");
+    check(view.world().snapshot()==before_road,"upkeep road preview mutation");perf::set_enabled(false);
+    view.handle_event(key(SDLK_ESCAPE),running);
+    for(int i=0;i<399;++i)view.tick_once();
+    select({100,104});check(contains("Maintenance: 12 every 400 ticks") && contains("Next due: 1 ticks"),"Pottery maintenance inspector");
+    const auto pottery=*view.world().building_owner_at({100,104});view.execute(simulation::set_building_operation(pottery,false));
+    check(contains("Maintenance continues while paused."),"paused upkeep explanation");
+    select({120,104});check(contains("Maintenance: 2 every 400 ticks") && contains("Covered Houses 0") && !contains("Workers"),"Well upkeep inspector");
+    select({112,104});view.execute(simulation::set_building_operation(post,false));
+    check(contains("Maintenance: 4 every 400 ticks") && contains("Worker phase:") && contains("Maintenance continues while paused."),"Health Post upkeep inspector");
+    view.tick_once();check(view.world().treasury()==-58 && view.world().maintenance_spent_total()==78,"negative Funds UI fixture");
+    check(contains("Due this tick"),"due-at-current-tick inspector");
+    const auto snapshot=view.world().snapshot();view.save_now();view.tick_once();view.load_now();
+    check(view.paused() && view.world().snapshot()==snapshot && openemperor::persistence::read_save(view.save_path()).source_schema_version==18,"negative schema18 load paused");
+    perf::set_enabled(true);perf::reset();
+    for(int i=0;i<100;++i) {
+        view.handle_event(key(SDLK_F1),running);view.handle_event(key(SDLK_H),running);check(view.render(),"maintenance help/HUD render");
+        view.handle_event(key(SDLK_H),running);
+        const auto point=screen({115,108});view.handle_event(motion(static_cast<float>(point.x),static_cast<float>(point.y)),running);
+        view.update(0);check(view.render(),"maintenance cost preview");
+    }
+    view.set_tool(1);check(view.tool()==5,"paid Road tool enabled in debt");
+    for(const auto counter:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+        perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+        perf::Counter::FileReads,perf::Counter::FileWrites,perf::Counter::SimulationTicks})check(perf::counter(counter)==0,"upkeep presentation/preview did work");
+    check(view.world().snapshot()==snapshot,"budget UI mutated World");perf::set_enabled(false);
+    // The complete HUD/guidance path must also accept the signed endpoint.
+    auto extreme=view.capture_save_document();extreme.world.treasury=INT64_MIN;
+    extreme.world.maintenance_spent_total=static_cast<std::uint64_t>(INT64_MAX)+1+20;
+    openemperor::persistence::write_save(view.save_path(),extreme,temp.path,view.buildable_mask());
+    view.load_now();check(view.paused() && view.world().treasury()==INT64_MIN && view.render(),"signed endpoint HUD/guidance");
+    view.shutdown();std::cout<<"City-v16 SDL: debt, placement cost/upkeep, paused/Well/Health inspectors, schema18 paused load, pure Help/HUD/road preview\n";
+}
+
 int main(int argc,char** argv) {
     try {
+        const bool maintenance_only=argc==2 && std::string(argv[1])=="--maintenance-only";
         const bool health_only=argc==2 && std::string(argv[1])=="--health-only";
         const bool water_only=argc==2 && std::string(argv[1])=="--water-only";
         const bool alpha_stress=argc==2 && std::string(argv[1])=="--alpha-stress";
-        check(argc==1 || alpha_stress || water_only || health_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
+        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
             check(layout.top.h==52 && layout.map.w==796 && layout.map.h==516 &&
@@ -925,6 +997,10 @@ int main(int argc,char** argv) {
         SDL_Window* window=nullptr;
         SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("sandbox test",800,600,0,&window,&renderer),"window");
+        if (maintenance_only) {
+            city_v16_maintenance_checks(temp,window,renderer);
+            SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+        }
         if (health_only) {
             city_v15_health_checks(temp,window,renderer);
             SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;

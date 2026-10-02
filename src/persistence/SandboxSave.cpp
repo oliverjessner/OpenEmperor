@@ -38,6 +38,15 @@ std::uint64_t number(const json& j,std::uint64_t max=UINT64_MAX) {
     require(n>=0 && static_cast<std::uint64_t>(n)<=max,"save integer exceeds range");
     return static_cast<std::uint64_t>(n);
 }
+std::int64_t signed_number(const json& j) {
+    require(j.is_number_integer() && !j.is_number_float(),"save signed integer has wrong type");
+    if (j.is_number_unsigned()) {
+        const auto n=j.get<std::uint64_t>();
+        require(n<=static_cast<std::uint64_t>(INT64_MAX),"save signed integer exceeds range");
+        return static_cast<std::int64_t>(n);
+    }
+    return j.get<std::int64_t>();
+}
 int small(const json& j,int max=INT32_MAX) { return static_cast<int>(number(j,static_cast<std::uint64_t>(max))); }
 std::string str(const json& j) { require(j.is_string(),"save string has wrong type"); return j.get<std::string>(); }
 bool boolean(const json& j) { require(j.is_boolean(),"save bool has wrong type"); return j.get<bool>(); }
@@ -202,6 +211,8 @@ json snapshot_json(const simulation::WorldSnapshot& s) {
         result["taxes_collected_total"]=s.taxes_collected_total;
         result["construction_spent_total"]=s.construction_spent_total;
     }
+    if (simulation::maintenance_profile(s.profile))
+        result["maintenance_spent_total"]=s.maintenance_spent_total;
     if (food) {
         result["food_produced_total"]=s.food_produced_total;
         result["last_dispatched_food_household"]=s.last_dispatched_food_household ?
@@ -272,7 +283,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         out.taxes=number(field(h,"taxes"));
         out.construction_spent=number(field(h,"construction_spent"));
     }
-    if (schema>=10 && schema<=17) {
+    if (schema>=10 && schema<=18) {
         const bool v11=schema>=11;
         require(bs.is_array() && bs.size()<=building_collection_limit(profile) &&
                 cs.is_array() && cs.size()<=courier_collection_limit(profile),
@@ -284,12 +295,12 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             const auto id=static_cast<std::uint32_t>(number(field(b,"id"),UINT32_MAX));
             require(id>previous,"City-v10 building IDs must be positive, unique and sorted");
             previous=id; x.id=static_cast<BuildingId>(id);
-            x.kind=static_cast<Object>(small(field(b,"kind"),schema==17 ? 12:schema==16 ? 11:schema>=14 ? 10:v11 ? 9:8));
+            x.kind=static_cast<Object>(small(field(b,"kind"),schema>=17 ? 12:schema==16 ? 11:schema>=14 ? 10:v11 ? 9:8));
             require(x.kind==Object::ClaySource || x.kind==Object::Pottery ||
                     x.kind==Object::Warehouse || x.kind==Object::Household ||
                     x.kind==Object::Farm || x.kind==Object::ServicePost ||
                     (v11 && x.kind==Object::Market) || (schema>=14 && x.kind==Object::FireWatch) || (schema>=16 && x.kind==Object::Well) ||
-                    (schema==17 && x.kind==Object::HealthPost),
+                    (schema>=17 && x.kind==Object::HealthPost),
                     "invalid scalable City building kind");
             x.cell=cell(field(b,"cell")); x.placed=boolean(field(b,"placed"));
             require(x.placed,"City-v10 saves may not contain building holes");
@@ -334,7 +345,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
                 require(x.kind==Object::Household || x.taxes_paid_total==0,
                         "non-Household tax payment authority must be zero");
             }
-            if (schema==17) {
+            if (schema>=17) {
                 x.health_risk=small(field(b,"health_risk"),Rules::health_risk_threshold-1);
                 x.health_protection_until_tick=number(field(b,"health_protection_until_tick"));
                 x.sick_until_tick=number(field(b,"sick_until_tick"));
@@ -352,7 +363,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
             previous=id; x.id=static_cast<CourierId>(id);
             x.owner=static_cast<BuildingId>(number(field(c,"owner"),UINT32_MAX));
             x.target=static_cast<BuildingId>(number(field(c,"target"),UINT32_MAX));
-            x.role=static_cast<CourierRole>(small(field(c,"role"),schema==17 ? 11:schema>=14 ? 10:v11 ? 9:5));
+            x.role=static_cast<CourierRole>(small(field(c,"role"),schema>=17 ? 11:schema>=14 ? 10:v11 ? 9:5));
             require(x.role!=CourierRole::None,"invalid scalable City courier role");
             const auto& old_last=field(c,"last_dispatched_pottery");
             if (!old_last.is_null()) x.last_dispatched_pottery=static_cast<BuildingId>(
@@ -377,7 +388,13 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         s.next_courier_id=static_cast<std::uint32_t>(number(field(j,"next_courier_id"),UINT32_MAX));
         const auto treasury=field(j,"treasury");
         require(treasury.is_number_integer(),"City treasury must be an integer");
-        s.treasury=treasury.get<std::int64_t>(); require(s.treasury>=0,"City treasury cannot be negative");
+        if (schema==18) {
+            s.treasury=signed_number(treasury);
+            s.maintenance_spent_total=number(field(j,"maintenance_spent_total"));
+        } else {
+            s.treasury=treasury.get<std::int64_t>();
+            require(s.treasury>=0,"City treasury cannot be negative");
+        }
         s.taxes_collected_total=number(field(j,"taxes_collected_total"));
         s.construction_spent_total=number(field(j,"construction_spent_total"));
         s.food_produced_total=number(field(j,"food_produced_total"));
@@ -550,6 +567,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
 }
 json document_json(const SaveDocument& d) {
     return {{"format","openemperor-sandbox-save"},{"schema_version",
+             d.world.profile==simulation::RulesProfile::CityV16 ? 18:
              d.world.profile==simulation::RulesProfile::CityV15 ? 17:
              d.world.profile==simulation::RulesProfile::CityV14 ? 16:
              d.world.profile==simulation::RulesProfile::CityV13 ? 15:
@@ -574,7 +592,7 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=17,"unsupported save schema version");
+    require(schema>=1 && schema<=18,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -605,6 +623,7 @@ SaveDocument parse_document(const json& j) {
     else if (id==simulation::city_v13_profile_name) d.world.profile=simulation::RulesProfile::CityV13;
     else if (id==simulation::city_v14_profile_name) d.world.profile=simulation::RulesProfile::CityV14;
     else if (id==simulation::city_v15_profile_name) d.world.profile=simulation::RulesProfile::CityV15;
+    else if (id==simulation::city_v16_profile_name) d.world.profile=simulation::RulesProfile::CityV16;
     else throw std::runtime_error("unknown sandbox rule ID");
     d.world.rule_version=static_cast<std::uint32_t>(number(field(r,"version"),UINT32_MAX));
     require((d.world.profile==simulation::RulesProfile::ProductionV2 ?
@@ -622,6 +641,7 @@ SaveDocument parse_document(const json& j) {
             (d.world.profile!=simulation::RulesProfile::CityV13 || schema==15) &&
             (d.world.profile!=simulation::RulesProfile::CityV14 || schema==16) &&
             (d.world.profile!=simulation::RulesProfile::CityV15 || schema==17) &&
+            (d.world.profile!=simulation::RulesProfile::CityV16 || schema==18) &&
             (d.world.profile!=simulation::RulesProfile::CityV11 ||
                 (schema==11 ? d.world.rule_version<=2 :
                  (schema==12 && d.world.rule_version==3) ||
@@ -647,6 +667,8 @@ SaveDocument parse_document(const json& j) {
             "unsupported sandbox rule version");
     require(schema!=17 || (d.world.profile==simulation::RulesProfile::CityV15 &&
             d.world.rule_version==1),"schema 17 requires City-v15 rule 1");
+    require(schema!=18 || (d.world.profile==simulation::RulesProfile::CityV16 &&
+            d.world.rule_version==1),"schema 18 requires City-v16 rule 1");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;
     if (schema==1 && parsed.profile==simulation::RulesProfile::ProductionV2) {

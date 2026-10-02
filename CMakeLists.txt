@@ -221,6 +221,7 @@ add_library(openemperor-simulation STATIC
     src/simulation/World.cpp
     src/simulation/WorldFire.cpp
     src/simulation/WorldHealth.cpp
+    src/simulation/WorldMaintenance.cpp
     src/simulation/WorldDesirability.cpp
     src/simulation/WorldWater.cpp
     src/simulation/CityStartGuidance.cpp)
@@ -287,6 +288,7 @@ if(BUILD_TESTING)
         openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_test(NAME sandbox-city-v15-view COMMAND openemperor-sandbox-view-tests --health-only)
+    add_test(NAME sandbox-city-v16-view COMMAND openemperor-sandbox-view-tests --maintenance-only)
     set_tests_properties(sandbox-city-v15-view PROPERTIES TIMEOUT 240)
     add_test(NAME sandbox-city-v14-view COMMAND openemperor-sandbox-view-tests --water-only)
     set_tests_properties(sandbox-city-v14-view PROPERTIES TIMEOUT 240)
@@ -425,6 +427,15 @@ if(BUILD_TESTING)
         add_test(NAME sandbox-city-v15-${health_test}
             COMMAND openemperor-sandbox-city-v15-tests ${health_test})
         set_tests_properties(sandbox-city-v15-${health_test} PROPERTIES TIMEOUT 900)
+    endforeach()
+
+    add_executable(openemperor-sandbox-city-v16-tests tests/SandboxCityV16Tests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v16-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-sandbox-city-v16-tests)
+    foreach(maintenance_test base persistence balance determinism endurance)
+        add_test(NAME sandbox-city-v16-${maintenance_test}
+            COMMAND openemperor-sandbox-city-v16-tests ${maintenance_test})
+        set_tests_properties(sandbox-city-v16-${maintenance_test} PROPERTIES TIMEOUT 900)
     endforeach()
 
     add_executable(openemperor-city-start-guidance-tests
