@@ -742,11 +742,96 @@ void city_v14_water_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* ren
         "100 pure Well frames with actual camera motion,1x/2x/4x,selection,overlay and visible preview\n";
 }
 }
+void city_v15_health_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
+    namespace perf=openemperor::performance;
+    std::vector<std::uint8_t> mask;
+    auto session=city_v10_fixture(temp,mask);const auto border=session.plan.border;
+    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV15);
+    Temp outside;view.configure_save(temp.path,"Cities/Synthetic.map",outside.path/"health-save.json");
+    view.initialize(window,renderer);bool running=true;
+    const auto put=[&](simulation::CommandType type,simulation::Cell cell) {
+        const auto r=view.execute({type,cell});check(r.accepted && r.changed,"health UI paid placement");
+        return *view.world().building_owner_at(cell);
+    };
+    put(simulation::CommandType::PlaceClaySource,{100,101});put(simulation::CommandType::PlacePottery,{100,104});
+    put(simulation::CommandType::PlaceWarehouse,{103,101});put(simulation::CommandType::PlaceFarm,{104,104});
+    put(simulation::CommandType::PlaceMarket,{103,104});put(simulation::CommandType::PlaceServicePost,{105,104});
+    for(int x=100;x<=114;++x)check(view.execute({simulation::CommandType::PlaceRoad,{x,103}}).accepted,"health UI road");
+    for(auto cell:{simulation::Cell{106,101},simulation::Cell{106,104},simulation::Cell{109,101},simulation::Cell{109,104}})
+        put(simulation::CommandType::PlaceHousehold,cell);
+    put(simulation::CommandType::PlaceFireWatch,{114,104});
+    for(int i=0;i<3400;++i)view.tick_once();
+    const auto home=*view.world().building_owner_at({109,104});
+    check(view.world().household_sick(home),"live illness UI fixture");
+    const auto screen=[&](simulation::Cell cell) {return view.camera().world_to_screen(maps::terrain_ground(
+        {static_cast<std::uint32_t>(cell.x),static_cast<std::uint32_t>(cell.y)},border));};
+    view.set_tool(5);auto pos=screen({109,104});mouse_click(view,static_cast<float>(pos.x),static_cast<float>(pos.y),running);
+    const auto contains=[&](const char* text){const auto lines=view.inspection_lines();return std::ranges::any_of(lines,
+        [&](const auto& line){return line.find(text)!=std::string::npos;});};
+    check(contains("Health: Sick") && contains("Health risk: 0 / 100") && contains("Illness remaining:") &&
+        contains("No water access"),"sick House inspector");
+    const auto sick=view.world().snapshot();const auto level=view.world().household_level(home);
+    perf::set_enabled(true);perf::reset();
+    for(int i=0;i<100;++i){view.handle_event(key(SDLK_K),running);check(view.render(),"health overlay render");}
+    check(!view.health_overlay() && view.world().snapshot()==sick && view.world().household_level(home)==level,"100 health toggles mutated World/stage");
+    for(const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+        perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+        perf::Counter::FileReads,perf::Counter::FileWrites})check(perf::counter(c)==0,"health overlay did expensive work");
+    perf::set_enabled(false);
+    view.save_now();check(openemperor::persistence::read_save(view.save_path()).source_schema_version==17,"view schema17");
+    view.tick_once();view.load_now();check(view.paused() && view.world().snapshot()==sick &&
+        view.world().household_sick(home),"live sick recovery/load auto-cure");
+    view.handle_event(key(SDLK_J),running);check(view.tool()==13,"J HealthPost shortcut");
+    pos=screen({112,104});view.handle_event(motion(static_cast<float>(pos.x),static_cast<float>(pos.y)),running);
+    perf::set_enabled(true);perf::reset();
+    for(int i=0;i<200;++i)view.handle_event(motion(static_cast<float>(pos.x)+0.001F*static_cast<float>(i%10),static_cast<float>(pos.y)),running);
+    view.update(0);check(view.render(),"health fallback preview");
+    for(const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+        perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+        perf::Counter::FileReads,perf::Counter::FileWrites})check(perf::counter(c)==0,"health preview did expensive work");
+    check(view.world().snapshot()==sick,"Health preview changed World");perf::set_enabled(false);
+    const auto post=put(simulation::CommandType::PlaceHealthPost,{112,104});
+    view.execute(simulation::set_building_workforce_priority(post,simulation::WorkforcePriority::High));
+    view.set_tool(5);mouse_click(view,static_cast<float>(pos.x),static_cast<float>(pos.y),running);
+    check(contains("Health Post #") && contains("Workers assigned") && contains("Priority: High") &&
+        contains("Worker phase:") && contains("Route status:") && contains("City-wide") && !contains("stock"),"Health inspector diagnostics");
+    const auto stable=view.world().snapshot();
+    view.handle_event(key(SDLK_H),running);check(view.tool()==5 && view.render(),"H lost Help binding");view.handle_event(key(SDLK_H),running);
+    view.handle_event(key(SDLK_1),running);auto start=screen({116,103});auto end=screen({120,103});
+    view.handle_event(click(static_cast<float>(start.x),static_cast<float>(start.y)),running);
+    perf::set_enabled(true);perf::reset();
+    for(int i=0;i<100;++i)view.handle_event(motion(static_cast<float>(end.x),static_cast<float>(end.y)),running);
+    view.update(0);check(view.render(),"health city road preview");
+    for(const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,
+        perf::Counter::AssetDecodes,perf::Counter::TextureUploads,perf::Counter::FileReads,perf::Counter::FileWrites})
+        check(perf::counter(c)==0,"Health couriers regressed road preview");
+    check(view.world().snapshot()==stable,"road preview changed health city");perf::set_enabled(false);
+    view.handle_event(key(SDLK_ESCAPE),running);
+    // Exercise the overlay at its full House bound, using genuine earned funds.
+    put(simulation::CommandType::PlaceWell,{108,106});
+    for(int i=0;i<20000 && view.world().treasury()<16*80;++i)view.tick_once();
+    check(view.world().treasury()>=16*80,"Health UI expansion did not earn funds");
+    for(int y:{107,110})for(int x=100;x<=121;x+=3)
+        put(simulation::CommandType::PlaceHousehold,{x,y});
+    check(std::ranges::count_if(view.world().buildings(),[](const auto& b){
+        return b.kind==simulation::Object::Household;})==20,"Health overlay max House fixture");
+    const auto maximum=view.world().snapshot();perf::set_enabled(true);perf::reset();
+    for(int i=0;i<100;++i){view.handle_event(key(SDLK_K),running);check(view.render(),"maximum Health overlay render");}
+    check(!view.health_overlay() && view.world().snapshot()==maximum,"maximum Health overlay changed World");
+    for(const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+        perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+        perf::Counter::FileReads,perf::Counter::FileWrites,perf::Counter::SimulationTicks})
+        check(perf::counter(c)==0,"maximum Health overlay did expensive work");
+    perf::set_enabled(false);
+    view.shutdown();std::cout<<"City-v15 UI: sick/save/load paused, inspectors, J/K/H, 100 overlay toggles at 4 and 20 Houses, 200 hover events, road preview pure\n";
+}
+
 int main(int argc,char** argv) {
     try {
+        const bool health_only=argc==2 && std::string(argv[1])=="--health-only";
         const bool water_only=argc==2 && std::string(argv[1])=="--water-only";
         const bool alpha_stress=argc==2 && std::string(argv[1])=="--alpha-stress";
-        check(argc==1 || alpha_stress || water_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
+        check(argc==1 || alpha_stress || water_only || health_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
             check(layout.top.h==52 && layout.map.w==796 && layout.map.h==516 &&
@@ -840,6 +925,10 @@ int main(int argc,char** argv) {
         SDL_Window* window=nullptr;
         SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("sandbox test",800,600,0,&window,&renderer),"window");
+        if (health_only) {
+            city_v15_health_checks(temp,window,renderer);
+            SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+        }
         if (water_only) {
             city_v14_water_checks(temp,window,renderer);
             SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;

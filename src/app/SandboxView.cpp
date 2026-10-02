@@ -3,6 +3,7 @@
 #include "maps/SandboxPlacement.h"
 #include "renderer/StoredCamera.h"
 #include "renderer/WellFallbackRenderer.h"
+#include "renderer/HealthPostFallbackRenderer.h"
 #include "app/WalkerPose.h"
 #include "app/SandboxVisualOrder.h"
 #include "core/Version.h"
@@ -59,6 +60,7 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::ServicePost: return "Service post";
     case simulation::Object::Market: return "Market";
     case simulation::Object::Well: return "Well";
+    case simulation::Object::HealthPost: return "Health Post";
     case simulation::Object::FireWatch: return "Fire Watch";
     }
     return "Unknown";
@@ -76,6 +78,7 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool) {
         case 9: return simulation::CommandType::PlaceServicePost;
         case 11: return simulation::CommandType::PlaceFireWatch;
         case 12: return simulation::CommandType::PlaceWell;
+        case 13: return simulation::CommandType::PlaceHealthPost;
         default: return simulation::CommandType::PlaceHousehold;
         }
     }
@@ -100,6 +103,7 @@ const char* profile_title(simulation::RulesProfile rules) {
     case simulation::RulesProfile::CityV11: return "City v11";
     case simulation::RulesProfile::CityV12: return "City v12";
     case simulation::RulesProfile::CityV14: return "City v14";
+    case simulation::RulesProfile::CityV15: return "City v15";
     case simulation::RulesProfile::CityV13: return "City v13";
     }
     return "Sandbox";
@@ -404,7 +408,7 @@ void SandboxView::update_layout(bool preserve_center) {
         throw std::runtime_error(SDL_GetError());
     const auto next=sandbox_ui::make_layout(width,height,window_width,window_height,panel_open_,
         simulation::fire_profile(rules_),simulation::desirability_profile(rules_),
-        simulation::water_profile(rules_));
+        simulation::water_profile(rules_),simulation::health_profile(rules_));
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) return;
     scene::Point center{};
@@ -769,6 +773,7 @@ void SandboxView::set_tool(int tool) {
     case 9: action=sandbox_ui::Action::ServicePost; break;
     case 11: action=sandbox_ui::Action::FireWatch; break;
     case 12: action=sandbox_ui::Action::Well; break;
+    case 13: action=sandbox_ui::Action::HealthPost; break;
     default: return;
     }
     if (action_enabled(action)) perform_action(action);
@@ -795,8 +800,13 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
         else if (action==sandbox_ui::Action::FireWatch)
             command=simulation::CommandType::PlaceFireWatch;
         else if (action==sandbox_ui::Action::Well) command=simulation::CommandType::PlaceWell;
+        else if (action==sandbox_ui::Action::HealthPost) command=simulation::CommandType::PlaceHealthPost;
         if (command && world_->treasury()<world_->construction_cost(*command)) return false;
     }
+    if (action==sandbox_ui::Action::Health) return simulation::health_profile(rules_);
+    if (action==sandbox_ui::Action::HealthPost)
+        return simulation::health_profile(rules_) && count_kind(simulation::Object::HealthPost)<
+            static_cast<std::ptrdiff_t>(simulation::Rules::health_post_limit);
     if (action==sandbox_ui::Action::Water) return simulation::water_profile(rules_);
     if (action==sandbox_ui::Action::Well)
         return simulation::water_profile(rules_) && count_kind(simulation::Object::Well)<
@@ -946,6 +956,7 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         else if (action==A::Market) command=simulation::CommandType::PlaceMarket;
         else if (action==A::FireWatch) command=simulation::CommandType::PlaceFireWatch;
         else if (action==A::Well) command=simulation::CommandType::PlaceWell;
+        else if (action==A::HealthPost) command=simulation::CommandType::PlaceHealthPost;
         if (simulation::city_profile(rules_) && command &&
             world_->treasury()<world_->construction_cost(*command))
             last_message_="Need "+std::to_string(world_->construction_cost(*command))+
@@ -956,14 +967,18 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     }
     if (action==A::Select || action==A::Road || action==A::Clay || action==A::Pottery ||
         action==A::Warehouse || action==A::RemoveRoad || action==A::Household ||
-        action==A::Farm || action==A::ServicePost || action==A::Market || action==A::FireWatch || action==A::Well) {
+        action==A::Farm || action==A::ServicePost || action==A::Market || action==A::FireWatch || action==A::Well || action==A::HealthPost) {
         cancel_gesture();
         tool_=action==A::Select ? (simulation::production_profile(rules_) ? 5:4) :
             action==A::Road ? 1 : action==A::Clay ? 2 : action==A::Pottery ? 3 :
             action==A::Warehouse ? (simulation::production_profile(rules_) ? 4:3) :
             action==A::RemoveRoad ? 6:action==A::Household ? 7:action==A::Farm ? 8:
-            action==A::ServicePost ? 9:action==A::FireWatch ? 11:action==A::Well ? 12:0;
+            action==A::ServicePost ? 9:action==A::FireWatch ? 11:action==A::Well ? 12:action==A::HealthPost ? 13:0;
         last_message_=tool_name(rules_,tool_);
+    } else if (action==A::Health) {
+        cancel_gesture();
+        health_overlay_=!health_overlay_;
+        last_message_=health_overlay_ ? "Health ON: green protected, amber at risk, red sick":"Health OFF";
     } else if (action==A::Water) {
         cancel_gesture();
         water_overlay_=!water_overlay_;
@@ -1148,6 +1163,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_0 && simulation::market_profile(rules_))
             set_tool(0);
         else if (event.key.key==SDLK_F && simulation::fire_profile(rules_)) set_tool(11);
+        else if (event.key.key==SDLK_J && simulation::health_profile(rules_)) set_tool(13);
+        else if (event.key.key==SDLK_K && simulation::health_profile(rules_))
+            perform_action(sandbox_ui::Action::Health);
         else if (event.key.key==SDLK_I && simulation::water_profile(rules_)) set_tool(12);
         else if (event.key.key==SDLK_U && simulation::water_profile(rules_))
             perform_action(sandbox_ui::Action::Water);
@@ -1532,6 +1550,17 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         return true;
     };
+    const auto draw_sickness=[&](simulation::Cell cell,scene::Point center,bool preview)->bool {
+        if (preview || !simulation::health_profile(rules_)) return true;
+        const auto owner=world_->building_owner_at(cell);
+        if (!owner || !world_->household_sick(*owner)) return true;
+        const float z=static_cast<float>(camera_.zoom);
+        const SDL_FRect marker{static_cast<float>(center.x)+22*z,
+            static_cast<float>(center.y)-17*z,4*z,6*z};
+        return SDL_SetRenderDrawColor(renderer_,166,141,72,255) &&
+            SDL_RenderFillRect(renderer_,&marker) && SDL_SetRenderDrawColor(renderer_,62,59,44,255) &&
+            SDL_RenderLine(renderer_,marker.x+2*z,marker.y+z,marker.x+2*z,marker.y+5*z);
+    };
     const auto draw_object=[&](simulation::Cell cell,simulation::Object object,
                                bool placement_preview)->bool {
         const int x=cell.x,y=cell.y;
@@ -1588,13 +1617,16 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                                 placement_preview))
                         return false;
                     if (!placement_preview) ++building_drawn_instances_[assets::role_index(*role)];
-                    return draw_fire_overlay(cell,center,placement_preview);
+                    return draw_fire_overlay(cell,center,placement_preview) && draw_sickness(cell,center,placement_preview);
                 }
-                if (placement_preview && object!=simulation::Object::Well) return true;
+                if (placement_preview && object!=simulation::Object::Well && object!=simulation::Object::HealthPost) return true;
                 ++building_placeholder_fallbacks_[assets::role_index(*role)];
             }
             if (object==simulation::Object::Well)
                 return draw_well_fallback(renderer_,center,camera_.zoom,placement_preview);
+            if (object==simulation::Object::HealthPost)
+                return draw_health_post_fallback(renderer_,center,camera_.zoom,placement_preview) &&
+                    draw_fire_overlay(cell,center,placement_preview);
             SDL_Color color=debug_open_ ? SDL_Color{255,105,100,255}:SDL_Color{137,101,85,255};
             if (object==simulation::Object::Workshop || object==simulation::Object::ClaySource)
                 color=debug_open_ ? SDL_Color{50,210,245,255}:SDL_Color{104,124,120,255};
@@ -1635,7 +1667,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                         static_cast<float>(center.y)-16,label.c_str())) return false;
             }
         }
-        return draw_fire_overlay(cell,center,placement_preview);
+        return draw_fire_overlay(cell,center,placement_preview) && draw_sickness(cell,center,placement_preview);
     };
     const auto draw_agent=[&](simulation::Position position,SDL_Color body,SDL_Color cargo_color,
                               int cargo,int shift)->bool {
@@ -1752,12 +1784,13 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==7 ? simulation::Object::Household:
             tool_==8 ? simulation::Object::Farm:
             tool_==9 ? simulation::Object::ServicePost:
+            tool_==13 ? simulation::Object::HealthPost:
             tool_==12 ? simulation::Object::Well:
             tool_==11 ? simulation::Object::FireWatch:
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
             visual_role(*hovered_,object,true):std::nullopt;
-        if (result.accepted && (object==simulation::Object::Well ||
+        if (result.accepted && (object==simulation::Object::Well || object==simulation::Object::HealthPost ||
             (role && building_visuals_active() && building_sprite_ &&
              building_profile_ && building_profile_->find(*role)))) {
             const auto ground=building_visual_ground(*hovered_,object);
@@ -1870,6 +1903,26 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         if (!SDL_SetRenderDrawBlendMode(renderer_,previous) || !ok) return false;
     }
+    if (health_overlay_ && simulation::health_profile(rules_)) {
+        SDL_BlendMode previous;
+        if (!SDL_GetRenderDrawBlendMode(renderer_,&previous) ||
+            !SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND)) return false;
+        bool ok=true;
+        for (const auto& b:world_->buildings()) if (b.placed && b.kind==simulation::Object::Household) {
+            const auto color=world_->household_sick(b.id) ? SDL_Color{196,90,70,65}:
+                world_->household_health_protected(b.id) ? SDL_Color{90,155,130,55}:SDL_Color{200,156,69,55};
+            for (const auto cell:simulation::building_footprint_cells(rules_,b.kind,b.cell)) {
+                const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
+                ok=draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true,color.a/255.0F) && ok;
+            }
+            if (debug_open_) {
+                const auto ground=camera_.world_to_screen(building_visual_ground(b.cell,b.kind));
+                ok=SDL_SetRenderDrawColor(renderer_,240,244,250,255) &&
+                    draw_text(ground.x,ground.y,"Health "+std::to_string(world_->household_health_risk(b.id)),100*layout_.scale) && ok;
+            }
+        }
+        if (!SDL_SetRenderDrawBlendMode(renderer_,previous) || !ok) return false;
+    }
     if (selected_) {
         const auto owner=world_->building_owner_at(*selected_);
         if (owner) {
@@ -1900,6 +1953,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==7 ? simulation::Object::Household:
             tool_==8 ? simulation::Object::Farm:
             tool_==9 ? simulation::Object::ServicePost:
+            tool_==13 ? simulation::Object::HealthPost:
             tool_==12 ? simulation::Object::Well:
             tool_==11 ? simulation::Object::FireWatch:
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
@@ -1908,7 +1962,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const auto* entry=role && building_profile_ ? building_profile_->find(*role):nullptr;
         for (const auto cell:simulation::building_footprint_cells(rules_,object,*hovered_)) {
             const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
-            const bool outline=result.accepted && (object==simulation::Object::Well ||
+            const bool outline=result.accepted && (object==simulation::Object::Well || object==simulation::Object::HealthPost ||
                 (entry && building_visuals_active() && building_sprite_));
             if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
                 result.accepted?245:65,result.accepted?100:65,!outline)) return false;
@@ -1995,6 +2049,30 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         return wrap_panel_lines(lines);
     }
     const auto house_id=selected_building();
+    if (house_id && world_->building(*house_id).kind==simulation::Object::HealthPost) {
+        const auto id=*house_id;
+        const auto& b=world_->building(id);
+        lines.push_back("Health Post #"+std::to_string(static_cast<std::uint32_t>(id)));
+        lines.push_back("Workers assigned "+std::to_string(world_->workers_assigned(id))+"/2");
+        lines.push_back(std::string("Operation: ")+(b.operating_enabled ? "Running":"Paused"));
+        lines.push_back(std::string("Priority: ")+simulation::workforce_priority_name(b.workforce_priority));
+        for (const auto& c:world_->couriers()) if (c.owner==id) {
+            lines.push_back(std::string("Worker phase: ")+simulation::delivery_phase_name(c.phase));
+            lines.push_back("Current target: "+(c.phase==simulation::CourierPhase::IdleAtWorkshop ?
+                std::string("-"):std::to_string(static_cast<std::uint32_t>(c.target))));
+            lines.push_back(std::string("Route status: ")+simulation::courier_dispatch_status_name(
+                world_->courier_dispatch_status(c.id).status));
+        }
+        int houses=0,protected_houses=0,sick=0;
+        for (const auto& h:world_->buildings()) if (h.kind==simulation::Object::Household) {
+            ++houses; protected_houses+=world_->household_health_protected(h.id); sick+=world_->household_sick(h.id);
+        }
+        lines.push_back("City-wide protected Houses "+std::to_string(protected_houses)+"/"+std::to_string(houses));
+        lines.push_back("City-wide sick Houses "+std::to_string(sick));
+        lines.push_back(world_->building_on_fire(id) ? "ON FIRE: new visits suspended.":"Road connection required; no goods.");
+        lines.push_back("Arrival cures illness and grants 2400 ticks protection.");
+        return wrap_panel_lines(lines);
+    }
     if (house_id && world_->building(*house_id).kind==simulation::Object::Well) {
         const auto& well=world_->building(*house_id);
         lines.push_back("Well #"+std::to_string(static_cast<std::uint32_t>(*house_id)));
@@ -2011,6 +2089,15 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         const auto& b=world_->building(id);
         const int score=world_->household_desirability(id);
         lines.push_back("House #"+std::to_string(static_cast<std::uint32_t>(id)));
+        if (simulation::health_profile(rules_)) {
+            lines.push_back(std::string("Health: ")+(world_->household_sick(id) ? "Sick":
+                world_->household_health_protected(id) ? "Protected":"At risk"));
+            lines.push_back("Health risk: "+std::to_string(world_->household_health_risk(id))+" / 100");
+            if (world_->household_sick(id))
+                lines.push_back("Illness remaining: "+std::to_string(world_->household_sickness_remaining(id))+" ticks");
+            else if (world_->household_health_protected(id))
+                lines.push_back("Protection remaining: "+std::to_string(world_->household_health_protection_remaining(id))+" ticks");
+        }
         if (simulation::water_profile(rules_)) {
             const auto well=world_->nearest_water_source(id);
             lines.push_back(well ? "Water: Available":"No water access");
@@ -2509,11 +2596,12 @@ bool SandboxView::draw_hud() {
         else if (guidance.taxes_have_been_collected)
             status+=" | Complete demand has paid tax";
     }
+    if (tool_==13 && simulation::health_profile(rules_)) status="Road connection required. | "+status;
     if (simulation::water_profile(rules_)) {
         if (world_->taxes_collected_total()>0 && world_->water_covered_households()==0 &&
             std::all_of(world_->buildings().begin(),world_->buildings().end(),[&](const auto& b) {
                 return b.kind!=simulation::Object::Household || (b.pottery_stock>0 && b.food_stock>0 &&
-                    world_->household_service_active(b.id) && !world_->building_on_fire(b.id));
+                    world_->household_service_active(b.id) && !world_->building_on_fire(b.id) && !world_->household_sick(b.id));
             }))
             status="Your city is supplied. Add water to improve housing. | "+status;
         if (predicted_water_) status=std::string("Water: ")+(*predicted_water_ ? "Yes":"No")+" | "+status;
@@ -2575,6 +2663,8 @@ bool SandboxView::draw_hud() {
         case A::ServicePost: return scalable ? "9 Service "+
             std::to_string(count(simulation::Object::ServicePost))+"/2 $100":"9 Service $100";
         case A::Market: return "0 Market $140";
+        case A::HealthPost: return "J Health Post $120";
+        case A::Health: return health_overlay_ ? "K Health ON":"K Health";
         case A::Well: return "I Well $60";
         case A::Water: return water_overlay_ ? "U Water ON":"U Water";
         case A::Desirability: return desirability_overlay_ ? "D Desirability ON":"D Desirability";
@@ -2607,6 +2697,8 @@ bool SandboxView::draw_hud() {
         case A::ServicePost: active=tool_==9; break;
         case A::Market: active=tool_==0; break;
         case A::FireWatch: active=tool_==11; break;
+        case A::HealthPost: active=tool_==13; break;
+        case A::Health: active=health_overlay_; break;
         case A::Well: active=tool_==12; break;
         case A::Water: active=water_overlay_; break;
         case A::Desirability: active=desirability_overlay_; break;
@@ -2621,7 +2713,7 @@ bool SandboxView::draw_hud() {
         if (button.action==A::Clay || button.action==A::Pottery ||
             button.action==A::Warehouse || button.action==A::Household ||
             button.action==A::Farm || button.action==A::ServicePost ||
-            button.action==A::Market || button.action==A::FireWatch || button.action==A::Well) {
+            button.action==A::Market || button.action==A::FireWatch || button.action==A::Well || button.action==A::HealthPost) {
             const auto wanted=button.action==A::Clay ?
                 (simulation::production_profile(rules_) ? simulation::Object::ClaySource:
                  simulation::Object::Workshop) :
@@ -2630,12 +2722,13 @@ bool SandboxView::draw_hud() {
                 button.action==A::Household ? simulation::Object::Household:
                 button.action==A::Farm ? simulation::Object::Farm:
                 button.action==A::ServicePost ? simulation::Object::ServicePost:
+                button.action==A::HealthPost ? simulation::Object::HealthPost:
                 button.action==A::Well ? simulation::Object::Well:
                 button.action==A::FireWatch ? simulation::Object::FireWatch:
                 simulation::Object::Market;
             int count=0;
             for (const auto id:placed_buildings()) if (world_->building(id).kind==wanted) ++count;
-            const int limit=button.action==A::Well ? 4:button.action==A::FireWatch ? 2:button.action==A::Market ? 4:
+            const int limit=button.action==A::Well ? 4:(button.action==A::FireWatch || button.action==A::HealthPost) ? 2:button.action==A::Market ? 4:
                 scalable ? (button.action==A::Household ? 20:
                     (button.action==A::Clay || button.action==A::Pottery) ? 4:
                     (button.action==A::Warehouse || button.action==A::Farm ||
@@ -2645,7 +2738,7 @@ bool SandboxView::draw_hud() {
                  rules_==simulation::RulesProfile::SettlementV4 ? 4:1) :
                 simulation::industry_profile(rules_) &&
                 (button.action==A::Clay || button.action==A::Pottery) ? 2:1;
-            text+=" "+std::to_string(count)+"/"+std::to_string(limit);
+            if (button.action!=A::HealthPost) text+=" "+std::to_string(count)+"/"+std::to_string(limit);
         }
         if (!draw_text(button.rect.x+5*layout_.scale,button.rect.y+10*layout_.scale,
                        text,button.rect.w-8*layout_.scale)) return false;
@@ -2897,6 +2990,12 @@ bool SandboxView::draw_help_overlay() {
     const auto text=[&](int col,int row,const std::string& value)->bool {
         return draw_text(x+pad+col*column,y+pad+row*line,value,column-pad);
     };
+    if (simulation::health_profile(rules_)) {
+        if (!text(0,14,"J Health Post | K Health") ||
+            !text(1,11,"Wells slow risk: +1 vs +3") ||
+            !text(1,12,"Health Workers visit by road") ||
+            !text(1,13,"Sick blocks demand. Visits cure.")) return false;
+    }
     return text(0,0,"HELP - H / ? closes") &&
         text(0,2,"BUILD AND NAVIGATE") && text(0,3,"1 Road | 2 Clay | 3 Pottery") &&
         text(0,4,"4 Store | 5 Select | 6 Remove") &&
@@ -2917,8 +3016,8 @@ bool SandboxView::draw_help_overlay() {
         text(1,8,"Select a business in the Inspector") &&
         text(1,9,"Pause/Resume preserves goods/building") &&
         text(1,10,"High/Normal/Low controls staffing") &&
-        text(1,11,"Current deliveries finish when paused") &&
-        text(1,13,"Paused work can resume without reset");
+        (simulation::health_profile(rules_) || (text(1,11,"Current deliveries finish when paused") &&
+        text(1,13,"Paused work can resume without reset")));
 }
 
 bool SandboxView::draw_budget_warning_overlay() {

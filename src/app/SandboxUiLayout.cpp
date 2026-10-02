@@ -32,7 +32,7 @@ bool Layout::ui_at(double x,double y) const {
         panel.contains(x,y);
 }
 
-Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water) {
+Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health) {
     Layout out;
     out.scale=std::max(1,static_cast<int>(std::lround(std::min(
         width/static_cast<double>(std::max(1,window_width)),
@@ -40,8 +40,8 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     const int unit=out.scale;
     const int top=std::min(height,52*unit);
     const int status=std::min(std::max(0,height-top),24*unit);
-    const bool wrapped_tools=width<(water ? 2180:fire_watch ? 1980:1800)*unit;
-    const int tool_rows=wrapped_tools ? (fire_watch ? 3:2):1;
+    const bool wrapped_tools=width<(health ? 2440:water ? 2180:fire_watch ? 1980:1800)*unit;
+    const int tool_rows=wrapped_tools ? (health ? 4:fire_watch ? 3:2):1;
     const int toolbar=std::min(std::max(0,height-top-status),(tool_rows+1)*36*unit);
     out.top={0,0,width,top};
     out.status={0,height-status,width,status};
@@ -57,12 +57,13 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     if (fire_watch) tools.push_back(Action::FireWatch);
     if (desirability) tools.push_back(Action::Desirability);
     if (water) { tools.push_back(Action::Well); tools.push_back(Action::Water); }
+    if (health) { tools.push_back(Action::HealthPost); tools.push_back(Action::Health); }
     out.buttons.resize(tools.size()+10);
     constexpr std::array<Action,8> controls={Action::Pause,Action::Step,Action::Speed1,
         Action::Speed2,Action::Speed4,Action::Reset,Action::Save,Action::Load};
     const int pad=4*unit;
     const int usable=std::max(0,width-2*pad);
-    const int tool_columns=wrapped_tools ? 5:static_cast<int>(tools.size());
+    const int tool_columns=wrapped_tools ? (health ? 4:5):static_cast<int>(tools.size());
     const int tool_w=usable/tool_columns;
     const int control_w=usable/8;
     for (std::size_t i=0;i<tools.size();++i) {

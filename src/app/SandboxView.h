@@ -132,6 +132,7 @@ public:
     bool paused() const { return clock_.paused(); }
     bool help_open() const { return help_open_; }
     bool water_overlay() const { return water_overlay_; }
+    bool health_overlay() const { return health_overlay_; }
     std::optional<bool> predicted_water() const { return predicted_water_; }
     std::optional<simulation::World::WellCoverage> predicted_well_coverage() const { return predicted_well_coverage_; }
     std::uint64_t water_preview_build_count() const { return water_preview_build_count_; }
@@ -215,6 +216,7 @@ private:
     bool debug_open_=false;
     bool help_open_=false;
     bool water_overlay_=false;
+    bool health_overlay_=false;
     std::optional<bool> predicted_water_;
     std::optional<simulation::World::WellCoverage> predicted_well_coverage_;
     std::optional<simulation::Cell> water_preview_cell_;

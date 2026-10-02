@@ -10,14 +10,14 @@
 namespace openemperor::assets {
 enum class BuildingVisualRole {
     ClaySource, Pottery, Warehouse, Household, Farm, ServicePost, Market, FireWatch,
-    HouseholdLevel0, HouseholdLevel1, HouseholdLevel2, Well
+    HouseholdLevel0, HouseholdLevel1, HouseholdLevel2, Well, HealthPost
 };
 constexpr std::array building_roles{
     BuildingVisualRole::ClaySource,BuildingVisualRole::Pottery,
     BuildingVisualRole::Warehouse,BuildingVisualRole::Household,
     BuildingVisualRole::Farm,BuildingVisualRole::ServicePost,BuildingVisualRole::Market,
     BuildingVisualRole::FireWatch,BuildingVisualRole::HouseholdLevel0,
-    BuildingVisualRole::HouseholdLevel1,BuildingVisualRole::HouseholdLevel2,BuildingVisualRole::Well};
+    BuildingVisualRole::HouseholdLevel1,BuildingVisualRole::HouseholdLevel2,BuildingVisualRole::Well,BuildingVisualRole::HealthPost};
 constexpr std::array household_stage_roles{
     BuildingVisualRole::HouseholdLevel0,BuildingVisualRole::HouseholdLevel1,
     BuildingVisualRole::HouseholdLevel2};
@@ -29,7 +29,7 @@ constexpr bool is_household_stage(BuildingVisualRole role) {
 constexpr bool requires_one_cell(BuildingVisualRole role) {
     return role==BuildingVisualRole::Farm || role==BuildingVisualRole::ServicePost ||
            role==BuildingVisualRole::Market || role==BuildingVisualRole::FireWatch ||
-           role==BuildingVisualRole::Well;
+           role==BuildingVisualRole::Well || role==BuildingVisualRole::HealthPost;
 }
 const char* building_role_name(BuildingVisualRole role);
 constexpr std::size_t role_index(BuildingVisualRole role) { return static_cast<std::size_t>(role); }

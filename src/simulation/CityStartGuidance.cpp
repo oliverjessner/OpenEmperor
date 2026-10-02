@@ -93,6 +93,7 @@ const char* starter_building_name(Object kind) {
     case Object::ServicePost: return "Service Post";
     case Object::Household: return "House";
     case Object::Well: return "Well";
+    case Object::HealthPost: return "Health Post";
     case Object::FireWatch: return "Fire Watch";
     default: return "Building";
     }

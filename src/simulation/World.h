@@ -16,7 +16,7 @@ inline constexpr const char* profile_name = "sandbox-logistics-v1";
 inline constexpr const char* production_profile_name = "sandbox-production-v2";
 enum class RulesProfile {
     LogisticsV1, ProductionV2, HouseholdV3, SettlementV4, IndustryV5, CityV6, CityV7, CityV8,
-    CityV9, CityV10, CityV11, CityV12, CityV13, CityV14
+    CityV9, CityV10, CityV11, CityV12, CityV13, CityV14, CityV15
 };
 inline constexpr const char* household_profile_name = "sandbox-household-v3";
 inline constexpr const char* settlement_profile_name = "sandbox-settlement-v4";
@@ -30,7 +30,11 @@ inline constexpr const char* city_v11_profile_name = "sandbox-city-v11";
 inline constexpr const char* city_v12_profile_name = "sandbox-city-v12";
 inline constexpr const char* city_v13_profile_name = "sandbox-city-v13";
 inline constexpr const char* city_v14_profile_name = "sandbox-city-v14";
-constexpr bool water_profile(RulesProfile profile) { return profile==RulesProfile::CityV14; }
+inline constexpr const char* city_v15_profile_name = "sandbox-city-v15";
+constexpr bool health_profile(RulesProfile profile) { return profile==RulesProfile::CityV15; }
+constexpr bool water_profile(RulesProfile profile) {
+    return profile==RulesProfile::CityV14 || health_profile(profile);
+}
 constexpr bool desirability_profile(RulesProfile profile) {
     return profile==RulesProfile::CityV13 || water_profile(profile);
 }
@@ -156,6 +160,15 @@ struct Rules {
     static constexpr std::size_t well_limit = 4;
     static constexpr int water_radius = 5;
     static constexpr std::size_t city_v14_building_limit = 44;
+    static constexpr std::int64_t health_post_cost = 120;
+    static constexpr int health_post_workers = 2;
+    static constexpr std::size_t health_post_limit = 2;
+    static constexpr std::size_t city_v15_building_limit = 46;
+    static constexpr std::size_t city_v15_courier_limit = 26;
+    static constexpr std::uint64_t health_risk_step_ticks = 100;
+    static constexpr int health_risk_threshold = 100;
+    static constexpr std::uint64_t health_protection_ticks = 2400;
+    static constexpr std::uint64_t illness_ticks = 1200;
     static constexpr std::int64_t fire_watch_cost = 80;
     static constexpr int fire_watch_workers = 2;
     static constexpr std::size_t fire_watch_limit = 2;
@@ -167,12 +180,14 @@ struct Rules {
     static constexpr std::uint64_t fire_incident_ticks = 600;
 };
 constexpr std::size_t building_collection_limit(RulesProfile profile) {
-    return water_profile(profile) ? Rules::city_v14_building_limit:
+    return health_profile(profile) ? Rules::city_v15_building_limit:
+        water_profile(profile) ? Rules::city_v14_building_limit:
         fire_profile(profile) ? Rules::city_v12_building_limit:
         market_profile(profile) ? Rules::city_v11_building_limit:Rules::city_v10_building_limit;
 }
 constexpr std::size_t courier_collection_limit(RulesProfile profile) {
-    return fire_profile(profile) ? Rules::city_v12_courier_limit:
+    return health_profile(profile) ? Rules::city_v15_courier_limit:
+        fire_profile(profile) ? Rules::city_v12_courier_limit:
         market_profile(profile) ? Rules::city_v11_courier_limit:Rules::city_v10_courier_limit;
 }
 
@@ -202,7 +217,7 @@ struct Cell {
 };
 enum class Object : std::uint8_t {
     Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost, Market,
-    FireWatch, Well
+    FireWatch, Well, HealthPost
 };
 struct BuildingFootprint {
     int width=1;
@@ -237,7 +252,7 @@ const char* workforce_priority_name(WorkforcePriority priority);
 enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySource, PlacePottery,
                          RemoveRoad, PlaceHousehold, PlaceFarm, PlaceServicePost, PlaceMarket,
                          SetBuildingOperation, SetBuildingWorkforcePriority, DemolishBuilding,
-                         PlaceFireWatch, PlaceWell };
+                         PlaceFireWatch, PlaceWell, PlaceHealthPost };
 struct Command {
     CommandType type;
     Cell cell{};
@@ -272,7 +287,7 @@ enum class CourierId : std::uint32_t { Clay=1, Pottery=2, Household=3, Food=6, S
 enum class CourierRole : std::uint8_t {
     None=0, Clay=1, Pottery=2, Household=3, Food=4, Service=5,
     MarketPotteryInbound=6, MarketFoodInbound=7,
-    MarketPotteryDistribution=8, MarketFoodDistribution=9, FireInspector=10
+    MarketPotteryDistribution=8, MarketFoodDistribution=9, FireInspector=10, HealthWorker=11
 };
 enum class CourierDispatchStatus : std::uint8_t {
     Ready,
@@ -319,7 +334,9 @@ struct BuildingState {
     WorkforcePriority workforce_priority=WorkforcePriority::Normal;
     int fire_risk=0;
     std::uint64_t fire_protection_until_tick=0, fire_until_tick=0;
-    std::uint64_t taxes_paid_total=0; // City-v13 only: actual payments, never inferred from level.
+    std::uint64_t taxes_paid_total=0; // City-v13+: actual payments, never inferred from level.
+    int health_risk=0;
+    std::uint64_t health_protection_until_tick=0, sick_until_tick=0;
     bool operator==(const BuildingState&) const = default;
 };
 bool fire_eligible(Object kind);
@@ -388,6 +405,8 @@ struct BuildingSnapshot {
     int fire_risk=0;
     std::uint64_t fire_protection_until_tick=0, fire_until_tick=0;
     std::uint64_t taxes_paid_total=0;
+    int health_risk=0;
+    std::uint64_t health_protection_until_tick=0, sick_until_tick=0;
     bool operator==(const BuildingSnapshot&) const = default;
 };
 // Historical accounting only. No removed entities, goods, population or UI state.
@@ -544,6 +563,12 @@ public:
     std::size_t protected_buildings() const;
     std::size_t burning_buildings() const;
     bool fire_state_valid() const;
+    int household_health_risk(BuildingId id) const;
+    bool household_health_protected(BuildingId id) const;
+    bool household_sick(BuildingId id) const;
+    std::uint64_t household_health_protection_remaining(BuildingId id) const;
+    std::uint64_t household_sickness_remaining(BuildingId id) const;
+    bool health_state_valid() const;
     DemolitionStatus demolition_status(BuildingId id) const;
     std::string canonical_state() const;
     WorldSnapshot snapshot() const;
@@ -579,6 +604,7 @@ public:
     int warehouse_stock() const { return warehouse_stock_; }
     bool goods_balance_valid() const;
 private:
+    void update_health();
     void update_fire();
     CommandResult execute_impl(Command command,bool refresh_after);
     std::size_t index(Cell cell) const;

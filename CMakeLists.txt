@@ -122,6 +122,7 @@ add_executable(openemperor
     src/renderer/WalkerSpriteSet.cpp
     src/renderer/BuildingSprite.cpp
     src/renderer/WellFallbackRenderer.cpp
+    src/renderer/HealthPostFallbackRenderer.cpp
     src/renderer/RoadSpriteSet.cpp
 )
 target_include_directories(openemperor PRIVATE src)
@@ -219,6 +220,7 @@ openemperor_enable_warnings(openemperor-maps)
 add_library(openemperor-simulation STATIC
     src/simulation/World.cpp
     src/simulation/WorldFire.cpp
+    src/simulation/WorldHealth.cpp
     src/simulation/WorldDesirability.cpp
     src/simulation/WorldWater.cpp
     src/simulation/CityStartGuidance.cpp)
@@ -261,6 +263,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-sandbox-production-tests)
     add_test(NAME sandbox-production-chain COMMAND openemperor-sandbox-production-tests)
     set_tests_properties(sandbox-production-chain PROPERTIES TIMEOUT 20)
+    add_executable(openemperor-health-fallback-tests tests/HealthPostFallbackRendererTests.cpp
+        src/renderer/HealthPostFallbackRenderer.cpp)
+    target_include_directories(openemperor-health-fallback-tests PRIVATE src)
+    target_link_libraries(openemperor-health-fallback-tests PRIVATE SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-health-fallback-tests)
+    add_test(NAME health-post-fallback-presentation COMMAND openemperor-health-fallback-tests)
     add_executable(openemperor-well-fallback-tests tests/WellFallbackRendererTests.cpp
         src/renderer/WellFallbackRenderer.cpp)
     target_include_directories(openemperor-well-fallback-tests PRIVATE src)
@@ -274,10 +282,12 @@ if(BUILD_TESTING)
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
     target_sources(openemperor-sandbox-view-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
-        src/renderer/WellFallbackRenderer.cpp)
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-recovery SDL3::SDL3
         openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
+    add_test(NAME sandbox-city-v15-view COMMAND openemperor-sandbox-view-tests --health-only)
+    set_tests_properties(sandbox-city-v15-view PROPERTIES TIMEOUT 240)
     add_test(NAME sandbox-city-v14-view COMMAND openemperor-sandbox-view-tests --water-only)
     set_tests_properties(sandbox-city-v14-view PROPERTIES TIMEOUT 240)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
@@ -289,7 +299,7 @@ if(BUILD_TESTING)
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
     target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
-        src/renderer/WellFallbackRenderer.cpp)
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
     target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
@@ -406,6 +416,15 @@ if(BUILD_TESTING)
         add_test(NAME sandbox-city-v14-${water_test}
             COMMAND openemperor-sandbox-city-v14-tests ${water_test})
         set_tests_properties(sandbox-city-v14-${water_test} PROPERTIES TIMEOUT 900)
+    endforeach()
+
+    add_executable(openemperor-sandbox-city-v15-tests tests/SandboxCityV15Tests.cpp)
+    target_link_libraries(openemperor-sandbox-city-v15-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-sandbox-city-v15-tests)
+    foreach(health_test base persistence districts determinism endurance)
+        add_test(NAME sandbox-city-v15-${health_test}
+            COMMAND openemperor-sandbox-city-v15-tests ${health_test})
+        set_tests_properties(sandbox-city-v15-${health_test} PROPERTIES TIMEOUT 900)
     endforeach()
 
     add_executable(openemperor-city-start-guidance-tests

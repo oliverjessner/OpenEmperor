@@ -39,8 +39,10 @@ std::optional<BuildingVisualRole> parse_role(const std::string& name) {
 void check_footprint(BuildingVisualRole role,std::uint8_t side,std::uint16_t width) {
     if (requires_one_cell(role) && side!=1)
         throw std::runtime_error("building visual footprint does not match the 1x1 role");
-    if (role==BuildingVisualRole::Well && (side!=1 || width!=78))
-        throw std::runtime_error("Well requires an Emperor 1x1 Type-30 base (78 wide, 3200 bytes)");
+    if ((role==BuildingVisualRole::Well || role==BuildingVisualRole::HealthPost) && (side!=1 || width!=78))
+        throw std::runtime_error(role==BuildingVisualRole::Well ?
+            "Well requires an Emperor 1x1 Type-30 base (78 wide, 3200 bytes)":
+            "Health Post requires an Emperor 1x1 Type-30 base (78 wide, 3200 bytes)");
     if (is_household_stage(role) && (side!=2 || width!=158))
         throw std::runtime_error("household stage requires an Emperor 2x2 Type-30 base (158 wide, 12800 bytes)");
 }
@@ -55,6 +57,7 @@ const char* building_role_name(BuildingVisualRole role) {
     case BuildingVisualRole::ServicePost: return "service_post";
     case BuildingVisualRole::Market: return "market";
     case BuildingVisualRole::Well: return "well";
+    case BuildingVisualRole::HealthPost: return "health_post";
     case BuildingVisualRole::FireWatch: return "fire_watch";
     case BuildingVisualRole::HouseholdLevel0: return "household_level_0";
     case BuildingVisualRole::HouseholdLevel1: return "household_level_1";

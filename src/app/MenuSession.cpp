@@ -23,7 +23,7 @@ constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::Logisti
     simulation::RulesProfile::SettlementV4,simulation::RulesProfile::IndustryV5,
     simulation::RulesProfile::CityV6,simulation::RulesProfile::CityV7,
     simulation::RulesProfile::CityV8,simulation::RulesProfile::CityV9,
-    simulation::RulesProfile::CityV10,simulation::RulesProfile::CityV11,simulation::RulesProfile::CityV12,simulation::RulesProfile::CityV13,simulation::RulesProfile::CityV14};
+    simulation::RulesProfile::CityV10,simulation::RulesProfile::CityV11,simulation::RulesProfile::CityV12,simulation::RulesProfile::CityV13,simulation::RulesProfile::CityV14,simulation::RulesProfile::CityV15};
 const char* description(simulation::RulesProfile p) {
     switch (p) {
     case simulation::RulesProfile::LogisticsV1: return "Older sandbox: goods delivery";
@@ -38,6 +38,7 @@ const char* description(simulation::RulesProfile p) {
     case simulation::RulesProfile::CityV10: return "Older city: scalable independent districts";
     case simulation::RulesProfile::CityV11: return "City - markets, population and workforce controls";
     case simulation::RulesProfile::CityV12: return "Fire safety and city services";
+    case simulation::RulesProfile::CityV15: return "City v15 - Water, road-based health services and deterministic illness";
     case simulation::RulesProfile::CityV14: return "City v14 - Water and residential infrastructure";
     case simulation::RulesProfile::CityV13: return "City v13 - Residential quality and zoning";
     }

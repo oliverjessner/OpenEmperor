@@ -27,7 +27,8 @@ bool food_role(CourierRole role) {
         role==CourierRole::MarketFoodDistribution;
 }
 bool service_role(CourierRole role) {
-    return role==CourierRole::Service || role==CourierRole::FireInspector;
+    return role==CourierRole::Service || role==CourierRole::FireInspector ||
+        role==CourierRole::HealthWorker;
 }
 Object courier_target_kind(CourierRole role) {
     switch (role) {
@@ -39,7 +40,8 @@ Object courier_target_kind(CourierRole role) {
     case CourierRole::Food:
     case CourierRole::MarketPotteryDistribution:
     case CourierRole::MarketFoodDistribution:
-    case CourierRole::Service: return Object::Household;
+    case CourierRole::Service:
+    case CourierRole::HealthWorker: return Object::Household;
     default: return Object::Empty;
     }
 }
@@ -55,6 +57,7 @@ std::optional<Object> placed_object(CommandType type) {
     case CommandType::PlaceMarket: return Object::Market;
     case CommandType::PlaceFireWatch: return Object::FireWatch;
     case CommandType::PlaceWell: return Object::Well;
+    case CommandType::PlaceHealthPost: return Object::HealthPost;
     default: return std::nullopt;
     }
 }
@@ -75,6 +78,7 @@ std::size_t building_limit(RulesProfile profile,Object kind) {
     case Object::Market: return market_profile(profile) ? Rules::city_v11_market_limit:0;
     case Object::FireWatch: return fire_profile(profile) ? Rules::fire_watch_limit:0;
     case Object::Well: return water_profile(profile) ? Rules::well_limit:0;
+    case Object::HealthPost: return health_profile(profile) ? Rules::health_post_limit:0;
     default: return 0;
     }
 }
@@ -222,6 +226,7 @@ const char* rules_profile_name(RulesProfile profile) {
     case RulesProfile::CityV12: return city_v12_profile_name;
     case RulesProfile::CityV13: return city_v13_profile_name;
     case RulesProfile::CityV14: return city_v14_profile_name;
+    case RulesProfile::CityV15: return city_v15_profile_name;
     }
     return "unknown";
 }
@@ -272,7 +277,8 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         profile!=RulesProfile::CityV7 && profile!=RulesProfile::CityV8 &&
         profile!=RulesProfile::CityV9 && profile!=RulesProfile::CityV10 &&
         profile!=RulesProfile::CityV11 && profile!=RulesProfile::CityV12 &&
-        profile!=RulesProfile::CityV13 && profile!=RulesProfile::CityV14)
+        profile!=RulesProfile::CityV13 && profile!=RulesProfile::CityV14 &&
+        profile!=RulesProfile::CityV15)
         throw std::invalid_argument("unknown sandbox rules profile");
     (void)profile_rules(profile_,rule_version_);
     treasury_=city_profile(profile) ? starting_treasury_for(profile):0;
@@ -377,6 +383,8 @@ std::int64_t World::construction_cost(CommandType type) const {
         return fire_profile(profile_) ? Rules::fire_watch_cost:0;
     case CommandType::PlaceWell:
         return water_profile(profile_) ? Rules::well_cost:0;
+    case CommandType::PlaceHealthPost:
+        return health_profile(profile_) ? Rules::health_post_cost:0;
     case CommandType::PlaceWorkshop:
     case CommandType::RemoveRoad:
     case CommandType::SetBuildingOperation:
@@ -397,13 +405,14 @@ int World::workforce_required(BuildingId id) const {
     case Object::ServicePost: return Rules::service_post_workers;
     case Object::Market: return Rules::market_workers;
     case Object::FireWatch: return fire_profile(profile_) ? Rules::fire_watch_workers:0;
+    case Object::HealthPost: return health_profile(profile_) ? Rules::health_post_workers:0;
     default: return 0;
     }
 }
 
 bool World::operation_controllable(Object kind) {
     return kind==Object::ClaySource || kind==Object::Pottery || kind==Object::Warehouse ||
-        kind==Object::Farm || kind==Object::ServicePost || kind==Object::Market || kind==Object::FireWatch;
+        kind==Object::Farm || kind==Object::ServicePost || kind==Object::Market || kind==Object::FireWatch || kind==Object::HealthPost;
 }
 
 int World::workforce_supply() const {
@@ -721,7 +730,8 @@ bool World::city_economy_valid() const {
             value.kind==Object::ServicePost && service_profile(profile_) ? Rules::service_post_cost:
             value.kind==Object::Market && market_profile(profile_) ? Rules::market_cost:
             value.kind==Object::FireWatch && fire_profile(profile_) ? Rules::fire_watch_cost:
-            value.kind==Object::Well && water_profile(profile_) ? Rules::well_cost:0;
+            value.kind==Object::Well && water_profile(profile_) ? Rules::well_cost:
+            value.kind==Object::HealthPost && health_profile(profile_) ? Rules::health_post_cost:0;
         if (cost<=0 || !add_cost(1,static_cast<std::uint64_t>(cost))) return false;
     }
     if (construction_spent_total_!=expected_spending) return false;
@@ -749,7 +759,8 @@ DemolitionStatus World::demolition_status(BuildingId id) const {
     if (b.kind!=Object::ClaySource && b.kind!=Object::Pottery && b.kind!=Object::Warehouse &&
         b.kind!=Object::Household && b.kind!=Object::Farm && b.kind!=Object::ServicePost &&
         b.kind!=Object::Market && !(fire_profile(profile_) && b.kind==Object::FireWatch) &&
-        !(water_profile(profile_) && b.kind==Object::Well)) {
+        !(water_profile(profile_) && b.kind==Object::Well) &&
+        !(health_profile(profile_) && b.kind==Object::HealthPost)) {
         status.blocker=DemolitionBlocker::UnsupportedKind;
         status.reason="Building kind does not support demolition"; return status;
     }
@@ -832,7 +843,8 @@ CommandResult World::validate(Command command) const {
         command.type!=CommandType::PlacePottery && command.type!=CommandType::RemoveRoad &&
         command.type!=CommandType::PlaceHousehold && command.type!=CommandType::PlaceFarm &&
         command.type!=CommandType::PlaceServicePost && command.type!=CommandType::PlaceMarket &&
-        command.type!=CommandType::PlaceFireWatch && command.type!=CommandType::PlaceWell) {
+        command.type!=CommandType::PlaceFireWatch && command.type!=CommandType::PlaceWell &&
+        command.type!=CommandType::PlaceHealthPost) {
         result.reason="Unknown placement command"; return result;
     }
     if ((profile_==RulesProfile::LogisticsV1 &&
@@ -844,7 +856,8 @@ CommandResult World::validate(Command command) const {
         (!service_profile(profile_) && command.type==CommandType::PlaceServicePost) ||
         (!market_profile(profile_) && command.type==CommandType::PlaceMarket) ||
         (!fire_profile(profile_) && command.type==CommandType::PlaceFireWatch) ||
-        (!water_profile(profile_) && command.type==CommandType::PlaceWell)) {
+        (!water_profile(profile_) && command.type==CommandType::PlaceWell) ||
+        (!health_profile(profile_) && command.type==CommandType::PlaceHealthPost)) {
         result.reason="Command unavailable in selected rules profile"; return result;
     }
     if (!in_bounds(command.cell)) { result.reason="Outside sandbox grid"; return result; }
@@ -957,6 +970,12 @@ CommandResult World::validate(Command command) const {
         })>=static_cast<std::ptrdiff_t>(Rules::well_limit)) {
         result.reason="Well limit reached"; return result;
     }
+    if (command.type==CommandType::PlaceHealthPost &&
+        std::count_if(buildings_.begin(),buildings_.end(),[](const BuildingState& b) {
+            return b.kind==Object::HealthPost;
+        })>=static_cast<std::ptrdiff_t>(Rules::health_post_limit)) {
+        result.reason="Health Post limit reached"; return result;
+    }
     if (road_revision_==UINT64_MAX ||
         (command.type==CommandType::PlaceRoad && roads_placed_total_==UINT64_MAX)) {
         result.reason="Road counter exhausted"; return result;
@@ -973,7 +992,8 @@ CommandResult World::validate(Command command) const {
     const bool creates_courier=command.type==CommandType::PlaceClaySource ||
         command.type==CommandType::PlacePottery || command.type==CommandType::PlaceWarehouse ||
         command.type==CommandType::PlaceFarm || command.type==CommandType::PlaceServicePost ||
-        command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceFireWatch;
+        command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceFireWatch ||
+        command.type==CommandType::PlaceHealthPost;
     if (scalable(profile_) && creates_courier &&
         (next_courier_id_==0 || next_courier_id_==UINT32_MAX ||
          (command.type==CommandType::PlaceMarket && next_courier_id_==UINT32_MAX-1))) {
@@ -1079,7 +1099,8 @@ CommandResult World::execute_impl(Command command,bool refresh_after) {
             b.kind==Object::Farm ? CommandType::PlaceFarm:
             b.kind==Object::ServicePost ? CommandType::PlaceServicePost:
             b.kind==Object::FireWatch ? CommandType::PlaceFireWatch:
-            b.kind==Object::Well ? CommandType::PlaceWell:CommandType::PlaceMarket;
+            b.kind==Object::Well ? CommandType::PlaceWell:
+            b.kind==Object::HealthPost ? CommandType::PlaceHealthPost:CommandType::PlaceMarket;
         demolition_history_.construction_spent+=static_cast<std::uint64_t>(construction_cost(type));
         for (const auto cell:building_footprint_cells(profile_,b.kind,b.cell)) {
             objects_[index(cell)]=Object::Empty; owners_[index(cell)]=0;
@@ -1219,6 +1240,12 @@ CommandResult World::execute_impl(Command command,bool refresh_after) {
         farm.placed=true; farm.kind=Object::Farm; farm.cell=command.cell; farm.placed_tick=ticks_;
         owners_[index(command.cell)]=static_cast<std::uint32_t>(farm.id);
         mutable_courier(CourierId::Food).enabled=true;
+        break;
+    }
+    case CommandType::PlaceHealthPost: {
+        auto& post=add_v10_building(Object::HealthPost);
+        post.placed_tick=ticks_;
+        add_v10_courier(post.id,CourierRole::HealthWorker,Good::Goods);
         break;
     }
     case CommandType::PlaceWell: {
@@ -1557,6 +1584,22 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
         for (const auto& b:buildings_)
             if (courier_can_target(c.role,b) && b.id!=source.id) targets.push_back(&b);
         if (targets.empty()) return {CourierDispatchStatus::NoTarget,std::nullopt};
+        if (c.role==CourierRole::HealthWorker) {
+            // Reachability comes exclusively from the ordinary topology cache.
+            const BuildingState* sick=nullptr;
+            const BuildingState* risky=nullptr;
+            for (const auto* target:targets) {
+                const auto* route=dynamic_route(c,target->id);
+                if (!route || !*route) continue;
+                if (household_sick(target->id)) {
+                    if (!sick || target->id<sick->id) sick=target;
+                } else if (!household_health_protected(target->id) &&
+                    (!risky || target->health_risk>risky->health_risk ||
+                     (target->health_risk==risky->health_risk && target->id<risky->id))) risky=target;
+            }
+            if (sick) return {CourierDispatchStatus::Ready,sick->id};
+            if (risky) return {CourierDispatchStatus::Ready,risky->id};
+        }
         std::size_t start=0;
         if (c.last_dispatched_target) {
             const auto found=std::find_if(targets.begin(),targets.end(),[&](const auto* b) {
@@ -1706,6 +1749,9 @@ void World::tick_production_v2() {
     // Reserve deadline headroom before any mutation, including Inspector arrivals.
     if (fire_profile(profile_) && ticks_>=UINT64_MAX-Rules::fire_protection_ticks)
         throw std::overflow_error("Fire deadline tick exhausted");
+    if (health_profile(profile_) &&
+        ticks_>=UINT64_MAX-std::max(Rules::health_protection_ticks,Rules::illness_ticks))
+        throw std::overflow_error("Health deadline tick exhausted");
     if (city_profile(profile_)) capture_tick_staffing();
     ++ticks_;
     const auto& rules=active_rules();
@@ -1774,7 +1820,8 @@ void World::tick_production_v2() {
         if (home.placed) {
             if (++home.demand_progress==Rules::household_demand_ticks) {
                 home.demand_progress=0;
-                const bool fulfilled=!building_on_fire(home.id) && home.pottery_stock>0 &&
+                const bool fulfilled=!building_on_fire(home.id) && !household_sick(home.id) &&
+                    home.pottery_stock>0 &&
                     (!food_profile(profile_) || home.food_stock>0) &&
                     (!service_profile(profile_) || household_service_active(home.id));
                 if (fulfilled) {
@@ -1840,9 +1887,10 @@ void World::tick_production_v2() {
     // Stable courier ID order. Arrival is after production and household demand.
     for (auto& courier:couriers_) dispatch_v2(courier);
     for (auto& courier:couriers_) move_v2(courier);
+    update_health();
     update_fire();
     tick_staffing_active_=false;
-    if (!fire_state_valid() || !production_balance_valid() || !navigation_valid() || !city_economy_valid() ||
+    if (!health_state_valid() || !fire_state_valid() || !production_balance_valid() || !navigation_valid() || !city_economy_valid() ||
         !food_balance_valid() || !service_state_valid() || !population_valid())
         throw std::logic_error("sandbox production or navigation invariant violated");
 }
@@ -1886,7 +1934,8 @@ void World::dispatch_v2(CourierState& courier) {
         courier.cached_revision!=road_revision_ || !route) return;
     if (service_role(courier.role) && scalable(profile_)) {
         if ((courier.role==CourierRole::Service ? source.kind!=Object::ServicePost:
-                source.kind!=Object::FireWatch) || !courier_can_target(courier.role,target) ||
+                (courier.role==CourierRole::HealthWorker ? source.kind!=Object::HealthPost:
+                 source.kind!=Object::FireWatch)) || !courier_can_target(courier.role,target) ||
             courier.good!=Good::Goods || courier.cargo || courier.reserved)
             throw std::logic_error("invalid Service visit relation");
         courier.path=*route; courier.target=target_id;
@@ -1965,6 +2014,7 @@ void World::dispatch_v2(CourierState& courier) {
         capacity=Rules::household_food_capacity; break;
     case CourierRole::Service:
     case CourierRole::FireInspector:
+    case CourierRole::HealthWorker:
         throw std::logic_error("Cargo-free visit reached goods path");
     default: throw std::logic_error("unknown courier delivery relation");
     }
@@ -2064,7 +2114,14 @@ void World::move_v2(CourierState& courier) {
     if (courier.path_vertex+1<courier.path.size()) return;
     if (courier.phase==CourierPhase::ToWarehouse) {
         auto& target=mutable_building(courier.target);
-        if (courier.role==CourierRole::FireInspector) {
+        if (courier.role==CourierRole::HealthWorker) {
+            if (!health_profile(profile_) || !courier_can_target(courier.role,target) ||
+                courier.cargo || courier.reserved)
+                throw std::logic_error("invalid Health Worker arrival");
+            if (household_sick(target.id)) target.sick_until_tick=ticks_;
+            target.health_risk=0;
+            target.health_protection_until_tick=ticks_+Rules::health_protection_ticks;
+        } else if (courier.role==CourierRole::FireInspector) {
             if (!fire_profile(profile_) || !courier_can_target(courier.role,target) ||
                 courier.cargo || courier.reserved)
                 throw std::logic_error("invalid Fire Inspector arrival");
@@ -2311,7 +2368,7 @@ bool World::industry_balance_valid() const {
         auto consumed=demolition_history_.pottery_consumed;
         auto consumed_food=demolition_history_.food_consumed;
         std::size_t clay_count=0,pottery_count=0,warehouse_count=0,house_count=0,farm_count=0,
-            service_count=0,market_count=0,fire_watch_count=0,well_count=0;
+            service_count=0,market_count=0,fire_watch_count=0,well_count=0,health_post_count=0;
         std::vector<std::pair<BuildingId,int>> pottery_reservations,food_reservations;
         for (std::size_t i=0;i<buildings_.size();++i) {
             const auto& b=buildings_[i];
@@ -2363,13 +2420,17 @@ bool World::industry_balance_valid() const {
                 food+=static_cast<std::uint64_t>(b.output); if (!add(produced_food,b.food_produced)) return false; break;
             case Object::Well:
             case Object::FireWatch:
-                if ((b.kind==Object::Well ? !water_profile(profile_):!fire_profile(profile_)) || b.input_clay || b.output || b.pottery_stock ||
+            case Object::HealthPost:
+                if ((b.kind==Object::Well ? !water_profile(profile_):
+                     b.kind==Object::HealthPost ? !health_profile(profile_):!fire_profile(profile_)) || b.input_clay || b.output || b.pottery_stock ||
                     b.food_stock || b.reserved_incoming || b.reserved_food_incoming || b.progress ||
                     b.active_recipe_clay || b.recipes_completed || b.clay_extracted || b.food_produced ||
                     b.demand_progress || b.fulfilled_demand || b.missed_demand || b.consumed_total ||
                     b.food_consumed_total || b.last_demand_status || b.population || b.service_until_tick)
                     return false;
-                if (b.kind==Object::Well) ++well_count; else ++fire_watch_count;
+                if (b.kind==Object::Well) ++well_count;
+                else if (b.kind==Object::HealthPost) ++health_post_count;
+                else ++fire_watch_count;
                 break;
             case Object::ServicePost: ++service_count; break;
             case Object::Market:
@@ -2394,11 +2455,12 @@ bool World::industry_balance_valid() const {
             farm_count>Rules::city_v10_farm_limit || service_count>Rules::city_v10_service_post_limit ||
             market_count>(market_profile(profile_) ? Rules::city_v11_market_limit:0U) ||
             fire_watch_count>(fire_profile(profile_) ? Rules::fire_watch_limit:0U) ||
-            well_count>(water_profile(profile_) ? Rules::well_limit:0U))
+            well_count>(water_profile(profile_) ? Rules::well_limit:0U) ||
+            health_post_count>(health_profile(profile_) ? Rules::health_post_limit:0U))
             return false;
         std::size_t clay_couriers=0,pottery_couriers=0,house_couriers=0,food_couriers=0,
             service_couriers=0,market_pottery_inbound=0,market_food_inbound=0,
-            market_pottery_outbound=0,market_food_outbound=0,fire_couriers=0;
+            market_pottery_outbound=0,market_food_outbound=0,fire_couriers=0,health_couriers=0;
         for (std::size_t i=0;i<couriers_.size();++i) {
             const auto& c=couriers_[i];
             if (!c.enabled || static_cast<std::uint32_t>(c.id)==0 ||
@@ -2414,7 +2476,8 @@ bool World::industry_balance_valid() const {
                 c.role==CourierRole::MarketPotteryDistribution ||
                     c.role==CourierRole::MarketFoodDistribution ? Object::Market:
                 c.role==CourierRole::Service ? Object::ServicePost:
-                c.role==CourierRole::FireInspector ? Object::FireWatch:Object::Empty;
+                c.role==CourierRole::FireInspector ? Object::FireWatch:
+                c.role==CourierRole::HealthWorker ? Object::HealthPost:Object::Empty;
             if (owner.kind!=owner_kind) return false;
             if (c.role==CourierRole::Clay) { ++clay_couriers; clay+=static_cast<std::uint64_t>(c.cargo); }
             else if (c.role==CourierRole::Pottery) { ++pottery_couriers; pottery+=static_cast<std::uint64_t>(c.cargo); }
@@ -2423,6 +2486,9 @@ bool World::industry_balance_valid() const {
             else if (c.role==CourierRole::Service) { ++service_couriers; if (c.cargo || c.reserved) return false; }
             else if (c.role==CourierRole::FireInspector) {
                 ++fire_couriers; if (!fire_profile(profile_) || c.cargo || c.reserved) return false;
+            }
+            else if (c.role==CourierRole::HealthWorker) {
+                ++health_couriers; if (!health_profile(profile_) || c.cargo || c.reserved) return false;
             }
             else if (c.role==CourierRole::MarketPotteryInbound) {
                 ++market_pottery_inbound; pottery+=static_cast<std::uint64_t>(c.cargo);
@@ -2447,6 +2513,7 @@ bool World::industry_balance_valid() const {
         }
         if (clay_couriers!=clay_count || pottery_couriers!=pottery_count ||
             service_couriers!=service_count || fire_couriers!=fire_watch_count ||
+            health_couriers!=health_post_count ||
             (market_profile(profile_) ?
                 house_couriers!=0 || food_couriers!=0 ||
                     market_pottery_inbound!=warehouse_count || market_food_inbound!=farm_count ||
@@ -2468,6 +2535,7 @@ bool World::industry_balance_valid() const {
                     CourierRole::MarketFoodInbound:CourierRole::Food)!=1) ||
                 (b.kind==Object::ServicePost && owned(CourierRole::Service)!=1) ||
                 (b.kind==Object::FireWatch && owned(CourierRole::FireInspector)!=1) ||
+                (b.kind==Object::HealthPost && owned(CourierRole::HealthWorker)!=1) ||
                 (b.kind==Object::Market &&
                     (owned(CourierRole::MarketPotteryDistribution)!=1 ||
                      owned(CourierRole::MarketFoodDistribution)!=1))) return false;
@@ -2877,6 +2945,8 @@ std::string World::canonical_state() const {
            <<','<<b.population<<','<<b.operating_enabled<<','
            <<static_cast<int>(b.workforce_priority);
         if (desirability_profile(profile_)) out<<",taxes:"<<b.taxes_paid_total;
+        if (health_profile(profile_)) out<<",health:"<<b.health_risk<<','
+            <<b.health_protection_until_tick<<','<<b.sick_until_tick;
         if (fire_profile(profile_)) out<<",fire:"<<b.fire_risk<<','
             <<b.fire_protection_until_tick<<','<<b.fire_until_tick;
     }
@@ -2966,7 +3036,7 @@ WorldSnapshot World::snapshot() const {
                         b.consumed_total,b.last_demand_status,b.clay_extracted,b.food_stock,
                         b.reserved_food_incoming,b.food_consumed_total,b.food_produced,
                         b.service_until_tick,b.population,b.operating_enabled,
-                        b.workforce_priority,b.fire_risk,b.fire_protection_until_tick,b.fire_until_tick,b.taxes_paid_total});
+                        b.workforce_priority,b.fire_risk,b.fire_protection_until_tick,b.fire_until_tick,b.taxes_paid_total,b.health_risk,b.health_protection_until_tick,b.sick_until_tick});
     }
     s.couriers.reserve(couriers_.size());
     for (std::size_t i=0;i<couriers_.size();++i) {
@@ -2987,6 +3057,13 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
     for (const auto& b:s.buildings)
         if ((!desirability_profile(s.profile) || b.kind!=Object::Household) && b.taxes_paid_total)
             throw std::invalid_argument("tax payment authority requires a City-v13 Household");
+    for (const auto& b:s.buildings)
+        if ((!health_profile(s.profile) || b.kind!=Object::Household) &&
+            (b.health_risk || b.health_protection_until_tick || b.sick_until_tick))
+            throw std::invalid_argument("health authority requires a City-v15 Household");
+    if (health_profile(s.profile) &&
+        s.ticks>UINT64_MAX-std::max(Rules::health_protection_ticks,Rules::illness_ticks))
+        throw std::invalid_argument("health deadline headroom exhausted");
     for (const auto& b:s.buildings)
         if (!fire_profile(s.profile) && (b.fire_risk || b.fire_protection_until_tick || b.fire_until_tick))
             throw std::invalid_argument("non-fire profile contains fire state");
@@ -3053,7 +3130,8 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 !b.placed || b.kind==Object::Empty || b.kind==Object::Road ||
                 b.kind==Object::Workshop || (b.kind==Object::Market && !market_profile(s.profile)) ||
                 (b.kind==Object::FireWatch && !fire_profile(s.profile)) ||
-                (b.kind==Object::Well && !water_profile(s.profile)))
+                (b.kind==Object::Well && !water_profile(s.profile)) ||
+                (b.kind==Object::HealthPost && !health_profile(s.profile)))
                 fail("invalid scalable City building identity or kind");
             const bool valid_priority=b.workforce_priority==WorkforcePriority::High ||
                 b.workforce_priority==WorkforcePriority::Normal ||
@@ -3071,7 +3149,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 b.recipes_completed,b.placed_tick,b.demand_progress,b.fulfilled_demand,
                 b.missed_demand,b.consumed_total,b.last_demand_status,b.clay_extracted,
                 b.food_stock,b.reserved_food_incoming,b.food_consumed_total,b.food_produced,
-                b.service_until_tick,b.population,b.operating_enabled,b.workforce_priority,b.fire_risk,b.fire_protection_until_tick,b.fire_until_tick,b.taxes_paid_total});
+                b.service_until_tick,b.population,b.operating_enabled,b.workforce_priority,b.fire_risk,b.fire_protection_until_tick,b.fire_until_tick,b.taxes_paid_total,b.health_risk,b.health_protection_until_tick,b.sick_until_tick});
         }
         if ((!s.buildings.empty() && s.next_building_id<=
              static_cast<std::uint32_t>(s.buildings.back().id)) ||
@@ -3106,6 +3184,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 c.role==CourierRole::Food || c.role==CourierRole::MarketFoodInbound ? Object::Farm:
                 c.role==CourierRole::Service ? Object::ServicePost:
                 c.role==CourierRole::FireInspector ? Object::FireWatch:
+                c.role==CourierRole::HealthWorker ? Object::HealthPost:
                 c.role==CourierRole::MarketPotteryDistribution ||
                     c.role==CourierRole::MarketFoodDistribution ? Object::Market:Object::Empty;
             const Good expected_good=c.role==CourierRole::Clay ? Good::Clay:
@@ -3113,7 +3192,8 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                 food_role(c.role) ? Good::Food:Good::Pottery;
             if (expected_owner==Object::Empty || owner.kind!=expected_owner || c.good!=expected_good ||
                 (!market_profile(s.profile) && static_cast<unsigned>(c.role)>5U) ||
-                (c.role==CourierRole::FireInspector && !fire_profile(s.profile)))
+                (c.role==CourierRole::FireInspector && !fire_profile(s.profile)) ||
+                (c.role==CourierRole::HealthWorker && !health_profile(s.profile)))
                 fail("invalid scalable City courier owner, role, or good");
             if (c.phase!=CourierPhase::IdleAtWorkshop &&
                 !courier_can_target(c.role,target))
@@ -3156,7 +3236,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
         w.treasury_=s.treasury;
         w.taxes_collected_total_=s.taxes_collected_total;
         w.construction_spent_total_=s.construction_spent_total;
-        if (!w.fire_state_valid() || !w.industry_balance_valid() || !w.navigation_valid() || !w.city_economy_valid() ||
+        if (!w.health_state_valid() || !w.fire_state_valid() || !w.industry_balance_valid() || !w.navigation_valid() || !w.city_economy_valid() ||
             !w.service_state_valid() || !w.population_valid())
             fail("invalid City-v10 state or conservation totals");
         w.refresh_routes();
@@ -3205,7 +3285,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
         w.treasury_=s.treasury;
         w.taxes_collected_total_=s.taxes_collected_total;
         w.construction_spent_total_=s.construction_spent_total;
-        if (!w.fire_state_valid() || !w.industry_balance_valid() || !w.navigation_valid() || !w.city_economy_valid() ||
+        if (!w.health_state_valid() || !w.fire_state_valid() || !w.industry_balance_valid() || !w.navigation_valid() || !w.city_economy_valid() ||
             !w.food_balance_valid() || !w.service_state_valid() || !w.population_valid())
             fail("invalid industry totals, targets, reservations or navigation");
         w.refresh_routes();

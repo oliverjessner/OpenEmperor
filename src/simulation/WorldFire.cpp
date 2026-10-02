@@ -7,7 +7,7 @@ namespace openemperor::simulation {
 bool fire_eligible(Object kind) {
     return kind==Object::ClaySource || kind==Object::Pottery || kind==Object::Warehouse ||
         kind==Object::Household || kind==Object::Farm || kind==Object::ServicePost ||
-        kind==Object::Market;
+        kind==Object::Market || kind==Object::HealthPost;
 }
 
 bool World::building_on_fire(BuildingId id) const {
@@ -79,7 +79,8 @@ bool World::fire_state_valid() const {
     for (const auto& c:couriers_) if (c.role==CourierRole::FireInspector) {
         if (!fire_profile(profile_) || c.good!=Good::Goods || c.cargo || c.reserved ||
             building(c.owner).kind!=Object::FireWatch ||
-            c.dynamic_target_routes.size()>Rules::city_v11_building_limit) return false;
+            c.dynamic_target_routes.size()>(health_profile(profile_) ?
+                Rules::city_v12_building_limit:Rules::city_v11_building_limit)) return false;
         if (c.phase!=CourierPhase::IdleAtWorkshop &&
             !courier_can_target(c.role,building(c.target))) return false;
         if (c.last_dispatched_target && !courier_can_target(c.role,building(*c.last_dispatched_target)))

@@ -142,6 +142,21 @@ void profile_checks(Fixture& fixture) {
     const auto well_profile=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
     check(well_profile.find(openemperor::assets::BuildingVisualRole::Well)->footprint_side==1 &&
           well_profile.unique_images.size()==5,"optional Well role must deduplicate 1x1 asset");
+    auto health=with_well;
+    health["buildings"]["health_post"]=all["buildings"]["farm"];
+    health["buildings"]["health_post"]["ground_anchor"]={39,27};
+    fixture.save(health);
+    const auto hp=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+    check(hp.unique_images.size()==5 && hp.find(openemperor::assets::BuildingVisualRole::HealthPost)->footprint_side==1 &&
+        hp.find(openemperor::assets::BuildingVisualRole::HealthPost)->ground_y==27,"Health role deduplication/independent anchor");
+    for(bool reuse:{false,true}) {
+        auto bad=fixture.valid();bad["buildings"].erase("pottery");
+        bad["buildings"]["health_post"]=all["buildings"]["pottery"];
+        if(reuse)bad["buildings"]["clay_source"]=all["buildings"]["pottery"];
+        fixture.save(bad);
+        rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "Health role accepted 2x2 geometry on first decode/dedupe");
+    }
     auto invalid_well=fixture.valid();
     invalid_well["buildings"].erase("pottery");
     invalid_well["buildings"]["well"]=all["buildings"]["pottery"];
