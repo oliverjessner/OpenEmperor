@@ -222,6 +222,13 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
     const std::vector<std::uint8_t> payload = read_bitmap_range(
         input, bitmap_size, layout.color.offset, payload_bytes, "data");
     RgbaImage rgba;
+    std::optional<RgbaImage> base, overlay;
+    if (request.split_isometric) {
+        if (kind != Sg3ImageKind::Isometric || layout.alpha)
+            throw Sg3LoadError("component split requires Type-30 without separate alpha");
+        base = decode_isometric_component(image, payload, IsometricComponent::Base);
+        overlay = decode_isometric_component(image, payload, IsometricComponent::Overlay);
+    }
     switch (kind) {
     case Sg3ImageKind::Plain:
         rgba = decode_uncompressed_rgba(image, payload);
@@ -242,7 +249,7 @@ LoadedSg3Image load_sg3_image_with_source(const Sg3ImageRequest& request) {
         apply_omega_alpha_mask(alpha, rgba);
     }
     performance::increment(performance::Counter::AssetDecodes);
-    return {std::move(rgba), std::move(bitmap)};
+    return {std::move(rgba), std::move(bitmap), std::move(base), std::move(overlay)};
 }
 
 RgbaImage load_sg3_image(const Sg3ImageRequest& request) {

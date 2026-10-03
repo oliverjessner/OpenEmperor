@@ -1,4 +1,5 @@
 #include "app/MapDebugView.h"
+#include "maps/LandscapeProvenance.h"
 #include "renderer/StoredCamera.h"
 
 #include <SDL3/SDL.h>
@@ -75,6 +76,7 @@ void MapDebugView::initialize(SDL_Window* window, SDL_Renderer* renderer) {
     }
     if (stored_renderer_) {
         stored_renderer_->initialize(renderer_);
+        stored_renderer_->set_landscape_mode(LandscapeDebugMode::Decorations);
         const auto& plan = stored_renderer_->plan();
         std::cout << "Stored graphics preview: profile=" << maps::stored_graphics_profile_name(plan.profile)
                   << " candidate=" << plan.cells.size() << " excluded=" << plan.excluded
@@ -215,6 +217,8 @@ void MapDebugView::update_title() {
         " | mask=" + maps::mask_name(mask_) +
         (view_ == maps::MapViewMode::StoredGraphics ? " | saved IDs, diagnostic placement" :
          " | reference-derived categories");
+    if (view_==maps::MapViewMode::StoredGraphics && stored_renderer_)
+        title+=" | "+std::string{landscape_debug_mode_name(stored_renderer_->landscape_mode())};
     if (selected_) {
         const auto x = selected_->x, y = selected_->y;
         const auto& item = interpreted_[static_cast<std::size_t>(y) * maps::stored_grid_width + x];
@@ -348,6 +352,14 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
         (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) { running = false; return; }
     if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) resize_camera();
     if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+        if (event.key.key==SDLK_F1) landscape_inspector_open_=!landscape_inspector_open_;
+        if (event.key.key==SDLK_PAGEUP)
+            landscape_inspector_scroll_=landscape_inspector_scroll_>12 ? landscape_inspector_scroll_-12:0;
+        if (event.key.key==SDLK_PAGEDOWN && stored_renderer_ && selected_) {
+            const auto rows=maps::landscape_inspection_lines(stored_renderer_->plan(),*selected_,
+                stored_renderer_->elevated(),&textured_camera_).size();
+            landscape_inspector_scroll_=std::min(landscape_inspector_scroll_+12,rows ? rows-1:0);
+        }
         if (event.key.key == SDLK_1) set_layer(maps::RawLayer::Terrain);
         if (event.key.key == SDLK_2 || event.key.key == SDLK_TAB)
             set_layer(event.key.key == SDLK_TAB && layer_ == maps::RawLayer::Objects
@@ -370,13 +382,23 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
                 mask_ == maps::MaskMode::OffMap ? maps::MaskMode::Compare : maps::MaskMode::Full;
             set_mask(next);
         }
+        if (event.key.key == SDLK_F8 && stored_renderer_) {
+            stored_renderer_->set_landscape_mode(static_cast<LandscapeDebugMode>(
+                (static_cast<int>(stored_renderer_->landscape_mode())+1)%5));
+            update_title();
+        }
         if (event.key.key == SDLK_R) reset_camera();
         if (event.key.key == SDLK_RETURN) {
-            if (is_texture_view())
-                selected_ = maps::pick_terrain_cell(textured_camera_.screen_to_world(
-                    {textured_camera_.viewport_width * 0.5, textured_camera_.viewport_height * 0.5}), geometry_);
+            if (is_texture_view()) {
+                const auto center=textured_camera_.screen_to_world(
+                    {textured_camera_.viewport_width*0.5,textured_camera_.viewport_height*0.5});
+                selected_=stored_renderer_ && view_==maps::MapViewMode::StoredGraphics ?
+                    maps::pick_landscape_ground(stored_renderer_->plan(),center,geometry_,stored_renderer_->elevated()):
+                    maps::pick_terrain_cell(center,geometry_);
+            }
             else selected_ = storage_from_display(camera_.pick({camera_.viewport_width * 0.5,
                                                                camera_.viewport_height * 0.5}));
+            landscape_inspector_scroll_=0;
             update_title();
             show_selected();
         }
@@ -391,9 +413,16 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
     if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
         float x = event.button.x, y = event.button.y;
         if (SDL_RenderCoordinatesFromWindow(renderer_, x, y, &x, &y)) {
-            if (is_texture_view())
-                selected_ = maps::pick_terrain_cell(textured_camera_.screen_to_world({x,y}), geometry_);
-            else selected_ = storage_from_display(camera_.pick({x, y}));
+            if (is_texture_view()) {
+                selected_ = stored_renderer_ && stored_renderer_->elevated() && view_==maps::MapViewMode::StoredGraphics ?
+                    stored_renderer_->hit_test({x,y},textured_camera_):std::nullopt;
+                if (!selected_)
+                    selected_ = stored_renderer_ && view_==maps::MapViewMode::StoredGraphics ?
+                        maps::pick_landscape_ground(stored_renderer_->plan(),textured_camera_.screen_to_world({x,y}),
+                            geometry_,stored_renderer_->elevated()):
+                        maps::pick_terrain_cell(textured_camera_.screen_to_world({x,y}),geometry_);
+            } else selected_ = storage_from_display(camera_.pick({x,y}));
+            landscape_inspector_scroll_=0;
             update_title();
             show_selected();
         }
@@ -475,9 +504,12 @@ bool MapDebugView::render() {
         view_ == maps::MapViewMode::Textured ?
         "CURATED TERRAIN PREVIEW: ORIGINAL SG3 TILE FOR EXACT RAW PAIRS; PURPLE DIAMOND = UNMAPPED" :
         "SEMANTIC: WATER BLUE, VEGETATION GREEN, ROCK GRAY, ROAD TAN, FERTILE LIME, OTHER PURPLE, UNKNOWN MAGENTA")) return false;
-    if (!SDL_RenderDebugText(renderer_, 8, 37, is_texture_view() ?
-        "PREVIEW PLACEMENT IS DIAGNOSTIC | WASD PAN WHEEL ZOOM R RESET" :
-        "COMPARE: INSIDE+ON GREEN, INSIDE+OFF PINK, OUTSIDE+OFF BLUE, OUTSIDE+ON ORANGE | WASD PAN WHEEL ZOOM")) return false;
+    const auto controls=view_==maps::MapViewMode::StoredGraphics && stored_renderer_ ?
+        std::string{"F8 "}+landscape_debug_mode_name(stored_renderer_->landscape_mode())+
+            " | F1 INSPECTOR PGUP/PGDN | WASD PAN WHEEL ZOOM R RESET":
+        is_texture_view() ? std::string{"PREVIEW PLACEMENT IS DIAGNOSTIC | WASD PAN WHEEL ZOOM R RESET"}:
+            std::string{"COMPARE: INSIDE+ON GREEN, INSIDE+OFF PINK, OUTSIDE+OFF BLUE, OUTSIDE+ON ORANGE | WASD PAN WHEEL ZOOM"};
+    if (!SDL_RenderDebugText(renderer_,8,37,controls.c_str())) return false;
     if (selected_) {
         const auto x = selected_->x, y = selected_->y;
         const auto& item = interpreted_[static_cast<std::size_t>(y) * maps::stored_grid_width + x];
@@ -512,14 +544,18 @@ bool MapDebugView::render() {
                 if (!SDL_RenderDebugText(renderer_, 8, 85, line.c_str())) return false;
             }
         }
-        if (view_ == maps::MapViewMode::StoredGraphics) {
-            const auto* cell = stored_renderer_->plan().at(*selected_);
-            if (cell) {
-                const auto line = "SAVED ID=" + hex32(cell->stored_id) + " SLOT=" +
-                    std::to_string(cell->slot) + " LOCAL=" + std::to_string(cell->local_index) +
-                    " PHYSICAL=" + (cell->physical_record ? std::to_string(*cell->physical_record) : "?") +
-                    " STATUS=" + maps::stored_status_name(cell->status);
-                if (!SDL_RenderDebugText(renderer_, 8, 85, line.c_str())) return false;
+        if (stored_renderer_ && landscape_inspector_open_) {
+            const auto lines=maps::landscape_inspection_lines(stored_renderer_->plan(),*selected_,
+                stored_renderer_->elevated(),&textured_camera_);
+            const SDL_FRect panel{0,85,std::min(420.0F,static_cast<float>(textured_camera_.viewport_width)),
+                std::max(0.0F,static_cast<float>(textured_camera_.viewport_height)-85)};
+            if (!SDL_SetRenderDrawColor(renderer_,12,17,23,240) || !SDL_RenderFillRect(renderer_,&panel) ||
+                !SDL_SetRenderDrawColor(renderer_,235,240,245,255)) return false;
+            float row_y=85;
+            for (std::size_t row=landscape_inspector_scroll_;row<lines.size();++row) {
+                if (row_y+10>static_cast<float>(textured_camera_.viewport_height)) break;
+                if (!SDL_RenderDebugText(renderer_,8,row_y,lines[row].c_str())) return false;
+                row_y+=12;
             }
         }
     }

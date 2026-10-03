@@ -5,6 +5,7 @@
 #include "maps/EmperorContainer.h"
 #include "maps/MapCatalog.h"
 #include "maps/MapGraphicCandidates.h"
+#include "maps/LandscapeProvenance.h"
 
 #include <stdexcept>
 #include <utility>
@@ -22,6 +23,8 @@ StoredMapSession load_stored_map_session(const std::filesystem::path& data_root,
     const auto candidates=read_map_graphic_candidates(container,0);
     const auto registrations=load_stored_archive_registrations(data_root,candidates,geometry,profile);
     auto plan=make_stored_graphics_plan(map,candidates,geometry,registrations,policy,profile);
+    plan.map_relative=map_relative;
+    read_landscape_layers(plan,container,0);
     return {std::move(map),std::move(plan)};
 }
 } // namespace openemperor::maps

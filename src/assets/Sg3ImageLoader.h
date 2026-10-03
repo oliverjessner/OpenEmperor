@@ -22,6 +22,7 @@ public:
 struct Sg3ImageRequest {
     std::filesystem::path archive_path;
     std::uint32_t image_index = 0;
+    bool split_isometric = false; // Eager presentation components; ordinary decode stays exact.
     bool ignore_alpha = false; // Diagnostic color-only view; not an SG3 interpretation.
     std::optional<AlphaAddressing> diagnostic_alpha_addressing;
 
@@ -49,6 +50,8 @@ struct Sg3BitmapLocation {
 struct LoadedSg3Image {
     RgbaImage rgba;
     Sg3BitmapLocation bitmap;
+    std::optional<RgbaImage> base;
+    std::optional<RgbaImage> overlay;
 };
 
 // Only the declared SG3 metadata table is read. The .555 payload is not read.

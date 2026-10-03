@@ -2,6 +2,7 @@
 
 #include "assets/Sg3OmegaDecoder.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -80,8 +81,8 @@ void draw_tile(std::span<const std::uint8_t> base, std::size_t& source,
 
 } // namespace
 
-RgbaImage decode_isometric_rgba(const Sg3Image& image,
-                                std::span<const std::uint8_t> payload) {
+RgbaImage decode_isometric_component(const Sg3Image& image,
+    std::span<const std::uint8_t> payload, IsometricComponent component) {
     if (image.image_type != 30) {
         throw Sg3DecodeError("isometric decoder requires SG3 image type 30");
     }
@@ -132,10 +133,16 @@ RgbaImage decode_isometric_rgba(const Sg3Image& image,
         throw Sg3DecodeError("isometric footprint did not consume its complete base stream");
     }
     const auto overlay = payload.subspan(image.uncompressed_length);
-    if (!overlay.empty()) {
+    if (component == IsometricComponent::Overlay)
+        std::fill(destination.pixels.begin(), destination.pixels.end(), 0);
+    if (component != IsometricComponent::Base && !overlay.empty()) {
         decode_omega_color_into(overlay, destination);
     }
     return destination;
+}
+
+RgbaImage decode_isometric_rgba(const Sg3Image& image, std::span<const std::uint8_t> payload) {
+    return decode_isometric_component(image, payload, IsometricComponent::Combined);
 }
 
 } // namespace openemperor::assets

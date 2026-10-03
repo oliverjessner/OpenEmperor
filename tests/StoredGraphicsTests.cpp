@@ -3,6 +3,10 @@
 #include "app/MapRenderCheck.h"
 #include "assets/Sg3ImageLoader.h"
 #include "maps/StoredGraphicsPlan.h"
+#include "maps/StoredMapSession.h"
+#include "maps/LandscapeProvenance.h"
+#include "assets/Sg3IsometricDecoder.h"
+#include "core/PerformanceDiagnostics.h"
 #include "renderer/StoredGraphicsRenderer.h"
 
 #include <SDL3/SDL.h>
@@ -71,7 +75,7 @@ Bytes tile(std::uint16_t color) {
     return b;
 }
 Bytes stored_map_file(std::uint32_t marker,bool partial=false,std::uint32_t declared_size=84,
-                      bool slot8=false,bool wall4=false) {
+                      bool slot8=false,bool wall4=false,bool landscape=false) {
     Bytes raw(static_cast<std::size_t>(maps::objects_logical_offset+maps::grid_byte_length),0);
     const std::array<std::uint8_t,8> signature{5,0,0xfe,0xca,0,0,2,0};
     std::copy(signature.begin(),signature.end(),raw.begin());
@@ -90,6 +94,13 @@ Bytes stored_map_file(std::uint32_t marker,bool partial=false,std::uint32_t decl
         u32(raw,static_cast<std::size_t>(maps::candidate_word_logical_offset)+4U*index,0x20001);
         raw[static_cast<std::size_t>(maps::candidate_byte_logical_offset)+index]=
             static_cast<std::uint8_t>((dy<<3U)|dx|((dx==0 && dy==3) ? 0x40U : 0U));
+    }
+    if (landscape) {
+        raw.resize(static_cast<std::size_t>(maps::landscape_height_offset)+228U*228U,0);
+        const auto at=114U*228U+114U;
+        raw[static_cast<std::size_t>(maps::landscape_height_offset)+at]=3;
+        raw[static_cast<std::size_t>(maps::landscape_draw_properties_offset)+at]=0x22;
+        u32(raw,static_cast<std::size_t>(maps::terrain_logical_offset)+4U*at,0x80080);
     }
     Bytes file{0xaa,0xba,0xdc,0xfe};
     for (std::size_t at=0;at<raw.size();at+=32768) {
@@ -568,6 +579,130 @@ int main() {
         check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL dummy init");
         SDL_Window* window=nullptr; SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("stored test",400,300,0,&window,&renderer),"software renderer");
+        {
+            write(temp.path/"Landscape.map",stored_map_file(0x80,false,84,false,false,true));
+            const auto session=maps::load_stored_map_session(temp.path,"Landscape.map",
+                maps::FootprintPolicy::EdgeBytePreview);
+            const auto& p=session.plan;
+            check(p.landscape_layers_available && maps::landscape_height(p,{114,114})==3 &&
+                p.draw_properties[114U*228U+114U]==0x22,
+                "extended standalone serializer ranges supply separate height and draw bytes");
+            check(maps::landscape_provenance(p,{114,114},true).at("offmap_bit")==true,
+                "candidate mask and raw off-map bit remain distinct");
+            fs::remove(temp.path/"Landscape.map");
+        }
+        {
+            auto landscape=maps::make_stored_graphics_plan(map,candidates,
+                sparse_geometry({{114,114},{115,114}}),terrain_catalog,*terrain_layout,
+                elevation_catalog,*elevation_layout,true);
+            landscape.landscape_layers_available=true;
+            landscape.height_bytes.assign(228U*228U,0);
+            landscape.draw_properties.assign(228U*228U,0);
+            landscape.height_bytes[114U*228U+114U]=2;
+            landscape.map_relative="Cities/Synthetic.map";
+            const auto ground=maps::landscape_ground(landscape,{114,114});
+            check(ground.y==maps::terrain_ground({114,114},landscape.border).y-80,
+                "signed height operand has verified 40-pixel step");
+            landscape.height_bytes[114U*228U+115U]=255;
+            check(maps::landscape_height(landscape,{115,114})==-1 &&
+                maps::landscape_ground(landscape,{115,114}).y==
+                    maps::terrain_ground({115,114},landscape.border).y+40,"negative byte sign extension");
+            scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+            camera.center_on(ground);
+            const auto j=maps::landscape_provenance(landscape,{114,114},true,&camera);
+            check(j.at("candidate_mask")==true && j.at("height_signed")==2 &&
+                j.at("resource").at("physical_record")==202 &&
+                j.at("image").at("base_bytes")==3200 && j.contains("painter") &&
+                j.at("screen_ground").at("y")==150,"complete selected provenance without decode");
+            check(maps::landscape_provenance(landscape,{0,0},true).at("candidate_mask")==false &&
+                maps::landscape_provenance(landscape,{0,0},true).contains("saved_id") &&
+                maps::landscape_provenance(landscape,{228,0},true).at("status")=="outside_storage",
+                "outside-candidate raw provenance and storage boundary");
+            check(maps::pick_landscape_ground(landscape,ground,sparse_geometry({{114,114},{115,114}}),true)==
+                maps::GridCell{114,114},"elevated ground inverse selects exact storage");
+            openemperor::StoredGraphicsRenderer preview{std::move(landscape)};
+            preview.initialize(renderer);
+            check(preview.upload_count()==3,"one physical asset owns snapshot/base/overlay once");
+            preview.set_landscape_mode(openemperor::LandscapeDebugMode::Ground);
+            check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                preview.render(camera,std::nullopt) && preview.last_texture_draws()==2,
+                "ground pass suppresses both tall overlays");
+            const auto& f=preview.plan().footprints.front();
+            const auto alpha_pixel=camera.world_to_screen({f.image_origin.x+38,
+                f.image_origin.y-80});
+            check(!preview.hit_test(alpha_pixel,camera),"ground mode excludes overlay hit masks");
+            preview.set_landscape_mode(openemperor::LandscapeDebugMode::Decorations);
+            check(preview.hit_test(alpha_pixel,camera)==maps::GridCell{114,114},
+                "cached visible overlay alpha identifies its owner above ground");
+            // Exercise the same component callbacks and merge used by SandboxView,
+            // with a red building/walker crossing the tall blue overlay pixel.
+            for (auto layer:{scene::WorldVisualLayer::SandboxBuilding,scene::WorldVisualLayer::SandboxWalker})
+                for (bool in_front:{false,true}) {
+                    check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer),
+                        "clear component occlusion scene");
+                    preview.begin_frame();
+                    for (std::size_t i=0;i<preview.draw_items().size();++i)
+                        check(preview.draw_ground_item(i,camera),"ground precedes all occluders");
+                    struct Crossing { scene::WorldDrawKey key; };
+                    auto key=preview.draw_items().front().key;
+                    key.depth+=in_front ? 1:-1; key.layer=layer;
+                    const std::array<Crossing,1> crossing{{{key}}};
+                    scene::WorldMergeStats stats;
+                    check(scene::merge_world_draw_streams(preview.draw_items(),crossing,
+                        [&](std::size_t i){return preview.draw_item(i,camera);},
+                        [&](std::size_t){
+                            const SDL_FRect box{static_cast<float>(alpha_pixel.x),
+                                static_cast<float>(alpha_pixel.y),1,1};
+                            return SDL_SetRenderDrawColor(renderer,255,0,0,255) && SDL_RenderFillRect(renderer,&box);
+                        },stats),"merge cliff overlay with crossing entity");
+                    const auto color=pixel(renderer,static_cast<int>(alpha_pixel.x),static_cast<int>(alpha_pixel.y));
+                    check((in_front ? color[0]:color[2])==255 &&
+                          (in_front ? color[2]:color[0])==0,
+                        "entity behind cliff is occluded; entity in front draws over cliff");
+                }
+            openemperor::performance::set_enabled(true); openemperor::performance::reset();
+            const auto before=preview.plan().raw_saved_ids;
+            for (int frame=0;frame<32;++frame) {
+                check(preview.render(camera,std::nullopt),"repeated layered frame");
+                (void)maps::landscape_inspection_lines(preview.plan(),{114,114},true,&camera);
+                (void)preview.hit_test(alpha_pixel,camera);
+            }
+            for (auto counter:{openemperor::performance::Counter::FileReads,
+                openemperor::performance::Counter::FileWrites,openemperor::performance::Counter::AssetDecodes,
+                openemperor::performance::Counter::TextureUploads,openemperor::performance::Counter::WorldCopies,
+                openemperor::performance::Counter::WorldExecutes,openemperor::performance::Counter::BfsCalls,
+                openemperor::performance::Counter::RouteRefreshes})
+                check(openemperor::performance::counter(counter)==0,"frame/inspection/hit path must remain pure");
+            check(preview.plan().raw_saved_ids==before && preview.stored_order_builds()==1,
+                "layer toggles preserve raw graphics and cached painter order");
+            const auto report=maps::landscape_fidelity_report(preview.plan());
+            check(report.at("coverage").at("candidate_cells")==2 &&
+                report.at("resolved_identity").at("original_first_draw_identity_verified")==0 &&
+                report.at("composition_verified").at("water_verified")==0,
+                "successful decode is not original fidelity");
+            camera.offset.x=-100000;
+            check(preview.render(camera,std::nullopt) && preview.last_texture_draws()==0,
+                "raised components obey viewport culling");
+            openemperor::performance::set_enabled(false);
+            auto incomplete=preview.plan(); incomplete.raw_objects.clear();
+            check(maps::landscape_provenance(incomplete,{114,114},true).at("status")==
+                "incomplete_provenance_metadata","incomplete raw metadata is bounded and explicit");
+        }
+        {
+            const auto metadata=assets::read_sg3_archive(temp.path/"DATA/China_Terrain.sg3");
+            assets::Sg3ImageRequest request{temp.path/"DATA/China_Terrain.sg3",202};
+            request.split_isometric=true;
+            const auto loaded=assets::load_sg3_image_with_source(request);
+            check(loaded.base && loaded.overlay && loaded.base->pixels[38U*4U+3]==0 &&
+                loaded.overlay->pixels[38U*4U+2]==255 &&
+                loaded.rgba.pixels[38U*4U+2]==255,
+                "normal decoded snapshot retained alongside independent base and Omega overlay");
+            auto invalid=metadata.images[202]; invalid.uncompressed_length=3198;
+            bool rejected=false;
+            try { (void)assets::decode_isometric_component(invalid,Bytes(3205),assets::IsometricComponent::Base); }
+            catch (const assets::Sg3DecodeError&) { rejected=true; }
+            check(rejected,"split decoder retains invalid-base rejection");
+        }
         fs::create_directories(temp.path/"Cities");
         write(temp.path/"Cities/A.map",stored_map_file(0x80));
         write(temp.path/"Cities/B.MAP",stored_map_file(0x82));

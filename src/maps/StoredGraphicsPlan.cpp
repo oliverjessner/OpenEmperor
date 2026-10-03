@@ -445,6 +445,10 @@ StoredGraphicsPlan make_plan_impl(
     plan.profile = profile;
     plan.multi_tile_preview = policy!=FootprintPolicy::Disabled;
     plan.footprint_policy = policy;
+    plan.raw_terrain=map.terrain_raw.values;
+    plan.raw_objects=map.objects_raw.values;
+    plan.raw_saved_ids=candidates.candidate_word_layer;
+    plan.raw_candidate_bytes=candidates.candidate_byte_layer;
     plan.border = geometry.border;
     plan.mask_comparison = compare_masks(map,geometry);
     plan.status_by_storage.assign(storage_count, StoredStatus::Excluded);

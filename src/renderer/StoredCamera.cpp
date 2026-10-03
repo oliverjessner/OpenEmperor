@@ -1,4 +1,5 @@
 #include "renderer/StoredCamera.h"
+#include "maps/LandscapeProvenance.h"
 
 #include <algorithm>
 
@@ -15,10 +16,20 @@ void fit_stored_camera(const maps::StoredGraphicsPlan& plan, scene::Camera2D& ca
         if (footprint.status!=maps::StoredStatus::Rendered) continue;
         const auto& record=plan.assets[footprint.asset_index].record;
         include(footprint.image_origin,record.width,record.height);
+        if (plan.landscape_layers_available) {
+            auto raised=footprint.image_origin;
+            raised.y-=maps::landscape_height(plan,footprint.draw_cell_candidate.value_or(footprint.origin))*
+                maps::landscape_height_step;
+            include(raised,record.width,record.height);
+        }
     }
     for (const auto& cell:plan.cells)
-        if (!cell.footprint_index || cell.status!=maps::StoredStatus::Rendered)
+        if (!cell.footprint_index || cell.status!=maps::StoredStatus::Rendered) {
             include({cell.world.x-40,cell.world.y},80,40);
+            if (plan.landscape_layers_available)
+                include({cell.world.x-40,cell.world.y-maps::landscape_height(plan,cell.storage)*
+                    maps::landscape_height_step},80,40);
+        }
     if (first) return;
     camera.zoom=std::clamp(std::min(
         std::max(1,camera.viewport_width-40)/(max_x-min_x),

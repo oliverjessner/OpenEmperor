@@ -1,4 +1,5 @@
 #include "app/SandboxView.h"
+#include "maps/LandscapeProvenance.h"
 
 #include "maps/SandboxPlacement.h"
 #include "renderer/StoredCamera.h"
@@ -189,6 +190,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     update_layout(false);
     background_.set_debug_diagnostics(debug_open_);
     background_.initialize(renderer_);
+    background_.set_landscape_mode(LandscapeDebugMode::Decorations);
     std::vector<std::string> builtin_errors;
     if (!walker_manifest_.empty()) {
         const auto manifest=walker_manifest_; const auto source=walker_source_;
@@ -766,7 +768,7 @@ void SandboxView::place_demo() {
 }
 std::optional<simulation::Cell> SandboxView::pick(scene::Point screen) const {
     if (!layout_.map.contains(screen.x,screen.y)) return std::nullopt;
-    const auto cell=maps::pick_terrain_cell(camera_.screen_to_world(screen),geometry_);
+    const auto cell=maps::pick_landscape_ground(background_.plan(),camera_.screen_to_world(screen),geometry_,background_.elevated());
     if (!cell) return std::nullopt;
     return simulation::Cell{static_cast<int>(cell->x),static_cast<int>(cell->y)};
 }
@@ -1235,6 +1237,12 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 last_message_=road_enabled_ ? "Road visuals ON":"Road visuals OFF";
             } else last_message_="No road visuals loaded";
         }
+        else if (event.key.key==SDLK_F8 && debug_open_) {
+            const auto mode=static_cast<LandscapeDebugMode>((static_cast<int>(background_.landscape_mode())+1)%5);
+            background_.set_landscape_mode(mode);
+            last_message_=landscape_debug_mode_name(background_.landscape_mode());
+            refresh_hover();
+        }
         else if (event.key.key==SDLK_F7) {
             unified_depth_=!unified_depth_;
             last_message_=unified_depth_ ? "Depth painter: unified":"Depth painter: legacy";
@@ -1324,7 +1332,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             return;
         }
         const auto cell=pick(*pointer_);
-        if (!cell) return;
+        const bool landscape_hit=debug_open_ &&
+            tool_==(simulation::production_profile(rules_) ? 5:4) &&
+            background_.hit_test(*pointer_,camera_).has_value();
+        if (!cell && !landscape_hit) return;
         map_pressed_=true;
         if (tool_==1) {
             road_start_=cell;
@@ -1378,7 +1389,13 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             cancel_gesture(); return;
         }
         if (!map_pressed_) return;
-        const auto cell=pointer_ ? pick(*pointer_) : std::nullopt;
+        auto cell=pointer_ ? pick(*pointer_) : std::nullopt;
+        const bool selecting=tool_==(simulation::production_profile(rules_) ? 5:4);
+        if (selecting && debug_open_ && pointer_ &&
+            (!cell || world_->object_at(*cell)==simulation::Object::Empty)) {
+            const auto hit=background_.hit_test(*pointer_,camera_);
+            if (hit) cell=simulation::Cell{static_cast<int>(hit->x),static_cast<int>(hit->y)};
+        }
         if (cell && road_start_ && tool_==1) {
             const auto plan=road_preview_;
             (void)request_road(plan);
@@ -1486,7 +1503,18 @@ bool SandboxView::resolve_budget_warning(bool build_anyway) {
 scene::Point SandboxView::world_for(simulation::Position cell) const {
     const double u=cell.x-static_cast<double>(geometry_.border);
     const double v=cell.y-static_cast<double>(geometry_.border);
-    return {(u-v)*40.0,(u+v)*20.0+20.0};
+    double height=0;
+    if (background_.elevated()) {
+        const int x=static_cast<int>(std::floor(cell.x)), y=static_cast<int>(std::floor(cell.y));
+        const double fx=cell.x-x, fy=cell.y-y;
+        const auto h=[&](int px,int py) {
+            if (px<0 || py<0) return 0.0;
+            return static_cast<double>(maps::landscape_height(background_.plan(),
+                {static_cast<unsigned>(px),static_cast<unsigned>(py)}));
+        };
+        height=(h(x,y)*(1-fx)+h(x+1,y)*fx)*(1-fy)+(h(x,y+1)*(1-fx)+h(x+1,y+1)*fx)*fy;
+    }
+    return {(u-v)*40.0,(u+v)*20.0+20.0-height*maps::landscape_height_step};
 }
 scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
                                                   simulation::Object kind) const {
@@ -1838,6 +1866,18 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                  simulation::CourierId::Clay,{},true});
         }
     }
+    // Keep the existing logical front-cell order while lifting presentation.
+    if (background_.elevated()) for (auto& instance:instances) {
+        auto position=instance.position;
+        if (instance.key.layer!=scene::WorldVisualLayer::SandboxWalker) {
+            auto cell=instance.cell;
+            if (instance.key.layer==scene::WorldVisualLayer::SandboxBuilding)
+                cell=simulation::building_front_cell(rules_,world_->rule_version(),instance.object,cell);
+            position={static_cast<double>(cell.x),static_cast<double>(cell.y)};
+        }
+        const double flat_y=(position.x+position.y-2*geometry_.border)*20.0+20.0;
+        instance.key.depth+=flat_y-world_for(position).y;
+    }
     std::sort(instances.begin(),instances.end(),[](const DrawInstance& a,const DrawInstance& b) {
         return a.key<b.key;
     });
@@ -1908,6 +1948,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             static_cast<std::size_t>(world_->width())+cell.x];
     };
     background_.begin_frame();
+    for (std::size_t i=0;i<background_.draw_items().size();++i)
+        if (replacement_for(i)!=1 && !background_.draw_ground_item(i,render_camera)) return false;
     // Valid new roads stay alpha-128 over their old ground. Draw that ground once
     // before the painter so its raised grass cannot overwrite an earlier road.
     if (road_start_ && road_preview_.valid && road_preview_.new_road_count)
@@ -2082,6 +2124,9 @@ int SandboxView::demolition_hint_extra_height() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
+    if (debug_open_ && selected_ && world_->object_at(*selected_)==simulation::Object::Empty)
+        return wrap_panel_lines(maps::landscape_inspection_lines(background_.plan(),
+            {static_cast<unsigned>(selected_->x),static_cast<unsigned>(selected_->y)},background_.elevated(),&camera_));
     const auto add_maintenance=[&](simulation::BuildingId id) {
         const auto& b=world_->building(id);
         const auto cost=simulation::maintenance_cost(rules_,b.kind);

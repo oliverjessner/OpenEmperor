@@ -87,6 +87,10 @@ struct PlacedFootprint {
 
 struct StoredGraphicsPlan {
     std::filesystem::path data_root;
+    std::filesystem::path map_relative;
+    std::vector<std::uint32_t> raw_terrain, raw_objects, raw_saved_ids;
+    std::vector<std::uint8_t> raw_candidate_bytes, draw_properties, height_bytes;
+    bool landscape_layers_available = false;
     StoredGraphicsProfile profile = StoredGraphicsProfile::Base;
     std::vector<StoredCell> cells; // Exactly one per candidate, in painter order.
     std::vector<StoredAsset> assets; // Distinct physical AssetIds.

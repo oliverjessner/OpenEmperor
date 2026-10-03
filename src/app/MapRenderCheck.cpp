@@ -6,6 +6,7 @@
 #include "maps/MapCatalog.h"
 #include "maps/MapGeometry.h"
 #include "maps/StoredMapSession.h"
+#include "maps/LandscapeProvenance.h"
 
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
@@ -111,6 +112,8 @@ int run_map_render_check(const std::filesystem::path& data_root,
             if (accounted!=plan.cells.size() || counted_footprints!=plan.footprints.size() ||
                 rendered!=owned_cells.size() || rendered!=plan.covered_cells())
                 throw std::runtime_error("stored graphics report counters disagree");
+            report["fidelity"]=maps::landscape_fidelity_report(plan);
+            report["status_scope"]="saved_snapshot_coverage_only";
             report["candidate_cells"]=plan.cells.size();
             report["covered_cells"]=plan.covered_cells();
             report["diagnostic_cells"]=plan.cells.size()-plan.covered_cells();
@@ -169,7 +172,8 @@ int run_map_render_check(const std::filesystem::path& data_root,
             report["unknown_bit_cells"]=plan.unknown_bit_cells;
             report["mask_mismatches"]=plan.mask_comparison.mismatches();
             report["stages"]["assets_decoded"]=plan.decoded_assets==required_assets.size();
-            report["stages"]["textures_uploaded"]=plan.texture_uploads==required_assets.size();
+            report["stages"]["textures_uploaded"]=plan.texture_uploads==required_assets.size()*
+                (plan.landscape_layers_available ? 3U:1U);
             if (!view.render()) throw std::runtime_error(SDL_GetError());
             report["overview_texture_draws"]=view.stored_texture_draws();
             report["overview_diagnostic_draws"]=view.stored_diagnostic_draws();

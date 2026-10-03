@@ -65,6 +65,8 @@ private:
     std::unique_ptr<StoredGraphicsRenderer> stored_renderer_;
     std::optional<maps::GridCell> selected_;
     bool reported_stored_draws_ = false;
+    bool landscape_inspector_open_ = false;
+    std::size_t landscape_inspector_scroll_ = 0;
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
     SDL_Texture* texture_ = nullptr;

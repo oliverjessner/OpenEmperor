@@ -1,5 +1,15 @@
 # Stored graphics map preview
 
+## Landscape fidelity pass 1 (current behavior)
+
+The supported standalone-map preview now reads a separate saved height grid and draw-properties range once. The observed signed-byte height operand shifts displayed Y by `height*40`; it does not change buildability, World occupancy, routes or saves. Original setup may normalize heights and **clears the loaded saved-ID array before regenerating it**. Saved IDs remain useful provenance, not verified first-draw identities. See [the bounded trace and acceptance report](reverse/map-first-draw.md).
+
+F1 opens full selected-cell landscape provenance; Map Debug uses Page Up/Down to scroll it, and Sandbox uses its existing panel wheel scroll with width-aware wrapping. Selection can identify tall overlays through cached alpha before the inverse-height ground picker. F8 cycles Ground only, Ground + Water, + Elevation, + Decorations, Full stored snapshot; Sandbox exposes this only while F1 debug is open. The first four separate the supported Type-30 image's own base/overlay and use saved height. Water bases already occur in Ground only; subsequent modes add associated overlays. This is a preview classifier, not a reproduced terrain/coast selector. Full stored snapshot retains the previous flat combined-image path. Short maps and multipart campaign inputs retain that path.
+
+The renderer eagerly uploads combined/base/overlay textures once per physical asset, with all three counted against the existing 64 MiB RGBA limit, and retains bounded one-byte alpha masks for combined/overlay picking. Bases precede the existing logical-front-cell merged overlay/road/building/walker painter. Fit and culling include raised image bounds. No arbitrary/interlocking footprint support, mirror semantics or replacement record family was introduced.
+
+Machine output separates `coverage`, `resolved_identity`, `placement_verified` and `composition_verified`. A legacy `snapshot_complete` status means saved-snapshot coverage only. Complete original anchor/first-draw identity and ground/water/elevation composition counts remain zero. Xia plateaus improve, but cyan water diamonds, stone seams and some northern fragments remain; primary landscape acceptance is not complete. The older observations below describe historical flat snapshot behavior and counts, not current first-draw fidelity.
+
 Use your own legally obtained game files. The ordinary saved-ID snapshot retains one-cell rendering and shows multi-cell records diagnostically:
 
 ```sh

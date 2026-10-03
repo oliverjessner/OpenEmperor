@@ -1,5 +1,13 @@
 # Read-only Emperor map profile
 
+## Standalone landscape layers: first-draw pass 1
+
+The [bounded serializer/draw trace](map-first-draw.md) extends the supported standalone profile with two optional read-only byte ranges. Draw properties occupy logical 677,327–729,311 (51,984 bytes), read into VA `0xf9d620` at `0x52ea35`. After intervening serialized ranges and a 36-byte height-object header at 989,239, the 51,984-byte height grid starts at **989,275**, read into VA `0xbebf3a` at `0x52eacb`. Addresses here are VAs for the pinned EXE, unlike the older RVA-based graphics notes.
+
+The height getter reads a signed byte at `this+2+cell`, and map drawing subtracts `signed_height*40` from screen Y. Sprite dimensions and terrain bits do not determine this value. Original setup has a conditional height-normalization path; the preview preserves raw saved height rather than claiming its complete first-draw state. Draw-properties low-bit placement codes are distinct from height and the tentative candidate part byte. Full standalone-layer bounds are required; short maps and multipart containers keep historical behavior.
+
+This also establishes that loaded saved graphic IDs are cleared during post-load setup and regenerated before the traced drawing entry. Raw saved words remain unchanged in our reader. The older statement below that bytes after the object grid are uninterpreted describes the earlier reader scope, not this newly bounded optional landscape extension. Unknown intervening layers remain unknown, and neither these fields nor the candidate mask gain gameplay authority.
+
 This note separates public reference observations, checks against the user's local GOG files, and conventions chosen for the OpenEmperor debug display. No original data or code from the reference reader is included here. The independently written implementation is in `src/maps/`.
 
 ## Reference and provenance

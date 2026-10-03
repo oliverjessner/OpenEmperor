@@ -18,6 +18,9 @@ namespace openemperor {
 std::array<std::uint8_t,3> stored_presentation_fallback_color(
     maps::TerrainCategory category);
 
+enum class LandscapeDebugMode { Ground, Water, Elevation, Decorations, Snapshot };
+const char* landscape_debug_mode_name(LandscapeDebugMode mode);
+
 struct StoredDrawItem {
     scene::WorldDrawKey key;
     bool footprint = false;
@@ -36,6 +39,12 @@ public:
     const std::vector<StoredDrawItem>& draw_items() const { return draw_order_; }
     void begin_frame();
     bool draw_item(std::size_t renderer_index, const scene::Camera2D& camera);
+    bool draw_ground_item(std::size_t renderer_index, const scene::Camera2D& camera);
+    void set_landscape_mode(LandscapeDebugMode mode);
+    LandscapeDebugMode landscape_mode() const { return landscape_mode_; }
+    bool elevated() const { return landscape_mode_!=LandscapeDebugMode::Snapshot && plan_.landscape_layers_available; }
+    std::optional<maps::GridCell> hit_test(scene::Point screen, const scene::Camera2D& camera) const;
+
     bool draw_selection(const scene::Camera2D& camera,
                         std::optional<maps::GridCell> selected);
     const maps::StoredGraphicsPlan& plan() const { return plan_; }
@@ -50,6 +59,12 @@ public:
 private:
     bool draw_diagnostic(scene::Point world, const scene::Camera2D& camera, bool selected,
                          maps::TerrainCategory category=maps::TerrainCategory::Unknown);
+    bool draw_component(std::size_t index, const scene::Camera2D& camera, bool base);
+    scene::Point image_origin(const maps::PlacedFootprint& footprint) const;
+    bool overlay_visible(const maps::PlacedFootprint& footprint) const;
+    LandscapeDebugMode landscape_mode_=LandscapeDebugMode::Snapshot;
+    std::vector<SDL_Texture*> base_textures_, overlay_textures_;
+    std::vector<std::vector<std::uint8_t>> snapshot_alpha_, overlay_alpha_;
     maps::StoredGraphicsPlan plan_;
     SDL_Renderer* renderer_ = nullptr;
     std::vector<SDL_Texture*> textures_;
