@@ -55,9 +55,9 @@ const sim::BuildingState& kind(const sim::World& world,sim::Object wanted,std::s
 void check_profile_and_starter() {
     check(std::string(sim::rules_profile_name(sim::RulesProfile::CityV11))=="sandbox-city-v11",
           "City-v11 profile ID differs");
-    check(sim::building_footprint(sim::RulesProfile::CityV11,sim::Object::Market)==
+    check(sim::building_footprint(sim::RulesProfile::CityV11, 1,sim::Object::Market)==
               sim::BuildingFootprint{1,1} &&
-          sim::building_footprint(sim::RulesProfile::CityV11,sim::Object::Household)==
+          sim::building_footprint(sim::RulesProfile::CityV11, 1,sim::Object::Household)==
               sim::BuildingFootprint{2,2},"City-v11 footprints differ");
     auto world=starter();
     check(world.treasury()==100 && world.construction_spent_total()==1200,

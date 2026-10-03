@@ -36,13 +36,14 @@ std::optional<BuildingVisualRole> parse_role(const std::string& name) {
     for (const auto role:building_roles) if (name==building_role_name(role)) return role;
     return std::nullopt;
 }
-void check_footprint(BuildingVisualRole role,std::uint8_t side,std::uint16_t width) {
+void check_footprint(BuildingVisualRole role,std::uint8_t side,std::uint16_t width,
+                     std::uint8_t declared_side) {
     if (requires_one_cell(role) && side!=1)
         throw std::runtime_error("building visual footprint does not match the 1x1 role");
-    if ((role==BuildingVisualRole::Well || role==BuildingVisualRole::HealthPost) && (side!=1 || width!=78))
+    if ((role==BuildingVisualRole::Well || role==BuildingVisualRole::HealthPost) && (side!=declared_side || width!=80U*declared_side-2U))
         throw std::runtime_error(role==BuildingVisualRole::Well ?
-            "Well requires an Emperor 1x1 Type-30 base (78 wide, 3200 bytes)":
-            "Health Post requires an Emperor 1x1 Type-30 base (78 wide, 3200 bytes)");
+            "Well requires its declared Emperor Type-30 footprint":
+            "Health Post requires its declared Emperor Type-30 footprint");
     if (is_household_stage(role) && (side!=2 || width!=158))
         throw std::runtime_error("household stage requires an Emperor 2x2 Type-30 base (158 wide, 12800 bytes)");
 }
@@ -113,8 +114,16 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
             throw std::runtime_error("building visual entry malformed");
         for (const auto& [key,value]:item.items()) {
             (void)value;
-            if (key!="archive" && key!="image_index" && key!="ground_anchor" && key!="evidence")
+            if (key!="archive" && key!="image_index" && key!="ground_anchor" && key!="evidence" && key!="footprint_side")
                 throw std::runtime_error("unknown building visual entry key: "+key);
+        }
+        std::uint8_t declared_side=1;
+        if (item.contains("footprint_side")) {
+            if ((*role!=BuildingVisualRole::Well && *role!=BuildingVisualRole::HealthPost) ||
+                !item.at("footprint_side").is_number_unsigned() ||
+                (item.at("footprint_side")!=1 && item.at("footprint_side")!=2))
+                throw std::runtime_error("footprint_side requires a Well/Health Post side 1 or 2");
+            declared_side=item.at("footprint_side").get<std::uint8_t>();
         }
         BuildingVisualEntry entry;
         const auto archive_name=item.at("archive").get<std::string>();
@@ -140,7 +149,7 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         if (found!=decoded_ids.end()) {
             entry.image_index=static_cast<std::size_t>(found-decoded_ids.begin());
             entry.footprint_side=decoded_footprint_sides.at(entry.image_index);
-            check_footprint(*role,entry.footprint_side,result.unique_images.at(entry.image_index).width);
+            check_footprint(*role,entry.footprint_side,result.unique_images.at(entry.image_index).width,declared_side);
             result.entries[role_index(*role)]=std::move(entry);
             continue;
         }
@@ -162,7 +171,7 @@ BuildingVisualProfile load_building_visual_profile(const fs::path& data_root,
         if (!emperor_geometry && !classic_geometry)
             throw std::runtime_error("building Type-30 footprint geometry is unsupported");
         entry.footprint_side=static_cast<std::uint8_t>(side);
-        check_footprint(*role,entry.footprint_side,static_cast<std::uint16_t>(record.width));
+        check_footprint(*role,entry.footprint_side,static_cast<std::uint16_t>(record.width),declared_side);
         const auto bytes=static_cast<std::uint64_t>(record.width)*
             static_cast<std::uint64_t>(record.height)*4U;
         if (bytes>max_rgba-total_rgba) throw std::runtime_error("building RGBA budget exceeded");

@@ -148,6 +148,7 @@ public:
     std::uint64_t road_plan_build_count() const { return road_plan_build_count_; }
     const std::vector<std::uint8_t>& buildable_mask() const { return buildable_mask_; }
 private:
+    const assets::BuildingVisualEntry* building_entry(assets::BuildingVisualRole role) const;
     std::optional<assets::BuildingVisualRole> visual_role(simulation::Cell cell,
         simulation::Object object,bool placement_preview=false) const;
     bool fire_watch_selected() const;

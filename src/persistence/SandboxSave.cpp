@@ -668,7 +668,7 @@ SaveDocument parse_document(const json& j) {
     require(schema!=17 || (d.world.profile==simulation::RulesProfile::CityV15 &&
             d.world.rule_version==1),"schema 17 requires City-v15 rule 1");
     require(schema!=18 || (d.world.profile==simulation::RulesProfile::CityV16 &&
-            d.world.rule_version==1),"schema 18 requires City-v16 rule 1");
+            (d.world.rule_version==1 || d.world.rule_version==2)),"schema 18 requires City-v16 rule 1 or 2");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;
     if (schema==1 && parsed.profile==simulation::RulesProfile::ProductionV2) {

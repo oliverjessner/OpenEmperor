@@ -1,5 +1,13 @@
 # City-v16: maintenance and city budget
 
+## Current rule 2: corrected Safety geometry
+
+New City-v16 games use rule **2**, retaining the exact rule-1 economy, maintenance, health, fire and water parameters. Only Well and HealthPost now occupy **2×2**. Central footprint/cell/front/contains APIs take the explicit rule version; placement, all-cell owner picking, perimeter entrances, Manhattan water/desirability distances, previews, selection, demolition and restore use them. Cost/workers/radius/limits remain Well 60/0/5/4 and HealthPost 120/2/road-service/2. The paid 1,280/1,300 dry starter contains neither and remains unchanged.
+
+Schema **18** supports versions 1 and 2 without new fields or automatic migration. Existing City-v16 v1 saves retain 1×1 Well/Post; City-v14/15 remain exact. No optional copy upgrade was added. Built-in exact-pack rule-2 presentation uses identified original base Well 1559 and Herbalist 1580; the old rules retain compatible custom 1×1 visuals or authored fallbacks. Basic roads use the corrected original topology mapping. See [presentation evidence and limits](reverse/original-presentation-correction.md).
+
+The following original maintenance measurements describe rule 1 unless stated otherwise; they are retained rather than rewritten as rule-2 balance measurements.
+
 Starting commit: `a674b0a667190c8919e177e0aa9c237e54e0e677`, clean working tree. The explicit `sandbox-city-v16` / `RulesProfile::CityV16` rule 1 inherits City-v15 rule 1 without changing production, tax rates, operations, demolition, Fire, Health, Water, desirability or Household stages. It is available in CLI and the menu as “City v16 - Maintenance and city budget”, with the description “Recurring building upkeep adds long-term budget pressure.” City-v11 rule 3 remains the default. No automatic migration, commit, push, tag, release or publication.
 
 ## Authored ownership costs
@@ -43,7 +51,7 @@ Unsigned credit/debit terms are cancelled before summation; no lifetime counter 
 
 ## Persistence and UI
 
-Schema 18 belongs exclusively to City-v16 rule 1. It adds required nonnegative uint64 `maintenance_spent_total` and uses a separate signed integer parser for treasury. Floats, booleans and unsigned integers above INT64_MAX are rejected; INT64_MIN is accepted when the complete identity is valid. A modified counter without the corresponding treasury fails validated restore. Schemas 1–17 keep their existing fields, profiles and treasury validation; no maintenance authority is backported. Schema/profile swaps are rejected.
+Schema 18 was introduced for City-v16 rule 1 and now supports City-v16 rules 1 and 2 with the same fields. It adds required nonnegative uint64 `maintenance_spent_total` and uses a separate signed integer parser for treasury. Floats, booleans and unsigned integers above INT64_MAX are rejected; INT64_MIN is accepted when the complete identity is valid. A modified counter without the corresponding treasury fails validated restore. Schemas 1–17 keep their existing fields, profiles and treasury validation; no maintenance authority is backported. Schema/profile swaps are rejected.
 
 Manual save/load and recovery use the existing validated paths. Loads pause at the saved tick. Boundary acceptance saves at 399, steps a paused recovery to 400 and compares the exact bill against a direct control. Negative checkpoints retain their exact debt and future accounting; normal recovery limits and child histories are unchanged.
 
@@ -85,3 +93,20 @@ Native keyboard acceptance used the local macOS bundle and the user's read-only 
 After the final rebuild, the native City-v16 window loaded tick 400 paused at Funds 47. F1 showed lifetime maintenance 48, installed 48/400t and due next 100t 0, excluding the already-paid bill. The full maintenance Help was readable. Actual F5, single step and F9 returned to tick 400 paused; the saved document was exactly equal to its pre-check control. The test windows were closed after acceptance.
 
 No new Building, Courier, Goods or service type. No SG3 audit, new visuals, original pixels or proprietary files. Existing visual fallbacks and House stages remain unchanged. Package and native checks are recorded separately from synthetic/headless checks; the existing mouse-coordinate limitation is not counted as a completed normal playthrough.
+
+## Presentation correction validation
+
+Starting HEAD `4b8d4c4e4ef3f58ae2ca3398a04917ebfcf69319`. New synthetic checks cover rule-1/rule-2 occupancy, additional-cell overlap/buildability rejection, actual 2×2 Well Manhattan boundaries, far HealthPost perimeter dispatch and arrival, full demolition, schema-18 roundtrip/resume and autosave/recovery. SDL checks cover picking every cell at 1×/2×/4×, preview coalescing, eager texture deduplication, no World/BFS/route/asset work while rendering, zero selected-profile Safety fallbacks, rejected mismatched custom geometry, unknown fallbacks and legacy custom one-cell loading. Existing maintenance, signed arithmetic, fire, health, road responsiveness, old schemas and recovery regression checks remain active.
+
+Both rule 1 and rule 2 have separate **20,000-tick determinism** and **100,000-tick endurance** cases. The v2 cases use ordinarily paid, collision-free 2×2 placements; the full 46-building/26-courier scenario retains the 168/400-tick maximum and checks fire/health/water, debt/recovery, demolition/rebuild and 20 manual/autosave/recovery roundtrips.
+
+Local original-data review uses a new paid Xia rule-2 scene at tick 4200 with simultaneous House stages 0/1/2. Native Metal 1×/2×/4× captures and genuine keyboard zoom input confirm coherent roads and the original Well/Herbalist style. The initial scene construction and all-cell input tests are scripted/synthetic; this does not close older broad mouse-driven play acceptance. Original screenshots and review runners remain ignored.
+
+
+Final full suites for this correction: **Debug 82/82 (481.91 s)**, **Release 82/82 (61.32 s)** and **ASan/UBSan 82/82 (179.58 s)**. All exited successfully. Both rule generations passed their separate 20k determinism and 100k endurance checks. Final logs are ignored under `.local/presentation-correction/final-ctest-debug.log` and `final2-ctest-{release,sanitize}.log`. No final compiler warnings were reported. Two overly narrow bounds in a newly added fallback-pixel assertion were corrected to encompass the existing mesh; no production geometry or timeout was weakened.
+
+The final `tools/package_macos.sh` run passed its own **Release 82/82 (45.65 s)**, staged dependency/license checks, recursive Mach-O/ad-hoc signature verification, relocated and unzipped execution, menu/save/restart checks, unchanged-original-data checks and forbidden-asset negative checks. The local dirty-workspace candidate retains display version 0.1.0-alpha.2 and base revision `4b8d4c4e4ef3`. ZIP `dist/OpenEmperor-0.1.0-alpha.2-4b8d4c4e4ef3-macos-arm64.zip`: **4,076,547 bytes**, SHA-256 `f30e124fdfd2f7d8eb34f7ead0b93a8aeb95853be054f25121cd5e51b1018cc3`. It contains no original pixels, atlases, review runners or saves. The seven Model/EXE/manual/General/Terrain research inputs also match their pre-check SHA-256 values.
+
+Final-bundle desktop acceptance launched `dist/OpenEmperor.app` with the paid rule-2 Xia save. It initially displayed tick 4200 paused, Funds 656, upkeep 54/400t and water 4/6. Actual F1 input showed rule 2, 16/16 road masks and the recognized exact pack; actual F1/Z input displayed the ordinary enlarged city with the original Well and Herbalist, connected road strips and the other civic/industry roles. The separate native review window also accepted actual W/H keys for 4× Well/Herbalist detail captures. These desktop observations verify the final rendering and resource lookup; they do not assert a complete manual placement/demolition playthrough.
+
+The existing City-v16 rule-1 native saves at ticks **399, 400 and 7842** were independently loaded through the ordinary save/World/view path with exactly equal World snapshots before and after rendering. Schema 18, one-cell Well/HealthPost authority and legacy visual filtering were retained. No save was migrated or overwritten. HEAD remains the requested starting commit; no commit, push, tag or publication was performed.

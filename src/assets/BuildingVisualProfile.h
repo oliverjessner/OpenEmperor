@@ -28,8 +28,7 @@ constexpr bool is_household_stage(BuildingVisualRole role) {
 }
 constexpr bool requires_one_cell(BuildingVisualRole role) {
     return role==BuildingVisualRole::Farm || role==BuildingVisualRole::ServicePost ||
-           role==BuildingVisualRole::Market || role==BuildingVisualRole::FireWatch ||
-           role==BuildingVisualRole::Well || role==BuildingVisualRole::HealthPost;
+           role==BuildingVisualRole::Market || role==BuildingVisualRole::FireWatch;
 }
 const char* building_role_name(BuildingVisualRole role);
 constexpr std::size_t role_index(BuildingVisualRole role) { return static_cast<std::size_t>(role); }

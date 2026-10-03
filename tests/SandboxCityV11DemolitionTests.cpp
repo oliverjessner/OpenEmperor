@@ -48,7 +48,7 @@ void remove(sim::World& w,sim::BuildingId id) {
         w.couriers().size()+static_cast<std::size_t>(old_couriers)==before.couriers.size() &&
         w.buildings().size()+1==before.buildings.size() && w.route_refresh_count()==refresh+1 &&
         w.road_revision()==before.road_revision+1,"demolition lifecycle/refund/refresh mismatch");
-    for (const auto cell:sim::building_footprint_cells(w.profile(),b.kind,b.cell))
+    for (const auto cell:sim::building_footprint_cells(w.profile(),w.rule_version(),b.kind,b.cell))
         require(w.object_at(cell)==sim::Object::Empty && !w.building_owner_at(cell),"footprint owner remained");
     for (const auto& c:w.couriers()) {
         require(c.owner!=id && c.target!=id && c.last_dispatched_target!=id &&

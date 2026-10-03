@@ -115,13 +115,15 @@ static_assert([] {
 }());
 }
 
-bool draw_well_fallback(SDL_Renderer* renderer,scene::Point ground,double zoom,bool placement_preview) {
+bool draw_well_fallback(SDL_Renderer* renderer,scene::Point ground,double zoom,bool placement_preview,int footprint_side) {
     // Check before any transform or SDL submission, including float overflow.
     constexpr double limit=static_cast<double>(std::numeric_limits<float>::max())/4;
     if (!renderer || !std::isfinite(ground.x) || !std::isfinite(ground.y) ||
         !std::isfinite(zoom) || zoom<=0 || std::abs(ground.x)>limit ||
-        std::abs(ground.y)>limit || zoom>limit/64)
+        std::abs(ground.y)>limit || zoom>limit/128 || (footprint_side!=1 && footprint_side!=2))
         return SDL_SetError("Well fallback requires finite, representable ground and positive zoom");
+    ground.y-=20.0*zoom*(footprint_side-1);
+    zoom*=footprint_side;
     auto vertices=well_mesh.vertices; // Fixed stack copy; indices and shape are constant.
     for (int i=0;i<well_mesh.vertex_count;++i) {
         auto& vertex=vertices[static_cast<std::size_t>(i)];

@@ -45,12 +45,14 @@ constexpr auto indices=[] {
     return out;
 }();
 }
-bool draw_health_post_fallback(SDL_Renderer* renderer,scene::Point ground,double zoom,bool preview) {
+bool draw_health_post_fallback(SDL_Renderer* renderer,scene::Point ground,double zoom,bool preview,int footprint_side) {
     constexpr double limit=static_cast<double>(std::numeric_limits<float>::max())/4;
     if (!renderer || !std::isfinite(ground.x) || !std::isfinite(ground.y) ||
         !std::isfinite(zoom) || zoom<=0 || std::abs(ground.x)>limit ||
-        std::abs(ground.y)>limit || zoom>limit/64)
+        std::abs(ground.y)>limit || zoom>limit/128 || (footprint_side!=1 && footprint_side!=2))
         return SDL_SetError("Health Post requires finite ground and positive representable zoom");
+    ground.y-=20.0*zoom*(footprint_side-1);
+    zoom*=footprint_side;
     auto vertices=mesh;
     for (auto& v:vertices) {
         v.position={static_cast<float>(ground.x+v.position.x*zoom),

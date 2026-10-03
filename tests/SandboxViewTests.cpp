@@ -502,7 +502,7 @@ void household_stage_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* re
         check(view.execute(simulation::demolish_building(pottery)).accepted,"empty Pottery removal");
         check_stage(2);
         check(view.world().building(house)==stable_house,"geometry-driven stages recreated/changed House");
-        for (const auto cell:simulation::building_footprint_cells(view.world().profile(),
+        for (const auto cell:simulation::building_footprint_cells(view.world().profile(),view.world().rule_version(),
             simulation::Object::Household,stable_house.cell)) {
             const auto p=view.camera().world_to_screen(maps::terrain_ground(
                 {static_cast<std::uint32_t>(cell.x),static_cast<std::uint32_t>(cell.y)},border));
@@ -897,13 +897,107 @@ void city_v16_maintenance_checks(const Temp& temp,SDL_Window* window,SDL_Rendere
     view.shutdown();std::cout<<"City-v16 SDL: debt, placement cost/upkeep, paused/Well/Health inspectors, schema18 paused load, pure Help/HUD/road preview\n";
 }
 
+void city_v16_geometry_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
+    namespace perf=openemperor::performance;
+    using Role=openemperor::assets::BuildingVisualRole;
+    const auto base=building_fixture(temp);
+    nlohmann::json source;{std::ifstream in(base);in>>source;}
+    const auto manifest=temp.path/"safety.json";
+    auto entries=nlohmann::json::object();
+    for (const char* role:{"well","health_post"}) {
+        entries[role]=source["buildings"]["pottery"];
+        entries[role]["footprint_side"]=2;
+    }
+    const auto save_profile=[&] {std::ofstream out(manifest);out<<nlohmann::json{
+        {"schema_version",1},{"mode","curated_building_preview"},{"buildings",entries}};};
+    save_profile();std::vector<std::uint8_t> mask;
+    auto session=city_v10_fixture(temp,mask);const auto border=session.plan.border;
+    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16);
+    Temp outside;view.configure_save(temp.path,"Cities/Synthetic.map",outside.path/"safety.json");
+    view.set_building_visuals(manifest,openemperor::VisualProfileSource::Builtin);
+    view.initialize(window,renderer);bool running=true;
+    const auto put=[&](simulation::CommandType type,simulation::Cell c) {
+        check(view.execute({type,c}).accepted,"rule2 SDL placement");return *view.world().building_owner_at(c);};
+    const auto well=put(simulation::CommandType::PlaceWell,{112,106});
+    const auto post=put(simulation::CommandType::PlaceHealthPost,{116,106});
+    check(view.world().rule_version()==2 && view.building_texture_count()==1,"rule2 eager dedupe");
+    const auto exact=view.world().snapshot();
+    for (const int zoom:{1,2,4}) for (const auto id:{well,post}) {
+        view.handle_event(key(SDLK_R),running);
+        const auto cell=view.world().building(id).cell;
+        const auto& map=view.layout().map;const openemperor::scene::Point q{map.x+map.w*.5,map.y+map.h*.5};
+        const auto wheel=[&](openemperor::scene::Point p,double factor) {
+            SDL_Event e{};e.type=SDL_EVENT_MOUSE_WHEEL;e.wheel.mouse_x=static_cast<float>(p.x);
+            e.wheel.mouse_y=static_cast<float>(p.y);e.wheel.y=static_cast<float>(std::log(factor)/std::log(1.15));view.handle_event(e,running);};
+        wheel(q,zoom/view.camera().zoom);
+        for (int n=0;n<25;++n) {
+            const auto p=view.camera().world_to_screen(openemperor::maps::terrain_ground(
+                {static_cast<unsigned>(cell.x),static_cast<unsigned>(cell.y)},border));
+            const openemperor::scene::Point d{std::clamp(q.x-p.x,-100.,100.),std::clamp(q.y-p.y,-100.,100.)};
+            if (std::abs(d.x)+std::abs(d.y)<.01)break;
+            wheel({q.x+d.x*.5,q.y+d.y*.5},.5);wheel({q.x-d.x*.5,q.y-d.y*.5},2.);
+        }
+        view.set_tool(5);
+        for (const auto c:simulation::building_footprint_cells(view.world().profile(),2,
+                view.world().building(id).kind,cell)) {
+            const auto p=view.camera().world_to_screen(openemperor::maps::terrain_ground(
+                {static_cast<unsigned>(c.x),static_cast<unsigned>(c.y)},border));
+            mouse_click(view,static_cast<float>(p.x),static_cast<float>(p.y),running);
+            check(view.selected_building()==id,"rule2 SDL four-cell picking at zoom");
+        }
+        perf::set_enabled(true);perf::reset();
+        check(view.render(),"rule2 Safety sprite render");
+        const auto stats=view.building_display_stats();
+        for (const auto role:{Role::Well,Role::HealthPost}) check(stats.drawn_instances[openemperor::assets::role_index(role)]>0 &&
+            stats.placeholder_fallbacks[openemperor::assets::role_index(role)]==0,"rule2 selected profile used fallback");
+        for (const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::WorldRestores,
+            perf::Counter::BfsCalls,perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,
+            perf::Counter::TextureUploads,perf::Counter::FileReads,perf::Counter::FileWrites})
+            check(perf::counter(c)==0,"rule2 render performed work");
+        perf::set_enabled(false);check(view.world().snapshot()==exact,"rule2 presentation mutation");
+    }
+    view.set_tool(12);
+    const auto p=view.camera().world_to_screen(openemperor::maps::terrain_ground({116,104},border));
+    view.handle_event(motion(static_cast<float>(p.x),static_cast<float>(p.y)),running);view.update(0);
+    const auto builds=view.water_preview_build_count();perf::set_enabled(true);perf::reset();
+    for (int n=0;n<200;++n)view.handle_event(motion(static_cast<float>(p.x),static_cast<float>(p.y)),running);
+    view.update(0);check(view.render() && view.water_preview_build_count()==builds,"rule2 coalesced preview");
+    for(const auto c:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::BfsCalls,
+        perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads})
+        check(perf::counter(c)==0,"rule2 preview performed work");
+    perf::set_enabled(false);check(view.world().snapshot()==exact,"rule2 preview changed World");
+    // A legacy-sized explicit custom profile must fail before replacing textures.
+    const auto watch=fire_watch_fixture(temp);nlohmann::json old;{std::ifstream in(watch);in>>old;}
+    auto legacy_entry=old["buildings"]["fire_watch"];
+    entries["well"]=legacy_entry;save_profile();bool rejected=false;
+    try{view.set_building_visuals(manifest);}catch(const std::exception&){rejected=true;}
+    check(rejected && view.building_texture_count()==1 && view.render(),"mismatched custom profile replaced v2");
+    // Missing/unknown visuals retain a foundation-aware authored fallback.
+    view.set_building_visuals({});check(view.render(),"unknown v2 fallback render");
+    const auto fallbacks=view.building_display_stats();
+    for(const auto role:{Role::Well,Role::HealthPost})check(fallbacks.placeholder_fallbacks[openemperor::assets::role_index(role)]>0,"unknown Safety fallback count");
+    view.save_now();auto legacy=openemperor::persistence::read_save(view.save_path());legacy.world.rule_version=1;
+    view.shutdown();
+    auto old_session=city_v10_fixture(temp,mask);
+    openemperor::SandboxView old_view(std::move(old_session),false,simulation::RulesProfile::CityV16);
+    old_view.configure_save(temp.path,"Cities/Synthetic.map",outside.path/"legacy.json",legacy);
+    entries["well"]=source["buildings"]["pottery"];entries["well"]["footprint_side"]=2;save_profile();
+    old_view.set_building_visuals(manifest,openemperor::VisualProfileSource::Builtin);
+    old_view.initialize(window,renderer);check(old_view.render(),"legacy built-in fallback");
+    for(const auto role:{Role::Well,Role::HealthPost})check(!old_view.building_display_stats().configured_roles[openemperor::assets::role_index(role)],"2x2 sprite exposed in legacy");
+    entries["well"]=legacy_entry;entries["health_post"]=legacy_entry;save_profile();old_view.set_building_visuals(manifest);
+    check(old_view.render() && old_view.world().rule_version()==1 && old_view.building_texture_count()==1,"legacy custom1x1 rejected");
+    old_view.shutdown();std::cout<<"Safety rule2 SDL: 1x/2x/4x picking, full footprints, eager dedupe, pure preview, legacy/unknown fallback\n";
+}
+
 int main(int argc,char** argv) {
     try {
+        const bool geometry_only=argc==2 && std::string(argv[1])=="--geometry16-only";
         const bool maintenance_only=argc==2 && std::string(argv[1])=="--maintenance-only";
         const bool health_only=argc==2 && std::string(argv[1])=="--health-only";
         const bool water_only=argc==2 && std::string(argv[1])=="--water-only";
         const bool alpha_stress=argc==2 && std::string(argv[1])=="--alpha-stress";
-        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
+        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only || geometry_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
             check(layout.top.h==52 && layout.map.w==796 && layout.map.h==516 &&
@@ -997,6 +1091,10 @@ int main(int argc,char** argv) {
         SDL_Window* window=nullptr;
         SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("sandbox test",800,600,0,&window,&renderer),"window");
+        if (geometry_only) {
+            city_v16_geometry_checks(temp,window,renderer);
+            SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+        }
         if (maintenance_only) {
             city_v16_maintenance_checks(temp,window,renderer);
             SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
@@ -2233,7 +2331,7 @@ int main(int argc,char** argv) {
         check(operations_view.building_texture_count()==texture_count &&
             pixel(renderer,static_cast<int>(clay_screen.x),static_cast<int>(clay_screen.y))!=sprite_pixel,
             "demolished sprite remained visible or shared textures were reloaded");
-        for (const auto cell:simulation::building_footprint_cells(simulation::RulesProfile::CityV11,
+        for (const auto cell:simulation::building_footprint_cells(simulation::RulesProfile::CityV11, 1,
             simulation::Object::ClaySource,{100,101}))
             check(!operations_view.world().building_owner_at(cell),"SDL demolition retained footprint owner");
         for (const auto& line:operations_view.inspection_lines())

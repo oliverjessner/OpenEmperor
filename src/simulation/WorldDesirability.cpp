@@ -51,18 +51,18 @@ int World::building_distance(BuildingId a,BuildingId b) const {
     const auto& second=building(b);
     if (!first.placed || !second.placed)
         throw std::invalid_argument("distance requires two placed buildings");
-    return footprint_distance(first.cell,building_footprint(profile_,first.kind),
-                              second.cell,building_footprint(profile_,second.kind));
+    return footprint_distance(first.cell,building_footprint(profile_,rule_version_,first.kind),
+                              second.cell,building_footprint(profile_,rule_version_,second.kind));
 }
 
 int World::household_desirability_at(Cell origin) const {
     if (!desirability_profile(profile_))
         throw std::invalid_argument("desirability requires City-v13");
-    const auto footprint=building_footprint(profile_,Object::Household);
+    const auto footprint=building_footprint(profile_,rule_version_,Object::Household);
     int score=0;
     for (const auto& b:buildings_) if (b.placed && desirability_impact(b.kind)!=0)
         score+=desirability_contribution(b.kind,footprint_distance(origin,footprint,
-            b.cell,building_footprint(profile_,b.kind)));
+            b.cell,building_footprint(profile_,rule_version_,b.kind)));
     return clamp_desirability(score);
 }
 

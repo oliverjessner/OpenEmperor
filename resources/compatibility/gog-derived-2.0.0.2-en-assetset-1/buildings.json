@@ -79,6 +79,8 @@
       "image_index": 645,
       "ground_anchor": [39, 78],
       "evidence": "Local 1x/4x review: staffed two-level stall with displayed goods in storage and distribution; plausible static Market preview"
-    }
+    },
+    "well": {"archive": "DATA/China_General.sg3", "image_index": 1559, "ground_anchor": [79, 112], "footprint_side": 2, "evidence": "Original Model 72, static definition VA 0x8235a0 + model*24 -> group 0x482; registered General slot 2 -> Safety physical 1559. Emperor 2x2 foundation; see original-presentation-correction audit. OpenEmperor water mechanics remain authored."},
+    "health_post": {"archive": "DATA/China_General.sg3", "image_index": 1580, "ground_anchor": [79, 116], "footprint_side": 2, "evidence": "Original Model 207, static definition VA 0x8235a0 + model*24 -> group 0x484; registered General slot 2 -> Safety physical 1580. Emperor 2x2 foundation; see original-presentation-correction audit. Health Post mechanics remain authored."}
   }
 }

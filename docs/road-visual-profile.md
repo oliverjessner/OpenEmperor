@@ -38,9 +38,11 @@ Every frame derives the selected road tile from `RoadNeighborMask`. A valid drag
 
 The JSON limit is 1 MiB and deduplicated decoded RGBA is capped at 64 MiB. Each distinct physical `AssetId` is decoded and uploaded once, even when several masks share it. SDL uses straight alpha, nearest scaling and actual image dimensions. Rendering places the image at `screen(world_for(cell)) - zoom * ground_anchor`; image height never changes the ground-depth key. No rotation, mirror, color modulation or inferred SG3 animation offset is applied.
 
-## Built-in 16-mask matrix
+## Historical built-in 16-mask matrix
 
-The exact-fingerprint GOG-derived compatibility pack uses physical records in `DATA/China_Terrain.sg3`, group 3 `China_Land3.bmp`. The bounded audit covered records 760–900 and identified records 782–799 as one consistent dirt-and-stone family: four alternatives for each straight axis, four corners, four T pieces, a crossing and an isolated tile. The chosen records are Type 30, 78×40, size flag 1, internal, unmirrored, alpha-free and static. Their base is 3,200 bytes. Records 786, 791, 792, 793 and 794 respectively carry 64, 59, 79, 45 and 98 additional color-overlay bytes; the remaining selected records have none.
+> **Historical, retired mapping:** The following 782–799 assignment and prior visual acceptance are retained only as research history. They are superseded by the original registration/topology audit below; do not use the table as the current pack.
+
+The historical exact-fingerprint GOG-derived compatibility pack used physical records in `DATA/China_Terrain.sg3`, group 3 `China_Land3.bmp`. The bounded audit covered records 760–900 and identified records 782–799 as one consistent dirt-and-stone family: four alternatives for each straight axis, four corners, four T pieces, a crossing and an isolated tile. The chosen records are Type 30, 78×40, size flag 1, internal, unmirrored, alpha-free and static. Their base is 3,200 bytes. Records 786, 791, 792, 793 and 794 respectively carry 64, 59, 79, 45 and 98 additional color-overlay bytes; the remaining selected records have none.
 
 | Mask | Meaning | Physical record | Evidence level |
 |---:|---|---:|---|
@@ -67,7 +69,7 @@ The common anchor remains `[39,20]`, the center-bottom reference of the 78×40 f
 
 ### City-v10 road-only baseline
 
-The footprint milestone classified the current exact-pack road-only matrix separately from buildings: `road_only_coherent = true`. The baseline covers the isolated tile, all four one-neighbor directions, both straights, four corners, four T junctions, the crossing, a long line, L and T compositions, and a small 5×5 network at 1× and 4×. The roads-only mask tests still cover all 16 combinations and composite topology after the footprint change. No road mapping changed, and records 783–785 and 787–789 were not substituted because the existing 782–799 assignments did not show a concrete orientation error. The one-neighbor straight reuse remains the documented presentation choice.
+The footprint milestone classified the then-current exact-pack road-only matrix separately from buildings: `road_only_coherent = true`. The baseline covers the isolated tile, all four one-neighbor directions, both straights, four corners, four T junctions, the crossing, a long line, L and T compositions, and a small 5×5 network at 1× and 4×. The roads-only mask tests still cover all 16 combinations and composite topology after the footprint change. No road mapping changed, and records 783–785 and 787–789 were not substituted because the existing 782–799 assignments did not show a concrete orientation error. The one-neighbor straight reuse was that historical presentation choice; the corrected pack below uses genuine end records.
 
 The Xia saved-graphics snapshot was also checked as read-only evidence. Its 58 cells classified by the reference-derived terrain layer as roads resolve mainly to physical records 552/553 and singly to 557–563/619 under the studied runtime-table hypothesis. Those decoded records are unrelated terrain/building images, so they do not corroborate the 782–799 selection and reinforce the existing warning that saved IDs may be replaced before first draw. None of the table above is marked map-correlated.
 
@@ -86,3 +88,20 @@ The developer asset browser can open an exact archive and bounded physical-recor
 The count is limited to 512. Each grid entry shows physical record, group, dimensions, type, overlay bytes, mirror offset, alpha length and animation count together with the decoded image. Enter opens the existing detail view. The browser reads the user's original files through the shared bounded loader and creates no PNG. Local audit exports, screenshots and decoded pixels stay under ignored `.local/` and are never compatibility resources.
 
 Saved-map items, roads, buildings and walkers share the projected-ground painter, with StoredMap before Road before Building before Walker at the same key. A stored object whose ground sorts farther forward may occlude a road or walker; this whole-image preview does not recover the original game's split-object painter. F7 shows the earlier map-first order for comparison. F6 debug statistics report ON/OFF, configured masks, unique assets and current-frame fallbacks. Machine reports retain `manual_visual_review=false` unless an actual desktop review was performed.
+
+## Corrected original basic-road registration (2026-10-03)
+
+The former mask assignment is retired. New EXE evidence independently confirms the **same physical family**: original Roads model 22 → group `0x61e` → Terrain base 782; the actual road refresh branch selects its 17-row cardinal topology table. The corrected fixed-orientation profile uses 16 distinct records, including genuine ends. It is metadata-only; no mirroring, rotation, stretched pixels, new road authority or entrance-neighbor semantics are introduced. See the [complete provenance, wider 875-record audit and mapping](reverse/original-presentation-correction.md#roads-old-mapping-retired-family-independently-confirmed).
+
+| Mask | Physical | Mask | Physical |
+| --- | ---: | --- | ---: |
+| 0x0 | 794 | 0x8 | 793 |
+| 0x1 | 790 | 0x9 | 789 |
+| 0x2 | 791 | 0xa | 783 |
+| 0x3 | 786 | 0xb | 798 |
+| 0x4 | 792 | 0xc | 788 |
+| 0x5 | 782 | 0xd | 797 |
+| 0x6 | 787 | 0xe | 796 |
+| 0x7 | 795 | 0xf | 799 |
+
+All 16 masks plus long straight, L, T, crossroads and 5×5 were rendered locally at 1×/2×/4× with zero fallbacks. Native Xia review confirms the connected basic-road appearance next to 2×2 Well/Herbalist, Houses, Market and industry. Anchor `[39,20]` and 78×40 source geometry remain exact. Original rotated views, upgraded styles and terrain-specific transition selection are not implemented. Earlier lack of saved-map correlation remains a historical limitation; the newly traced static road branch is independent positive evidence.

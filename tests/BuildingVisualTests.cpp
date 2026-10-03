@@ -157,6 +157,25 @@ void profile_checks(Fixture& fixture) {
         rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
             "Health role accepted 2x2 geometry on first decode/dedupe");
     }
+    for (const char* role:{"well","health_post"}) for (const bool reuse:{false,true}) {
+        auto safety=fixture.valid();safety["buildings"].erase("pottery");
+        safety["buildings"][role]=all["buildings"]["pottery"];
+        safety["buildings"][role]["footprint_side"]=2;
+        if (reuse) safety["buildings"]["clay_source"]=all["buildings"]["pottery"];
+        fixture.save(safety);
+        const auto safety_profile=openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);
+        const auto r=std::string(role)=="well" ? openemperor::assets::BuildingVisualRole::Well:
+            openemperor::assets::BuildingVisualRole::HealthPost;
+        check(safety_profile.find(r)->footprint_side==2 && safety_profile.unique_images.size()==1,
+            "declared 2x2 Safety first decode/deduplication");
+        safety["buildings"][role]["footprint_side"]=3;fixture.save(safety);
+        rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "unsupported Safety declared side");
+        safety["buildings"][role]["footprint_side"]=2;
+        safety["buildings"][role]["archive"]="DATA/one-cell.sg3";fixture.save(safety);
+        rejects([&]{openemperor::assets::load_building_visual_profile(fixture.data,fixture.manifest);},
+            "declared 2x2 accepted one-cell record");
+    }
     auto invalid_well=fixture.valid();
     invalid_well["buildings"].erase("pottery");
     invalid_well["buildings"]["well"]=all["buildings"]["pottery"];

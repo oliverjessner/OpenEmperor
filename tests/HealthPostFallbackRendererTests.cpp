@@ -30,6 +30,15 @@ int main(){try{
   const auto ghost=pixel(s,256-12*z,256-30*z);
   for(std::size_t c=0;c<3;++c)check(std::abs(static_cast<int>(ghost[c])-(opaque[c]*128+background[c]*127)/255)<=2,"ghost alpha128");
  }
+ for(const int z:{1,2,4}){
+  clear();check(openemperor::draw_health_post_fallback(r,{256,480},z,false,2) && SDL_FlushRenderer(r),"2x2 Health fallback");
+  int visible=0;
+  for(int y=0;y<512;++y)for(int x=0;x<512;++x)if(pixel(s,x,y)!=background){
+   ++visible;check(std::abs(x-256)<=62*z && y>=480-118*z && y<=480+10*z,"2x2 Health visual bounds");
+   if(y>=480-20*z)check(std::abs(x-256)/40.+std::abs(y-(480-20*z))/20.<=2*z+.1,"2x2 Health base outside footprint");
+  }
+  check(visible>2000*z*z,"2x2 Health fallback did not scale with footprint");
+ }
  clear();const auto nan=std::numeric_limits<double>::quiet_NaN();
  for(double z:{0.,-1.,nan,std::numeric_limits<double>::infinity(),std::numeric_limits<double>::max()})
   check(!openemperor::draw_health_post_fallback(r,{0,0},z),"invalid zoom accepted");

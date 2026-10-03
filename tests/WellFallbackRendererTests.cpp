@@ -81,6 +81,20 @@ int main() {
             }
             std::cout<<scale<<"x: visible="<<changed<<", water="<<water<<", stone="<<stone<<'\n';
         }
+        for (const int z:{1,2,4}) {
+            clear(renderer.get());
+            check(openemperor::draw_well_fallback(renderer.get(),{256,400},z,false,2) &&
+                SDL_FlushRenderer(renderer.get()),"2x2 Well fallback");
+            int visible=0;
+            for (int y=0;y<512;++y) for (int x=0;x<512;++x) if (pixel(canvas.get(),x,y)!=terrain) {
+                ++visible;
+                check(std::abs(x-256)<=48*z && y>=400-86*z && y<=400+4*z,
+                    "2x2 Well visual bounds");
+                if (y>=400-20*z) check(std::abs(x-256)/40.0+std::abs(y-(400-20*z))/20.0<=2*z+.1,
+                    "2x2 Well base outside logical footprint");
+            }
+            check(visible>800*z*z,"2x2 Well fallback did not scale with footprint");
+        }
         clear(renderer.get());
         const double nan=std::numeric_limits<double>::quiet_NaN();
         const double inf=std::numeric_limits<double>::infinity();

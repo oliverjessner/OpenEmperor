@@ -230,10 +230,10 @@ struct BuildingFootprint {
     int height=1;
     bool operator==(const BuildingFootprint&) const = default;
 };
-BuildingFootprint building_footprint(RulesProfile profile,Object kind);
-std::vector<Cell> building_footprint_cells(RulesProfile profile,Object kind,Cell origin);
-Cell building_front_cell(RulesProfile profile,Object kind,Cell origin);
-bool building_footprint_contains(RulesProfile profile,Object kind,Cell origin,Cell cell);
+BuildingFootprint building_footprint(RulesProfile profile,std::uint32_t rule_version,Object kind);
+std::vector<Cell> building_footprint_cells(RulesProfile profile,std::uint32_t rule_version,Object kind,Cell origin);
+Cell building_front_cell(RulesProfile profile,std::uint32_t rule_version,Object kind,Cell origin);
+bool building_footprint_contains(RulesProfile profile,std::uint32_t rule_version,Object kind,Cell origin,Cell cell);
 // Pure authored City-v13 geometry/scoring helpers. No road or map semantics.
 inline constexpr int desirability_radius=8;
 enum class BuildingId : std::uint32_t;

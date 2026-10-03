@@ -97,7 +97,7 @@ void validate_committed_pack(const fs::path& resource_root) {
     const auto roads=nlohmann::json::parse(road_stream);
     check(walkers.value("schema_version",0)==2 && walkers.value("mode","")=="curated_walker_preview" &&
           walkers.at("roles").size()==3,"walker compatibility schema changed");
-    check(buildings.value("schema_version",0)==1 && buildings.at("buildings").size()==11,
+    check(buildings.value("schema_version",0)==1 && buildings.at("buildings").size()==13,
           "building compatibility schema changed");
     check(roads.value("schema_version",0)==1 && roads.at("tiles").size()==16,
           "road compatibility schema changed");
@@ -105,7 +105,7 @@ void validate_committed_pack(const fs::path& resource_root) {
           walkers.at("roles").contains("household"),"unknown/missing walker role");
     const std::set<std::string> building_roles={"clay_source","pottery","warehouse","household",
         "farm","service_post","market","fire_watch",
-        "household_level_0","household_level_1","household_level_2"};
+        "household_level_0","household_level_1","household_level_2","well","health_post"};
     std::set<std::string> actual_buildings;
     for (const auto& [key,value]:buildings.at("buildings").items()) {
         (void)value;actual_buildings.insert(key);
@@ -119,23 +119,26 @@ void validate_committed_pack(const fs::path& resource_root) {
     const std::map<std::string,std::uint32_t> expected_buildings={{"clay_source",2789},
         {"pottery",2810},{"warehouse",637},{"household",1512},{"farm",2415},
         {"service_post",2046},{"market",645},{"fire_watch",383},
-        {"household_level_0",1512},{"household_level_1",1516},{"household_level_2",1520}};
+        {"household_level_0",1512},{"household_level_1",1516},{"household_level_2",1520},{"well",1559},{"health_post",1580}};
     const std::map<std::string,std::array<int,2>> expected_building_anchors={
         {"clay_source",{79,76}},{"pottery",{79,120}},
         {"warehouse",{79,116}},{"household",{79,79}},{"farm",{39,41}},
         {"service_post",{39,28}},{"market",{39,78}},{"fire_watch",{39,59}},
         {"household_level_0",{79,76}},{"household_level_1",{79,90}},
-        {"household_level_2",{79,114}}};
+        {"household_level_2",{79,114}},{"well",{79,112}},{"health_post",{79,116}}};
     for (const auto& [role,index]:expected_buildings) {
         const auto& item=buildings.at("buildings").at(role);
         check(item.at("image_index").get<std::uint32_t>()==index &&
               item.at("ground_anchor").get<std::array<int,2>>()==expected_building_anchors.at(role),
               "curated building record or anchor changed");
     }
-    const std::map<std::string,std::uint32_t> expected_roads={{"0x0",799},{"0x1",786},
-        {"0x2",782},{"0x3",790},{"0x4",786},{"0x5",786},{"0x6",791},
-        {"0x7",794},{"0x8",782},{"0x9",793},{"0xa",782},{"0xb",795},
-        {"0xc",792},{"0xd",796},{"0xe",797},{"0xf",798}};
+    for (const char* role:{"well","health_post"})
+        check(buildings.at("buildings").at(role).at("footprint_side")==2,
+            "built-in Safety roles lost their rule-aware 2x2 constraints");
+    const std::map<std::string,std::uint32_t> expected_roads={{"0x0",794},{"0x1",790},
+        {"0x2",791},{"0x3",786},{"0x4",792},{"0x5",782},{"0x6",787},
+        {"0x7",795},{"0x8",793},{"0x9",789},{"0xa",783},{"0xb",798},
+        {"0xc",788},{"0xd",797},{"0xe",796},{"0xf",799}};
     for (const auto& [mask,index]:expected_roads) {
         const auto& item=roads.at("tiles").at(mask);
         check(item.at("image_index").get<std::uint32_t>()==index &&
@@ -159,7 +162,7 @@ void validate_committed_pack(const fs::path& resource_root) {
     for (const auto* document:{&walkers,&buildings,&roads}) {
         reject_blob_keys(*document);validate_archive_entries(*document,archives);
     }
-    check(archives==75,"built-in profile archive entry count changed");
+    check(archives==77,"built-in profile archive entry count changed");
 }
 }
 

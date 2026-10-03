@@ -318,6 +318,16 @@ void SandboxView::set_building_visuals(const std::filesystem::path& manifest,
     if (!simulation::production_profile(rules_))
         throw std::runtime_error("Pottery visuals require a production sandbox profile");
     auto profile=assets::load_building_visual_profile(data_root_,manifest);
+    if (source!=VisualProfileSource::Builtin) {
+        const auto version=world_ ? world_->rule_version():initial_save_ ?
+            initial_save_->world.rule_version:simulation::current_rule_version(rules_);
+        for (const auto [role,kind]:{std::pair{assets::BuildingVisualRole::Well,simulation::Object::Well},
+                std::pair{assets::BuildingVisualRole::HealthPost,simulation::Object::HealthPost}})
+            if (const auto* entry=profile.find(role); entry && entry->footprint_side!=
+                simulation::building_footprint(rules_,version,kind).width)
+                throw std::runtime_error(std::string(assets::building_role_name(role))+
+                    " visual footprint differs from active rules");
+    }
     auto texture=std::make_unique<BuildingSprite>();
     texture->initialize(renderer_,profile);
     building_sprite_=std::move(texture);
@@ -337,8 +347,19 @@ SandboxView::BuildingDisplayStats SandboxView::building_display_stats() const {
     stats.placeholder_fallbacks=building_placeholder_fallbacks_;
     if (building_profile_)
         for (const auto role:assets::building_roles)
-            stats.configured_roles[assets::role_index(role)]=building_profile_->find(role)!=nullptr;
+            stats.configured_roles[assets::role_index(role)]=building_entry(role)!=nullptr;
     return stats;
+}
+const assets::BuildingVisualEntry* SandboxView::building_entry(assets::BuildingVisualRole role) const {
+    const auto* entry=building_profile_ ? building_profile_->find(role):nullptr;
+    if (!entry || !world_) return entry;
+    if (role==assets::BuildingVisualRole::Well || role==assets::BuildingVisualRole::HealthPost) {
+        const auto kind=role==assets::BuildingVisualRole::Well ? simulation::Object::Well:
+            simulation::Object::HealthPost;
+        if (entry->footprint_side!=simulation::building_footprint(rules_,world_->rule_version(),kind).width)
+            return nullptr;
+    }
+    return entry;
 }
 std::optional<assets::BuildingVisualRole> SandboxView::visual_role(simulation::Cell cell,
     simulation::Object object,bool placement_preview) const {
@@ -465,7 +486,7 @@ void SandboxView::place_demo() {
                     simulation::Object::Road;
                 const auto cells=kind==simulation::Object::Road ?
                     std::vector<simulation::Cell>{command.cell}:
-                    simulation::building_footprint_cells(rules_,kind,command.cell);
+                    simulation::building_footprint_cells(rules_,world_->rule_version(),kind,command.cell);
                 valid=std::all_of(cells.begin(),cells.end(),[&](simulation::Cell cell) {
                     return world_->buildable(cell) && world_->object_at(cell)==simulation::Object::Empty;
                 });
@@ -1469,7 +1490,7 @@ scene::Point SandboxView::world_for(simulation::Position cell) const {
 }
 scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
                                                   simulation::Object kind) const {
-    const auto front=simulation::building_front_cell(rules_,kind,origin);
+    const auto front=simulation::building_front_cell(rules_,world_->rule_version(),kind,origin);
     return world_for({static_cast<double>(front.x),static_cast<double>(front.y)});
 }
 bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,std::uint8_t b,bool fill,float alpha) {
@@ -1507,7 +1528,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         if (object!=simulation::Object::Road && owner) {
             const auto& building=world_->building(*owner);
             if (cell!=building.cell) continue;
-            visual_cell=simulation::building_front_cell(rules_,building.kind,building.cell);
+            visual_cell=simulation::building_front_cell(rules_,world_->rule_version(),building.kind,building.cell);
         }
         const auto ground=object==simulation::Object::Road ?
             world_for({static_cast<double>(visual_cell.x),static_cast<double>(visual_cell.y)}):
@@ -1566,7 +1587,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                bool placement_preview)->bool {
         const int x=cell.x,y=cell.y;
         const auto visual_cell=object==simulation::Object::Road ? cell:
-            simulation::building_front_cell(rules_,object,cell);
+            simulation::building_front_cell(rules_,world_->rule_version(),object,cell);
         const auto top=object==simulation::Object::Road ?
             world_for({static_cast<double>(visual_cell.x),static_cast<double>(visual_cell.y)}):
             building_visual_ground(cell,object);
@@ -1605,14 +1626,14 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             }
         } else {
             if (debug_open_) for (const auto footprint_cell:
-                simulation::building_footprint_cells(rules_,object,cell)) {
+                simulation::building_footprint_cells(rules_,world_->rule_version(),object,cell)) {
                 const auto logical=world_for({static_cast<double>(footprint_cell.x),
                                               static_cast<double>(footprint_cell.y)});
                 if (!draw_diamond({logical.x,logical.y-20},80,210,245,false)) return false;
             }
             const auto role=visual_role(cell,object,placement_preview);
             if (role && building_profile_) {
-                const auto* entry=building_profile_->find(*role);
+                const auto* entry=building_entry(*role);
                 if (entry && building_visuals_active() && building_sprite_) {
                     if (!building_sprite_->draw(center,camera_.zoom,*building_profile_,*entry,
                                                 placement_preview))
@@ -1621,12 +1642,14 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                     return draw_fire_overlay(cell,center,placement_preview) && draw_sickness(cell,center,placement_preview);
                 }
                 if (placement_preview && object!=simulation::Object::Well && object!=simulation::Object::HealthPost) return true;
-                ++building_placeholder_fallbacks_[assets::role_index(*role)];
+
             }
+            if (role && !placement_preview) ++building_placeholder_fallbacks_[assets::role_index(*role)];
+            const auto side=simulation::building_footprint(rules_,world_->rule_version(),object).width;
             if (object==simulation::Object::Well)
-                return draw_well_fallback(renderer_,center,camera_.zoom,placement_preview);
+                return draw_well_fallback(renderer_,center,camera_.zoom,placement_preview,side);
             if (object==simulation::Object::HealthPost)
-                return draw_health_post_fallback(renderer_,center,camera_.zoom,placement_preview) &&
+                return draw_health_post_fallback(renderer_,center,camera_.zoom,placement_preview,side) &&
                     draw_fire_overlay(cell,center,placement_preview);
             SDL_Color color=debug_open_ ? SDL_Color{255,105,100,255}:SDL_Color{137,101,85,255};
             if (object==simulation::Object::Workshop || object==simulation::Object::ClaySource)
@@ -1793,7 +1816,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             visual_role(*hovered_,object,true):std::nullopt;
         if (result.accepted && (object==simulation::Object::Well || object==simulation::Object::HealthPost ||
             (role && building_visuals_active() && building_sprite_ &&
-             building_profile_ && building_profile_->find(*role)))) {
+             building_profile_ && building_entry(*role)))) {
             const auto ground=building_visual_ground(*hovered_,object);
             instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxBuilding,
                                   std::numeric_limits<unsigned>::max()},*hovered_,object,
@@ -1879,7 +1902,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         for (const auto& b:world_->buildings()) if (b.placed && b.kind==simulation::Object::Household) {
             const auto score=world_->household_desirability(b.id);
             const auto color=housing_palette[static_cast<std::size_t>(simulation::desirability_level_cap(score))];
-            for (const auto cell:simulation::building_footprint_cells(rules_,b.kind,b.cell)) {
+            for (const auto cell:simulation::building_footprint_cells(rules_,world_->rule_version(),b.kind,b.cell)) {
                 const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
                 if (!draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true,color.a/255.0F)) return false;
             }
@@ -1897,7 +1920,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         bool ok=true;
         for (const auto& b:world_->buildings()) if (b.placed && b.kind==simulation::Object::Household) {
             const auto color=world_->household_has_water(b.id) ? SDL_Color{45,195,230,65}:SDL_Color{220,160,60,65};
-            for (const auto cell:simulation::building_footprint_cells(rules_,b.kind,b.cell)) {
+            for (const auto cell:simulation::building_footprint_cells(rules_,world_->rule_version(),b.kind,b.cell)) {
                 const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
                 ok=draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true,color.a/255.0F) && ok;
             }
@@ -1912,7 +1935,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         for (const auto& b:world_->buildings()) if (b.placed && b.kind==simulation::Object::Household) {
             const auto color=world_->household_sick(b.id) ? SDL_Color{196,90,70,65}:
                 world_->household_health_protected(b.id) ? SDL_Color{90,155,130,55}:SDL_Color{200,156,69,55};
-            for (const auto cell:simulation::building_footprint_cells(rules_,b.kind,b.cell)) {
+            for (const auto cell:simulation::building_footprint_cells(rules_,world_->rule_version(),b.kind,b.cell)) {
                 const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
                 ok=draw_diamond({top.x,top.y-20},color.r,color.g,color.b,true,color.a/255.0F) && ok;
             }
@@ -1928,7 +1951,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const auto owner=world_->building_owner_at(*selected_);
         if (owner) {
             const auto& building=world_->building(*owner);
-            for (const auto cell:simulation::building_footprint_cells(rules_,building.kind,
+            for (const auto cell:simulation::building_footprint_cells(rules_,world_->rule_version(),building.kind,
                                                                        building.cell)) {
                 const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
                 if (!draw_diamond({top.x,top.y-20},255,255,255,false)) return false;
@@ -1960,8 +1983,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
             visual_role(*hovered_,object,true):std::nullopt;
-        const auto* entry=role && building_profile_ ? building_profile_->find(*role):nullptr;
-        for (const auto cell:simulation::building_footprint_cells(rules_,object,*hovered_)) {
+        const auto* entry=role && building_profile_ ? building_entry(*role):nullptr;
+        for (const auto cell:simulation::building_footprint_cells(rules_,world_->rule_version(),object,*hovered_)) {
             const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
             const bool outline=result.accepted && (object==simulation::Object::Well || object==simulation::Object::HealthPost ||
                 (entry && building_visuals_active() && building_sprite_));
@@ -2269,15 +2292,15 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             "Protection active - "+std::to_string(world_->fire_protection_remaining(*id))+" ticks":
             "Unprotected");
     }
-    const auto footprint=simulation::building_footprint(rules_,b.kind);
-    const auto front=simulation::building_front_cell(rules_,b.kind,b.cell);
+    const auto footprint=simulation::building_footprint(rules_,world_->rule_version(),b.kind);
+    const auto front=simulation::building_front_cell(rules_,world_->rule_version(),b.kind,b.cell);
     lines.push_back("Footprint "+std::to_string(footprint.width)+"x"+
                     std::to_string(footprint.height));
     lines.push_back("Origin "+std::to_string(b.cell.x)+", "+std::to_string(b.cell.y));
     lines.push_back("Front "+std::to_string(front.x)+", "+std::to_string(front.y));
     if (debug_open_) {
         std::string occupied="Occupied";
-        for (const auto cell:simulation::building_footprint_cells(rules_,b.kind,b.cell))
+        for (const auto cell:simulation::building_footprint_cells(rules_,world_->rule_version(),b.kind,b.cell))
             occupied+=" "+std::to_string(cell.x)+","+std::to_string(cell.y);
         lines.push_back(std::move(occupied));
         const auto entrances=world_->building_entrances(*id);
@@ -2439,7 +2462,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     if (const auto role=visual_role(b.cell,b.kind)) {
         lines.push_back(std::string("Building visuals ")+(building_enabled_ ? "ON":"OFF"));
         lines.push_back(std::string("Visual role ")+assets::building_role_name(*role));
-        const auto* entry=building_profile_ ? building_profile_->find(*role):nullptr;
+        const auto* entry=building_profile_ ? building_entry(*role):nullptr;
         lines.push_back(std::string("Visual configured ")+(entry ? "yes":"no"));
         if (entry) {
             const auto& image=building_profile_->unique_images.at(entry->image_index);

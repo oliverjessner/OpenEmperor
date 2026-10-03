@@ -152,7 +152,7 @@ void progression() {
     check(w.ticks()>before && !w.household_sick(kind(w,sim::Object::Household)),"first visit/early illness");
     check(w.courier(c).cargo==0 && w.courier(c).reserved==0 && w.courier(c).good==sim::Good::Goods &&
         sim::fire_eligible(sim::Object::HealthPost) && sim::desirability_impact(sim::Object::HealthPost)==0 &&
-        w.workforce_required(p)==2 && sim::building_footprint(w.profile(),sim::Object::HealthPost)==sim::BuildingFootprint{1,1},"Health Post authority");
+        w.workforce_required(p)==2 && sim::building_footprint(w.profile(),w.rule_version(),sim::Object::HealthPost)==sim::BuildingFootprint{1,1},"Health Post authority");
     std::cout<<"paid progression: first_tax="<<tax<<" well="<<well_tick<<" health_post="<<purchase<<" first_visit="<<w.ticks()<<'\n';
 }
 void visits_targets_and_roads() {

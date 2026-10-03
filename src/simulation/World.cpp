@@ -121,15 +121,17 @@ bool courier_can_target(CourierRole role,const BuildingState& target) {
         fire_eligible(target.kind):target.kind==courier_target_kind(role));
 }
 
-BuildingFootprint building_footprint(RulesProfile profile,Object kind) {
+BuildingFootprint building_footprint(RulesProfile profile,std::uint32_t rule_version,Object kind) {
+    if (profile==RulesProfile::CityV16 && rule_version==2 &&
+        (kind==Object::Well || kind==Object::HealthPost)) return {2,2};
     if (scalable(profile) &&
         (kind==Object::ClaySource || kind==Object::Pottery || kind==Object::Warehouse ||
          kind==Object::Household)) return {2,2};
     return {1,1};
 }
 
-std::vector<Cell> building_footprint_cells(RulesProfile profile,Object kind,Cell origin) {
-    const auto footprint=building_footprint(profile,kind);
+std::vector<Cell> building_footprint_cells(RulesProfile profile,std::uint32_t rule_version,Object kind,Cell origin) {
+    const auto footprint=building_footprint(profile,rule_version,kind);
     std::vector<Cell> cells;
     cells.reserve(static_cast<std::size_t>(footprint.width*footprint.height));
     for (int y=0;y<footprint.height;++y)
@@ -138,13 +140,13 @@ std::vector<Cell> building_footprint_cells(RulesProfile profile,Object kind,Cell
     return cells;
 }
 
-Cell building_front_cell(RulesProfile profile,Object kind,Cell origin) {
-    const auto footprint=building_footprint(profile,kind);
+Cell building_front_cell(RulesProfile profile,std::uint32_t rule_version,Object kind,Cell origin) {
+    const auto footprint=building_footprint(profile,rule_version,kind);
     return {origin.x+footprint.width-1,origin.y+footprint.height-1};
 }
 
-bool building_footprint_contains(RulesProfile profile,Object kind,Cell origin,Cell cell) {
-    const auto footprint=building_footprint(profile,kind);
+bool building_footprint_contains(RulesProfile profile,std::uint32_t rule_version,Object kind,Cell origin,Cell cell) {
+    const auto footprint=building_footprint(profile,rule_version,kind);
     return cell.x>=origin.x && cell.y>=origin.y &&
         cell.x<origin.x+footprint.width && cell.y<origin.y+footprint.height;
 }
@@ -236,12 +238,13 @@ std::uint32_t current_rule_version(RulesProfile profile) {
     // Keep new games on v3 until the native v4 replanning acceptance is complete.
     // Explicit v4 restores and confirmed copy upgrades remain supported.
     if (profile==RulesProfile::CityV11) return 3;
-    return profile==RulesProfile::ProductionV2 ? 2U:1U;
+    return profile==RulesProfile::ProductionV2 || profile==RulesProfile::CityV16 ? 2U:1U;
 }
 
 bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::ProductionV2) return version==2;
     if (profile==RulesProfile::CityV11) return version>=1 && version<=4;
+    if (profile==RulesProfile::CityV16) return version==1 || version==2;
     if (fire_profile(profile)) return version==1;
     return version==1;
 }
@@ -259,6 +262,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::CityV11 && version==2) return city_v11_v2;
     if (profile==RulesProfile::CityV11 && version==3) return city_v11_v3;
     if (profile==RulesProfile::CityV11 && version==4) return city_v11_v4;
+    static constexpr ProfileRules city_v16_v2{2,32,64,32,5,800};
+    if (profile==RulesProfile::CityV16 && version==2) return city_v16_v2;
     static constexpr ProfileRules city_v12{1,32,64,32,5,800};
     if (fire_profile(profile)) return city_v12;
     return legacy;
@@ -886,7 +891,7 @@ CommandResult World::validate(Command command) const {
     }
     if (scalable(profile_)) {
         const auto kind=placed_object(command.type);
-        if (kind) for (const auto cell:building_footprint_cells(profile_,*kind,command.cell)) {
+        if (kind) for (const auto cell:building_footprint_cells(profile_,rule_version_,*kind,command.cell)) {
             if (!in_bounds(cell)) { result.reason="Building footprint outside sandbox grid"; return result; }
             if (!buildable(cell)) { result.reason="Building footprint is not sandbox-buildable"; return result; }
             if (object_at(cell)!=Object::Empty) {
@@ -1108,7 +1113,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after) {
             b.kind==Object::Well ? CommandType::PlaceWell:
             b.kind==Object::HealthPost ? CommandType::PlaceHealthPost:CommandType::PlaceMarket;
         demolition_history_.construction_spent+=static_cast<std::uint64_t>(construction_cost(type));
-        for (const auto cell:building_footprint_cells(profile_,b.kind,b.cell)) {
+        for (const auto cell:building_footprint_cells(profile_,rule_version_,b.kind,b.cell)) {
             objects_[index(cell)]=Object::Empty; owners_[index(cell)]=0;
         }
         std::erase_if(couriers_,[&](const CourierState& c) { return c.owner==id; });
@@ -1131,7 +1136,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after) {
     const auto add_v10_building=[&](Object kind)->BuildingState& {
         const auto id=static_cast<BuildingId>(next_building_id_++);
         buildings_.push_back(BuildingState{id,kind,command.cell,true});
-        for (const auto cell:building_footprint_cells(profile_,kind,command.cell)) {
+        for (const auto cell:building_footprint_cells(profile_,rule_version_,kind,command.cell)) {
             objects_[index(cell)]=kind;
             owners_[index(cell)]=static_cast<std::uint32_t>(id);
         }
@@ -1356,7 +1361,7 @@ std::vector<BuildingEntrance> World::building_entrances(BuildingId id) const {
     const auto& value=building(id);
     std::vector<BuildingEntrance> result;
     if (!value.placed) return result;
-    for (const auto building_cell:building_footprint_cells(profile_,value.kind,value.cell))
+    for (const auto building_cell:building_footprint_cells(profile_,rule_version_,value.kind,value.cell))
         for (const auto delta:neighbors) {
             const auto road_cell=add(building_cell,delta);
             if (object_at(road_cell)==Object::Road)
@@ -2080,10 +2085,10 @@ bool World::valid_return_path(const CourierState& courier) const {
     const auto& source=building(courier.owner);
     const auto& target=building(courier.target);
     const bool source_endpoint=scalable(profile_) ?
-        building_footprint_contains(profile_,source.kind,source.cell,courier.path.front()):
+        building_footprint_contains(profile_,rule_version_,source.kind,source.cell,courier.path.front()):
         courier.path.front()==source.cell;
     const bool target_endpoint=scalable(profile_) ?
-        building_footprint_contains(profile_,target.kind,target.cell,courier.path.back()):
+        building_footprint_contains(profile_,rule_version_,target.kind,target.cell,courier.path.back()):
         courier.path.back()==target.cell;
     if (courier.path.size()<3 || !source_endpoint || !target_endpoint) return false;
     for (std::size_t i=1;i+1<courier.path.size();++i)
@@ -2227,7 +2232,7 @@ std::optional<Position> World::courier_position(CourierId id) const {
     if (c.phase==CourierPhase::IdleAtWorkshop)
     {
         const auto cell=scalable(profile_) ?
-            building_front_cell(profile_,source.kind,source.cell):source.cell;
+            building_front_cell(profile_,rule_version_,source.kind,source.cell):source.cell;
         return Position{static_cast<double>(cell.x),static_cast<double>(cell.y)};
     }
     if (c.route_pending && c.edge_progress==0)
@@ -2372,7 +2377,7 @@ bool World::industry_balance_valid() const {
             if (!b.placed || static_cast<std::uint32_t>(b.id)==0 ||
                 (i && !(buildings_[i-1].id<b.id)) || b.placed_tick>ticks_ ||
                 b.reserved_incoming<0 || b.reserved_food_incoming<0) return false;
-            for (const auto cell:building_footprint_cells(profile_,b.kind,b.cell))
+            for (const auto cell:building_footprint_cells(profile_,rule_version_,b.kind,b.cell))
                 if (!in_bounds(cell) || object_at(cell)!=b.kind ||
                     building_owner_at(cell)!=b.id) return false;
             pottery_reservations.emplace_back(b.id,0); food_reservations.emplace_back(b.id,0);
@@ -2880,7 +2885,7 @@ bool World::navigation_valid() const {
                 (c.edge_progress>0 && c.route_checked_revision)) return false;
         } else if (c.path.size()<2 || c.path_vertex+1>=c.path.size() ||
                    (scalable(profile_) ?
-                    !building_footprint_contains(profile_,destination.kind,destination.cell,
+                    !building_footprint_contains(profile_,rule_version_,destination.kind,destination.cell,
                                                  c.path.back()):
                     c.path.back()!=destination.cell) || c.route_checked_revision) return false;
         std::vector<std::uint8_t> visited(objects_.size(),0);
@@ -2893,15 +2898,15 @@ bool World::navigation_valid() const {
             const auto kind=object_at(point);
             if (i==c.path_vertex) {
                 if (kind!=Object::Road && (scalable(profile_) ?
-                    !building_footprint_contains(profile_,source.kind,source.cell,point):
+                    !building_footprint_contains(profile_,rule_version_,source.kind,source.cell,point):
                     point!=source.cell)) return false;
             } else if (c.route_pending) {
                 if (kind!=Object::Road && (scalable(profile_) ?
-                    !building_footprint_contains(profile_,destination.kind,destination.cell,point):
+                    !building_footprint_contains(profile_,rule_version_,destination.kind,destination.cell,point):
                     point!=destination.cell)) return false;
             } else if (i+1==c.path.size()) {
                 if (scalable(profile_) ?
-                    !building_footprint_contains(profile_,destination.kind,destination.cell,point):
+                    !building_footprint_contains(profile_,rule_version_,destination.kind,destination.cell,point):
                     point!=destination.cell) return false;
             } else if (kind!=Object::Road) return false;
         }
@@ -3144,7 +3149,7 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
                      (!b.operating_enabled || b.workforce_priority!=WorkforcePriority::Normal)):
                     (!b.operating_enabled || b.workforce_priority!=WorkforcePriority::Normal)))
                 fail("invalid building operation controls");
-            for (const auto cell:building_footprint_cells(s.profile,b.kind,b.cell))
+            for (const auto cell:building_footprint_cells(s.profile,s.rule_version,b.kind,b.cell))
                 put(cell,b.kind,b.id);
             w.buildings_.push_back({b.id,b.kind,b.cell,b.placed,b.input_clay,b.output,
                 b.pottery_stock,b.reserved_incoming,b.progress,b.active_recipe_clay,
@@ -3209,9 +3214,9 @@ World World::restore(const WorldSnapshot& s,std::vector<std::uint8_t> mask) {
             if (c.phase!=CourierPhase::IdleAtWorkshop && !c.route_pending && !c.path.empty()) {
                 const auto& route_source=c.phase==CourierPhase::ToWarehouse ? owner:target;
                 const auto& route_target=c.phase==CourierPhase::ToWarehouse ? target:owner;
-                if (!building_footprint_contains(s.profile,route_source.kind,route_source.cell,
+                if (!building_footprint_contains(s.profile,s.rule_version,route_source.kind,route_source.cell,
                                                  c.path.front()) ||
-                    !building_footprint_contains(s.profile,route_target.kind,route_target.cell,
+                    !building_footprint_contains(s.profile,s.rule_version,route_target.kind,route_target.cell,
                                                  c.path.back()))
                     fail("invalid City-v10 route footprint endpoints");
             }

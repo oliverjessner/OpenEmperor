@@ -29,19 +29,19 @@ void put(sim::World& world,sim::CommandType type,int x,int y) {
 void road(sim::World& world,int x,int y) { put(world,sim::CommandType::PlaceRoad,x,y); }
 
 void check_footprints_and_entrances() {
-    check(sim::building_footprint(sim::RulesProfile::CityV10,sim::Object::Pottery)==
+    check(sim::building_footprint(sim::RulesProfile::CityV10, 1,sim::Object::Pottery)==
               sim::BuildingFootprint{2,2} &&
-          sim::building_footprint(sim::RulesProfile::CityV10,sim::Object::Farm)==
+          sim::building_footprint(sim::RulesProfile::CityV10, 1,sim::Object::Farm)==
               sim::BuildingFootprint{1,1} &&
-          sim::building_footprint(sim::RulesProfile::CityV9,sim::Object::Pottery)==
+          sim::building_footprint(sim::RulesProfile::CityV9, 1,sim::Object::Pottery)==
               sim::BuildingFootprint{1,1},"building footprint profile rules differ");
-    check(sim::building_front_cell(sim::RulesProfile::CityV10,sim::Object::Pottery,{2,3})==
+    check(sim::building_front_cell(sim::RulesProfile::CityV10, 1,sim::Object::Pottery,{2,3})==
               sim::Cell{3,4},"2x2 front-cell convention differs");
 
     sim::World occupied(12,8,std::vector<std::uint8_t>(96,1),sim::RulesProfile::CityV10);
     put(occupied,sim::CommandType::PlacePottery,2,2);
     const auto pottery=occupied.buildings().front().id;
-    for (const auto cell:sim::building_footprint_cells(sim::RulesProfile::CityV10,
+    for (const auto cell:sim::building_footprint_cells(sim::RulesProfile::CityV10, 1,
                                                        sim::Object::Pottery,{2,2}))
         check(occupied.object_at(cell)==sim::Object::Pottery &&
               occupied.building_owner_at(cell)==pottery,

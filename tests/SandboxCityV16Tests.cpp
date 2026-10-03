@@ -24,8 +24,8 @@ template<class F> void rejects(F action,const char* message) {
     try { action(); } catch (const std::exception&) { return; }
     throw std::runtime_error(message);
 }
-sim::World fresh(sim::RulesProfile profile=sim::RulesProfile::CityV16) {
-    return {width,height,mask(),profile};
+sim::World fresh(sim::RulesProfile profile=sim::RulesProfile::CityV16,std::uint32_t version=1) {
+    return {width,height,mask(),profile,version};
 }
 sim::BuildingId put(sim::World& w,sim::CommandType type,sim::Cell cell) {
     const auto r=w.execute({type,cell});
@@ -62,8 +62,8 @@ template<class P> void until(sim::World& w,P done,int budget=3000) {
     while (budget-- && !done()) w.tick();
     check(done(),"state wait timed out at "+std::to_string(w.ticks()));invariants(w);
 }
-sim::World starter(sim::RulesProfile profile=sim::RulesProfile::CityV16) {
-    auto w=fresh(profile);
+sim::World starter(sim::RulesProfile profile=sim::RulesProfile::CityV16,std::uint32_t version=1) {
+    auto w=fresh(profile,version);
     put(w,sim::CommandType::PlaceClaySource,{0,2});
     put(w,sim::CommandType::PlacePottery,{0,5});
     put(w,sim::CommandType::PlaceWarehouse,{3,2});
@@ -174,9 +174,9 @@ void starter_order_and_regression() {
     check(oldwell.treasury()==1240 && oldwell.maintenance_spent_total()==0 && oldwell.current_maintenance_rate()==0,"City14 maintenance backport");
     check(!w.maintenance_due_in(kind(w,sim::Object::Household)) && !w.maintenance_due_in(static_cast<sim::BuildingId>(999)),"House/missing due");
 }
-sim::World healthy_starter() {
-    auto w=starter();until(w,[&]{return w.treasury()>=60;});const auto wt=w.ticks();
-    put(w,sim::CommandType::PlaceWell,{8,1});
+sim::World healthy_starter(std::uint32_t version=1) {
+    auto w=starter(sim::RulesProfile::CityV16,version);until(w,[&]{return w.treasury()>=60;});const auto wt=w.ticks();
+    put(w,sim::CommandType::PlaceWell,{8,version==2 ? 0:1});
     until(w,[&]{return w.treasury()>=120 && w.workforce_supply()>=26;},6000);
     const auto ht=w.ticks();const auto post=put(w,sim::CommandType::PlaceHealthPost,{12,5});
     operation(w,post,true);w.execute(sim::set_building_workforce_priority(post,sim::WorkforcePriority::High));
@@ -303,13 +303,13 @@ void overflow() {
     // At the exact signed lower boundary a representable full charge succeeds.
     seed(w,[](auto& s){s.treasury=INT64_MIN+2;s.maintenance_spent_total-=2;});w.tick();check(w.treasury()==INT64_MIN,"checked lower boundary charge");
 }
-void determinism() {
-    auto a=starter(),b=starter();sim::BuildingId well{},post{},extra{};
+void determinism(std::uint32_t version=1) {
+    auto a=starter(sim::RulesProfile::CityV16,version),b=starter(sim::RulesProfile::CityV16,version);sim::BuildingId well{},post{},extra{};
     bool debt=false,repaid=false,burned=false,sick=false,treated=false;
     for(int i=0;i<20000;++i) {
         const auto old_well=well,old_extra=extra;
         for(auto* w:{&a,&b}) {
-            if(i==800)well=put(*w,sim::CommandType::PlaceWell,{8,1});
+            if(i==800)well=put(*w,sim::CommandType::PlaceWell,{8,version==2 ? 0:1});
             if(i==1200){post=put(*w,sim::CommandType::PlaceHealthPost,{12,5});w->execute(sim::set_building_workforce_priority(post,sim::WorkforcePriority::High));}
             if(i==4001){extra=put(*w,sim::CommandType::PlacePottery,{65,10});operation(*w,extra,false);
                 for(int x:{40,43,46,49})put(*w,sim::CommandType::PlaceHousehold,{x,10});}
@@ -322,7 +322,7 @@ void determinism() {
             if(i==6501)operation(*w,post,false);
             if(i==14501)operation(*w,post,true);
             if(i==9001 && w->demolition_status(old_extra).allowed){check(w->execute(sim::demolish_building(old_extra)).accepted,"20k demolition");extra=put(*w,sim::CommandType::PlacePottery,{68,10});operation(*w,extra,false);}
-            if(i==12001){check(w->execute(sim::demolish_building(old_well)).accepted,"20k Well demolition");well=put(*w,sim::CommandType::PlaceWell,{8,2});}
+            if(i==12001){check(w->execute(sim::demolish_building(old_well)).accepted,"20k Well demolition");well=put(*w,sim::CommandType::PlaceWell,{8,version==2 ? 0:2});}
         }
         a.tick();b.tick();check(a.snapshot()==b.snapshot(),"20k snapshots diverged");
         debt=debt || a.treasury()<0;if(debt && a.treasury()>0)repaid=true;
@@ -335,8 +335,8 @@ void determinism() {
     check(debt && repaid && burned && sick && treated,"20k scenario coverage");
     std::cout<<"20,000 deterministic ticks, phased paid buildings, debt/recovery, Fire/Health/Water and demolition\n";
 }
-void endurance() {
-    Temp t;auto w=healthy_starter();advance(w,16000);sim::BuildingId remote{};
+void endurance(std::uint32_t version=1) {
+    Temp t;auto w=healthy_starter(version);advance(w,16000);sim::BuildingId remote{};
     int row=0;
     for(const auto& [type,object,limit]:types) {
         const auto count=static_cast<std::size_t>(std::ranges::count_if(w.buildings(),[&](const auto& b){return b.kind==object;}));
@@ -387,10 +387,86 @@ void endurance() {
     check(w.ticks()==start_tick+100000 && debt && repaid && fire && sick && treated && replaced && checkpoints==20,"100k scenario coverage");
     std::cout<<"100,000 ticks,46 buildings/26 couriers,168/400t, phased bills,debt/recovery,demolition/rebuild,Fire/Health/Water,20 save/autosave/recovery roundtrips; funds "<<w.treasury()<<", upkeep "<<w.maintenance_spent_total()<<'\n';
 }
+void geometry() {
+    check(sim::current_rule_version(sim::RulesProfile::CityV16)==2 &&
+        sim::rule_version_supported(sim::RulesProfile::CityV16,1) &&
+        sim::rule_version_supported(sim::RulesProfile::CityV16,2) &&
+        !sim::rule_version_supported(sim::RulesProfile::CityV16,3),"rule2 support");
+    Temp t;
+    for (const auto profile:{sim::RulesProfile::CityV14,sim::RulesProfile::CityV15,sim::RulesProfile::CityV16})
+        for (const auto kind:{sim::Object::Well,sim::Object::HealthPost})
+            check(sim::building_footprint(profile,1,kind)==sim::BuildingFootprint{1,1},"legacy safety geometry");
+    for (const auto version:{1U,2U}) {
+        auto w=fresh(sim::RulesProfile::CityV16,version);
+        const auto home=put(w,sim::CommandType::PlaceHousehold,{2,2});
+        const auto well=put(w,sim::CommandType::PlaceWell,{8,2});
+        const auto post=put(w,sim::CommandType::PlaceHealthPost,{12,2});
+        const int side=version==2 ? 2:1;
+        for (const auto id:{well,post}) {
+            const auto& b=w.building(id);
+            check(sim::building_footprint(w.profile(),w.rule_version(),b.kind)==sim::BuildingFootprint{side,side},"active foundation");
+            for (int y=0;y<2;++y) for (int x=0;x<2;++x)
+                check(w.building_owner_at({b.cell.x+x,b.cell.y+y})==
+                    (x<side && y<side ? std::optional{id}:std::nullopt),"all-cell picking/occupancy");
+            check(sim::building_front_cell(w.profile(),version,b.kind,b.cell)==
+                sim::Cell{b.cell.x+side-1,b.cell.y+side-1},"front-cell depth");
+        }
+        check(w.household_has_water(home),"minimum footprint water distance5");
+        auto snapshot=w.snapshot();auto moved=snapshot;
+        moved.buildings[1].cell={9,2};auto dry=sim::World::restore(moved,mask());
+        check(!dry.household_has_water(home),"minimum footprint water distance6");
+        moved.buildings[1].cell={2,9};
+        auto boundary=sim::World::restore(moved,mask());
+        check(!boundary.household_has_water(home),"water uses actual footprint, not an origin correction");
+        moved.buildings[1].cell={2,8};
+        boundary=sim::World::restore(moved,mask());
+        check(boundary.household_has_water(home),"water radius includes footprint boundary");
+        if (version==2) {
+            auto overlap=snapshot;overlap.buildings[2].cell={9,2};
+            rejects([&]{sim::World::restore(overlap,mask());},"restore admitted overlap in additional occupied cell");
+            check(!w.execute({sim::CommandType::PlaceRoad,{9,3}}).accepted,"hidden occupied cell buildable");
+            auto blocked=mask();blocked[3*width+9]=0;
+            rejects([&]{sim::World::restore(snapshot,blocked);},"nonbuildable fourth cell restored");
+        }
+        roundtrip(t,w);
+        openemperor::AutosaveController autosave(t.root/("prefs-"+std::to_string(version)),t.root/"data",true);
+        check(autosave.begin(document(t,w),mask()).kind==openemperor::AutosaveResult::Kind::Saved,"rule-aware autosave");
+        const auto path=autosave.store().catalog().histories.at(0).entries.front().path;
+        check(save::restore_save(save::read_save(path),t.root/"data",mask()).snapshot()==snapshot,"recovery changed rule/geometry");
+        for (const auto id:{well,post}) {
+            const auto b=w.building(id);const auto funds=w.treasury();
+            check(w.execute(sim::demolish_building(id)).accepted && w.treasury()==funds,"safety demolition/refund");
+            for (const auto cell:sim::building_footprint_cells(w.profile(),version,b.kind,b.cell))
+                check(!w.building_owner_at(cell) && w.object_at(cell)==sim::Object::Empty,"demolition footprint not freed");
+        }
+        invariants(w);
+        auto extra_row=fresh(sim::RulesProfile::CityV16,version);
+        const auto far=put(extra_row,sim::CommandType::PlaceHousehold,{2,8});
+        put(extra_row,sim::CommandType::PlaceWell,{2,2});
+        check(extra_row.household_has_water(far)==(version==2),"2x2 Well extra row must affect Manhattan coverage");
+    }
+    auto routed=fresh(sim::RulesProfile::CityV16,2);
+    const auto home=put(routed,sim::CommandType::PlaceHousehold,{2,2});
+    const auto post=put(routed,sim::CommandType::PlaceHealthPost,{7,2});
+    for (int x=3;x<=9;++x) put(routed,sim::CommandType::PlaceRoad,{x,5});
+    for (const auto c:{sim::Cell{3,4},sim::Cell{9,3},sim::Cell{9,4}})put(routed,sim::CommandType::PlaceRoad,c);
+    check(routed.building_entrances(post)==std::vector<sim::BuildingEntrance>{{{9,3},{8,3}}},"far perimeter entrance");
+    routed.tick();bool saw_path=false;
+    for (const auto& c:routed.couriers()) if (c.role==sim::CourierRole::HealthWorker) {
+        check(!c.path.empty() && c.path.front()==sim::Cell{8,3},"HealthWorker did not use normal 2x2 entrance");
+        saw_path=true;
+    }
+    check(saw_path,"HealthWorker missing");
+    until(routed,[&]{return routed.household_health_protected(home);});
+    roundtrip(t,routed);
+    std::cout<<"rule1/rule2 footprints, occupancy, distance, perimeter arrival, demolition, schema18 and recovery passed\n";
+}
 } // namespace
 int main(int argc,char* argv[]) {
     try {const std::string mode=argc>1 ? argv[1]:"base";
         if(mode=="base"){billing();starter_order_and_regression();paid_debt_commands();overflow();}
+        else if(mode=="geometry")geometry();
+        else if(mode=="determinism-v2")determinism(2);else if(mode=="endurance-v2")endurance(2);
         else if(mode=="persistence")persistence();else if(mode=="balance")balance();
         else if(mode=="determinism")determinism();else if(mode=="endurance")endurance();
         else throw std::invalid_argument("unknown mode");return 0;
