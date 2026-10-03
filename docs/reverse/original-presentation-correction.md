@@ -81,7 +81,7 @@ The wider search examined **875** matching static 78×40 foundations across all 
 
 New City-v16 Worlds use **rule 2**; only Well and HealthPost change from 1×1 to 2×2. Schema **18** retains the exact existing fields and stores either version. City-v16 rule 1 and City-v14/15 retain their original one-cell semantics, with no migration, upgrade or reflow. A schema-1 optional `footprint_side` of 1 or 2 constrains Well/HealthPost records; absence preserves the old strict one-cell contract. First decode and deduplicated reuse enforce the declared Emperor foundation. Active rules filter mismatched built-in entries; mismatched explicit custom profiles fail visibly before texture publication. All configured entries load eagerly and share physical images/textures, while preserving independent anchors.
 
-The new Xia scene was built by normal paid commands and simulation ticks: Well at tick 800, staffed Herbalist after tick 1200, then an ordinary fifth supplied House and a fresh dry House. At tick 4200 it has simultaneous effective stages 0/1/2, original Well/Herbalist, Market, Farm, FireWatch, ServicePost and industry. Normal F1-off Metal captures at 1×/2×/4× show coherent connected roads and matching foundations. The exact six-file pack supplies **13 roles / 12 textures**, with **zero Well/HealthPost fallbacks** and zero road fallbacks. Unknown packs and legacy rules retain authored fallbacks; in rule 2 their mesh scale/center derives from the active footprint and the same front-cell ground.
+The new Xia scene was built by normal paid commands and simulation ticks: Well at tick 800, staffed Herbalist after tick 1200, then an ordinary fifth supplied House and a fresh dry House. At tick 4200 it has simultaneous effective stages 0/1/2, original Well/Herbalist, Market, Farm, FireWatch, ServicePost and industry. **Road acceptance FAILED / superseded by real user playtest:** the earlier normal F1-off Metal captures at 1×/2×/4× were incorrectly accepted as connected. The real City-v16 playtest exposes visible grass strips between adjacent roads. The asset registration and Well/Herbalist findings remain valid; road continuity requires a separate correction. The exact six-file pack supplies **13 roles / 12 textures**, with **zero Well/HealthPost fallbacks** and zero road fallbacks. Unknown packs and legacy rules retain authored fallbacks; in rule 2 their mesh scale/center derives from the active footprint and the same front-cell ground.
 
 A separate ignored runner used the real road profile, shared `RoadSpriteSet`, paid synthetic World roads and ordinary road-mask queries for all 16 neighborhoods and long/L/T/cross/5×5 compositions at 1×/2×/4×. No selected mask fell back; source pixels were never transformed beyond ordinary nearest-neighbor scene zoom. Synthetic committed tests cover the same loader/geometry/render contracts without original bytes. Actual native keyboard zoom review is distinguished from scripted scene construction/captures and automated all-cell picking; broader mouse-driven play acceptance is not inferred from it.
 
@@ -89,3 +89,63 @@ Validation commands and final results are recorded in [City-v16](../city-v16.md#
 
 
 Final regression: Debug, Release and ASan/UBSan **82/82 each**, including both generations' 20k/100k scenarios. Packaging passed its independent Release 82/82 and relocated/signed resource checks. Final-bundle native F1/Z review loaded the paid rule-2 scene and displayed the recognized pack and original sprites. Existing native rule-1 saves at ticks 399/400/7842 retain exact snapshots and one-cell authority. All seven source-file SHA-256 values were rechecked unchanged. Detailed timing, package hash and native/synthetic distinctions are in the linked City-v16 validation record.
+
+## Road continuity follow-up
+
+2026-10-03; starting HEAD `6346c30e32aaa5ce606c97fafd7a8cf2ab2999a0`, initially clean. The connected-road acceptance above is **FAILED / superseded by real user playtest**. Well 1559, Herbalist 1580 and City-v16 rule-2 2×2 authority are frozen. This follow-up adds only road presentation and read-only research. All seven previously recorded source fingerprints were rechecked unchanged. Original disassembly, payloads, decoded pixels, contact reports, variants and captures remain under ignored `.local/road-continuity/`.
+
+### Four causes distinguished
+
+| Hypothesis | Evidence and result |
+|---|---|
+| A: mask/orientation selection | All 16 configured records decode. The 782/783 curb motifs follow y/x respectively in the fixed projection. Four original-column mappings were rendered on the same eight-cell roads: 0/2 match these straight axes, 1/3 make transverse curb bands. All columns have complete bases and isolated contacts; swapping columns cannot cure grass overpainting. Keep column 0. |
+| B: anchor/projection | Original integer map setup and raster geometry corroborate 80-wide rows and 20-high half rows, not a 39-wide storage step. Our 40/20 diagonal steps and `[39,20]` anchor give zero transparent gap in all 256 reciprocal pair tests at 1×. Fractional screen origins separately caused tiny nearest-sampling cracks at integer magnification in the software renderer; integer alignment of the whole replacement raster removes them. No width/anchor/global projection change. |
+| C: extra underlay/composition | Every basic record already has all 1,600 opaque base pixels and its beige paving core. No independent road-base/underlay record was identified. The actual defect is retaining the old grass **and** drawing a complete road for the same cell. Replacing the old singleton graphic removes the disconnecting grass strips. |
+| D: original modification of selected graphics | Refresh stores a selected graphic ID, and a bounded post-selection branch can replace it with group `0x623` after neighboring raw-terrain comparisons. This is a different selected cell graphic, not edge-pixel synthesis or an additional base draw. Optional Omega detail belongs to that selected image. Special terrain transitions remain unimplemented; no evidence supports stretching or generated edges. |
+
+### Refresh, map draw and projection observations
+
+The previous phrase “road draw at `0x4b710c`” was imprecise: this is a **refresh/selection/store** path. Call order is style classification at `0x4b70d7` → `0x4bdef0`; style 1 table selection at `0x4b7113` → `0x4bbdc0` using table `0x84aef0`; neighbor normalization at `0x4b711b` → `0x4bc120`; group resolution at `0x4b712a` → `0x408170` for `0x61e`; selected offsets added; **one cell graphic written at `0x4b7145` to the `0xfe9880` array**. The matcher publishes selected offsets; `0x4bc120` normalizes neighbor state, rather than drawing or adding a second surface. Post-selection call `0x4b7190` → `0x4b6e20` can write a replacement group-`0x623` graphic at `0x4b6f3a`; its adjacent raw terrain comparisons include exact `0x80` and `4`. These observations do not expand sandbox terrain authority.
+
+The normal map draw helper at `0x46b1c0` reads this selected cell graphic (`0x46b1f9`, ordinary branch `0x46b4b3`). Its ordinary branches call `0x413960` at `0x46b4ef` or `0x4169d0` at `0x46b4d3`, according to the caller's draw-pass flag. The first wrapper forwards to `0x5cd8a0`, whose Type-30 dispatch is at `0x5ce4b8`; the latter forwards to `0x5ce800`. In that optional-overlay path, `0x5ce8ae` advances the selected image pointer by its base byte count; the width-78 case uses the supplied x and the image-height/40 y relation, and the RGB555 Omega path reaches `0x41c170`. This distinguishes base data from the same image's Omega detail. It does **not** establish a separate retained old grass image beneath each selected road, an extra beige ground record, or a pixel modification of the basic family. The complete original multi-pass object painter has not been reconstructed.
+
+The Emperor-size setup caller at `0x53ca93` supplies height 40 and width 78 to `0x469820` (`0x53cab3`). The setup retains width 78 at `0xadf8b8` and half height 20 at `0xadf8ac`; the draw-grid loop advances horizontally by **width + 2** (`0x46aa1a`) and vertically by **half height** (`0x46aa44`). Thus width 78 is the source raster width, not a 78-wide logical row. Neighbor storage cells have the corresponding diagonal 40/20 relation. Draw coordinates and wrapper arguments are integer-valued; no road-specific optical offset was found. OpenEmperor only aligns the complete replacement texture's origin to pixels at integer camera zoom. It preserves source size, source anchor, World coordinates and every building's placement.
+
+The topology matcher at `0x4bbdc1` reads the orientation state `0x101d0d0`, dividing it by two to select the column. Rotation helpers around `0x406bb0` corroborate that it is view state. “Orientation 0” here means the first cardinal view selection, not a newly verified compass label. Pixel review independently matches its x/y curb directions to OpenEmperor's fixed camera. Other view orientations are local comparisons only; no production rotation/mirroring or alternate-column selector was added.
+
+### Basic-road physical structure
+
+All records below are static internal unmirrored Type 30, size flag 1, 78×40, base 3,200 bytes, no separate alpha stream. Every base contains **zero `0xf81f` transparency sentinels** and exactly 1,600 opaque RGB555 paving pixels. The decoded nontransparent bounding box is `[0,0,78,40]` for all. Transparent rectangular padding is ordinary diamond shape, not a missing paving underlay. Omega bytes, when present, add minor edge details within the same image.
+
+| Physical record | Omega color bytes | Total opaque RGBA pixels |
+|---|---:|---:|
+| 782 | 0 | 1600 |
+| 783 | 0 | 1600 |
+| 784 | 0 | 1600 |
+| 785 | 0 | 1600 |
+| 786 | 64 | 1606 |
+| 787 | 0 | 1600 |
+| 788 | 0 | 1600 |
+| 789 | 43 | 1601 |
+| 790 | 0 | 1600 |
+| 791 | 59 | 1605 |
+| 792 | 79 | 1609 |
+| 793 | 45 | 1602 |
+| 794 | 98 | 1614 |
+| 795 | 0 | 1600 |
+| 796 | 0 | 1600 |
+| 797 | 0 | 1600 |
+| 798 | 0 | 1600 |
+| 799 | 0 | 1600 |
+
+Both straight records 782/783 have **no Omega payload**; the road surface and curb stones are already in their bases. Decoded RGBA inspection and production readback agree. The recorded “beige fraction” is a local RGB heuristic for measuring paving, not a new file-format or gameplay interpretation.
+
+### Actual contacts and limits
+
+The ignored read-only pair diagnostic uses the ordinary `RoadSpriteSet`, source anchor and the same `terrain_ground` 40/20 formula as `SandboxView::world_for`. It tests all 256 reciprocal mask combinations in `neg_y,pos_x,pos_y,neg_x` at 1×, sampling rendered RGBA across the central shared edge: **0 transparent/background pixels, 0 minimum and maximum transparent gap**. Complete bases already tessellate; 78→80 stretching would obscure the real compositor defect.
+
+A separate production `SandboxView` readback over Xia reproduces the prior grass strips. It covers 16 neighborhoods, eight-cell straights, L, T, cross and 5×5 at exact player zoom presets 1×/2×/4×. At 1×, all **128** logical contacts retain a paving core after correction; maximum full-core grass cut is **0 px**, compared with 2–6 horizontal / 1–3 vertical pixels before. Individual-lane maxima were 8–10 horizontal / 4–5 vertical pixels before; after, occasional one-pixel grass blades from neighboring non-road images remain without cutting the road. Exact positions, cut scanlines, per-lane maxima and map-first controls are local JSON reports. See the [pattern-by-pattern measurements and regression contract](../road-visual-profile.md#road-continuity-correction-2026-10-03). Do not reinterpret 0 disconnecting gap as absence of every blade or other object's occlusion.
+
+The paid six-House Xia scene includes House stages 0/1/2 and all requested existing roles at tick 4200. Final-bundle actual keyboard F1, zoom-preset and F6 input verified normal 1× continuity and the independent fallback toggle; 2×/4× are secondary. On the local QWERTZ layout the automation's physical Y key generates the application's Z shortcut. Scripted scene construction/readbacks and native input are reported separately. Well/Herbalist IDs, geometry, anchors and source images remain unchanged. Road adjacency to Houses, Market, Farm, Well, Herbalist, ServicePost and FireWatch was reviewed without inventing entrance paths. No additional entrance-spur graphic was established in this bounded basic-road path; this does not prove none exists elsewhere in Emperor. `EntranceMask` stays diagnostic.
+
+The exact pack's optional complete-ground flag applies only to configured singleton roads and valid drag cells. Alpha preview preserves its existing terrain as an early backdrop; opaque roads replace the old cell image. Other stored objects keep their painter keys and images. No original bytes, World terrain mutations, new save/rule fields, costs, BFS, buildings, goods or service mechanics were introduced.

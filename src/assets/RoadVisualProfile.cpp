@@ -70,6 +70,11 @@ RoadVisualProfile load_road_visual_profile(const fs::path& data_root,const fs::p
         json.at("tiles").empty() || json.at("tiles").size()>16)
         throw std::runtime_error("unsupported road visual schema/mode/tiles");
     RoadVisualProfile result;
+    if (json.contains("replaces_ground")) {
+        if (!json.at("replaces_ground").is_boolean())
+            throw std::runtime_error("road replaces_ground must be boolean");
+        result.replaces_ground=json.at("replaces_ground").get<bool>();
+    }
     std::vector<AssetId> decoded_ids;
     std::uint64_t total_rgba=0;
     for (auto it=json.at("tiles").begin();it!=json.at("tiles").end();++it) {
@@ -98,6 +103,8 @@ RoadVisualProfile load_road_visual_profile(const fs::path& data_root,const fs::p
         entry.id.image_index=static_cast<std::uint32_t>(index);
         entry.ground_x=anchor(item.at("ground_anchor").at(0));
         entry.ground_y=anchor(item.at("ground_anchor").at(1));
+        if (result.replaces_ground && (entry.ground_x!=39 || entry.ground_y!=20))
+            throw std::runtime_error("replacement road requires ground anchor [39,20]");
         entry.evidence=item.at("evidence").get<std::string>();
         if (entry.evidence.empty() || entry.evidence.size()>512)
             throw std::runtime_error("road evidence length invalid");
@@ -125,6 +132,19 @@ RoadVisualProfile load_road_visual_profile(const fs::path& data_root,const fs::p
         auto image=load_sg3_image({archive_path,entry.id.image_index});
         if (image.width!=record.width || image.height!=record.height || image.pixels.size()!=bytes)
             throw std::runtime_error("road decoded image differs from metadata");
+        if (result.replaces_ground) {
+            if (record.width!=78 || record.height!=40 || record.isometric_size_flag!=1 ||
+                record.uncompressed_length!=3200)
+                throw std::runtime_error("replacement road requires Emperor one-cell 78x40 base");
+            // A replacement must cover every base pixel; transparent padding is ordinary.
+            for (int y=0;y<40;++y) {
+                const int inset=y<20 ? 38-2*y:2*(y-20);
+                for (int x=inset;x<78-inset;++x)
+                    if (image.pixels[(static_cast<std::size_t>(y)*78U+
+                                      static_cast<std::size_t>(x))*4U+3U]!=255)
+                        throw std::runtime_error("replacement road base must be opaque");
+            }
+        }
         entry.image_index=result.unique_images.size();
         decoded_ids.push_back(entry.id);
         result.unique_images.push_back(std::move(image));

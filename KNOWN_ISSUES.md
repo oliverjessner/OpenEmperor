@@ -1,5 +1,7 @@
 # OpenEmperor 0.1.0-alpha.2 candidate known issues
 
+The earlier road-continuity acceptance is **FAILED / superseded by real user playtest**; the subsequent complete-ground replacement passes measured 1× contacts and final-bundle native 1× review. Neighboring grass blades and whole-image object occlusion remain possible, while upgraded/rotated/terrain-transition road rendering remains outside scope. See the [correction and measurement limits](docs/road-visual-profile.md#road-continuity-correction-2026-10-03).
+
 City-v16 rule 2 now uses consistent 2×2 Well/Herbalist geometry and identified static Safety sprites; rule-1 saves keep one-cell authority. Original building animation, fancy Well evolution, rotated/upgraded/terrain-transition road styles and original service mechanics remain outside scope. See [presentation audit](docs/reverse/original-presentation-correction.md).
 
 City-v16 is opt-in and its ownership maintenance is authored balance, not reconstructed Emperor economics. The dry starter, overbuilt four-House comparison and an efficient eight-House city are measured separately; profitability still depends on real supply, Health, Fire and geometry. Debt has no limit, interest, bankruptcy or automatic shutdown. Numerical exhaustion rejects the tick before publishing economy mutations. Full native mouse-driven acceptance remains subject to the existing coordinate-input limitation; automated simulation and scripted SDL acceptance are reported separately. See [City-v16 validation](docs/city-v16.md).

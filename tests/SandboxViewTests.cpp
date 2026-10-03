@@ -990,14 +990,167 @@ void city_v16_geometry_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* 
     old_view.shutdown();std::cout<<"Safety rule2 SDL: 1x/2x/4x picking, full footprints, eager dedupe, pure preview, legacy/unknown fallback\n";
 }
 
+void road_continuity_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
+    namespace scene=openemperor::scene;
+    namespace perf=openemperor::performance;
+    using Cell=simulation::Cell;
+    auto manifest=road_fixture(temp);
+    nlohmann::json profile;
+    { std::ifstream in(manifest);in>>profile; }
+    // Uniform authored paving, independent of Emperor's pixels or mask table.
+    Bytes paving(4U+16U*3200U,0);
+    for (std::size_t i=4;i<paving.size();i+=2) u16(paving,i,0x6a8a);
+    write(temp.path/"DATA/roads.555",paving);
+    const auto save_profile=[&](bool replaces) {
+        profile["replaces_ground"]=replaces;
+        std::ofstream out(manifest);out<<profile;check(bool(out),"contact profile write");
+    };
+    const auto raised_session=[&] {
+        std::vector<std::uint8_t> mask;
+        auto session=city_v10_fixture(temp,mask);
+        // A complete green base with a raised opaque Omega strip. The front
+        // cell's old overlay reaches back across the road behind it.
+        Bytes sg3(40680U+64U,0),terrain(3200U,0);
+        u32(sg3,0,static_cast<std::uint32_t>(sg3.size()));u32(sg3,4,213);
+        u32(sg3,12,1);u32(sg3,16,1);u32(sg3,20,1);
+        const std::string name="synthetic-raised.bmp";
+        std::copy(name.begin(),name.end(),sg3.begin()+680);u32(sg3,680+124,1);
+        for (std::size_t i=0;i<terrain.size();i+=2) u16(terrain,i,0x03e0);
+        unsigned skip=78U*20U;
+        while (skip) { const auto n=std::min(skip,254U);terrain.push_back(255);
+            terrain.push_back(static_cast<std::uint8_t>(n));skip-=n; }
+        for (int row=0;row<8;++row) {
+            terrain.push_back(78);
+            for (int x=0;x<78;++x) {terrain.push_back(0xe0);terrain.push_back(0x03);}
+        }
+        u32(sg3,40680+4,static_cast<std::uint32_t>(terrain.size()));u32(sg3,40680+8,3200);
+        u16(sg3,40680+20,78);u16(sg3,40680+22,60);u16(sg3,40680+50,30);sg3[40680+55]=1;
+        write(temp.path/"DATA/test.sg3",sg3);write(temp.path/"DATA/test.555",terrain);
+        session.plan.assets[0].record.height=60;
+        session.plan.assets[0].record.data_length=static_cast<std::uint32_t>(terrain.size());
+        for (auto& cell:session.plan.cells) cell.image_origin=maps::stored_image_origin(cell.world,78,60);
+        for (auto& f:session.plan.footprints) f.image_origin=session.plan.cells[f.cell_indices[0]].image_origin;
+        return session;
+    };
+    std::vector<std::vector<Cell>> patterns;
+    constexpr std::array<Cell,4> neighbors{{{0,-1},{1,0},{0,1},{-1,0}}};
+    for (int mask=0;mask<16;++mask) {
+        std::vector<Cell> cells{{0,0}};
+        for (unsigned i=0;i<4;++i) if (static_cast<unsigned>(mask)&(1U<<i)) cells.push_back(neighbors[i]);
+        patterns.push_back(std::move(cells));
+    }
+    std::vector<Cell> x,y,l,t,c,grid;
+    for (int i=0;i<8;++i) {
+        x.push_back({i,0});y.push_back({0,i});l.push_back({i,0});t.push_back({i,0});c.push_back({i,0});
+        if (i) {l.push_back({7,i});t.push_back({4,i});c.push_back({0,i});}
+    }
+    for (int v=0;v<5;++v) for (int u=0;u<5;++u) grid.push_back({u,v});
+    patterns.insert(patterns.end(),{x,y,l,t,c,grid});
+    std::size_t reproduced=0,contacts=0;
+    for (const auto& pattern:patterns) {
+        save_profile(false);
+        auto session=raised_session();const auto border=session.plan.border;
+        openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16);
+        view.configure_save(temp.path,"Cities/Synthetic.map",temp.path/"unused.json");
+        view.set_road_visuals(manifest);view.initialize(window,renderer);bool running=true;
+        std::vector<Cell> cells;
+        for (auto d:pattern) {
+            Cell p{110+d.x,104+d.y};cells.push_back(p);
+            check(view.execute({simulation::CommandType::PlaceRoad,p}).accepted,"contact road placement");
+        }
+        if (!view.paused()) view.handle_event(key(SDLK_SPACE),running);
+        view.set_tool(5);
+        const auto screen=[&](Cell cell) { return view.camera().world_to_screen(maps::terrain_ground(
+            {static_cast<unsigned>(cell.x),static_cast<unsigned>(cell.y)},border)); };
+        const auto focus=[&](int zoom) {
+            view.handle_event(key(SDLK_R),running);const auto map=view.layout().map;
+            scene::Point q{map.x+map.w*.5,map.y+map.h*.5};
+            const auto wheel=[&](scene::Point at,double factor) {
+                SDL_Event e{};e.type=SDL_EVENT_MOUSE_WHEEL;e.wheel.mouse_x=static_cast<float>(at.x);
+                e.wheel.mouse_y=static_cast<float>(at.y);e.wheel.y=static_cast<float>(std::log(factor)/std::log(1.15));
+                view.handle_event(e,running);
+            };
+            wheel(q,zoom/view.camera().zoom);
+            double u=0,v=0;for (auto p:cells) {u+=p.x;v+=p.y;}u/=static_cast<double>(cells.size());v/=static_cast<double>(cells.size());
+            const auto base=maps::terrain_ground({110,104},border);
+            const scene::Point center{base.x+(u-110-v+104)*40,base.y+(u-110+v-104)*20};
+            for (int i=0;i<25;++i) {
+                auto p=view.camera().world_to_screen(center);
+                scene::Point d{std::clamp(q.x-p.x,-300.,300.),std::clamp(q.y-p.y,-250.,250.)};
+                if (std::abs(d.x)+std::abs(d.y)<.01) break;
+                wheel({q.x+d.x*.5,q.y+d.y*.5},.5);wheel({q.x-d.x*.5,q.y-d.y*.5},2);
+            }
+            // Exercise the exact player zoom presets after pointer-based focusing.
+            for (int i=0;i<4 && view.camera().zoom!=zoom;++i) view.handle_event(key(SDLK_Z),running);
+            check(view.camera().zoom==zoom,"exact contact zoom preset");
+        };
+        const auto gaps=[&](int zoom,bool preview=false) {
+            check(view.render(),"contact production render");
+            auto* surface=SDL_RenderReadPixels(renderer,nullptr);check(surface,"contact readback");
+            std::size_t missing=0;
+            for (auto a:cells) for (auto d:{Cell{1,0},Cell{0,1}}) {
+                Cell b{a.x+d.x,a.y+d.y};
+                if (std::find(cells.begin(),cells.end(),b)==cells.end()) continue;
+                ++contacts;const auto p=screen(a),q=screen(b);const double sign=q.x>p.x ? 1:-1;
+                // Every pixel of a five-lane road core, spanning the shared
+                // edge and both interiors, must remain paving at all zooms.
+                for (int row=3*zoom;row<18*zoom;++row) for (int lane=-2*zoom;lane<=2*zoom;++lane) {
+                    const int px=static_cast<int>(std::floor(p.x+sign*2*row+lane));
+                    const int py=static_cast<int>(std::floor(p.y+row));
+                    std::uint8_t r,g,blue,alpha;
+                    check(SDL_ReadSurfacePixel(surface,px,py,&r,&g,&blue,&alpha),"contact pixel bounds");
+                    // The existing white hover outline is an intentional UI overlay.
+                    const bool outline=r==255 && g==255 && blue==255;
+                    const bool bad=!outline && (preview ? (r<70 || blue<25):(r<=g || g<=blue));
+                    missing+=bad;
+                }
+            }
+            SDL_DestroySurface(surface);return missing;
+        };
+        focus(1);reproduced+=gaps(1);
+        save_profile(true);view.set_road_visuals(manifest);
+        const auto snapshot=view.world().snapshot();
+        for (int zoom:{1,2,4}) {
+            focus(zoom);check(gaps(zoom)==0,"raised stored terrain interrupted a connected road");
+            view.handle_event(key(SDLK_F7),running);
+            check(gaps(zoom)==0,"map-first replacement interrupted a connected road");
+            view.handle_event(key(SDLK_F7),running);
+        }
+        view.handle_event(key(SDLK_F6),running);check(view.render(),"contact F6 off");
+        check(!view.road_visuals_active(),"contact F6 fallback");
+        view.handle_event(key(SDLK_F6),running);check(view.world().snapshot()==snapshot,"contact toggles changed World");
+        // Preview the same pattern's long horizontal L path after ordinary road removal.
+        if (pattern==l) {
+            for (auto p:cells) check(view.execute({simulation::CommandType::RemoveRoad,p}).accepted,"clear preview roads");
+            focus(1);view.set_tool(1);const auto start=screen(cells.front()),end=screen(cells.back());
+            const auto before=view.world().snapshot();
+            perf::set_enabled(true);perf::reset();
+            view.handle_event(click(static_cast<float>(start.x),static_cast<float>(start.y)),running);
+            view.handle_event(motion(static_cast<float>(end.x),static_cast<float>(end.y)),running);view.update(0);
+            check(view.road_preview().valid && view.road_preview().cells.size()==15,"L contact preview");
+            check(gaps(1,true)==0,"preview ground interrupted connected alpha paving");
+            check(view.world().snapshot()==before,"preview contact mutated World");
+            for (auto counter:{perf::Counter::WorldCopies,perf::Counter::WorldExecutes,perf::Counter::BfsCalls,
+                perf::Counter::RouteRefreshes,perf::Counter::AssetDecodes,perf::Counter::TextureUploads,
+                perf::Counter::FileReads,perf::Counter::FileWrites})
+                check(perf::counter(counter)==0,"contact preview did expensive or authoritative work");
+            perf::set_enabled(false);view.handle_event(key(SDLK_ESCAPE),running);
+        }
+        view.shutdown();
+    }
+    check(reproduced>0 && contacts>500,"contact fixture did not expose the old composition failure");
+    std::cout<<"Road continuity: 16 neighborhoods + 8-cell x/y, L/T/cross/grid; actual 1x/2x/4x pixels, alpha preview, zero authority/work\n";
+}
+
 int main(int argc,char** argv) {
     try {
+        const bool road_only=argc==2 && std::string(argv[1])=="--road-continuity-only";
         const bool geometry_only=argc==2 && std::string(argv[1])=="--geometry16-only";
         const bool maintenance_only=argc==2 && std::string(argv[1])=="--maintenance-only";
         const bool health_only=argc==2 && std::string(argv[1])=="--health-only";
         const bool water_only=argc==2 && std::string(argv[1])=="--water-only";
         const bool alpha_stress=argc==2 && std::string(argv[1])=="--alpha-stress";
-        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only || geometry_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
+        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only || geometry_only || road_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
             check(layout.top.h==52 && layout.map.w==796 && layout.map.h==516 &&
@@ -1090,7 +1243,11 @@ int main(int argc,char** argv) {
         check(SDL_Init(SDL_INIT_VIDEO),"SDL init");
         SDL_Window* window=nullptr;
         SDL_Renderer* renderer=nullptr;
-        check(SDL_CreateWindowAndRenderer("sandbox test",800,600,0,&window,&renderer),"window");
+        check(SDL_CreateWindowAndRenderer("sandbox test",road_only ? 3000:800,road_only ? 2200:600,0,&window,&renderer),"window");
+        if (road_only) {
+            road_continuity_checks(temp,window,renderer);
+            SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+        }
         if (geometry_only) {
             city_v16_geometry_checks(temp,window,renderer);
             SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;

@@ -208,6 +208,8 @@ private:
     std::optional<simulation::Cell> demo_origin_;
     sandbox_ui::Layout layout_;
     sandbox_ui::RoadPlan road_preview_;
+    // Render-only indexed projection: 0 additive, 1 opaque replacement, 2 alpha preview.
+    std::vector<std::uint8_t> road_ground_replacements_;
     std::optional<simulation::Cell> road_start_;
     std::optional<sandbox_ui::Action> pressed_button_;
     std::optional<simulation::BuildingId> pressed_building_;

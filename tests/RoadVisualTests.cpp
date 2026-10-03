@@ -88,7 +88,23 @@ void profile_tests(Fixture& f) {
     f.save(f.profile());
     auto loaded=openemperor::assets::load_road_visual_profile(f.data,f.manifest);
     check(loaded.configured_count()==1 && loaded.unique_images.size()==1 &&
-          loaded.find(0) && !loaded.find(1),"single mask profile");
+          loaded.find(0) && !loaded.find(1) && !loaded.replaces_ground,"legacy additive profile");
+    auto replacement=f.profile();replacement["replaces_ground"]=true;
+    replacement["tiles"]["0x5"]=f.entry();f.save(replacement);
+    loaded=openemperor::assets::load_road_visual_profile(f.data,f.manifest);
+    check(loaded.replaces_ground && loaded.unique_images.size()==1,"complete ground replacement dedupe");
+    replacement["tiles"]["0x5"]["ground_anchor"]={40,20};f.save(replacement);
+    rejects([&]{openemperor::assets::load_road_visual_profile(f.data,f.manifest);},
+            "deduped replacement anchor admitted");
+    replacement=f.profile();replacement["replaces_ground"]="true";f.save(replacement);
+    rejects([&]{openemperor::assets::load_road_visual_profile(f.data,f.manifest);},"nonboolean composition");
+    replacement["replaces_ground"]=true;
+    u16(f.bitmap,4,0xf81f);write(f.data/"DATA/roads.555",f.bitmap);f.save(replacement);
+    rejects([&]{openemperor::assets::load_road_visual_profile(f.data,f.manifest);},"transparent replacement base");
+    u16(f.bitmap,4,0x0400);write(f.data/"DATA/roads.555",f.bitmap);
+    u16(f.sg3,40680U+72U+22U,60);write(f.data/"DATA/roads.sg3",f.sg3);
+    rejects([&]{openemperor::assets::load_road_visual_profile(f.data,f.manifest);},"tall replacement ground");
+    u16(f.sg3,40680U+72U+22U,40);write(f.data/"DATA/roads.sg3",f.sg3);
     auto two=f.profile();two["tiles"]["0x5"]=f.entry();f.save(two);
     loaded=openemperor::assets::load_road_visual_profile(f.data,f.manifest);
     check(loaded.configured_count()==2 && loaded.unique_images.size()==1 &&

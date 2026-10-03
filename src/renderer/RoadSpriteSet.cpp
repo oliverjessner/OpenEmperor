@@ -1,6 +1,7 @@
 #include "renderer/RoadSpriteSet.h"
 #include "core/PerformanceDiagnostics.h"
 #include <SDL3/SDL.h>
+#include <cmath>
 #include <stdexcept>
 
 namespace openemperor {
@@ -29,8 +30,14 @@ void RoadSpriteSet::shutdown() {
 bool RoadSpriteSet::draw(scene::Point ground,double zoom,const assets::RoadVisualProfile& profile,
                          const assets::RoadVisualEntry& entry,bool preview) const {
     const auto& image=profile.unique_images.at(entry.image_index);
-    const SDL_FRect destination{static_cast<float>(ground.x-entry.ground_x*zoom),
-        static_cast<float>(ground.y-entry.ground_y*zoom),
+    double x=ground.x-entry.ground_x*zoom,y=ground.y-entry.ground_y*zoom;
+    // Original map draws use integer screen coordinates. At native integer
+    // zoom, translate the complete raster onto pixels together; fractional
+    // texture origins can leave sampling cracks in its stepped diamond edges.
+    if (profile.replaces_ground && zoom==std::floor(zoom)) {
+        x=std::floor(x);y=std::floor(y);
+    }
+    const SDL_FRect destination{static_cast<float>(x),static_cast<float>(y),
         static_cast<float>(image.width*zoom),static_cast<float>(image.height*zoom)};
     auto* texture=textures_.at(entry.image_index);
     if (preview && !SDL_SetTextureAlphaMod(texture,128)) return false;

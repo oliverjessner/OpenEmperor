@@ -1548,6 +1548,21 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                  simulation::Object::Road});
         }
     }
+    road_ground_replacements_.resize(static_cast<std::size_t>(world_->width())*
+                                     static_cast<std::size_t>(world_->height()));
+    std::fill(road_ground_replacements_.begin(),road_ground_replacements_.end(),0);
+    if (road_visuals_active() && road_sprites_ && road_profile_->replaces_ground) {
+        for (const auto& instance:instances) if (instance.object==simulation::Object::Road) {
+            const auto cell=instance.cell;
+            const auto mask=road_start_ && road_preview_.valid ?
+                sandbox_ui::road_neighbor_mask_for_preview(*world_,road_preview_.cells,cell):
+                sandbox_ui::road_neighbor_mask(*world_,cell);
+            if (road_profile_->find(mask))
+                road_ground_replacements_[static_cast<std::size_t>(cell.y)*
+                    static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(cell.x)]=
+                    world_->object_at(cell)==simulation::Object::Road ? 1:2;
+        }
+    }
     const auto draw_fire_overlay=[&](simulation::Cell cell,scene::Point center,
                                      bool placement_preview)->bool {
         if (placement_preview || !simulation::fire_profile(rules_)) return true;
@@ -1878,14 +1893,38 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     };
     painter_stats_={};
     painter_stats_.stored_order_builds=background_.stored_order_builds();
+    const auto replacement_for=[&](std::size_t i)->std::uint8_t {
+        const auto& item=background_.draw_items()[i];
+        const auto& plan=background_.plan();
+        maps::GridCell cell;
+        if (item.footprint) {
+            const auto& footprint=plan.footprints[item.plan_index];
+            if (footprint.width_cells!=1 || footprint.height_cells!=1) return 0;
+            cell=footprint.origin;
+        } else cell=plan.cells[item.plan_index].storage;
+        if (cell.x>=static_cast<unsigned>(world_->width()) ||
+            cell.y>=static_cast<unsigned>(world_->height())) return 0;
+        return road_ground_replacements_[static_cast<std::size_t>(cell.y)*
+            static_cast<std::size_t>(world_->width())+cell.x];
+    };
+    background_.begin_frame();
+    // Valid new roads stay alpha-128 over their old ground. Draw that ground once
+    // before the painter so its raised grass cannot overwrite an earlier road.
+    if (road_start_ && road_preview_.valid && road_preview_.new_road_count)
+        for (std::size_t i=0;i<background_.draw_items().size();++i)
+            if (replacement_for(i)==2 && !background_.draw_item(i,render_camera)) return false;
+    const auto draw_stored=[&](std::size_t i) {
+        return replacement_for(i)!=0 || background_.draw_item(i,render_camera);
+    };
     if (unified_depth_) {
-        background_.begin_frame();
         scene::WorldMergeStats stats;
         if (!scene::merge_world_draw_streams(background_.draw_items(),instances,
-            [&](std::size_t i) { return background_.draw_item(i,render_camera); },
+            draw_stored,
             draw_instance,stats)) return false;
         static_cast<scene::WorldMergeStats&>(painter_stats_)=stats;
     } else {
+        for (std::size_t i=0;i<background_.draw_items().size();++i)
+            if (!draw_stored(i)) return false;
         painter_stats_.sandbox_items=instances.size();
         for (std::size_t i=0;i<instances.size();++i)
             if (!draw_instance(i)) return false;
@@ -3205,8 +3244,7 @@ bool SandboxView::render() {
         bool map_ok=false;
         {
             performance::ScopedTimer timer(performance::Timing::WorldRender);
-            map_ok=(!unified_depth_ ? background_.render(render_camera,std::nullopt):true) &&
-                draw_world(render_camera);
+            map_ok=draw_world(render_camera);
         }
         if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
     }

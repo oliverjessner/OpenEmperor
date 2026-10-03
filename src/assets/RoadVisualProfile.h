@@ -15,6 +15,9 @@ struct RoadVisualEntry {
     std::string evidence;
 };
 struct RoadVisualProfile {
+    // Complete one-cell ground replaces the stored cell image, including its overlay.
+    // Absent in older/custom profiles: retain their additive presentation.
+    bool replaces_ground=false;
     std::array<std::optional<RoadVisualEntry>,16> tiles;
     std::vector<RgbaImage> unique_images;
     const RoadVisualEntry* find(std::uint8_t mask) const {

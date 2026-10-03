@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "mode": "curated_road_preview",
+  "replaces_ground": true,
   "tiles": {
     "0x0": {
       "archive": "DATA/China_Terrain.sg3",
