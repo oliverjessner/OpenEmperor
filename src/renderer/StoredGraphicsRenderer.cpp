@@ -72,6 +72,45 @@ bool StoredGraphicsRenderer::regenerated_visible(std::size_t index) const {
         return landscape_mode_>=LandscapeDebugMode::WallsMonuments;
     return landscape_mode_>=LandscapeDebugMode::Decorations;
 }
+bool StoredGraphicsRenderer::regenerated_placement_supported(
+    const maps::RegeneratedLandscapeInstance& instance) const {
+    const auto& geometry=instance.geometry;
+    const auto owned=[&](maps::GridCell cell) {
+        return std::find(geometry.owned_cells.begin(),geometry.owned_cells.end(),cell)!=geometry.owned_cells.end();
+    };
+    if (geometry.explicit_height &&
+        (geometry.explicit_height->source!=maps::LandscapeInstanceHeightSource::SerializedCellHeight ||
+         !owned(geometry.explicit_height->cell))) return false;
+    if (geometry.depth_cell && !owned(*geometry.depth_cell)) return false;
+    if (!geometry.explicit_anchor) return true;
+    // Only the traced ordinary Type-30 wall claim uses this explicit caller
+    // chain. A raw rectangle or an arbitrary custom anchor is not admitted.
+    const auto& record=plan_.assets[instance.asset_index].record;
+    const auto side=geometry.side;
+    if ((side!=1 && side!=2 && side!=4) || record.image_type!=30 ||
+        record.width!=int(80U*side-2U) || record.height<int(40U*side) ||
+        record.uncompressed_length!=3200U*side*side || record.isometric_size_flag!=side ||
+        record.horizontal_mirror_offset!=0 || record.animation_sprites!=0 ||
+        geometry.origin.x>=maps::stored_grid_width || geometry.origin.y>=maps::stored_grid_height ||
+        side>maps::stored_grid_width-geometry.origin.x || side>maps::stored_grid_height-geometry.origin.y)
+        return false;
+    const maps::GridCell marker{geometry.origin.x,geometry.origin.y+side-1};
+    const maps::GridCell front{geometry.origin.x+side-1,geometry.origin.y+side-1};
+    const auto& anchor=*geometry.explicit_anchor;
+    return geometry.draw_cell==marker && geometry.explicit_height &&
+        geometry.explicit_height->cell==marker && anchor.ground_cell==front &&
+        anchor.x==int(40U*side-1U) && anchor.y_from_image_bottom==20 &&
+        (!geometry.depth_cell || *geometry.depth_cell==front);
+}
+scene::Point StoredGraphicsRenderer::regenerated_image_origin(
+    const maps::RegeneratedLandscapeInstance& instance) const {
+    const auto& geometry=instance.geometry;
+    const auto& record=plan_.assets[instance.asset_index].record;
+    const auto height_cell=geometry.explicit_height ? geometry.explicit_height->cell:geometry.draw_cell;
+    const int height=maps::landscape_height(plan_,height_cell);
+    return maps::regenerated_instance_origin(geometry,plan_.border,
+        unsigned(record.width),unsigned(record.height),height);
+}
 
 std::size_t StoredGraphicsRenderer::live_texture_count() { return live_textures.load(); }
 
@@ -193,12 +232,26 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
     if (plan_.regenerated) {
         const auto& generated=*plan_.regenerated;
         for (const auto& instance:generated.instances)
-            regenerated_ready_.push_back(plan_.assets[instance.asset_index].status==maps::StoredStatus::Rendered);
+            regenerated_ready_.push_back(plan_.assets[instance.asset_index].status==maps::StoredStatus::Rendered &&
+                regenerated_placement_supported(instance));
         // Never combine a partial new instance with a partial old footprint.
         // Propagate a failed overlapping decode to its whole connected group.
         bool changed=true;
         while (changed) {
             changed=false;
+            std::map<std::size_t,bool> compositions;
+            for (std::size_t i=0;i<generated.instances.size();++i) {
+                const auto group=generated.instances[i].composition_group;
+                if (!group) continue;
+                auto [entry,inserted]=compositions.emplace(*group,regenerated_ready_[i]);
+                if (!inserted) entry->second=entry->second && regenerated_ready_[i];
+            }
+            for (std::size_t i=0;i<generated.instances.size();++i) {
+                const auto group=generated.instances[i].composition_group;
+                if (group && !compositions.at(*group) && regenerated_ready_[i]) {
+                    regenerated_ready_[i]=false;changed=true;
+                }
+            }
             for (const auto& f:plan_.footprints) {
                 bool any=false,all=true;
                 for (const auto member:f.cell_indices) {
@@ -239,7 +292,7 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
     }
     if (plan_.regenerated) for (std::size_t i=0;i<plan_.regenerated->instances.size();++i) {
         const auto& f=plan_.regenerated->instances[i].geometry;
-        const maps::GridCell front{f.origin.x+f.side-1,f.origin.y+f.side-1};
+        const auto front=f.depth_cell.value_or(maps::GridCell{f.origin.x+f.side-1,f.origin.y+f.side-1});
         const auto ground=maps::terrain_ground(front,plan_.border);
         draw_order_.push_back({{ground.y,ground.x,scene::WorldVisualLayer::StoredMap,
             plan_.cells.size()+i},false,i,true});
@@ -369,8 +422,7 @@ bool StoredGraphicsRenderer::draw_component(std::size_t index, const scene::Came
         const auto& instance=plan_.regenerated->instances[item.plan_index];
         const auto asset=instance.asset_index;const auto& r=plan_.assets[asset].record;
         if (!base && r.data_length==r.uncompressed_length) return true;
-        const auto origin=maps::regenerated_instance_origin(instance.geometry,plan_.border,
-            unsigned(r.width),unsigned(r.height),maps::landscape_height(plan_,instance.geometry.draw_cell));
+        const auto origin=regenerated_image_origin(instance);
         if (!maps::stored_rect_visible(origin,unsigned(r.width),unsigned(r.height),camera)) return true;
         auto* texture=(base ? base_textures_:overlay_textures_)[asset];
         if (!texture) return true;
@@ -421,8 +473,7 @@ std::optional<maps::GridCell> StoredGraphicsRenderer::hit_test(scene::Point scre
             if (!regenerated_visible(it->plan_index)) continue;
             const auto& instance=plan_.regenerated->instances[it->plan_index];
             const auto asset=instance.asset_index;const auto& r=plan_.assets[asset].record;
-            const auto origin=maps::regenerated_instance_origin(instance.geometry,plan_.border,
-                unsigned(r.width),unsigned(r.height),maps::landscape_height(plan_,instance.geometry.draw_cell));
+            const auto origin=regenerated_image_origin(instance);
             const int x=int(std::floor(world.x-origin.x)),y=int(std::floor(world.y-origin.y));
             if (x<0 || y<0 || x>=r.width || y>=r.height) continue;
             const auto& alpha=overlay_alpha_[asset];

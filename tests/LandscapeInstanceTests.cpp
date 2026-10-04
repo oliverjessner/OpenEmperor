@@ -228,6 +228,47 @@ int main() {
         catch (const std::invalid_argument&) { rejected = true; }
         check(rejected, "mismatched physical footprint geometry is rejected");
 
+        for (const unsigned side : {1U, 2U, 4U}) {
+            LandscapeInstanceSpec wall;
+            wall.origin={84,61};wall.side=side;
+            wall.draw_cell={wall.origin.x,wall.origin.y+side-1};
+            const GridCell wall_front{wall.origin.x+side-1,wall.origin.y+side-1};
+            wall.explicit_height=LandscapeInstanceHeight{LandscapeInstanceHeightSource::SerializedCellHeight,
+                wall.draw_cell};
+            wall.explicit_anchor=LandscapeInstanceAnchor{wall_front,int(40U*side-1U),20};
+            wall.depth_cell=wall_front;
+            wall.original_entity_index=7;
+            for (unsigned y=0;y<side;++y) for (unsigned x=0;x<side;++x)
+                wall.owned_cells.push_back({wall.origin.x+x,wall.origin.y+y});
+            const unsigned image_height=40U*side+78U;
+            const auto wall_h0=regenerated_instance_origin(wall,29,80U*side-2U,image_height,0);
+            const auto wall_h4=regenerated_instance_origin(wall,29,80U*side-2U,image_height,4);
+            const auto wall_hn=regenerated_instance_origin(wall,29,80U*side-2U,image_height,-2);
+            const auto wall_marker_ground=terrain_ground(wall.draw_cell,29);
+            check(wall_h0.x==wall_marker_ground.x-39 &&
+                wall_h0.y==wall_marker_ground.y-double(image_height)+20.0*side,
+                "explicit front anchor reconstructs the full original marker component chain");
+            check(wall_h4.x==wall_h0.x && wall_h4.y==wall_h0.y-160 && wall_hn.y==wall_h0.y+80,
+                "explicit monument anchor applies signed marker height times forty exactly once");
+            check(wall.explicit_height->cell==wall.draw_cell && *wall.depth_cell==wall_front &&
+                wall.original_entity_index==7,
+                "serialized height marker, front painter depth, and original entity reference stay distinct");
+            if (side>1) check(terrain_ground(*wall.depth_cell,29).y>wall_marker_ground.y,
+                "monument front painter depth is independent of the earlier original draw marker");
+            auto wrong_marker=wall;
+            wrong_marker.explicit_height->cell={wall.draw_cell.x+1,wall.draw_cell.y};
+            rejected=false;
+            try { regenerated_instance_origin(wrong_marker,29,80U*side-2U,image_height,0); }
+            catch (const std::invalid_argument&) { rejected=true; }
+            check(rejected,"explicit monument placement refuses height from a different cell");
+            auto wrong_anchor=wall;
+            ++wrong_anchor.explicit_anchor->x;
+            rejected=false;
+            try { regenerated_instance_origin(wrong_anchor,29,80U*side-2U,image_height,0); }
+            catch (const std::invalid_argument&) { rejected=true; }
+            check(rejected,"unobserved whole-image anchor is rejected instead of applied as a preview correction");
+        }
+
         const auto registered = registrations();
         auto plan = historical_plan(three);
         const auto before = plan;

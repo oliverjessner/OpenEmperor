@@ -16,6 +16,7 @@
 
 namespace openemperor::maps {
 struct RegeneratedMapRenderPlan;
+struct GreatWallMapPresentation;
 
 inline constexpr const char* stored_graphics_profile = "exe-6373328b-v213-runtime-table";
 inline constexpr const char* stored_graphics_slot8_profile = "exe-6373328b-v213-slot8-runtime-table";
@@ -94,6 +95,7 @@ struct StoredGraphicsPlan {
     std::vector<std::uint8_t> raw_candidate_bytes, draw_properties, height_bytes;
     std::vector<std::uint8_t> variation_bytes, fertility_bytes;
     std::shared_ptr<const RegeneratedMapRenderPlan> regenerated;
+    std::shared_ptr<const GreatWallMapPresentation> original_great_wall;
     // Eager renderer initialization publishes decode/atomic-fallback readiness
     // once, separately from immutable selected geometry. No frame mutation.
     std::vector<std::uint8_t> regenerated_instance_active;
@@ -141,6 +143,8 @@ StoredArchiveRegistrations load_stored_archive_registrations(
 // Does not register slot 2 for saved-ID coverage or buildability.
 void add_regenerated_wall_registration(const StoredGraphicsPlan& plan,
     StoredArchiveRegistrations& registrations);
+StoredArchiveRegistration load_regenerated_great_wall_registration(
+    const std::filesystem::path& root,std::uint32_t slot,const std::filesystem::path& relative);
 StoredGraphicsPlan make_stored_graphics_plan(
     const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
     const MapGeometry& geometry, const StoredArchiveRegistrations& registrations,

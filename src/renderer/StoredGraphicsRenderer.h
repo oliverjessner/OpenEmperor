@@ -14,6 +14,7 @@ struct SDL_Renderer;
 struct SDL_Texture;
 
 namespace openemperor {
+namespace maps { struct RegeneratedLandscapeInstance; }
 
 std::array<std::uint8_t,3> stored_presentation_fallback_color(
     maps::TerrainCategory category);
@@ -65,6 +66,8 @@ private:
     std::size_t render_asset_index(const maps::PlacedFootprint& footprint) const;
     bool overlay_visible(const maps::PlacedFootprint& footprint) const;
     bool regenerated_visible(std::size_t instance) const;
+    scene::Point regenerated_image_origin(const maps::RegeneratedLandscapeInstance& instance) const;
+    bool regenerated_placement_supported(const maps::RegeneratedLandscapeInstance& instance) const;
     LandscapeDebugMode landscape_mode_=LandscapeDebugMode::Snapshot;
     std::vector<SDL_Texture*> base_textures_, overlay_textures_;
     std::vector<std::vector<std::uint8_t>> snapshot_alpha_, overlay_alpha_;

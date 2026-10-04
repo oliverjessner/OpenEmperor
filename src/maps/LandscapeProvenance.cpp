@@ -1,10 +1,12 @@
 #include "maps/LandscapeProvenance.h"
 #include "maps/TerrainInterpretation.h"
 #include "maps/RegeneratedMapRenderPlan.h"
+#include "maps/GreatWallMapPresentation.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <set>
 
 namespace openemperor::maps {
 namespace {
@@ -78,6 +80,52 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
         return j;
     }
     const auto* c=plan.at(selected);
+    if (plan.original_great_wall) {
+        const auto& wall=*plan.original_great_wall;
+        j["original_entity_reader"]={{"manager_logical_offset",wall.manager_offset},
+            {"manager_byte_length",wall.manager_bytes},{"manager_records",wall.manager_records},
+            {"error",wall.error}};
+        if (wall.piece_by_storage.size()==count && wall.piece_by_storage[index]) {
+            const auto piece_index=*wall.piece_by_storage[index];
+            const auto& piece=wall.pieces.at(piece_index);const auto& source=piece.source;
+            Json state={{"piece_index",piece_index},{"class",original_entity_class_name(source.entity_class)},
+                {"manager_index",source.manager_index},{"original_id",source.original_id ? Json(source.original_id->value):Json(nullptr)},
+                {"type",source.type},{"subindex",source.subindex},{"local_x",source.local_x},{"local_y",source.local_y},
+                {"record_logical_offset",source.provenance.logical_record_offset},
+                {"record_bytes",source.provenance.record_byte_length},{"base_schema",source.provenance.base_schema},
+                {"extended_schema",source.provenance.extended_schema},{"fallback",piece.fallback},
+                {"restored_material",wall.restore_context.material ? Json(*wall.restore_context.material):Json(nullptr)},
+                {"material_authority","external restore context; raw saved material is not authority"},
+                {"camera_view",wall.restore_context.camera_view},{"selector_supported",piece.selection.supported}};
+            if (source.monument) state["serialized_state"]={{"phase",source.monument->phase},
+                {"material_raw",source.monument->serialized_material},{"height_raw",source.monument->height},
+                {"orientation",source.monument->orientation}};
+            Json fields=Json::object();
+            for (const auto [name,field]:{std::pair{"x",OriginalEntityField::LocalX},
+                {"y",OriginalEntityField::LocalY},{"type",OriginalEntityField::Type},
+                {"subindex",OriginalEntityField::Subindex},{"id",OriginalEntityField::OriginalId},
+                {"phase",OriginalEntityField::MonumentPhase},{"material",OriginalEntityField::SerializedMaterial},
+                {"height",OriginalEntityField::MonumentHeight},{"orientation",OriginalEntityField::MonumentOrientation}})
+                if (const auto f=source.field_source(field)) fields[name]={{"logical_offset",f->logical_offset},
+                    {"record_relative_offset",f->record_relative_offset},{"bytes",f->byte_width},
+                    {"signed",f->signed_value},{"endianness","little"}};
+            state["field_sources"]=std::move(fields);
+            if (piece.model_piece) {const auto& p=*piece.model_piece;
+                state["model"]={{"filename",great_wall_model_filename(source.type).value_or("")},
+                    {"row",source.subindex},{"controller",unsigned(p.kind)},
+                    {"piece",p.piece},{"position",p.position},{"elevation",p.elevation},
+                    {"offsets_added_to_entity_coordinates",false}};}
+            if (piece.geometry) {const auto& g=*piece.geometry;
+                state["geometry"]={{"origin",cell_json(g.origin)},{"side",g.side},
+                    {"draw_cell",cell_json(g.draw_cell)},{"owned_cells",g.owned_cells.size()},
+                    {"height_source","SerializedCellHeight"},{"height_cell",cell_json(g.draw_cell)},
+                    {"height_signed",landscape_height(plan,g.draw_cell)}};}
+            if (piece.selection.supported) state["selection"]={{"resource_key",hex(piece.selection.group.value)},
+                {"variant",piece.selection.variant},{"flags",piece.selection.flags},{"effective_view",piece.selection.effective_view},
+                {"archive",piece.archive_relative.generic_string()}};
+            j["original_great_wall"]=std::move(state);
+        }
+    }
     if (plan.variation_bytes.size()==count) {
         j["variation_byte"]=plan.variation_bytes[index];
         j["variation_logical_offset"]=auxiliary_byte_logical_offset+index;
@@ -113,11 +161,12 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
                 detail["instance"]={{"id",*generated.instance_index},{"family",landscape_family_name(g.selection.family)},
                     {"origin",cell_json(g.origin)},{"footprint_side",g.side},{"owned_cell",cell_json(c->storage)},
                     {"owned_cell_count",g.owned_cells.size()},{"draw_cell",cell_json(g.draw_cell)},
-                    {"height",landscape_height(plan,g.draw_cell)},
+                    {"height",landscape_height(plan,g.explicit_height ? g.explicit_height->cell:g.draw_cell)},
+                    {"height_source",g.explicit_height ? "SerializedCellHeight":"existing landscape cell height"},
                     {"placement_evidence",g.placement_evidence},{"composition_evidence",g.composition_evidence},
                     {"painter_depth_convention","logical diagonal front ground; height does not reorder"}};
                 origin=regenerated_instance_origin(g,plan.border,unsigned(r.width),unsigned(r.height),
-                    elevated ? landscape_height(plan,g.draw_cell):0);
+                    elevated ? landscape_height(plan,g.explicit_height ? g.explicit_height->cell:g.draw_cell):0);
             } else if (elevated) origin.y-=landscape_height(plan,c->storage)*landscape_height_step;
             detail["preview_image_origin"]=point(origin);
             detail["first_visible_layer"]="Ground base (overlay added by semantic layer)";
@@ -195,7 +244,7 @@ std::vector<std::string> landscape_inspection_lines(const StoredGraphicsPlan& pl
     const auto j=landscape_provenance(plan,cell,elevated,camera);
     std::vector<std::string> lines={"Landscape ("+std::to_string(cell.x)+","+std::to_string(cell.y)+")"};
     for (const auto& key:{"candidate_mask","offmap_bit","terrain_hex","semantic_category","objects_hex",
-        "render_source","regenerated","variation_byte","variation_logical_offset","variation_semantics",
+        "render_source","regenerated","original_entity_reader","original_great_wall","variation_byte","variation_logical_offset","variation_semantics",
         "fertility_selector_operand","saved_id","saved_id_hex","candidate_byte_hex","tentative_parts","resource","image",
         "height_available","height_signed","draw_properties_raw","placement","ground_world",
         "screen_ground","painter","status","placement_evidence","composition_evidence"}) {
@@ -207,6 +256,26 @@ std::vector<std::string> landscape_inspection_lines(const StoredGraphicsPlan& pl
     return lines;
 }
 Json landscape_fidelity_report(const StoredGraphicsPlan& plan) {
+    Json original={{"reader_available",bool(plan.original_great_wall)},{"serialized_objects",0},
+        {"wall_pieces",0},{"selected_pieces",0},{"descriptor_cells",0},{"render_instances",0},
+        {"rendered_original_objects",0},{"rendered_cells",0},{"first_draw_acceptance","not established"}};
+    if (plan.original_great_wall) {
+        const auto& wall=*plan.original_great_wall;
+        std::size_t selected=0,cells=0,rendered_cells=0,instances=0;
+        std::set<std::size_t> objects;
+        for (const auto& p:wall.pieces) if (p.selection.supported) ++selected;
+        for (const auto& p:wall.piece_by_storage) if (p) ++cells;
+        if (plan.regenerated) for (std::size_t n=0;n<plan.regenerated->instances.size();++n) {
+            const auto& i=plan.regenerated->instances[n];
+            if (!i.geometry.original_entity_index || n>=plan.regenerated_instance_active.size() ||
+                !plan.regenerated_instance_active[n]) continue;
+            ++instances;objects.insert(*i.geometry.original_entity_index);rendered_cells+=i.cell_indices.size();
+        }
+        original.update({{"manager_records",wall.manager_records},{"serialized_objects",wall.pieces.size()},
+            {"wall_pieces",wall.pieces.size()},{"selected_pieces",selected},{"descriptor_cells",cells},
+            {"render_instances",instances},{"rendered_original_objects",objects.size()},{"rendered_cells",rendered_cells},
+            {"restore_material_context_available",wall.restore_context.material.has_value()},{"reader_error",wall.error}});
+    }
     std::size_t resolved=0, supported=0;
     for (const auto& c:plan.cells) {
         if (c.physical_record) ++resolved;
@@ -265,7 +334,7 @@ Json landscape_fidelity_report(const StoredGraphicsPlan& plan) {
             {"unresolved_wall_cells",unresolved_walls},{"unresolved_mountain_cells",unresolved_mountains},
             {"selector_metric_unit","cells; instance metrics count whole selected geometries"}});
     }
-    return {{"regeneration",regeneration},
+    return {{"original_great_wall",original},{"regeneration",regeneration},
         {"coverage",{{"candidate_cells",plan.cells.size()},{"decoded_snapshot_cells",supported}}},
         {"resolved_identity",{{"resolved_saved_graphics",resolved},{"original_first_draw_identity_verified",0}}},
         {"placement_verified",{{"height_transform_available",plan.landscape_layers_available},

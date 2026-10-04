@@ -30,6 +30,16 @@ StoredArchiveRegistration load_one(const fs::path& root, std::uint32_t slot,
 }
 } // namespace
 
+StoredArchiveRegistration load_regenerated_great_wall_registration(
+    const fs::path& root,std::uint32_t slot,const fs::path& relative) {
+    try {return load_one(root,slot,relative,true,RuntimeLayoutEvidence::RestoredGreatWall);}
+    catch (const std::exception& error) {
+        StoredArchiveRegistration unavailable;
+        unavailable.slot=slot;unavailable.relative_path=relative;
+        unavailable.optional_error=error.what();return unavailable;
+    }
+}
+
 const char* stored_graphics_profile_name(StoredGraphicsProfile profile) {
     return profile==StoredGraphicsProfile::Slot8 ? stored_graphics_slot8_profile : stored_graphics_profile;
 }

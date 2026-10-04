@@ -55,6 +55,28 @@ scene::Point regenerated_instance_origin(const LandscapeInstanceSpec& instance,
     if ((instance.side!=1 && instance.side!=2 && instance.side!=3 && instance.side!=4 && instance.side!=5) ||
         width!=80U*instance.side-2U || height<40U*instance.side)
         throw std::invalid_argument("unsupported regenerated Emperor footprint geometry");
+    if (instance.explicit_anchor) {
+        const auto side=instance.side;
+        if ((side!=1 && side!=2 && side!=4) ||
+            instance.origin.x>=stored_grid_width || instance.origin.y>=stored_grid_height ||
+            side>stored_grid_width-instance.origin.x || side>stored_grid_height-instance.origin.y)
+            throw std::invalid_argument("unsupported explicit regenerated monument footprint");
+        const GridCell marker{instance.origin.x,instance.origin.y+side-1};
+        const GridCell front{instance.origin.x+side-1,instance.origin.y+side-1};
+        const auto& anchor=*instance.explicit_anchor;
+        if (instance.draw_cell!=marker ||
+            !instance.explicit_height ||
+            instance.explicit_height->source!=LandscapeInstanceHeightSource::SerializedCellHeight ||
+            instance.explicit_height->cell!=marker || anchor.ground_cell!=front ||
+            anchor.x!=int(40U*side-1U) || anchor.y_from_image_bottom!=20 ||
+            (instance.depth_cell && *instance.depth_cell!=front))
+            throw std::invalid_argument("unsupported explicit regenerated monument placement");
+        auto p=terrain_ground(anchor.ground_cell,border);
+        p.x-=anchor.x;
+        p.y-=double(height)-anchor.y_from_image_bottom;
+        p.y-=40.0*elevation;
+        return p;
+    }
     auto p=terrain_world(instance.origin,border);
     p.x-=double(width)/2.0;
     p.y-=double(height)-40.0*instance.side;

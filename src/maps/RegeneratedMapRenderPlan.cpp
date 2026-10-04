@@ -1,6 +1,7 @@
 #include "maps/RegeneratedMapRenderPlan.h"
 #include "maps/PinnacleSelector.h"
 #include "maps/WallTopology.h"
+#include "maps/GreatWallMapPresentation.h"
 #include <chrono>
 #include <memory>
 #include <algorithm>
@@ -82,19 +83,28 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
         // This is a preview boundary, not evidence that a saved ID survived.
         if (c.slot!=16) eligible[c.cell_index]=1;
     }
-    const auto append_instance=[&](LandscapeInstanceSpec spec) {
+    const auto append_instance=[&](LandscapeInstanceSpec spec,
+        const StoredArchiveRegistration* original_registration=nullptr) {
+        const bool original_wall=spec.original_entity_index.has_value();
         std::vector<std::size_t> members;
         for (const auto cell:spec.owned_cells) {
             if (cell.x>=stored_grid_width || cell.y>=stored_grid_height) return false;
             const auto raw=std::size_t(cell.y)*stored_grid_width+cell.x;
-            if (!eligible[raw] || plan.cell_by_storage.size()!=count || !plan.cell_by_storage[raw]) return false;
+            if ((!eligible[raw] && !original_wall) || plan.cell_by_storage.size()!=count || !plan.cell_by_storage[raw]) return false;
             const auto index=*plan.cell_by_storage[raw];
             if (generated->cells[index].instance_index) return false;
             members.push_back(index);
         }
-        const auto graphic=resolve_landscape_variant(spec.selection.group,spec.selection.variant,groups);
+        auto instance_groups=groups;
+        auto instance_images=images;
+        if (original_registration) {
+            const auto& r=*original_registration;
+            instance_groups[r.slot]={r.layout ? &*r.layout:nullptr};
+            instance_images[r.slot]={r.catalog ? &*r.catalog:nullptr,r.layout ? &*r.layout:nullptr,r.archive_missing};
+        }
+        const auto graphic=resolve_landscape_variant(spec.selection.group,spec.selection.variant,instance_groups);
         if (!graphic) return false;
-        const auto resolution=resolve_graphics_id_hypothesis(graphic->value,images);
+        const auto resolution=resolve_graphics_id_hypothesis(graphic->value,instance_images);
         const auto* r=resolution.record;
         const auto side=spec.side;
         if (resolution.status!=GraphicsIdStatus::DecodeCandidate || !r ||
@@ -119,9 +129,24 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
             c.graphic=graphic;c.asset_index=existing->second;c.instance_index=id;
             c.fallback="whole regenerated instance, or atomic historical preview after decode failure";
         }
-        generated->instances.push_back({std::move(spec),*graphic,existing->second,std::move(members)});
+        const auto composition=spec.original_entity_index;
+        if (original_wall) for (const auto cell:spec.owned_cells) eligible[std::size_t(cell.y)*stored_grid_width+cell.x]=0;
+        generated->instances.push_back({std::move(spec),*graphic,existing->second,std::move(members),composition});
         return true;
     };
+    // Object restore precedes landscape generation. Only complete supported
+    // objects claim renderer ownership; unresolved metadata retains old draws.
+    if (plan.original_great_wall) for (const auto& piece:plan.original_great_wall->pieces) {
+        if (!piece.selection.supported || !piece.geometry || !piece.fallback.empty()) continue;
+        const StoredArchiveRegistration* r=nullptr;
+        if (piece.selection.slot!=3) {
+            const auto found=plan.original_great_wall->archives.find(
+                {piece.selection.slot,piece.archive_relative.generic_string()});
+            if (found==plan.original_great_wall->archives.end()) continue;
+            r=&found->second;
+        }
+        append_instance(*piece.geometry,r);
+    }
     for (auto spec:derive_rock_instances(input,eligible)) {
         if (!append_instance(spec)) for (const auto cell:spec.owned_cells) {
             const auto raw=std::size_t(cell.y)*stored_grid_width+cell.x;
@@ -177,11 +202,16 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
     }
     // Great Wall identity belongs to restored original object/piece state, not
     // a raw-terrain or saved-ID selector. Retain only the labeled old preview.
-    for (std::size_t i=0;i<plan.cells.size();++i) if (plan.cells[i].slot==8) {
+    for (std::size_t i=0;i<plan.cells.size();++i) if (plan.cells[i].slot==8 && !generated->cells[i].instance_index) {
         auto& c=generated->cells[i];
         c.selection={LandscapeFamily::GreatWall,SelectorEvidence::Unresolved,"52f030 / 4b11f0 / 57bba0",
             "restored monument stage, orientation and piece state unavailable in landscape inputs",{0x1001},0,{}};
         c.fallback="historical slot-8 footprint preview; no regenerated Great Wall instance";
+        if (plan.original_great_wall && plan.original_great_wall->piece_by_storage.size()==count &&
+            plan.original_great_wall->piece_by_storage[plan.cells[i].cell_index]) {
+            c.selection.reason="original entity and model read; external material context or whole composition unresolved";
+            c.fallback="historical slot-8 preview retained; raw saved material is not restored authority";
+        }
     }
     generated->build_milliseconds=std::chrono::duration<double,std::milli>(
         std::chrono::steady_clock::now()-start).count();

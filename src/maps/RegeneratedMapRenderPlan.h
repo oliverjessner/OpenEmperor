@@ -16,6 +16,9 @@ struct RegeneratedLandscapeInstance {
     PackedGraphicId graphic;
     std::size_t asset_index=0;
     std::vector<std::size_t> cell_indices;
+    // Images belonging to one restored composition activate together after
+    // eager decoding. Unset preserves existing independent instances.
+    std::optional<std::size_t> composition_group;
 };
 // Published const once per load. Historical cells, footprints and buildability
 // remain untouched. Indices refer to the renderer's shared physical asset pool.

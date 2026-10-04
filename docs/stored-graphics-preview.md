@@ -1,6 +1,16 @@
 # Stored graphics map preview
 
-## Pass 3: independent regenerated instances (current bounded behavior)
+## Pass 4: restored Great Wall state (current bounded behavior)
+
+**RAW MAP FACT / EXE-OBSERVED:** standalone-map loading now reads the bounded original object manager and Great Wall model pieces. The original entity's local coordinates and the centered map offset determine the storage claim; its phase and model piece determine the selector inputs. Historical graphic IDs, raw `0x88` and saved subtile grouping do not substitute for this state. Archive identity depends on both phase and restored material: the 42-record Earthen stage-1 group described below does not define the layout of every Great Wall stage.
+
+**UNRESOLVED:** the original loader replaces serialized monument material with material derived from external mission/player context. That context is not yet restored by the standalone reader. Real maps therefore report unresolved restore material context, keep zero active Great Wall generated selectors/instances, and retain their historical saved-ID preview or existing diagnostics. Serialized material is reported as a raw field; it cannot authorize archive selection. Synthetic fixtures with an explicit supported context exercise selection and complete ownership. They do not establish a real-map reproduction.
+
+**EXE-OBSERVED / OPENEMPEROR PREVIEW:** the bounded orientation-zero Type-30 path can place admitted side-1/2/4 pieces with the original draw-marker height and an equivalent front-cell image anchor. Signed saved height at `origin+(0,side−1)` shifts Y by ×40 once; the side-2 anchor is `(79,H−20)` and side-4 anchor `(159,H−20)`. Painter depth uses the front cell separately. The static caller/component trace supports this placement calculation, while original post-load height normalization, additional components and complete scene ordering remain unresolved. Unsupported Type-1 layouts retain fallback.
+
+All images assigned to one composition activate together after eager placement validation and decode/upload. A failed member also disables ready members on separate historical footprints, retaining complete old images and their alpha picking. Shared physical assets still decode/upload once, with combined/base/overlay textures charged against the existing 64 MiB limit. F1 provenance and regeneration counters follow actual activation. F8 remains presentation-only; frame draw/inspect/pick performs no files, decode/upload, World copies/commands, BFS or route refresh. Ground/Water, ordinary roads, City rules, World and saves remain frozen. See the [bounded fidelity evidence and limits](reverse/map-first-draw.md).
+
+## Pass 3: independent regenerated instances (historical bounded baseline)
 
 **VERIFIED REPRODUCTION / EXE-OBSERVED:** the load-time regenerated plan adds bounded raw Rock side-1/2/3 packing, canonical raw Pinnacle side-5 claims and gate-free ordinary wall topology. Resource groups still pass through the shared runtime lookup and exact SG3 metadata checks; generated geometry no longer borrows a historical saved-ID footprint. A complete instance owns its member cells, draws once and shares one physical asset with any other references. Unsupported, incomplete or conflicting claims and failed assets retain an explicit historical/diagnostic fallback. Ground/Water selection and the saved signed-height ×40 displacement remain frozen.
 

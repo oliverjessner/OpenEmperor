@@ -949,6 +949,87 @@ int main() {
             }
         }
         {
+            // Composition membership connects two separate historical images.
+            // A failed new image must also disable its successfully decoded
+            // sibling, even though their ownership never shares a footprint.
+            auto separate_candidates=candidates_fixture();
+            set_id(separate_candidates,114,114,0xc00a);
+            set_id(separate_candidates,116,114,0xc00a);
+            const auto separate_geometry=sparse_geometry({{114,114},{116,114}});
+            for (bool failed_member:{false,true}) {
+                auto separate=maps::make_stored_graphics_plan(map,separate_candidates,separate_geometry,
+                    terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,true);
+                check(separate.footprints.size()==2 && separate.assets.size()==1,
+                    "composition scene owns separate historical images sharing one physical asset");
+                separate.landscape_layers_available=true;
+                separate.height_bytes.assign(228U*228U,0);
+                separate.draw_properties.assign(228U*228U,0);
+                separate.assets.push_back({terrain_catalog.records[202],maps::StoredStatus::DecodePending,false,false,{}});
+                if (failed_member)
+                    separate.assets.push_back({terrain_catalog.records[208],maps::StoredStatus::DecodePending,false,false,{}});
+                auto generated=std::make_shared<maps::RegeneratedMapRenderPlan>();
+                generated->historical_asset_count=1;
+                generated->cells.resize(separate.cells.size());
+                generated->footprint_assets.resize(separate.footprints.size());
+                for (std::size_t i=0;i<separate.cells.size();++i) {
+                    maps::RegeneratedLandscapeInstance instance;
+                    instance.geometry.selection.family=maps::LandscapeFamily::Rock;
+                    instance.geometry.selection.evidence=maps::SelectorEvidence::Verified;
+                    instance.geometry.selection.selector="synthetic two-image composition";
+                    instance.geometry.origin=separate.cells[i].storage;
+                    instance.geometry.draw_cell=instance.geometry.origin;
+                    instance.geometry.owned_cells={instance.geometry.origin};
+                    instance.geometry.explicit_height=maps::LandscapeInstanceHeight{
+                        maps::LandscapeInstanceHeightSource::SerializedCellHeight,instance.geometry.draw_cell};
+                    instance.geometry.explicit_anchor=maps::LandscapeInstanceAnchor{
+                        instance.geometry.draw_cell,39,20};
+                    instance.geometry.depth_cell=instance.geometry.draw_cell;
+                    instance.graphic={0xc001}; instance.asset_index=failed_member && i==1 ? 2:1;
+                    instance.cell_indices={i}; instance.composition_group=7;
+                    generated->instances.push_back(instance);
+                    generated->cells[i].instance_index=i;
+                    generated->cells[i].asset_index=instance.asset_index;
+                    generated->cells[i].graphic=instance.graphic;
+                    generated->cells[i].selection=instance.geometry.selection;
+                }
+                const auto old_ids=separate.raw_saved_ids;
+                separate.regenerated=generated;
+                openemperor::StoredGraphicsRenderer composition{std::move(separate)};
+                composition.initialize(renderer);
+                composition.set_landscape_mode(openemperor::LandscapeDebugMode::Regenerated);
+                check(composition.upload_count()==6,
+                    "two ready members share one eager three-texture asset; a failed decode uploads nothing");
+                check(composition.plan().regenerated_instance_active==
+                    std::vector<std::uint8_t>(2,static_cast<std::uint8_t>(!failed_member)),
+                    "a composition activates every member together only when all decodes succeed");
+                scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+                camera.center_on(maps::terrain_ground({115,114},composition.plan().border));
+                check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                    composition.render(camera,std::nullopt) && composition.last_texture_draws()==4 &&
+                    composition.last_diagnostic_draws()==0,
+                    "composition draws either both generated images or both complete historical images");
+                for (std::size_t i=0;i<generated->instances.size();++i) {
+                    const auto& instance=generated->instances[i];
+                    const auto origin=maps::regenerated_instance_origin(instance.geometry,
+                        composition.plan().border,78,46,0);
+                    const auto alpha_pixel=camera.world_to_screen({origin.x+38,origin.y});
+                    check(pixel(renderer,int(alpha_pixel.x),int(alpha_pixel.y))[2]==(failed_member ? 0:255),
+                        "failed composition leaves no blue overlay from its successfully decoded member");
+                    check(composition.hit_test(alpha_pixel,camera)==
+                        (failed_member ? std::optional<maps::GridCell>{}:std::optional{instance.geometry.draw_cell}),
+                        "composition alpha picking follows the same atomic activation as rendering");
+                    const auto provenance=maps::landscape_provenance(composition.plan(),instance.geometry.draw_cell,true,&camera);
+                    check(provenance.at("regenerated").at("atomic_instance_active")==!failed_member,
+                        "every composition member reports its actual activation after eager decoding");
+                }
+                check(composition.plan().raw_saved_ids==old_ids,
+                    "composition activation preserves historical identity provenance");
+                if (failed_member)
+                    check(composition.plan().assets[2].status==maps::StoredStatus::DecodeFailed,
+                        "malformed composition overlay retains a named decoder failure");
+            }
+        }
+        {
             const auto metadata=assets::read_sg3_archive(temp.path/"DATA/China_Terrain.sg3");
             assets::Sg3ImageRequest request{temp.path/"DATA/China_Terrain.sg3",202};
             request.split_isometric=true;

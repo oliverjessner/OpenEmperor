@@ -37,7 +37,8 @@ struct RuntimeArchiveLayout {
 enum class RuntimeLayoutEvidence {
     TerrainElevation,
     TerrainElevationAndSlot8,
-    TerrainElevationAndGeneral2
+    TerrainElevationAndGeneral2,
+    RestoredGreatWall
 };
 
 // Returns null for unsupported slot/evidence/version or inconsistent metadata. The

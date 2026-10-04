@@ -213,6 +213,10 @@ add_library(openemperor-maps STATIC
     src/maps/WallTopology.cpp
     src/maps/PinnacleSelector.cpp
     src/maps/RegeneratedMapRenderPlan.cpp
+    src/maps/OriginalMapEntities.cpp
+    src/maps/GreatWallModels.cpp
+    src/maps/GreatWallSelector.cpp
+    src/maps/GreatWallMapPresentation.cpp
     src/maps/StoredGraphicsPlan.cpp
     src/maps/StoredArchiveRegistrations.cpp
     src/maps/MapSubtileMetadata.cpp
@@ -261,6 +265,13 @@ openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
+    foreach(test_name IN ITEMS OriginalMapEntities GreatWallModels GreatWallSelector GreatWallPresentation)
+        string(TOLOWER ${test_name} test_target)
+        add_executable(openemperor-${test_target}-tests tests/${test_name}Tests.cpp)
+        target_link_libraries(openemperor-${test_target}-tests PRIVATE openemperor-maps)
+        openemperor_enable_warnings(openemperor-${test_target}-tests)
+        add_test(NAME ${test_target} COMMAND openemperor-${test_target}-tests)
+    endforeach()
     add_executable(openemperor-landscape-selector-tests tests/LandscapeSelectorTests.cpp)
     target_link_libraries(openemperor-landscape-selector-tests PRIVATE openemperor-maps)
     openemperor_enable_warnings(openemperor-landscape-selector-tests)
