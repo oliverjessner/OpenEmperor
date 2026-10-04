@@ -1,6 +1,25 @@
 # Stored graphics map preview
 
-## Landscape fidelity pass 1 (current behavior)
+## Pass 3: independent regenerated instances (current bounded behavior)
+
+**VERIFIED REPRODUCTION / EXE-OBSERVED:** the load-time regenerated plan adds bounded raw Rock side-1/2/3 packing, canonical raw Pinnacle side-5 claims and gate-free ordinary wall topology. Resource groups still pass through the shared runtime lookup and exact SG3 metadata checks; generated geometry no longer borrows a historical saved-ID footprint. A complete instance owns its member cells, draws once and shares one physical asset with any other references. Unsupported, incomplete or conflicting claims and failed assets retain an explicit historical/diagnostic fallback. Ground/Water selection and the saved signed-height ×40 displacement remain frozen.
+
+**OPENEMPEROR PREVIEW:** F8 now cycles Ground, +Water, +Elevation, +Mountains/Rocks, +Walls/Monuments, +Decorations, Regenerated Full, and Historical Snapshot. F1 exposes the selected family, selector/resource/variant, physical asset, generated origin/owned cells/draw cell and evidence separately from historical ID/byte/image provenance. The whole-image anchor and front-cell merged painter remain preview conventions; complete original first-pass occupancy and scene composition are unresolved. Historical Snapshot retains the old saved-ID combined-image path and all original cells remain inspectable. No new gameplay occupancy or buildability is inferred from generated coverage.
+
+**RAW MAP FACT / EXE-OBSERVED:** ordinary raw wall `0x4000` uses General slot 2/key `0x451`; it is distinct from Great Wall. The complete slot 8 group contains 42 records (32 side-4 Type-30, two side-2 Type-30 and eight unsupported Type 1 map layouts), but its restored entity/piece-state producer is not reproduced from supported raw map layers. **Great Wall generated-selector and generated-instance counts stay zero.** Its existing saved 4×4 grouping and anchor remain a named historical preview fallback. Gates and additional ordinary-wall model/Type 256 components also remain unresolved.
+
+`landscape_fidelity_report.regeneration` distinguishes verified static Mountain/Wall cell selections, large Rock/Pinnacle/Great Wall instance counts, and unresolved Mountain/Wall cells. Coverage, selector identity, complete placement and complete composition are separate measurements. Frame draw/inspect/pick performs no files, decode/upload, World copies/commands, BFS or route refresh. The bounded Pass-3 validation is complete; see the [Pass-3 audit and stopping point](reverse/map-first-draw.md#original-map-fidelity-pass-3--mountains-rocks-walls-and-great-wall-2026-10-04). Original-data captures and reports stay ignored.
+
+For a local debug session with user-supplied data:
+
+```sh
+./build/openemperor --data .local/gog-extracted/app --map-debug Cities/Juchengshi.map --view stored-graphics --graphics-profile exe-6373328b-v213-slot8-runtime-table --multi-tile-preview --footprint-policy edge-byte-4x4
+./build/openemperor --data .local/gog-extracted/app --map-debug Cities/Badaling.map --view stored-graphics --graphics-profile exe-6373328b-v213-slot8-runtime-table --multi-tile-preview --footprint-policy edge-byte-4x4
+```
+
+F8 changes presentation only; it never changes the World, saved map layers or City rules. The older sections below retain their historical policy/capture counts.
+
+## Landscape fidelity pass 1 (historical behavior)
 
 The supported standalone-map preview now reads a separate saved height grid and draw-properties range once. The observed signed-byte height operand shifts displayed Y by `height*40`; it does not change buildability, World occupancy, routes or saves. Original setup may normalize heights and **clears the loaded saved-ID array before regenerating it**. Saved IDs remain useful provenance, not verified first-draw identities. See [the bounded trace and acceptance report](reverse/map-first-draw.md).
 

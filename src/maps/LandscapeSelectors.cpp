@@ -68,11 +68,18 @@ std::uint32_t raw(std::span<const std::uint32_t> terrain,int x,int y) {
     return terrain[std::size_t(y)*stored_grid_width+std::size_t(x)];
 }
 bool possible_rock_square(std::span<const std::uint32_t> terrain,GridCell cell,std::uint32_t rock) {
-    for (unsigned y=0;y<2;++y) for (unsigned x=0;x<2;++x) {
-        if (cell.x+x>=stored_grid_width || cell.y+y>=stored_grid_height ||
-            (raw(terrain,int(cell.x+x),int(cell.y+y))&0xaffede6fU)!=rock) return false;
+    // A member can have been claimed by an earlier origin. Checking all four
+    // containing 2x2 squares also bounds every possible containing 3x3.
+    for (int oy=-1;oy<=0;++oy) for (int ox=-1;ox<=0;++ox) {
+        bool matches=true;
+        for (int y=0;y<2;++y) for (int x=0;x<2;++x) {
+            const int px=int(cell.x)+ox+x,py=int(cell.y)+oy+y;
+            if (px<0 || py<0 || px>=int(stored_grid_width) || py>=int(stored_grid_height) ||
+                (raw(terrain,px,py)&0xaffede6fU)!=rock) matches=false;
+        }
+        if (matches) return true;
     }
-    return true;
+    return false;
 }
 LandscapeSelection result(LandscapeFamily family,const char* selector,unsigned key,unsigned variant,
     SelectorEvidence evidence=SelectorEvidence::Verified,const char* reason="EXE-observed static selector") {
@@ -108,7 +115,9 @@ const char* selector_evidence_name(SelectorEvidence e) {
 }
 const char* landscape_family_name(LandscapeFamily f) {
     switch(f) {case LandscapeFamily::Ground:return "ground";case LandscapeFamily::Water:return "water";
-    case LandscapeFamily::Decoration:return "decoration";case LandscapeFamily::Preserved:return "preserved";}return "invalid";
+    case LandscapeFamily::Decoration:return "decoration";case LandscapeFamily::Rock:return "rock";
+    case LandscapeFamily::Mountain:return "mountain";case LandscapeFamily::Wall:return "normal_wall";
+    case LandscapeFamily::GreatWall:return "great_wall";case LandscapeFamily::Preserved:return "preserved";}return "invalid";
 }
 bool LandscapeSelection::operator==(const LandscapeSelection& r) const {
     return family==r.family && evidence==r.evidence && std::string_view(selector)==r.selector &&
@@ -119,6 +128,8 @@ LandscapeSelection select_landscape(const LandscapeSelectorInput& in,GridCell ce
         cell.x>=stored_grid_width || cell.y>=stored_grid_height || in.orientation>=4) return {};
     const auto index=std::size_t(cell.y)*stored_grid_width+cell.x;
     const auto t=in.terrain[index]; const auto v=in.variation[index];
+    if (t&0x4000U) return result(LandscapeFamily::Wall,"4b67b0 separate wall pass",0x451,0,
+        SelectorEvidence::Unresolved,"wall requires its separate topology/model-state selector");
     if (t&0x8c008U) return result(LandscapeFamily::Preserved,"53ec90 early exclusion",0,0,
         SelectorEvidence::Unresolved,"original early exclusion; historical preview preserved");
     if (t&4U) {
@@ -153,10 +164,12 @@ LandscapeSelection select_landscape(const LandscapeSelectorInput& in,GridCell ce
         SelectorEvidence::Unresolved,"post-load stage reset, ring bank and occupancy dependencies unresolved");
     if ((t&0xaffede6fU)==2U || (t&0xaffede6fU)==0x100002U || (t&0xaffede6fU)==0x200002U) {
         const auto rock=t&0x300002U;const unsigned key=rock==0x100002U?0x607:rock==0x200002U?0x608:0x606;
-        return result(LandscapeFamily::Decoration,"53f660 rock",key,v&7U,
+        return result(LandscapeFamily::Rock,"53f660 rock",key,v&7U,
             possible_rock_square(in.terrain,cell,rock)?SelectorEvidence::Unresolved:SelectorEvidence::Verified,
             possible_rock_square(in.terrain,cell,rock)?"2x2/3x3 occupancy packing unresolved; historical footprint retained":"larger rock rectangles rejected by raw terrain; singleton selector");
     }
+    if (t&0x2000000U) return result(LandscapeFamily::Mountain,"53fa20 pinnacle",0,0,
+        SelectorEvidence::Unresolved,"pinnacle needs canonical five-cell origin and ownership");
     if (t&0x40000U) return result(LandscapeFamily::Ground,"5400f0 / 4bc800 marsh",0x620,v%9,
         SelectorEvidence::Unresolved,"marsh is distinct from water and flood; post-load stage dependencies unresolved");
     if (t==0x80U) {

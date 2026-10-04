@@ -582,12 +582,13 @@ int main(int argc, char* argv[]) {
                 namespace assets = openemperor::assets;
                 const auto candidates = maps::read_map_graphic_candidates(container,map_part);
                 const maps::MapGeometry geometry{map.declared_map_size};
-                const auto registrations=maps::load_stored_archive_registrations(
+                auto registrations=maps::load_stored_archive_registrations(
                     data_directory,candidates,geometry,graphics_profile);
                 stored_plan = maps::make_stored_graphics_plan(map,candidates,geometry,registrations,
                     multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
                     graphics_profile);
                 maps::read_landscape_layers(*stored_plan,container,map_part);
+                maps::add_regenerated_wall_registration(*stored_plan,registrations);
                 maps::build_regenerated_map_render_plan(*stored_plan,registrations);
                 stored_plan->map_relative=map_debug_path;
             }

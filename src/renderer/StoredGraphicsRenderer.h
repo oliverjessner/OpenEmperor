@@ -18,13 +18,14 @@ namespace openemperor {
 std::array<std::uint8_t,3> stored_presentation_fallback_color(
     maps::TerrainCategory category);
 
-enum class LandscapeDebugMode { Ground, Water, Elevation, Decorations, Regenerated, Snapshot };
+enum class LandscapeDebugMode { Ground, Water, Elevation, MountainsRocks, WallsMonuments, Decorations, Regenerated, Snapshot };
 const char* landscape_debug_mode_name(LandscapeDebugMode mode);
 
 struct StoredDrawItem {
     scene::WorldDrawKey key;
     bool footprint = false;
     std::size_t plan_index = 0;
+    bool regenerated = false;
 };
 
 class StoredGraphicsRenderer {
@@ -63,6 +64,7 @@ private:
     scene::Point image_origin(const maps::PlacedFootprint& footprint) const;
     std::size_t render_asset_index(const maps::PlacedFootprint& footprint) const;
     bool overlay_visible(const maps::PlacedFootprint& footprint) const;
+    bool regenerated_visible(std::size_t instance) const;
     LandscapeDebugMode landscape_mode_=LandscapeDebugMode::Snapshot;
     std::vector<SDL_Texture*> base_textures_, overlay_textures_;
     std::vector<std::vector<std::uint8_t>> snapshot_alpha_, overlay_alpha_;
@@ -70,6 +72,7 @@ private:
     SDL_Renderer* renderer_ = nullptr;
     std::vector<SDL_Texture*> textures_;
     std::vector<StoredDrawItem> draw_order_;
+    std::vector<bool> regenerated_ready_, suppressed_footprints_, suppressed_cells_;
     std::size_t stored_order_builds_ = 0;
     std::size_t last_drawn_instances_ = 0;
     std::size_t last_texture_draws_ = 0;

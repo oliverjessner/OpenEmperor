@@ -98,16 +98,31 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
         if (generated.graphic) detail["packed_graphic"]=generated.graphic->value;
         if (generated.asset_index) {
             const auto& a=plan.assets[*generated.asset_index];const auto& r=a.record;
+            const bool active_instance=!generated.instance_index ||
+                (*generated.instance_index<plan.regenerated_instance_active.size() &&
+                 plan.regenerated_instance_active[*generated.instance_index]);
             detail["resolved_asset"]={{"archive",r.id.archive_relative_path.generic_string()},
                 {"physical_record",r.id.image_index},{"width",r.width},{"height",r.height},
                 {"base_bytes",r.uncompressed_length},{"overlay_bytes",r.data_length-r.uncompressed_length},
                 {"decode_status",stored_status_name(a.status)}};
             auto origin=stored_image_origin(terrain_world(c->storage,plan.border),
                 static_cast<std::uint32_t>(r.width),static_cast<std::uint32_t>(r.height));
-            if (elevated) origin.y-=landscape_height(plan,c->storage)*landscape_height_step;
+            if (generated.instance_index) {
+                const auto& instance=plan.regenerated->instances[*generated.instance_index];
+                const auto& g=instance.geometry;
+                detail["instance"]={{"id",*generated.instance_index},{"family",landscape_family_name(g.selection.family)},
+                    {"origin",cell_json(g.origin)},{"footprint_side",g.side},{"owned_cell",cell_json(c->storage)},
+                    {"owned_cell_count",g.owned_cells.size()},{"draw_cell",cell_json(g.draw_cell)},
+                    {"height",landscape_height(plan,g.draw_cell)},
+                    {"placement_evidence",g.placement_evidence},{"composition_evidence",g.composition_evidence},
+                    {"painter_depth_convention","logical diagonal front ground; height does not reorder"}};
+                origin=regenerated_instance_origin(g,plan.border,unsigned(r.width),unsigned(r.height),
+                    elevated ? landscape_height(plan,g.draw_cell):0);
+            } else if (elevated) origin.y-=landscape_height(plan,c->storage)*landscape_height_step;
             detail["preview_image_origin"]=point(origin);
             detail["first_visible_layer"]="Ground base (overlay added by semantic layer)";
-            if (elevated && a.status==StoredStatus::Rendered) j["render_source"]=
+            detail["atomic_instance_active"]=active_instance;
+            if (elevated && active_instance && a.status==StoredStatus::Rendered) j["render_source"]=
                 s.evidence==SelectorEvidence::Verified ? "regenerated verified static selector":"regenerated preview; transient context unresolved";
         }
         detail["active"]=elevated;
@@ -205,10 +220,14 @@ Json landscape_fidelity_report(const StoredGraphicsPlan& plan) {
         std::size_t verified=0,preview=0,water=0,ground=0,decor=0,unresolved=0;
         for (const auto& c:plan.regenerated->cells) {
             if (c.selection.evidence==SelectorEvidence::Unresolved) ++unresolved;
-            if (!c.asset_index || plan.assets[*c.asset_index].status!=StoredStatus::Rendered) continue;
+            if (!c.asset_index || plan.assets[*c.asset_index].status!=StoredStatus::Rendered ||
+                (c.instance_index && (*c.instance_index>=plan.regenerated_instance_active.size() ||
+                 !plan.regenerated_instance_active[*c.instance_index]))) continue;
             if (c.selection.evidence==SelectorEvidence::Verified) ++verified;else ++preview;
             switch(c.selection.family) {case LandscapeFamily::Water:++water;break;
             case LandscapeFamily::Ground:++ground;break;case LandscapeFamily::Decoration:++decor;break;
+            case LandscapeFamily::Rock:case LandscapeFamily::Mountain:case LandscapeFamily::Wall:
+            case LandscapeFamily::GreatWall:break;
             case LandscapeFamily::Preserved:break;}
         }
         regeneration.update({{"verified_identity",verified},{"preview_identity",preview},
@@ -217,6 +236,34 @@ Json landscape_fidelity_report(const StoredGraphicsPlan& plan) {
             {"load_plan_milliseconds",plan.regenerated->build_milliseconds},
             {"historical_physical_assets",plan.regenerated->historical_asset_count},
             {"shared_physical_assets",plan.assets.size()}});
+        std::size_t mountain_verified=0,wall_verified=0,unresolved_mountains=0,unresolved_walls=0;
+        std::size_t large_rocks=0,pinnacles=0,great_walls=0;
+        for (std::size_t i=0;i<plan.regenerated->cells.size();++i) {
+            const auto& c=plan.regenerated->cells[i];const auto f=c.selection.family;
+            const bool active=!c.instance_index || (*c.instance_index<plan.regenerated_instance_active.size() &&
+                plan.regenerated_instance_active[*c.instance_index]);
+            const bool available=active && c.asset_index && plan.assets[*c.asset_index].status==StoredStatus::Rendered;
+            const bool selected=c.selection.evidence==SelectorEvidence::Verified && available;
+            if (f==LandscapeFamily::Rock || f==LandscapeFamily::Mountain) {
+                if (selected) ++mountain_verified;else ++unresolved_mountains;
+            }
+            if (f==LandscapeFamily::Wall || f==LandscapeFamily::GreatWall) {
+                if (selected) ++wall_verified;else ++unresolved_walls;
+            }
+        }
+        for (std::size_t n=0;n<plan.regenerated->instances.size();++n) {
+            const auto& i=plan.regenerated->instances[n];
+            if (n>=plan.regenerated_instance_active.size() || !plan.regenerated_instance_active[n] ||
+                plan.assets[i.asset_index].status!=StoredStatus::Rendered) continue;
+            if (i.geometry.selection.family==LandscapeFamily::Rock && i.geometry.side>1) ++large_rocks;
+            if (i.geometry.selection.family==LandscapeFamily::Mountain) ++pinnacles;
+            if (i.geometry.selection.family==LandscapeFamily::GreatWall) ++great_walls;
+        }
+        regeneration.update({{"mountain_selector_verified",mountain_verified},{"rock_large_instances",large_rocks},
+            {"pinnacle_instances",pinnacles},{"normal_wall_selector_verified",wall_verified},
+            {"great_wall_selector_verified",0},{"great_wall_instances",great_walls},
+            {"unresolved_wall_cells",unresolved_walls},{"unresolved_mountain_cells",unresolved_mountains},
+            {"selector_metric_unit","cells; instance metrics count whole selected geometries"}});
     }
     return {{"regeneration",regeneration},
         {"coverage",{{"candidate_cells",plan.cells.size()},{"decoded_snapshot_cells",supported}}},

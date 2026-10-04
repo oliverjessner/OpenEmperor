@@ -5,6 +5,7 @@
 #include "maps/StoredGraphicsPlan.h"
 #include "maps/StoredMapSession.h"
 #include "maps/LandscapeProvenance.h"
+#include "maps/RegeneratedMapRenderPlan.h"
 #include "assets/Sg3IsometricDecoder.h"
 #include "core/PerformanceDiagnostics.h"
 #include "renderer/StoredGraphicsRenderer.h"
@@ -236,6 +237,77 @@ int main() {
         const auto base_registrations=maps::load_stored_archive_registrations(
             temp.path,extra_candidates,extra_geometry,maps::StoredGraphicsProfile::Base);
         check(!base_registrations.contains(8U),"base profile retains its two registrations");
+        {
+            const auto general_sg3=temp.path/"DATA/China_General.sg3";
+            const auto general_555=temp.path/"DATA/China_General.555";
+            auto no_wall=maps::make_stored_graphics_plan(map,extra_candidates,extra_geometry,
+                base_registrations,maps::FootprintPolicy::EdgeBytePreview,maps::StoredGraphicsProfile::Base);
+            no_wall.landscape_layers_available=true;
+            write(general_sg3,Bytes{'b','a','d'});
+            auto no_wall_registrations=base_registrations;
+            openemperor::performance::set_enabled(true); openemperor::performance::reset();
+            maps::add_regenerated_wall_registration(no_wall,no_wall_registrations);
+            check(!no_wall_registrations.contains(2U) &&
+                openemperor::performance::counter(openemperor::performance::Counter::FileReads)==0 &&
+                openemperor::performance::counter(openemperor::performance::Counter::AssetDecodes)==0,
+                "without wall candidates even a malformed optional General archive is never probed");
+            openemperor::performance::set_enabled(false);
+            fs::remove(general_sg3);
+            write(temp.path/"GeneralFallback.map",stored_map_file(0x4080,false,84,false,false,true));
+            const auto container=maps::EmperorContainer::open(temp.path/"GeneralFallback.map");
+            const auto wall_map=maps::read_emperor_map(container,0);
+            const auto wall_candidates=maps::read_map_graphic_candidates(container,0);
+            const maps::MapGeometry wall_geometry{wall_map.declared_map_size};
+            const auto wall_registrations=maps::load_stored_archive_registrations(
+                temp.path,wall_candidates,wall_geometry,maps::StoredGraphicsProfile::Base);
+            auto historical=maps::make_stored_graphics_plan(wall_map,wall_candidates,wall_geometry,
+                wall_registrations,maps::FootprintPolicy::EdgeBytePreview,maps::StoredGraphicsProfile::Base);
+            maps::read_landscape_layers(historical,container,0);
+            const auto check_fallback=[&](bool missing_archive,const char* source_case) {
+                auto registrations=wall_registrations;
+                openemperor::performance::set_enabled(true); openemperor::performance::reset();
+                maps::add_regenerated_wall_registration(historical,registrations);
+                const auto& optional=registrations.at(2U);
+                const auto message=std::string(source_case)+": optional General remains an explicit undecoded fallback";
+                check(!optional.layout && !optional.catalog &&
+                    (missing_archive ? optional.archive_missing:!optional.optional_error.empty()) &&
+                    openemperor::performance::counter(openemperor::performance::Counter::AssetDecodes)==0 &&
+                    openemperor::performance::counter(openemperor::performance::Counter::TextureUploads)==0,
+                    message.c_str());
+                const auto session=maps::load_stored_map_session(temp.path,"GeneralFallback.map",
+                    maps::FootprintPolicy::EdgeBytePreview);
+                check(session.plan.landscape_layers_available && session.plan.regenerated &&
+                    session.plan.raw_saved_ids==historical.raw_saved_ids &&
+                    session.plan.raw_terrain==historical.raw_terrain &&
+                    session.plan.status_by_storage==historical.status_by_storage &&
+                    session.plan.footprints.size()==historical.footprints.size() &&
+                    session.plan.assets.size()==historical.assets.size() &&
+                    openemperor::performance::counter(openemperor::performance::Counter::AssetDecodes)==0 &&
+                    openemperor::performance::counter(openemperor::performance::Counter::TextureUploads)==0,
+                    "optional General failure preserves the loadable Terrain/Elevation session and historical authority");
+                for (std::size_t i=0;i<historical.footprints.size();++i) {
+                    const auto& before=historical.footprints[i]; const auto& after=session.plan.footprints[i];
+                    check(before.origin==after.origin && before.width_cells==after.width_cells &&
+                        before.height_cells==after.height_cells && before.cell_indices==after.cell_indices &&
+                        before.image_origin.x==after.image_origin.x && before.image_origin.y==after.image_origin.y,
+                        "optional General failure never changes a historical footprint or anchor");
+                }
+                openemperor::performance::set_enabled(false);
+            };
+            check_fallback(true,"missing SG3");
+            write(general_sg3,sg3(205,201));
+            check_fallback(false,"missing .555");
+            write(general_555,Bytes{});
+            write(general_sg3,Bytes{'b','a','d'});
+            check_fallback(false,"malformed SG3");
+            Temp outside;
+            write(outside.path/"DATA/General.sg3",sg3(205,201));
+            fs::remove(general_sg3);
+            fs::create_symlink(outside.path/"DATA/General.sg3",general_sg3);
+            check_fallback(false,"SG3 symlink outside root");
+            fs::remove(general_sg3); fs::remove(general_555);
+            fs::remove(temp.path/"GeneralFallback.map");
+        }
         const auto missing_registrations=maps::load_stored_archive_registrations(
             temp.path,extra_candidates,extra_geometry,maps::StoredGraphicsProfile::Slot8);
         check(missing_registrations.at(8U).archive_missing &&
@@ -687,6 +759,194 @@ int main() {
             auto incomplete=preview.plan(); incomplete.raw_objects.clear();
             check(maps::landscape_provenance(incomplete,{114,114},true).at("status")==
                 "incomplete_provenance_metadata","incomplete raw metadata is bounded and explicit");
+        }
+        {
+            // Independent regenerated ownership replaces an old red-overlay
+            // singleton with the already supported synthetic blue-overlay asset.
+            // Saved footprints and their flat Snapshot presentation stay exact.
+            auto historical_candidates=candidates_fixture();
+            set_id(historical_candidates,114,114,0xc00a);
+            auto regenerated_plan=maps::make_stored_graphics_plan(map,historical_candidates,
+                sparse_geometry({{114,114}}),terrain_catalog,*terrain_layout,
+                elevation_catalog,*elevation_layout,true);
+            regenerated_plan.landscape_layers_available=true;
+            regenerated_plan.height_bytes.assign(228U*228U,0);
+            regenerated_plan.height_bytes[114U*228U+114U]=2;
+            regenerated_plan.draw_properties.assign(228U*228U,0);
+            regenerated_plan.variation_bytes.assign(228U*228U,0);
+            regenerated_plan.fertility_bytes.assign(228U*228U,0);
+            const auto old_footprints=regenerated_plan.footprints;
+            const auto old_ids=regenerated_plan.raw_saved_ids;
+            const auto old_status=regenerated_plan.status_by_storage;
+            regenerated_plan.assets.push_back({terrain_catalog.records[202],
+                maps::StoredStatus::DecodePending,false,false,{}});
+            auto generated=std::make_shared<maps::RegeneratedMapRenderPlan>();
+            generated->historical_asset_count=1;
+            generated->cells.resize(1); generated->footprint_assets.resize(1);
+            maps::RegeneratedLandscapeInstance instance;
+            instance.geometry.selection.family=maps::LandscapeFamily::Rock;
+            instance.geometry.selection.evidence=maps::SelectorEvidence::Verified;
+            instance.geometry.selection.selector="synthetic regenerated instance";
+            instance.geometry.origin={114,114}; instance.geometry.draw_cell={114,114};
+            instance.geometry.owned_cells={{114,114}};
+            instance.graphic={0xc001}; instance.asset_index=1; instance.cell_indices={0};
+            generated->instances.push_back(instance);
+            generated->cells[0].instance_index=0;
+            generated->cells[0].asset_index=1;
+            generated->cells[0].graphic=instance.graphic;
+            generated->cells[0].selection=instance.geometry.selection;
+            regenerated_plan.regenerated=generated;
+            openemperor::StoredGraphicsRenderer regenerated{std::move(regenerated_plan)};
+            regenerated.initialize(renderer);
+            regenerated.set_landscape_mode(openemperor::LandscapeDebugMode::Regenerated);
+            check(regenerated.upload_count()==6,"old and new physical assets each eagerly own three textures");
+            scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+            camera.center_on(maps::landscape_ground(regenerated.plan(),{114,114}));
+            const auto origin=maps::regenerated_instance_origin(instance.geometry,
+                regenerated.plan().border,78,46,2);
+            const auto alpha_pixel=camera.world_to_screen({origin.x+38,origin.y});
+            const auto old_pixel=camera.world_to_screen({old_footprints.front().image_origin.x+38,
+                old_footprints.front().image_origin.y-80});
+            check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                regenerated.render(camera,std::nullopt) && regenerated.last_texture_draws()==2 &&
+                regenerated.last_diagnostic_draws()==0,
+                "regenerated singleton draws its own base and overlay without old texture or diagnostic");
+            check(pixel(renderer,int(alpha_pixel.x),int(alpha_pixel.y))[2]==255 &&
+                pixel(renderer,int(old_pixel.x),int(old_pixel.y))[0]==0,
+                "new blue overlay is visible and displaced old red overlay is suppressed");
+            check(regenerated.hit_test(alpha_pixel,camera)==maps::GridCell{114,114},
+                "regenerated alpha cache picks the derived draw cell");
+            const auto active_provenance=maps::landscape_provenance(regenerated.plan(),{114,114},true,&camera);
+            check(active_provenance.at("regenerated").at("atomic_instance_active")==true &&
+                active_provenance.at("render_source")=="regenerated verified static selector" &&
+                maps::landscape_fidelity_report(regenerated.plan()).at("regeneration").at("verified_identity")==1,
+                "F1 and identity metrics report the actually active regenerated instance");
+            for (auto layer:{scene::WorldVisualLayer::SandboxRoad,scene::WorldVisualLayer::SandboxBuilding,
+                             scene::WorldVisualLayer::SandboxWalker}) {
+                for (bool in_front:{false,true}) {
+                    check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer),
+                        "clear regenerated crossing scene");
+                    regenerated.begin_frame();
+                    for (std::size_t i=0;i<regenerated.draw_items().size();++i)
+                        check(regenerated.draw_ground_item(i,camera),"regenerated base precedes crossing entities");
+                    const auto item=std::find_if(regenerated.draw_items().begin(),regenerated.draw_items().end(),
+                        [](const auto& next){return next.regenerated;});
+                    check(item!=regenerated.draw_items().end(),"new instance owns an independent painter item");
+                    struct Crossing {scene::WorldDrawKey key;};
+                    auto key=item->key; key.depth+=in_front ? 1:-1; key.layer=layer;
+                    const std::array<Crossing,1> crossing{{{key}}};
+                    scene::WorldMergeStats stats;
+                    check(scene::merge_world_draw_streams(regenerated.draw_items(),crossing,
+                        [&](std::size_t i){return regenerated.draw_item(i,camera);},
+                        [&](std::size_t){
+                            const SDL_FRect box{float(alpha_pixel.x),float(alpha_pixel.y),1,1};
+                            return SDL_SetRenderDrawColor(renderer,255,0,0,255) && SDL_RenderFillRect(renderer,&box);
+                        },stats),"merge independent regenerated overlay with road, building and walker layers");
+                    const auto color=pixel(renderer,int(alpha_pixel.x),int(alpha_pixel.y));
+                    check((in_front ? color[0]:color[2])==255 && (in_front ? color[2]:color[0])==0,
+                        "regenerated overlay occludes the entity behind and yields to the entity in front");
+                }
+            }
+            regenerated.set_landscape_mode(openemperor::LandscapeDebugMode::Ground);
+            check(!regenerated.hit_test(alpha_pixel,camera),"Ground inspection hides regenerated overhang hits");
+            regenerated.set_landscape_mode(openemperor::LandscapeDebugMode::Snapshot);
+            const auto flat_pixel=camera.world_to_screen({old_footprints.front().image_origin.x+38,
+                old_footprints.front().image_origin.y});
+            check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                regenerated.render(camera,std::nullopt) && regenerated.last_texture_draws()==1 &&
+                pixel(renderer,int(flat_pixel.x),int(flat_pixel.y))[0]==255 &&
+                pixel(renderer,int(alpha_pixel.x),int(alpha_pixel.y))[2]==0,
+                "Snapshot draws only the old flat red image and ignores regenerated ownership and height");
+            check(regenerated.hit_test(flat_pixel,camera)==maps::GridCell{114,114},
+                "Snapshot retains its original combined-image hit cache");
+            regenerated.set_landscape_mode(openemperor::LandscapeDebugMode::Regenerated);
+            openemperor::performance::set_enabled(true); openemperor::performance::reset();
+            for (unsigned frame=0;frame<32;++frame) {
+                check(regenerated.render(camera,std::nullopt),"repeated regenerated frame");
+                (void)maps::landscape_inspection_lines(regenerated.plan(),{114,114},true,&camera);
+                (void)regenerated.hit_test(alpha_pixel,camera);
+            }
+            for (auto counter:{openemperor::performance::Counter::FileReads,
+                openemperor::performance::Counter::FileWrites,openemperor::performance::Counter::AssetDecodes,
+                openemperor::performance::Counter::TextureUploads,openemperor::performance::Counter::WorldCopies,
+                openemperor::performance::Counter::WorldExecutes,openemperor::performance::Counter::BfsCalls,
+                openemperor::performance::Counter::RouteRefreshes})
+                check(openemperor::performance::counter(counter)==0,
+                    "regenerated render, F1 inspection and alpha picking perform no mutable or asset work");
+            check(regenerated.plan().raw_saved_ids==old_ids &&
+                regenerated.plan().footprints.front().image_origin.x==old_footprints.front().image_origin.x &&
+                regenerated.plan().footprints.front().image_origin.y==old_footprints.front().image_origin.y &&
+                regenerated.stored_order_builds()==1,
+                "regenerated frames preserve old identity, geometry and the cached painter order");
+            // DecodePending may become Rendered, exactly as on the historical
+            // loader; no new ownership may alter other buildability statuses.
+            check(old_status[114U*228U+114U]==maps::StoredStatus::DecodePending &&
+                regenerated.plan().status_by_storage[114U*228U+114U]==maps::StoredStatus::Rendered,
+                "new instance leaves the ordinary historical decode-status transition intact");
+            openemperor::performance::set_enabled(false);
+        }
+        {
+            // A new singleton cannot split a historical 2x2 image. A failed
+            // decode anywhere in an overlapping replacement group restores the
+            // whole old footprint instead of drawing partial or doubled images.
+            auto square_candidates=candidates_fixture();
+            set_id(square_candidates,100,100,0xc002,0);
+            set_id(square_candidates,101,100,0xc002,1);
+            set_id(square_candidates,100,101,0xc002,72);
+            set_id(square_candidates,101,101,0xc002,9);
+            const auto square_geometry=sparse_geometry({{100,100},{101,100},{100,101},{101,101}});
+            for (bool failed_member:{false,true}) {
+                auto square=maps::make_stored_graphics_plan(map,square_candidates,square_geometry,
+                    terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,true);
+                check(square.footprints.size()==1 && square.footprints.front().width_cells==2,
+                    "replacement failure scene has one independent historical square");
+                square.landscape_layers_available=true;
+                square.height_bytes.assign(228U*228U,0);
+                square.draw_properties.assign(228U*228U,0);
+                square.assets.push_back({terrain_catalog.records[202],maps::StoredStatus::DecodePending,false,false,{}});
+                if (failed_member)
+                    square.assets.push_back({terrain_catalog.records[208],maps::StoredStatus::DecodePending,false,false,{}});
+                auto generated=std::make_shared<maps::RegeneratedMapRenderPlan>();
+                generated->historical_asset_count=1; generated->cells.resize(square.cells.size());
+                generated->footprint_assets.resize(1);
+                const auto count=failed_member ? square.cells.size():std::size_t{1};
+                for (std::size_t i=0;i<count;++i) {
+                    maps::RegeneratedLandscapeInstance instance;
+                    instance.geometry.selection.family=maps::LandscapeFamily::Rock;
+                    instance.geometry.selection.evidence=maps::SelectorEvidence::Verified;
+                    instance.geometry.origin=square.cells[i].storage;
+                    instance.geometry.draw_cell=instance.geometry.origin;
+                    instance.geometry.owned_cells={instance.geometry.origin};
+                    instance.graphic={0xc001}; instance.asset_index=failed_member && i==1 ? 2:1;
+                    instance.cell_indices={i}; generated->instances.push_back(instance);
+                    generated->cells[i].instance_index=i; generated->cells[i].asset_index=instance.asset_index;
+                    generated->cells[i].selection=instance.geometry.selection;
+                }
+                square.regenerated=generated;
+                openemperor::StoredGraphicsRenderer fallback{std::move(square)}; fallback.initialize(renderer);
+                fallback.set_landscape_mode(openemperor::LandscapeDebugMode::Regenerated);
+                scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
+                camera.center_on(maps::terrain_ground({100,100},fallback.plan().border));
+                check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
+                    fallback.render(camera,std::nullopt) && fallback.last_texture_draws()==1 &&
+                    fallback.last_diagnostic_draws()==0,
+                    "partial overlap or failed member deactivates all new items and retains the whole old square");
+                const auto& first=generated->instances.front();
+                const auto origin=maps::regenerated_instance_origin(first.geometry,fallback.plan().border,78,46,0);
+                check(!fallback.hit_test(camera.world_to_screen({origin.x+38,origin.y}),camera),
+                    "disabled replacement group contributes no stale alpha hit");
+                for (std::size_t i=0;i<count;++i) {
+                    const auto provenance=maps::landscape_provenance(fallback.plan(),fallback.plan().cells[i].storage,true,&camera);
+                    check(provenance.at("regenerated").at("atomic_instance_active")==false &&
+                        provenance.at("render_source")=="historical saved-ID preview",
+                        "F1 reports historical fallback even when a deactivated new asset decoded successfully");
+                }
+                const auto report=maps::landscape_fidelity_report(fallback.plan()).at("regeneration");
+                check(report.at("verified_identity")==0 && report.at("rock_large_instances")==0,
+                    "atomic fallback contributes no verified cell or active large-rock counts");
+                if (failed_member) check(fallback.plan().assets[2].status==maps::StoredStatus::DecodeFailed &&
+                    fallback.upload_count()==6,"failed overlay decode rolls back textures and keeps shared assets bounded");
+            }
         }
         {
             const auto metadata=assets::read_sg3_archive(temp.path/"DATA/China_Terrain.sg3");

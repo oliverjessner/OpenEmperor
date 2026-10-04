@@ -23,7 +23,7 @@ struct WaterMatch {
 // absent-water neighbours (4bc100), not the water bits themselves.
 std::optional<WaterMatch> match_water(WaterNeighborhood water,
     unsigned orientation, std::uint8_t variation);
-enum class LandscapeFamily { Ground, Water, Decoration, Preserved };
+enum class LandscapeFamily { Ground, Water, Decoration, Rock, Mountain, Wall, GreatWall, Preserved };
 enum class SelectorEvidence { Verified, Preview, Unresolved };
 struct LandscapeSelection {
     LandscapeFamily family=LandscapeFamily::Preserved;

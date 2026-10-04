@@ -1,6 +1,9 @@
 #include "maps/RegeneratedMapRenderPlan.h"
+#include "maps/PinnacleSelector.h"
+#include "maps/WallTopology.h"
 #include <chrono>
 #include <memory>
+#include <algorithm>
 
 namespace openemperor::maps {
 std::optional<PackedGraphicId> resolve_landscape_variant(ResourceGroupKey key,
@@ -69,6 +72,116 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
             } else next.fallback="group/variant unresolved; historical preview retained";
         }
         generated->cells.push_back(next);
+    }
+    // New geometry has its own ownership and generation order. It does not
+    // reuse a saved graphic's origin, size or footprint partition.
+    constexpr auto count=stored_grid_width*stored_grid_height;
+    std::vector<std::uint8_t> eligible(count,0);
+    for (const auto& c:plan.cells) {
+        // Preserve the current elevation presentation at this bounded pass.
+        // This is a preview boundary, not evidence that a saved ID survived.
+        if (c.slot!=16) eligible[c.cell_index]=1;
+    }
+    const auto append_instance=[&](LandscapeInstanceSpec spec) {
+        std::vector<std::size_t> members;
+        for (const auto cell:spec.owned_cells) {
+            if (cell.x>=stored_grid_width || cell.y>=stored_grid_height) return false;
+            const auto raw=std::size_t(cell.y)*stored_grid_width+cell.x;
+            if (!eligible[raw] || plan.cell_by_storage.size()!=count || !plan.cell_by_storage[raw]) return false;
+            const auto index=*plan.cell_by_storage[raw];
+            if (generated->cells[index].instance_index) return false;
+            members.push_back(index);
+        }
+        const auto graphic=resolve_landscape_variant(spec.selection.group,spec.selection.variant,groups);
+        if (!graphic) return false;
+        const auto resolution=resolve_graphics_id_hypothesis(graphic->value,images);
+        const auto* r=resolution.record;
+        const auto side=spec.side;
+        if (resolution.status!=GraphicsIdStatus::DecodeCandidate || !r ||
+            r->image_type!=30 || r->width!=int(80U*side-2U) || r->height<int(40U*side) ||
+            r->uncompressed_length!=3200U*side*side || r->isometric_size_flag!=side ||
+            r->horizontal_mirror_offset!=0 || r->animation_sprites!=0) return false;
+        const AssetKey key{r->id.archive_relative_path.generic_string(),r->id.image_index};
+        auto existing=pool.find(key);
+        if (existing==pool.end()) {
+            if (plan.assets.size()>=stored_max_assets) return false;
+            const auto index=plan.assets.size();
+            plan.assets.push_back({*r,StoredStatus::DecodePending,false,false,{}});
+            existing=pool.emplace(key,index).first;
+        } else if (plan.assets[existing->second].status!=StoredStatus::Rendered) {
+            // Metadata was previously refused only by the historical footprint
+            // policy. The unchanged decoder supports this evidenced geometry.
+            plan.assets[existing->second].status=StoredStatus::DecodePending;
+        }
+        const auto id=generated->instances.size();
+        for (const auto member:members) {
+            auto& c=generated->cells[member];c.selection=spec.selection;
+            c.graphic=graphic;c.asset_index=existing->second;c.instance_index=id;
+            c.fallback="whole regenerated instance, or atomic historical preview after decode failure";
+        }
+        generated->instances.push_back({std::move(spec),*graphic,existing->second,std::move(members)});
+        return true;
+    };
+    for (auto spec:derive_rock_instances(input,eligible)) {
+        if (!append_instance(spec)) for (const auto cell:spec.owned_cells) {
+            const auto raw=std::size_t(cell.y)*stored_grid_width+cell.x;
+            if (plan.cell_by_storage.size()==count && plan.cell_by_storage[raw]) {
+                auto& c=generated->cells[*plan.cell_by_storage[raw]];
+                c.selection=spec.selection;c.selection.evidence=SelectorEvidence::Unresolved;
+                c.fallback="selected rock instance geometry/asset unavailable; historical preview retained";
+            }
+        }
+    }
+    for (const auto& c:plan.cells) {
+        if (!(c.terrain_raw&0x2000000U)) continue;
+        const auto pin=select_pinnacle(input,c.storage,plan.draw_properties,plan.raw_candidate_bytes);
+        if (!pin || pin->origin!=c.storage) continue;
+        LandscapeInstanceSpec spec;
+        spec.selection={LandscapeFamily::Mountain,SelectorEvidence::Verified,"53fa20 / 4b7bd0 / 4b72b0",
+            pin->reason,pin->group,0,{}};
+        spec.origin=pin->origin;spec.side=pin->side;
+        spec.draw_cell={pin->origin.x,pin->origin.y+pin->side-1};
+        spec.placement_evidence="EXE-OBSERVED: canonical five-cell ownership; OPENEMPEROR PREVIEW: caller anchor";
+        for (unsigned y=0;y<pin->side;++y) for (unsigned x=0;x<pin->side;++x)
+            spec.owned_cells.push_back({pin->origin.x+x,pin->origin.y+y});
+        append_instance(std::move(spec));
+    }
+    std::vector<std::optional<unsigned>> wall_variants(count);
+    constexpr std::array<int,8> dx{0,1,1,1,0,-1,-1,-1},dy{-1,-1,0,1,1,1,0,-1};
+    for (unsigned y=0;y<stored_grid_height;++y) for (unsigned x=0;x<stored_grid_width;++x) {
+        const auto at=std::size_t(y)*stored_grid_width+x;
+        if (!eligible[at] || !(plan.raw_terrain[at]&0x4000U)) continue;
+        WallTopologyInput wall;wall.center_terrain=plan.raw_terrain[at];wall.orientation=input.orientation;
+        for (unsigned d=0;d<8;++d) {
+            const int nx=int(x)+dx[d],ny=int(y)+dy[d];
+            if (nx<0 || ny<0 || nx>=int(stored_grid_width) || ny>=int(stored_grid_height)) continue;
+            const auto neighbor=std::size_t(ny)*stored_grid_width+unsigned(nx);
+            wall.neighboring_terrain[d]=plan.raw_terrain[neighbor];
+            if (!(d&1U)) wall.generated_cardinal_variants[d/2]=wall_variants[neighbor];
+        }
+        const auto selected=select_normal_wall(wall);
+        const auto candidate=*plan.cell_by_storage[at];
+        generated->cells[candidate].selection.reason=selected.reason;
+        if (!selected.verified || !selected.variant) continue;
+        if (!registrations.contains(2U) || !registrations.at(2U).layout || !registrations.at(2U).catalog) {
+            generated->cells[candidate].fallback="optional General wall metadata unavailable; historical preview retained";
+            continue;
+        }
+        wall_variants[at]=selected.variant;
+        LandscapeInstanceSpec spec;
+        spec.selection={LandscapeFamily::Wall,SelectorEvidence::Verified,"4b67b0 / 4b8f70 / 4bbdc0 / 4bee90",
+            selected.reason,{normal_wall_resource_key},*selected.variant,{}};
+        spec.origin={x,y};spec.draw_cell=spec.origin;spec.owned_cells={spec.origin};
+        spec.composition_evidence="EXE-OBSERVED: static wall identity; extra model caps/stairs and gates unresolved";
+        append_instance(std::move(spec));
+    }
+    // Great Wall identity belongs to restored original object/piece state, not
+    // a raw-terrain or saved-ID selector. Retain only the labeled old preview.
+    for (std::size_t i=0;i<plan.cells.size();++i) if (plan.cells[i].slot==8) {
+        auto& c=generated->cells[i];
+        c.selection={LandscapeFamily::GreatWall,SelectorEvidence::Unresolved,"52f030 / 4b11f0 / 57bba0",
+            "restored monument stage, orientation and piece state unavailable in landscape inputs",{0x1001},0,{}};
+        c.fallback="historical slot-8 footprint preview; no regenerated Great Wall instance";
     }
     generated->build_milliseconds=std::chrono::duration<double,std::milli>(
         std::chrono::steady_clock::now()-start).count();

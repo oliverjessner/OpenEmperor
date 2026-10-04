@@ -1238,7 +1238,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             } else last_message_="No road visuals loaded";
         }
         else if (event.key.key==SDLK_F8 && debug_open_) {
-            const auto mode=static_cast<LandscapeDebugMode>((static_cast<int>(background_.landscape_mode())+1)%6);
+            const auto mode=static_cast<LandscapeDebugMode>((static_cast<int>(background_.landscape_mode())+1)%8);
             background_.set_landscape_mode(mode);
             last_message_=landscape_debug_mode_name(background_.landscape_mode());
             refresh_hover();
@@ -1935,6 +1935,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     painter_stats_.stored_order_builds=background_.stored_order_builds();
     const auto replacement_for=[&](std::size_t i)->std::uint8_t {
         const auto& item=background_.draw_items()[i];
+        if (item.regenerated) return 0; // Multi-cell landscape never replaces road ground.
         const auto& plan=background_.plan();
         maps::GridCell cell;
         if (item.footprint) {

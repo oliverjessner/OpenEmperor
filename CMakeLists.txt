@@ -209,6 +209,9 @@ add_library(openemperor-maps STATIC
     src/maps/TerrainRenderPlan.cpp
     src/maps/LandscapeProvenance.cpp
     src/maps/LandscapeSelectors.cpp
+    src/maps/LandscapeInstances.cpp
+    src/maps/WallTopology.cpp
+    src/maps/PinnacleSelector.cpp
     src/maps/RegeneratedMapRenderPlan.cpp
     src/maps/StoredGraphicsPlan.cpp
     src/maps/StoredArchiveRegistrations.cpp
@@ -262,6 +265,18 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-landscape-selector-tests PRIVATE openemperor-maps)
     openemperor_enable_warnings(openemperor-landscape-selector-tests)
     add_test(NAME landscape-selectors COMMAND openemperor-landscape-selector-tests)
+    add_executable(openemperor-pinnacle-selector-tests tests/PinnacleSelectorTests.cpp)
+    target_link_libraries(openemperor-pinnacle-selector-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-pinnacle-selector-tests)
+    add_test(NAME pinnacle-selectors COMMAND openemperor-pinnacle-selector-tests)
+    add_executable(openemperor-wall-topology-tests tests/WallTopologyTests.cpp)
+    target_link_libraries(openemperor-wall-topology-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-wall-topology-tests)
+    add_test(NAME wall-topology COMMAND openemperor-wall-topology-tests)
+    add_executable(openemperor-landscape-instance-tests tests/LandscapeInstanceTests.cpp)
+    target_link_libraries(openemperor-landscape-instance-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-landscape-instance-tests)
+    add_test(NAME landscape-instances COMMAND openemperor-landscape-instance-tests)
     add_executable(openemperor-sandbox-simulation-tests tests/SandboxSimulationTests.cpp)
     target_link_libraries(openemperor-sandbox-simulation-tests PRIVATE openemperor-simulation)
     openemperor_enable_warnings(openemperor-sandbox-simulation-tests)

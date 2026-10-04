@@ -76,4 +76,30 @@ StoredArchiveRegistrations load_stored_archive_registrations(
     }
     return result;
 }
+void add_regenerated_wall_registration(const StoredGraphicsPlan& plan,
+    StoredArchiveRegistrations& registrations) {
+    if (!plan.landscape_layers_available || registrations.contains(2U)) return;
+    bool wall=false;
+    for (const auto& cell:plan.cells) if (cell.terrain_raw&0x4000U) {wall=true;break;}
+    if (!wall) return;
+    // 475c4b's explicit China_General registration at slot 2. Missing local
+    // data retains an unresolved preview; never substitute another archive.
+    try {
+        auto entry=load_one(plan.data_root,2U,"DATA/China_General.sg3",true,
+            RuntimeLayoutEvidence::TerrainElevationAndGeneral2);
+        // Source containment was checked by load_one. This new optional
+        // registration also requires its internal bitmap to be present;
+        // preserve the older registrations' source-availability semantics.
+        if (entry.layout && !fs::is_regular_file(plan.data_root/"DATA/China_General.555"))
+            throw std::runtime_error("optional China_General.555 is unavailable");
+        registrations.emplace(2U,std::move(entry));
+    } catch (const std::exception& error) {
+        // No optional source failure can expand read permission or reject the
+        // previously valid Terrain/Elevation session. No invalid asset loads.
+        StoredArchiveRegistration unavailable;
+        unavailable.slot=2U;unavailable.relative_path="DATA/China_General.sg3";
+        unavailable.optional_error=error.what();
+        registrations.emplace(2U,std::move(unavailable));
+    }
+}
 } // namespace openemperor::maps

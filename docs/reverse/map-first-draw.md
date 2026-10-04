@@ -1,4 +1,8 @@
-# Original map fidelity pass 1
+# Original map first-draw evidence
+
+The current bounded study is [Pass 3 — Mountains, Rocks, Walls and Great Wall](#original-map-fidelity-pass-3--mountains-rocks-walls-and-great-wall-2026-10-04). The Pass-1 findings below retain their historical scope.
+
+## Historical original map fidelity pass 1
 
 This bounded study adds landscape provenance, separate Type-30 base/overlay rendering, and an evidenced height operand. It does **not** pass the complete landscape acceptance gate: Xia water has conspicuous cyan diamonds, stone patches still have abrupt seams, and some northern edge fragments remain unexplained. No record substitutions, terrain recoloring, inferred shore tables, arbitrary footprints, original executable execution, or gameplay changes are part of this pass.
 
@@ -164,3 +168,220 @@ The single road-plan sample is 0.003 ms. This bounds observed responsiveness on 
 Original-data checks are separate: five-map raw identity/resolution/status arrays match the baseline exactly, including Badaling's existing 75 diagnostic cells. This preserves the inputs to the existing buildable-mask rule. The seven previously fingerprinted original inputs have unchanged hashes after review; supplementary map/Elevation hashes are recorded locally without claiming a missing before/after comparison. All 21 diagnosis captures and local reports remain ignored. No original file was written.
 
 Pass 1 stops here. Remaining work is complete post-load selector/height-normalization context, static shoreline/corner selection, original caller anchors and boundary composition. Those unresolved behaviors are not repaired by increasing coverage, choosing attractive replacement records, masking colors or widening footprint rules. City-v16 rules/economy/maintenance/roads/Well/Herbalist/Health/fire/desirability/water/saves/couriers are unchanged.
+
+
+## Original Map Fidelity Pass 3 — Mountains, Rocks, Walls and Great Wall (2026-10-04)
+
+Pass 3 starts from `9e4684a52419056f53ec1996110b945193d7e130`. The initial HEAD and worktree were checked before edits. This is a bounded presentation/research change. Current Pass-2 Ground and Water selectors and the signed saved-height ×40 displacement are frozen, as are corrected sandbox roads, City rules, economy, maintenance, Well 1559, Herbalist 1580, Health, Fire, desirability, saves and couriers. Earlier Pass-1 visual diagnoses above are historical; they do not supersede the current Pass-2 Ground/Water baseline. No original executable was run and no original data, screenshots, full disassembly or decoded pixels are committed.
+
+### Evidence labels
+
+| Label | Meaning in Pass 3 |
+| --- | --- |
+| **RAW MAP FACT** | Read-only raw map bytes, coordinates and counts; SG3 record metadata is separately identified as archive metadata. A historical ID remains a historical ID. |
+| **EXE-OBSERVED** | Static branches, resource keys, helper arguments, writers and draw operands in the hash-pinned EXE. This does not prove untraced runtime context. |
+| **REFERENCE-DERIVED** | The existing candidate diamond and prior saved candidate-byte hypotheses; these retain their own evidence boundary. |
+| **OPENEMPEROR PREVIEW** | Conservative eligibility, retained elevation/snapshot fallbacks, whole-image caller anchor and front-cell painter used by our renderer. |
+| **VERIFIED REPRODUCTION** | Independently implemented bounded selector/table or ownership behavior established by the observed operands. Complete original first-draw identity, caller placement and scene composition are not implied. |
+
+The pinned EXE SHA-256 remains `6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`. All addresses in this section are **VAs**, with image base `0x400000`. The ignored evidence directory is `.local/map-fidelity-pass3/`.
+
+### RAW MAP FACT — classify mountains before selecting graphics
+
+The independent production-reader census parsed all **167** supported standalone maps. Counts are over the unchanged candidate diamond only, not all 51,984 storage cells. Conditions overlap and are not a partition of the map.
+
+| Raw condition | Candidate cells | Maps with condition |
+| --- | ---: | ---: |
+| `(terrain & 0xaffede6f)` equals `2`, `0x100002` or `0x200002` | 66,182 | 167 |
+| `terrain & 0x02000000` | 2,225 | 22 |
+| `terrain & 0x4000` | 1,320 | 25 |
+| Historical packed ID has slot 8 | 12,416 | 18 |
+
+The first row is the bounded Rock selector condition, not the older, broader reference-derived `rock_or_ore` color category. A raised cliff, a rock/ore cell, a packed rock formation, raw Pinnacle terrain, a decorative image and a special monument remain distinct. Height greater than zero never creates a Mountain.
+
+| Map | Rock condition | Raw Pinnacle | Raw ordinary wall | Historical slot 8 |
+| --- | ---: | ---: | ---: | ---: |
+| Xia | 169 | 0 | 0 | 0 |
+| Juchengshi | 415 | 100 | 0 | 0 |
+| MP22 | 1,165 | 100 | 0 | 0 |
+| MPWall1 | 411 | 25 | 0 | 736 |
+| Badaling | 612 | 0 | 0 | 740 |
+| Handan | 461 | 0 | 0 | 740 |
+
+Twelve production provenance samples are retained in ignored `mountain-samples.json`: four Xia cliff/ordinary-rock cases, all four Juchengshi Pinnacle banks, and four MP22 Pinnacle cases, including saved heights 0, 1, 2 and 5. Each retains raw terrain/objects, signed height, variation, fertility, candidate byte, historical ID/slot/physical record and the selector result at sample time. The pre-change selector fields show the missing Pinnacle path; they are baseline diagnoses, not final renderer results. MPWall1 was selected independently from the corpus as the Great Wall countermap and also contains a genuine 25-cell Pinnacle. All 167 per-map counts and representative raw samples are in ignored `corpus.json`; final render acceptance is separate below.
+
+### EXE-OBSERVED / VERIFIED REPRODUCTION — Rock packing
+
+`0x53f660` selects ordinary Rock/ore through mask `0xaffede6f` and resource keys `0x606`, `0x607`, `0x608` for values `2`, `0x100002`, `0x200002`. The row-major generation pass at `0x54044f`–`0x540482`, the bounded rectangle test `0x4b8000` and rectangle writer `0x4b72b0` establish **3×3 before 2×2 before singleton**, with unique generated ownership. A matching rectangle rejects flood bit `0x100` and previously generated occupancy. The origin's separate variation byte at logical `729311+index` chooses variant `12+(v&1)` for side 3, `8+(v&3)` for side 2, or `v&7` for side 1. Neither saved graphic IDs nor their historical footprint partition choose the generated Rock geometry.
+
+The independently written load-time packing retains a fresh bounded claim grid. It derives complete instances from raw terrain and variation in row-major order and applies the conservative candidate/elevation-preservation boundary. This reproduces the bounded second-pass packing behavior; **complete original first-pass occupancy is still unresolved**. In particular, a saved slot-16 elevation is preserved as a named preview boundary, not treated as proof that its saved ID survives the original clear.
+
+All selected variants resolve through `ResourceGroupLookup` and `RuntimeArchiveLayout`; no physical record is hardcoded into a selector. Read-only archive metadata gives the complete 14-variant families in `China_Terrain.sg3`. All records below are static, unmirrored Type 30. Each family cell shows physical record / width×height / overlay bytes; the runtime local bases are 257, 271 and 285 respectively.
+
+| Variant | Side | Base bytes | Key 0x606 | Key 0x607 | Key 0x608 |
+| ---: | ---: | ---: | --- | --- | --- |
+| 0 | 1 | 3,200 | 458 / 78×52 / 1887 | 472 / 78×51 / 2059 | 486 / 78×50 / 1816 |
+| 1 | 1 | 3,200 | 459 / 78×54 / 1611 | 473 / 78×45 / 1740 | 487 / 78×55 / 1908 |
+| 2 | 1 | 3,200 | 460 / 78×48 / 1221 | 474 / 78×46 / 1308 | 488 / 78×42 / 983 |
+| 3 | 1 | 3,200 | 461 / 78×41 / 628 | 475 / 78×51 / 1088 | 489 / 78×48 / 1476 |
+| 4 | 1 | 3,200 | 462 / 78×44 / 678 | 476 / 78×49 / 1311 | 490 / 78×51 / 1384 |
+| 5 | 1 | 3,200 | 463 / 78×49 / 1321 | 477 / 78×51 / 1927 | 491 / 78×47 / 1286 |
+| 6 | 1 | 3,200 | 464 / 78×43 / 943 | 478 / 78×46 / 1526 | 492 / 78×47 / 1262 |
+| 7 | 1 | 3,200 | 465 / 78×46 / 1190 | 479 / 78×53 / 1450 | 493 / 78×49 / 1025 |
+| 8 | 2 | 12,800 | 466 / 158×100 / 5057 | 480 / 158×95 / 6107 | 494 / 158×102 / 4281 |
+| 9 | 2 | 12,800 | 467 / 158×95 / 5793 | 481 / 158×104 / 4299 | 495 / 158×99 / 4465 |
+| 10 | 2 | 12,800 | 468 / 158×100 / 4674 | 482 / 158×96 / 6137 | 496 / 158×85 / 3405 |
+| 11 | 2 | 12,800 | 469 / 158×100 / 6692 | 483 / 158×93 / 3760 | 497 / 158×94 / 4654 |
+| 12 | 3 | 28,800 | 470 / 238×136 / 10129 | 484 / 238×139 / 8356 | 498 / 238×142 / 7033 |
+| 13 | 3 | 28,800 | 471 / 238×151 / 9900 | 485 / 238×134 / 8515 | 499 / 238×150 / 14524 |
+
+The generic writer sets draw-properties low bits to `side−1`, stores the selected complete ID on every owned cell, writes `dx|(dy<<3)` from its offset table, and adds candidate bit `0x40` on the view-dependent draw cell. In orientation zero this is part `(0,side−1)`; it is distinct from the diagonal front cell used by the OpenEmperor painter. This writer does not set `0x80`. Its generated byte semantics are **EXE-OBSERVED**; that does not retroactively promote every historical byte/grouping policy or a complete original anchor.
+
+### EXE-OBSERVED / VERIFIED REPRODUCTION — Pinnacle
+
+The later landscape selector `0x53fa20` tests raw terrain bit `0x02000000` and zero current generated ID. It selects an object-state bank in priority order `0x08`, `0x10`, `0x20`, `0x40`, defaulting to the first bank. There is no variation or height operand in this selection.
+
+| Raw object bank | Resource key | Runtime local / physical Terrain record | Type-30 geometry | Base / overlay bytes |
+| --- | --- | --- | --- | --- |
+| `0x08`, or default | `0x60d` | 1239 / 1440 | side 5, 398×520 | 80,000 / 132,099 |
+| `0x10` | `0x60a` | 1240 / 1441 | side 5, 398×544 | 80,000 / 136,733 |
+| `0x20` | `0x609` | 1241 / 1442 | side 5, 398×468 | 80,000 / 115,506 |
+| `0x40` | `0x619` | 1242 / 1443 | side 5, 398×475 | 80,000 / 116,963 |
+
+All four groups contain one static unmirrored record. Origin helper `0x4b7bd0` reads draw-properties low nibble 1–5 as side 2–6 (otherwise side 1), walks left/up over candidate part fields, and bounds the recovered footprint. At `0x53fb13` the selector invokes `0x4b72b0` for the **5×5** footprint, producing draw-properties `(old&0xe0)|4`, generated part bytes and the orientation-zero marker at `(0,4)`.
+
+The bounded implementation admits a complete 25-cell claim only with every terrain word exactly `0x02000000` or `0x02000080`, canonical low-nibble-4 properties, exact canonical part bytes with one marker, a consistent object bank, candidate containment and orientation zero. All 2,225 raw Pinnacle cells in the real census have terrain `0x02000080`. Mixed Water/vegetation/Rock/Wall/other terrain bits are conservatively rejected to preserve earlier selector precedence; this is a bounded admission, not proof of all possible original combinations. Missing, mixed, out-of-bounds or conflicting claims fail closed. Historical IDs, saved height, fertility and variation do not choose the bank or claim. This is a conservative subset of the observed ownership path, not permission to construct a Pinnacle from any 25 attractive cells. The unchanged signed saved-height ×40 shift applies once to the displayed image. Overlay helper `0x5ce904`–`0x5ce932` observes width-398 component adjustments X−160 and Y−image-height+200; the complete caller anchor remains **OPENEMPEROR PREVIEW**.
+
+### EXE-OBSERVED / VERIFIED REPRODUCTION — ordinary wall terrain
+
+Post-load `0x53d630` calls `0x4b67b0` at `0x53d68e` after the landscape pass. The routine scans raw `0x4000` wall terrain row-major, excluding flood bit `0x100` and road/building mask `0x48`. `0x4b8f70(0x4000)` collects **eight** terrain neighbors in order N, NE, E, SE, S, SW, W, NW. Additional `0x8000` gate context enters `0x4b6290`; it is not treated as a Great Wall slot or an ordinary road mask.
+
+The 16-row semantic topology table at `0x84a8f8`, matched by `0x4bbdc0`, chooses key **`0x451`**. Each row has one variant and its cursor starts at −1, so the bounded static branch needs no saved variation byte. Rotation uses even original view/2. Helper `0x4bee90` alternates only straight variants 0/2 to 1/3 when an already generated cardinal neighbor has the same straight and no neighbor has its alternate. It reads the freshly cleared/regenerated ID grid, never the historical saved IDs. The cross row additionally requires four absent diagonal neighbors; an unmatched dense cross stays explicitly unresolved rather than inheriting a stale global table result.
+
+The EXE slot-2 registration at `0x475c4b` supplies `China_General` to the same loader/runtime model. Key `0x451` resolves to General runtime local 720 / physical 921, with 18 static, unmirrored side-1 Type-30 records **921–938**, width 78, base 3,200 and heights 98–107. A separate component path after the ID write uses `0x4be3e0` and model-pool calls through `0x416a10`; it can add key `0x451+18+component` when the observed global context permits. The remaining group records **939–953** are Type 256 (widths 10–78, heights 19–44), not additional static wall base records. Their original model/component composition and `0x8000` gates remain unresolved and are not guessed.
+
+The independent static selector audit classifies the corpus's 1,320 raw wall cells as **1,123 supported static selections** and **197 gate-context unresolved cells**. Three gate-free counterchecks are Luoyang Tang (75 cells at h0), NavalT-Jiangling (53 at h0), and NavalT-Yen (58 at h1). Their derived static IDs happen to agree with the historical words 75/75, 53/53 and 58/58; agreement is a countercheck, not input authority or original-game visual acceptance.
+
+### RAW MAP FACT / archive metadata — complete Great Wall audit
+
+Ordinary wall terrain is not Great Wall. Badaling's known `(84,61)` example has **terrain `0x88`, objects 0**, historical ID `0x20018`, saved height 4, draw-properties low bits 3 and candidate byte 0. It does not have normal wall bit `0x4000`. Its 16-member saved block `(84..87,61..64)` retains the known row pattern `00 01 02 03 / 08 09 0a 0b / 10 11 12 13 / 58 19 1a 1b`, marker candidate at `(84,64)`, and physical slot-8 record 225 (318×167, side 4, base 51,200, overlay 2,271). These remain saved-snapshot facts.
+
+The archive has 242 reported records after dummy zero: system records 1–200, followed by **all 42** monument-group records 201–242. The old map-observed range 0–40 was not the complete group. The shared runtime layout still maps local `i` to physical `201+i` exactly once. Every record below has animation count 0, mirror offset 0 and an in-bounds internal source. The 8 Type-1 records decode as plain images but have **unsupported map footprint layout**; they are not evidence for eight side-1 Type-30 wall tiles. There are **zero Type-30 side-1 records, two side-2 records and 32 side-4 records**.
+
+| Runtime local | Physical record | Layout / map footprint | Width×height | Base bytes | Overlay bytes |
+| ---: | ---: | --- | --- | ---: | ---: |
+| 0 | 201 | Type 30 / 4×4 | 318×160 | 51,200 | 2,305 |
+| 1 | 202 | Type 30 / 4×4 | 318×169 | 51,200 | 2,487 |
+| 2 | 203 | Type 30 / 4×4 | 318×212 | 51,200 | 22,660 |
+| 3 | 204 | Type 30 / 4×4 | 318×160 | 51,200 | 2,946 |
+| 4 | 205 | Type 30 / 4×4 | 318×167 | 51,200 | 2,185 |
+| 5 | 206 | Type 30 / 4×4 | 318×167 | 51,200 | 2,894 |
+| 6 | 207 | Type 30 / 4×4 | 318×182 | 51,200 | 2,716 |
+| 7 | 208 | Type 30 / 4×4 | 318×165 | 51,200 | 9,530 |
+| 8 | 209 | Type 30 / 4×4 | 318×167 | 51,200 | 3,747 |
+| 9 | 210 | Type 30 / 4×4 | 318×185 | 51,200 | 1,823 |
+| 10 | 211 | Type 30 / 4×4 | 318×168 | 51,200 | 2,576 |
+| 11 | 212 | Type 30 / 4×4 | 318×160 | 51,200 | 2,471 |
+| 12 | 213 | Type 30 / 4×4 | 318×213 | 51,200 | 24,011 |
+| 13 | 214 | Type 30 / 4×4 | 318×167 | 51,200 | 2,378 |
+| 14 | 215 | Type 30 / 4×4 | 318×160 | 51,200 | 2,953 |
+| 15 | 216 | Type 30 / 4×4 | 318×182 | 51,200 | 2,553 |
+| 16 | 217 | Type 30 / 4×4 | 318×167 | 51,200 | 3,397 |
+| 17 | 218 | Type 30 / 4×4 | 318×166 | 51,200 | 9,165 |
+| 18 | 219 | Type 30 / 4×4 | 318×185 | 51,200 | 1,780 |
+| 19 | 220 | Type 30 / 4×4 | 318×167 | 51,200 | 3,843 |
+| 20 | 221 | Type 30 / 4×4 | 318×200 | 51,200 | 6,281 |
+| 21 | 222 | Type 30 / 4×4 | 318×160 | 51,200 | 0 |
+| 22 | 223 | Type 30 / 4×4 | 318×162 | 51,200 | 1,533 |
+| 23 | 224 | Type 30 / 4×4 | 318×160 | 51,200 | 1,429 |
+| 24 | 225 | Type 30 / 4×4 | 318×167 | 51,200 | 2,271 |
+| 25 | 226 | Type 30 / 4×4 | 318×167 | 51,200 | 2,090 |
+| 26 | 227 | Type 30 / 4×4 | 318×160 | 51,200 | 0 |
+| 27 | 228 | Type 30 / 4×4 | 318×160 | 51,200 | 0 |
+| 28 | 229 | Type 1 / unsupported map footprint | 51×51 | 5,202 | 0 |
+| 29 | 230 | Type 1 / unsupported map footprint | 51×51 | 5,202 | 0 |
+| 30 | 231 | Type 1 / unsupported map footprint | 51×51 | 5,202 | 0 |
+| 31 | 232 | Type 30 / 2×2 | 158×80 | 12,800 | 0 |
+| 32 | 233 | Type 1 / unsupported map footprint | 51×51 | 5,202 | 0 |
+| 33 | 234 | Type 1 / unsupported map footprint | 51×51 | 5,202 | 0 |
+| 34 | 235 | Type 1 / unsupported map footprint | 51×51 | 5,202 | 0 |
+| 35 | 236 | Type 30 / 2×2 | 158×80 | 12,800 | 0 |
+| 36 | 237 | Type 30 / 4×4 | 318×160 | 51,200 | 6,795 |
+| 37 | 238 | Type 30 / 4×4 | 318×204 | 51,200 | 22,048 |
+| 38 | 239 | Type 30 / 4×4 | 318×160 | 51,200 | 6,930 |
+| 39 | 240 | Type 30 / 4×4 | 318×203 | 51,200 | 21,336 |
+| 40 | 241 | Type 1 / unsupported map footprint | 51×51 | 5,202 | 0 |
+| 41 | 242 | Type 1 / unsupported map footprint | 51×51 | 5,202 | 0 |
+
+All affected maps retain the historical slot-8 counts below. `corpus.json` also records every one of the 167 maps, including zeros and representative raw samples. MPWall1 is an independently selected countermap: 736 historical slot-8 cells, 411 Rock-condition cells and one genuine raw 25-cell Pinnacle. Badaling has 740 historical slot-8 cells, saved wall heights 2/3/4/5 in counts 324/224/176/16; MPWall1 has h4/h5 in counts 480/256. MPWall2 supplies lower saved-height cases: 704 historical slot-8 cells, h0=432 and h1=272. Across all 18 maps the histogram is h0=4,496, h1=896, h2=1,192, h3=1,120, h4=2,984, h5=1,696 and h6=32. These are saved-height facts, not measured regenerated Great Wall placement.
+
+| Map | Historical slot-8 candidate cells |
+| --- | ---: |
+| `Badaling.map` | 740 |
+| `Badaling_S.map` | 740 |
+| `Handan.map` | 740 |
+| `Handan_S.map` | 740 |
+| `Jiayuguan.map` | 516 |
+| `Jiayuguan_S.map` | 516 |
+| `Juyongguan.map` | 708 |
+| `Juyongguan_S.map` | 708 |
+| `Liangzhou.map` | 688 |
+| `Liangzhou_S.map` | 688 |
+| `MPWall1.map` | 736 |
+| `MPWall1_S.map` | 736 |
+| `MPWall2.map` | 704 |
+| `MPWall2_S.map` | 704 |
+| `MPWall3.map` | 672 |
+| `MPWall3_S.map` | 672 |
+| `Shanhaiguan.map` | 704 |
+| `Shanhaiguan_S.map` | 704 |
+
+### EXE-OBSERVED — Great Wall producer and exact unresolved boundary
+
+The slot-8 packed-ID producer is an **original entity/piece-state path**, not the ordinary landscape Rock/Wall topology. `0x57bba0` looks up an original entity via `0x8c7634 → 0x47f1b0`, gets extended state through virtual `+0x1ec`, and reads entity coordinates at `+0x0a/+0x0c`. Entity extended type/stage `+0x08`, material/archive state `+0x5c`, piece orientation `+0x18`, piece index `+0x1c`, extended orientation byte `+0x84`, and current view `0x101d0d0` participate. They are not supplied by `objects_raw` alone.
+
+For the observed Earthen Great Wall material branch, `0x57be4d` selects the name at `0x82b100`, registers it at slot 8 through `0x57c049 → 0x5ccf70`, then `0x57c053` calls piece/view mapper `0x57c0e0`. `0x57c06b` requests **resource group `0x1001`**, `0x57c075` calls `0x408170`, and `0x57c07a` adds the mapped piece variant to that packed group base. In view zero, the mapper returns other piece indices unchanged but remaps piece 26→25 and 27→24; view 2/4/6 has additional explicit remapping branches. Related helpers `0x57cb10`, `0x57d2b0` and the single-cell writer `0x5724e0` cover smaller/special pieces. The group is not forced into a Road-like 16-mask system, and straight/corner/T/gate/tower/stair/elevation/end identities are not assigned from appearance.
+
+The exact post-load boundary is `0x53d1e4 → 0x5355f0` (saved-ID clear), **`0x53d1e9 → 0x52f030`** (original entity restoration), then `0x53d1ee → 0x53d630` (landscape setup). `0x52f030` recreates active original entities through `0x42d540` and calls `0x4b11f0`; that routine dispatches entity virtual `+0x100` at `0x4b1228`. The missing link is the supported map serialization and restored entity/piece state leading from that virtual placement to the Great Wall producer and its footprint writer. Raw `0x88`, a saved slot-8 word and similar low-byte patterns cannot replace that state.
+
+The generic rectangle writer's generated part fields and marker are observed, but the **specific restored Great Wall call and caller anchor are not yet established**. Width-318 overlay arithmetic at `0x5ce93e`–`0x5ce954` gives X−120 and Y−image-height+160 only inside the component helper. It does not prove `project(origin)−(width/2,image_height−160)` as the whole image anchor. `0x80` remains unassigned. Further, original monument-owned ground drawing may substitute extended-state height `+0x28` at `0x470158`–`0x470164` for the saved-cell height before its ×40 displacement; `0x57bba0` also has a context-dependent height-write path. Neither is enabled: Pass 3 preserves the existing saved signed-height ×40 presentation and does not normalize or flatten terrain.
+
+Therefore **Great Wall selector verification = 0; regenerated Great Wall instances = 0**. The existing saved 4×4 grouping, marker interpretation, whole-image anchor and painter remain **OPENEMPEROR PREVIEW**. This is an explicit bounded evidence gap, not a successful Great Wall regeneration claim. The old complete group metadata/registration remains valid and the historical preview remains useful.
+
+### OPENEMPEROR PREVIEW — plan, renderer and diagnostics
+
+`LandscapeFamily` separates Ground, Water, Decoration, Rock, Mountain, Wall, GreatWall and Preserved. SDL-free `LandscapeInstances`, `PinnacleSelector` and `WallTopology` build a separate `RegeneratedMapRenderPlan` once at load. Each admitted generated instance retains family/resource, resolved physical asset, origin, side, owned cells, draw cell, and separate placement/composition evidence. New Rock side-1/2/3 and Pinnacle side-5 instances do not inherit saved-ID footprint size or origin. Claims are complete, candidate-contained, nonoverlapping and atomic; unsupported geometry, mirror/animation, source, budget or decode failures retain an explicit historical/diagnostic fallback. A large image is never emitted once per member cell.
+
+Historical raw cells, saved footprint lists, snapshot diagnostics and the buildable mask retain their meanings. Physical assets are deduplicated across old and regenerated plans and eagerly decoded/uploaded with combined/base/overlay RGBA counted against the unchanged 64 MiB budget. The regenerated-only side-3/5 support does not broaden the legacy saved 1×1/2×2/4×4 grouping policies. Original/current images use their own Type-30 base and Omega overlay; there is no new terrain fill or alpha/color-key repair.
+
+F8 exposes Ground, +Water, +Elevation, +Mountains/Rocks, +Walls/Monuments, +Decorations, Regenerated Full, and Historical Snapshot. Partial modes and Regenerated Full use the load-time selected geometries with explicit fallbacks; Historical Snapshot retains the old saved-ID path. F1 distinguishes selector evidence, selected resource/variant/asset, generated origin/owned cells/draw cell, saved provenance, height, anchor and painter. Ground/front-cell order merges overlays with sandbox roads, buildings and walkers; it is a preview painter, not a verified complete original object compositor. Fit/culling and cached alpha picking include full raised tall-image bounds.
+
+`landscape_fidelity_report.regeneration` separately reports `mountain_selector_verified` (cells), `rock_large_instances`, `pinnacle_instances`, `normal_wall_selector_verified` (cells), `great_wall_selector_verified`, `great_wall_instances`, and unresolved Mountain/Wall cells. Asset availability and successful instance decoding are required for renderer counts. Great Wall counters stay zero. Coverage, static selector identity, complete placement and complete composition remain distinct: complete original caller-anchor and first-draw composition verification remain zero.
+
+Frame render/inspect/pick performs no file work, decode/upload, World copies/commands, BFS or route refresh; generation and sorting are load-time work. No gameplay, road selection, City rule/version, save-schema or original-data mutation is authorized by this plan.
+
+### Pass-3 validation and stopping point
+
+The Pass-3 implementation and real-map evidence below are separate from the earlier Pass-1 results and the static census. After the optional-General-bitmap fallback correction, all three final suites passed **87/87: Debug in 642.25 s, Release in 145.41 s, and ASan+UBSan in 729.43 s**. The suite includes independent Rock/Pinnacle/Wall selection and ownership cases, atomic renderer fallback and truthful F1/report counters, plus the existing City-v16 rule-1/rule-2 20,000-tick determinism and 100,000-tick endurance, road, save, autosave, maintenance, Health, Fire and Water checks. A missing or unusable optional `China_General.555` must leave ordinary-wall renderer activation unavailable and retain the named historical/diagnostic path; successful metadata lookup or a decoded member alone must not count an inactive instance as reproduced.
+
+Before captures from baseline `9e4684a` and final captures use the native Metal renderer for **Xia, Juchengshi, MP22, MPWall1, Badaling, Luoyang Tang and NavalT-Yen**, with the same focused views at **1×, 2× and 4×**. Automatic capture runners provide the repeatable comparison; they are distinct from actual desktop input. The final decoded renderer reports record the following bounded static-selector results. Mountain cells include ordinary Rock and admitted Pinnacle ownership; large Rock and Pinnacle columns count complete instances, not member-cell draws.
+
+| Map | Mountain selector cells | Large Rock instances | Pinnacle instances | Ordinary Wall selector cells | Unresolved Wall cells | Combined/base/overlay RGBA bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Xia | 169 | 10 | 0 | 0 | 0 | 18,840,384 |
+| Juchengshi | 515 | 54 | 4 | 0 | 0 | 29,703,120 |
+| MP22 | 1,265 | 100 | 4 | 0 | 0 | 32,713,776 |
+| MPWall1 | 436 | 21 | 1 | 0 | 736 | 42,222,456 |
+| Badaling | 612 | 36 | 0 | 0 | 740 | 35,150,496 |
+| Luoyang Tang | 353 | 26 | 0 | 75 | 0 | 22,382,760 |
+| NavalT-Yen | 189 | 2 | 0 | 58 | 0 | 20,905,896 |
+
+All seven reports have zero unresolved Mountain cells, zero regenerated Great Wall instances/verified Great Wall selections, and zero complete-original-anchor/full-original-composition verification. The MPWall1 and Badaling unresolved Wall counts retain their historical slot-8 cells; these are not ordinary-wall rejection counts. The tallest 5×5 Pinnacles are present as one image per complete claim, while Ground/Water, signed saved-height ×40 and Historical Snapshot retain their existing semantics. Decoded coverage and these selector counts do not establish original first-draw fidelity.
+
+Actual native CUA Return/Tab/F8 input reviewed Juchengshi Pinnacles at 1×/2×/4× and Historical Snapshot, MP22 Rock and Pinnacles at 1×/2×/4×, Xia Rock at 1×/2×/4×, Luoyang Tang ordinary walls at 1×/2×/4×, and Badaling/MPWall1 historical Great Wall previews at 1×/2×/4×. This native capture session writes local review images, so its counters are **not** evidence for a file-free frame path. The Badaling/MPWall1 previews retain visible gaps and diagnostic ground; this is not Great Wall acceptance. Its restored piece state and anchors are unresolved, as are ordinary-wall gates and additional Type-256/model composition.
+
+The separate pure Metal benchmark runs **300 frames in each of Regenerated Full and Historical Snapshot on all seven maps** (4,200 frames), including render, F1 provenance, alpha hit testing and Present. File reads/writes, decode/upload, World copies/restores/commands, BFS and route refreshes are all zero during those loops; each renderer builds its sorted order once at load. Mean frame time including Present/vsync is **8.32–10.35 ms**. The maximum shared combined/base/overlay RGBA allocation is **42,222,456 bytes**, below the unchanged 64 MiB limit. A separate paused City-v16 synthetic road-hover/drag check runs 180 regenerated frames and 180 Historical Snapshot frames: the same forbidden-work counters and simulation ticks are zero, the repeated hover/drag coalesces to one road plan, and the World compares equal before/after. World-render medians are **2.290 ms** and **1.430 ms** respectively; this is synthetic responsiveness/purity evidence, not native user-input acceptance.
+
+A separate comparison confirms **21 frozen authority/profile/visual files are byte-identical to `9e4684a`**, including World/City sources, projection/scene authority, the compatibility pack and building/road visuals. SHA-256 records for **18 original files**—the pinned EXE, model text, manual, four SG3/.555 archive pairs and seven reviewed maps—match before and after the **final verification phase**. Seven of those files also match the retained historical Pass-1 hash baseline. The 18-file set was not recorded at the beginning of Pass 3, so it is not claimed as an 18-file whole-pass before/after audit. Original-data captures, reports, runners and hashes remain ignored local research artifacts.
+
+The bounded stopping point remains: complete original first-pass occupancy/height normalization, caller anchors, ordinary-wall gates/additional model composition, and restored Great Wall entity/piece-state regeneration are unresolved. Existing Ground/Water/Road/City authority stays frozen. No commit, push, tag, release or publication was performed.

@@ -94,6 +94,9 @@ struct StoredGraphicsPlan {
     std::vector<std::uint8_t> raw_candidate_bytes, draw_properties, height_bytes;
     std::vector<std::uint8_t> variation_bytes, fertility_bytes;
     std::shared_ptr<const RegeneratedMapRenderPlan> regenerated;
+    // Eager renderer initialization publishes decode/atomic-fallback readiness
+    // once, separately from immutable selected geometry. No frame mutation.
+    std::vector<std::uint8_t> regenerated_instance_active;
     bool landscape_layers_available = false;
     StoredGraphicsProfile profile = StoredGraphicsProfile::Base;
     std::vector<StoredCell> cells; // Exactly one per candidate, in painter order.
@@ -127,12 +130,17 @@ struct StoredArchiveRegistration {
     std::optional<assets::AssetCatalog> catalog;
     std::optional<RuntimeArchiveLayout> layout;
     bool archive_missing = false;
+    std::string optional_error;
 };
 using StoredArchiveRegistrations = std::map<std::uint32_t,StoredArchiveRegistration>;
 
 StoredArchiveRegistrations load_stored_archive_registrations(
     const std::filesystem::path& data_root, const MapGraphicCandidates& candidates,
     const MapGeometry& geometry, StoredGraphicsProfile profile);
+// Presentation-only optional metadata, added after the historical plan is made.
+// Does not register slot 2 for saved-ID coverage or buildability.
+void add_regenerated_wall_registration(const StoredGraphicsPlan& plan,
+    StoredArchiveRegistrations& registrations);
 StoredGraphicsPlan make_stored_graphics_plan(
     const ParsedEmperorMap& map, const MapGraphicCandidates& candidates,
     const MapGeometry& geometry, const StoredArchiveRegistrations& registrations,

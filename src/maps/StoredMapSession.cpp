@@ -22,10 +22,11 @@ StoredMapSession load_stored_map_session(const std::filesystem::path& data_root,
     const MapGeometry geometry{map.declared_map_size};
     if (!geometry.supported) throw std::runtime_error("unsupported map geometry");
     const auto candidates=read_map_graphic_candidates(container,0);
-    const auto registrations=load_stored_archive_registrations(data_root,candidates,geometry,profile);
+    auto registrations=load_stored_archive_registrations(data_root,candidates,geometry,profile);
     auto plan=make_stored_graphics_plan(map,candidates,geometry,registrations,policy,profile);
     plan.map_relative=map_relative;
     read_landscape_layers(plan,container,0);
+    add_regenerated_wall_registration(plan,registrations);
     build_regenerated_map_render_plan(plan,registrations);
     return {std::move(map),std::move(plan)};
 }

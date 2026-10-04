@@ -384,7 +384,7 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
         }
         if (event.key.key == SDLK_F8 && stored_renderer_) {
             stored_renderer_->set_landscape_mode(static_cast<LandscapeDebugMode>(
-                (static_cast<int>(stored_renderer_->landscape_mode())+1)%6));
+                (static_cast<int>(stored_renderer_->landscape_mode())+1)%8));
             update_title();
         }
         if (event.key.key == SDLK_R) reset_camera();

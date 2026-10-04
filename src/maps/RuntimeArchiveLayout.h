@@ -34,7 +34,11 @@ struct RuntimeArchiveLayout {
     std::optional<std::uint32_t> physical_record_for_local(std::uint32_t local) const;
 };
 
-enum class RuntimeLayoutEvidence { TerrainElevation, TerrainElevationAndSlot8 };
+enum class RuntimeLayoutEvidence {
+    TerrainElevation,
+    TerrainElevationAndSlot8,
+    TerrainElevationAndGeneral2
+};
 
 // Returns null for unsupported slot/evidence/version or inconsistent metadata. The
 // first SG3 bitmap-group filename, not the outer archive name, selects the
