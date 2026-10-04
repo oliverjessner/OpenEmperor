@@ -208,6 +208,8 @@ add_library(openemperor-maps STATIC
     src/maps/TerrainBindings.cpp
     src/maps/TerrainRenderPlan.cpp
     src/maps/LandscapeProvenance.cpp
+    src/maps/LandscapeSelectors.cpp
+    src/maps/RegeneratedMapRenderPlan.cpp
     src/maps/StoredGraphicsPlan.cpp
     src/maps/StoredArchiveRegistrations.cpp
     src/maps/MapSubtileMetadata.cpp
@@ -256,6 +258,10 @@ openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(openemperor-landscape-selector-tests tests/LandscapeSelectorTests.cpp)
+    target_link_libraries(openemperor-landscape-selector-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-landscape-selector-tests)
+    add_test(NAME landscape-selectors COMMAND openemperor-landscape-selector-tests)
     add_executable(openemperor-sandbox-simulation-tests tests/SandboxSimulationTests.cpp)
     target_link_libraries(openemperor-sandbox-simulation-tests PRIVATE openemperor-simulation)
     openemperor_enable_warnings(openemperor-sandbox-simulation-tests)

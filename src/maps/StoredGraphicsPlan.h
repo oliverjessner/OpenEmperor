@@ -9,11 +9,13 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace openemperor::maps {
+struct RegeneratedMapRenderPlan;
 
 inline constexpr const char* stored_graphics_profile = "exe-6373328b-v213-runtime-table";
 inline constexpr const char* stored_graphics_slot8_profile = "exe-6373328b-v213-slot8-runtime-table";
@@ -90,6 +92,8 @@ struct StoredGraphicsPlan {
     std::filesystem::path map_relative;
     std::vector<std::uint32_t> raw_terrain, raw_objects, raw_saved_ids;
     std::vector<std::uint8_t> raw_candidate_bytes, draw_properties, height_bytes;
+    std::vector<std::uint8_t> variation_bytes, fertility_bytes;
+    std::shared_ptr<const RegeneratedMapRenderPlan> regenerated;
     bool landscape_layers_available = false;
     StoredGraphicsProfile profile = StoredGraphicsProfile::Base;
     std::vector<StoredCell> cells; // Exactly one per candidate, in painter order.

@@ -3,6 +3,7 @@
 
 #include "assets/Sg3ImageLoader.h"
 #include "maps/LandscapeProvenance.h"
+#include "maps/RegeneratedMapRenderPlan.h"
 #include <cmath>
 
 #include <SDL3/SDL.h>
@@ -23,7 +24,8 @@ const char* landscape_debug_mode_name(LandscapeDebugMode mode) {
     case LandscapeDebugMode::Water: return "Ground + Water";
     case LandscapeDebugMode::Elevation: return "Ground + Water + Elevation";
     case LandscapeDebugMode::Decorations: return "Ground + Water + Elevation + Decorations";
-    case LandscapeDebugMode::Snapshot: return "Full stored snapshot";
+    case LandscapeDebugMode::Regenerated: return "Regenerated full (partial; explicit preview fallbacks)";
+    case LandscapeDebugMode::Snapshot: return "Historical saved-ID snapshot";
     }
     return "invalid";
 }
@@ -32,8 +34,22 @@ void StoredGraphicsRenderer::set_landscape_mode(LandscapeDebugMode mode) {
 }
 scene::Point StoredGraphicsRenderer::image_origin(const maps::PlacedFootprint& f) const {
     auto origin=f.image_origin;
+    const auto asset=render_asset_index(f);
+    if (asset!=f.asset_index) {
+        const auto& r=plan_.assets[asset].record;
+        origin=maps::stored_image_origin(maps::terrain_world(f.origin,plan_.border),
+            static_cast<std::uint32_t>(r.width),static_cast<std::uint32_t>(r.height));
+    }
     if (elevated()) origin.y-=maps::landscape_height(plan_,f.draw_cell_candidate.value_or(f.origin))*maps::landscape_height_step;
     return origin;
+}
+std::size_t StoredGraphicsRenderer::render_asset_index(const maps::PlacedFootprint& f) const {
+    if (landscape_mode_!=LandscapeDebugMode::Snapshot && plan_.regenerated &&
+        f.id<plan_.regenerated->footprint_assets.size()) {
+        const auto index=plan_.regenerated->footprint_assets[f.id];
+        if (index && plan_.assets[*index].status==maps::StoredStatus::Rendered) return *index;
+    }
+    return f.asset_index;
 }
 bool StoredGraphicsRenderer::overlay_visible(const maps::PlacedFootprint& f) const {
     if (landscape_mode_==LandscapeDebugMode::Snapshot) return true;
@@ -41,7 +57,7 @@ bool StoredGraphicsRenderer::overlay_visible(const maps::PlacedFootprint& f) con
     const auto& c=plan_.cells[f.cell_indices.front()];
     if (c.slot==16) return landscape_mode_>=LandscapeDebugMode::Elevation;
     if (c.terrain_raw&4U) return true;
-    return landscape_mode_==LandscapeDebugMode::Decorations;
+    return landscape_mode_==LandscapeDebugMode::Decorations || landscape_mode_==LandscapeDebugMode::Regenerated;
 }
 
 std::size_t StoredGraphicsRenderer::live_texture_count() { return live_textures.load(); }
@@ -304,18 +320,19 @@ bool StoredGraphicsRenderer::draw_component(std::size_t index, const scene::Came
     if (!item.footprint)
         return !base || diagnostic(plan_.cells[item.plan_index]);
     const auto& f=plan_.footprints[item.plan_index];
-    if (f.status!=maps::StoredStatus::Rendered) {
+    const auto asset_index=render_asset_index(f);
+    if (plan_.assets[asset_index].status!=maps::StoredStatus::Rendered) {
         if (base) for (const auto member:f.cell_indices)
             if (!diagnostic(plan_.cells[member])) return false;
         return true;
     }
     if (!base && !overlay_visible(f)) return true;
-    const auto& r=plan_.assets[f.asset_index].record;
+    const auto& r=plan_.assets[asset_index].record;
     if (!base && r.data_length==r.uncompressed_length) return true;
     const auto origin=image_origin(f);
     if (!maps::stored_rect_visible(origin,static_cast<std::uint32_t>(r.width),
         static_cast<std::uint32_t>(r.height),camera)) return true;
-    auto* texture=(base ? base_textures_:overlay_textures_)[f.asset_index];
+    auto* texture=(base ? base_textures_:overlay_textures_)[asset_index];
     if (!texture) return true;
     const auto top=camera.world_to_screen(origin);
     const SDL_FRect destination{static_cast<float>(top.x),static_cast<float>(top.y),
@@ -330,13 +347,14 @@ std::optional<maps::GridCell> StoredGraphicsRenderer::hit_test(scene::Point scre
     for (auto it=draw_order_.rbegin();it!=draw_order_.rend();++it) {
         if (!it->footprint) continue;
         const auto& f=plan_.footprints[it->plan_index];
-        if (f.status!=maps::StoredStatus::Rendered || !overlay_visible(f)) continue;
-        const auto& r=plan_.assets[f.asset_index].record;
+        const auto asset_index=render_asset_index(f);
+        if (plan_.assets[asset_index].status!=maps::StoredStatus::Rendered || !overlay_visible(f)) continue;
+        const auto& r=plan_.assets[asset_index].record;
         const auto origin=image_origin(f);
         const int x=static_cast<int>(std::floor(world.x-origin.x));
         const int y=static_cast<int>(std::floor(world.y-origin.y));
         if (x<0 || y<0 || x>=r.width || y>=r.height) continue;
-        const auto& alpha=(landscape_mode_==LandscapeDebugMode::Snapshot ? snapshot_alpha_:overlay_alpha_)[f.asset_index];
+        const auto& alpha=(landscape_mode_==LandscapeDebugMode::Snapshot ? snapshot_alpha_:overlay_alpha_)[asset_index];
         if (!alpha.empty() && alpha[static_cast<std::size_t>(y)*static_cast<unsigned>(r.width)+static_cast<unsigned>(x)])
             return f.draw_cell_candidate.value_or(f.origin);
     }

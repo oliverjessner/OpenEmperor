@@ -76,7 +76,7 @@ void MapDebugView::initialize(SDL_Window* window, SDL_Renderer* renderer) {
     }
     if (stored_renderer_) {
         stored_renderer_->initialize(renderer_);
-        stored_renderer_->set_landscape_mode(LandscapeDebugMode::Decorations);
+        stored_renderer_->set_landscape_mode(LandscapeDebugMode::Regenerated);
         const auto& plan = stored_renderer_->plan();
         std::cout << "Stored graphics preview: profile=" << maps::stored_graphics_profile_name(plan.profile)
                   << " candidate=" << plan.cells.size() << " excluded=" << plan.excluded
@@ -384,7 +384,7 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
         }
         if (event.key.key == SDLK_F8 && stored_renderer_) {
             stored_renderer_->set_landscape_mode(static_cast<LandscapeDebugMode>(
-                (static_cast<int>(stored_renderer_->landscape_mode())+1)%5));
+                (static_cast<int>(stored_renderer_->landscape_mode())+1)%6));
             update_title();
         }
         if (event.key.key == SDLK_R) reset_camera();

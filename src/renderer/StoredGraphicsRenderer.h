@@ -18,7 +18,7 @@ namespace openemperor {
 std::array<std::uint8_t,3> stored_presentation_fallback_color(
     maps::TerrainCategory category);
 
-enum class LandscapeDebugMode { Ground, Water, Elevation, Decorations, Snapshot };
+enum class LandscapeDebugMode { Ground, Water, Elevation, Decorations, Regenerated, Snapshot };
 const char* landscape_debug_mode_name(LandscapeDebugMode mode);
 
 struct StoredDrawItem {
@@ -61,6 +61,7 @@ private:
                          maps::TerrainCategory category=maps::TerrainCategory::Unknown);
     bool draw_component(std::size_t index, const scene::Camera2D& camera, bool base);
     scene::Point image_origin(const maps::PlacedFootprint& footprint) const;
+    std::size_t render_asset_index(const maps::PlacedFootprint& footprint) const;
     bool overlay_visible(const maps::PlacedFootprint& footprint) const;
     LandscapeDebugMode landscape_mode_=LandscapeDebugMode::Snapshot;
     std::vector<SDL_Texture*> base_textures_, overlay_textures_;

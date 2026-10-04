@@ -190,7 +190,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     update_layout(false);
     background_.set_debug_diagnostics(debug_open_);
     background_.initialize(renderer_);
-    background_.set_landscape_mode(LandscapeDebugMode::Decorations);
+    background_.set_landscape_mode(LandscapeDebugMode::Regenerated);
     std::vector<std::string> builtin_errors;
     if (!walker_manifest_.empty()) {
         const auto manifest=walker_manifest_; const auto source=walker_source_;
@@ -1238,7 +1238,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             } else last_message_="No road visuals loaded";
         }
         else if (event.key.key==SDLK_F8 && debug_open_) {
-            const auto mode=static_cast<LandscapeDebugMode>((static_cast<int>(background_.landscape_mode())+1)%5);
+            const auto mode=static_cast<LandscapeDebugMode>((static_cast<int>(background_.landscape_mode())+1)%6);
             background_.set_landscape_mode(mode);
             last_message_=landscape_debug_mode_name(background_.landscape_mode());
             refresh_hover();

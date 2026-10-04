@@ -21,6 +21,7 @@
 #include "maps/MapCatalog.h"
 #include "maps/StoredMapSession.h"
 #include "maps/LandscapeProvenance.h"
+#include "maps/RegeneratedMapRenderPlan.h"
 #include "persistence/SandboxSave.h"
 #include "core/Version.h"
 #include "core/PerformanceDiagnostics.h"
@@ -587,6 +588,7 @@ int main(int argc, char* argv[]) {
                     multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
                     graphics_profile);
                 maps::read_landscape_layers(*stored_plan,container,map_part);
+                maps::build_regenerated_map_render_plan(*stored_plan,registrations);
                 stored_plan->map_relative=map_debug_path;
             }
             map_view = std::make_unique<openemperor::MapDebugView>(

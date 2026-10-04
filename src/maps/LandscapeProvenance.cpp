@@ -1,5 +1,6 @@
 #include "maps/LandscapeProvenance.h"
 #include "maps/TerrainInterpretation.h"
+#include "maps/RegeneratedMapRenderPlan.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <iomanip>
@@ -24,8 +25,14 @@ void read_landscape_layers(StoredGraphicsPlan& plan, const EmperorContainer& con
         container.parts()[part].uncompressed_size < landscape_height_offset+count) return;
     auto properties=container.read_range(part,landscape_draw_properties_offset,count);
     auto heights=container.read_range(part,landscape_height_offset,count);
+    auto variation=container.read_range(part,auxiliary_byte_logical_offset,count);
+    // Separate serialized operand read to VA e9f8e0 at 52eaa4. This is not
+    // an inferred numerical interpretation of the terrain fertility bit.
+    auto fertility=container.read_range(part,937255,count);
     plan.draw_properties=std::move(properties);
     plan.height_bytes=std::move(heights);
+    plan.variation_bytes=std::move(variation);
+    plan.fertility_bytes=std::move(fertility);
     plan.landscape_layers_available=true;
 }
 int landscape_height(const StoredGraphicsPlan& plan, GridCell cell) {
@@ -71,6 +78,41 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
         return j;
     }
     const auto* c=plan.at(selected);
+    if (plan.variation_bytes.size()==count) {
+        j["variation_byte"]=plan.variation_bytes[index];
+        j["variation_logical_offset"]=auxiliary_byte_logical_offset+index;
+        j["variation_semantics"]="separate f1e780 selector operand; never candidate/footprint byte";
+    }
+    if (plan.fertility_bytes.size()==count) j["fertility_selector_operand"]=plan.fertility_bytes[index];
+    j["render_source"]="historical saved-ID preview";
+    if (c && plan.regenerated && plan.cell_by_storage[index] &&
+        *plan.cell_by_storage[index]<plan.regenerated->cells.size()) {
+        const auto& generated=plan.regenerated->cells[*plan.cell_by_storage[index]];
+        const auto& s=generated.selection;
+        Json detail={{"family",landscape_family_name(s.family)},{"selector",s.selector},
+            {"evidence",selector_evidence_name(s.evidence)},{"reason",s.reason},
+            {"resource_key",hex(s.group.value,3)},{"variant",s.variant},{"fallback",generated.fallback}};
+        if (s.water_match) detail["water_match"]={{"row",s.water_match->row},
+            {"orientation_offset",s.water_match->orientation_offset},{"variant_count",s.water_match->variant_count},
+            {"row_variant",s.water_match->variant}};
+        if (generated.graphic) detail["packed_graphic"]=generated.graphic->value;
+        if (generated.asset_index) {
+            const auto& a=plan.assets[*generated.asset_index];const auto& r=a.record;
+            detail["resolved_asset"]={{"archive",r.id.archive_relative_path.generic_string()},
+                {"physical_record",r.id.image_index},{"width",r.width},{"height",r.height},
+                {"base_bytes",r.uncompressed_length},{"overlay_bytes",r.data_length-r.uncompressed_length},
+                {"decode_status",stored_status_name(a.status)}};
+            auto origin=stored_image_origin(terrain_world(c->storage,plan.border),
+                static_cast<std::uint32_t>(r.width),static_cast<std::uint32_t>(r.height));
+            if (elevated) origin.y-=landscape_height(plan,c->storage)*landscape_height_step;
+            detail["preview_image_origin"]=point(origin);
+            detail["first_visible_layer"]="Ground base (overlay added by semantic layer)";
+            if (elevated && a.status==StoredStatus::Rendered) j["render_source"]=
+                s.evidence==SelectorEvidence::Verified ? "regenerated verified static selector":"regenerated preview; transient context unresolved";
+        }
+        detail["active"]=elevated;
+        j["regenerated"]=std::move(detail);
+    }
     j["candidate_mask"]=c!=nullptr;
     j["status"]=stored_status_name(plan.status_by_storage.at(index));
     if (plan.raw_terrain.size()==count) {
@@ -138,7 +180,8 @@ std::vector<std::string> landscape_inspection_lines(const StoredGraphicsPlan& pl
     const auto j=landscape_provenance(plan,cell,elevated,camera);
     std::vector<std::string> lines={"Landscape ("+std::to_string(cell.x)+","+std::to_string(cell.y)+")"};
     for (const auto& key:{"candidate_mask","offmap_bit","terrain_hex","semantic_category","objects_hex",
-        "saved_id","saved_id_hex","candidate_byte_hex","tentative_parts","resource","image",
+        "render_source","regenerated","variation_byte","variation_logical_offset","variation_semantics",
+        "fertility_selector_operand","saved_id","saved_id_hex","candidate_byte_hex","tentative_parts","resource","image",
         "height_available","height_signed","draw_properties_raw","placement","ground_world",
         "screen_ground","painter","status","placement_evidence","composition_evidence"}) {
         if (!j.contains(key)) continue;
@@ -154,13 +197,35 @@ Json landscape_fidelity_report(const StoredGraphicsPlan& plan) {
         if (c.physical_record) ++resolved;
         if (c.status==StoredStatus::Rendered) ++supported;
     }
-    return {{"coverage",{{"candidate_cells",plan.cells.size()},{"decoded_snapshot_cells",supported}}},
+    Json regeneration={{"available",bool(plan.regenerated)},{"verified_identity",0},
+        {"preview_identity",0},{"historical_preview",plan.cells.size()},
+        {"water_selector",0},{"ground_selector",0},{"decoration_selector",0},
+        {"unresolved_selector",plan.cells.size()},{"full_original_composition_verified",0}};
+    if (plan.regenerated) {
+        std::size_t verified=0,preview=0,water=0,ground=0,decor=0,unresolved=0;
+        for (const auto& c:plan.regenerated->cells) {
+            if (c.selection.evidence==SelectorEvidence::Unresolved) ++unresolved;
+            if (!c.asset_index || plan.assets[*c.asset_index].status!=StoredStatus::Rendered) continue;
+            if (c.selection.evidence==SelectorEvidence::Verified) ++verified;else ++preview;
+            switch(c.selection.family) {case LandscapeFamily::Water:++water;break;
+            case LandscapeFamily::Ground:++ground;break;case LandscapeFamily::Decoration:++decor;break;
+            case LandscapeFamily::Preserved:break;}
+        }
+        regeneration.update({{"verified_identity",verified},{"preview_identity",preview},
+            {"historical_preview",plan.cells.size()-verified-preview},{"water_selector",water},
+            {"ground_selector",ground},{"decoration_selector",decor},{"unresolved_selector",unresolved},
+            {"load_plan_milliseconds",plan.regenerated->build_milliseconds},
+            {"historical_physical_assets",plan.regenerated->historical_asset_count},
+            {"shared_physical_assets",plan.assets.size()}});
+    }
+    return {{"regeneration",regeneration},
+        {"coverage",{{"candidate_cells",plan.cells.size()},{"decoded_snapshot_cells",supported}}},
         {"resolved_identity",{{"resolved_saved_graphics",resolved},{"original_first_draw_identity_verified",0}}},
         {"placement_verified",{{"height_transform_available",plan.landscape_layers_available},
             {"height_transform_cells",plan.landscape_layers_available ? plan.cells.size():0},
             {"complete_original_anchor_verified",0}}},
         {"composition_verified",{{"ground_verified",0},{"water_verified",0},{"elevation_verified",0},
             {"preview_only",supported},{"unresolved_composition",plan.cells.size()},
-            {"reason","post-load saved-ID clear proven; regeneration, full anchors and shoreline topology unresolved"}}}};
+            {"reason","static selectors reported separately; transient contexts, multi-cell packing and complete original composition unresolved"}}}};
 }
 } // namespace openemperor::maps
