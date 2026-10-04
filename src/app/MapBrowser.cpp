@@ -23,8 +23,8 @@ std::string ascii_label(const std::string& original) {
 } // namespace
 
 MapBrowser::MapBrowser(maps::MapCatalog catalog,maps::FootprintPolicy policy,
-                       maps::StoredGraphicsProfile profile)
-    : catalog_(std::move(catalog)),policy_(policy),profile_(profile),
+                       maps::StoredGraphicsProfile profile,maps::GreatWallPresentationMode great_wall)
+    : catalog_(std::move(catalog)),policy_(policy),profile_(profile),great_wall_mode_(great_wall),
       statuses_(catalog_.entries.size(),"not_checked") {}
 MapBrowser::~MapBrowser() { shutdown(); }
 void MapBrowser::initialize(SDL_Window* window,SDL_Renderer* renderer) {
@@ -47,7 +47,7 @@ bool MapBrowser::open_selected() {
     }
     try {
         auto session=maps::load_stored_map_session(catalog_.data_root,entry.relative_path,
-                                                   policy_,profile_);
+                                                   policy_,profile_,great_wall_mode_);
         auto view=std::make_unique<MapDebugView>(std::move(session.map),maps::RawLayer::Terrain,
             maps::MapViewMode::StoredGraphics,std::nullopt,std::move(session.plan));
         view->initialize(window_,renderer_);

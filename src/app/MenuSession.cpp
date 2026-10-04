@@ -16,7 +16,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     ResetSettings, OpenMenu, VisualsFile, VisualsClear, BuildingVisualsFile, BuildingVisualsClear,
     RoadVisualsFile, RoadVisualsClear, AdvancedVisuals, UpgradeCopy, ConfirmUpgradeCopy,
     CancelUpgrade, ToggleAutosave, ToggleSaveView, DeleteRecovery, ConfirmDeleteRecovery,
-    CancelDeleteRecovery,
+    CancelDeleteRecovery, GreatWallChoice,
     MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::LogisticsV1,
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
@@ -56,9 +56,9 @@ std::string data_error(const std::exception& error) {
 }
 }
 MenuSession::MenuSession(fs::path explicit_data,fs::path app_root,std::unique_ptr<DialogAdapter> dialog,
-                         fs::path resource_root)
+                         fs::path resource_root,maps::GreatWallPresentationMode great_wall)
     : explicit_data_(std::move(explicit_data)),app_root_(std::move(app_root)),
-      resource_root_(std::move(resource_root)),dialog_(std::move(dialog)) {}
+      resource_root_(std::move(resource_root)),dialog_(std::move(dialog)),great_wall_mode_(great_wall) {}
 MenuSession::~MenuSession() { shutdown(); }
 void MenuSession::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     window_=window; renderer_=renderer;
@@ -202,7 +202,7 @@ void MenuSession::finish_loading() {
             save_path=new_save_target(app_root_,settings_.data_root);
         }
         auto loaded=maps::load_stored_map_session(settings_.data_root,map,
-            maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8);
+            maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8,great_wall_mode_);
         if (upgrade_copy_ || recovery_load) {
             save_path=new_save_target(app_root_,settings_.data_root);
         }
@@ -336,6 +336,10 @@ void MenuSession::perform(int action) {
             settings_.profile=profiles[index]; rebuild_buttons(); break;
         }
         case Demo: demo_=!demo_; settings_.prepared_starter=demo_; rebuild_buttons(); break;
+        case GreatWallChoice:
+            great_wall_mode_=static_cast<maps::GreatWallPresentationMode>(
+                (static_cast<unsigned>(great_wall_mode_)+1U)%5U);
+            rebuild_buttons(); break;
         case Start: start_new(); break;
         case Back: set_state(State::MainMenu); break;
         case SavePrev: if (save_index_>0) --save_index_; rebuild_buttons(); break;
@@ -452,10 +456,18 @@ void MenuSession::handle_event(const SDL_Event& event) {
             else if (state_==State::NewSandbox || state_==State::LoadSandbox) activate_button(Back);
             else if (state_!=State::Loading) activate_button(Quit);
         } else if (event.key.key==SDLK_RETURN || event.key.key==SDLK_KP_ENTER) {
-            if (state_==State::NewSandbox) activate_button(Start);
+            if (state_==State::MainMenu && sandbox_) activate_button(Resume);
+            else if (state_==State::NewSandbox) activate_button(Start);
             else if (state_==State::LoadSandbox) activate_button(OpenSave);
             else if (state_==State::ConfirmUpgrade) activate_button(ConfirmUpgradeCopy);
             else if (state_==State::ConfirmDeleteRecovery) activate_button(ConfirmDeleteRecovery);
+        } else if (event.key.key==SDLK_N && state_==State::MainMenu) {
+            activate_button(NewGame);
+        } else if (event.key.key==SDLK_L && state_==State::MainMenu) {
+            activate_button(LoadGame);
+        } else if (event.key.key==SDLK_G &&
+                   (state_==State::NewSandbox || state_==State::LoadSandbox)) {
+            activate_button(GreatWallChoice);
         } else if (event.key.key==SDLK_UP) {
             if (state_==State::NewSandbox) activate_button(MapPrev);
             else if (state_==State::LoadSandbox) activate_button(SavePrev);
@@ -536,9 +548,9 @@ void MenuSession::rebuild_buttons() {
         add(Quit,"Quit",40,235);
         if (!catalog_.entries.empty()) add(Back,"Back",230,235);
     } else if (state_==State::MainMenu) {
-        if (sandbox_) add(Resume,"Continue",40,100,210);
-        add(NewGame,"New Sandbox",40,sandbox_?145:100,210);
-        add(LoadGame,"Load Save",40,sandbox_?190:145,210);
+        if (sandbox_) add(Resume,"Enter Continue",40,100,210);
+        add(NewGame,"N New Sandbox",40,sandbox_?145:100,210);
+        add(LoadGame,"L Load Save",40,sandbox_?190:145,210);
         add(DataFolder,"Data folder",40,sandbox_?235:190,210);
         buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,sandbox_?280:235,210);
@@ -550,7 +562,8 @@ void MenuSession::rebuild_buttons() {
         add(ProfilePrev,"Previous rules",40,205); add(ProfileNext,"Next rules",230,205);
         add(Demo,demo_?"Prepared starter settlement":"Empty city",40,270,260);
         add(Start,"Start sandbox",40,315); add(Back,"Back",230,315);
-        add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",40,360,210);
+        add(GreatWallChoice,std::string("G Great Wall: ")+maps::great_wall_presentation_mode_name(great_wall_mode_),40,360,370);
+        add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",430,360,210);
         if (advanced_visuals_open_) {
             add(VisualsFile,"Choose walker JSON...",40,400); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,400);
             add(BuildingVisualsFile,"Building JSON...",40,440);
@@ -584,7 +597,8 @@ void MenuSession::rebuild_buttons() {
                 add(UpgradeCopy,selected.rule_version==3 ? "Enable demolition in a copy":
                     "Enable operation controls in a copy",230,315,300);
         }
-        add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",40,360,210);
+        add(GreatWallChoice,std::string("G Great Wall: ")+maps::great_wall_presentation_mode_name(great_wall_mode_),40,360,370);
+        add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",430,360,210);
         if (advanced_visuals_open_) {
             add(VisualsFile,"Choose walker JSON...",40,400); add(VisualsClear,selection_label("Walker",visual_profile_path_),230,400);
             add(BuildingVisualsFile,"Building JSON...",40,440);
@@ -636,6 +650,8 @@ bool MenuSession::render() {
         state_==State::ConfirmUpgrade?(upgrade_target_version_==4 ? "Enable demolition in a copy":"Enable operation controls in a copy"):
         state_==State::ConfirmDeleteRecovery?"Delete recovery history":"Unsaved progress";
     if (!label(40,40,heading)) return false;
+    if ((state_==State::NewSandbox || state_==State::LoadSandbox) &&
+        !label(40,70,"Great Wall choice applies on load; preview is not original restore.")) return false;
     if (state_==State::DataSetup) {
         if (!label(40,56,std::string(version::display)+" | Clean-room reimplementation")) return false;
         if (!label(40,72,"Original game data setup")) return false;

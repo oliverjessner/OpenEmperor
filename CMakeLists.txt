@@ -173,6 +173,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/Sg3PayloadLayout.cpp
     src/assets/Sg3IsometricDecoder.cpp
     src/assets/Sg3ImageLoader.cpp
+    src/assets/GreatWallDependencyPaths.cpp
     src/assets/Sg3ShadowComposition.cpp
     src/assets/AssetCatalog.cpp
     src/assets/WalkerVisualProfile.cpp
@@ -265,6 +266,10 @@ openemperor_enable_warnings(openemperor-assets)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(openemperor-great-wall-dependency-paths-tests tests/GreatWallDependencyPathsTests.cpp)
+    target_link_libraries(openemperor-great-wall-dependency-paths-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-great-wall-dependency-paths-tests)
+    add_test(NAME great-wall-dependency-paths COMMAND openemperor-great-wall-dependency-paths-tests)
     foreach(test_name IN ITEMS OriginalMapEntities GreatWallModels GreatWallSelector GreatWallPresentation)
         string(TOLOWER ${test_name} test_target)
         add_executable(openemperor-${test_target}-tests tests/${test_name}Tests.cpp)

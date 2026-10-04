@@ -273,6 +273,13 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
             suppressed_footprints_[f.id]=!f.cell_indices.empty() && suppressed_cells_[f.cell_indices.front()];
     }
     plan_.regenerated_instance_active.assign(regenerated_ready_.begin(),regenerated_ready_.end());
+    if (plan_.regenerated) for (std::size_t i=0;i<plan_.regenerated->instances.size();++i) {
+        const auto& instance=plan_.regenerated->instances[i];
+        if (instance.great_wall_context &&
+            instance.great_wall_context->source==maps::GreatWallContextSource::ExplicitPreview &&
+            !regenerated_ready_[i])
+            throw std::runtime_error("Great Wall preview preparation failed: selected instance unavailable after decode/atomic activation");
+    }
     draw_order_.clear();
     draw_order_.reserve(plan_.cells.size()+plan_.footprints.size());
     for (const auto& footprint : plan_.footprints) {

@@ -2,6 +2,7 @@
 
 #include "maps/MapCatalog.h"
 #include "maps/StoredGraphicsPlan.h"
+#include "maps/GreatWallSelector.h"
 
 #include <cstddef>
 #include <memory>
@@ -18,7 +19,8 @@ class MapDebugView;
 class MapBrowser {
 public:
     MapBrowser(maps::MapCatalog catalog,maps::FootprintPolicy policy,
-               maps::StoredGraphicsProfile profile = maps::StoredGraphicsProfile::Base);
+               maps::StoredGraphicsProfile profile = maps::StoredGraphicsProfile::Base,
+               maps::GreatWallPresentationMode great_wall = maps::GreatWallPresentationMode::Automatic);
     ~MapBrowser();
     void initialize(SDL_Window* window,SDL_Renderer* renderer);
     void shutdown();
@@ -34,6 +36,7 @@ private:
     maps::MapCatalog catalog_;
     maps::FootprintPolicy policy_;
     maps::StoredGraphicsProfile profile_;
+    maps::GreatWallPresentationMode great_wall_mode_;
     std::vector<std::string> statuses_;
     std::size_t selected_=0;
     std::string message_;

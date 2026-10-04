@@ -40,7 +40,8 @@ struct SdlCheck {
 
 int run_map_render_check(const std::filesystem::path& data_root,
                          const std::filesystem::path& relative_map,
-                         maps::FootprintPolicy policy, maps::StoredGraphicsProfile profile) {
+                         maps::FootprintPolicy policy, maps::StoredGraphicsProfile profile,
+                         maps::GreatWallPresentationMode great_wall) {
     Json report{
         {"schema","openemperor-map-render-check-v2"},
         {"relative_path",relative_map.generic_string()},
@@ -68,7 +69,7 @@ int run_map_render_check(const std::filesystem::path& data_root,
             report["status"]="unsupported_profile";
             throw std::runtime_error("unsupported map geometry");
         }
-        auto session=maps::load_stored_map_session(data_root,relative_map,policy,profile);
+        auto session=maps::load_stored_map_session(data_root,relative_map,policy,profile,great_wall);
         report["stages"]["graphics_plan_created"]=true;
         SdlCheck sdl;
         if (!SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER,"dummy",SDL_HINT_OVERRIDE))

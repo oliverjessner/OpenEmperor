@@ -1,4 +1,5 @@
 #include "assets/Sg3ImageLoader.h"
+#include "assets/GreatWallDependencyPaths.h"
 #include "core/PerformanceDiagnostics.h"
 #include "assets/Sg3AlphaDecoder.h"
 #include "assets/Sg3IsometricDecoder.h"
@@ -159,6 +160,17 @@ Sg3BitmapLocation resolve_sg3_group_bitmap(const fs::path& archive_path,
     if (error || !remains_under(base, target)) {
         return {{}, ref, Sg3BitmapStatus::UnsafeRelativeName};
     }
+    if (known_great_wall_archive_path(absolute_archive) &&
+        bitmap_name==bitmap_name.filename() &&
+        known_great_wall_dependency_filename(bitmap_name.string())) {
+        try {
+            if (const auto selected=resolve_great_wall_dependency_path(base.parent_path(),
+                    fs::path{"DATA"}/bitmap_name))
+                return {*selected,ref,Sg3BitmapStatus::Resolved};
+        } catch (const std::exception&) {
+            return {{},ref,Sg3BitmapStatus::UnsafeRelativeName};
+        }
+    }
     return {candidate.lexically_normal(), ref, Sg3BitmapStatus::Resolved};
 }
 
@@ -167,6 +179,18 @@ Sg3BitmapLocation resolve_sg3_image_bitmap(const fs::path& archive_path,
     if (image.external_flag == 0) {
         fs::path internal = archive_path;
         internal.replace_extension(".555");
+        if (known_great_wall_archive_path(archive_path)) {
+            try {
+                std::error_code error;
+                const auto absolute_archive=fs::absolute(archive_path,error);
+                if (error) return {{},"internal",Sg3BitmapStatus::UnsafeRelativeName};
+                if (const auto selected=resolve_great_wall_dependency_path(absolute_archive.parent_path().parent_path(),
+                        fs::path{"DATA"}/internal.filename()))
+                    return {*selected,"internal",Sg3BitmapStatus::Resolved};
+            } catch (const std::exception&) {
+                return {{},"internal",Sg3BitmapStatus::UnsafeRelativeName};
+            }
+        }
         return {internal.lexically_normal(), "internal", Sg3BitmapStatus::Resolved};
     }
     if (image.external_flag != 1) {

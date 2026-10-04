@@ -1,8 +1,10 @@
 #include "maps/StoredGraphicsPlan.h"
 
 #include "assets/Sg3ImageLoader.h"
+#include "assets/GreatWallDependencyPaths.h"
 
 #include <stdexcept>
+#include <set>
 
 namespace openemperor::maps {
 namespace {
@@ -14,6 +16,11 @@ StoredArchiveRegistration load_one(const fs::path& root, std::uint32_t slot,
     StoredArchiveRegistration result;
     result.slot=slot;
     result.relative_path=std::move(relative);
+    if (evidence==RuntimeLayoutEvidence::RestoredGreatWall) {
+        const auto selected=assets::resolve_great_wall_dependency_path(root,result.relative_path);
+        if (!selected) {result.archive_missing=true;return result;}
+        result.relative_path=selected->lexically_relative(fs::canonical(root));
+    }
     std::error_code error;
     const auto status=fs::symlink_status(root/result.relative_path,error);
     if (optional && (status.type()==fs::file_type::not_found ||
@@ -25,6 +32,28 @@ StoredArchiveRegistration load_one(const fs::path& root, std::uint32_t slot,
     result.metadata=assets::read_sg3_archive(path);
     result.layout=build_runtime_archive_layout(slot,*result.metadata,evidence);
     if (!result.layout) return result; // Registered, but this layout is unverified.
+    if (evidence==RuntimeLayoutEvidence::RestoredGreatWall) {
+        // Validate sources actually referenced by this runtime registration.
+        // Unused system/group names do not create bitmap dependencies.
+        const auto canonical_root=fs::canonical(root);
+        std::set<std::pair<unsigned,unsigned>> referenced_sources;
+        for (std::uint32_t local=0;local<result.layout->runtime_image_count;++local) {
+            const auto physical=result.layout->physical_record_for_local(local);
+            const auto& image=result.metadata->images.at(*physical);
+            if (image.data_length==0 && image.alpha_length==0) continue;
+            if (!referenced_sources.emplace(image.external_flag,
+                    image.external_flag==0 ? 0U:unsigned(image.group_id)).second) continue;
+            const auto source=assets::resolve_sg3_image_bitmap(path,*result.metadata,image);
+            if (source.status!=assets::Sg3BitmapStatus::Resolved)
+                throw std::runtime_error("Great Wall referenced .555 dependency is unsafe or unresolved");
+            const auto bitmap=fs::canonical(source.path,error);
+            const auto relative_bitmap=bitmap.lexically_relative(canonical_root);
+            bool contained=!relative_bitmap.empty() && !relative_bitmap.is_absolute();
+            for (const auto& part:relative_bitmap) if (part=="..") contained=false;
+            if (error || !contained || !fs::is_regular_file(bitmap))
+                throw std::runtime_error("Great Wall referenced .555 dependency is missing or escapes data directory");
+        }
+    }
     result.catalog=assets::scan_asset_archive(root,result.relative_path);
     return result;
 }

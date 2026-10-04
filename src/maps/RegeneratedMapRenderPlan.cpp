@@ -84,7 +84,8 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
         if (c.slot!=16) eligible[c.cell_index]=1;
     }
     const auto append_instance=[&](LandscapeInstanceSpec spec,
-        const StoredArchiveRegistration* original_registration=nullptr) {
+        const StoredArchiveRegistration* original_registration=nullptr,
+        const GreatWallRestoreContext* wall_context=nullptr) {
         const bool original_wall=spec.original_entity_index.has_value();
         std::vector<std::size_t> members;
         for (const auto cell:spec.owned_cells) {
@@ -131,7 +132,8 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
         }
         const auto composition=spec.original_entity_index;
         if (original_wall) for (const auto cell:spec.owned_cells) eligible[std::size_t(cell.y)*stored_grid_width+cell.x]=0;
-        generated->instances.push_back({std::move(spec),*graphic,existing->second,std::move(members),composition});
+        generated->instances.push_back({std::move(spec),*graphic,existing->second,std::move(members),composition,
+            wall_context ? std::optional{*wall_context}:std::nullopt});
         return true;
     };
     // Object restore precedes landscape generation. Only complete supported
@@ -145,7 +147,23 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
             if (found==plan.original_great_wall->archives.end()) continue;
             r=&found->second;
         }
-        append_instance(*piece.geometry,r);
+        if (!append_instance(*piece.geometry,r,&piece.selection.restore_context)) {
+            std::string reason="selected Great Wall complete geometry or image unavailable; historical preview retained";
+            if (r && r->layout) {
+                const std::map<std::uint32_t,GroupRegistration> selected_groups{{r->slot,{&*r->layout}}};
+                const auto graphic=resolve_landscape_variant(piece.selection.group,piece.selection.variant,selected_groups);
+                if (!graphic) reason="Great Wall variant "+std::to_string(piece.selection.variant)+
+                    " outside registered archive group "+piece.archive_relative.generic_string()+"; historical preview retained";
+                else if (r->catalog) {
+                    const std::map<std::uint32_t,GraphicsArchiveRegistration> selected_images{
+                        {r->slot,{&*r->catalog,&*r->layout,r->archive_missing}}};
+                    const auto found=resolve_graphics_id_hypothesis(graphic->value,selected_images);
+                    if (found.record && found.record->image_type==1)
+                        reason="selected Great Wall Type-1 image layout unsupported; historical preview retained";
+                }
+            }
+            generated->original_wall_fallbacks.emplace(*piece.geometry->original_entity_index,std::move(reason));
+        }
     }
     for (auto spec:derive_rock_instances(input,eligible)) {
         if (!append_instance(spec)) for (const auto cell:spec.owned_cells) {

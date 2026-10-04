@@ -86,9 +86,10 @@ void append_archive(AssetCatalog& catalog, const fs::path& archive_path,
                     const fs::path& relative_path,
                     std::map<fs::path, std::optional<std::uint64_t>>& size_cache) {
     const Sg3Archive archive = read_sg3_archive(archive_path);
-    fs::path internal_path = archive_path;
-    internal_path.replace_extension(".555");
-    const SourceInfo internal{true, source_size(internal_path, size_cache)};
+    const auto internal_location=resolve_sg3_image_bitmap(archive_path,archive,Sg3Image{});
+    const bool internal_resolved=internal_location.status==Sg3BitmapStatus::Resolved;
+    const SourceInfo internal{internal_resolved,internal_resolved ?
+        source_size(internal_location.path,size_cache):std::nullopt};
     std::vector<SourceInfo> external;
     external.reserve(archive.groups.size());
     for (std::size_t group_index = 0; group_index < archive.groups.size(); ++group_index) {

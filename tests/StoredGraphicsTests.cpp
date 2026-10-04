@@ -956,7 +956,7 @@ int main() {
             set_id(separate_candidates,114,114,0xc00a);
             set_id(separate_candidates,116,114,0xc00a);
             const auto separate_geometry=sparse_geometry({{114,114},{116,114}});
-            for (bool failed_member:{false,true}) {
+            for (bool explicit_preview:{false,true}) for (bool failed_member:{false,true}) {
                 auto separate=maps::make_stored_graphics_plan(map,separate_candidates,separate_geometry,
                     terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,true);
                 check(separate.footprints.size()==2 && separate.assets.size()==1,
@@ -974,6 +974,11 @@ int main() {
                 for (std::size_t i=0;i<separate.cells.size();++i) {
                     maps::RegeneratedLandscapeInstance instance;
                     instance.geometry.selection.family=maps::LandscapeFamily::Rock;
+                    if (explicit_preview) {
+                        instance.geometry.selection.family=maps::LandscapeFamily::GreatWall;
+                        instance.great_wall_context=maps::great_wall_context_from_mode(
+                            maps::GreatWallPresentationMode::PreviewStone);
+                    }
                     instance.geometry.selection.evidence=maps::SelectorEvidence::Verified;
                     instance.geometry.selection.selector="synthetic two-image composition";
                     instance.geometry.origin=separate.cells[i].storage;
@@ -995,7 +1000,16 @@ int main() {
                 const auto old_ids=separate.raw_saved_ids;
                 separate.regenerated=generated;
                 openemperor::StoredGraphicsRenderer composition{std::move(separate)};
-                composition.initialize(renderer);
+                bool preparation_failed=false;
+                try { composition.initialize(renderer); }
+                catch (const std::runtime_error& error) {
+                    check(std::string_view(error.what()).find("Great Wall preview preparation failed")!=std::string_view::npos,
+                          "preview preparation failed without a concrete activation error");
+                    preparation_failed=true;
+                }
+                check(preparation_failed==(explicit_preview && failed_member),
+                      "explicit preview must reject failed atomic decode before session publication");
+                if (preparation_failed) continue;
                 composition.set_landscape_mode(openemperor::LandscapeDebugMode::Regenerated);
                 check(composition.upload_count()==6,
                     "two ready members share one eager three-texture asset; a failed decode uploads nothing");

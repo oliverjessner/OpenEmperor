@@ -1,5 +1,6 @@
 #pragma once
 #include "maps/LandscapeSelectors.h"
+#include "maps/GreatWallSelector.h"
 #include "maps/LandscapeInstances.h"
 #include "maps/StoredGraphicsPlan.h"
 
@@ -19,6 +20,7 @@ struct RegeneratedLandscapeInstance {
     // Images belonging to one restored composition activate together after
     // eager decoding. Unset preserves existing independent instances.
     std::optional<std::size_t> composition_group;
+    std::optional<GreatWallRestoreContext> great_wall_context;
 };
 // Published const once per load. Historical cells, footprints and buildability
 // remain untouched. Indices refer to the renderer's shared physical asset pool.
@@ -26,6 +28,9 @@ struct RegeneratedMapRenderPlan {
     std::vector<RegeneratedCell> cells; // Same candidate order as historical plan.
     std::vector<std::optional<std::size_t>> footprint_assets;
     std::vector<RegeneratedLandscapeInstance> instances;
+    // Load-time refusal reason for a selected original piece that cannot
+    // publish a complete image. Provenance only; never grants ownership.
+    std::map<std::size_t,std::string> original_wall_fallbacks;
     std::size_t historical_asset_count=0;
     double build_milliseconds=0;
 };

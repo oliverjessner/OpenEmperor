@@ -296,7 +296,7 @@ int main(int argc,char* argv[]) {
             click(menu,90,220); // New sandbox
             check(menu.state()==Menu::State::NewSandbox,"new sandbox menu");
             check(menu.render(),"City-v11 recommended profile description did not render");
-            click(menu,90,750); // Open Advanced visual previews.
+            click(menu,900,750); // Open Advanced visual previews.
             click(menu,90,830); // Walker JSON through the existing dialog adapter.
             check(static_cast<bool>(dialog->callback),"walker dialog not opened");
             dialog->answer({openemperor::menu::DialogResult::Kind::Selected,
@@ -384,6 +384,26 @@ int main(int argc,char* argv[]) {
             check(openemperor::assets::compatibility_detection_count()==detection_count,
                   "saving recomputed compatibility fingerprints");
             const auto saved=menu.sandbox()->world().snapshot();
+            key(menu,SDLK_ESCAPE); key(menu,SDLK_N);
+            for (int choice=0;choice<4;++choice) key(menu,SDLK_G);
+            check(menu.render(),"Great Wall preview setup did not render");
+            check(menu.sandbox()->world().snapshot()==saved && menu.sandbox()->save_path()==first_save,
+                  "session-only Great Wall choice changed the retained World or save target");
+            key(menu,SDLK_RETURN); finish_load(menu);
+            if (!(menu.state()==Menu::State::NewSandbox &&
+                  menu.message().find("Great Wall preview preparation failed")!=std::string::npos &&
+                  menu.sandbox()->world().snapshot()==saved && menu.sandbox()->save_path()==first_save))
+                throw std::runtime_error("failed Great Wall preparation retained state="+
+                    std::to_string(static_cast<int>(menu.state()))+", message="+menu.message());
+            key(menu,SDLK_G); // Return to Automatic without persisting the preview choice.
+            key(menu,SDLK_ESCAPE); key(menu,SDLK_RETURN);
+            {
+                std::ifstream stored(t.root/"app/settings.json");
+                const std::string settings_text((std::istreambuf_iterator<char>(stored)),{});
+                check(settings_text.find("great_wall")==std::string::npos &&
+                      settings_text.find("preview-stone")==std::string::npos,
+                      "Great Wall presentation choice leaked into persistent settings");
+            }
             {
                 auto document=openemperor::persistence::read_save(first_save);
                 document.world.rule_version=2;

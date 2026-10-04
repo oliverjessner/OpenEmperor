@@ -16,7 +16,8 @@ public:
                        ConfirmLeave, ConfirmUpgrade, ConfirmDeleteRecovery };
     MenuSession(std::filesystem::path explicit_data={},std::filesystem::path app_root={},
                 std::unique_ptr<DialogAdapter> dialog=std::make_unique<NativeDialog>(),
-                std::filesystem::path resource_root={});
+                std::filesystem::path resource_root={},
+                maps::GreatWallPresentationMode great_wall=maps::GreatWallPresentationMode::Automatic);
     ~MenuSession();
     void initialize(SDL_Window* window,SDL_Renderer* renderer);
     void shutdown();
@@ -83,6 +84,7 @@ private:
     std::uint32_t upgrade_target_version_=3;
     bool recovery_view_=false,candidate_sets_last_save_=false;
     bool advanced_visuals_open_=false;
+    maps::GreatWallPresentationMode great_wall_mode_=maps::GreatWallPresentationMode::Automatic;
     int pressed_action_=-1;
     std::optional<int> pending_action_;
     std::vector<Button> buttons_;

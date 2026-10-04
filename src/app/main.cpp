@@ -43,6 +43,8 @@
 namespace {
 
 void print_usage(const char* executable) {
+    std::cerr << "Great Wall presentation (session only): --great-wall-presentation "
+                 "auto|historical|preview-ruined|preview-earthen|preview-stone\n";
     std::cerr << "Usage: " << executable << " [--performance-diagnostics] [--data <directory>] [--app-root <test-directory>] [--preview <exported.png>]\n"
               << "       " << executable << " [--data <directory>] --sg3 <file.sg3> --image <index> [--ignore-alpha]\n"
               << "       " << executable << " --sg3 <file.sg3> --image <index>"
@@ -110,6 +112,8 @@ int main(int argc, char* argv[]) {
     bool sandbox_visuals_supplied = false;
     bool building_visuals_supplied = false;
     bool road_visuals_supplied = false;
+    bool great_wall_supplied = false;
+    auto great_wall_mode = openemperor::maps::GreatWallPresentationMode::Automatic;
     bool sandbox_demo = false;
     bool sandbox_check = false;
     bool sandbox_resume_check = false;
@@ -224,6 +228,10 @@ int main(int argc, char* argv[]) {
             building_visuals_path=argv[++index]; building_visuals_supplied=true;
         } else if (argument == "--road-visuals" && !road_visuals_supplied) {
             road_visuals_path=argv[++index]; road_visuals_supplied=true;
+        } else if (argument == "--great-wall-presentation" && !great_wall_supplied && index+1<argc) {
+            const auto mode=openemperor::maps::parse_great_wall_presentation_mode(argv[++index]);
+            if (!mode) { print_usage(argv[0]); return 2; }
+            great_wall_mode=*mode; great_wall_supplied=true;
         } else if (argument == "--road-atlas" && !road_atlas_supplied) {
             road_atlas_path=argv[++index]; road_atlas_supplied=true;
         } else if (argument == "--sandbox-save" && !sandbox_save_supplied) {
@@ -396,6 +404,12 @@ int main(int argc, char* argv[]) {
         !sg3_supplied && !browse_assets && !road_atlas_supplied && !scene_supplied &&
         !browse_maps && !map_debug_supplied &&
         !list_maps && !render_check;
+    if (great_wall_supplied && (sandbox_check || sandbox_routing_check ||
+        (!menu_start && !sandbox_supplied && !load_sandbox_supplied &&
+        !(map_debug_supplied && map_view_mode==openemperor::maps::MapViewMode::StoredGraphics) &&
+        !browse_maps))) {
+        print_usage(argv[0]); return 2;
+    }
     std::error_code executable_error;
     const auto executable=fs::canonical(argv[0],executable_error);
     const auto resource_root=openemperor::locate_resource_root(
@@ -414,7 +428,7 @@ int main(int argc, char* argv[]) {
             if (render_check)
                 return openemperor::run_map_render_check(data_directory,map_debug_path,
                     multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
-                    graphics_profile);
+                    graphics_profile,great_wall_mode);
             std::cerr << "Data directory does not exist or cannot be accessed: " << data_directory.string() << '\n';
             return 2;
             }
@@ -440,7 +454,7 @@ int main(int argc, char* argv[]) {
     if (render_check)
         return openemperor::run_map_render_check(data_directory,map_debug_path,
             multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
-            graphics_profile);
+            graphics_profile,great_wall_mode);
     std::optional<openemperor::VisualSelection> sandbox_visual_selection;
     if (sandbox_supplied || load_sandbox_supplied)
         sandbox_visual_selection=openemperor::detect_and_select_visual_profiles(
@@ -462,7 +476,7 @@ int main(int argc, char* argv[]) {
         !browse_assets && !road_atlas_supplied && !scene_supplied && !browse_maps && !map_debug_supplied)
         menu_session=std::make_unique<openemperor::menu::MenuSession>(
             data_supplied ? data_directory : fs::path{}, app_root_path,
-            std::make_unique<openemperor::menu::NativeDialog>(),resource_root);
+            std::make_unique<openemperor::menu::NativeDialog>(),resource_root,great_wall_mode);
     if (sandbox_supplied || load_sandbox_supplied) {
         try {
             std::optional<openemperor::persistence::SaveDocument> initial;
@@ -477,7 +491,7 @@ int main(int argc, char* argv[]) {
                 openemperor::persistence::validate_save_target(sandbox_save_path,data_directory);
             auto session=openemperor::maps::load_stored_map_session(data_directory,sandbox_path,
                 openemperor::maps::FootprintPolicy::EdgeByte4x4Preview,
-                openemperor::maps::StoredGraphicsProfile::Slot8);
+                openemperor::maps::StoredGraphicsProfile::Slot8,great_wall_mode);
             sandbox_view=std::make_unique<openemperor::SandboxView>(std::move(session),sandbox_demo,
                                                                     sandbox_rules);
             sandbox_view->configure_save(data_directory,sandbox_path,sandbox_save_path,std::move(initial));
@@ -549,7 +563,7 @@ int main(int argc, char* argv[]) {
             map_browser=std::make_unique<openemperor::MapBrowser>(
                 openemperor::maps::discover_standalone_maps(data_directory),
                 multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
-                graphics_profile);
+                graphics_profile,great_wall_mode);
         } catch (const std::exception& error) {
             std::cerr<<"Map browser scan failed: "<<error.what()<<'\n'; return 1;
         }
@@ -558,7 +572,7 @@ int main(int argc, char* argv[]) {
             if (graphics_profile_supplied && !part_supplied) {
                 auto session=openemperor::maps::load_stored_map_session(data_directory,map_debug_path,
                     multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
-                    graphics_profile);
+                    graphics_profile,great_wall_mode);
                 std::cout << "Original map: " << map_debug_path << " part 0 storage "
                           << session.map.stored_width << 'x' << session.map.stored_height
                           << " declared size " << session.map.declared_map_size
@@ -589,7 +603,13 @@ int main(int argc, char* argv[]) {
                     multi_tile_preview ? footprint_policy : openemperor::maps::FootprintPolicy::Disabled,
                     graphics_profile);
                 maps::read_landscape_layers(*stored_plan,container,map_part);
-                maps::read_great_wall_presentation(*stored_plan,container,map_part);
+                const auto context=maps::great_wall_context_from_mode(great_wall_mode);
+                maps::read_great_wall_presentation(*stored_plan,container,map_part,context);
+                if (context.source==maps::GreatWallContextSource::ExplicitPreview &&
+                    (!stored_plan->original_great_wall || !stored_plan->original_great_wall->error.empty()))
+                    throw std::runtime_error("Great Wall preview preparation failed: "+
+                        (stored_plan->original_great_wall ? stored_plan->original_great_wall->error:
+                         "standalone landscape/entity input unavailable"));
                 maps::add_regenerated_wall_registration(*stored_plan,registrations);
                 maps::build_regenerated_map_render_plan(*stored_plan,registrations);
                 stored_plan->map_relative=map_debug_path;

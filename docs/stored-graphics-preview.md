@@ -1,6 +1,23 @@
 # Stored graphics map preview
 
-## Pass 4: restored Great Wall state (current bounded behavior)
+## Great Wall activation: explicit session preview
+
+The original material decision is understood, but standalone `.map` selection supplies no verified original mode/current-player goals. **Automatic preserves the previous historical fallback.** A consciously selected material is **OPENEMPEROR PREVIEW**, never verified original restore.
+
+In the normal app, open **New Sandbox** (N) or **Load Save** (L). Choose the map/save, then click **G Great Wall** or press G to cycle `auto → historical → preview-ruined → preview-earthen → preview-stone`. Press Enter to load. The choice applies only on loading; it does not rebuild the current World. A failed required preparation keeps the existing session. Escape returns to that session and Enter continues it.
+
+The choice survives within this app process, including loading another save, but is absent from preferences/saves. A fresh process starts at `auto`; select the preview again before loading. F9 reloads the World in the current already-prepared presentation. F1 plus selecting an empty map cell exposes original fields, selected preview material/source and actual active instance; F1 does not authorize a material. Original serialized phases and supported models/orientations/claims remain intact.
+
+For a normal CLI sandbox:
+
+```sh
+./build-release/openemperor --data .local/gog-extracted/app --sandbox Cities/Badaling.map --sandbox-rules sandbox-city-v16 --sandbox-demo --great-wall-presentation preview-stone
+```
+
+The same option works in menu start, `--load-sandbox`, stored-graphics `--map-debug`, `--browse-maps`, and `--render-check`. Canonical choices are `auto`, `historical`, `preview-ruined`, `preview-earthen`, `preview-stone`; invalid values/combinations fail explicitly. It is a presentation option, not a City rule or original mission context. See [measured activation, native/scripted checks and remaining limits](reverse/great-wall-restore-context.md).
+
+
+## Pass 4: restored Great Wall state (historical bounded baseline)
 
 **RAW MAP FACT / EXE-OBSERVED:** standalone-map loading now reads the bounded original object manager and Great Wall model pieces. The original entity's local coordinates and the centered map offset determine the storage claim; its phase and model piece determine the selector inputs. Historical graphic IDs, raw `0x88` and saved subtile grouping do not substitute for this state. Archive identity depends on both phase and restored material: the 42-record Earthen stage-1 group described below does not define the layout of every Great Wall stage.
 

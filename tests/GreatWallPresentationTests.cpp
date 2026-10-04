@@ -1,6 +1,7 @@
 #include "maps/GreatWallMapPresentation.h"
 #include "maps/RegeneratedMapRenderPlan.h"
 #include "maps/LandscapeProvenance.h"
+#include "core/PerformanceDiagnostics.h"
 #include <iostream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
@@ -64,7 +65,7 @@ int main(){try{
         !missing.pieces[0].fallback.empty(),"raw saved material3 never supplies missing restore context");
     auto absent=plan(missing);build_regenerated_map_render_plan(absent,{});
     check(absent.regenerated->instances.empty() && absent.assets.empty(),"unresolved context publishes no ownership/assets");
-    auto known=prepare_great_wall_presentation(e,m,{3,0});
+    auto known=prepare_great_wall_presentation(e,m,{3,0,GreatWallContextSource::VerifiedOriginal});
     check(known.pieces[0].geometry->origin==GridCell{84,61} &&
         known.pieces[0].geometry->draw_cell==GridCell{84,64},"serialized local origin maps through validated border");
     check(known.pieces[0].selection.variant==25 && known.pieces[1].selection.variant==28,
@@ -89,26 +90,35 @@ int main(){try{
     auto unsupported=plan(wrong);build_regenerated_map_render_plan(unsupported,{});
     check(unsupported.regenerated->instances.size()==1 && unsupported.regenerated->instances[0].geometry.side==2,
         "Type1 cannot become a scaled4x4 Type30 or partial original owner");
+    check(landscape_provenance(unsupported,{84,61},true)["original_great_wall"]["fallback"]==
+        "selected Great Wall Type-1 image layout unsupported; historical preview retained",
+        "unsupported selected layout retains a concrete per-piece provenance fallback");
+    auto unavailable=known;unavailable.archives.begin()->second.layout->runtime_image_count=25;
+    auto missing_variant=plan(unavailable);build_regenerated_map_render_plan(missing_variant,{});
+    const auto missing_info=landscape_provenance(missing_variant,{84,61},true);
+    check(missing_info["original_great_wall"]["fallback"].get<std::string>().find("variant 25 outside registered archive group")!=std::string::npos &&
+        missing_info["regenerated"]["fallback"]==missing_info["original_great_wall"]["fallback"],
+        "unavailable group variant is named consistently without publishing partial ownership");
     auto conflict_entities=e;conflict_entities.records[1].local_x=55;
-    const auto conflict=prepare_great_wall_presentation(conflict_entities,m,{3,0});
+    const auto conflict=prepare_great_wall_presentation(conflict_entities,m,{3,0,GreatWallContextSource::VerifiedOriginal});
     check(!conflict.pieces[1].geometry && !conflict.pieces[1].fallback.empty(),"whole conflicting claim rejected without stealing first owner");
     auto edge_entities=e;edge_entities.records[0].local_x=0;edge_entities.records[0].local_y=0;
-    const auto edge=prepare_great_wall_presentation(edge_entities,m,{3,0});
+    const auto edge=prepare_great_wall_presentation(edge_entities,m,{3,0,GreatWallContextSource::VerifiedOriginal});
     check(!edge.pieces[0].geometry,"off-map complete claim rejected atomically");
     check(edge.pieces[1].fallback.empty() && !edge.pieces[1].archive_relative.empty(),
         "a rejected whole claim still establishes its evidenced registration before a following gate");
-    const auto rotated=prepare_great_wall_presentation(e,m,{3,2});
+    const auto rotated=prepare_great_wall_presentation(e,m,{3,2,GreatWallContextSource::VerifiedOriginal});
     check(!rotated.pieces[0].geometry && !rotated.pieces[0].fallback.empty(),
         "selector views never imply an unproved rotated caller anchor");
     auto bad_subindex=e;bad_subindex.records[0].subindex=-1;
-    check(!prepare_great_wall_presentation(bad_subindex,m,{3,0}).pieces[0].geometry,"negative subindex never converted to valid unsigned index");
+    check(!prepare_great_wall_presentation(bad_subindex,m,{3,0,GreatWallContextSource::VerifiedOriginal}).pieces[0].geometry,"negative subindex never converted to valid unsigned index");
     auto bad_model=m;bad_model.at(257).model->pieces[0].side=0;
-    check(!prepare_great_wall_presentation(e,bad_model,{3,0}).pieces[0].geometry,
+    check(!prepare_great_wall_presentation(e,bad_model,{3,0,GreatWallContextSource::VerifiedOriginal}).pieces[0].geometry,
         "invalid model side never enters unsigned marker arithmetic");
     auto gate_first=e;gate_first.records.erase(gate_first.records.begin());
-    check(!prepare_great_wall_presentation(gate_first,m,{3,0}).pieces[0].fallback.empty(),"inherited archive unavailable before first producer");
+    check(!prepare_great_wall_presentation(gate_first,m,{3,0,GreatWallContextSource::VerifiedOriginal}).pieces[0].fallback.empty(),"inherited archive unavailable before first producer");
     auto mixed=e;mixed.records[0].monument->phase=1;mixed.records[2].monument->phase=2;
-    auto mixed_state=prepare_great_wall_presentation(mixed,m,{1,0});
+    auto mixed_state=prepare_great_wall_presentation(mixed,m,{1,0,GreatWallContextSource::VerifiedOriginal});
     for(const auto slot:{8U,9U}) {
         auto registration=archive();registration.slot=slot;registration.layout->slot=slot;
         registration.relative_path=mixed_state.pieces[0].archive_relative;
@@ -127,5 +137,66 @@ int main(){try{
     const auto info=landscape_provenance(absent,{84,61},true);
     check(info["original_great_wall"]["serialized_state"]["material_raw"]==3 &&
         info["original_great_wall"]["restored_material"].is_null(),"F1 exposes raw versus unresolved derived material");
+    check(info["original_great_wall"]["restore_context"]["source"]=="unavailable" &&
+        info["original_great_wall"]["original_context_verified"]==false,
+        "automatic missing context reports its source and cannot claim original verification");
+    const auto historical=prepare_great_wall_presentation(e,m,
+        great_wall_context_from_mode(GreatWallPresentationMode::HistoricalFallback,{3,0,GreatWallContextSource::VerifiedOriginal}));
+    auto historical_plan=plan(historical);build_regenerated_map_render_plan(historical_plan,{});
+    check(historical_plan.regenerated->instances.empty() && historical_plan.assets.empty() &&
+        !historical.restore_context.material,"explicit historical choice preserves fallback even when original context is known");
+    for (const auto mode:{GreatWallPresentationMode::PreviewRuined,GreatWallPresentationMode::PreviewEarthen,GreatWallPresentationMode::PreviewStone}) {
+        const auto context=great_wall_context_from_mode(mode);
+        auto preview=prepare_great_wall_presentation(e,m,context);
+        auto registration=archive();registration.relative_path=preview.pieces[0].archive_relative;
+        for (auto& record:registration.catalog->records) record.id.archive_relative_path=registration.relative_path;
+        auto& gate=registration.catalog->records[201+preview.pieces[1].selection.variant];
+        gate.width=158;gate.height=180;gate.uncompressed_length=12800;gate.data_length=13100;gate.isometric_size_flag=2;
+        preview.archives.emplace(std::pair{8U,preview.pieces[0].archive_relative.generic_string()},std::move(registration));
+        auto preview_plan=plan(preview);build_regenerated_map_render_plan(preview_plan,{});
+        check(preview_plan.regenerated->instances.size()==3,"explicit preview uses the same complete object claim pipeline");
+        for (const auto& instance:preview_plan.regenerated->instances) {
+            check(instance.geometry.selection.evidence==SelectorEvidence::Preview && instance.great_wall_context &&
+                instance.great_wall_context->mode==mode && instance.great_wall_context->source==GreatWallContextSource::ExplicitPreview,
+                "render instances retain explicit preview source and never become verified original selectors");
+            preview_plan.assets[instance.asset_index].status=StoredStatus::Rendered;
+        }
+        preview_plan.regenerated_instance_active.assign(3,1);
+        const auto preview_report=landscape_fidelity_report(preview_plan);
+        check(preview_report["regeneration"]["verified_identity"]==0 &&
+            preview_report["regeneration"]["preview_identity"]==36 &&
+            preview_report["regeneration"]["normal_wall_selector_verified"]==0 &&
+            preview_report["regeneration"]["great_wall_selector_verified"]==0 &&
+            preview_report["regeneration"]["great_wall_instances"]==0 &&
+            preview_report["regeneration"]["great_wall_preview_instances"]==3 &&
+            preview_report["original_great_wall"]["rendered_original_objects"]==0 &&
+            preview_report["original_great_wall"]["render_instances"]==0 &&
+            preview_report["original_great_wall"]["preview_render_instances"]==3 &&
+            preview_report["original_great_wall"]["original_context_verified"]==false,
+            "active previews have independent counts and never inflate original identity or object metrics");
+        const auto preview_info=landscape_provenance(preview_plan,{84,61},true);
+        check(preview_info["original_great_wall"]["selected_material"]==context.material.value() &&
+            preview_info["original_great_wall"]["restored_material"].is_null() &&
+            preview_info["regenerated"]["instance"]["restore_context"]["source"]=="explicit_preview" &&
+            preview_info["regenerated"]["instance"]["original_context_verified"]==false &&
+            preview_info["render_source"]=="regenerated Great Wall explicit material preview",
+            "F1 retains raw, selected preview, original authority and active image provenance separately");
+        preview_plan.regenerated_instance_active[0]=0;
+        check(landscape_fidelity_report(preview_plan)["original_great_wall"]["preview_render_instances"]==2,
+            "preview metrics follow eager atomic readiness rather than selected descriptor counts");
+    }
+    openemperor::performance::set_enabled(true);openemperor::performance::reset();
+    for (unsigned n=0;n<32;++n) {
+        const auto pure=prepare_great_wall_presentation(e,m,great_wall_context_from_mode(GreatWallPresentationMode::PreviewStone));
+        (void)landscape_provenance(absent,{84,61},true);
+        (void)landscape_fidelity_report(absent);
+        check(pure.pieces.size()==3,"pure context and descriptor projections remain bounded");
+    }
+    for (const auto counter:{openemperor::performance::Counter::FileReads,openemperor::performance::Counter::FileWrites,
+        openemperor::performance::Counter::AssetDecodes,openemperor::performance::Counter::TextureUploads,
+        openemperor::performance::Counter::WorldCopies,openemperor::performance::Counter::WorldExecutes,
+        openemperor::performance::Counter::BfsCalls,openemperor::performance::Counter::RouteRefreshes})
+        check(openemperor::performance::counter(counter)==0,"context, inspection and report projections perform no mutable or asset work");
+    openemperor::performance::set_enabled(false);
     std::cout<<"Great Wall presentation tests passed\n";return 0;
 }catch(const std::exception& ex){std::cerr<<ex.what()<<'\n';return 1;}}

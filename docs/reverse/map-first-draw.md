@@ -450,3 +450,8 @@ Whole-process maximum RSS from `/usr/bin/time -l` is **233,652,224 → 227,573,7
 **Local package:** `tools/package_macos.sh` creates a separate Release arm64 `dist/OpenEmperor.app` and `OpenEmperor-0.1.0-alpha.2-6d43eb671558-macos-arm64.zip`, explicitly marked dirty/local candidate in `BuildInfo.json`. Recursive Mach-O, staged dependencies, ad-hoc signature, relocated/unzipped execution, metadata/compatibility allowlists and bundled dependency notices pass. No original game files, pixels, repository tree or personal histories are staged. This is not Developer-ID/notarization/Gatekeeper or independent-clean-Mac acceptance. The existing absence of a project LICENSE is unchanged; nothing was published.
 
 The pass stops at the bounded partial implementation. No commit, push, tag, release or new gameplay was performed. The exact remaining dependency is original restore mode/current-player mission goals determining material; full post-load height normalization and whole-scene composition remain separately open. The EXE is a research source only and is not a runtime dependency.
+
+
+## Great Wall restore-context activation follow-up (2026-10-04)
+
+The new [bounded context and activation report](great-wall-restore-context.md) rechecks the pinned original decision, explains the higher-level editor/mission inputs, and records normal-app explicit-preview activation. It starts at clean `91891af8bba00e85223a80773a110edf9f1f7ad0`; the Pass-4 zero-activation results above remain historical. Automatic still has no proven original context. Explicit material previews reuse the existing piece/claim/Type-30 pipeline and have independent active counters; complete original context and scene composition remain open.

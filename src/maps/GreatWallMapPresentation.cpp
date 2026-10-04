@@ -69,8 +69,12 @@ GreatWallMapPresentation prepare_great_wall_presentation(const OriginalMapEntiti
                 for (const auto member:members) {claims.insert(member);out.piece_by_storage[member]=out.pieces.size();}
                 if (piece.selection.supported) {
                     const auto& s=piece.selection;
-                    geometry.selection={LandscapeFamily::GreatWall,SelectorEvidence::Verified,
+                    geometry.selection={LandscapeFamily::GreatWall,s.evidence,
                         "52f030 / 563fd0 / 57bba0",s.reason,s.group,s.variant,{}};
+                    if (s.evidence==SelectorEvidence::Preview) {
+                        geometry.placement_evidence="EXE-observed Type30 marker/anchor; OPENEMPEROR PREVIEW material context";
+                        geometry.composition_evidence="OPENEMPEROR PREVIEW: static Type30 base/overlay; original restore context unverified";
+                    }
                     if (s.slot==3) piece.archive_relative="DATA/China_Terrain.sg3";
                     else if (registry.contains(s.slot)) piece.archive_relative=registry.at(s.slot);
                     else piece.fallback="Great Wall inherited registration unavailable in restored entity order";
@@ -88,6 +92,7 @@ void read_great_wall_presentation(StoredGraphicsPlan& plan,const EmperorContaine
     std::size_t part,GreatWallRestoreContext context) {
     if (!plan.landscape_layers_available || plan.original_great_wall) return;
     auto result=std::make_shared<GreatWallMapPresentation>();
+    result->restore_context=context;
     try {
         const auto entities=read_original_map_entities(container,part);
         std::map<std::int16_t,GreatWallModelResult> models;
@@ -101,8 +106,15 @@ void read_great_wall_presentation(StoredGraphicsPlan& plan,const EmperorContaine
             const auto key=std::pair{piece.selection.slot,piece.archive_relative.generic_string()};
             if (!piece.selection.supported || !piece.fallback.empty() || piece.selection.slot==3 ||
                 result->archives.contains(key)) continue;
-            result->archives.emplace(key,
-                load_regenerated_great_wall_registration(plan.data_root,piece.selection.slot,piece.archive_relative));
+            auto registration=load_regenerated_great_wall_registration(plan.data_root,piece.selection.slot,piece.archive_relative);
+            if (context.source==GreatWallContextSource::ExplicitPreview &&
+                (registration.archive_missing || !registration.optional_error.empty() ||
+                 !registration.layout || !registration.catalog)) {
+                if (result->error.empty()) result->error="required Great Wall preview archive unavailable or invalid: "+
+                    piece.archive_relative.generic_string()+
+                    (registration.optional_error.empty() ? std::string{}:"; "+registration.optional_error);
+            }
+            result->archives.emplace(key,std::move(registration));
         }
     } catch (const std::exception& error) {result->error=error.what();}
     plan.original_great_wall=std::move(result);
