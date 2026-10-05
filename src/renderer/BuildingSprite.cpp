@@ -1,4 +1,5 @@
 #include "renderer/BuildingSprite.h"
+#include "renderer/TextureCompatibility.h"
 #include "core/PerformanceDiagnostics.h"
 #include <SDL3/SDL.h>
 #include <stdexcept>
@@ -12,7 +13,7 @@ void BuildingSprite::initialize(SDL_Renderer* renderer,
     shutdown(); renderer_=renderer;
     for (const auto& image:profile.unique_images) {
         SDL_Texture* texture=SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_RGBA32,
-                                              SDL_TEXTUREACCESS_STATIC,image.width,image.height);
+                                              texture_compatibility::eager_rgba_access(renderer_),image.width,image.height);
         if (!texture) { const std::string message=SDL_GetError();shutdown();throw std::runtime_error(message); }
         textures_.push_back(texture);++live_textures;
         if (!SDL_UpdateTexture(texture,nullptr,image.pixels.data(),image.width*4) ||

@@ -1,4 +1,5 @@
 #include "renderer/TerrainPreviewRenderer.h"
+#include "renderer/TextureCompatibility.h"
 
 #include "assets/Sg3ImageLoader.h"
 
@@ -46,7 +47,7 @@ void TerrainPreviewRenderer::initialize(SDL_Renderer* renderer) {
             if (rgba.width != 78 || rgba.height != 40 || rgba.pixels.size() != one_tile_bytes)
                 throw std::runtime_error("decoded tile is not 78x40 RGBA");
             SDL_Texture* texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
-                                                     SDL_TEXTUREACCESS_STATIC, 78, 40);
+                                                     texture_compatibility::eager_rgba_access(renderer_), 78, 40);
             if (!texture) throw std::runtime_error(SDL_GetError());
             source_textures_.emplace(id, texture);
             if (!SDL_UpdateTexture(texture, nullptr, rgba.pixels.data(), 78 * 4) ||

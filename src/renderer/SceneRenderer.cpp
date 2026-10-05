@@ -1,4 +1,5 @@
 #include "renderer/SceneRenderer.h"
+#include "renderer/TextureCompatibility.h"
 
 #include "assets/Sg3ImageLoader.h"
 
@@ -40,7 +41,7 @@ void SceneRenderer::initialize(SDL_Renderer* renderer) {
                     static_cast<std::uint64_t>(std::numeric_limits<int>::max()))
                 throw std::runtime_error("decoded image dimensions changed or are invalid");
             SDL_Texture* texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
-                                                     SDL_TEXTUREACCESS_STATIC, rgba.width, rgba.height);
+                                                     texture_compatibility::eager_rgba_access(renderer_), rgba.width, rgba.height);
             if (!texture) throw std::runtime_error(SDL_GetError());
             source_textures_.emplace(id, texture);
             textures_.emplace(alias, texture);

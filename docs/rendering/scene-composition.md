@@ -330,6 +330,11 @@ RGBA budgets and eager upload counts remain identical.
 
 ### Bounded SDL software compatibility
 
+The following records the composition-pass workaround. The subsequent
+[repeated-zoom compatibility pass](texture-compatibility.md) replaces its
+structural-only access decision with one shared, runtime-bounded policy and
+separate production-path pixel regressions. Composition itself is unchanged.
+
 Repeated native software texture submissions exposed an independent
 SDL 3.4.14 failure: an unchanged STATIC mixed-alpha wall draws at 1× and
 the first 2× frame, then subsequent scaled copies stop writing pixels;
@@ -347,8 +352,9 @@ blend state during a clipped scaled copy. RLE interaction is the bounded
 diagnostic explanation; the reproduction proves the access-mode effect,
 not complete causality inside SDL. No upstream implementation was copied.
 
-Only eagerly loaded Combined textures used by admitted `SpatialCombined`
-instances on the `software` renderer now use STREAMING access. They still
+At completion of this composition pass, only eagerly loaded Combined textures
+used by admitted `SpatialCombined` instances on the `software` renderer used
+STREAMING access. They still
 receive exactly one existing `SDL_UpdateTexture` during initialization,
 with no per-frame upload. All other assets, Base/Overlay components and
 native Metal textures retain STATIC access. Texture count, deduplication,

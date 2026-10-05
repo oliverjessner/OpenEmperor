@@ -1,4 +1,5 @@
 #include "renderer/StoredGraphicsRenderer.h"
+#include "renderer/TextureCompatibility.h"
 #include "core/PerformanceDiagnostics.h"
 
 #include "assets/Sg3ImageLoader.h"
@@ -143,14 +144,6 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
     base_textures_.assign(plan_.assets.size(),nullptr);
     overlay_textures_.assign(plan_.assets.size(),nullptr);
     snapshot_alpha_.resize(plan_.assets.size()); overlay_alpha_.resize(plan_.assets.size());
-    std::vector<bool> software_spatial_combined(plan_.assets.size(),false);
-    const auto* renderer_name=SDL_GetRendererName(renderer_);
-    if (renderer_name && std::string_view(renderer_name)=="software" && plan_.regenerated)
-        for (const auto& instance:plan_.regenerated->instances)
-            if (instance.asset_index<software_spatial_combined.size() &&
-                instance.composition_policy==maps::LandscapeCompositionPolicy::SpatialCombined &&
-                regenerated_placement_supported(instance))
-                software_spatial_combined[instance.asset_index]=true;
     std::map<std::string,std::filesystem::path> checked_archives;
     for (std::size_t i=0;i<plan_.assets.size();++i) {
         auto& asset = plan_.assets[i];
@@ -184,15 +177,8 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
                 throw std::runtime_error("stored graphics decoded dimensions differ from metadata");
             asset.decode_succeeded = true;
             ++plan_.decoded_assets;
-            // SDL's software STATIC surface enables RLE; repeated scaled copies
-            // can then fail during deferred execution with an invalid source.
-            // STREAMING avoids RLE for these Combined bodies. Upload still
-            // happens exactly once here; all other components remain STATIC.
-            // Reproduction: docs/rendering/scene-composition.md.
-            const auto access=software_spatial_combined[i] ?
-                SDL_TEXTUREACCESS_STREAMING:SDL_TEXTUREACCESS_STATIC;
             SDL_Texture* texture = SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_RGBA32,
-                access,rgba.width,rgba.height);
+                texture_compatibility::eager_rgba_access(renderer_),rgba.width,rgba.height);
             if (!texture) throw std::runtime_error(SDL_GetError());
             textures_[i] = texture;
             ++live_textures;
@@ -211,7 +197,7 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
             };
             snapshot_alpha_[i]=retain_alpha(rgba);
             const auto upload=[&](const assets::RgbaImage& component, SDL_Texture*& target) {
-                target=SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STATIC,
+                target=SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_RGBA32,texture_compatibility::eager_rgba_access(renderer_),
                     component.width,component.height);
                 if (!target) throw std::runtime_error(SDL_GetError());
                 ++live_textures;

@@ -642,6 +642,28 @@ if(BUILD_TESTING)
     add_test(NAME scene-composition-production-pixels COMMAND openemperor-scene-composition-tests)
     set_tests_properties(scene-composition-production-pixels PROPERTIES TIMEOUT 60)
 
+    add_executable(openemperor-texture-compatibility-tests tests/TextureCompatibilityTests.cpp
+        src/renderer/BuildingSprite.cpp src/renderer/WalkerSpriteSet.cpp
+        src/renderer/RoadSpriteSet.cpp src/renderer/StoredGraphicsRenderer.cpp)
+    target_link_libraries(openemperor-texture-compatibility-tests PRIVATE openemperor-maps SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-texture-compatibility-tests)
+    add_test(NAME texture-compatibility-production-pixels COMMAND openemperor-texture-compatibility-tests)
+    set_tests_properties(texture-compatibility-production-pixels PROPERTIES TIMEOUT 300)
+
+    add_executable(openemperor-texture-compatibility-sdl-tests tests/TextureCompatibilitySdlTests.cpp)
+    target_include_directories(openemperor-texture-compatibility-sdl-tests PRIVATE src)
+    target_link_libraries(openemperor-texture-compatibility-sdl-tests PRIVATE SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-texture-compatibility-sdl-tests)
+    add_test(NAME texture-compatibility-sdl-pixels COMMAND openemperor-texture-compatibility-sdl-tests)
+    set_tests_properties(texture-compatibility-sdl-pixels PROPERTIES TIMEOUT 300)
+
+    add_executable(openemperor-texture-preview-failure-tests tests/TextureCompatibilityFailureTests.cpp)
+    target_include_directories(openemperor-texture-preview-failure-tests PRIVATE src)
+    target_link_libraries(openemperor-texture-preview-failure-tests PRIVATE SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-texture-preview-failure-tests)
+    add_test(NAME texture-preview-failure-alpha COMMAND openemperor-texture-preview-failure-tests)
+    set_tests_properties(texture-preview-failure-alpha PROPERTIES TIMEOUT 20)
+
     add_executable(openemperor-png-preview-tests tests/RgbaPngReaderTests.cpp)
     target_link_libraries(openemperor-png-preview-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-png-preview-tests)
