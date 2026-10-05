@@ -3,6 +3,7 @@
 #include "maps/GreatWallSelector.h"
 #include "maps/LandscapeInstances.h"
 #include "maps/StoredGraphicsPlan.h"
+#include "maps/WallTopology.h"
 
 namespace openemperor::maps {
 // File-format Base/Overlay components do not determine their scene roles.
@@ -54,12 +55,20 @@ struct GreatWallPreparationResult {
     std::optional<GraphicsIdStatus> image_status;
     std::optional<std::size_t> instance_index;
 };
+struct OrdinaryGatePreparationResult {
+    std::vector<std::size_t> instance_indices;
+    std::string fallback;
+};
 // Published const once per load. Historical cells, footprints and buildability
 // remain untouched. Indices refer to the renderer's shared physical asset pool.
 struct RegeneratedMapRenderPlan {
     std::vector<RegeneratedCell> cells; // Same candidate order as historical plan.
     std::vector<std::optional<std::size_t>> footprint_assets;
     std::vector<RegeneratedLandscapeInstance> instances;
+    // Bounded by candidate cells and captured in the existing row-major wall
+    // pass. Inspection never reconstructs a neighborhood or scans the map.
+    std::map<std::size_t,WallTopologySelection> normal_wall_topology;
+    std::map<std::size_t,OrdinaryGatePreparationResult> ordinary_gate_preparation;
     // Load-time refusal reason for a selected original piece that cannot
     // publish a complete image. Provenance only; never grants ownership.
     std::map<std::size_t,std::string> original_wall_fallbacks;

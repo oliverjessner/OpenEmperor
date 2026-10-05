@@ -31,6 +31,16 @@ constexpr std::array<WallRule, 16> rules{{
 }};
 }
 
+const char* wall_gate_connection_status_name(WallGateConnectionStatus status) {
+    switch (status) {
+    case WallGateConnectionStatus::NoContext:return "no_gate_context";
+    case WallGateConnectionStatus::GateOriginCompositionRequired:return "gate_origin_composition_required";
+    case WallGateConnectionStatus::AdjacentStaticSelected:return "gate_adjacent_static_selected";
+    case WallGateConnectionStatus::UnsupportedTopology:return "gate_connected_topology_unsupported";
+    }
+    return "invalid";
+}
+
 WallTopologySelection select_normal_wall(const WallTopologyInput& input) {
     WallTopologySelection result;
     result.wall_bit = (input.center_terrain & 0x4000U) != 0;
@@ -43,19 +53,27 @@ WallTopologySelection select_normal_wall(const WallTopologyInput& input) {
         result.reason = "unsupported original view orientation";
         return result;
     }
-    result.gate_context = (input.center_terrain & 0x8000U) != 0;
+    result.center_gate = (input.center_terrain & 0x8000U) != 0;
+    result.gate_context = result.center_gate;
     for (unsigned direction = 0; direction < 8U; ++direction) {
         const auto terrain = input.neighboring_terrain[direction];
-        if ((terrain & 0x4000U) != 0) result.neighbor_mask |= std::uint8_t(1U << direction);
+        const auto bit=std::uint8_t(1U << direction);
+        if ((terrain & 0x4000U) != 0) result.wall_neighbor_mask |= bit;
+        if ((terrain & 0x8000U) != 0) result.gate_neighbor_mask |= bit;
         result.gate_context = result.gate_context || (terrain & 0x8000U) != 0;
     }
-    // 0x4b6290 adds neighboring gate bits; 0x4b6370/0x4b6440 and model-object
-    // drawing then participate. Do not claim that ordinary wall topology alone
-    // reproduces the gate's full composition.
-    if (result.gate_context) {
-        result.reason = "gate terrain needs separate original model composition";
+    result.neighbor_mask=result.wall_neighbor_mask | result.gate_neighbor_mask;
+    // A gate bit on this cell does not establish the gate object's geometry.
+    // This bounded extension owns only adjacent singleton wall cells.
+    if (result.center_gate) {
+        result.gate_connection=WallGateConnectionStatus::GateOriginCompositionRequired;
+        result.reason = "gate origin needs separate original model composition";
         return result;
     }
+    // 4b67b0 calls 4b8f70(0x4000), then 4b6290 for the same eight neighbors.
+    // The matcher tests nonzero. 4b6370's orientation context reaches 4b6440,
+    // whose remaps affect only variants 18..40, never this table's 0..17.
+    // No saved image, entity ID or gate-object orientation selects this base.
     for (unsigned row = 0; row < rules.size(); ++row) {
         const auto& rule = rules[row];
         if ((result.neighbor_mask & rule.required_present) != rule.required_present ||
@@ -75,10 +93,16 @@ WallTopologySelection select_normal_wall(const WallTopologyInput& input) {
         result.semantic_row = row + 1U;
         result.variant = variant;
         result.verified = true;
-        result.reason = "EXE-observed static gate-free post-load normal-wall selector";
+        if (result.gate_neighbor_mask) {
+            result.gate_connection=WallGateConnectionStatus::AdjacentStaticSelected;
+            result.reason="EXE-observed static gate-adjacent post-load normal-wall selector";
+        } else result.reason = "EXE-observed static gate-free post-load normal-wall selector";
         return result;
     }
-    result.reason = "no observed wall topology row matches; original stale-state behavior unresolved";
+    if (result.gate_neighbor_mask) {
+        result.gate_connection=WallGateConnectionStatus::UnsupportedTopology;
+        result.reason="no observed gate-connected wall topology row matches; historical preview retained";
+    } else result.reason = "no observed wall topology row matches; original stale-state behavior unresolved";
     return result;
 }
 

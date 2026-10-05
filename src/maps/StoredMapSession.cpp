@@ -8,6 +8,7 @@
 #include "maps/LandscapeProvenance.h"
 #include "maps/RegeneratedMapRenderPlan.h"
 #include "maps/GreatWallMapPresentation.h"
+#include "maps/OrdinaryGateMapPresentation.h"
 
 #include <stdexcept>
 #include <utility>
@@ -36,6 +37,7 @@ StoredMapSession load_stored_map_session(const std::filesystem::path& data_root,
             (plan.original_great_wall ? plan.original_great_wall->error:
              "standalone landscape/entity input unavailable"));
     add_regenerated_wall_registration(plan,registrations);
+    read_ordinary_gate_presentation(plan,container,0);
     build_regenerated_map_render_plan(plan,registrations);
     return {std::move(map),std::move(plan)};
 }

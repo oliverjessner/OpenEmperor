@@ -84,6 +84,8 @@ std::optional<OriginalEntityClass> known_class(std::string_view name) {
     if (name == "cFillBldg") return OriginalEntityClass::Fill;
     if (name == "cIndustrialBldg") return OriginalEntityClass::Industrial;
     if (name == "cFerryBldg") return OriginalEntityClass::Ferry;
+    if (name == "cGateHouse") return OriginalEntityClass::GateHouse;
+    if (name == "cTower") return OriginalEntityClass::Tower;
     return std::nullopt;
 }
 enum class ReferenceKind { Null, Class, Object };
@@ -107,6 +109,8 @@ const char* original_entity_class_name(OriginalEntityClass entity_class) {
     case OriginalEntityClass::Fill: return "cFillBldg";
     case OriginalEntityClass::Industrial: return "cIndustrialBldg";
     case OriginalEntityClass::Ferry: return "cFerryBldg";
+    case OriginalEntityClass::GateHouse: return "cGateHouse";
+    case OriginalEntityClass::Tower: return "cTower";
     }
     return "unknown";
 }
@@ -129,6 +133,12 @@ std::optional<OriginalEntityFieldSource> OriginalEntityRecord::field_source(Orig
     case OriginalEntityField::OriginalId:
         if (base_length(provenance.base_schema) == 0) return std::nullopt;
         offset = base_length(provenance.base_schema) - 20; width = 4; is_signed = true; break;
+    case OriginalEntityField::GateLayout:
+        if (!gate_house || base_length(provenance.base_schema) == 0) return std::nullopt;
+        // Building runtime +80: read4288df/428482/428025, serialized widths
+        // summed independently for Base3/4/5. Schema5 adds one earlier byte.
+        offset = provenance.base_schema == 5 ? 113 : 112;
+        width = 4; is_signed = true; break;
     case OriginalEntityField::MonumentPhase:
     case OriginalEntityField::SerializedMaterial:
     case OriginalEntityField::MonumentHeight:
@@ -226,6 +236,8 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
         record.type = i16_at(base, 16);
         record.subindex = i16_at(base, 18);
         record.serialized_original_id = i32_at(base, length - 20);
+        if (entity_class == OriginalEntityClass::GateHouse)
+            record.gate_house = OriginalGateHouseState{i32_at(base, schema == 5 ? 113 : 112)};
         if (record.active()) {
             if (record.serialized_original_id <= 0 ||
                 record.serialized_original_id > static_cast<std::int32_t>(maximum_original_entity_records))
@@ -241,6 +253,8 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
             if (record.serialized_cell_reference < 0 ||
                 record.serialized_cell_reference >= static_cast<std::int32_t>(stored_grid_width * stored_grid_height))
                 reader.fail("active serialized cell reference outside stored grid", base_at + 12);
+            if (record.gate_house && (record.gate_house->layout < 0 || record.gate_house->layout > 1))
+                reader.fail("unsupported active GateHouse layout outside 0..1", base_at + (schema == 5 ? 113 : 112));
         }
         if (entity_class != OriginalEntityClass::Building) {
             // Monument5631b0, Fill56fc30, NonHouse/Industrial51ce00 wrappers.
@@ -274,7 +288,9 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
                     reader.fail("unsupported active Great Wall orientation outside 0..3", ext_at + 123);
             }
         } else if (entity_class == OriginalEntityClass::Industrial ||
-                   entity_class == OriginalEntityClass::Ferry) {
+                   entity_class == OriginalEntityClass::Ferry ||
+                   entity_class == OriginalEntityClass::GateHouse ||
+                   entity_class == OriginalEntityClass::Tower) {
             // Saved cIndustrialBldg descriptor854438 uses ctor51c140→51c9a0,
             // cNonHouseInfo51c3a0. It is distinct from runtime industrial42d480.
             const auto ext_at = reader.position();
@@ -287,6 +303,25 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
                 expect_schema(reader, 1, "ferry state schema");
                 reader.take(2008, "ferry state");
             }
+        }
+        if (entity_class == OriginalEntityClass::GateHouse) {
+            // cGateHouse4f9f20 calls the existing 51ce00 parent serializer.
+            // Its own schema1 has no payload; schema2 adds two i32 attached-unit
+            // references at runtime +150/+154. Neither chooses the static body.
+            const auto class_at = reader.position();
+            const auto class_schema = reader.u16("GateHouse wrapper schema");
+            if (class_schema != 1 && class_schema != 2)
+                reader.fail("unsupported GateHouse wrapper schema " + std::to_string(class_schema), class_at);
+            if (class_schema == 2) reader.take(8, "GateHouse attached-unit state");
+            record.provenance.logical_class_wrapper_offset = logical_offset + class_at;
+            record.provenance.class_wrapper_schema = class_schema;
+        } else if (entity_class == OriginalEntityClass::Tower) {
+            // cTower5da880 uses the same saved NonHouse parent, then only its
+            // schema0 word. No additional tower state or body is inferred.
+            const auto class_at = reader.position();
+            expect_schema(reader, 0, "Tower wrapper schema");
+            record.provenance.logical_class_wrapper_offset = logical_offset + class_at;
+            record.provenance.class_wrapper_schema = 0;
         }
         record.provenance.record_byte_length = static_cast<std::uint32_t>(reader.position() - record_at);
         result.records.push_back(record);

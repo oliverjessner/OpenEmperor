@@ -2,6 +2,7 @@
 #include "maps/TerrainInterpretation.h"
 #include "maps/RegeneratedMapRenderPlan.h"
 #include "maps/GreatWallMapPresentation.h"
+#include "maps/OrdinaryGateMapPresentation.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <iomanip>
@@ -51,6 +52,49 @@ Json wall_preparation_json(const StoredGraphicsPlan& plan,const GreatWallPrepara
             out["status"]="decode_failed";out["decode_error"]=asset.error;
         } else if (n<plan.regenerated_instance_active.size()) {
             out["status"]=plan.regenerated_instance_active[n] ? "active":"atomic_activation_unavailable";
+        }
+    }
+    return out;
+}
+Json ordinary_gate_json(const StoredGraphicsPlan& plan,std::size_t gate_index) {
+    const auto& gate=plan.original_ordinary_gates->gates.at(gate_index);
+    const auto& source=gate.source;
+    Json out={{"original_id",source.original_id ? Json(source.original_id->value):Json(nullptr)},
+        {"manager_index",source.manager_index},{"original_class",original_entity_class_name(source.entity_class)},
+        {"type",source.type},{"status_raw",source.status},
+        {"layout_raw",source.gate_house ? Json(source.gate_house->layout):Json(nullptr)},
+        {"origin",cell_json(gate.origin)},{"width_cells",gate.width},{"height_cells",gate.height},
+        {"selected_components",gate.components.size()},{"component_footprint_side",1},
+        {"restore_boolean",0},{"camera_view",0},{"resource_key",hex(ordinary_gate_resource_key,3)},
+        {"selector_evidence","EXE-OBSERVED: saved GateHouse restore and static component selection"},
+        {"composition_evidence","OPENEMPEROR PREVIEW: existing split Type30 painter"},
+        {"fallback",gate.fallback},
+        {"preparation_status",gate.fallback.empty() ? "unprepared":"complete_claim_unavailable"},
+        {"active_components",0}};
+    if (const auto field=source.field_source(OriginalEntityField::GateLayout))
+        out["layout_source"]={{"logical_offset",field->logical_offset},
+            {"record_relative_offset",field->record_relative_offset},{"byte_width",field->byte_width},
+            {"signed",field->signed_value},{"base_schema",source.provenance.base_schema},
+            {"class_wrapper_schema",source.provenance.class_wrapper_schema}};
+    if (plan.regenerated) {
+        const auto found=plan.regenerated->ordinary_gate_preparation.find(gate_index);
+        if (found!=plan.regenerated->ordinary_gate_preparation.end()) {
+            const auto& prepared=found->second;
+            out["fallback"]=prepared.fallback;
+            if (!prepared.fallback.empty()) out["preparation_status"]=gate.fallback.empty() ?
+                "complete_preparation_unavailable":"complete_claim_unavailable";
+            else if (prepared.instance_indices.size()==15) {
+                std::size_t active=0;bool failed=false,ready_known=true;
+                for (const auto n:prepared.instance_indices) {
+                    const auto& instance=plan.regenerated->instances.at(n);
+                    failed|=plan.assets.at(instance.asset_index).status==StoredStatus::DecodeFailed;
+                    if (n>=plan.regenerated_instance_active.size()) ready_known=false;
+                    else if (plan.regenerated_instance_active[n]) ++active;
+                }
+                out["active_components"]=active;
+                out["preparation_status"]=failed ? "decode_failed":
+                    (!ready_known ? "prepared":(active==15 ? "active":"atomic_activation_unavailable"));
+            }
         }
     }
     return out;
@@ -116,6 +160,13 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
         return j;
     }
     const auto* c=plan.at(selected);
+    if (plan.original_ordinary_gates) {
+        j["ordinary_gate_reader"]={{"manager_records",plan.original_ordinary_gates->manager_records},
+            {"error",plan.original_ordinary_gates->error}};
+        if (plan.original_ordinary_gates->gate_by_storage.size()==count &&
+            plan.original_ordinary_gates->gate_by_storage[index])
+            j["ordinary_gate"]=ordinary_gate_json(plan,*plan.original_ordinary_gates->gate_by_storage[index]);
+    }
     std::optional<std::size_t> original_piece_index;
     if (plan.original_great_wall) {
         const auto& wall=*plan.original_great_wall;
@@ -191,6 +242,19 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
         Json detail={{"family",landscape_family_name(s.family)},{"selector",s.selector},
             {"evidence",selector_evidence_name(s.evidence)},{"reason",s.reason},
             {"resource_key",hex(s.group.value,3)},{"variant",s.variant},{"fallback",generated.fallback}};
+        const auto topology=plan.regenerated->normal_wall_topology.find(*plan.cell_by_storage[index]);
+        if (topology!=plan.regenerated->normal_wall_topology.end()) {
+            const auto& wall=topology->second;
+            detail["normal_wall_topology"]={{"gate_connection",wall_gate_connection_status_name(wall.gate_connection)},
+                {"gate_context",wall.gate_context},{"center_gate",wall.center_gate},
+                {"wall_neighbor_mask",hex(wall.wall_neighbor_mask,2)},
+                {"gate_neighbor_mask",hex(wall.gate_neighbor_mask,2)},
+                {"combined_neighbor_mask",hex(wall.neighbor_mask,2)},
+                {"semantic_row",wall.semantic_row ? Json(*wall.semantic_row):Json(nullptr)},
+                {"selected_variant",wall.variant ? Json(*wall.variant):Json(nullptr)},
+                {"context_source","raw eight-neighbor terrain; no gate-object or saved-image input"},
+                {"gate_body_reproduced",false},{"optional_model_components_reproduced",false}};
+        }
         if (original_piece_index) {
             const auto fallback=plan.regenerated->original_wall_fallbacks.find(*original_piece_index);
             if (fallback!=plan.regenerated->original_wall_fallbacks.end()) {
@@ -329,7 +393,7 @@ std::vector<std::string> landscape_inspection_lines(const StoredGraphicsPlan& pl
     const auto j=landscape_provenance(plan,cell,elevated,camera);
     std::vector<std::string> lines={"Landscape ("+std::to_string(cell.x)+","+std::to_string(cell.y)+")"};
     for (const auto& key:{"candidate_mask","offmap_bit","terrain_hex","semantic_category","objects_hex",
-        "render_source","regenerated","original_entity_reader","original_great_wall","variation_byte","variation_logical_offset","variation_semantics",
+        "render_source","regenerated","original_entity_reader","original_great_wall","ordinary_gate_reader","ordinary_gate","variation_byte","variation_logical_offset","variation_semantics",
         "fertility_selector_operand","saved_id","saved_id_hex","candidate_byte_hex","tentative_parts","resource","image",
         "height_available","height_signed","draw_properties_raw","placement","ground_world",
         "screen_ground","painter","status","placement_evidence","composition_evidence"}) {
@@ -401,7 +465,7 @@ Json landscape_fidelity_report(const StoredGraphicsPlan& plan) {
             switch(c.selection.family) {case LandscapeFamily::Water:++water;break;
             case LandscapeFamily::Ground:++ground;break;case LandscapeFamily::Decoration:++decor;break;
             case LandscapeFamily::Rock:case LandscapeFamily::Mountain:case LandscapeFamily::Wall:
-            case LandscapeFamily::GreatWall:break;
+            case LandscapeFamily::GreatWall:case LandscapeFamily::OrdinaryGate:break;
             case LandscapeFamily::Preserved:break;}
         }
         regeneration.update({{"verified_identity",verified},{"preview_identity",preview},
@@ -445,6 +509,43 @@ Json landscape_fidelity_report(const StoredGraphicsPlan& plan) {
             {"great_wall_preview_instances",preview_great_walls},
             {"unresolved_wall_cells",unresolved_walls},{"unresolved_mountain_cells",unresolved_mountains},
             {"selector_metric_unit","cells; instance metrics count whole selected geometries"}});
+        std::size_t adjacent=0,gate_selected=0,gate_active=0,origins=0,unsupported=0;
+        for (const auto& [candidate,wall]:plan.regenerated->normal_wall_topology) {
+            if (wall.center_gate) ++origins;
+            if (wall.gate_neighbor_mask && !wall.center_gate) ++adjacent;
+            if (wall.gate_connection==WallGateConnectionStatus::UnsupportedTopology) ++unsupported;
+            if (wall.gate_connection!=WallGateConnectionStatus::AdjacentStaticSelected) continue;
+            ++gate_selected;
+            const auto& c=plan.regenerated->cells[candidate];
+            if (c.instance_index && *c.instance_index<plan.regenerated_instance_active.size() &&
+                plan.regenerated_instance_active[*c.instance_index] && c.asset_index &&
+                plan.assets[*c.asset_index].status==StoredStatus::Rendered) ++gate_active;
+        }
+        regeneration["normal_wall_gate_connections"]={{"inspected_wall_cells",plan.regenerated->normal_wall_topology.size()},
+            {"gate_adjacent_cells",adjacent},{"selected_static_connections",gate_selected},
+            {"active_static_connections",gate_active},{"selected_fallback_cells",gate_selected-gate_active},
+            {"gate_origin_composition_required",origins},{"unsupported_topology",unsupported},
+            {"gate_bodies_reproduced",0},{"optional_model_components_reproduced",0}};
+        if (plan.original_ordinary_gates) {
+            std::size_t selected_gates=0,active_gates=0,active_components=0,prepared_components=0;
+            Json sources=Json::array();
+            for (std::size_t n=0;n<plan.original_ordinary_gates->gates.size();++n) {
+                const auto detail=ordinary_gate_json(plan,n);
+                sources.push_back(detail);
+                if (plan.original_ordinary_gates->gates[n].components.size()==15) ++selected_gates;
+                const auto found=plan.regenerated->ordinary_gate_preparation.find(n);
+                if (found!=plan.regenerated->ordinary_gate_preparation.end())
+                    prepared_components+=found->second.instance_indices.size();
+                active_components+=detail["active_components"].get<std::size_t>();
+                if (detail["preparation_status"]=="active") ++active_gates;
+            }
+            regeneration["ordinary_gate_rendering"]={{"source_gate_objects",plan.original_ordinary_gates->gates.size()},
+                {"selected_gate_objects",selected_gates},{"prepared_components",prepared_components},
+                {"active_complete_gate_objects",active_gates},{"active_components",active_components},
+                {"active_cells",active_components},{"reader_error",plan.original_ordinary_gates->error},
+                {"source_gate_statuses",std::move(sources)},
+                {"full_original_composition_verified",0},{"tower_bodies_reproduced",0}};
+        }
     }
     return {{"original_great_wall",original},{"regeneration",regeneration},
         {"coverage",{{"candidate_cells",plan.cells.size()},{"decoded_snapshot_cells",supported}}},

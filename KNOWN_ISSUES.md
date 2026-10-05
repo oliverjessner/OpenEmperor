@@ -1,5 +1,9 @@
 # OpenEmperor 0.1.0-alpha.2 candidate known issues
 
+Ordinary city-wall gate connections now have a bounded static path: eight-neighbor wall/gate presence selects the existing `0x451` bases, and validated saved GateHouse layouts 0/1 prepare a complete 15-component `0x4af` body at camera zero. The fresh corpus has 197 gate-adjacent wall cells; these are not 197 gates or a renderer PASS across all maps. Invalid source state, incomplete/conflicting claims and unusable required components retain named complete fallback. Tower/ResWall bodies, other gate states/views/lifecycle, optional Type-256 wall models and full original scene composition remain open. Historical Pass-3/4 gate gaps below describe those earlier passes. See [the current bounded gate pass](docs/reverse/ordinary-wall-gates.md).
+
+Kaifeng's two axes and Zhengzhou's height-1 gate pass scripted production checks at 1×/2×/4×. The isolated native Metal app shows the new gates in its fit overview; automated wheel delivery has no usable map position, so the short human gate close-up/pointer check remains open. No input behavior or earlier user-reported acceptance was changed. Debug, Release and project ASan/UBSan each pass all 103 tests; package and existing endurance checks pass.
+
 Oliver confirms zoom, arrow keys and window resizing: **User-reported PASS for the tested City-v10 session**. This does not complete City-v16, road-drag, building-stage selection, demolition/Recovery, external-display or full human gameplay acceptance. No input behavior changes in the Ruined transition milestone.
 
 Native input status is centralized in [the input reliability report](docs/input-reliability.md) and the [5–10 minute human checklist](docs/testing-input-acceptance.md).

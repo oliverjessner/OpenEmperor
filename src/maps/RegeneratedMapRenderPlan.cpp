@@ -2,9 +2,12 @@
 #include "maps/PinnacleSelector.h"
 #include "maps/WallTopology.h"
 #include "maps/GreatWallMapPresentation.h"
+#include "maps/OrdinaryGateMapPresentation.h"
 #include <chrono>
 #include <memory>
 #include <algorithm>
+#include <set>
+#include <stdexcept>
 
 namespace openemperor::maps {
 const char* great_wall_preparation_status_name(GreatWallPreparationStatus status) {
@@ -240,6 +243,53 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
         });
     if (incompatible) generated->great_wall_preview_notice="Ruined preview: "+std::to_string(incompatible)+
         " road pieces unsupported for saved phase 2; historical fallback retained.";
+    if (plan.original_ordinary_gates) for (std::size_t gate_index=0;
+        gate_index<plan.original_ordinary_gates->gates.size();++gate_index) {
+        const auto& gate=plan.original_ordinary_gates->gates[gate_index];
+        auto& preparation=generated->ordinary_gate_preparation[gate_index];
+        preparation.fallback=gate.fallback;
+        if (!gate.fallback.empty() || gate.components.size()!=15) continue;
+        // Validate every required component before publishing any ownership.
+        // This uses the same resolver and physical pool as every other layer.
+        std::set<AssetKey> additional_assets;
+        for (const auto& spec:gate.components) {
+            const auto cell=spec.origin;
+            const auto at=std::size_t(cell.y)*stored_grid_width+cell.x;
+            if (at>=count || !eligible[at] || plan.cell_by_storage.size()!=count ||
+                !plan.cell_by_storage[at] || generated->cells[*plan.cell_by_storage[at]].instance_index) {
+                preparation.fallback="complete GateHouse claim unavailable; historical preview retained";break;
+            }
+            const auto graphic=resolve_landscape_variant(spec.selection.group,spec.selection.variant,groups);
+            if (!graphic) {
+                preparation.fallback="required GateHouse General group/variant unavailable; historical preview retained";break;
+            }
+            const auto resolution=resolve_graphics_id_hypothesis(graphic->value,images);
+            const auto* r=resolution.record;
+            if (resolution.status!=GraphicsIdStatus::DecodeCandidate || !r || r->image_type!=30 ||
+                r->width!=78 || r->height<40 || r->uncompressed_length!=3200 ||
+                r->isometric_size_flag!=1 || r->horizontal_mirror_offset!=0 || r->animation_sprites!=0) {
+                preparation.fallback="required GateHouse static Type30 component unavailable; historical preview retained";break;
+            }
+            const AssetKey key{r->id.archive_relative_path.generic_string(),r->id.image_index};
+            if (!pool.contains(key)) additional_assets.insert(key);
+        }
+        if (preparation.fallback.empty() && (plan.assets.size()>stored_max_assets ||
+            additional_assets.size()>stored_max_assets-plan.assets.size()))
+            preparation.fallback="complete GateHouse physical asset budget exceeded; historical preview retained";
+        if (!preparation.fallback.empty()) continue;
+        // Great Wall composition keys are bounded piece indices <4000; this
+        // disjoint load-time domain belongs only to original GateHouse objects.
+        const auto composition=maximum_original_entity_records+gate.source.manager_index;
+        for (const auto& spec:gate.components) {
+            if (!append_instance(spec))
+                throw std::runtime_error("validated complete GateHouse publication failed");
+            const auto id=generated->instances.size()-1;
+            generated->instances[id].composition_group=composition;
+            preparation.instance_indices.push_back(id);
+            const auto at=std::size_t(spec.origin.y)*stored_grid_width+spec.origin.x;
+            eligible[at]=0;
+        }
+    }
     for (auto spec:derive_rock_instances(input,eligible)) {
         if (!append_instance(spec)) for (const auto cell:spec.owned_cells) {
             const auto raw=std::size_t(cell.y)*stored_grid_width+cell.x;
@@ -279,6 +329,7 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
         }
         const auto selected=select_normal_wall(wall);
         const auto candidate=*plan.cell_by_storage[at];
+        generated->normal_wall_topology.emplace(candidate,selected);
         generated->cells[candidate].selection.reason=selected.reason;
         if (!selected.verified || !selected.variant) continue;
         if (!registrations.contains(2U) || !registrations.at(2U).layout || !registrations.at(2U).catalog) {
@@ -287,10 +338,14 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
         }
         wall_variants[at]=selected.variant;
         LandscapeInstanceSpec spec;
-        spec.selection={LandscapeFamily::Wall,SelectorEvidence::Verified,"4b67b0 / 4b8f70 / 4bbdc0 / 4bee90",
+        spec.selection={LandscapeFamily::Wall,SelectorEvidence::Verified,
+            selected.gate_neighbor_mask ? "4b67b0 / 4b8f70 / 4b6290 / 4bbdc0 / 4bee90":
+                "4b67b0 / 4b8f70 / 4bbdc0 / 4bee90",
             selected.reason,{normal_wall_resource_key},*selected.variant,{}};
         spec.origin={x,y};spec.draw_cell=spec.origin;spec.owned_cells={spec.origin};
-        spec.composition_evidence="EXE-OBSERVED: static wall identity; extra model caps/stairs and gates unresolved";
+        spec.composition_evidence=selected.gate_neighbor_mask ?
+            "EXE-OBSERVED: static wall base and gate-neighbor connection; optional model components and gate bodies unresolved":
+            "EXE-OBSERVED: static wall identity; extra model caps/stairs and gates unresolved";
         append_instance(std::move(spec));
     }
     // Great Wall identity belongs to restored original object/piece state, not

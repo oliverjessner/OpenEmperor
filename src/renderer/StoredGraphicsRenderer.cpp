@@ -70,7 +70,8 @@ bool StoredGraphicsRenderer::regenerated_visible(std::size_t index) const {
     const auto family=plan_.regenerated->instances[index].geometry.selection.family;
     if (family==maps::LandscapeFamily::Mountain || family==maps::LandscapeFamily::Rock)
         return landscape_mode_>=LandscapeDebugMode::MountainsRocks;
-    if (family==maps::LandscapeFamily::Wall || family==maps::LandscapeFamily::GreatWall)
+    if (family==maps::LandscapeFamily::Wall || family==maps::LandscapeFamily::GreatWall ||
+        family==maps::LandscapeFamily::OrdinaryGate)
         return landscape_mode_>=LandscapeDebugMode::WallsMonuments;
     return landscape_mode_>=LandscapeDebugMode::Decorations;
 }

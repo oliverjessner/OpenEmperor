@@ -25,13 +25,13 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-enum class OriginalEntityClass { Building, Monument, Fill, Industrial, Ferry };
+enum class OriginalEntityClass { Building, Monument, Fill, Industrial, Ferry, GateHouse, Tower };
 const char* original_entity_class_name(OriginalEntityClass entity_class);
 
 enum class OriginalEntityField {
     Status, FootprintSide, LocalX, LocalY, SerializedCellReference,
     Type, Subindex, OriginalId, MonumentPhase, SerializedMaterial,
-    MonumentHeight, MonumentOrientation
+    MonumentHeight, MonumentOrientation, GateLayout
 };
 
 struct OriginalEntityFieldSource {
@@ -50,6 +50,9 @@ struct OriginalEntityRecordProvenance {
     std::uint16_t base_schema = 0;
     std::uint16_t wrapper_schema = 0;
     std::uint16_t extended_schema = 0;
+    // Class-specific wrapper after the existing NonHouse state, where present.
+    std::optional<std::uint64_t> logical_class_wrapper_offset;
+    std::uint16_t class_wrapper_schema = 0;
 };
 
 struct OriginalMonumentState {
@@ -59,6 +62,12 @@ struct OriginalMonumentState {
     std::int32_t serialized_material = 0;
     std::int32_t height = 0;
     std::uint8_t orientation = 0;
+};
+
+struct OriginalGateHouseState {
+    // Raw Building +80 layout selector, independent of the attached units,
+    // historical graphics and sandbox buildings. Active GateHouse admits 0/1.
+    std::int32_t layout = 0;
 };
 
 struct OriginalEntityRecord {
@@ -74,6 +83,7 @@ struct OriginalEntityRecord {
     std::int32_t serialized_original_id = -1;
     std::optional<OriginalEntityId> original_id;
     std::optional<OriginalMonumentState> monument;
+    std::optional<OriginalGateHouseState> gate_house;
     OriginalEntityRecordProvenance provenance;
 
     bool active() const { return status != 0; }
@@ -92,7 +102,8 @@ struct OriginalMapEntities {
 // classes/schemas, references, counts, active IDs/coordinates and truncation fail
 // with OriginalEntityError; no partially parsed collection is returned. Active
 // monument types 253..268 additionally admit only phase 0..11, raw material
-// 0..3 and orientation 0..3. Other monument types retain uninterpreted state.
+// 0..3 and orientation 0..3. Active GateHouse admits layout 0/1. Other monument
+// types and inactive fields retain uninterpreted state.
 OriginalMapEntities parse_original_map_entities(
     std::span<const std::uint8_t> bytes, std::uint32_t declared_map_size,
     std::uint64_t logical_offset = original_entities_logical_offset);

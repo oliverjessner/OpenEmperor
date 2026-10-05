@@ -55,9 +55,46 @@ int main() {
         previous.generated_cardinal_variants[0] = 1;
         check(select_normal_wall(previous).variant == 0,
               "an already generated alternate stops the straight alternation");
-        auto gate = wall(0x40); gate.neighboring_terrain[2] = 0x8000;
-        check(select_normal_wall(gate).gate_context && !select_normal_wall(gate).verified &&
-              !select_normal_wall(gate).variant, "gate composition remains explicitly unresolved");
+        // Literal expectations distinguish all storage directions and views;
+        // they are not derived from the selector's mask or row table.
+        constexpr std::array<std::array<unsigned,4>,8> gate_end_variants{{
+            {{15,14,13,16}}, {{17,17,17,17}}, {{16,15,14,13}}, {{17,17,17,17}},
+            {{13,16,15,14}}, {{17,17,17,17}}, {{14,13,16,15}}, {{17,17,17,17}}
+        }};
+        for (unsigned direction=0;direction<8;++direction) for (unsigned view=0;view<4;++view) {
+            auto gate=wall(0);gate.orientation=view;gate.neighboring_terrain[direction]=0x8000;
+            const auto selected=select_normal_wall(gate);
+            check(selected.verified && selected.variant==gate_end_variants[direction][view] &&
+                  selected.gate_context && !selected.center_gate && selected.wall_neighbor_mask==0 &&
+                  selected.gate_neighbor_mask==(1U<<direction) &&
+                  selected.neighbor_mask==(1U<<direction) &&
+                  selected.gate_connection==WallGateConnectionStatus::AdjacentStaticSelected,
+                  "each gate direction participates in the evidenced static row without claiming its body");
+        }
+        auto gate_straight=wall(0x40);gate_straight.neighboring_terrain[2]=0x8000;
+        const auto adjacent=select_normal_wall(gate_straight);
+        check(adjacent.variant==0 && adjacent.wall_neighbor_mask==0x40 &&
+              adjacent.gate_neighbor_mask==0x04 && adjacent.neighbor_mask==0x44,
+              "a wall and opposite gate select the east-west straight");
+        gate_straight.generated_cardinal_variants[3]=0;
+        check(select_normal_wall(gate_straight).variant==1,
+              "gate-adjacent straight uses the existing generated-cardinal alternation");
+        gate_straight.generated_cardinal_variants[0]=1;
+        check(select_normal_wall(gate_straight).variant==0,
+              "the existing alternate stop has precedence beside a gate");
+        auto gate_cross=wall(0x55);gate_cross.neighboring_terrain[1]=0x8000;
+        const auto unsupported=select_normal_wall(gate_cross);
+        check(!unsupported.verified && !unsupported.variant && unsupported.neighbor_mask==0x57 &&
+              unsupported.gate_connection==WallGateConnectionStatus::UnsupportedTopology,
+              "a diagonal gate cannot invent a missing dense-cross row");
+        auto gate_origin=wall(0x44);gate_origin.center_terrain|=0x8000;
+        const auto center=select_normal_wall(gate_origin);
+        check(center.center_gate && !center.verified && !center.variant &&
+              center.gate_connection==WallGateConnectionStatus::GateOriginCompositionRequired,
+              "wall-plus-gate origin still requires separate historical gate composition");
+        WallTopologyInput only_gate;only_gate.center_terrain=0x8080;
+        check(!select_normal_wall(only_gate).wall_bit && !select_normal_wall(only_gate).variant,
+              "gate-only terrain cannot become a regenerated wall owner");
         auto excluded = wall(0); excluded.center_terrain |= 0x100;
         check(!select_normal_wall(excluded).selector_gate,
               "original post-load branch excludes flood wall cells");
@@ -72,6 +109,24 @@ int main() {
                 check(a.variant == b.variant && a.semantic_row == b.semantic_row &&
                       a.verified == b.verified, "wall topology is deterministic");
                 if (a.variant) check(*a.variant < 18, "static selector stays in the audited wall family");
+                // Every represented neighbor stays present exactly once, even
+                // when both original bits are set. No saved ID or object field
+                // is needed to distinguish these equivalent static inputs.
+                for (unsigned direction=0;direction<8;++direction) {
+                    if (!(mask&(1U<<direction))) continue;
+                    auto mixed=input;mixed.neighboring_terrain[direction]=0x8000;
+                    const auto gate=select_normal_wall(mixed);
+                    check(gate.variant==a.variant && gate.semantic_row==a.semantic_row &&
+                          gate.verified==a.verified && gate.neighbor_mask==mask &&
+                          gate.wall_neighbor_mask==(mask&~(1U<<direction)) &&
+                          gate.gate_neighbor_mask==(1U<<direction),
+                          "gate presence preserves the static table across every mask and view");
+                    mixed.neighboring_terrain[direction]=0xc000;
+                    const auto both=select_normal_wall(mixed);
+                    check(both.variant==a.variant && both.neighbor_mask==mask &&
+                          both.wall_neighbor_mask==mask && both.gate_neighbor_mask==(1U<<direction),
+                          "combined wall/gate bits use boolean presence rather than a second neighbor");
+                }
             }
         }
         openemperor::assets::Sg3Archive synthetic;
