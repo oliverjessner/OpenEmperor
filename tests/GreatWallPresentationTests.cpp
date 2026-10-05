@@ -77,8 +77,26 @@ int main(){try{
     build_regenerated_map_render_plan(p,{});
     check(p.regenerated->instances.size()==3 && p.assets.size()==2,"two towers deduplicate physical asset and gate owns separate image");
     std::size_t members=0;for(const auto& i:p.regenerated->instances){members+=i.cell_indices.size();
-        check(i.geometry.selection.family==LandscapeFamily::GreatWall,"original wall claims precede rock packing");}
+        check(i.geometry.selection.family==LandscapeFamily::GreatWall,"original wall claims precede rock packing");
+        check(i.composition_policy==LandscapeCompositionPolicy::SpatialCombined,
+            "validated towers and gates retain their entire body in the spatial painter");}
     check(members==36 && p.raw_saved_ids==raw_before,"complete4x4/2x2 claims preserve historical raw authority");
+    auto road_entities=e;road_entities.records[2].monument->phase=2;
+    auto road_models=m;
+    road_models.at(257).model->pieces[0].kind=GreatWallPieceKind::Wall;
+    road_models.at(257).model->pieces[0].piece=0;
+    road_models.at(257).model->pieces[2]={12,0,GreatWallPieceKind::Road,4,2,0,1};
+    auto road_state=prepare_great_wall_presentation(road_entities,road_models,{3,0,GreatWallContextSource::VerifiedOriginal});
+    auto road_archive=archive();auto& road_record=road_archive.catalog->records[241];
+    road_record.width=78;road_record.height=40;road_record.isometric_size_flag=1;
+    road_record.uncompressed_length=3200;road_record.data_length=3200;
+    road_state.archives.emplace(std::pair{8U,road_state.pieces[0].archive_relative.generic_string()},std::move(road_archive));
+    auto road_plan=plan(road_state);build_regenerated_map_render_plan(road_plan,{});
+    check(road_plan.regenerated->instances.size()==3 &&
+        road_plan.regenerated->instances[0].composition_policy==LandscapeCompositionPolicy::SpatialCombined &&
+        road_plan.regenerated->instances[1].composition_policy==LandscapeCompositionPolicy::SpatialCombined &&
+        road_plan.regenerated->instances[2].composition_policy==LandscapeCompositionPolicy::EarlyBaseSpatialOverlay,
+        "validated model kind makes wall/gate bodies spatial while model roads preserve split ground composition");
     auto altered=plan(known);altered.raw_saved_ids.assign(count,0xffffffffU);
     for(auto& c:altered.cells){c.stored_id=0xffffffffU;c.slot=16;}
     build_regenerated_map_render_plan(altered,{});
@@ -181,6 +199,14 @@ int main(){try{
             preview_info["regenerated"]["instance"]["original_context_verified"]==false &&
             preview_info["render_source"]=="regenerated Great Wall explicit material preview",
             "F1 retains raw, selected preview, original authority and active image provenance separately");
+        const auto& composition=preview_info["regenerated"]["instance"]["composition"];
+        check(composition["policy"]=="spatial_combined" && composition["early_base_pass"]==false &&
+            composition["spatial_pass"]=="Combined" &&
+            composition["format_components"]==nlohmann::json::array({"Base","Overlay"}) &&
+            composition["drawn_components_when_visible"]==nlohmann::json::array({"Combined"}) &&
+            preview_info["regenerated"]["instance"]["spatial_reference_cell"]==nlohmann::json{{"x",87},{"y",64}} &&
+            preview_info["regenerated"]["instance"]["height_cell"]==nlohmann::json{{"x",84},{"y",64}},
+            "F1 separates format components, spatial body policy, front key and signed marker height source");
         preview_plan.regenerated_instance_active[0]=0;
         check(landscape_fidelity_report(preview_plan)["original_great_wall"]["preview_render_instances"]==2,
             "preview metrics follow eager atomic readiness rather than selected descriptor counts");

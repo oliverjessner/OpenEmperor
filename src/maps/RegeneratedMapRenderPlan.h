@@ -5,6 +5,17 @@
 #include "maps/StoredGraphicsPlan.h"
 
 namespace openemperor::maps {
+// File-format Base/Overlay components do not determine their scene roles.
+// Structural bodies stay together at one spatial painter key; the existing
+// landscape path keeps its early base and spatial overlay convention.
+enum class LandscapeCompositionPolicy { EarlyBaseSpatialOverlay, SpatialCombined };
+inline const char* landscape_composition_policy_name(LandscapeCompositionPolicy policy) {
+    switch (policy) {
+    case LandscapeCompositionPolicy::EarlyBaseSpatialOverlay: return "split_base_spatial_overlay";
+    case LandscapeCompositionPolicy::SpatialCombined: return "spatial_combined";
+    }
+    return "invalid";
+}
 struct RegeneratedCell {
     LandscapeSelection selection;
     std::optional<PackedGraphicId> graphic;
@@ -21,6 +32,7 @@ struct RegeneratedLandscapeInstance {
     // eager decoding. Unset preserves existing independent instances.
     std::optional<std::size_t> composition_group;
     std::optional<GreatWallRestoreContext> great_wall_context;
+    LandscapeCompositionPolicy composition_policy=LandscapeCompositionPolicy::EarlyBaseSpatialOverlay;
 };
 // Published const once per load. Historical cells, footprints and buildability
 // remain untouched. Indices refer to the renderer's shared physical asset pool.

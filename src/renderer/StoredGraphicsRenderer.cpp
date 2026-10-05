@@ -14,6 +14,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace openemperor {
@@ -74,6 +75,8 @@ bool StoredGraphicsRenderer::regenerated_visible(std::size_t index) const {
 }
 bool StoredGraphicsRenderer::regenerated_placement_supported(
     const maps::RegeneratedLandscapeInstance& instance) const {
+    if (instance.composition_policy!=maps::LandscapeCompositionPolicy::EarlyBaseSpatialOverlay &&
+        instance.composition_policy!=maps::LandscapeCompositionPolicy::SpatialCombined) return false;
     const auto& geometry=instance.geometry;
     const auto owned=[&](maps::GridCell cell) {
         return std::find(geometry.owned_cells.begin(),geometry.owned_cells.end(),cell)!=geometry.owned_cells.end();
@@ -140,6 +143,14 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
     base_textures_.assign(plan_.assets.size(),nullptr);
     overlay_textures_.assign(plan_.assets.size(),nullptr);
     snapshot_alpha_.resize(plan_.assets.size()); overlay_alpha_.resize(plan_.assets.size());
+    std::vector<bool> software_spatial_combined(plan_.assets.size(),false);
+    const auto* renderer_name=SDL_GetRendererName(renderer_);
+    if (renderer_name && std::string_view(renderer_name)=="software" && plan_.regenerated)
+        for (const auto& instance:plan_.regenerated->instances)
+            if (instance.asset_index<software_spatial_combined.size() &&
+                instance.composition_policy==maps::LandscapeCompositionPolicy::SpatialCombined &&
+                regenerated_placement_supported(instance))
+                software_spatial_combined[instance.asset_index]=true;
     std::map<std::string,std::filesystem::path> checked_archives;
     for (std::size_t i=0;i<plan_.assets.size();++i) {
         auto& asset = plan_.assets[i];
@@ -173,8 +184,15 @@ void StoredGraphicsRenderer::initialize(SDL_Renderer* renderer) {
                 throw std::runtime_error("stored graphics decoded dimensions differ from metadata");
             asset.decode_succeeded = true;
             ++plan_.decoded_assets;
+            // SDL's software STATIC surface enables RLE; repeated scaled copies
+            // can then fail during deferred execution with an invalid source.
+            // STREAMING avoids RLE for these Combined bodies. Upload still
+            // happens exactly once here; all other components remain STATIC.
+            // Reproduction: docs/rendering/scene-composition.md.
+            const auto access=software_spatial_combined[i] ?
+                SDL_TEXTUREACCESS_STREAMING:SDL_TEXTUREACCESS_STATIC;
             SDL_Texture* texture = SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_RGBA32,
-                SDL_TEXTUREACCESS_STATIC,rgba.width,rgba.height);
+                access,rgba.width,rgba.height);
             if (!texture) throw std::runtime_error(SDL_GetError());
             textures_[i] = texture;
             ++live_textures;
@@ -428,10 +446,14 @@ bool StoredGraphicsRenderer::draw_component(std::size_t index, const scene::Came
             (!base && !regenerated_visible(item.plan_index))) return true;
         const auto& instance=plan_.regenerated->instances[item.plan_index];
         const auto asset=instance.asset_index;const auto& r=plan_.assets[asset].record;
-        if (!base && r.data_length==r.uncompressed_length) return true;
+        const bool combined=instance.composition_policy==maps::LandscapeCompositionPolicy::SpatialCombined;
+        // Structural Base pixels belong to the same spatial body as Overlay.
+        // Draw its existing combined texture once, never in the ground pass.
+        if (combined && base) return true;
+        if (!combined && !base && r.data_length==r.uncompressed_length) return true;
         const auto origin=regenerated_image_origin(instance);
         if (!maps::stored_rect_visible(origin,unsigned(r.width),unsigned(r.height),camera)) return true;
-        auto* texture=(base ? base_textures_:overlay_textures_)[asset];
+        auto* texture=combined ? textures_[asset]:(base ? base_textures_:overlay_textures_)[asset];
         if (!texture) return true;
         const auto top=camera.world_to_screen(origin);
         const SDL_FRect destination{float(top.x),float(top.y),float(r.width*camera.zoom),float(r.height*camera.zoom)};
@@ -472,7 +494,7 @@ bool StoredGraphicsRenderer::draw_component(std::size_t index, const scene::Came
     ++last_texture_draws_; ++last_drawn_instances_;
     return true;
 }
-std::optional<maps::GridCell> StoredGraphicsRenderer::hit_test(scene::Point screen,
+std::optional<StoredVisualHit> StoredGraphicsRenderer::hit_test_item(scene::Point screen,
     const scene::Camera2D& camera) const {
     const auto world=camera.screen_to_world(screen);
     for (auto it=draw_order_.rbegin();it!=draw_order_.rend();++it) {
@@ -483,8 +505,10 @@ std::optional<maps::GridCell> StoredGraphicsRenderer::hit_test(scene::Point scre
             const auto origin=regenerated_image_origin(instance);
             const int x=int(std::floor(world.x-origin.x)),y=int(std::floor(world.y-origin.y));
             if (x<0 || y<0 || x>=r.width || y>=r.height) continue;
-            const auto& alpha=overlay_alpha_[asset];
-            if (!alpha.empty() && alpha[std::size_t(y)*unsigned(r.width)+unsigned(x)]) return instance.geometry.draw_cell;
+            const auto& alpha=(instance.composition_policy==maps::LandscapeCompositionPolicy::SpatialCombined ?
+                snapshot_alpha_:overlay_alpha_)[asset];
+            if (!alpha.empty() && alpha[std::size_t(y)*unsigned(r.width)+unsigned(x)])
+                return StoredVisualHit{instance.geometry.draw_cell,it->key};
             continue;
         }
         if (!it->footprint) continue;
@@ -499,9 +523,14 @@ std::optional<maps::GridCell> StoredGraphicsRenderer::hit_test(scene::Point scre
         if (x<0 || y<0 || x>=r.width || y>=r.height) continue;
         const auto& alpha=(landscape_mode_==LandscapeDebugMode::Snapshot ? snapshot_alpha_:overlay_alpha_)[asset_index];
         if (!alpha.empty() && alpha[static_cast<std::size_t>(y)*static_cast<unsigned>(r.width)+static_cast<unsigned>(x)])
-            return f.draw_cell_candidate.value_or(f.origin);
+            return StoredVisualHit{f.draw_cell_candidate.value_or(f.origin),it->key};
     }
     return std::nullopt;
+}
+std::optional<maps::GridCell> StoredGraphicsRenderer::hit_test(scene::Point screen,
+    const scene::Camera2D& camera) const {
+    const auto hit=hit_test_item(screen,camera);
+    return hit ? std::optional{hit->cell}:std::nullopt;
 }
 
 } // namespace openemperor

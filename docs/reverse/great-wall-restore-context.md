@@ -495,3 +495,46 @@ normalization, full first-draw order and whole-image acceptance remain open.
 The activation gap is closed for an explicitly chosen, usable preview in
 the normal app. No further gameplay or campaign-parser work belongs to this
 bounded milestone.
+
+## Scene-composition follow-up (2026-10-04)
+
+The subsequent bounded milestone starts at clean
+`3b834c2bbc1c999f38cf7d54e63ae8dacd1a758f`. The earlier partial Handan
+acceptance and overwrite report above describe the historical activation
+baseline. A fresh Release trace now captures the initial wall Base write
+and subsequent Terrain/Elevation writes: original entity ID 1, Stone-10
+variant 16/physical record 217 at origin `(96,49)`, marker `(96,52)`,
+signed height 4, and existing front key 1880. Elevation 208/355 have earlier
+spatial keys 1740/1760, but overpainted the masonry because its Base was
+emitted before the entire spatial stream.
+
+The corrective OpenEmperor preview contract gives validated Wall/Tower/Gate
+model pieces an explicit `SpatialCombined` policy. Their already loaded
+complete texture participates once at the existing front key. The early
+Base and separate Overlay paths omit those instances. Road pieces and
+other landscape preserve split passes; saved Snapshot is unchanged.
+Markers, anchors, heights, material decisions and all raw original facts
+remain as in the activation baseline. Cached full alpha makes visible
+body pixels inspectable; F8 hides the complete structural image.
+
+This addresses the diagnosed global-pass failure, without suppressing
+historical Elevation, moving the wall, changing a comparator or assigning
+walls a permanent foreground priority. Exact original restore context,
+post-load height normalization, historical-overlay eligibility and
+interpenetrating sprite composition remain open. The Ruined phase-2 Road
+variant 40 remains a separate missing-asset limit.
+
+See [the fresh baseline, hypothesis audit, bounded EXE evidence and final
+validation](../rendering/scene-composition.md). Local traces and original
+pixel captures remain ignored under `.local/scene-composition/`.
+
+Final scene-composition validation on 2026-10-05 passes all 93 tests in
+Debug, Release and optimized ASan/UBSan, plus the final local arm64 package
+validation. The four-material/six-map matrix compares 192 captures with
+144 byte-identical unaffected controls. Twelve complete City-v10/v16 save
+documents and matched-resource public check/resume reports retain exact
+baseline state. Actual native Handan/Stone loading in the ordinary Sandbox
+was exercised. Full native pointer/panning acceptance remains open because
+requested automation coordinates did not reach the intended SDL positions;
+the linked report separates this boundary from scripted pixel/picking
+acceptance. No complete native visual PASS or original-game parity is claimed.

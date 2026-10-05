@@ -629,6 +629,19 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-unified-painter-tests)
     add_test(NAME unified-map-sandbox-pixels COMMAND openemperor-unified-painter-tests)
 
+    add_executable(openemperor-scene-composition-tests tests/SceneCompositionTests.cpp
+        src/app/MapDebugView.cpp src/renderer/TerrainPreviewRenderer.cpp
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-scene-composition-tests PRIVATE openemperor-recovery
+        openemperor-version SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-scene-composition-tests)
+    add_test(NAME scene-composition-production-pixels COMMAND openemperor-scene-composition-tests)
+    set_tests_properties(scene-composition-production-pixels PROPERTIES TIMEOUT 60)
+
     add_executable(openemperor-png-preview-tests tests/RgbaPngReaderTests.cpp)
     target_link_libraries(openemperor-png-preview-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-png-preview-tests)

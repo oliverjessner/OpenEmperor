@@ -139,4 +139,30 @@ bool draw_well_fallback(SDL_Renderer* renderer,scene::Point ground,double zoom,b
     const bool restored=SDL_SetRenderDrawBlendMode(renderer,previous);
     return drawn && restored;
 }
+bool hit_well_fallback(scene::Point screen,scene::Point ground,double zoom,int footprint_side) {
+    constexpr double limit=static_cast<double>(std::numeric_limits<float>::max())/4;
+    if (!std::isfinite(screen.x) || !std::isfinite(screen.y) ||
+        !std::isfinite(ground.x) || !std::isfinite(ground.y) || !std::isfinite(zoom) ||
+        zoom<=0 || std::abs(ground.x)>limit || std::abs(ground.y)>limit ||
+        zoom>limit/128 || (footprint_side!=1 && footprint_side!=2)) return false;
+    ground.y-=20.0*zoom*(footprint_side-1);
+    zoom*=footprint_side;
+    const auto vertex=[&](int index) {
+        const auto p=well_mesh.vertices[static_cast<std::size_t>(index)].position;
+        return scene::Point{static_cast<float>(ground.x+p.x*zoom),
+                            static_cast<float>(ground.y+p.y*zoom)};
+    };
+    const auto cross=[](scene::Point a,scene::Point b,scene::Point p) {
+        return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);
+    };
+    for (int i=0;i<well_mesh.index_count;i+=3) {
+        const auto a=vertex(well_mesh.indices[static_cast<std::size_t>(i)]);
+        const auto b=vertex(well_mesh.indices[static_cast<std::size_t>(i+1)]);
+        const auto c=vertex(well_mesh.indices[static_cast<std::size_t>(i+2)]);
+        if (cross(a,b,c)==0) continue;
+        const auto ab=cross(a,b,screen),bc=cross(b,c,screen),ca=cross(c,a,screen);
+        if ((ab>=0 && bc>=0 && ca>=0) || (ab<=0 && bc<=0 && ca<=0)) return true;
+    }
+    return false;
+}
 } // namespace openemperor

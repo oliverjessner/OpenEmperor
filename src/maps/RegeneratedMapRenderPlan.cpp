@@ -85,7 +85,8 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
     }
     const auto append_instance=[&](LandscapeInstanceSpec spec,
         const StoredArchiveRegistration* original_registration=nullptr,
-        const GreatWallRestoreContext* wall_context=nullptr) {
+        const GreatWallRestoreContext* wall_context=nullptr,
+        LandscapeCompositionPolicy composition_policy=LandscapeCompositionPolicy::EarlyBaseSpatialOverlay) {
         const bool original_wall=spec.original_entity_index.has_value();
         std::vector<std::size_t> members;
         for (const auto cell:spec.owned_cells) {
@@ -133,7 +134,7 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
         const auto composition=spec.original_entity_index;
         if (original_wall) for (const auto cell:spec.owned_cells) eligible[std::size_t(cell.y)*stored_grid_width+cell.x]=0;
         generated->instances.push_back({std::move(spec),*graphic,existing->second,std::move(members),composition,
-            wall_context ? std::optional{*wall_context}:std::nullopt});
+            wall_context ? std::optional{*wall_context}:std::nullopt,composition_policy});
         return true;
     };
     // Object restore precedes landscape generation. Only complete supported
@@ -147,7 +148,16 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
             if (found==plan.original_great_wall->archives.end()) continue;
             r=&found->second;
         }
-        if (!append_instance(*piece.geometry,r,&piece.selection.restore_context)) {
+        // A validated wall/tower/gate is a spatial object even when its SG3
+        // Base contains some of the masonry. Model roads keep their existing
+        // ground composition; no asset ID or pixel color chooses this role.
+        const auto policy=piece.model_piece &&
+            (piece.model_piece->kind==GreatWallPieceKind::Wall ||
+             piece.model_piece->kind==GreatWallPieceKind::Tower ||
+             piece.model_piece->kind==GreatWallPieceKind::Gate) ?
+                LandscapeCompositionPolicy::SpatialCombined:
+                LandscapeCompositionPolicy::EarlyBaseSpatialOverlay;
+        if (!append_instance(*piece.geometry,r,&piece.selection.restore_context,policy)) {
             std::string reason="selected Great Wall complete geometry or image unavailable; historical preview retained";
             if (r && r->layout) {
                 const std::map<std::uint32_t,GroupRegistration> selected_groups{{r->slot,{&*r->layout}}};

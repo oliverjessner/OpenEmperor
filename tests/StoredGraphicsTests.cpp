@@ -956,7 +956,10 @@ int main() {
             set_id(separate_candidates,114,114,0xc00a);
             set_id(separate_candidates,116,114,0xc00a);
             const auto separate_geometry=sparse_geometry({{114,114},{116,114}});
-            for (bool explicit_preview:{false,true}) for (bool failed_member:{false,true}) {
+            for (bool explicit_preview:{false,true}) for (unsigned failure:{0U,1U,2U}) {
+                const bool failed_member=failure==1;
+                const bool invalid_policy=failure==2;
+                const bool inactive=failed_member || invalid_policy;
                 auto separate=maps::make_stored_graphics_plan(map,separate_candidates,separate_geometry,
                     terrain_catalog,*terrain_layout,elevation_catalog,*elevation_layout,true);
                 check(separate.footprints.size()==2 && separate.assets.size()==1,
@@ -978,7 +981,10 @@ int main() {
                         instance.geometry.selection.family=maps::LandscapeFamily::GreatWall;
                         instance.great_wall_context=maps::great_wall_context_from_mode(
                             maps::GreatWallPresentationMode::PreviewStone);
+                        instance.composition_policy=maps::LandscapeCompositionPolicy::SpatialCombined;
                     }
+                    if (invalid_policy && i==1)
+                        instance.composition_policy=static_cast<maps::LandscapeCompositionPolicy>(99);
                     instance.geometry.selection.evidence=maps::SelectorEvidence::Verified;
                     instance.geometry.selection.selector="synthetic two-image composition";
                     instance.geometry.origin=separate.cells[i].storage;
@@ -1007,33 +1013,34 @@ int main() {
                           "preview preparation failed without a concrete activation error");
                     preparation_failed=true;
                 }
-                check(preparation_failed==(explicit_preview && failed_member),
-                      "explicit preview must reject failed atomic decode before session publication");
+                check(preparation_failed==(explicit_preview && inactive),
+                      "explicit preview must reject failed decode or invalid composition atomically before session publication");
                 if (preparation_failed) continue;
                 composition.set_landscape_mode(openemperor::LandscapeDebugMode::Regenerated);
                 check(composition.upload_count()==6,
                     "two ready members share one eager three-texture asset; a failed decode uploads nothing");
                 check(composition.plan().regenerated_instance_active==
-                    std::vector<std::uint8_t>(2,static_cast<std::uint8_t>(!failed_member)),
+                    std::vector<std::uint8_t>(2,static_cast<std::uint8_t>(!inactive)),
                     "a composition activates every member together only when all decodes succeed");
                 scene::Camera2D camera; camera.viewport_width=400; camera.viewport_height=300;
                 camera.center_on(maps::terrain_ground({115,114},composition.plan().border));
                 check(SDL_SetRenderDrawColor(renderer,0,0,0,255) && SDL_RenderClear(renderer) &&
-                    composition.render(camera,std::nullopt) && composition.last_texture_draws()==4 &&
+                    composition.render(camera,std::nullopt) &&
+                    composition.last_texture_draws()==(explicit_preview && !inactive ? 2U:4U) &&
                     composition.last_diagnostic_draws()==0,
-                    "composition draws either both generated images or both complete historical images");
+                    "spatial bodies draw Combined once or retain both complete historical images atomically");
                 for (std::size_t i=0;i<generated->instances.size();++i) {
                     const auto& instance=generated->instances[i];
                     const auto origin=maps::regenerated_instance_origin(instance.geometry,
                         composition.plan().border,78,46,0);
                     const auto alpha_pixel=camera.world_to_screen({origin.x+38,origin.y});
-                    check(pixel(renderer,int(alpha_pixel.x),int(alpha_pixel.y))[2]==(failed_member ? 0:255),
+                    check(pixel(renderer,int(alpha_pixel.x),int(alpha_pixel.y))[2]==(inactive ? 0:255),
                         "failed composition leaves no blue overlay from its successfully decoded member");
                     check(composition.hit_test(alpha_pixel,camera)==
-                        (failed_member ? std::optional<maps::GridCell>{}:std::optional{instance.geometry.draw_cell}),
+                        (inactive ? std::optional<maps::GridCell>{}:std::optional{instance.geometry.draw_cell}),
                         "composition alpha picking follows the same atomic activation as rendering");
                     const auto provenance=maps::landscape_provenance(composition.plan(),instance.geometry.draw_cell,true,&camera);
-                    check(provenance.at("regenerated").at("atomic_instance_active")==!failed_member,
+                    check(provenance.at("regenerated").at("atomic_instance_active")==!inactive,
                         "every composition member reports its actual activation after eager decoding");
                 }
                 check(composition.plan().raw_saved_ids==old_ids,

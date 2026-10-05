@@ -182,16 +182,40 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
                 {"decode_status",stored_status_name(a.status)}};
             auto origin=stored_image_origin(terrain_world(c->storage,plan.border),
                 static_cast<std::uint32_t>(r.width),static_cast<std::uint32_t>(r.height));
+            detail["first_visible_layer"]="Ground base (overlay added by semantic layer)";
             if (generated.instance_index) {
                 const auto& instance=plan.regenerated->instances[*generated.instance_index];
                 const auto& g=instance.geometry;
+                const auto height_cell=g.explicit_height ? g.explicit_height->cell:g.draw_cell;
+                const auto front=g.depth_cell.value_or(GridCell{g.origin.x+g.side-1,g.origin.y+g.side-1});
+                const auto spatial_ground=terrain_ground(front,plan.border);
+                const bool combined=instance.composition_policy==LandscapeCompositionPolicy::SpatialCombined;
+                const Json format_components=r.data_length>r.uncompressed_length ?
+                    Json::array({"Base","Overlay"}):Json::array({"Base"});
                 detail["instance"]={{"id",*generated.instance_index},{"family",landscape_family_name(g.selection.family)},
                     {"origin",cell_json(g.origin)},{"footprint_side",g.side},{"owned_cell",cell_json(c->storage)},
                     {"owned_cell_count",g.owned_cells.size()},{"draw_cell",cell_json(g.draw_cell)},
-                    {"height",landscape_height(plan,g.explicit_height ? g.explicit_height->cell:g.draw_cell)},
+                    {"height",landscape_height(plan,height_cell)},{"height_cell",cell_json(height_cell)},
                     {"height_source",g.explicit_height ? "SerializedCellHeight":"existing landscape cell height"},
                     {"placement_evidence",g.placement_evidence},{"composition_evidence",g.composition_evidence},
-                    {"painter_depth_convention","logical diagonal front ground; height does not reorder"}};
+                    {"painter_depth_convention","logical diagonal front ground; height does not reorder"},
+                    {"spatial_reference_cell",cell_json(front)},
+                    {"spatial_draw_key",{{"depth",spatial_ground.y},{"ground_x",spatial_ground.x},
+                        {"layer","StoredMap"},{"stable_id",plan.cells.size()+*generated.instance_index}}},
+                    {"composition",{{"policy",landscape_composition_policy_name(instance.composition_policy)},
+                        {"evidence","OPENEMPEROR PREVIEW: scene role independent of SG3 format components"},
+                        {"format_components",format_components},
+                        {"drawn_components_when_visible",combined ? Json::array({"Combined"}):format_components},
+                        {"early_base_pass",!combined},
+                        {"spatial_pass",combined ? "Combined":
+                            (r.data_length>r.uncompressed_length ? "Overlay":"none")}}}};
+                if (g.explicit_anchor) {
+                    const auto& anchor=*g.explicit_anchor;
+                    detail["instance"]["image_anchor"]={{"ground_cell",cell_json(anchor.ground_cell)},
+                        {"x",anchor.x},{"y_from_image_bottom",anchor.y_from_image_bottom},
+                        {"source",g.placement_evidence}};
+                }
+                if (combined) detail["first_visible_layer"]="Walls/Monuments: complete spatial object body";
                 if (instance.great_wall_context) {
                     detail["instance"]["restore_context"]=wall_context_json(*instance.great_wall_context);
                     detail["instance"]["original_context_verified"]=great_wall_original_context_verified(*instance.great_wall_context);
@@ -200,7 +224,6 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
                     elevated ? landscape_height(plan,g.explicit_height ? g.explicit_height->cell:g.draw_cell):0);
             } else if (elevated) origin.y-=landscape_height(plan,c->storage)*landscape_height_step;
             detail["preview_image_origin"]=point(origin);
-            detail["first_visible_layer"]="Ground base (overlay added by semantic layer)";
             detail["atomic_instance_active"]=active_instance;
             if (elevated && active_instance && a.status==StoredStatus::Rendered) j["render_source"]=
                 s.evidence==SelectorEvidence::Verified ? "regenerated verified static selector":

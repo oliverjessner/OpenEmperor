@@ -165,6 +165,7 @@ void SandboxView::load_now() {
         throw std::runtime_error("Save map or rules differ from current sandbox");
     auto replacement=persistence::restore_save(document,data_root_,buildable_mask_);
     world_=std::make_unique<simulation::World>(std::move(replacement));
+    clear_visual_selection(); visual_hits_.clear(); visual_frame_valid_=false;
     saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     cancel_gesture();
     if (simulation::water_profile(rules_)) {
@@ -260,6 +261,7 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
                                      VisualProfileSource source) {
     if (manifest.empty()) {
         walker_sprites_.reset(); walker_profile_.reset(); walker_manifest_.clear();
+        visual_hits_.clear(); visual_frame_valid_=false;
         walker_source_=VisualProfileSource::Fallback;
         walker_diagnostic_open_=false;
         return;
@@ -272,6 +274,7 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
     textures->initialize(renderer_,profile);
     walker_sprites_=std::move(textures);
     walker_profile_=std::move(profile);
+    visual_hits_.clear(); visual_frame_valid_=false;
     walker_manifest_=manifest;
     walker_source_=source;
     walker_visuals_enabled_=true;
@@ -313,6 +316,7 @@ void SandboxView::set_building_visuals(const std::filesystem::path& manifest,
                                        VisualProfileSource source) {
     if (manifest.empty()) {
         building_sprite_.reset();building_profile_.reset();building_manifest_.clear();
+        visual_hits_.clear(); visual_frame_valid_=false;
         building_source_=VisualProfileSource::Fallback;
         return;
     }
@@ -334,6 +338,7 @@ void SandboxView::set_building_visuals(const std::filesystem::path& manifest,
     texture->initialize(renderer_,profile);
     building_sprite_=std::move(texture);
     building_profile_=std::move(profile);
+    visual_hits_.clear(); visual_frame_valid_=false;
     building_manifest_=manifest;
     building_source_=source;
     building_enabled_=true;
@@ -435,6 +440,9 @@ void SandboxView::update_layout(bool preserve_center) {
         simulation::water_profile(rules_),simulation::health_profile(rules_));
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) return;
+    // Panel toggles and resize change the clipped viewport before another
+    // frame is submitted. Its previous visible-pixel cache is then invalid.
+    visual_frame_valid_=false;
     scene::Point center{};
     if (preserve_center && layout_.map.w>0 && layout_.map.h>0)
         center=camera_.screen_to_world({layout_.map.x+layout_.map.w*0.5,
@@ -1214,11 +1222,13 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_TAB) perform_action(sandbox_ui::Action::TogglePanel);
         else if (event.key.key==SDLK_F1) {
             debug_open_=!debug_open_;
+            visual_hits_.clear(); visual_frame_valid_=false;
             background_.set_debug_diagnostics(debug_open_);
             last_message_=debug_open_ ? "Debug diagnostics ON":"Debug diagnostics OFF";
         }
         else if (event.key.key==SDLK_F2 && walker_profile_) {
             walker_visuals_enabled_=!walker_visuals_enabled_;
+            visual_hits_.clear(); visual_frame_valid_=false;
             last_message_=walker_visuals_enabled_ ? "Walker visuals ON" : "Walker visuals OFF";
         }
         else if (event.key.key==SDLK_F3 && walker_profile_) {
@@ -1228,6 +1238,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_F4) {
             if (building_profile_) {
                 building_enabled_=!building_enabled_;
+                visual_hits_.clear(); visual_frame_valid_=false;
                 last_message_=building_enabled_ ? "Building visuals ON":"Building visuals OFF";
             } else last_message_="No building visuals loaded";
         }
@@ -1240,11 +1251,13 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_F8 && debug_open_) {
             const auto mode=static_cast<LandscapeDebugMode>((static_cast<int>(background_.landscape_mode())+1)%8);
             background_.set_landscape_mode(mode);
+            visual_hits_.clear(); visual_frame_valid_=false;
             last_message_=landscape_debug_mode_name(background_.landscape_mode());
             refresh_hover();
         }
         else if (event.key.key==SDLK_F7) {
             unified_depth_=!unified_depth_;
+            visual_hits_.clear(); visual_frame_valid_=false;
             last_message_=unified_depth_ ? "Depth painter: unified":"Depth painter: legacy";
         }
         else if (walker_diagnostic_open_ && walker_profile_) {
@@ -1335,7 +1348,8 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         const bool landscape_hit=debug_open_ &&
             tool_==(simulation::production_profile(rules_) ? 5:4) &&
             background_.hit_test(*pointer_,camera_).has_value();
-        if (!cell && !landscape_hit) return;
+        if (!cell && !landscape_hit && !(debug_open_ &&
+            tool_==(simulation::production_profile(rules_) ? 5:4))) return;
         map_pressed_=true;
         if (tool_==1) {
             road_start_=cell;
@@ -1382,7 +1396,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 if (relative>=0) {
                     const auto index=static_cast<std::size_t>(relative/(18*layout_.scale));
                     if (index<entries.size() && entries[index]==*pressed_building_)
-                        selected_=world_->building(*pressed_building_).cell;
+                        { clear_visual_selection(); selected_=world_->building(*pressed_building_).cell; }
                     panel_scroll_=0;
                 }
             }
@@ -1391,18 +1405,18 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (!map_pressed_) return;
         auto cell=pointer_ ? pick(*pointer_) : std::nullopt;
         const bool selecting=tool_==(simulation::production_profile(rules_) ? 5:4);
-        if (selecting && debug_open_ && pointer_ &&
-            (!cell || world_->object_at(*cell)==simulation::Object::Empty)) {
-            const auto hit=background_.hit_test(*pointer_,camera_);
-            if (hit) cell=simulation::Cell{static_cast<int>(hit->x),static_cast<int>(hit->y)};
+        if (selecting && debug_open_ && pointer_ && select_visual(*pointer_)) {
+            cancel_gesture(); refresh_hover(); return;
         }
         if (cell && road_start_ && tool_==1) {
             const auto plan=road_preview_;
             (void)request_road(plan);
+            clear_visual_selection();
             selected_=cell;
         } else if (cell) {
             if (tool_==(simulation::production_profile(rules_) ? 5:4)) {
                 if (selected_!=cell) panel_scroll_=0;
+                clear_visual_selection();
                 selected_=cell;
             }
             else (void)request_execute({command_type(rules_,tool_),*cell});
@@ -1432,10 +1446,11 @@ simulation::CommandResult SandboxView::execute(simulation::Command command) {
     const auto result=world_->execute(command);
     last_message_=result.reason;
     if (command.type==simulation::CommandType::DemolishBuilding) {
-        if (result.changed) { selected_.reset(); cancel_gesture(); refresh_hover(true); }
+        if (result.changed) { clear_visual_selection(); selected_.reset(); cancel_gesture(); refresh_hover(true); }
     } else if (command.type!=simulation::CommandType::SetBuildingOperation &&
         command.type!=simulation::CommandType::SetBuildingWorkforcePriority) {
         if (selected_!=command.cell) panel_scroll_=0;
+        clear_visual_selection();
         selected_=command.cell;
     }
     return result;
@@ -1521,6 +1536,120 @@ scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
     const auto front=simulation::building_front_cell(rules_,world_->rule_version(),kind,origin);
     return world_for({static_cast<double>(front.x),static_cast<double>(front.y)});
 }
+void SandboxView::clear_visual_selection() {
+    selected_landscape_=false; selected_walker_.reset();
+}
+void SandboxView::record_visual_hit(const DrawInstance& instance) {
+    if (instance.placement_preview || instance.object==simulation::Object::Road) return;
+    const auto append=[&](const VisualHit& next) {
+        const auto top=camera_.world_to_screen(next.origin);
+        if (top.x+next.width*camera_.zoom<=layout_.map.x ||
+            top.y+next.height*camera_.zoom<=layout_.map.y ||
+            top.x>=layout_.map.x+layout_.map.w || top.y>=layout_.map.y+layout_.map.h) return;
+        visual_hits_.push_back(next);
+    };
+    VisualHit hit; hit.key=instance.key; hit.cell=instance.cell;
+    if (instance.key.layer==scene::WorldVisualLayer::SandboxWalker) {
+        hit.walker=instance.courier;
+        hit.cell={static_cast<int>(std::floor(instance.position.x)),
+                  static_cast<int>(std::floor(instance.position.y))};
+        const auto ground=world_for(instance.position);
+        if (simulation::production_profile(rules_)) {
+            const auto& courier=world_->courier(instance.courier);
+            const auto role=walker_visual_role(courier.role);
+            const auto* visual=role && walker_profile_ ? walker_profile_->find(*role):nullptr;
+            if (walker_visuals_active() && walker_sprites_ && visual) {
+                const auto pose=walker_pose(courier,world_->ticks(),*visual);
+                if (pose.frame) {
+                    const auto& frame=visual->frames[*pose.frame];
+                    const auto& image=walker_profile_->unique_images[frame.image_index];
+                    hit.image=frame.image_index; hit.origin={ground.x-frame.foot_x,ground.y-frame.foot_y};
+                    hit.width=image.width; hit.height=image.height;
+                    append(hit);
+                    if (pose.loaded) {
+                        const double size=std::max(5.0,8.0*camera_.zoom)/camera_.zoom;
+                        hit.image.reset();hit.origin={ground.x+size*.3,ground.y-size*1.5};
+                        hit.width=hit.height=size*.6;append(hit);
+                    }
+                    return;
+                }
+            }
+        }
+        const auto id=static_cast<unsigned>(instance.courier);
+        const int shift=id==1 ? -5:id==2 ? 5:id==3 ? 0:id==4 ? -10:id==5 ? 10:14;
+        const double size=std::max(debug_open_ ? 5.0:4.0,(debug_open_ ? 10.0:7.0)*camera_.zoom)/camera_.zoom;
+        hit.origin={ground.x-size/2+(simulation::production_profile(rules_) ? shift/camera_.zoom:0),ground.y-size/2};
+        hit.width=hit.height=size; append(hit);
+        const auto cargo=simulation::production_profile(rules_) ?
+            world_->courier(instance.courier).cargo:world_->courier_cargo();
+        if (cargo>0) {
+            hit.origin={hit.origin.x+size*.5,hit.origin.y-size*.5};
+            hit.width=hit.height=size*.5;append(hit);
+        }
+        return;
+    }
+    const auto ground=building_visual_ground(instance.cell,instance.object);
+    const auto role=visual_role(instance.cell,instance.object);
+    const auto* entry=role && building_profile_ ? building_entry(*role):nullptr;
+    if (entry && building_visuals_active() && building_sprite_) {
+        const auto& image=building_profile_->unique_images[entry->image_index];
+        hit.image=entry->image_index; hit.origin={ground.x-entry->ground_x,ground.y-entry->ground_y};
+        hit.width=image.width; hit.height=image.height;
+        append(hit); return;
+    }
+    if (instance.object==simulation::Object::Well || instance.object==simulation::Object::HealthPost) {
+        const int side=simulation::building_footprint(rules_,world_->rule_version(),instance.object).width;
+        hit.mesh=instance.object;hit.mesh_ground=ground;hit.footprint_side=side;
+        hit.origin={ground.x-30*side,ground.y-48*side-20*(side-1)};
+        hit.width=60*side;hit.height=62*side;append(hit);return;
+    }
+    hit.origin={ground.x-40,ground.y-20}; hit.width=80;hit.height=40;hit.diamond=true;
+    append(hit);
+    const double size=std::max(5.0,11.0*camera_.zoom)/camera_.zoom;
+    hit.origin={ground.x-size/2,ground.y-size*1.5}; hit.width=hit.height=size;hit.diamond=false;
+    append(hit);
+}
+bool SandboxView::select_visual(scene::Point screen) {
+    // A map press can be released over UI. Clipped sprite pixels cannot be
+    // inspected through the panel or toolbar that covers them.
+    if (!layout_.map.contains(screen.x,screen.y)) return true;
+    // Input inspects the submitted frame, including between a camera/update
+    // event and the next draw. Mode/profile switches invalidate its descriptors.
+    if (!visual_frame_valid_ || visual_hit_mode_!=background_.landscape_mode()) return true;
+    const auto world=visual_hit_camera_.screen_to_world(screen);
+    const VisualHit* dynamic=nullptr;
+    for (auto it=visual_hits_.rbegin();it!=visual_hits_.rend();++it) {
+        const double x=world.x-it->origin.x,y=world.y-it->origin.y;
+        if (x<0 || y<0 || x>=it->width || y>=it->height) continue;
+        if (it->diamond && std::abs(x-40)/40+std::abs(y-20)/20>1) continue;
+        if (it->mesh!=simulation::Object::Empty) {
+            const auto ground=visual_hit_camera_.world_to_screen(it->mesh_ground);
+            const bool hit=it->mesh==simulation::Object::Well ?
+                hit_well_fallback(screen,ground,visual_hit_camera_.zoom,it->footprint_side):
+                hit_health_post_fallback(screen,ground,visual_hit_camera_.zoom,it->footprint_side);
+            if (!hit) continue;
+        }
+        if (it->image) {
+            const auto* images=it->walker ? (walker_profile_ ? &walker_profile_->unique_images:nullptr):
+                (building_profile_ ? &building_profile_->unique_images:nullptr);
+            if (!images || *it->image>=images->size()) continue;
+            const auto& image=(*images)[*it->image];
+            const auto offset=(std::size_t(std::floor(y))*image.width+std::size_t(std::floor(x)))*4+3;
+            if (offset>=image.pixels.size() || image.pixels[offset]==0) continue;
+        }
+        dynamic=&*it;break;
+    }
+    const auto stored=background_.hit_test_item(screen,visual_hit_camera_);
+    if (!dynamic && !stored) return false;
+    clear_visual_selection(); panel_scroll_=0;
+    if (dynamic && (!stored || !visual_hit_unified_ || stored->key<dynamic->key)) {
+        selected_=dynamic->cell; selected_walker_=dynamic->walker;
+    } else {
+        selected_=simulation::Cell{static_cast<int>(stored->cell.x),static_cast<int>(stored->cell.y)};
+        selected_landscape_=true;
+    }
+    return true;
+}
 bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,std::uint8_t b,bool fill,float alpha) {
     const auto p=camera_.world_to_screen(world);
     const float x=static_cast<float>(p.x),y=static_cast<float>(p.y);
@@ -1544,6 +1673,10 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     road_fallbacks_current_=0;
     auto& instances=draw_instances_;
     instances.clear();
+    visual_hits_.clear(); visual_frame_valid_=false;
+    visual_hit_camera_=camera_;visual_hit_mode_=background_.landscape_mode();visual_hit_unified_=unified_depth_;
+    const auto hit_capacity=3U*(world_->buildings().size()+world_->couriers().size()+2U);
+    if (visual_hits_.capacity()<hit_capacity) visual_hits_.reserve(hit_capacity);
     const auto maximum=static_cast<std::size_t>(world_->width())*
         static_cast<std::size_t>(world_->height())+road_preview_.cells.size()+6U;
     if (instances.capacity()<maximum) instances.reserve(maximum);
@@ -1881,7 +2014,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     std::sort(instances.begin(),instances.end(),[](const DrawInstance& a,const DrawInstance& b) {
         return a.key<b.key;
     });
-    const auto draw_instance=[&](std::size_t index)->bool {
+    const auto draw_instance_body=[&](std::size_t index)->bool {
         const auto& instance=instances[index];
         if (instance.key.layer!=scene::WorldVisualLayer::SandboxWalker)
             return draw_object(instance.cell,instance.object,instance.placement_preview);
@@ -1930,6 +2063,10 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
              SDL_Color{133,86,119,255});
         const int shift=id==1 ? -5:id==2 ? 5:id==3 ? 0:id==4 ? -10:id==5 ? 10:14;
         return draw_courier(instance.courier,position,color,cargo,shift);
+    };
+    const auto draw_instance=[&](std::size_t index) {
+        if (!draw_instance_body(index)) return false;
+        record_visual_hit(instances[index]); return true;
     };
     painter_stats_={};
     painter_stats_.stored_order_builds=background_.stored_order_builds();
@@ -2082,6 +2219,7 @@ std::vector<simulation::BuildingId> SandboxView::placed_buildings() const {
     return result;
 }
 std::optional<simulation::BuildingId> SandboxView::selected_building() const {
+    if (selected_landscape_ || selected_walker_) return {};
     return selected_ ? world_->building_owner_at(*selected_) : std::nullopt;
 }
 bool SandboxView::fire_watch_selected() const {
@@ -2125,7 +2263,15 @@ int SandboxView::demolition_hint_extra_height() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
-    if (debug_open_ && selected_ && world_->object_at(*selected_)==simulation::Object::Empty)
+    if (debug_open_ && selected_walker_) {
+        const auto found=std::find_if(world_->couriers().begin(),world_->couriers().end(),
+            [&](const auto& courier){return courier.id==*selected_walker_;});
+        if (found!=world_->couriers().end()) return wrap_panel_lines({
+            "Visible walker #"+std::to_string(static_cast<unsigned>(found->id)),
+            std::string("Phase: ")+simulation::courier_phase_name(found->phase),
+            "Cargo: "+std::to_string(found->cargo)});
+    }
+    if (debug_open_ && selected_ && (selected_landscape_ || world_->object_at(*selected_)==simulation::Object::Empty))
         return wrap_panel_lines(maps::landscape_inspection_lines(background_.plan(),
             {static_cast<unsigned>(selected_->x),static_cast<unsigned>(selected_->y)},background_.elevated(),&camera_));
     const auto add_maintenance=[&](simulation::BuildingId id) {
@@ -3293,6 +3439,9 @@ bool SandboxView::render() {
             map_ok=draw_world(render_camera);
         }
         if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
+        // A submitted blocking overlay hides the map until another frame is
+        // drawn, including after any Help/budget/demolition close branch.
+        visual_frame_valid_=!help_open_ && !budget_warning_ && !pending_demolition_;
     }
     bool ui_ok=false;
     {

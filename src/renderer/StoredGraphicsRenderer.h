@@ -28,6 +28,10 @@ struct StoredDrawItem {
     std::size_t plan_index = 0;
     bool regenerated = false;
 };
+struct StoredVisualHit {
+    maps::GridCell cell;
+    scene::WorldDrawKey key;
+};
 
 class StoredGraphicsRenderer {
 public:
@@ -45,6 +49,7 @@ public:
     void set_landscape_mode(LandscapeDebugMode mode);
     LandscapeDebugMode landscape_mode() const { return landscape_mode_; }
     bool elevated() const { return landscape_mode_!=LandscapeDebugMode::Snapshot && plan_.landscape_layers_available; }
+    std::optional<StoredVisualHit> hit_test_item(scene::Point screen, const scene::Camera2D& camera) const;
     std::optional<maps::GridCell> hit_test(scene::Point screen, const scene::Camera2D& camera) const;
 
     bool draw_selection(const scene::Camera2D& camera,

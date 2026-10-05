@@ -165,6 +165,23 @@ private:
         simulation::Position position{};
         bool placement_preview=false;
     };
+    // Descriptors of the dynamic pixels actually submitted to the painter.
+    // Image pixels remain in the eagerly loaded profiles; no hit mask is copied.
+    struct VisualHit {
+        scene::WorldDrawKey key;
+        simulation::Cell cell{};
+        std::optional<simulation::CourierId> walker;
+        std::optional<std::size_t> image;
+        scene::Point origin;
+        double width=0,height=0;
+        bool diamond=false;
+        simulation::Object mesh=simulation::Object::Empty;
+        scene::Point mesh_ground;
+        int footprint_side=1;
+    };
+    void record_visual_hit(const DrawInstance& instance);
+    bool select_visual(scene::Point screen);
+    void clear_visual_selection();
     void reset_camera();
     void resize_camera();
     void place_demo();
@@ -205,6 +222,8 @@ private:
     SDL_Renderer* renderer_=nullptr;
     std::optional<simulation::Cell> hovered_;
     std::optional<simulation::Cell> selected_;
+    bool selected_landscape_=false;
+    std::optional<simulation::CourierId> selected_walker_;
     std::optional<simulation::Cell> demo_origin_;
     sandbox_ui::Layout layout_;
     sandbox_ui::RoadPlan road_preview_;
@@ -289,6 +308,10 @@ private:
     std::optional<OperationAction> pressed_operation_action_;
     // Reused by draw_world(); its capacity remains bounded by the fixed World grid.
     std::vector<DrawInstance> draw_instances_;
+    std::vector<VisualHit> visual_hits_;
+    bool visual_frame_valid_=false,visual_hit_unified_=true;
+    scene::Camera2D visual_hit_camera_;
+    LandscapeDebugMode visual_hit_mode_=LandscapeDebugMode::Snapshot;
 };
 
 } // namespace openemperor
