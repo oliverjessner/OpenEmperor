@@ -7,16 +7,33 @@
 #include <algorithm>
 
 namespace openemperor::maps {
+const char* great_wall_preparation_status_name(GreatWallPreparationStatus status) {
+    switch (status) {
+    case GreatWallPreparationStatus::ArchiveUnavailable:return "archive_unavailable";
+    case GreatWallPreparationStatus::GroupUnavailable:return "group_unavailable";
+    case GreatWallPreparationStatus::VariantOutOfRange:return "variant_out_of_range";
+    case GreatWallPreparationStatus::UnsupportedPreviewState:return "saved_phase_preview_material_unsupported";
+    case GreatWallPreparationStatus::GeometryOrImageUnsupported:return "geometry_or_image_unsupported";
+    case GreatWallPreparationStatus::Prepared:return "prepared";
+    }
+    return "invalid";
+}
 std::optional<PackedGraphicId> resolve_landscape_variant(ResourceGroupKey key,
-    unsigned variant,const std::map<std::uint32_t,GroupRegistration>& registrations) {
+    unsigned variant,const std::map<std::uint32_t,GroupRegistration>& registrations,
+    LandscapeVariantResolution* diagnostic) {
     const auto g=resolve_resource_group(key,registrations);
+    if (diagnostic) { *diagnostic={};diagnostic->group=g;diagnostic->attempted=true; }
     if (g.status!=GroupLookupStatus::Resolved || !g.packed_base || !g.local_base) return {};
     const auto& layout=*registrations.at(g.slot).layout;
     auto end=layout.runtime_image_count;
     for (const auto& row:layout.groups)
         if (row.local_base>*g.local_base && row.local_base<end) end=row.local_base;
+    if (diagnostic) diagnostic->local_end=end;
     if (end<=*g.local_base || variant>=end-*g.local_base ||
-        variant>0x3fffU-*g.local_base) return {};
+        variant>0x3fffU-*g.local_base) {
+        if (diagnostic) diagnostic->variant_out_of_range=true;
+        return {};
+    }
     return PackedGraphicId{g.packed_base->value+variant};
 }
 void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
@@ -86,7 +103,8 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
     const auto append_instance=[&](LandscapeInstanceSpec spec,
         const StoredArchiveRegistration* original_registration=nullptr,
         const GreatWallRestoreContext* wall_context=nullptr,
-        LandscapeCompositionPolicy composition_policy=LandscapeCompositionPolicy::EarlyBaseSpatialOverlay) {
+        LandscapeCompositionPolicy composition_policy=LandscapeCompositionPolicy::EarlyBaseSpatialOverlay,
+        GreatWallPreparationResult* diagnostic=nullptr) {
         const bool original_wall=spec.original_entity_index.has_value();
         std::vector<std::size_t> members;
         for (const auto cell:spec.owned_cells) {
@@ -104,9 +122,19 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
             instance_groups[r.slot]={r.layout ? &*r.layout:nullptr};
             instance_images[r.slot]={r.catalog ? &*r.catalog:nullptr,r.layout ? &*r.layout:nullptr,r.archive_missing};
         }
-        const auto graphic=resolve_landscape_variant(spec.selection.group,spec.selection.variant,instance_groups);
-        if (!graphic) return false;
+        const auto graphic=resolve_landscape_variant(spec.selection.group,spec.selection.variant,instance_groups,
+            diagnostic ? &diagnostic->resource:nullptr);
+        if (!graphic) {
+            if (diagnostic) diagnostic->status=diagnostic->resource.variant_out_of_range ?
+                GreatWallPreparationStatus::VariantOutOfRange:GreatWallPreparationStatus::GroupUnavailable;
+            return false;
+        }
         const auto resolution=resolve_graphics_id_hypothesis(graphic->value,instance_images);
+        if (diagnostic) {
+            diagnostic->image_status=resolution.status;
+            if (resolution.status==GraphicsIdStatus::ArchiveMissing)
+                diagnostic->status=GreatWallPreparationStatus::ArchiveUnavailable;
+        }
         const auto* r=resolution.record;
         const auto side=spec.side;
         if (resolution.status!=GraphicsIdStatus::DecodeCandidate || !r ||
@@ -135,18 +163,35 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
         if (original_wall) for (const auto cell:spec.owned_cells) eligible[std::size_t(cell.y)*stored_grid_width+cell.x]=0;
         generated->instances.push_back({std::move(spec),*graphic,existing->second,std::move(members),composition,
             wall_context ? std::optional{*wall_context}:std::nullopt,composition_policy});
+        if (diagnostic) {diagnostic->status=GreatWallPreparationStatus::Prepared;diagnostic->instance_index=id;}
         return true;
     };
     // Object restore precedes landscape generation. Only complete supported
     // objects claim renderer ownership; unresolved metadata retains old draws.
     if (plan.original_great_wall) for (const auto& piece:plan.original_great_wall->pieces) {
         if (!piece.selection.supported || !piece.geometry || !piece.fallback.empty()) continue;
+        const auto piece_index=*piece.geometry->original_entity_index;
+        auto& diagnostic=generated->original_wall_preparation[piece_index];
         const StoredArchiveRegistration* r=nullptr;
         if (piece.selection.slot!=3) {
             const auto found=plan.original_great_wall->archives.find(
                 {piece.selection.slot,piece.archive_relative.generic_string()});
-            if (found==plan.original_great_wall->archives.end()) continue;
+            if (found==plan.original_great_wall->archives.end()) {
+                diagnostic.status=GreatWallPreparationStatus::ArchiveUnavailable;
+                generated->original_wall_fallbacks.emplace(piece_index,
+                    "required Great Wall archive registration unavailable; historical preview retained");
+                continue;
+            }
             r=&found->second;
+            diagnostic.registered_archive=r->relative_path;
+            if (r->archive_missing) {
+                diagnostic.status=GreatWallPreparationStatus::ArchiveUnavailable;
+                generated->original_wall_fallbacks.emplace(piece_index,
+                    "required Great Wall archive missing; historical preview retained");
+                continue;
+            }
+        } else if (registrations.contains(3U)) {
+            diagnostic.registered_archive=registrations.at(3U).relative_path;
         }
         // A validated wall/tower/gate is a spatial object even when its SG3
         // Base contains some of the masonry. Model roads keep their existing
@@ -157,14 +202,14 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
              piece.model_piece->kind==GreatWallPieceKind::Gate) ?
                 LandscapeCompositionPolicy::SpatialCombined:
                 LandscapeCompositionPolicy::EarlyBaseSpatialOverlay;
-        if (!append_instance(*piece.geometry,r,&piece.selection.restore_context,policy)) {
+        if (!append_instance(*piece.geometry,r,&piece.selection.restore_context,policy,&diagnostic)) {
             std::string reason="selected Great Wall complete geometry or image unavailable; historical preview retained";
             if (r && r->layout) {
                 const std::map<std::uint32_t,GroupRegistration> selected_groups{{r->slot,{&*r->layout}}};
                 const auto graphic=resolve_landscape_variant(piece.selection.group,piece.selection.variant,selected_groups);
-                if (!graphic) reason="Great Wall variant "+std::to_string(piece.selection.variant)+
+                if (!graphic && diagnostic.resource.variant_out_of_range) reason="Great Wall variant "+std::to_string(piece.selection.variant)+
                     " outside registered archive group "+piece.archive_relative.generic_string()+"; historical preview retained";
-                else if (r->catalog) {
+                else if (graphic && r->catalog) {
                     const std::map<std::uint32_t,GraphicsArchiveRegistration> selected_images{
                         {r->slot,{&*r->catalog,&*r->layout,r->archive_missing}}};
                     const auto found=resolve_graphics_id_hypothesis(graphic->value,selected_images);
@@ -172,9 +217,29 @@ void build_regenerated_map_render_plan(StoredGraphicsPlan& plan,
                         reason="selected Great Wall Type-1 image layout unsupported; historical preview retained";
                 }
             }
-            generated->original_wall_fallbacks.emplace(*piece.geometry->original_entity_index,std::move(reason));
+            // The EXE road branch is material-independent and still requests
+            // 40/41. A Ruined preview does not normalize serialized phase 2;
+            // its existing group cannot supply this request. This describes
+            // preview compatibility, not an original gameplay invariant.
+            if (diagnostic.status==GreatWallPreparationStatus::VariantOutOfRange &&
+                piece.selection.restore_context.source==GreatWallContextSource::ExplicitPreview &&
+                piece.selection.restore_context.mode==GreatWallPresentationMode::PreviewRuined &&
+                piece.selection.restore_context.material==1 && piece.model_piece &&
+                piece.model_piece->kind==GreatWallPieceKind::Road && piece.source.monument &&
+                piece.source.monument->phase==2) {
+                diagnostic.status=GreatWallPreparationStatus::UnsupportedPreviewState;
+                reason="Ruined preview does not support saved road phase 2: variant "+
+                    std::to_string(piece.selection.variant)+" outside the validated archive group; historical preview retained";
+            }
+            generated->original_wall_fallbacks.emplace(piece_index,std::move(reason));
         }
     }
+    const auto incompatible=std::count_if(generated->original_wall_preparation.begin(),
+        generated->original_wall_preparation.end(),[](const auto& entry) {
+            return entry.second.status==GreatWallPreparationStatus::UnsupportedPreviewState;
+        });
+    if (incompatible) generated->great_wall_preview_notice="Ruined preview: "+std::to_string(incompatible)+
+        " road pieces unsupported for saved phase 2; historical fallback retained.";
     for (auto spec:derive_rock_instances(input,eligible)) {
         if (!append_instance(spec)) for (const auto cell:spec.owned_cells) {
             const auto raw=std::size_t(cell.y)*stored_grid_width+cell.x;

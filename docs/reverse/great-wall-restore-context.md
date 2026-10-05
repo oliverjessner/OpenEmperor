@@ -538,3 +538,344 @@ was exercised. Full native pointer/panning acceptance remains open because
 requested automation coordinates did not reach the intended SDL positions;
 the linked report separates this boundary from scripted pixel/picking
 acceptance. No complete native visual PASS or original-game parity is claimed.
+
+## Ruined phase-2 road compatibility (2026-10-05)
+
+This follow-up starts at clean
+`aed9619fe2bd3aaec79118548313fa4772308a46`. The prior activation and
+scene-composition results above remain historical. Their Ruined Road
+fallback is now explained more precisely: **LIMITATION EXPLAINED**.
+The investigation does not establish a corrected original rendering branch
+or a visible transition **FIXED** result.
+
+### Direct decision and supported limit
+
+[The independent bounded trace](graphics-id.md#ruined-phase-2-road-compatibility-2026-10-05)
+reverifies the pinned executable, the Road controller and singleton writer,
+including VA/RVA/physical offsets and direction-table bytes. Its SHA-256 is
+unchanged; 1,586 disassembly-byte lines in 27 inspected windows match the
+binary. No original executable was run or copied into production.
+
+Road producer `0x57d860` retrieves its own entity's extended state at
+`0x57d888`, reads signed phase `+08` at `0x57d91c`, and compares it with 2
+at `0x57d98a`. Within admitted phases 1/2, phase 1 selects Terrain group
+`0x61e` and variant 0/1. Phase 2 selects slot-8 group `0x1001`, adds 40 at
+`0x57d9cd`, and selects variant 41 for effective views 0/4 or 40 for 2/6.
+The exact tables are `0x57da0c` and `0x57da28`. The existing pure selector
+implements this observed branch; material does not change its choice.
+
+The earlier virtual `+64 -> 0x570da0` tests runtime state byte `+25` and
+can select a group-`0x612` placeholder before the phase branch. This flag is
+loaded from one serialized byte at extended-record offset `+35`: schema
+10 call `0x5620df` or schema 9 call `0x56227f`, through
+`0x503d50 -> 0x4c95f0 -> 0x4c9600`. Fresh Badaling/Handan Road IDs 50..53
+all have raw zero/decoded false there; the MPWall1/MPWall2 Road controls
+are also false. Thus an overlooked true placeholder flag does not explain
+these raw source cases. This finding does not model every later original
+lifecycle writer of that flag.
+
+The Road producer has no material `+5c` read or archive-registration call.
+It inherits slot 8 from preceding wall/tower registration. For the examined
+final wall/tower states, `0x57c020..0x57c04e` and
+`0x57d445..0x57d46f` select Ruined for material 1, Earthen phase 10 for 2,
+or Stone phase 10 for 3. The registered slot is mutable, while a physical
+asset's identity includes its archive. Road phase 2 does not independently
+register a phase-2 archive.
+
+The immediate deserialization tail, placement/dispatch windows, Road
+producer and singleton writer contain no material-1 phase-2-to-1
+normalization. Mode-1 producer writes affect cell height/flags; the material
+restore helper changes `+5c`, not phase `+08`. Producer flag `0x08` at
+`0x57d9f8` makes `0x56413c` skip the rectangle writer, and
+`0x57d9ec -> 0x5724e0` writes the same selected graphic into the exact
+singleton cell. No hidden variant substitution was found there.
+
+This is a bounded absence finding. Higher-level original construction and
+mission invariants remain unproved, so material 1 plus phase 2 cannot be
+declared globally illegal in Emperor. The standalone entry still lacks
+verified original mode/current-player goal context. This milestone neither
+reopens the entire campaign format nor assumes a mission/player value.
+
+A fresh raw metadata read establishes the actual incompatibility before
+texture decode: Ruined has reported in-use 240 minus the 200-record system
+prefix, giving one runtime group `[0,40)`. Stone/Earthen phase 10 each have
+242 minus 200, giving `[0,42)`. The separate dummy translation gives first
+physical member 201. Thus Ruined 39 maps to valid physical 240; 40/41 would
+be physical 241/242 outside its admitted group. Stone/Earthen admit those
+two records; 42 is outside. There is no adjacent Ruined runtime group and
+no evidence for borrowing a foreign transition image.
+
+The hypotheses therefore separate as follows:
+
+- Incorrect phase/axis selection: the current admitted 1/2 branch matches
+  the direct EXE decision and tables.
+- Incorrect preview registration inheritance: no such defect was found;
+  each piece retains its selected archive from the existing ordered
+  preparation path. Physical texture deduplication is independent.
+- Missing normalization: no normalization is evidenced in the inspected
+  bounded paths; a phase rewrite is unjustified. Higher-level invariants
+  remain open.
+- Resolver or group bounds: the existing strict check is correct for the
+  freshly read 40/42-member groups, with one skip/dummy correction.
+- Explicit preview incompatibility: established. PreviewRuined forces
+  material 1 while keeping saved Road phase 2, whose required variants
+  40/41 are absent from the inherited Ruined group.
+
+### Load-time diagnosis and unchanged raw state
+
+The implementation retains `select_great_wall`'s numeric group/variant
+request and the existing registration path. `GreatWallMapPresentation`
+captures the archive on each piece while iterating the preserved original
+record collection; the render plan resolves the pair `(slot,archive)`.
+This rules out an accidental last-global-slot reuse in the inspected preview
+code. The original caller paths nevertheless require explicit separation:
+temporary-manager `0x52f030` skips following same-type monument entries
+after retaining the type at `0x52f155`. Its creation flag reaches
+`0x56a124 -> 0x563850`, which constructs ascending Model subindices and
+redraws ascending contiguous IDs at `0x563ab3`; its optional completion
+loop at `0x563bcc..0x563bdc` assigns controller phase-count minus one to
+newly created state. Road vtable `0x7b99f0 +0c -> 0x576c40` returns constant
+3, without reading material or entity state, so this writes Road phase 2.
+The completion condition at `0x563b14..0x563b31` is mode 1, or
+`0x53a4e0(type)` plus created material 1; the raw predicate tables return
+true for examined types 256/257/259. Creation's `0x5638a3 -> 0x563720(type)`
+uses the same mode/current-player goal decision as restore argument -1,
+with default material 1 returned directly for the type. Consequently even
+this material-1 completion path supplies no phase-2-to-1 conversion. It
+does not establish a global original prohibition on Ruined plus phase 2.
+The separate loaded-manager redraw
+`0x4afef0 -> 0x4aff5a -> 0x563fd0(id,0)` visits each active monument in the
+live array. Neither establishes a saved phase-2-to-1 conversion. In
+particular, one serialized record must not be described as one independent
+temporary-manager original restore call.
+
+Fresh raw-map reads show complete ascending subindices 0..52 in Badaling,
+Handan and MPWall1, or 0..50 in MPWall2, with ascending contiguous original
+IDs. Their four Roads are the final Model pieces, after the wall/tower
+registrations and non-registering gates. The preview vector matches this
+relevant Model/producer order for the examined corpus. Full equivalence of
+all original standalone entry/reconstruction paths remains open.
+
+The same bounded resolver now records its actual local group begin/end,
+group status and variant refusal for load-time provenance. Only when that
+resolver reports an out-of-group request for an explicit PreviewRuined,
+material-1 Road with saved phase 2 is the refusal classified as
+`saved_phase_preview_material_unsupported`. A missing archive remains
+`archive_unavailable`; an unavailable group and an ordinary out-of-group
+request retain their separate statuses. Prepared selection, decode failure
+and atomic activation status are also distinct. The classification explains
+the preview limit; it grants no renderer ownership or successful decode.
+
+F1 retains serialized phase/material/height/orientation, selector phase,
+effective view, group, requested variant and selected archive. Selector phase
+equals the saved phase: there is no newly derived normalized phase. The
+group refusal remains available alongside the more specific preview reason,
+so an existing archive's unsupported request is not labeled a missing
+download. A concise existing status-area notice counts the affected pieces
+and confirms that historical fallback is retained. Earthen/Stone remain
+separately selectable in the existing setup. There is no automatic material
+switch.
+
+Source objects, numerically selected pieces, prepared instances and
+renderer-active instances/cells remain separate counters. A valid numerical
+selection can still fail compatibility or eager activation. The complete
+claim/readiness path retains historical fallback for such a piece, without
+a partial reserved area or a second draw. No arbitrary replacement,
+phase-2-to-1 conversion, clamped/modulo variant or extended Ruined archive
+was introduced. Original bytes and sandbox World/save/road authority remain
+outside this presentation decision.
+
+These paragraphs describe the inspected implementation and static evidence.
+Fresh real-map activation counts, rendering/picking checks, full suites,
+performance and native observations follow below; earlier counts are not
+silently reused as new measurements.
+The user's comparison screenshot remains unassigned to a map, material mode,
+storage cell or particular variant. Ignored evidence is retained under
+`.local/ruined-transitions/trace/`.
+
+### Fresh real-map baseline and final comparison
+
+Independent probes loaded the untouched original data for five maps in all
+five modes, first against the archived clean baseline, then against the
+final frozen production code. These are fresh measurements, not the prior
+milestone's counters. The following table describes **PreviewRuined**;
+fallback counts refer only to selected Great Wall pieces that could not
+activate, not all historical terrain or stored graphics.
+
+| Map | Source pieces | Selected pieces | Active instances | Active cells | Unsupported fallback pieces |
+|---|---:|---:|---:|---:|---:|
+| Badaling | 53 | 53 | 49 | 736 | 4 |
+| Handan | 53 | 53 | 49 | 736 | 4 |
+| MPWall1 | 53 | 53 | 53 | 740 | 0 |
+| MPWall2 | 51 | 51 | 51 | 708 | 0 |
+| Xia | 0 | 0 | 0 | 0 | 0 |
+
+On Badaling and Handan, original IDs 50..53 / Model subindices 49..52 are
+the four refused singleton Road pieces. Badaling uses Model type 257,
+Handan type 256. Each retains saved phase 2, orientation 0 and saved
+material 3, with explicit preview material 1. View 0 plus the Model EAST
+position gives effective view 2, requesting group `0x1001`, variant 40,
+side 1. The inherited registration snapshot comes from the preceding
+manager entry 49 and resolves to canonical
+`DATA/China_Mon_GreatWall_Ruined.sg3`, runtime group `[0,40)`, first physical
+member 201. The exact resolver refuses variant 40 before publishing a
+packed/physical ID, texture or claim. F1 reports
+`saved_phase_preview_material_unsupported` alongside the actual out-of-group
+status. The four old `unsupported_layout` historical diagnostics remain;
+there is no substituted transition or empty newly reserved footprint.
+Variant 41 is covered by the opposite-axis selector/bounds tests; it is
+not relabeled as an observed variant in these eight real failures.
+
+MPWall1 IDs 50..53 and MPWall2 IDs 48..51 retain phase 1. Their four Road
+pieces per map select Terrain `0x61e`, variant 1, group `[581,599)`, runtime
+582 and physical 783 after the single system/dummy translation. All remain
+active. Earthen and Stone retain all selected pieces: 53/53/53/51 active
+instances and 740/740/740/708 active cells on Badaling/Handan/MPWall1/MPWall2,
+with no selected Great Wall fallback. Auto and Historical retain zero
+selected and zero active Great Wall instances on all five maps; their
+source counts remain available. They preserve the historical path while
+original restore context is unknown. All explicit-preview original-context
+verification counters remain zero. Xia has no Great Wall source or active
+pieces in any mode.
+
+The visible wall/map rendering is deliberately unchanged. All **340/340**
+matched direct production `StoredGraphicsRenderer` captures are
+byte-identical: 25 overviews, 75 primary centered 1×/2×/4× captures across
+all five maps,
+and 240 per-Road centered captures. All 25 census, ownership, budget,
+upload and alpha-picking comparisons also match. The probes check 622
+active-instance height/anchor cases per stand and 582 structural instances
+with exactly one spatial draw and no early Base draw. Signed height changes
+shift Y by −40 exactly once. Road pieces retain the existing split-pass
+composition. These are software production-render checks, not native human
+visual acceptance.
+
+Eleven ordinary `MenuSession -> Sandbox` cases exercise Badaling and Handan
+in all five modes plus Xia/Auto, using scripted SDL setup input and the
+unchanged City-v16 rule-2 paid starter. All 22 complete ordinary save
+documents at ticks 0/1600 and all 11 Buildability masks match the baseline;
+within each map the World/save state also matches across presentation
+modes. The starter still costs 1,280 through 26 normal commands and starts
+with 20 funds. No manual-save target or recovery checkpoint is written by
+this comparison probe. Of 55 before-Present Sandbox captures, only ten
+Badaling/Handan Ruined status bars change. Every image is identical outside
+the existing 24-pixel status rectangle. Both the new notice and the actual
+nonempty ordinary status are visible on separate rows:
+
+> Ruined preview: 4 road pieces unsupported for saved phase 2; historical fallback retained.
+
+The notice uses cached load-time text. For each direct case, 100 pure
+render/pick/F1 frames, and for each menu case, 30 paused frames, record zero
+file reads/writes, decode, upload, World copies/commands, BFS and route
+refreshes. Comparison/capture writes occur outside those measured windows.
+All 57 audited original files (105,235,289 bytes, including the pinned EXE)
+retain identical hashes. Ignored full provenance and comparisons are in
+`.local/ruined-transitions/final/bounded-final-census.json`,
+`final/comparison.json`, `final/menu-comparison.json` and
+`review-findings.md`.
+
+### Final regression and package checks
+
+After the last production/test change, all three full configurations
+execute **101/101 tests**, with no failures or skips:
+
+| Configuration | Full CTest result | CTest wall time |
+|---|---|---:|
+| Debug, arm64 | PASS | 551.53 s |
+| Release, arm64 | PASS | 70.05 s |
+| Optimized ASan/UBSan, arm64 | PASS | 195.23 s |
+
+The suites include Great Wall selector/presentation/claims, 40/42-member
+group bounds, same-slot registration changes, Handan composition,
+texture/zoom, input handlers, road responsiveness, deterministic World,
+save/load and Recovery regressions. The external SDL library is not
+sanitizer-instrumented. The wrappers compare the same 269 production,
+test, resource and CMake files before/after and report no changes.
+Independent review also confirms frozen World/save/input, asset decoder,
+TextureCompatibility, SceneComposition and other landscape authority.
+No per-frame resolver or new unbounded cache was added.
+
+Additional existing checks pass: 100,000 simulation ticks with 12 JSON
+roundtrips and parallel deterministic Worlds; 3,000 render frames with
+loaded source files unavailable, zero decode/upload/order rebuild; and 100
+menu sessions with all owned texture counters zero at session end. The
+local arm64 Release package validation passes its separate full suite,
+bundled/relocated/unzipped dependency and signature checks, original and
+synthetic save/restart checks, and all 13 negative package cases. No SDL
+installation or global setting was changed.
+
+The final local candidate is
+`.local/ruined-transitions/final-dist/OpenEmperor.app` and its adjacent ZIP,
+display version `0.1.0-alpha.2`, revision `aed9619fe2bd`, dirty workspace
+flag true, minimum macOS 26.0. It is an ad-hoc-signed local test candidate;
+Finder/Gatekeeper and independent clean-Mac acceptance remain NOT RUN.
+It contains no original proprietary assets. No commit, push, tag, release
+or publication was made.
+
+### Native observations and remaining human check
+
+A separately named, isolated clone of that final bundle uses only new app
+roots under `.local/ruined-transitions/`. Its app and SDL `__TEXT,__text`
+hashes match the validated bundle; only bundle identity/signing changed.
+Existing user app roots, saves and running sessions were not taken over.
+The observed Badaling window uses Cocoa/Metal, SDL 3.4.14 and a
+1100×700 output at density/scale 1.
+
+Badaling: native `N -> Return` opens the normal New Sandbox setup and
+loads an empty City-v10 rule-1 session in explicit Ruined mode. The fitted
+whole-map view visibly shows the counted four-piece notice and the existing
+ordinary status on separate rows. Space pauses at tick 1236; F1 toggling and
+F5 saving are exercised. The isolated saved document remains schema 10
+with no construction command. The probe exits normally. A per-piece F1
+selection and native 1×/2×/4× Road close-up were not completed.
+
+One computer-control click targeting screenshot position `(217,206)`
+reaches native SDL MouseDown at window position `(217,174)`, but MouseUp
+arrives at `(0,0)`. The menu correctly refuses the mismatched release;
+the 25-record bounded observer has no overwritten records. This is an
+**automation delivery limitation**, not evidence for an original Road
+selection fault or a new player-input defect. No coordinate compensation,
+input change or additional pointer attempts were introduced.
+
+Handan: the normal native setup is observed after `N -> G -> G`, selecting
+Auto -> Historical -> Ruined; Return loads the empty City-v10 session.
+The fitted map at tick 34 visibly shows the same four-piece notice and
+ordinary status. Before the next action, computer control reports that the
+user changed the app. Automation stops immediately and leaves that process
+and its isolated app root untouched. Subsequent pause, F1, save, alternative
+mode and camera/zoom steps are not claimed as executed. These two native
+load/notice observations do not constitute a full native transition PASS.
+
+Oliver's earlier zoom, arrow-key and resize report is recorded exactly as
+**User-reported PASS for the tested City-v10 session**. It does not approve
+City-v16, road drag, every building stage, demolition/Recovery, external
+display changes or a complete human playthrough. The unassigned comparison
+screenshot still has no proven map/material/cell association.
+
+The executable ignored launcher
+`.local/ruined-transitions/run-wall-test.command` starts the validated final
+bundle with separate persistent settings/saves/recovery. On first use it
+selects Badaling, PreviewRuined and an empty City-v10; global defaults stay
+unchanged. Double-click it, choose New Sandbox, check the map/mode and start.
+Optional Terminal arguments select a countercase or a supported alternative:
+
+```sh
+./.local/ruined-transitions/run-wall-test.command Handan preview-ruined
+./.local/ruined-transitions/run-wall-test.command Badaling preview-stone
+```
+
+The remaining human transition check is **NOT RUN**: inspect Badaling and
+Handan separately at 1×, then 2×/4×; use F1 on the four Road transitions to
+compare saved phase, selected material/variant, actual group bounds and
+fallback; move the camera and zoom; explicitly reload Earthen/Stone and
+Auto/Historical; inspect MPWall1/MPWall2 phase-1 controls. Human observations
+must be recorded separately from the scripted capture and native keyboard
+smoke evidence above.
+
+Final status: **LIMITATION EXPLAINED** for explicit Ruined plus saved
+phase-2 Road under the actual 40-member archive. Diagnosis and the normal
+app notice are implemented and verified. Compatible Earthen/Stone previews
+remain usable; raw state and the strict historical fallback are preserved.
+Complete original restore/lifecycle invariants, height normalization and
+original per-pixel fidelity remain **UNRESOLVED**. This milestone stops at
+the bounded Road compatibility problem.

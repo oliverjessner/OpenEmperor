@@ -338,3 +338,171 @@ Road placement uses a separate singleton path: `0x57d9e3 → 0x5724e0` writes th
 **RAW ARCHIVE FACT:** actual phase-10 stone and earthen archives each have 42 runtime records after their separately validated system-bitmap skip: 28 side-4 Type-30 variants 0–27, eight side-2 Type-30 variants 28–35, four Type-1 variants 36–39, and two side-1 Type-30 variants 40/41. Every variant selected by these four maps with explicit restore material 2/3 is Type 30. The old Earthen-phase-1 finding of eight unsupported Type-1 records does not describe phase 10. The Ruined archive instead has 40 runtime records: 28 side-4 Type-30, eleven side-1 Type-30 and one side-2 Type-30 at variant 31; variants 40/41 are absent. A material-1 phase-2 road therefore cannot borrow those records from another archive.
 
 The pure `GreatWallSelector` returns required registration when present, slot/group/variant, side, flags and a named unsupported reason. Missing derived material context, odd camera views, unsupported saved orientation or piece domains, invalid kind-specific phases, and the still-unimplemented phase-zero material override fail closed. Its support describes a static selector, not proof that the standalone loader has supplied its real mission/player context or that complete draw composition is verified. No stored graphic ID, terrain word, height or attractive asset choice fills that missing authority.
+
+## Ruined phase-2 road compatibility (2026-10-05)
+
+This bounded recheck starts at clean
+`aed9619fe2bd3aaec79118548313fa4772308a46`. Earlier Pass-4 and activation
+reports above retain their historical meanings. **Status: LIMITATION
+EXPLAINED**, not a repaired original transition or a new rendering PASS.
+The technical issue concerns restored monument Road pieces, not sandbox
+road commands, topology, costs or navigation.
+
+**EXE-OBSERVED:** the unchanged local executable again hashes to
+`6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`.
+The static audit verified 1,586 disassembly-byte lines in 27 bounded windows
+against PE-translated bytes, with zero mismatches. No original executable
+was run. Code addresses use ImageBase `0x400000`, `.text` RVA `0x1000` /
+raw offset `0x400`: physical offset = code VA minus `0x400c00`. Runtime
+object offsets, serialized map offsets and physical SG3 indexes remain
+separate address spaces.
+
+| Road observation | VA | RVA | Physical EXE offset |
+| --- | --- | --- | --- |
+| Producer entry | `0x57d860` | `0x17d860` | `0x17cc60` |
+| Get entity extended state through virtual `+1ec` | `0x57d888` | `0x17d888` | `0x17cc88` |
+| Read signed phase at extended `+08` | `0x57d91c` | `0x17d91c` | `0x17cd1c` |
+| Compare signed phase with 2 | `0x57d98a` | `0x17d98a` | `0x17cd8a` |
+| Request group `0x61e` | `0x57d991` | `0x17d991` | `0x17cd91` |
+| Request group `0x1001` | `0x57d9b8` | `0x17d9b8` | `0x17cdb8` |
+| Add decimal 40 to group base | `0x57d9cd` | `0x17d9cd` | `0x17cdcd` |
+| Axis-dependent increment | `0x57d9e2` | `0x17d9e2` | `0x17cde2` |
+| Call singleton writer | `0x57d9ec` | `0x17d9ec` | `0x17cdec` |
+| Return producer flag `0x08` | `0x57d9f8` | `0x17d9f8` | `0x17cdf8` |
+| Phase-1 direction table | `0x57da0c` | `0x17da0c` | `0x17ce0c` |
+| Phase-2 direction table | `0x57da28` | `0x17da28` | `0x17ce28` |
+| Road phase-count virtual | `0x576c40` | `0x176c40` | `0x176040` |
+| Creation material helper call | `0x5638a3` | `0x1638a3` | `0x162ca3` |
+| Completion phase-count call | `0x563bc4` | `0x163bc4` | `0x162fc4` |
+| Completion phase write | `0x563bcc` | `0x163bcc` | `0x162fcc` |
+
+Constructor `0x57d848` installs Road vtable `0x7b99f0`, whose virtual
+`+14` points to `0x57d860`. Controller-array entry 17 at `0x85b314` names
+runtime singleton `0x12a6ed8`. Immediate dispatch
+`0x563670 -> virtual +14` at `0x5636a0` resolves the entity's Model piece
+through `0x5635a0`. The placement path
+`0x56a139 -> 0x563fd0 -> 0x56411c -> 0x563670` does not normalize its phase
+in the inspected windows.
+
+The surrounding caller order needs a narrower label than “one saved record,
+one original restore.” Temporary-manager reconstruction `0x52f030` advances
+its pointer array by four at `0x52f161`; after placement, `0x52f155` retains
+the type in EDI. Its monument check `0x52f0ad..0x52f0b3` skips following
+same-type entries. This call supplies creation flag 1 through
+`0x4b11f0 -> virtual +100`: `0x56a106` takes
+`0x56a124 -> 0x563850`, rather than the direct `0x56a139` branch.
+The nested creation path assigns Model subindices in ascending order,
+initializes new phases to zero, and calls `0x563fd0` for ascending contiguous
+IDs at `0x563ab3`. Its optional completion loop sets controller phase-count
+minus one at `0x563bcc`, then redraws ascending IDs at `0x563bdc`.
+These are newly created composition states, not a saved phase-2-to-1
+normalization rule.
+
+The Road phase-count countercheck is concrete: vtable `0x7b99f0 +0c`
+points to `0x576c40`, which returns constant 3 without reading material or
+entity state. Completion therefore writes Road phase **2**. At
+`0x563b14..0x563b31` completion requires mode `0x88ec38 == 1`, or
+predicate `0x53a4e0(type)` plus created material 1. The raw jump tables
+`0x53a504`/`0x53a50c` make that predicate true for the examined types
+256/257/259. Creation obtains material with `0x563720(type)` at
+`0x5638a3` and stores it in each new state's `+5c` at
+`0x56394f`/`0x563a52`. For types 253..268 the helper uses the same
+mode/current-player goal decision as restore argument -1; its default
+returns 1 for a type, while -1 returns 0 before the restore tail converts
+it to 1. Thus the inspected material-1 completion path also sets Road
+phase 2, not phase 1. This excludes that specific proposed normalization;
+it does not establish complete original lifecycle/resource invariants.
+
+The separate loaded-manager redraw `0x4afef0` advances the live pointer
+array/ID at `0x4aff62..0x4aff6a`, calling `0x563fd0(id,0)` for each active
+monument at `0x4aff5a` (RVA `0xaff5a`, physical `0xaf35a`). A saved-session
+caller is `0x534f15` (RVA `0x134f15`, physical `0x134315`). That path and
+temporary composition creation must not be conflated. Full equivalence of
+every standalone load entry is not established by these bounded windows.
+
+Fresh reads of the four original maps confirm ascending contiguous original
+IDs and Model subindices in the serialized monument collection:
+
+| Raw map | Model | Ordered subindices | Final Road original IDs / subindices | Saved Road phase |
+| --- | --- | --- | --- | ---: |
+| Badaling | 05 | 0..52 | 50..53 / 49..52 | 2 |
+| Handan | 04 | 0..52 | 50..53 / 49..52 | 2 |
+| MPWall1 | 04 | 0..52 | 50..53 / 49..52 | 1 |
+| MPWall2 | 07 | 0..50 | 48..51 / 47..50 | 1 |
+
+The four Roads are last in each corresponding Model. For this corpus, the
+preview's preserved record iteration therefore agrees with the relevant
+ascending Model/producer order: wall/tower registrations precede the Roads,
+with gates making no intervening registration. This checks the concrete
+inheritance sequence, not a general original restore algorithm.
+
+The phase belongs to that Road entity's `cMonInfo`, not its Model row or
+inherited wall archive. State schema 10 reads runtime `+08` at
+`0x562089` (RVA `0x162089`, physical `0x161489`); schema 9 does so at
+`0x562229` (RVA `0x162229`, physical `0x161629`). Both serialize the signed
+32-bit phase at extended-record offset `+6`. The producer's actual test is
+signed **less than 2 / at least 2**. OpenEmperor's admitted Road phases
+remain 1/2; this observation does not extend that domain.
+
+The direction tables were read as data, including the shared increment
+target `0x57d9e2`. Within the supported even effective views:
+
+| Saved Road phase | Resource group / slot | Effective view 0 or 4 | Effective view 2 or 6 |
+| --- | --- | ---: | ---: |
+| 1 | `0x61e` / 3 | variant 0 | variant 1 |
+| 2 | `0x1001` / 8 | variant 41 | variant 40 |
+
+This matches the existing selector. The Road producer neither reads
+material `+5c` nor calls archive registration `0x5ccf70`. Its mode-1 branch
+`0x57d923..0x57d986` writes original cell heights/flags, not phase. The
+leading virtual `+64 = 0x570da0` reads extended byte `+25`; its placeholder
+branch also supplies no phase normalization. That byte is serialized:
+schema 10 calls `0x503d50` at `0x5620df` (RVA `0x1620df`, physical
+`0x1614df`), and schema 9 at `0x56227f` (RVA `0x16227f`, physical
+`0x16167f`). The helper's `0x4c95f0 -> 0x4c9600` reader consumes exactly
+one byte and converts nonzero to true. Its serialized source is extended
+record offset `+35`, independent of runtime offset `+25`. Fresh original
+reads show raw zero/decoded false for Badaling and Handan Road IDs 50..53,
+as well as MPWall1 IDs 50..53 and MPWall2 IDs 48..51. Their loaded raw
+states therefore do not select the earlier group-`0x612` placeholder
+branch. Later lifecycle writers and other source states remain outside this
+countercheck. Exact logical/record offsets are retained in the ignored
+source-order report. Restore material overwrite
+`0x562e2b..0x562e44` and refresh loop `0x5636b0..0x563719` leave `+08`
+unchanged in their inspected windows. Higher-level original state invariants
+remain open; these findings do not prove that material 1 plus phase 2 is
+globally forbidden in the original game.
+
+The singleton writer `0x5724e0` (RVA `0x1724e0`, physical `0x1718e0`)
+stores the selected graphic unchanged, owner ID, size low bits zero and
+marker `0x40` in one exact entity cell. Producer flag `0x08` skips the
+rectangle writer at `0x56413c` (RVA `0x16413c`, physical `0x16353c`). No
+archive substitution or variant correction occurs in this write path.
+
+**RAW ARCHIVE FACT:** a fresh metadata read confirms the single admitted
+runtime group in each relevant archive. The system prefix is 200 records;
+the separate dummy record makes the first physical member 201.
+
+| Registered archive | Reported images in use | Runtime group `[begin,end)` | Valid transition variants |
+| --- | ---: | --- | --- |
+| `China_Mon_GreatWall_Ruined.sg3` | 240 | `[0,40)` | neither 40 nor 41 |
+| `China_Mon_Earthen_GreatWall_10.sg3` | 242 | `[0,42)` | 40 and 41 |
+| `China_Mon_GreatWall_10.sg3` | 242 | `[0,42)` | 40 and 41 |
+
+Ruined variant 39 is physical 240 and valid. Requests 40/41 would map to
+241/242 outside its validated in-use group; Ruined has no next runtime group
+to borrow. Stone/Earthen 40/41 are physical 241/242, and variant 42 is outside.
+The runtime skip/dummy translation occurs once. Reserved capacity does not
+extend group bounds. `resolve_landscape_variant` correctly retains those
+bounds; clamping, modulo or foreign archive records would conceal the issue.
+
+**OPENEMPEROR PREVIEW:** forcing material 1 while preserving saved Road
+phase 2 makes the evidenced request incompatible with the inherited Ruined
+group. This explains hypothesis E without establishing an original gameplay
+invariant. No selector-axis error, incorrect preview registration snapshot or
+group-bound defect was found. A phase-2-to-1 rewrite has no support in the
+bounded trace. See [the compatibility decision and diagnostic contract](great-wall-restore-context.md#ruined-phase-2-road-compatibility-2026-10-05).
+
+Fresh byte checks, archive metadata and excerpts remain ignored under
+`.local/ruined-transitions/trace/`. The user's screenshot has no proven map,
+material, storage cell or variant assignment and is not this trace's oracle.

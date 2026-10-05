@@ -29,6 +29,32 @@ Json wall_context_json(const GreatWallRestoreContext& context) {
             (context.source==GreatWallContextSource::ExplicitPreview ? "OPENEMPEROR PREVIEW":"UNRESOLVED")},
         {"reason",context.reason}};
 }
+Json wall_preparation_json(const StoredGraphicsPlan& plan,const GreatWallPreparationResult& result) {
+    const auto& resource=result.resource;
+    const auto& group=resource.group;
+    Json out={{"status",great_wall_preparation_status_name(result.status)},
+        {"registered_archive",result.registered_archive.generic_string()},
+        {"group_status",resource.attempted ? Json(group_lookup_status_name(group.status)):Json(nullptr)},
+        {"runtime_local_begin",group.local_base ? Json(*group.local_base):Json(nullptr)},
+        {"runtime_local_end_exclusive",resource.local_end ? Json(*resource.local_end):Json(nullptr)},
+        {"variant_out_of_range",resource.variant_out_of_range},
+        {"image_status",result.image_status ? Json(graphics_id_status_name(*result.image_status)):Json(nullptr)}};
+    if (group.local_base && resource.local_end && *resource.local_end>=*group.local_base)
+        out["variant_count"]=*resource.local_end-*group.local_base;
+    if (result.instance_index && plan.regenerated && *result.instance_index<plan.regenerated->instances.size()) {
+        const auto n=*result.instance_index;
+        const auto& instance=plan.regenerated->instances[n];
+        const auto& asset=plan.assets.at(instance.asset_index);
+        out["instance_index"]=n;
+        out["decode_status"]=stored_status_name(asset.status);
+        if (asset.status==StoredStatus::DecodeFailed) {
+            out["status"]="decode_failed";out["decode_error"]=asset.error;
+        } else if (n<plan.regenerated_instance_active.size()) {
+            out["status"]=plan.regenerated_instance_active[n] ? "active":"atomic_activation_unavailable";
+        }
+    }
+    return out;
+}
 }
 void read_landscape_layers(StoredGraphicsPlan& plan, const EmperorContainer& container,
                            std::size_t part) {
@@ -116,10 +142,14 @@ Json landscape_provenance(const StoredGraphicsPlan& plan, GridCell selected,
             if (plan.regenerated) {
                 const auto fallback=plan.regenerated->original_wall_fallbacks.find(piece_index);
                 if (fallback!=plan.regenerated->original_wall_fallbacks.end()) state["fallback"]=fallback->second;
+                const auto preparation=plan.regenerated->original_wall_preparation.find(piece_index);
+                if (preparation!=plan.regenerated->original_wall_preparation.end())
+                    state["preparation"]=wall_preparation_json(plan,preparation->second);
             }
             if (source.monument) state["serialized_state"]={{"phase",source.monument->phase},
                 {"material_raw",source.monument->serialized_material},{"height_raw",source.monument->height},
                 {"orientation",source.monument->orientation}};
+            if (source.monument) state["selector_phase"]=source.monument->phase;
             Json fields=Json::object();
             for (const auto [name,field]:{std::pair{"x",OriginalEntityField::LocalX},
                 {"y",OriginalEntityField::LocalY},{"type",OriginalEntityField::Type},
@@ -339,6 +369,17 @@ Json landscape_fidelity_report(const StoredGraphicsPlan& plan) {
             {"preview_rendered_cells",preview_cells},{"restore_context",wall_context_json(wall.restore_context)},
             {"original_context_verified",great_wall_original_context_verified(wall.restore_context)},
             {"restore_material_context_available",wall.restore_context.material.has_value()},{"reader_error",wall.error}});
+        if (plan.regenerated) {
+            Json statuses=Json::object();
+            for (const auto& [piece,result]:plan.regenerated->original_wall_preparation) {
+                (void)piece;
+                const auto status=wall_preparation_json(plan,result)["status"].get<std::string>();
+                if (!statuses.contains(status)) statuses[status]=0;
+                statuses[status]=statuses[status].get<std::size_t>()+1;
+            }
+            original["preparation_status_counts"]=std::move(statuses);
+            original["preview_notice"]=plan.regenerated->great_wall_preview_notice;
+        }
     }
     std::size_t resolved=0, supported=0;
     for (const auto& c:plan.cells) {

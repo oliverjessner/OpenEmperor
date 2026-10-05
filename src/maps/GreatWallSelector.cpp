@@ -136,6 +136,9 @@ GreatWallSelection select_great_wall(const GreatWallSelectorInput& input) {
         out.variant = material == 1 ? 31U :
             (row.position == 0 ? north_gate : east_gate)[(row.piece - 1U) / 2U][view_column];
     } else if (row.kind == GreatWallPieceKind::Road) {
+        // 57d91c/57d98a: the controller reads the raw phase, not material.
+        // No Ruined phase-2 normalization or Road registration is evidenced.
+        // Compatibility with the inherited group is checked during load.
         if (input.phase != 1 && input.phase != 2) return fail("unsupported Great Wall road phase");
         const bool along_second_axis = out.effective_view == 2 || out.effective_view == 6;
         out.group = {input.phase == 1 ? 0x61eU : 0x1001U};

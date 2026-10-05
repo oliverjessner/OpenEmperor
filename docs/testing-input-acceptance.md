@@ -5,6 +5,8 @@ events and computer-control requests do not mark its human rows PASS.
 Use **NOT RUN / PASS / FAIL**, with the observed symptom for any failure.
 Historical City balance, demolition and service playthroughs remain separate.
 
+Oliver has confirmed zoom, arrow keys and window resizing: **User-reported PASS for the tested City-v10 session**. This narrow report does not mark the City-v16 checklist below, road drag, all building stages, demolition/Recovery, external display changes or a full human playthrough PASS.
+
 ## Local candidate and isolation
 
 Baseline revision: `3af52413bfef4cd479dbd2c04a3ac12aad37e5b7`.

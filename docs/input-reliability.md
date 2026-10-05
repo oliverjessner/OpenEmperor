@@ -193,3 +193,7 @@ The keyboard smoke and technical tests do not mark its mouse, held-arrow,
 window, 4×, Handan or full save/restart rows PASS. External-display movement,
 Finder/Gatekeeper and clean-Mac checks are also NOT RUN. No commit, push, tag,
 release or publication was performed.
+
+## Later user report: City-v10
+
+Oliver confirms working zoom, arrow keys and window resizing: **User-reported PASS for the tested City-v10 session**. This report is separate from the historical Codex native probe above. It does not complete City-v16, road drag, selection of every building stage, demolition/Recovery, external-display changes or a full human playthrough. The Ruined Great Wall milestone makes no input behavior changes.

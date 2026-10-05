@@ -13,10 +13,65 @@ GreatWallSelectorInput input(GreatWallPieceKind kind, unsigned piece, std::int32
     return {{0,0,kind,4,position,piece,great_wall_piece_side(kind)}, phase, 0,
         {{material},0,GreatWallContextSource::VerifiedOriginal}};
 }
+void road_selection_matrix() {
+    constexpr std::array<GreatWallPresentationMode,3> modes{
+        GreatWallPresentationMode::PreviewRuined,GreatWallPresentationMode::PreviewEarthen,
+        GreatWallPresentationMode::PreviewStone};
+    for (const auto phase:{1,2}) for (const auto position:{0U,2U})
+    for (const auto camera:{0U,2U,4U,6U}) for (unsigned orientation=0;orientation<4;++orientation) {
+        // Orthogonal quarter turns swap the two road axes. Material and source
+        // do not participate in the EXE-observed road variant branch.
+        const bool second_axis=(position/2+camera/2+orientation)%2!=0;
+        const unsigned expected=phase==1 ? unsigned(second_axis):(second_axis ? 40U:41U);
+        for (std::int32_t material=1;material<=3;++material)
+        for (const auto source:{GreatWallContextSource::VerifiedOriginal,GreatWallContextSource::ExplicitPreview}) {
+            auto road=input(GreatWallPieceKind::Road,0,phase,position,material);
+            road.orientation=std::uint8_t(orientation);road.restore_context.camera_view=camera;
+            road.restore_context.source=source;
+            road.restore_context.mode=source==GreatWallContextSource::ExplicitPreview ?
+                modes[std::size_t(material-1)]:GreatWallPresentationMode::Automatic;
+            const auto selected=select_great_wall(road);
+            check(selected.supported && selected.variant==expected && selected.side==1 && selected.flags==8 &&
+                selected.slot==(phase==1 ? 3U:8U) && selected.group.value==(phase==1 ? 0x61eU:0x1001U) &&
+                !selected.required_registration,
+                "both road phases preserve their exact axis branch without registering or substituting an archive");
+            check(selected.restore_context.material==material && selected.restore_context.camera_view==camera &&
+                selected.restore_context.source==source && selected.restore_context.mode==road.restore_context.mode &&
+                selected.evidence==(source==GreatWallContextSource::VerifiedOriginal ? SelectorEvidence::Verified:SelectorEvidence::Preview) &&
+                road.phase==phase && road.orientation==orientation,
+                "road selection retains input phase, orientation and context provenance for every material");
+        }
+        auto unavailable=input(GreatWallPieceKind::Road,0,phase,position);
+        unavailable.orientation=std::uint8_t(orientation);unavailable.restore_context.camera_view=camera;
+        unavailable.restore_context.material.reset();
+        check(!select_great_wall(unavailable).supported,"road selection cannot invent a missing restore material");
+        unavailable.restore_context.material=3;unavailable.restore_context.source=GreatWallContextSource::Unavailable;
+        check(!select_great_wall(unavailable).supported,"road selection requires context provenance even when material is present");
+        for (const auto material:{-1,0,4}) {
+            unavailable.restore_context.material=material;unavailable.restore_context.source=GreatWallContextSource::VerifiedOriginal;
+            check(!select_great_wall(unavailable).supported,"invalid road material is not normalized to a supported preview");
+        }
+    }
+    for (const auto phase:{-1,0,3,11})
+        check(!select_great_wall(input(GreatWallPieceKind::Road,0,phase)).supported,
+            "bounded road phase domain is not expanded from the original greater-than-or-equal branch");
+    for (const auto camera:{1U,3U,7U,8U,255U}) {
+        auto road=input(GreatWallPieceKind::Road,0,2);road.restore_context.camera_view=camera;
+        check(!select_great_wall(road).supported,"unsupported road views never wrap into an even view");
+    }
+    for (const auto orientation:{4U,255U}) {
+        auto road=input(GreatWallPieceKind::Road,0,2);road.orientation=std::uint8_t(orientation);
+        check(!select_great_wall(road).supported,"unsupported road orientation never wraps into a quarter turn");
+    }
+    auto invalid_source=input(GreatWallPieceKind::Road,0,2);
+    invalid_source.restore_context.source=static_cast<GreatWallContextSource>(255);
+    check(!select_great_wall(invalid_source).supported,"unknown road context source fails closed");
+}
 } // namespace
 
 int main() {
     try {
+        road_selection_matrix();
         for (const auto mode:{GreatWallPresentationMode::Automatic,GreatWallPresentationMode::HistoricalFallback,
             GreatWallPresentationMode::PreviewRuined,GreatWallPresentationMode::PreviewEarthen,GreatWallPresentationMode::PreviewStone})
             check(parse_great_wall_presentation_mode(great_wall_presentation_mode_name(mode))==mode,

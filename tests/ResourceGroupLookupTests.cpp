@@ -1,5 +1,6 @@
 #include "maps/ResourceGroupLookup.h"
 #include "maps/GraphicsIdHypothesis.h"
+#include "maps/RegeneratedMapRenderPlan.h"
 
 #include <cstdint>
 #include <iostream>
@@ -39,10 +40,53 @@ assets::Sg3Archive archive(std::uint32_t capacity, std::uint32_t in_use,
         u16(bytes,80+2*position,value);
     return assets::parse_sg3(bytes,bytes.size());
 }
+void great_wall_group_bounds() {
+    for (const auto length:{40U,42U}) for (const bool adjacent:{false,true}) {
+        auto metadata=archive(300,200+(adjacent ? 64U:length),"Zeus_system.bmp",
+            adjacent ? std::vector<std::pair<std::uint32_t,std::uint16_t>>{
+                {1,201},{2,261},{3,std::uint16_t(201+length)}}:
+                std::vector<std::pair<std::uint32_t,std::uint16_t>>{{1,201}});
+        metadata.groups[0].image_count=200;metadata.groups[0].first_image_index=1;
+        metadata.groups[0].last_image_index=200;
+        const auto layout=maps::build_runtime_archive_layout(8,metadata,maps::RuntimeLayoutEvidence::RestoredGreatWall);
+        check(layout.has_value(),"synthetic restored wall archive has the literal system and dummy prefix");
+        const std::map<std::uint32_t,maps::GroupRegistration> groups{{8,{&*layout}}};
+        assets::AssetCatalog catalog;catalog.records.resize(300);
+        for (std::uint32_t n=0;n<300;++n) catalog.records[n].id={"DATA/authored-bounds.sg3",n};
+        const std::map<std::uint32_t,maps::GraphicsArchiveRegistration> images{{8,{&catalog,&*layout}}};
+        for (const auto variant:{39U,40U,41U,42U}) {
+            maps::LandscapeVariantResolution diagnostic;
+            const auto graphic=maps::resolve_landscape_variant({0x1001},variant,groups,&diagnostic);
+            check(bool(graphic)==(variant<length) && diagnostic.local_end==length &&
+                diagnostic.group.local_base==0 && diagnostic.group.status==maps::GroupLookupStatus::Resolved &&
+                diagnostic.variant_out_of_range==(variant>=length),
+                "40/42-record groups enforce their own exclusive end even with later catalog records or adjacent groups");
+            if (graphic) {
+                const auto physical=maps::resolve_graphics_id_hypothesis(graphic->value,images);
+                check(graphic->value==0x20000+variant && physical.local_index==variant &&
+                    physical.physical_record_index==201+variant,
+                    "group variant, packed ID and physical record apply the system/dummy translation exactly once");
+            }
+        }
+        if (adjacent) {
+            // Index rows are intentionally not ordered by local base. The
+            // nearest greater base bounds the first group; its own key works.
+            const auto next=maps::resolve_landscape_variant({0x1003},0,groups);
+            check(next && next->value==0x20000+length &&
+                maps::resolve_graphics_id_hypothesis(next->value,images).physical_record_index==201+length,
+                "adjacent group is addressable only through its own file-order resource key");
+        }
+    }
+    maps::LandscapeVariantResolution missing;
+    check(!maps::resolve_landscape_variant({0x1001},40,{},&missing) && !missing.local_end &&
+        !missing.variant_out_of_range && missing.group.status==maps::GroupLookupStatus::UnregisteredSlot,
+        "an unavailable registration is distinct from a validated out-of-range variant");
+}
 } // namespace
 
 int main() {
     try {
+        great_wall_group_bounds();
         // Value sorting would yield 12,9,4,4; unique increasing list keys
         // preserve the file order 9,4,12,4, including a duplicate.
         const auto plain=archive(32,20,"Other.bmp",

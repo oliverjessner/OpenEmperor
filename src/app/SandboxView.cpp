@@ -1,5 +1,6 @@
 #include "app/SandboxView.h"
 #include "maps/LandscapeProvenance.h"
+#include "maps/RegeneratedMapRenderPlan.h"
 
 #include "maps/SandboxPlacement.h"
 #include "renderer/StoredCamera.h"
@@ -2969,7 +2970,11 @@ bool SandboxView::draw_hud() {
             status+=walker_profile_->roles[r] ? ":yes":":no";
         }
     }
-    if (!draw_text(8*layout_.scale,layout_.status.y+7*layout_.scale,status,
+    const auto& generated=background_.plan().regenerated;
+    const bool preview_notice=generated && !generated->great_wall_preview_notice.empty();
+    if (preview_notice && !draw_text(8*layout_.scale,layout_.status.y+2*layout_.scale,
+        generated->great_wall_preview_notice,layout_.status.w-16*layout_.scale)) return false;
+    if (!draw_text(8*layout_.scale,layout_.status.y+(preview_notice ? 13:7)*layout_.scale,status,
                    layout_.status.w-16*layout_.scale)) return false;
     const bool scalable=simulation::scalable_profile(rules_);
     const auto label=[&](A action)->std::string {

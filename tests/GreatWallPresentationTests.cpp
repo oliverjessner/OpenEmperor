@@ -2,6 +2,8 @@
 #include "maps/RegeneratedMapRenderPlan.h"
 #include "maps/LandscapeProvenance.h"
 #include "core/PerformanceDiagnostics.h"
+#include <algorithm>
+#include <array>
 #include <iostream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
@@ -57,8 +59,212 @@ StoredGraphicsPlan plan(const GreatWallMapPresentation& state) {
     }
     return p;
 }
+struct Fixture {
+    OriginalMapEntities source;
+    std::map<std::int16_t,GreatWallModelResult> models;
+};
+Fixture sequence_fixture(const std::vector<std::pair<GreatWallPieceKind,std::int32_t>>& pieces) {
+    Fixture f;f.source.declared_map_size=170;f.source.logical_offset=1093607;
+    GreatWallModel model;model.monument_type=257;
+    for (std::size_t n=0;n<pieces.size();++n) {
+        const auto [kind,phase]=pieces[n];
+        auto record=entities().records[0];record.manager_index=std::uint32_t(n);
+        record.original_id=OriginalEntityId{std::uint32_t(n+1)};record.subindex=std::int16_t(n);
+        record.local_x=std::int16_t(70+5*(n%9));record.local_y=std::int16_t(60+5*(n/9));
+        record.monument->phase=phase;record.provenance.logical_record_offset+=322*n;
+        record.provenance.logical_base_offset+=322*n;*record.provenance.logical_extended_offset+=322*n;
+        f.source.records.push_back(record);
+        model.pieces.push_back({int(3*n),int(2*n),kind,4,kind==GreatWallPieceKind::Road ? 2U:0U,
+            0,great_wall_piece_side(kind)});
+    }
+    f.models.emplace(257,GreatWallModelResult{std::move(model),"authored restore-order fixture"});
+    return f;
+}
+StoredArchiveRegistration road_archive(const std::filesystem::path& requested,unsigned length=42) {
+    auto r=archive();r.relative_path=requested;r.layout->runtime_image_count=length;
+    // Catalog padding is deliberately populated even for the 40-record group.
+    // An available physical record cannot enlarge that group's legal domain.
+    for (auto& record:r.catalog->records) record.id.archive_relative_path=requested;
+    for (const auto physical:{241U,242U}) {
+        auto& record=r.catalog->records[physical];record.width=78;record.height=80;
+        record.isometric_size_flag=1;record.uncompressed_length=3200;record.data_length=3500;
+    }
+    return r;
+}
+void attach_archive(GreatWallMapPresentation& state,StoredArchiveRegistration registration,
+                    const std::filesystem::path& requested) {
+    state.archives.emplace(std::pair{registration.slot,requested.generic_string()},std::move(registration));
+}
+void registration_snapshots() {
+    const auto f=sequence_fixture({{GreatWallPieceKind::Wall,10},{GreatWallPieceKind::Road,2},
+        {GreatWallPieceKind::Wall,1},{GreatWallPieceKind::Road,2},
+        {GreatWallPieceKind::Wall,10},{GreatWallPieceKind::Road,2}});
+    auto source=f.source;
+    for (std::size_t n=0;n<source.records.size();++n) {
+        source.records[n].manager_index=std::uint32_t(99-n);
+        source.records[n].original_id=OriginalEntityId{std::uint32_t(100-n)};
+    }
+    auto state=prepare_great_wall_presentation(source,f.models,great_wall_context_from_mode(GreatWallPresentationMode::PreviewStone));
+    const auto a=state.pieces[0].archive_relative,b=state.pieces[2].archive_relative;
+    check(a!=b && state.pieces[1].archive_relative==a && state.pieces[3].archive_relative==b &&
+        state.pieces[5].archive_relative==a,"same-slot A/Road/B/Road/A/Road preserves each restore-order archive snapshot");
+    auto a_registration=road_archive(a);const auto actual_a=std::filesystem::path("DATA/China_Mon_GreatWall_10.sg3");
+    a_registration.relative_path=actual_a;
+    for (auto& record:a_registration.catalog->records) record.id.archive_relative_path=actual_a;
+    attach_archive(state,std::move(a_registration),a);attach_archive(state,road_archive(b),b);
+    auto p=plan(state);build_regenerated_map_render_plan(p,{{8,road_archive(b)}});
+    check(p.regenerated->instances.size()==6 && p.assets.size()==4,
+        "per-piece snapshots override a different final global slot without duplicating repeated physical assets");
+    const auto& instances=p.regenerated->instances;
+    check(instances[1].graphic.value==instances[3].graphic.value &&
+        instances[1].asset_index!=instances[3].asset_index && instances[1].asset_index==instances[5].asset_index &&
+        instances[0].asset_index==instances[4].asset_index,
+        "identical packed slot/local IDs in different archives are distinct while a reused physical archive deduplicates");
+    check(p.assets[instances[1].asset_index].record.id.archive_relative_path==actual_a &&
+        p.assets[instances[3].asset_index].record.id.archive_relative_path==b &&
+        p.assets[instances[1].asset_index].record.id.image_index==241 &&
+        p.assets[instances[3].asset_index].record.id.image_index==241,
+        "requested registry identity stays separate from canonical physical asset identity");
+    const auto a_info=landscape_provenance(p,state.pieces[1].geometry->origin,true)["original_great_wall"];
+    const auto b_info=landscape_provenance(p,state.pieces[3].geometry->origin,true)["original_great_wall"];
+    check(a_info["selection"]["archive"]==a.generic_string() &&
+        a_info["preparation"]["registered_archive"]==actual_a.generic_string() &&
+        b_info["selection"]["archive"]==b.generic_string() &&
+        b_info["preparation"]["registered_archive"]==b.generic_string(),
+        "F1 preserves the requested per-piece snapshot and canonical registered archive independently");
+    for (const auto n:{1U,3U,5U})
+        check(instances[n].composition_policy==LandscapeCompositionPolicy::EarlyBaseSpatialOverlay &&
+            instances[n].cell_indices.size()==1,"inherited roads retain singleton split composition through archive switches");
+    std::rotate(source.records.begin(),source.records.begin()+1,source.records.end());
+    const auto road_first=prepare_great_wall_presentation(source,f.models,
+        great_wall_context_from_mode(GreatWallPresentationMode::PreviewStone));
+    check(road_first.pieces[0].selection.supported && road_first.pieces[0].archive_relative.empty() &&
+        !road_first.pieces[0].fallback.empty() && road_first.pieces[2].archive_relative==b,
+        "a producer restored later does not retroactively supply an earlier road registration");
+}
+void ruined_transition_diagnostics() {
+    std::vector<std::pair<GreatWallPieceKind,std::int32_t>> rows(49,{GreatWallPieceKind::Wall,10});
+    rows.insert(rows.end(),4,{GreatWallPieceKind::Road,2});
+    auto f=sequence_fixture(rows);
+    auto& model=*f.models.at(257).model;
+    for (unsigned n=49;n<53;++n) model.pieces[n].position=(n%2)*2;
+    for (const auto mode:{GreatWallPresentationMode::PreviewRuined,GreatWallPresentationMode::PreviewEarthen,
+                         GreatWallPresentationMode::PreviewStone}) {
+        auto state=prepare_great_wall_presentation(f.source,f.models,great_wall_context_from_mode(mode));
+        check(state.pieces.size()==53 && std::all_of(state.pieces.begin(),state.pieces.end(),[](const auto& piece) {
+            return piece.selection.supported && piece.geometry && piece.fallback.empty();
+        }),"53 authored source pieces remain selector-supported with unchanged phase despite preview compatibility limits");
+        const bool ruined=mode==GreatWallPresentationMode::PreviewRuined;
+        const auto path=state.pieces[0].archive_relative;
+        attach_archive(state,road_archive(path,ruined ? 40U:42U),path);
+        auto p=plan(state);const auto raw=p.raw_saved_ids;const auto historical_cells=p.cells;
+        for (unsigned n=49;n<53;++n) {
+            const auto marker=state.pieces[n].geometry->draw_cell;
+            p.height_bytes[std::size_t(marker.y)*228+marker.x]=0xfe;
+        }
+        build_regenerated_map_render_plan(p,{});
+        check(p.regenerated->instances.size()==(ruined ? 49U:53U) && p.assets.size()==(ruined ? 1U:3U) &&
+            p.raw_saved_ids==raw && p.cells.size()==historical_cells.size() && p.footprints.size()==historical_cells.size(),
+            "only complete legal images publish claims; group overflow adds no asset and leaves historical cells/footprints intact");
+        for (std::size_t n=0;n<p.cells.size();++n)
+            check(p.cells[n].stored_id==historical_cells[n].stored_id && p.cells[n].storage==historical_cells[n].storage &&
+                p.cells[n].footprint_index==historical_cells[n].footprint_index,
+                "transition preparation never rewrites saved IDs, storage positions or historical footprint membership");
+        for (unsigned n=49;n<53;++n) {
+            const auto& piece=state.pieces[n];const auto& preparation=p.regenerated->original_wall_preparation.at(n);
+            const auto cell=piece.geometry->origin;const auto info=landscape_provenance(p,cell,true)["original_great_wall"];
+            check(info["serialized_state"]["phase"]==2 && info["serialized_state"]["material_raw"]==3 &&
+                info["selector_phase"]==2 && info["original_context_verified"]==false &&
+                info["selection"]["variant"]==piece.selection.variant && info["geometry"]["height_signed"]==-2,
+                "F1 preserves raw phase/material and signed cell height independently of selected preview material");
+            check(preparation.resource.group.local_base==0 && preparation.resource.local_end==(ruined ? 40U:42U) &&
+                info["preparation"]["variant_count"]==(ruined ? 40U:42U),
+                "F1 reports the bounded runtime-local group rather than padded physical catalog capacity");
+            const auto cell_index=*p.cell_by_storage[std::size_t(cell.y)*228+cell.x];
+            if (ruined) {
+                check(preparation.status==GreatWallPreparationStatus::UnsupportedPreviewState &&
+                    preparation.resource.variant_out_of_range && !preparation.image_status && !preparation.instance_index &&
+                    !p.regenerated->cells[cell_index].instance_index && !p.regenerated->cells[cell_index].asset_index &&
+                    !p.regenerated->footprint_assets[*p.cells[cell_index].footprint_index] &&
+                    info["preparation"]["status"]=="saved_phase_preview_material_unsupported" &&
+                    info["fallback"].get<std::string>().find("saved road phase 2")!=std::string::npos,
+                    "Ruined phase-two roads fail before image lookup, keep historical ownership and name the exact unsupported state");
+            } else {
+                check(preparation.status==GreatWallPreparationStatus::Prepared && preparation.image_status==GraphicsIdStatus::DecodeCandidate &&
+                    preparation.instance_index && info["preparation"]["status"]=="prepared",
+                    "Earthen and Stone phase-two roads prepare the same exact variants without activation claims");
+                const auto& instance=p.regenerated->instances[*preparation.instance_index];
+                const auto zero=regenerated_instance_origin(instance.geometry,p.border,78,80,0);
+                const auto elevated=regenerated_instance_origin(instance.geometry,p.border,78,80,landscape_height(p,cell));
+                check(instance.composition_policy==LandscapeCompositionPolicy::EarlyBaseSpatialOverlay &&
+                    elevated.x==zero.x && elevated.y==zero.y+80,
+                    "road composition stays split and applies the signed saved height times forty exactly once");
+            }
+        }
+        const auto cold=landscape_fidelity_report(p)["original_great_wall"];
+        check(cold["selected_pieces"]==53 && cold["descriptor_cells"]==788 && cold["preview_render_instances"]==0 &&
+            cold["render_instances"]==0 && cold["rendered_original_objects"]==0,
+            "supported source descriptors and prepared metadata never count as eager active or original reproduction");
+        if (ruined) check(cold["preparation_status_counts"]["saved_phase_preview_material_unsupported"]==4 &&
+            cold["preparation_status_counts"]["prepared"]==49 &&
+            cold["preview_notice"].get<std::string>().find("4 road pieces unsupported")!=std::string::npos,
+            "cached partial-preview notice counts only the four diagnosed unsupported road pieces");
+        else check(cold["preview_notice"]=="","compatible material previews have no ruined-state warning");
+        p.regenerated_instance_active.assign(p.regenerated->instances.size(),1);
+        for (auto& asset:p.assets) asset.status=StoredStatus::Rendered;
+        check(landscape_fidelity_report(p)["original_great_wall"]["preview_render_instances"]==(ruined ? 49U:53U),
+            "preview active counts include only complete prepared instances after separate readiness publication");
+        if (!ruined) {
+            for (unsigned n=49;n<53;++n) {
+                const auto index=*p.regenerated->original_wall_preparation.at(n).instance_index;
+                p.regenerated_instance_active[index]=0;
+                auto& asset=p.assets[p.regenerated->instances[index].asset_index];
+                asset.status=state.pieces[n].selection.variant==40 ? StoredStatus::DecodeFailed:StoredStatus::Rendered;
+                asset.error="authored eager decoder failure";
+                const auto info=landscape_provenance(p,state.pieces[n].geometry->origin,true)["original_great_wall"];
+                check(info["preparation"]["status"]==(state.pieces[n].selection.variant==40 ?
+                    "decode_failed":"atomic_activation_unavailable"),
+                    "decode failure and a decoded inactive composition have separate runtime diagnoses");
+            }
+            const auto failed=landscape_fidelity_report(p)["original_great_wall"];
+            check(failed["preview_render_instances"]==49 && failed["preparation_status_counts"]["decode_failed"]==2 &&
+                failed["preparation_status_counts"]["atomic_activation_unavailable"]==2 &&
+                failed["preparation_status_counts"]["active"]==49,
+                "shared road decode refusal does not inflate active counts or become a source/material incompatibility");
+        }
+    }
+    const auto verified_context=GreatWallRestoreContext{1,0,GreatWallContextSource::VerifiedOriginal};
+    auto verified=prepare_great_wall_presentation(f.source,f.models,verified_context);
+    const auto path=verified.pieces[0].archive_relative;
+    attach_archive(verified,road_archive(path,40),path);
+    auto verified_plan=plan(verified);build_regenerated_map_render_plan(verified_plan,{});
+    check(verified_plan.regenerated->original_wall_preparation.at(49).status==GreatWallPreparationStatus::VariantOutOfRange &&
+        verified_plan.regenerated->great_wall_preview_notice.empty(),
+        "independently verified material-one context reports a resource bound without asserting original state impossibility");
+    auto missing=prepare_great_wall_presentation(f.source,f.models,great_wall_context_from_mode(GreatWallPresentationMode::PreviewRuined));
+    auto missing_plan=plan(missing);build_regenerated_map_render_plan(missing_plan,{});
+    check(missing_plan.regenerated->original_wall_preparation.at(49).status==GreatWallPreparationStatus::ArchiveUnavailable &&
+        missing_plan.regenerated->great_wall_preview_notice.empty() &&
+        landscape_provenance(missing_plan,missing.pieces[49].geometry->origin,true)
+            ["original_great_wall"]["preparation"]["group_status"].is_null(),
+        "missing required archive is not mislabeled as a diagnosed phase/material mismatch");
+    auto compatible=missing;attach_archive(compatible,road_archive(path,42),path);
+    auto compatible_plan=plan(compatible);build_regenerated_map_render_plan(compatible_plan,{});
+    check(compatible_plan.regenerated->instances.size()==53 &&
+        compatible_plan.regenerated->original_wall_preparation.at(49).status==GreatWallPreparationStatus::Prepared &&
+        compatible_plan.regenerated->great_wall_preview_notice.empty(),
+        "preview-state diagnosis requires an actual bound failure rather than material and phase alone");
+    auto bad_group=missing;auto bad_registration=road_archive(path,40);bad_registration.layout->groups.clear();
+    attach_archive(bad_group,std::move(bad_registration),path);
+    auto bad_plan=plan(bad_group);build_regenerated_map_render_plan(bad_plan,{});
+    check(bad_plan.regenerated->original_wall_preparation.at(49).status==GreatWallPreparationStatus::GroupUnavailable &&
+        !bad_plan.regenerated->original_wall_preparation.at(49).resource.variant_out_of_range &&
+        bad_plan.regenerated->great_wall_preview_notice.empty(),
+        "invalid group structure remains distinct from a validated exclusive group boundary");
+}
 }
 int main(){try{
+    registration_snapshots();ruined_transition_diagnostics();
     const auto e=entities();const auto m=models();
     auto missing=prepare_great_wall_presentation(e,m);
     check(missing.pieces.size()==3 && !missing.pieces[0].selection.supported &&
@@ -108,6 +314,9 @@ int main(){try{
     auto unsupported=plan(wrong);build_regenerated_map_render_plan(unsupported,{});
     check(unsupported.regenerated->instances.size()==1 && unsupported.regenerated->instances[0].geometry.side==2,
         "Type1 cannot become a scaled4x4 Type30 or partial original owner");
+    check(unsupported.regenerated->original_wall_preparation.at(0).status==GreatWallPreparationStatus::GeometryOrImageUnsupported &&
+        !unsupported.regenerated->original_wall_preparation.at(0).resource.variant_out_of_range,
+        "a present unsupported image layout is distinct from a group-bound or preview-state failure");
     check(landscape_provenance(unsupported,{84,61},true)["original_great_wall"]["fallback"]==
         "selected Great Wall Type-1 image layout unsupported; historical preview retained",
         "unsupported selected layout retains a concrete per-piece provenance fallback");

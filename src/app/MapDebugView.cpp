@@ -1,5 +1,6 @@
 #include "app/MapDebugView.h"
 #include "maps/LandscapeProvenance.h"
+#include "maps/RegeneratedMapRenderPlan.h"
 #include "renderer/StoredCamera.h"
 
 #include <SDL3/SDL.h>
@@ -220,6 +221,9 @@ void MapDebugView::update_title() {
          " | reference-derived categories");
     if (view_==maps::MapViewMode::StoredGraphics && stored_renderer_)
         title+=" | "+std::string{landscape_debug_mode_name(stored_renderer_->landscape_mode())};
+    if (view_==maps::MapViewMode::StoredGraphics && stored_renderer_ && stored_renderer_->plan().regenerated &&
+        !stored_renderer_->plan().regenerated->great_wall_preview_notice.empty())
+        title+=" | "+stored_renderer_->plan().regenerated->great_wall_preview_notice;
     if (selected_) {
         const auto x = selected_->x, y = selected_->y;
         const auto& item = interpreted_[static_cast<std::size_t>(y) * maps::stored_grid_width + x];
