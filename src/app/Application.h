@@ -16,6 +16,7 @@ class SceneView;
 class MapDebugView;
 class MapBrowser;
 class SandboxView;
+class InputDiagnostics;
 namespace menu { class MenuSession; }
 
 class Application {
@@ -48,6 +49,7 @@ private:
     std::unique_ptr<MapBrowser> map_browser_;
     std::unique_ptr<SandboxView> sandbox_;
     std::unique_ptr<menu::MenuSession> menu_;
+    std::unique_ptr<InputDiagnostics> input_diagnostics_;
     bool sdl_initialized_ = false;
 };
 

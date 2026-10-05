@@ -1,5 +1,7 @@
 # City-v13: residential quality and zoning
 
+Current native input delivery and the executable short human check are centralized in [Native Input Reliability](input-reliability.md) and [input acceptance](testing-input-acceptance.md). Historical observations below retain their original scope; they do not mark the current human checklist PASS or close profile-specific balance/replanning playthroughs.
+
 `sandbox-city-v13`, rule **1**, is an opt-in, OpenEmperor-authored extension of City-v12 rule 1. Economy, goods, couriers, FireWatch/FireInspector, Market distribution, Service, workforce priorities, operation controls, footprints and safe demolition are inherited. There is no new building, good, courier, original asset or map-format interpretation. These desirability rules are **not claims about Emperor's original mechanics**. City-v11 rule 3 remains the fresh-settings menu default; existing settings and CLI defaults are preserved.
 
 ## Pure spatial score

@@ -1,5 +1,7 @@
 # Testing OpenEmperor 0.1.0-alpha.2
 
+Current native input delivery and the executable short human check are centralized in [Native Input Reliability](input-reliability.md) and [input acceptance](testing-input-acceptance.md). Historical observations below retain their original scope; they do not mark the current human checklist PASS or close profile-specific balance/replanning playthroughs.
+
 This is a 20–30 minute test of the local alpha.2 candidate. Use your own legally obtained Emperor installation. Never attach original `.sg3`, `.555`, map, installer, or decoded asset files to a bug report.
 
 1. Launch `OpenEmperor.app`, select the installed or extracted game-data folder, and open **New Sandbox**.

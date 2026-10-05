@@ -115,7 +115,8 @@ int main(int argc,char* argv[]) {
     try {
         check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL dummy init");
         SDL_Window* window=nullptr; SDL_Renderer* renderer=nullptr;
-        check(SDL_CreateWindowAndRenderer("menu test",1100,700,SDL_WINDOW_RESIZABLE,&window,&renderer),"window");
+        // Advanced visual rows reach output y=768 at the menu's 1.5x scale.
+        check(SDL_CreateWindowAndRenderer("menu test",1100,800,SDL_WINDOW_RESIZABLE,&window,&renderer),"window");
         if (argc==3 && std::string_view(argv[1])=="--local-data") {
             const auto app_root=fs::temp_directory_path()/("openemperor-local-menu-"+
                 std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));

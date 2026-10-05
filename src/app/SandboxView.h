@@ -58,6 +58,24 @@ public:
     void shutdown();
     void handle_event(const SDL_Event& event, bool& running);
     void update(double frame_seconds);
+    struct PanKeyState {
+        bool left=false,right=false,up=false,down=false;
+        bool a=false,d=false,w=false,s=false;
+    };
+    // Explicit held-device state for deterministic tests; the normal entry
+    // point reads SDL's keyboard state and uses this same update path.
+    void update(double frame_seconds, PanKeyState keys);
+    struct InputDiagnosticState {
+        std::optional<scene::Point> render_position;
+        std::optional<sandbox_ui::Action> ui_action;
+        std::optional<simulation::Cell> ground_cell;
+        std::optional<simulation::Cell> selected_cell;
+        bool selected_landscape=false;
+        std::uint32_t selected_walker=0;
+        bool ui=false,map_pressed=false,ui_pressed=false,road_drag=false,input_focused=true;
+    };
+    InputDiagnosticState input_diagnostic_state(
+        std::optional<scene::Point> raw_window_position=std::nullopt) const;
     bool render();
     void tick_once(); // Used by the finite, offscreen compatibility check.
     simulation::CommandResult execute(simulation::Command command);
@@ -234,6 +252,7 @@ private:
     std::optional<simulation::BuildingId> pressed_building_;
     bool ui_pressed_=false;
     bool map_pressed_=false;
+    bool input_focused_=true;
     bool panel_open_=true;
     bool debug_open_=false;
     bool help_open_=false;

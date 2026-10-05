@@ -109,6 +109,7 @@ void MapDebugView::shutdown() {
     if (texture_) { SDL_DestroyTexture(texture_); texture_ = nullptr; }
     renderer_ = nullptr;
     window_ = nullptr;
+    submitted_legend_.reset();submitted_inspector_.reset();
 }
 void MapDebugView::reset_camera() {
     if (is_texture_view()) {
@@ -347,6 +348,33 @@ std::optional<maps::GridCell> MapDebugView::storage_from_display(
         return geometry_.at_projected({display->x,display->y});
     return maps::GridCell{display->x,display->y};
 }
+SDL_FRect MapDebugView::legend_rectangle() const {
+    return SDL_FRect{0,0,static_cast<float>(camera_.viewport_width),
+        camera_.viewport_height<200 ? 42.0f : (is_texture_view() ? 103.0f : 86.0f)};
+}
+std::optional<SDL_FRect> MapDebugView::inspector_rectangle() const {
+    if (!stored_renderer_ || !landscape_inspector_open_ || !selected_) return std::nullopt;
+    return SDL_FRect{0,85,std::min(420.0f,static_cast<float>(textured_camera_.viewport_width)),
+        std::max(0.0f,static_cast<float>(textured_camera_.viewport_height)-85)};
+}
+std::optional<SDL_FPoint> MapDebugView::map_input_point(float x,float y) const {
+    if (!window_ || !renderer_ || !std::isfinite(x) || !std::isfinite(y)) return std::nullopt;
+    int width=0,height=0,output_width=0,output_height=0;
+    if (!SDL_GetWindowSize(window_,&width,&height) ||
+        !SDL_GetCurrentRenderOutputSize(renderer_,&output_width,&output_height) ||
+        x<0 || y<0 || x>=static_cast<float>(width) || y>=static_cast<float>(height)) return std::nullopt;
+    SDL_FPoint p{};
+    if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&p.x,&p.y) ||
+        !std::isfinite(p.x) || !std::isfinite(p.y) || p.x<0 || p.y<0 ||
+        p.x>=static_cast<float>(output_width) || p.y>=static_cast<float>(output_height)) return std::nullopt;
+    const auto legend=legend_rectangle();const auto inspector=inspector_rectangle();
+    // A close/layout event cannot expose pixels still covered in the last submitted frame.
+    if (SDL_PointInRectFloat(&p,&legend) ||
+        (inspector && SDL_PointInRectFloat(&p,&*inspector)) ||
+        (submitted_legend_ && SDL_PointInRectFloat(&p,&*submitted_legend_)) ||
+        (submitted_inspector_ && SDL_PointInRectFloat(&p,&*submitted_inspector_))) return std::nullopt;
+    return p;
+}
 void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
     if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED ||
         (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) { running = false; return; }
@@ -404,15 +432,15 @@ void MapDebugView::handle_event(const SDL_Event& event, bool& running) {
         }
     }
     if (event.type == SDL_EVENT_MOUSE_WHEEL) {
-        float x = event.wheel.mouse_x, y = event.wheel.mouse_y;
-        if (SDL_RenderCoordinatesFromWindow(renderer_, x, y, &x, &y)) {
-            if (is_texture_view()) zoom_textured({x,y}, std::pow(1.15, event.wheel.y));
-            else camera_.zoom_at({x, y}, std::pow(1.15, event.wheel.y));
+        if (!std::isfinite(event.wheel.y)) return;
+        if (const auto p=map_input_point(event.wheel.mouse_x,event.wheel.mouse_y)) {
+            if (is_texture_view()) zoom_textured({p->x,p->y}, std::pow(1.15, event.wheel.y));
+            else camera_.zoom_at({p->x,p->y}, std::pow(1.15, event.wheel.y));
         }
     }
     if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
-        float x = event.button.x, y = event.button.y;
-        if (SDL_RenderCoordinatesFromWindow(renderer_, x, y, &x, &y)) {
+        if (const auto p=map_input_point(event.button.x,event.button.y)) {
+            const auto x=p->x,y=p->y;
             if (is_texture_view()) {
                 selected_ = stored_renderer_ && stored_renderer_->elevated() && view_==maps::MapViewMode::StoredGraphics ?
                     stored_renderer_->hit_test({x,y},textured_camera_):std::nullopt;
@@ -487,9 +515,7 @@ bool MapDebugView::render() {
         }
     }
     }
-    const SDL_FRect legend{0, 0, static_cast<float>(camera_.viewport_width),
-                           camera_.viewport_height < 200 ? 42.0F :
-                           (is_texture_view() ? 103.0F : 86.0F)};
+    const auto legend=legend_rectangle();
     if (!SDL_SetRenderDrawColor(renderer_, 12, 17, 23, 255) || !SDL_RenderFillRect(renderer_, &legend) ||
         !SDL_SetRenderDrawColor(renderer_, 235, 240, 245, 255)) return false;
     const std::string heading = std::string{"MAP "} + maps::view_name(view_) + " | MASK " + maps::mask_name(mask_) +
@@ -547,8 +573,7 @@ bool MapDebugView::render() {
         if (stored_renderer_ && landscape_inspector_open_) {
             const auto lines=maps::landscape_inspection_lines(stored_renderer_->plan(),*selected_,
                 stored_renderer_->elevated(),&textured_camera_);
-            const SDL_FRect panel{0,85,std::min(420.0F,static_cast<float>(textured_camera_.viewport_width)),
-                std::max(0.0F,static_cast<float>(textured_camera_.viewport_height)-85)};
+            const auto panel=*inspector_rectangle();
             if (!SDL_SetRenderDrawColor(renderer_,12,17,23,240) || !SDL_RenderFillRect(renderer_,&panel) ||
                 !SDL_SetRenderDrawColor(renderer_,235,240,245,255)) return false;
             float row_y=85;
@@ -559,7 +584,9 @@ bool MapDebugView::render() {
             }
         }
     }
-    return SDL_RenderPresent(renderer_);
+    if (!SDL_RenderPresent(renderer_)) return false;
+    submitted_legend_=legend;submitted_inspector_=inspector_rectangle();
+    return true;
 }
 
 } // namespace openemperor

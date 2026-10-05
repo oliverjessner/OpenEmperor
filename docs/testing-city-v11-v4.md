@@ -1,5 +1,7 @@
 # City-v11-v4 demolition validation
 
+Current native input delivery and the executable short human check are centralized in [Native Input Reliability](input-reliability.md) and [input acceptance](testing-input-acceptance.md). Historical observations below retain their original scope; they do not mark the current human checklist PASS or close profile-specific balance/replanning playthroughs.
+
 This local candidate starts from `a959d2250e9132ca17bb45ec833c6ff60f495510`. The initial worktree was clean. Display version remains `0.1.0-alpha.2`; demolition requires City-v11 rule version 4. New-game defaults remain v3 pending the native replanning acceptance; v4 testing uses an explicit copy upgrade or restore. Nothing was committed, tagged or published.
 
 ## Save decision

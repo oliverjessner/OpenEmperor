@@ -1,5 +1,7 @@
 # City-v16: maintenance and city budget
 
+Current native input delivery and the executable short human check are centralized in [Native Input Reliability](input-reliability.md) and [input acceptance](testing-input-acceptance.md). Historical observations below retain their original scope; they do not mark the current human checklist PASS or close profile-specific balance/replanning playthroughs.
+
 ## Current rule 2: corrected Safety geometry
 
 New City-v16 games use rule **2**, retaining the exact rule-1 economy, maintenance, health, fire and water parameters. Only Well and HealthPost now occupy **2×2**. Central footprint/cell/front/contains APIs take the explicit rule version; placement, all-cell owner picking, perimeter entrances, Manhattan water/desirability distances, previews, selection, demolition and restore use them. Cost/workers/radius/limits remain Well 60/0/5/4 and HealthPost 120/2/road-service/2. The paid 1,280/1,300 dry starter contains neither and remains unchanged.

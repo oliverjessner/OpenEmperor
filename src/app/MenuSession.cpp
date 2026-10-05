@@ -4,6 +4,7 @@
 #include "core/Version.h"
 #include "app/ResourceLocator.h"
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 #include <utility>
 
@@ -426,16 +427,45 @@ void MenuSession::perform(int action) {
     }
 }
 void MenuSession::activate_button(int action) { pending_action_=action; }
-std::optional<SDL_FPoint> MenuSession::point(float x,float y) const {
+std::optional<SDL_FPoint> MenuSession::diagnostic_render_point(float x,float y) const {
+    if (!window_ || !renderer_ || !std::isfinite(x) || !std::isfinite(y)) return std::nullopt;
+    int window_width=0,window_height=0,output_width=0,output_height=0;
+    if (!SDL_GetWindowSize(window_,&window_width,&window_height) ||
+        !SDL_GetCurrentRenderOutputSize(renderer_,&output_width,&output_height) ||
+        x<0 || y<0 || x>=static_cast<float>(window_width) || y>=static_cast<float>(window_height))
+        return std::nullopt;
     float rx=0,ry=0;
-    if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&rx,&ry)) return std::nullopt;
+    if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&rx,&ry) ||
+        !std::isfinite(rx) || !std::isfinite(ry) || rx<0 || ry<0 ||
+        rx>=static_cast<float>(output_width) || ry>=static_cast<float>(output_height)) return std::nullopt;
+    return SDL_FPoint{rx,ry};
+}
+std::optional<SDL_FPoint> MenuSession::point(float x,float y) const {
+    const auto p=diagnostic_render_point(x,y);
+    if (!p) return std::nullopt;
     const auto scale=menu_scale();
-    return SDL_FPoint{rx/scale,ry/scale};
+    return SDL_FPoint{p->x/scale,p->y/scale};
+}
+std::optional<MenuSession::DiagnosticButtonHit> MenuSession::diagnostic_button_hit(float x,float y) const {
+    const auto p=point(x,y);
+    if (p)
+        for (const auto& b:buttons_)
+            if (SDL_PointInRectFloat(&*p,&b.rect)) return DiagnosticButtonHit{b.action,b.enabled,*p};
+    return std::nullopt;
 }
 float MenuSession::menu_scale() const {
     return 1.5f*std::max(1.0f,SDL_GetWindowPixelDensity(window_));
 }
 void MenuSession::handle_event(const SDL_Event& event) {
+    switch (event.type) {
+    case SDL_EVENT_WINDOW_FOCUS_LOST: case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+    case SDL_EVENT_WINDOW_HIDDEN: case SDL_EVENT_WINDOW_MINIMIZED:
+    case SDL_EVENT_WINDOW_RESIZED: case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+    case SDL_EVENT_WINDOW_DISPLAY_CHANGED: case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+        pressed_action_=-1;
+        break;
+    default: break;
+    }
     if (state_==State::Playing && sandbox_) {
         bool direct_running=true; sandbox_->handle_event(event,direct_running);
         if (sandbox_->take_menu_request()) {
@@ -477,6 +507,8 @@ void MenuSession::handle_event(const SDL_Event& event) {
         }
     }
     if (event.type==SDL_EVENT_MOUSE_WHEEL) {
+        if (!std::isfinite(event.wheel.y) || event.wheel.y==0 ||
+            !point(event.wheel.mouse_x,event.wheel.mouse_y)) return;
         if (state_==State::NewSandbox) activate_button(event.wheel.y>0?MapPrev:MapNext);
         else if (state_==State::LoadSandbox) activate_button(event.wheel.y>0?SavePrev:SaveNext);
     }

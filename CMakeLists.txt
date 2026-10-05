@@ -99,6 +99,7 @@ include(cmake/OpenEmperorWarnings.cmake)
 add_executable(openemperor
     src/app/main.cpp
     src/app/Application.cpp
+    src/app/InputDiagnostics.cpp
     src/app/AssetBrowser.cpp
     src/app/SceneView.cpp
     src/app/MapDebugView.cpp
@@ -347,6 +348,44 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
     set_tests_properties(menu-session-flow PROPERTIES TIMEOUT 30)
+
+    add_executable(openemperor-input-coordinate-tests tests/InputCoordinateTests.cpp src/scene/IsoProjection.cpp)
+    target_include_directories(openemperor-input-coordinate-tests PRIVATE src)
+    target_link_libraries(openemperor-input-coordinate-tests PRIVATE SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-input-coordinate-tests)
+    add_test(NAME input-coordinate-contract COMMAND openemperor-input-coordinate-tests)
+    set_tests_properties(input-coordinate-contract PROPERTIES TIMEOUT 20)
+
+    add_executable(openemperor-input-diagnostics-tests tests/InputDiagnosticsTests.cpp src/app/InputDiagnostics.cpp)
+    target_include_directories(openemperor-input-diagnostics-tests PRIVATE src)
+    target_link_libraries(openemperor-input-diagnostics-tests PRIVATE SDL3::SDL3 nlohmann_json::nlohmann_json)
+    openemperor_enable_warnings(openemperor-input-diagnostics-tests)
+    add_test(NAME input-diagnostics-bounded COMMAND openemperor-input-diagnostics-tests)
+    set_tests_properties(input-diagnostics-bounded PROPERTIES TIMEOUT 20)
+
+    add_executable(openemperor-menu-input-tests tests/MenuInputTests.cpp
+        src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
+        src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/renderer/StoredGraphicsRenderer.cpp
+        src/renderer/StoredCamera.cpp src/renderer/WalkerSpriteSet.cpp
+        src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-menu-input-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-menu-input-tests)
+    add_test(NAME menu-input-boundaries COMMAND openemperor-menu-input-tests)
+    set_tests_properties(menu-input-boundaries PROPERTIES TIMEOUT 30)
+
+    add_executable(openemperor-map-input-tests tests/MapViewInputTests.cpp
+        src/app/MapBrowser.cpp tests/MapDebugViewInputAdapter.cpp src/renderer/TerrainPreviewRenderer.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
+    target_link_libraries(openemperor-map-input-tests PRIVATE openemperor-maps SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-map-input-tests)
+    add_test(NAME map-input-boundaries COMMAND openemperor-map-input-tests)
+    set_tests_properties(map-input-boundaries PROPERTIES TIMEOUT 30)
+
+    add_test(NAME sandbox-input-reliability COMMAND openemperor-sandbox-view-tests --input-only)
+    set_tests_properties(sandbox-input-reliability PROPERTIES TIMEOUT 60)
     add_executable(openemperor-sandbox-save-tests tests/SandboxSaveTests.cpp)
     target_link_libraries(openemperor-sandbox-save-tests PRIVATE openemperor-persistence)
     openemperor_enable_warnings(openemperor-sandbox-save-tests)

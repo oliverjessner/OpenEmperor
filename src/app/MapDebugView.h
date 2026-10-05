@@ -5,6 +5,8 @@
 #include "renderer/TerrainPreviewRenderer.h"
 #include "renderer/StoredGraphicsRenderer.h"
 
+#include <SDL3/SDL_rect.h>
+
 #include <memory>
 #include <optional>
 
@@ -51,6 +53,9 @@ private:
     void resize_camera();
     void zoom_textured(scene::Point screen, double factor);
     bool is_texture_view() const;
+    SDL_FRect legend_rectangle() const;
+    std::optional<SDL_FRect> inspector_rectangle() const;
+    std::optional<SDL_FPoint> map_input_point(float window_x,float window_y) const;
     maps::ParsedEmperorMap map_;
     maps::RawLayer layer_;
     maps::MapViewMode view_;
@@ -67,6 +72,7 @@ private:
     bool reported_stored_draws_ = false;
     bool landscape_inspector_open_ = false;
     std::size_t landscape_inspector_scroll_ = 0;
+    std::optional<SDL_FRect> submitted_legend_,submitted_inspector_;
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
     SDL_Texture* texture_ = nullptr;

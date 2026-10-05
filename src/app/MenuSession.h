@@ -34,6 +34,15 @@ public:
     const std::filesystem::path& app_root() const { return app_root_; }
     const assets::CompatibilityResult& compatibility() const { return compatibility_; }
     VisualSelection visual_selection() const;
+    struct DiagnosticButtonHit {
+        int action;
+        bool enabled;
+        SDL_FPoint logical_point;
+    };
+    std::optional<SDL_FPoint> diagnostic_render_point(float window_x,float window_y) const;
+    std::optional<DiagnosticButtonHit> diagnostic_button_hit(float window_x,float window_y) const;
+    int diagnostic_pressed_action() const { return pressed_action_; }
+    int diagnostic_pending_action() const { return pending_action_.value_or(-1); }
 private:
     struct Inbox { std::mutex mutex; std::deque<std::pair<std::uint64_t,DialogResult>> results; };
     enum class DialogKind { None, Folder, SaveFile, VisualsFile, BuildingVisualsFile, RoadVisualsFile };

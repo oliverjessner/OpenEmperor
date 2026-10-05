@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -1142,15 +1143,212 @@ void road_continuity_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* re
     std::cout<<"Road continuity: 16 neighborhoods + 8-cell x/y, L/T/cross/grid; actual 1x/2x/4x pixels, alpha preview, zero authority/work\n";
 }
 
+void input_reliability_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
+    namespace perf=openemperor::performance;
+    using View=openemperor::SandboxView;
+    using A=openemperor::sandbox_ui::Action;
+    bool running=true;
+    const auto boundary=[&](View& view,SDL_EventType type) {
+        SDL_Event event{};event.type=type;event.window.windowID=SDL_GetWindowID(window);
+        view.handle_event(event,running);
+    };
+    const auto resize=[&](View& view,int w,int h) {
+        check(SDL_SetWindowSize(window,w,h),"input actual resize");SDL_PumpEvents();
+        int ww=0,wh=0,ow=0,oh=0;
+        check(SDL_GetWindowSize(window,&ww,&wh)&&SDL_GetCurrentRenderOutputSize(renderer,&ow,&oh),"input measured resize");
+        check(ww==w&&wh==h&&ow==w&&oh==h,"dummy actual window/output dimensions");
+        boundary(view,SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED);
+        check(view.layout().top.w==ow&&view.layout().status.y+view.layout().status.h==oh,
+              "input boundary refreshes layout before next render");
+    };
+    const auto action_point=[](const View& view,A action) {
+        const auto& buttons=view.layout().buttons;
+        const auto b=std::find_if(buttons.begin(),buttons.end(),[&](const auto& value){return value.action==action;});
+        check(b!=buttons.end(),"input action button");
+        return openemperor::scene::Point{b->rect.x+b->rect.w/2.,b->rect.y+b->rect.h/2.};
+    };
+    const auto same_camera=[](const auto& a,const auto& b) {
+        return a.zoom==b.zoom&&a.offset.x==b.offset.x&&a.offset.y==b.offset.y;
+    };
+    check(std::string(SDL_GetRendererName(renderer))=="software","input actual software renderer");
+    check(SDL_SetWindowSize(window,1100,700),"input initial window");SDL_PumpEvents();
+    {
+        View view(fixture(temp),false);view.initialize(window,renderer);
+        if(!view.paused()) view.handle_event(key(SDLK_SPACE),running);
+        const auto screen=[&](int x) {
+            // Literal projection for storage (x,114), border72; not inverse
+            // picking or a forward/backward use of the conversion helper.
+            const auto camera=view.camera();
+            return openemperor::scene::Point{(x-114)*40.*camera.zoom+camera.offset.x,
+                ((x+114-144)*20.+20)*camera.zoom+camera.offset.y};
+        };
+        const auto down=[&](openemperor::scene::Point p){view.handle_event(click(float(p.x),float(p.y)),running);};
+        const auto up=[&](openemperor::scene::Point p){view.handle_event(release(float(p.x),float(p.y)),running);};
+        view.set_tool(1);const auto start=screen(110),end=screen(111),far=screen(113);
+        check(view.pick(start)==simulation::Cell{110,114}&&view.pick(end)==simulation::Cell{111,114},"literal road ground picks");
+        auto before=view.world().snapshot();perf::set_enabled(true);perf::reset();
+        down(start); // No preceding motion: Down supplies the true start.
+        for(int n=0;n<40;++n)view.handle_event(motion(float(far.x),float(far.y)),running);
+        check(view.world().snapshot()==before&&view.input_diagnostic_state().road_drag,"road preview stays read-only");
+        for(auto c:{perf::Counter::FileReads,perf::Counter::FileWrites,perf::Counter::AssetDecodes,
+            perf::Counter::TextureUploads,perf::Counter::WorldCopies,perf::Counter::WorldExecutes,
+            perf::Counter::BfsCalls,perf::Counter::RouteRefreshes})check(perf::counter(c)==0,"input preview zero work counters");
+        up(end); // Up, rather than the last motion, supplies the real end.
+        check(view.world().command_sequence()==before.command_sequence+2&&
+            view.world().object_at({110,114})==simulation::Object::Road&&
+            view.world().object_at({111,114})==simulation::Object::Road&&
+            view.world().object_at({113,114})==simulation::Object::Empty,"actual end road commit exactly once");
+        const auto committed=view.world().snapshot();up(end);check(view.world().snapshot()==committed,"duplicate Up does not recommit");
+        perf::set_enabled(false);
+        const auto empty=screen(112),last=screen(115);
+        const auto road_button=action_point(view,A::Road);
+        down(road_button);up(empty);check(view.world().snapshot()==committed,"toolbar to map cannot build");
+        for(const auto release_point:std::array<openemperor::scene::Point,5>{{
+            road_button,{900,200},{-1,200},{1100,200},{200,700}}}) {
+            down(empty);up(release_point);
+            check(view.world().snapshot()==committed&&!view.input_diagnostic_state().road_drag,"map release over UI/outside cancels");
+        }
+        for(const auto cancellation:{SDL_EVENT_WINDOW_FOCUS_LOST,SDL_EVENT_WINDOW_MINIMIZED}) {
+            down(empty);boundary(view,cancellation);up(last);
+            check(view.world().snapshot()==committed&&!view.input_diagnostic_state().map_pressed,"window boundary cancels drag");
+            boundary(view,SDL_EVENT_WINDOW_FOCUS_GAINED);
+        }
+        down(empty);view.handle_event(key(SDLK_ESCAPE),running);up(last);
+        check(running&&view.world().snapshot()==committed,"Escape cancels gesture without exit/build");
+        down(empty);auto right=click(100,200);right.button.button=SDL_BUTTON_RIGHT;view.handle_event(right,running);up(last);
+        check(view.world().snapshot()==committed,"right click cancels drag");
+        down(empty);resize(view,1290,780);up(last);
+        check(view.world().snapshot()==committed&&!view.input_diagnostic_state().road_drag,"resize cancels old drag before release");
+        resize(view,1100,700);
+        const auto help=action_point(view,A::ToggleHelp);
+        view.handle_event(key(SDLK_H),running);check(view.help_open(),"Help opens");
+        up(help);check(view.help_open(),"unmatched Up must not close Help");
+        down(empty);up(help);check(view.help_open(),"map to Help does not close modal");
+        down(help);up(empty);check(view.help_open(),"Help press released elsewhere stays open");
+        down(help);resize(view,1290,780);up(help);check(view.help_open(),"Help resize disarms old button");
+        resize(view,1100,700);mouse_click(view,float(help.x),float(help.y),running);
+        check(!view.help_open()&&view.world().snapshot()==committed,"matched Help close does not click through");
+        const auto stable=view.camera();
+        for(float delta:{std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity(),
+                         -std::numeric_limits<float>::infinity(),std::numeric_limits<float>::max(),-std::numeric_limits<float>::max()}) {
+            SDL_Event wheel{};wheel.type=SDL_EVENT_MOUSE_WHEEL;wheel.wheel.y=delta;
+            wheel.wheel.mouse_x=900;wheel.wheel.mouse_y=200;view.handle_event(wheel,running);
+        }
+        check(same_camera(stable,view.camera())&&view.world().snapshot()==committed,"invalid/large panel wheel is bounded");
+        for(const auto p:std::array<openemperor::scene::Point,6>{{
+            {-1,100},{1100,100},{100,700},{std::numeric_limits<double>::quiet_NaN(),100},
+            {100,std::numeric_limits<double>::infinity()},{1e300,100}}}) {
+            check(!view.input_diagnostic_state(p).render_position,"finite/outside positions rejected");
+            down(p);up(last);check(view.world().snapshot()==committed,"invalid Down cannot build at later valid Up");
+        }
+        // SDL's main view intentionally includes viewport/user scale. These
+        // are literal SDL-contract oracles, not actual Mac display claims.
+        check(SDL_SetRenderScale(renderer,1.25f,1.5f),"input synthetic render scale");
+        const SDL_Rect viewport{31,47,800,500};check(SDL_SetRenderViewport(renderer,&viewport),"input nonzero viewport");
+        const auto converted=view.input_diagnostic_state(openemperor::scene::Point{123.5,246.25}).render_position;
+        check(converted&&std::abs(converted->x-67.8)<0.0001&&std::abs(converted->y-117.1666667)<0.0001,"literal viewport-aware fractional conversion");
+        check(SDL_SetRenderViewport(renderer,nullptr)&&SDL_SetRenderScale(renderer,1,1),"input restore full renderer state");
+        const auto fractional=view.input_diagnostic_state(openemperor::scene::Point{123.5,246.25}).render_position;
+        check(fractional&&fractional->x==123.5&&fractional->y==246.25,"normal full-window fractional precision");
+        // A pushed event does not alter SDL's held-device state. The explicit
+        // seam feeds the same production update; it never casts SDL's buffer.
+        int key_count=0;const bool* device_keys=SDL_GetKeyboardState(&key_count);
+        const std::vector<bool> device_before(device_keys,device_keys+key_count);
+        for(int direction=0;direction<4;++direction) {
+            View::PanKeyState keys;keys.left=direction==0;keys.right=direction==1;keys.up=direction==2;keys.down=direction==3;
+            auto camera=view.camera();for(int n=0;n<3;++n)view.update(0.02,keys);
+            check(std::abs(view.camera().offset.x-camera.offset.x-(direction==0 ? 24.:direction==1 ? -24.:0.))<1e-8&&
+                std::abs(view.camera().offset.y-camera.offset.y-(direction==2 ? 24.:direction==3 ? -24.:0.))<1e-8,"held arrows pan real seconds");
+            camera=view.camera();view.update(0.02,{});check(same_camera(camera,view.camera()),"released keys stop pan");
+        }
+        for(int direction=0;direction<4;++direction) {
+            View::PanKeyState keys;keys.a=direction==0;keys.d=direction==1;keys.w=direction==2;keys.s=direction==3;
+            const auto camera=view.camera();view.update(0.02,keys);
+            check(std::abs(view.camera().offset.x-camera.offset.x-(direction==0 ? 8.:direction==1 ? -8.:0.))<1e-8&&
+                std::abs(view.camera().offset.y-camera.offset.y-(direction==2 ? 8.:direction==3 ? -8.:0.))<1e-8,"existing free pan aliases preserved");
+        }
+        View::PanKeyState left;left.left=true;
+        down(screen(112));const auto drag_camera=view.camera();view.update(0.02,left);
+        check(same_camera(drag_camera,view.camera()),"held pan locked during road drag");view.handle_event(key(SDLK_ESCAPE),running);
+        boundary(view,SDL_EVENT_WINDOW_FOCUS_LOST);const auto lost=view.camera();view.update(0.02,left);
+        check(same_camera(lost,view.camera())&&!view.input_diagnostic_state().input_focused,"focus loss blocks stale held input");
+        boundary(view,SDL_EVENT_WINDOW_FOCUS_GAINED);view.update(0.02,{});check(same_camera(lost,view.camera()),"focus gain without held key stays still");
+        for(const auto speed:{A::Speed1,A::Speed4}) {
+            const auto p=action_point(view,speed);mouse_click(view,float(p.x),float(p.y),running);
+            const auto camera=view.camera();view.update(0.02,left);
+            check(std::abs(view.camera().offset.x-camera.offset.x-8.)<1e-8,"simulation speed does not multiply camera movement");
+        }
+        const bool* after_keys=SDL_GetKeyboardState(nullptr);
+        check(std::equal(device_before.begin(),device_before.end(),after_keys),"held-key tests did not mutate SDL device state");
+        check(view.world().snapshot()==committed,"pure input/camera actions preserve full World snapshot");
+        auto reference=simulation::World::restore(committed,view.buildable_mask());
+        view.handle_event(key(SDLK_SPACE),running);check(!view.paused(),"running camera fixture");
+        for(const auto speed:{A::Speed1,A::Speed4}) {
+            const auto p=action_point(view,speed);mouse_click(view,float(p.x),float(p.y),running);
+            const auto camera=view.camera();const auto ticks=view.world().ticks();view.update(0.05,left);
+            check(std::abs(view.camera().offset.x-camera.offset.x-20.)<1e-8&&view.world().ticks()>ticks,
+                "running simulation speed leaves real-time camera movement unchanged");
+            while(reference.ticks()<view.world().ticks())reference.tick();
+            check(reference.snapshot()==view.world().snapshot(),"view actions add no commands to actual 1x/4x simulation");
+        }
+        view.handle_event(key(SDLK_SPACE),running);
+        view.shutdown();
+    }
+    {
+        std::vector<std::uint8_t> mask;auto session=city_v10_fixture(temp,mask);
+        simulation::World world(228,228,mask,simulation::RulesProfile::CityV11,2);
+        for(int x:{100,103,106,109,112})check(world.execute({simulation::CommandType::PlaceHousehold,{x,101}}).accepted,"input warning houses");
+        View view(std::move(session),false,simulation::RulesProfile::CityV11);
+        view.configure_save(temp.path,"Cities/Synthetic.map",temp.path.parent_path()/(temp.path.filename().string()+"-input-save.json"),
+            openemperor::persistence::make_document(temp.path,"Cities/Synthetic.map",mask,world));view.initialize(window,renderer);
+        const simulation::Command warned{simulation::CommandType::PlaceHousehold,{115,101}};
+        const auto before=view.world().snapshot();
+        check(!view.request_execute(warned).accepted&&view.budget_warning_pending(),"input budget modal");
+        view.handle_event(click(180,399),running);resize(view,1290,780);view.handle_event(release(180,399),running);
+        check(view.budget_warning_pending()&&view.world().snapshot()==before,"budget resize disarms stale confirm and retains candidate");
+        const auto modal_camera=view.camera();view.update(.05,{true});
+        check(view.world().snapshot()==before&&same_camera(modal_camera,view.camera()),"budget modal blocks simulation and pan");
+        view.handle_event(key(SDLK_ESCAPE),running);resize(view,1100,700);
+        check(!view.request_execute(warned).accepted&&view.budget_warning_pending(),"input budget reopen");
+        view.handle_event(click(180,399),running);boundary(view,SDL_EVENT_WINDOW_FOCUS_LOST);view.handle_event(release(180,399),running);
+        check(view.budget_warning_pending()&&view.world().snapshot()==before,"focus loss disarms budget confirmation");
+        boundary(view,SDL_EVENT_WINDOW_FOCUS_GAINED);view.handle_event(key(SDLK_ESCAPE),running);view.shutdown();
+    }
+    {
+        std::vector<std::uint8_t> mask;auto session=city_v10_fixture(temp,mask);
+        simulation::World world(228,228,mask,simulation::RulesProfile::CityV11,4);
+        View view(std::move(session),false,simulation::RulesProfile::CityV11);
+        view.configure_save(temp.path,"Cities/Synthetic.map",temp.path.parent_path()/(temp.path.filename().string()+"-input-save.json"),
+            openemperor::persistence::make_document(temp.path,"Cities/Synthetic.map",mask,world));view.initialize(window,renderer);
+        check(view.execute({simulation::CommandType::PlaceClaySource,{100,101}}).accepted,"input demolition fixture");
+        const auto before=view.world().snapshot();const auto panel=view.layout().panel;
+        mouse_click(view,float(panel.x+30),float(panel.y+panel.h-64),running);check(view.demolition_pending(),"input demolition opens");
+        view.handle_event(click(180,399),running);resize(view,1290,780);view.handle_event(release(180,399),running);
+        check(!view.demolition_pending()&&view.world().snapshot()==before,"demolition resize cancels without command and refreshes layout");
+        resize(view,1100,700);view.shutdown();
+    }
+    {
+        std::vector<std::uint8_t> mask;View view(city_v10_fixture(temp,mask),false,simulation::RulesProfile::CityV16);
+        view.initialize(window,renderer);if(!view.paused())view.handle_event(key(SDLK_SPACE),running);
+        const auto before=view.world().snapshot();const auto camera=view.camera();View::PanKeyState d;d.d=true;
+        view.update(.02,d);check(same_camera(camera,view.camera()),"D remains reserved for desirability in newer profiles");
+        view.handle_event(key(SDLK_D),running);check(view.desirability_overlay()&&view.world().snapshot()==before,"D keeps overlay shortcut");
+        view.shutdown();
+    }
+    check(SDL_SetWindowSize(window,800,600),"restore existing test window");SDL_PumpEvents();
+    std::cout<<"Sandbox input: real resize/modal presses, actual Down/Up, A-J drag safety, invalid positions/wheel, viewport literals, held-state seam and pure World PASS\n";
+}
+
 int main(int argc,char** argv) {
     try {
+        const bool input_only=argc==2 && std::string(argv[1])=="--input-only";
         const bool road_only=argc==2 && std::string(argv[1])=="--road-continuity-only";
         const bool geometry_only=argc==2 && std::string(argv[1])=="--geometry16-only";
         const bool maintenance_only=argc==2 && std::string(argv[1])=="--maintenance-only";
         const bool health_only=argc==2 && std::string(argv[1])=="--health-only";
         const bool water_only=argc==2 && std::string(argv[1])=="--water-only";
         const bool alpha_stress=argc==2 && std::string(argv[1])=="--alpha-stress";
-        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only || geometry_only || road_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
+        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only || geometry_only || road_only || input_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
             check(layout.top.h==52 && layout.map.w==796 && layout.map.h==516 &&
@@ -1262,6 +1460,10 @@ int main(int argc,char** argv) {
         }
         if (water_only) {
             city_v14_water_checks(temp,window,renderer);
+            SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+        }
+        input_reliability_checks(temp,window,renderer);
+        if (input_only) {
             SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
         }
         household_stage_checks(temp,window,renderer);

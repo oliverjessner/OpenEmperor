@@ -1,5 +1,7 @@
 # Repeated zoom texture compatibility
 
+Current input delivery and human pointer acceptance are tracked centrally in [Native Input Reliability](../input-reliability.md) and [the short executable checklist](../testing-input-acceptance.md). The historical native observations in this report remain distinct from current technical regressions.
+
 This bounded presentation change addresses unchanged sprites disappearing after
 repeated scaled/clipped copies on SDL's software renderer. It preserves pixels,
 alpha, anchors, footprints, nearest sampling, projection and scene composition.

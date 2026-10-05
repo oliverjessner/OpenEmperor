@@ -1,5 +1,7 @@
 # Scene composition: Great Wall and Elevation
 
+Current input delivery and human pointer acceptance are tracked centrally in [Native Input Reliability](../input-reliability.md) and [the short executable checklist](../testing-input-acceptance.md). The historical native observations in this report remain distinct from current technical regressions.
+
 This bounded presentation fix addresses visible Great Wall body pixels that
 the old early-base pass exposed to later terrain and Elevation writes. Its
 composition contract is **OPENEMPEROR PREVIEW**. Original restore-context

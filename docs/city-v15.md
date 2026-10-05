@@ -1,5 +1,7 @@
 # City-v15 — Health and disease
 
+Current native input delivery and the executable short human check are centralized in [Native Input Reliability](input-reliability.md) and [input acceptance](testing-input-acceptance.md). Historical observations below retain their original scope; they do not mark the current human checklist PASS or close profile-specific balance/replanning playthroughs.
+
 `sandbox-city-v15`, rule 1, is an opt-in OpenEmperor-authored extension of City-v14 rule 1. It adds deterministic Household health and a road service, without RNG, new goods, medicine inventory or water transport. It makes no claim about original Emperor health mechanics. City-v11 remains the menu/CLI default; profiles and schemas 1–16 retain their existing behavior, with no City-v14 migration.
 
 ## Rules and authority

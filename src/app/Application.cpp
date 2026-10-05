@@ -6,6 +6,7 @@
 #include "app/SandboxView.h"
 #include "app/MenuSession.h"
 #include "app/FramePacing.h"
+#include "app/InputDiagnostics.h"
 #include "core/Version.h"
 #include "core/PerformanceDiagnostics.h"
 
@@ -46,6 +47,9 @@ bool Application::initialize() {
         return false;
     }
     sdl_initialized_ = true;
+    if (const char* diagnostics=std::getenv("OPENEMPEROR_INPUT_DIAGNOSTICS");
+        diagnostics && std::string_view(diagnostics)=="1")
+        input_diagnostics_=std::make_unique<InputDiagnostics>();
 
     const std::string title = "OpenEmperor - " + std::string(version::display);
     if (!SDL_CreateWindowAndRenderer(title.c_str(), browser_ || scene_ || map_debug_ || map_browser_ || sandbox_ || menu_ ? 1100 : 800,
@@ -127,6 +131,48 @@ int Application::run() {
             performance::ScopedTimer event_timer(performance::Timing::EventHandling);
             SDL_Event event;
             while (SDL_PollEvent(&event)) {
+            const bool observe=input_diagnostics_ && InputDiagnostics::relevant(event) &&
+                InputDiagnostics::belongs_to_window(event,SDL_GetWindowID(window_));
+            const auto diagnostic_state=[&] {
+                InputDiagnostics::State state;
+                const auto raw=InputDiagnostics::window_position(event);
+                const auto* active=sandbox_.get();
+                if (menu_) {
+                    state.view="menu";state.menu_state=static_cast<int>(menu_->state());
+                    state.requested_action=menu_->diagnostic_pending_action();
+                    state.ui_pressed=menu_->diagnostic_pressed_action()>=0;
+                    if (menu_->state()==menu::MenuSession::State::Playing) active=menu_->sandbox();
+                    else if (raw) {
+                        if (const auto point=menu_->diagnostic_render_point(static_cast<float>(raw->x),
+                                                                          static_cast<float>(raw->y)))
+                            state.render_position=scene::Point{point->x,point->y};
+                        if (const auto hit=menu_->diagnostic_button_hit(static_cast<float>(raw->x),
+                                                                      static_cast<float>(raw->y))) {
+                            state.ui=true;state.ui_action=hit->action;
+                        }
+                    }
+                }
+                if (active) {
+                    state.view="sandbox";
+                    const auto view=active->input_diagnostic_state(raw);
+                    state.render_position=view.render_position;
+                    if (view.ground_cell) state.ground_cell=scene::Cell{view.ground_cell->x,view.ground_cell->y};
+                    if (view.ui_action) state.ui_action=static_cast<int>(*view.ui_action);
+                    state.ui=view.ui;state.map_pressed=view.map_pressed;state.ui_pressed=view.ui_pressed;
+                    state.road_drag=view.road_drag;state.focused=view.input_focused;
+                    if (view.selected_cell) state.selected_cell=scene::Cell{view.selected_cell->x,view.selected_cell->y};
+                    state.selected_landscape=view.selected_landscape;state.selected_walker=view.selected_walker;
+                    const auto camera=active->camera();state.camera_offset=camera.offset;state.zoom=camera.zoom;
+                    const auto map=active->layout().map;state.map={map.x,map.y,map.w,map.h};
+                    state.tool=active->tool();state.paused=active->paused();state.help=active->help_open();
+                    state.budget=active->budget_warning_pending();state.demolition=active->demolition_pending();
+                    state.command_sequence=active->world().command_sequence();state.tick=active->world().ticks();
+                    if (const auto selected=active->selected_building())
+                        state.selected_building=static_cast<std::uint32_t>(*selected);
+                }
+                return state;
+            };
+            if (observe) input_diagnostics_->begin(event,window_,renderer_,diagnostic_state());
             if (menu_) menu_->handle_event(event);
             else if (sandbox_) {
                 sandbox_->handle_event(event,running);
@@ -146,6 +192,7 @@ int Application::run() {
                 (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) {
                 running = false;
             }
+            if (observe) input_diagnostics_->end(diagnostic_state());
             }
         }
 
@@ -216,6 +263,7 @@ bool Application::render() {
 }
 
 void Application::shutdown() {
+    if (input_diagnostics_ && sdl_initialized_) input_diagnostics_->print(std::cout);
     if (menu_) menu_->shutdown();
     if (sandbox_) sandbox_->shutdown();
     if (map_browser_) map_browser_->shutdown();

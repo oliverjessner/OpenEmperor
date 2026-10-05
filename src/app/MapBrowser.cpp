@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <utility>
 
@@ -93,7 +94,14 @@ void MapBrowser::handle_event(const SDL_Event& event,bool& running) {
     }
     if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button==SDL_BUTTON_LEFT) {
         float x=event.button.x,y=event.button.y;
-        if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&x,&y)) return;
+        int width=0,height=0,output_width=0,output_height=0;
+        if (!std::isfinite(x) || !std::isfinite(y) ||
+            !SDL_GetWindowSize(window_,&width,&height) ||
+            !SDL_GetCurrentRenderOutputSize(renderer_,&output_width,&output_height) ||
+            x<0 || y<0 || x>=static_cast<float>(width) || y>=static_cast<float>(height) ||
+            !SDL_RenderCoordinatesFromWindow(renderer_,x,y,&x,&y) ||
+            !std::isfinite(x) || !std::isfinite(y) || x<0 || y<0 ||
+            x>=static_cast<float>(output_width) || y>=static_cast<float>(output_height)) return;
         if (y>=96.0F) {
             const auto page=selected_/15;
             const auto row=static_cast<std::size_t>((y-96.0F)/32.0F);

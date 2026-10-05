@@ -1046,12 +1046,37 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
 }
 std::optional<scene::Point> SandboxView::render_point(float x,float y) const {
     int width=0,height=0;
-    if (!SDL_GetWindowSize(window_,&width,&height) || x<0 || y<0 ||
+    if (!std::isfinite(x) || !std::isfinite(y) ||
+        !SDL_GetWindowSize(window_,&width,&height) || x<0 || y<0 ||
         x>=static_cast<float>(width) || y>=static_cast<float>(height))
         return std::nullopt;
     float rx=0,ry=0;
-    if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&rx,&ry)) return std::nullopt;
+    if (!SDL_RenderCoordinatesFromWindow(renderer_,x,y,&rx,&ry) ||
+        !std::isfinite(rx) || !std::isfinite(ry)) return std::nullopt;
     return scene::Point{rx,ry};
+}
+SandboxView::InputDiagnosticState SandboxView::input_diagnostic_state(
+    std::optional<scene::Point> raw_window_position) const {
+    InputDiagnosticState state;
+    state.map_pressed=map_pressed_;
+    state.ui_pressed=ui_pressed_ || pressed_button_.has_value() || menu_pressed_ ||
+        budget_button_pressed_.has_value() || demolition_button_pressed_.has_value();
+    state.road_drag=road_start_.has_value();
+    state.input_focused=input_focused_;
+    state.selected_cell=selected_;
+    state.selected_landscape=selected_landscape_;
+    state.selected_walker=selected_walker_ ? static_cast<std::uint32_t>(*selected_walker_):0;
+    if (raw_window_position && std::isfinite(raw_window_position->x) &&
+        std::isfinite(raw_window_position->y))
+        state.render_position=render_point(static_cast<float>(raw_window_position->x),
+                                           static_cast<float>(raw_window_position->y));
+    if (state.render_position) {
+        state.ui=layout_.ui_at(state.render_position->x,state.render_position->y) ||
+            help_open_ || budget_warning_.has_value() || pending_demolition_.has_value();
+        state.ui_action=layout_.button_at(state.render_position->x,state.render_position->y);
+        state.ground_cell=pick(*state.render_position);
+    }
+    return state;
 }
 void SandboxView::invalidate_road_preview_cache() {
     planned_start_.reset(); planned_end_.reset();
@@ -1107,11 +1132,25 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (pending_demolition_) (void)resolve_demolition(false);
         cancel_gesture(); if (managed_) menu_requested_=true; else running=false; return;
     }
+    // Window boundaries must disarm presses before any modal's early return.
+    // Rendering also refreshes layout, but a queued release may precede it.
+    if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST || event.type==SDL_EVENT_WINDOW_MINIMIZED ||
+        event.type==SDL_EVENT_WINDOW_HIDDEN) {
+        input_focused_=false;
+        cancel_gesture(); budget_button_pressed_.reset(); demolition_button_pressed_.reset();
+        if (pending_demolition_) (void)resolve_demolition(false);
+        pointer_.reset(); refresh_hover(); visual_frame_valid_=false; return;
+    }
+    if (event.type==SDL_EVENT_WINDOW_FOCUS_GAINED) { input_focused_=true; return; }
+    if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED || event.type==SDL_EVENT_WINDOW_RESIZED ||
+        event.type==SDL_EVENT_WINDOW_DISPLAY_CHANGED || event.type==SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED ||
+        event.type==SDL_EVENT_WINDOW_RESTORED) {
+        cancel_gesture(); budget_button_pressed_.reset(); demolition_button_pressed_.reset();
+        if (pending_demolition_) (void)resolve_demolition(false);
+        visual_frame_valid_=false;
+        resize_camera(); return;
+    }
     if (pending_demolition_) {
-        if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST || event.type==SDL_EVENT_WINDOW_RESIZED ||
-            event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
-            (void)resolve_demolition(false); return;
-        }
         if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
             if (event.key.key==SDLK_ESCAPE) { (void)resolve_demolition(false); return; }
             if (event.key.key==SDLK_RETURN || event.key.key==SDLK_KP_ENTER) {
@@ -1134,9 +1173,6 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         return;
     }
     if (budget_warning_) {
-        if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST) {
-            budget_button_pressed_.reset(); return;
-        }
         if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
             if (event.key.key==SDLK_ESCAPE || event.key.key==SDLK_N) {
                 (void)resolve_budget_warning(false); return;
@@ -1147,6 +1183,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             }
         }
         if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button==SDL_BUTTON_LEFT) {
+            budget_button_pressed_.reset();
             const auto point=render_point(event.button.x,event.button.y);
             if (point && budget_build_rect().contains(point->x,point->y))
                 budget_button_pressed_=true;
@@ -1165,10 +1202,6 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             return;
         }
         return;
-    }
-    if (event.type==SDL_EVENT_WINDOW_FOCUS_LOST) { cancel_gesture(); pointer_.reset(); refresh_hover(); return; }
-    if (event.type==SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED || event.type==SDL_EVENT_WINDOW_RESIZED) {
-        cancel_gesture(); resize_camera(); return;
     }
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
         if (event.key.key==SDLK_H || event.key.key==SDLK_QUESTION) {
@@ -1281,14 +1314,23 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
     }
     if (help_open_) {
-        if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
+        if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button==SDL_BUTTON_LEFT) {
+            pressed_button_.reset();
             const auto point=render_point(event.button.x,event.button.y);
             if (point && layout_.button_at(point->x,point->y)==sandbox_ui::Action::ToggleHelp)
+                pressed_button_=sandbox_ui::Action::ToggleHelp;
+        } else if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
+            const auto point=render_point(event.button.x,event.button.y);
+            const bool matching=pressed_button_==sandbox_ui::Action::ToggleHelp && point &&
+                layout_.button_at(point->x,point->y)==sandbox_ui::Action::ToggleHelp;
+            cancel_gesture();
+            if (matching)
                 perform_action(sandbox_ui::Action::ToggleHelp);
         }
         return;
     }
     if (event.type==SDL_EVENT_MOUSE_WHEEL) {
+        if (!std::isfinite(event.wheel.y)) return;
         const auto point=render_point(event.wheel.mouse_x,event.wheel.mouse_y);
         if (point) {
             pointer_=point;
@@ -1296,8 +1338,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 const auto rows=placed_buildings().size()+inspection_lines().size();
                 const int total=56*layout_.scale+static_cast<int>(rows)*18*layout_.scale;
                 const int limit=std::max(0,total-layout_.panel.h);
-                panel_scroll_=std::clamp(panel_scroll_-static_cast<int>(event.wheel.y)*24*layout_.scale,
-                                         0,limit);
+                // Preserve integral-notch scrolling without narrowing an
+                // untrusted float or overflowing the scaled scroll delta.
+                const double next=panel_scroll_-std::trunc(double(event.wheel.y))*24*layout_.scale;
+                panel_scroll_=static_cast<int>(std::clamp(next,0.0,double(limit)));
             }
             else if (layout_.map.contains(point->x,point->y) && !road_start_)
                 camera_.zoom_at(*point,std::pow(1.15,event.wheel.y));
@@ -1426,16 +1470,20 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     }
 }
 void SandboxView::update(double seconds) {
+    const bool* keys=SDL_GetKeyboardState(nullptr);
+    update(seconds,{keys[SDL_SCANCODE_LEFT],keys[SDL_SCANCODE_RIGHT],
+        keys[SDL_SCANCODE_UP],keys[SDL_SCANCODE_DOWN],keys[SDL_SCANCODE_A],
+        keys[SDL_SCANCODE_D],keys[SDL_SCANCODE_W],keys[SDL_SCANCODE_S]});
+}
+void SandboxView::update(double seconds,PanKeyState keys) {
     performance::ScopedTimer timer(performance::Timing::SimulationUpdate);
     if (budget_warning_ || pending_demolition_) return;
-    const bool* keys=SDL_GetKeyboardState(nullptr);
     const double movement=400.0*std::clamp(seconds,0.0,0.05);
-    if (!road_start_) {
-        if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT]) camera_.offset.x+=movement;
-        if ((!simulation::desirability_profile(rules_) && keys[SDL_SCANCODE_D]) ||
-            keys[SDL_SCANCODE_RIGHT]) camera_.offset.x-=movement;
-        if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) camera_.offset.y+=movement;
-        if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) camera_.offset.y-=movement;
+    if (input_focused_ && !road_start_) {
+        if (keys.a || keys.left) camera_.offset.x+=movement;
+        if ((!simulation::desirability_profile(rules_) && keys.d) || keys.right) camera_.offset.x-=movement;
+        if (keys.w || keys.up) camera_.offset.y+=movement;
+        if (keys.s || keys.down) camera_.offset.y-=movement;
         hover_dirty_=true;
     }
     if (hover_dirty_ || road_start_) refresh_hover();

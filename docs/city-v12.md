@@ -1,5 +1,7 @@
 # City-v12: deterministic fire safety
 
+Current native input delivery and the executable short human check are centralized in [Native Input Reliability](input-reliability.md) and [input acceptance](testing-input-acceptance.md). Historical observations below retain their original scope; they do not mark the current human checklist PASS or close profile-specific balance/replanning playthroughs.
+
 `sandbox-city-v12`, rule version **1**, is an explicitly selected OpenEmperor-authored profile based on City-v11-v4. It retains the economy, Market distribution, population, operation controls, priorities, footprints and safe demolition. It adds temporary fire incidents and road-based prevention. This is not a reconstruction of Emperor's original fire mechanics. No goods were added, and original data remains read-only. The later presentation passes assign a curated one-cell roofed civic-building preview to FireWatch, without claiming its original identity; FireInspector still uses a marker.
 
 City-v11 stays the New Sandbox default (currently rule 3 pending its separate native v4 acceptance). Existing settings, CLI defaults and schemas 1–13 keep their identities. There is no City-v11-to-v12 migration.

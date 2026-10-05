@@ -1,5 +1,7 @@
 # City-v14: water access and residential infrastructure
 
+Current native input delivery and the executable short human check are centralized in [Native Input Reliability](input-reliability.md) and [input acceptance](testing-input-acceptance.md). Historical observations below retain their original scope; they do not mark the current human checklist PASS or close profile-specific balance/replanning playthroughs.
+
 `sandbox-city-v14`, rule **1**, extends City-v13 rule 1 with proximity-based water access. These are independently authored OpenEmperor rules, **not reconstructed Emperor water mechanics**. Economy, Market distribution, road couriers, Service, fire, desirability, population, workforce controls, demolition and House evolution are inherited. City-v11 rule 3 remains the fresh-settings menu default, and existing preferences, CLI defaults and schemas 1–15 retain their meanings. Starting commit: `1c5782affaf6262028e51792fe2bb2c1f7e5ad18`; the working tree was clean before this milestone. No commit, push, tag or release is performed.
 
 ## Well and derived coverage
