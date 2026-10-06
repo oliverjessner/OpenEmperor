@@ -1818,10 +1818,15 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             const float size=static_cast<float>(std::max(7.0,14.0*camera_.zoom));
             const float flicker=static_cast<float>((world_->ticks()/4U)%3U)*size*0.15F;
             const float x=static_cast<float>(center.x),y=static_cast<float>(center.y)-size;
-            const SDL_Vertex flame[]={{{x-size,y},{220,75,30,235},{}},
-                {{x+size,y},{245,125,35,235},{}},
-                {{x,y-size*2.5F-flicker},{255,205,65,245},{}}};
-            if (!SDL_RenderGeometry(renderer_,nullptr,flame,3,nullptr,0)) return false;
+            const SDL_Vertex flame[]={{{x-size,y},{220.F/255.F,75.F/255.F,30.F/255.F,235.F/255.F},{}},
+                {{x+size,y},{245.F/255.F,125.F/255.F,35.F/255.F,235.F/255.F},{}},
+                {{x,y-size*2.5F-flicker},{1.F,205.F/255.F,65.F/255.F,245.F/255.F},{}}};
+            SDL_BlendMode previous;
+            if (!SDL_GetRenderDrawBlendMode(renderer_,&previous)) return false;
+            const bool drawn=SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND) &&
+                SDL_RenderGeometry(renderer_,nullptr,flame,3,nullptr,0);
+            const bool restored=SDL_SetRenderDrawBlendMode(renderer_,previous);
+            if (!drawn || !restored) return false;
         }
         if (debug_open_) {
             const auto text=std::string(burning ? "FIRE ":"Risk ")+

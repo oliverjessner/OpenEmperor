@@ -354,6 +354,17 @@ if(BUILD_TESTING)
     set_tests_properties(sandbox-city-v14-view PROPERTIES TIMEOUT 240)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
     set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 240)
+    add_executable(openemperor-fire-overlay-pixel-tests tests/FireOverlayPixelTests.cpp
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-fire-overlay-pixel-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-fire-overlay-pixel-tests)
+    add_test(NAME fire-overlay-production-pixels COMMAND openemperor-fire-overlay-pixel-tests)
+    set_tests_properties(fire-overlay-production-pixels PROPERTIES TIMEOUT 45)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
