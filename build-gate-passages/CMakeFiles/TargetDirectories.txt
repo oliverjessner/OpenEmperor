@@ -51,6 +51,7 @@
 /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles/openemperor-health-fallback-tests.dir
 /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles/openemperor-well-fallback-tests.dir
 /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles/openemperor-sandbox-view-tests.dir
+/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir
 /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles/openemperor-menu-session-tests.dir
 /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles/openemperor-input-coordinate-tests.dir
 /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles/openemperor-input-diagnostics-tests.dir

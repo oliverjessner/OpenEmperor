@@ -88,6 +88,7 @@ all: CMakeFiles/openemperor-sandbox-production-tests.dir/all
 all: CMakeFiles/openemperor-health-fallback-tests.dir/all
 all: CMakeFiles/openemperor-well-fallback-tests.dir/all
 all: CMakeFiles/openemperor-sandbox-view-tests.dir/all
+all: CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all
 all: CMakeFiles/openemperor-menu-session-tests.dir/all
 all: CMakeFiles/openemperor-input-coordinate-tests.dir/all
 all: CMakeFiles/openemperor-input-diagnostics-tests.dir/all
@@ -181,6 +182,7 @@ codegen: CMakeFiles/openemperor-sandbox-production-tests.dir/codegen
 codegen: CMakeFiles/openemperor-health-fallback-tests.dir/codegen
 codegen: CMakeFiles/openemperor-well-fallback-tests.dir/codegen
 codegen: CMakeFiles/openemperor-sandbox-view-tests.dir/codegen
+codegen: CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/codegen
 codegen: CMakeFiles/openemperor-menu-session-tests.dir/codegen
 codegen: CMakeFiles/openemperor-input-coordinate-tests.dir/codegen
 codegen: CMakeFiles/openemperor-input-diagnostics-tests.dir/codegen
@@ -306,6 +308,7 @@ clean: CMakeFiles/openemperor-sandbox-production-tests.dir/clean
 clean: CMakeFiles/openemperor-health-fallback-tests.dir/clean
 clean: CMakeFiles/openemperor-well-fallback-tests.dir/clean
 clean: CMakeFiles/openemperor-sandbox-view-tests.dir/clean
+clean: CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/clean
 clean: CMakeFiles/openemperor-menu-session-tests.dir/clean
 clean: CMakeFiles/openemperor-input-coordinate-tests.dir/clean
 clean: CMakeFiles/openemperor-input-diagnostics-tests.dir/clean
@@ -417,7 +420,7 @@ CMakeFiles/openemperor.dir/clean:
 CMakeFiles/openemperor-inspect.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-inspect.dir/build.make CMakeFiles/openemperor-inspect.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-inspect.dir/build.make CMakeFiles/openemperor-inspect.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=21 "Built target openemperor-inspect"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=20 "Built target openemperor-inspect"
 .PHONY : CMakeFiles/openemperor-inspect.dir/all
 
 # Build rule for subdir invocation for target.
@@ -434,7 +437,7 @@ openemperor-inspect: CMakeFiles/openemperor-inspect.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-inspect.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-inspect.dir/build.make CMakeFiles/openemperor-inspect.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=21 "Finished codegen for target openemperor-inspect"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=20 "Finished codegen for target openemperor-inspect"
 .PHONY : CMakeFiles/openemperor-inspect.dir/codegen
 
 # clean rule for target.
@@ -449,7 +452,7 @@ CMakeFiles/openemperor-inspect.dir/clean:
 CMakeFiles/openemperor-sg3.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3.dir/build.make CMakeFiles/openemperor-sg3.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3.dir/build.make CMakeFiles/openemperor-sg3.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=80,81,82,83,84 "Built target openemperor-sg3"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=81,82,83,84,85 "Built target openemperor-sg3"
 .PHONY : CMakeFiles/openemperor-sg3.dir/all
 
 # Build rule for subdir invocation for target.
@@ -466,7 +469,7 @@ openemperor-sg3: CMakeFiles/openemperor-sg3.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-sg3.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3.dir/build.make CMakeFiles/openemperor-sg3.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=80,81,82,83,84 "Finished codegen for target openemperor-sg3"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=81,82,83,84,85 "Finished codegen for target openemperor-sg3"
 .PHONY : CMakeFiles/openemperor-sg3.dir/codegen
 
 # clean rule for target.
@@ -481,7 +484,7 @@ CMakeFiles/openemperor-sg3.dir/clean:
 CMakeFiles/openemperor-scene.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene.dir/build.make CMakeFiles/openemperor-scene.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene.dir/build.make CMakeFiles/openemperor-scene.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=73 "Built target openemperor-scene"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=74 "Built target openemperor-scene"
 .PHONY : CMakeFiles/openemperor-scene.dir/all
 
 # Build rule for subdir invocation for target.
@@ -498,7 +501,7 @@ openemperor-scene: CMakeFiles/openemperor-scene.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-scene.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene.dir/build.make CMakeFiles/openemperor-scene.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=73 "Finished codegen for target openemperor-scene"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=74 "Finished codegen for target openemperor-scene"
 .PHONY : CMakeFiles/openemperor-scene.dir/codegen
 
 # clean rule for target.
@@ -515,7 +518,7 @@ CMakeFiles/openemperor-maps.dir/all: CMakeFiles/openemperor-scene.dir/all
 CMakeFiles/openemperor-maps.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-maps.dir/build.make CMakeFiles/openemperor-maps.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-maps.dir/build.make CMakeFiles/openemperor-maps.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=29,30,31,32,33,34,35,36 "Built target openemperor-maps"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=28,29,30,31,32,33,34,35 "Built target openemperor-maps"
 .PHONY : CMakeFiles/openemperor-maps.dir/all
 
 # Build rule for subdir invocation for target.
@@ -532,7 +535,7 @@ openemperor-maps: CMakeFiles/openemperor-maps.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-maps.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-maps.dir/build.make CMakeFiles/openemperor-maps.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=29,30,31,32,33,34,35,36 "Finished codegen for target openemperor-maps"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=28,29,30,31,32,33,34,35 "Finished codegen for target openemperor-maps"
 .PHONY : CMakeFiles/openemperor-maps.dir/codegen
 
 # clean rule for target.
@@ -582,7 +585,7 @@ CMakeFiles/openemperor-persistence.dir/all: CMakeFiles/openemperor-maps.dir/all
 CMakeFiles/openemperor-persistence.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-persistence.dir/build.make CMakeFiles/openemperor-persistence.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-persistence.dir/build.make CMakeFiles/openemperor-persistence.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=49 "Built target openemperor-persistence"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=47 "Built target openemperor-persistence"
 .PHONY : CMakeFiles/openemperor-persistence.dir/all
 
 # Build rule for subdir invocation for target.
@@ -599,7 +602,7 @@ openemperor-persistence: CMakeFiles/openemperor-persistence.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-persistence.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-persistence.dir/build.make CMakeFiles/openemperor-persistence.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=49 "Finished codegen for target openemperor-persistence"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=47 "Finished codegen for target openemperor-persistence"
 .PHONY : CMakeFiles/openemperor-persistence.dir/codegen
 
 # clean rule for target.
@@ -618,7 +621,7 @@ CMakeFiles/openemperor-recovery.dir/all: CMakeFiles/openemperor-simulation.dir/a
 CMakeFiles/openemperor-recovery.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-recovery.dir/build.make CMakeFiles/openemperor-recovery.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-recovery.dir/build.make CMakeFiles/openemperor-recovery.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=51 "Built target openemperor-recovery"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=49 "Built target openemperor-recovery"
 .PHONY : CMakeFiles/openemperor-recovery.dir/all
 
 # Build rule for subdir invocation for target.
@@ -635,7 +638,7 @@ openemperor-recovery: CMakeFiles/openemperor-recovery.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-recovery.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-recovery.dir/build.make CMakeFiles/openemperor-recovery.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=51 "Finished codegen for target openemperor-recovery"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=49 "Finished codegen for target openemperor-recovery"
 .PHONY : CMakeFiles/openemperor-recovery.dir/codegen
 
 # clean rule for target.
@@ -653,12 +656,12 @@ CMakeFiles/openemperor-map-inspect.dir/all: CMakeFiles/openemperor-maps.dir/all
 CMakeFiles/openemperor-map-inspect.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-inspect.dir/build.make CMakeFiles/openemperor-map-inspect.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-inspect.dir/build.make CMakeFiles/openemperor-map-inspect.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-map-inspect"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=24 "Built target openemperor-map-inspect"
 .PHONY : CMakeFiles/openemperor-map-inspect.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-map-inspect.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 16
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-map-inspect.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-map-inspect.dir/rule
@@ -670,7 +673,7 @@ openemperor-map-inspect: CMakeFiles/openemperor-map-inspect.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-map-inspect.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-inspect.dir/build.make CMakeFiles/openemperor-map-inspect.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-map-inspect"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=24 "Finished codegen for target openemperor-map-inspect"
 .PHONY : CMakeFiles/openemperor-map-inspect.dir/codegen
 
 # clean rule for target.
@@ -688,7 +691,7 @@ CMakeFiles/openemperor-map-graphics.dir/all: CMakeFiles/openemperor-maps.dir/all
 CMakeFiles/openemperor-map-graphics.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-graphics.dir/build.make CMakeFiles/openemperor-map-graphics.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-graphics.dir/build.make CMakeFiles/openemperor-map-graphics.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=23 "Built target openemperor-map-graphics"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=22 "Built target openemperor-map-graphics"
 .PHONY : CMakeFiles/openemperor-map-graphics.dir/all
 
 # Build rule for subdir invocation for target.
@@ -705,7 +708,7 @@ openemperor-map-graphics: CMakeFiles/openemperor-map-graphics.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-map-graphics.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-graphics.dir/build.make CMakeFiles/openemperor-map-graphics.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=23 "Finished codegen for target openemperor-map-graphics"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=22 "Finished codegen for target openemperor-map-graphics"
 .PHONY : CMakeFiles/openemperor-map-graphics.dir/codegen
 
 # clean rule for target.
@@ -720,12 +723,12 @@ CMakeFiles/openemperor-map-graphics.dir/clean:
 CMakeFiles/openemperor-assets.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-assets.dir/build.make CMakeFiles/openemperor-assets.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-assets.dir/build.make CMakeFiles/openemperor-assets.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-assets"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=11 "Built target openemperor-assets"
 .PHONY : CMakeFiles/openemperor-assets.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-assets.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 5
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-assets.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-assets.dir/rule
@@ -737,7 +740,7 @@ openemperor-assets: CMakeFiles/openemperor-assets.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-assets.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-assets.dir/build.make CMakeFiles/openemperor-assets.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-assets"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=11 "Finished codegen for target openemperor-assets"
 .PHONY : CMakeFiles/openemperor-assets.dir/codegen
 
 # clean rule for target.
@@ -1651,12 +1654,12 @@ CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/all: CMakeFiles/ope
 CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/build.make CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/build.make CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=16 "Built target openemperor-great-wall-dependency-paths-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-great-wall-dependency-paths-tests"
 .PHONY : CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 16
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/rule
@@ -1668,7 +1671,7 @@ openemperor-great-wall-dependency-paths-tests: CMakeFiles/openemperor-great-wall
 # codegen rule for target.
 CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/build.make CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=16 "Finished codegen for target openemperor-great-wall-dependency-paths-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-great-wall-dependency-paths-tests"
 .PHONY : CMakeFiles/openemperor-great-wall-dependency-paths-tests.dir/codegen
 
 # clean rule for target.
@@ -1721,12 +1724,12 @@ CMakeFiles/openemperor-greatwallmodels-tests.dir/all: CMakeFiles/openemperor-map
 CMakeFiles/openemperor-greatwallmodels-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallmodels-tests.dir/build.make CMakeFiles/openemperor-greatwallmodels-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallmodels-tests.dir/build.make CMakeFiles/openemperor-greatwallmodels-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-greatwallmodels-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=16 "Built target openemperor-greatwallmodels-tests"
 .PHONY : CMakeFiles/openemperor-greatwallmodels-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-greatwallmodels-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 16
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-greatwallmodels-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-greatwallmodels-tests.dir/rule
@@ -1738,7 +1741,7 @@ openemperor-greatwallmodels-tests: CMakeFiles/openemperor-greatwallmodels-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-greatwallmodels-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallmodels-tests.dir/build.make CMakeFiles/openemperor-greatwallmodels-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-greatwallmodels-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=16 "Finished codegen for target openemperor-greatwallmodels-tests"
 .PHONY : CMakeFiles/openemperor-greatwallmodels-tests.dir/codegen
 
 # clean rule for target.
@@ -1756,7 +1759,7 @@ CMakeFiles/openemperor-greatwallselector-tests.dir/all: CMakeFiles/openemperor-m
 CMakeFiles/openemperor-greatwallselector-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallselector-tests.dir/build.make CMakeFiles/openemperor-greatwallselector-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallselector-tests.dir/build.make CMakeFiles/openemperor-greatwallselector-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=18 "Built target openemperor-greatwallselector-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=17 "Built target openemperor-greatwallselector-tests"
 .PHONY : CMakeFiles/openemperor-greatwallselector-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -1773,7 +1776,7 @@ openemperor-greatwallselector-tests: CMakeFiles/openemperor-greatwallselector-te
 # codegen rule for target.
 CMakeFiles/openemperor-greatwallselector-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallselector-tests.dir/build.make CMakeFiles/openemperor-greatwallselector-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=18 "Finished codegen for target openemperor-greatwallselector-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=17 "Finished codegen for target openemperor-greatwallselector-tests"
 .PHONY : CMakeFiles/openemperor-greatwallselector-tests.dir/codegen
 
 # clean rule for target.
@@ -1791,12 +1794,12 @@ CMakeFiles/openemperor-greatwallpresentation-tests.dir/all: CMakeFiles/openemper
 CMakeFiles/openemperor-greatwallpresentation-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallpresentation-tests.dir/build.make CMakeFiles/openemperor-greatwallpresentation-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallpresentation-tests.dir/build.make CMakeFiles/openemperor-greatwallpresentation-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=17 "Built target openemperor-greatwallpresentation-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-greatwallpresentation-tests"
 .PHONY : CMakeFiles/openemperor-greatwallpresentation-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-greatwallpresentation-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 16
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-greatwallpresentation-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-greatwallpresentation-tests.dir/rule
@@ -1808,7 +1811,7 @@ openemperor-greatwallpresentation-tests: CMakeFiles/openemperor-greatwallpresent
 # codegen rule for target.
 CMakeFiles/openemperor-greatwallpresentation-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-greatwallpresentation-tests.dir/build.make CMakeFiles/openemperor-greatwallpresentation-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=17 "Finished codegen for target openemperor-greatwallpresentation-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-greatwallpresentation-tests"
 .PHONY : CMakeFiles/openemperor-greatwallpresentation-tests.dir/codegen
 
 # clean rule for target.
@@ -1861,7 +1864,7 @@ CMakeFiles/openemperor-pinnacle-selector-tests.dir/all: CMakeFiles/openemperor-m
 CMakeFiles/openemperor-pinnacle-selector-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-pinnacle-selector-tests.dir/build.make CMakeFiles/openemperor-pinnacle-selector-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-pinnacle-selector-tests.dir/build.make CMakeFiles/openemperor-pinnacle-selector-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=50 "Built target openemperor-pinnacle-selector-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=48 "Built target openemperor-pinnacle-selector-tests"
 .PHONY : CMakeFiles/openemperor-pinnacle-selector-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -1878,7 +1881,7 @@ openemperor-pinnacle-selector-tests: CMakeFiles/openemperor-pinnacle-selector-te
 # codegen rule for target.
 CMakeFiles/openemperor-pinnacle-selector-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-pinnacle-selector-tests.dir/build.make CMakeFiles/openemperor-pinnacle-selector-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=50 "Finished codegen for target openemperor-pinnacle-selector-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=48 "Finished codegen for target openemperor-pinnacle-selector-tests"
 .PHONY : CMakeFiles/openemperor-pinnacle-selector-tests.dir/codegen
 
 # clean rule for target.
@@ -1931,7 +1934,7 @@ CMakeFiles/openemperor-landscape-instance-tests.dir/all: CMakeFiles/openemperor-
 CMakeFiles/openemperor-landscape-instance-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-landscape-instance-tests.dir/build.make CMakeFiles/openemperor-landscape-instance-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-landscape-instance-tests.dir/build.make CMakeFiles/openemperor-landscape-instance-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=22 "Built target openemperor-landscape-instance-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=21 "Built target openemperor-landscape-instance-tests"
 .PHONY : CMakeFiles/openemperor-landscape-instance-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -1948,7 +1951,7 @@ openemperor-landscape-instance-tests: CMakeFiles/openemperor-landscape-instance-
 # codegen rule for target.
 CMakeFiles/openemperor-landscape-instance-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-landscape-instance-tests.dir/build.make CMakeFiles/openemperor-landscape-instance-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=22 "Finished codegen for target openemperor-landscape-instance-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=21 "Finished codegen for target openemperor-landscape-instance-tests"
 .PHONY : CMakeFiles/openemperor-landscape-instance-tests.dir/codegen
 
 # clean rule for target.
@@ -1995,12 +1998,12 @@ CMakeFiles/openemperor-sandbox-simulation-tests.dir/clean:
 CMakeFiles/openemperor-sandbox-production-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-production-tests.dir/build.make CMakeFiles/openemperor-sandbox-production-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-production-tests.dir/build.make CMakeFiles/openemperor-sandbox-production-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=66 "Built target openemperor-sandbox-production-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-production-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-production-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-production-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 3
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-production-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-production-tests.dir/rule
@@ -2012,7 +2015,7 @@ openemperor-sandbox-production-tests: CMakeFiles/openemperor-sandbox-production-
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-production-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-production-tests.dir/build.make CMakeFiles/openemperor-sandbox-production-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=66 "Finished codegen for target openemperor-sandbox-production-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-production-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-production-tests.dir/codegen
 
 # clean rule for target.
@@ -2027,12 +2030,12 @@ CMakeFiles/openemperor-sandbox-production-tests.dir/clean:
 CMakeFiles/openemperor-health-fallback-tests.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-health-fallback-tests.dir/build.make CMakeFiles/openemperor-health-fallback-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-health-fallback-tests.dir/build.make CMakeFiles/openemperor-health-fallback-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-health-fallback-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=18 "Built target openemperor-health-fallback-tests"
 .PHONY : CMakeFiles/openemperor-health-fallback-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-health-fallback-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 1
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-health-fallback-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-health-fallback-tests.dir/rule
@@ -2044,7 +2047,7 @@ openemperor-health-fallback-tests: CMakeFiles/openemperor-health-fallback-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-health-fallback-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-health-fallback-tests.dir/build.make CMakeFiles/openemperor-health-fallback-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-health-fallback-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=18 "Finished codegen for target openemperor-health-fallback-tests"
 .PHONY : CMakeFiles/openemperor-health-fallback-tests.dir/codegen
 
 # clean rule for target.
@@ -2096,7 +2099,7 @@ CMakeFiles/openemperor-sandbox-view-tests.dir/all: CMakeFiles/openemperor-persis
 CMakeFiles/openemperor-sandbox-view-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=69,70,71,72 "Built target openemperor-sandbox-view-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=70,71,72,73 "Built target openemperor-sandbox-view-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-view-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -2113,13 +2116,50 @@ openemperor-sandbox-view-tests: CMakeFiles/openemperor-sandbox-view-tests.dir/ru
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-view-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=69,70,71,72 "Finished codegen for target openemperor-sandbox-view-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=70,71,72,73 "Finished codegen for target openemperor-sandbox-view-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-view-tests.dir/codegen
 
 # clean rule for target.
 CMakeFiles/openemperor-sandbox-view-tests.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/clean
 .PHONY : CMakeFiles/openemperor-sandbox-view-tests.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir
+
+# All Build rule for target.
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all: CMakeFiles/openemperor-scene.dir/all
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all: CMakeFiles/openemperor-maps.dir/all
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=62,63,64,65 "Built target openemperor-sandbox-gate-budget-view-tests"
+.PHONY : CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 22
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
+.PHONY : CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/rule
+
+# Convenience name for target.
+openemperor-sandbox-gate-budget-view-tests: CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/rule
+.PHONY : openemperor-sandbox-gate-budget-view-tests
+
+# codegen rule for target.
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=62,63,64,65 "Finished codegen for target openemperor-sandbox-gate-budget-view-tests"
+.PHONY : CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/codegen
+
+# clean rule for target.
+CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/clean
+.PHONY : CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/openemperor-menu-session-tests.dir
@@ -2133,7 +2173,7 @@ CMakeFiles/openemperor-menu-session-tests.dir/all: CMakeFiles/openemperor-persis
 CMakeFiles/openemperor-menu-session-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=42,43,44,45,46 "Built target openemperor-menu-session-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=40,41,42,43,44 "Built target openemperor-menu-session-tests"
 .PHONY : CMakeFiles/openemperor-menu-session-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -2150,7 +2190,7 @@ openemperor-menu-session-tests: CMakeFiles/openemperor-menu-session-tests.dir/ru
 # codegen rule for target.
 CMakeFiles/openemperor-menu-session-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=42,43,44,45,46 "Finished codegen for target openemperor-menu-session-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=40,41,42,43,44 "Finished codegen for target openemperor-menu-session-tests"
 .PHONY : CMakeFiles/openemperor-menu-session-tests.dir/codegen
 
 # clean rule for target.
@@ -2165,12 +2205,12 @@ CMakeFiles/openemperor-menu-session-tests.dir/clean:
 CMakeFiles/openemperor-input-coordinate-tests.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-input-coordinate-tests.dir/build.make CMakeFiles/openemperor-input-coordinate-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-input-coordinate-tests.dir/build.make CMakeFiles/openemperor-input-coordinate-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=19 "Built target openemperor-input-coordinate-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-input-coordinate-tests"
 .PHONY : CMakeFiles/openemperor-input-coordinate-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-input-coordinate-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 1
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-input-coordinate-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-input-coordinate-tests.dir/rule
@@ -2182,7 +2222,7 @@ openemperor-input-coordinate-tests: CMakeFiles/openemperor-input-coordinate-test
 # codegen rule for target.
 CMakeFiles/openemperor-input-coordinate-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-input-coordinate-tests.dir/build.make CMakeFiles/openemperor-input-coordinate-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=19 "Finished codegen for target openemperor-input-coordinate-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-input-coordinate-tests"
 .PHONY : CMakeFiles/openemperor-input-coordinate-tests.dir/codegen
 
 # clean rule for target.
@@ -2197,7 +2237,7 @@ CMakeFiles/openemperor-input-coordinate-tests.dir/clean:
 CMakeFiles/openemperor-input-diagnostics-tests.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-input-diagnostics-tests.dir/build.make CMakeFiles/openemperor-input-diagnostics-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-input-diagnostics-tests.dir/build.make CMakeFiles/openemperor-input-diagnostics-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=20 "Built target openemperor-input-diagnostics-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=19 "Built target openemperor-input-diagnostics-tests"
 .PHONY : CMakeFiles/openemperor-input-diagnostics-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -2214,7 +2254,7 @@ openemperor-input-diagnostics-tests: CMakeFiles/openemperor-input-diagnostics-te
 # codegen rule for target.
 CMakeFiles/openemperor-input-diagnostics-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-input-diagnostics-tests.dir/build.make CMakeFiles/openemperor-input-diagnostics-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=20 "Finished codegen for target openemperor-input-diagnostics-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=19 "Finished codegen for target openemperor-input-diagnostics-tests"
 .PHONY : CMakeFiles/openemperor-input-diagnostics-tests.dir/codegen
 
 # clean rule for target.
@@ -2234,12 +2274,12 @@ CMakeFiles/openemperor-menu-input-tests.dir/all: CMakeFiles/openemperor-persiste
 CMakeFiles/openemperor-menu-input-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=37,38,39,40,41 "Built target openemperor-menu-input-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=36,37,38,39 "Built target openemperor-menu-input-tests"
 .PHONY : CMakeFiles/openemperor-menu-input-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-menu-input-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 23
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 22
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-menu-input-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-menu-input-tests.dir/rule
@@ -2251,7 +2291,7 @@ openemperor-menu-input-tests: CMakeFiles/openemperor-menu-input-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-menu-input-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=37,38,39,40,41 "Finished codegen for target openemperor-menu-input-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=36,37,38,39 "Finished codegen for target openemperor-menu-input-tests"
 .PHONY : CMakeFiles/openemperor-menu-input-tests.dir/codegen
 
 # clean rule for target.
@@ -2269,12 +2309,12 @@ CMakeFiles/openemperor-map-input-tests.dir/all: CMakeFiles/openemperor-maps.dir/
 CMakeFiles/openemperor-map-input-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=24,25 "Built target openemperor-map-input-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=23 "Built target openemperor-map-input-tests"
 .PHONY : CMakeFiles/openemperor-map-input-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-map-input-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-map-input-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-map-input-tests.dir/rule
@@ -2286,7 +2326,7 @@ openemperor-map-input-tests: CMakeFiles/openemperor-map-input-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-map-input-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=24,25 "Finished codegen for target openemperor-map-input-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=23 "Finished codegen for target openemperor-map-input-tests"
 .PHONY : CMakeFiles/openemperor-map-input-tests.dir/codegen
 
 # clean rule for target.
@@ -2305,12 +2345,12 @@ CMakeFiles/openemperor-sandbox-save-tests.dir/all: CMakeFiles/openemperor-simula
 CMakeFiles/openemperor-sandbox-save-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-save-tests.dir/build.make CMakeFiles/openemperor-sandbox-save-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-save-tests.dir/build.make CMakeFiles/openemperor-sandbox-save-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=67 "Built target openemperor-sandbox-save-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-save-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-save-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-save-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-save-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-save-tests.dir/rule
@@ -2322,7 +2362,7 @@ openemperor-sandbox-save-tests: CMakeFiles/openemperor-sandbox-save-tests.dir/ru
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-save-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-save-tests.dir/build.make CMakeFiles/openemperor-sandbox-save-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=67 "Finished codegen for target openemperor-sandbox-save-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-save-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-save-tests.dir/codegen
 
 # clean rule for target.
@@ -2342,12 +2382,12 @@ CMakeFiles/openemperor-gate-passage-save-tests.dir/all: CMakeFiles/openemperor-p
 CMakeFiles/openemperor-gate-passage-save-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-save-tests.dir/build.make CMakeFiles/openemperor-gate-passage-save-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-save-tests.dir/build.make CMakeFiles/openemperor-gate-passage-save-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-gate-passage-save-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=15 "Built target openemperor-gate-passage-save-tests"
 .PHONY : CMakeFiles/openemperor-gate-passage-save-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-gate-passage-save-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 19
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-gate-passage-save-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-gate-passage-save-tests.dir/rule
@@ -2359,7 +2399,7 @@ openemperor-gate-passage-save-tests: CMakeFiles/openemperor-gate-passage-save-te
 # codegen rule for target.
 CMakeFiles/openemperor-gate-passage-save-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-save-tests.dir/build.make CMakeFiles/openemperor-gate-passage-save-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-gate-passage-save-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=15 "Finished codegen for target openemperor-gate-passage-save-tests"
 .PHONY : CMakeFiles/openemperor-gate-passage-save-tests.dir/codegen
 
 # clean rule for target.
@@ -2374,7 +2414,7 @@ CMakeFiles/openemperor-gate-passage-save-tests.dir/clean:
 CMakeFiles/openemperor-gate-passage-road-view-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=15 "Built target openemperor-gate-passage-road-view-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=14 "Built target openemperor-gate-passage-road-view-tests"
 .PHONY : CMakeFiles/openemperor-gate-passage-road-view-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -2391,7 +2431,7 @@ openemperor-gate-passage-road-view-tests: CMakeFiles/openemperor-gate-passage-ro
 # codegen rule for target.
 CMakeFiles/openemperor-gate-passage-road-view-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=15 "Finished codegen for target openemperor-gate-passage-road-view-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=14 "Finished codegen for target openemperor-gate-passage-road-view-tests"
 .PHONY : CMakeFiles/openemperor-gate-passage-road-view-tests.dir/codegen
 
 # clean rule for target.
@@ -2406,12 +2446,12 @@ CMakeFiles/openemperor-gate-passage-road-view-tests.dir/clean:
 CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=64 "Built target openemperor-sandbox-gate-passage-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-gate-passage-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 3
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/rule
@@ -2423,7 +2463,7 @@ openemperor-sandbox-gate-passage-tests: CMakeFiles/openemperor-sandbox-gate-pass
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=64 "Finished codegen for target openemperor-sandbox-gate-passage-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-gate-passage-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-gate-passage-tests.dir/codegen
 
 # clean rule for target.
@@ -2441,12 +2481,12 @@ CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/all: CMakeFiles/openemp
 CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/build.make CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/build.make CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-map-permissions-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=67 "Built target openemperor-sandbox-map-permissions-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 16
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/rule
@@ -2458,7 +2498,7 @@ openemperor-sandbox-map-permissions-tests: CMakeFiles/openemperor-sandbox-map-pe
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/build.make CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-map-permissions-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=67 "Finished codegen for target openemperor-sandbox-map-permissions-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-map-permissions-tests.dir/codegen
 
 # clean rule for target.
@@ -2478,7 +2518,7 @@ CMakeFiles/openemperor-recovery-tests.dir/all: CMakeFiles/openemperor-persistenc
 CMakeFiles/openemperor-recovery-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-recovery-tests.dir/build.make CMakeFiles/openemperor-recovery-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-recovery-tests.dir/build.make CMakeFiles/openemperor-recovery-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=52 "Built target openemperor-recovery-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=50 "Built target openemperor-recovery-tests"
 .PHONY : CMakeFiles/openemperor-recovery-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -2495,7 +2535,7 @@ openemperor-recovery-tests: CMakeFiles/openemperor-recovery-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-recovery-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-recovery-tests.dir/build.make CMakeFiles/openemperor-recovery-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=52 "Finished codegen for target openemperor-recovery-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=50 "Finished codegen for target openemperor-recovery-tests"
 .PHONY : CMakeFiles/openemperor-recovery-tests.dir/codegen
 
 # clean rule for target.
@@ -2514,12 +2554,12 @@ CMakeFiles/openemperor-sandbox-routing-tests.dir/all: CMakeFiles/openemperor-sim
 CMakeFiles/openemperor-sandbox-routing-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-routing-tests.dir/build.make CMakeFiles/openemperor-sandbox-routing-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-routing-tests.dir/build.make CMakeFiles/openemperor-sandbox-routing-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-routing-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=68 "Built target openemperor-sandbox-routing-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-routing-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-routing-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-routing-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-routing-tests.dir/rule
@@ -2531,7 +2571,7 @@ openemperor-sandbox-routing-tests: CMakeFiles/openemperor-sandbox-routing-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-routing-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-routing-tests.dir/build.make CMakeFiles/openemperor-sandbox-routing-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-routing-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=68 "Finished codegen for target openemperor-sandbox-routing-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-routing-tests.dir/codegen
 
 # clean rule for target.
@@ -2550,12 +2590,12 @@ CMakeFiles/openemperor-sandbox-household-tests.dir/all: CMakeFiles/openemperor-s
 CMakeFiles/openemperor-sandbox-household-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-household-tests.dir/build.make CMakeFiles/openemperor-sandbox-household-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-household-tests.dir/build.make CMakeFiles/openemperor-sandbox-household-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-household-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=66 "Built target openemperor-sandbox-household-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-household-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-household-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-household-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-household-tests.dir/rule
@@ -2567,7 +2607,7 @@ openemperor-sandbox-household-tests: CMakeFiles/openemperor-sandbox-household-te
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-household-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-household-tests.dir/build.make CMakeFiles/openemperor-sandbox-household-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-household-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=66 "Finished codegen for target openemperor-sandbox-household-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-household-tests.dir/codegen
 
 # clean rule for target.
@@ -2586,7 +2626,7 @@ CMakeFiles/openemperor-sandbox-settlement-tests.dir/all: CMakeFiles/openemperor-
 CMakeFiles/openemperor-sandbox-settlement-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-settlement-tests.dir/build.make CMakeFiles/openemperor-sandbox-settlement-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-settlement-tests.dir/build.make CMakeFiles/openemperor-sandbox-settlement-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=68 "Built target openemperor-sandbox-settlement-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=69 "Built target openemperor-sandbox-settlement-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-settlement-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -2603,7 +2643,7 @@ openemperor-sandbox-settlement-tests: CMakeFiles/openemperor-sandbox-settlement-
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-settlement-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-settlement-tests.dir/build.make CMakeFiles/openemperor-sandbox-settlement-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=68 "Finished codegen for target openemperor-sandbox-settlement-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=69 "Finished codegen for target openemperor-sandbox-settlement-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-settlement-tests.dir/codegen
 
 # clean rule for target.
@@ -2622,12 +2662,12 @@ CMakeFiles/openemperor-sandbox-industry-tests.dir/all: CMakeFiles/openemperor-si
 CMakeFiles/openemperor-sandbox-industry-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-industry-tests.dir/build.make CMakeFiles/openemperor-sandbox-industry-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-industry-tests.dir/build.make CMakeFiles/openemperor-sandbox-industry-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=65 "Built target openemperor-sandbox-industry-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-industry-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-industry-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-industry-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-industry-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-industry-tests.dir/rule
@@ -2639,7 +2679,7 @@ openemperor-sandbox-industry-tests: CMakeFiles/openemperor-sandbox-industry-test
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-industry-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-industry-tests.dir/build.make CMakeFiles/openemperor-sandbox-industry-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=65 "Finished codegen for target openemperor-sandbox-industry-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-industry-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-industry-tests.dir/codegen
 
 # clean rule for target.
@@ -2658,12 +2698,12 @@ CMakeFiles/openemperor-sandbox-city-tests.dir/all: CMakeFiles/openemperor-simula
 CMakeFiles/openemperor-sandbox-city-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=56 "Built target openemperor-sandbox-city-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-tests.dir/rule
@@ -2675,7 +2715,7 @@ openemperor-sandbox-city-tests: CMakeFiles/openemperor-sandbox-city-tests.dir/ru
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=56 "Finished codegen for target openemperor-sandbox-city-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-tests.dir/codegen
 
 # clean rule for target.
@@ -2694,12 +2734,12 @@ CMakeFiles/openemperor-sandbox-city-v7-tests.dir/all: CMakeFiles/openemperor-sim
 CMakeFiles/openemperor-sandbox-city-v7-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v7-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v7-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v7-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v7-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=62 "Built target openemperor-sandbox-city-v7-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v7-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v7-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v7-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v7-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v7-tests.dir/rule
@@ -2711,7 +2751,7 @@ openemperor-sandbox-city-v7-tests: CMakeFiles/openemperor-sandbox-city-v7-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v7-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v7-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v7-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=62 "Finished codegen for target openemperor-sandbox-city-v7-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v7-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v7-tests.dir/codegen
 
 # clean rule for target.
@@ -2730,12 +2770,12 @@ CMakeFiles/openemperor-sandbox-city-v8-tests.dir/all: CMakeFiles/openemperor-sim
 CMakeFiles/openemperor-sandbox-city-v8-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v8-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v8-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v8-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v8-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v8-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=60 "Built target openemperor-sandbox-city-v8-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v8-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v8-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v8-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v8-tests.dir/rule
@@ -2747,7 +2787,7 @@ openemperor-sandbox-city-v8-tests: CMakeFiles/openemperor-sandbox-city-v8-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v8-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v8-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v8-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v8-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=60 "Finished codegen for target openemperor-sandbox-city-v8-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v8-tests.dir/codegen
 
 # clean rule for target.
@@ -2766,12 +2806,12 @@ CMakeFiles/openemperor-sandbox-city-v9-tests.dir/all: CMakeFiles/openemperor-sim
 CMakeFiles/openemperor-sandbox-city-v9-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v9-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v9-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v9-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v9-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=63 "Built target openemperor-sandbox-city-v9-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v9-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v9-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v9-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v9-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v9-tests.dir/rule
@@ -2783,7 +2823,7 @@ openemperor-sandbox-city-v9-tests: CMakeFiles/openemperor-sandbox-city-v9-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v9-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v9-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v9-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=63 "Finished codegen for target openemperor-sandbox-city-v9-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v9-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v9-tests.dir/codegen
 
 # clean rule for target.
@@ -2802,12 +2842,12 @@ CMakeFiles/openemperor-sandbox-city-v10-tests.dir/all: CMakeFiles/openemperor-si
 CMakeFiles/openemperor-sandbox-city-v10-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v10-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v10-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v10-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v10-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v10-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=54 "Built target openemperor-sandbox-city-v10-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v10-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v10-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v10-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v10-tests.dir/rule
@@ -2819,7 +2859,7 @@ openemperor-sandbox-city-v10-tests: CMakeFiles/openemperor-sandbox-city-v10-test
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v10-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v10-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v10-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v10-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=54 "Finished codegen for target openemperor-sandbox-city-v10-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v10-tests.dir/codegen
 
 # clean rule for target.
@@ -2838,12 +2878,12 @@ CMakeFiles/openemperor-sandbox-city-v11-tests.dir/all: CMakeFiles/openemperor-si
 CMakeFiles/openemperor-sandbox-city-v11-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v11-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=56 "Built target openemperor-sandbox-city-v11-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v11-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v11-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-tests.dir/rule
@@ -2855,7 +2895,7 @@ openemperor-sandbox-city-v11-tests: CMakeFiles/openemperor-sandbox-city-v11-test
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v11-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v11-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=56 "Finished codegen for target openemperor-sandbox-city-v11-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-tests.dir/codegen
 
 # clean rule for target.
@@ -2874,12 +2914,12 @@ CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/all: CMakeFiles/openem
 CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=57 "Built target openemperor-sandbox-city-v11-balance-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v11-balance-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/rule
@@ -2891,7 +2931,7 @@ openemperor-sandbox-city-v11-balance-tests: CMakeFiles/openemperor-sandbox-city-
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=57 "Finished codegen for target openemperor-sandbox-city-v11-balance-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v11-balance-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-balance-tests.dir/codegen
 
 # clean rule for target.
@@ -2910,12 +2950,12 @@ CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/all: CMakeFiles/ope
 CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=58 "Built target openemperor-sandbox-city-v11-operations-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v11-operations-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/rule
@@ -2927,7 +2967,7 @@ openemperor-sandbox-city-v11-operations-tests: CMakeFiles/openemperor-sandbox-ci
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=58 "Finished codegen for target openemperor-sandbox-city-v11-operations-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v11-operations-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-operations-tests.dir/codegen
 
 # clean rule for target.
@@ -2946,12 +2986,12 @@ CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/all: CMakeFiles/ope
 CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/all: CMakeFiles/openemperor-persistence.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v11-demolition-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=55 "Built target openemperor-sandbox-city-v11-demolition-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/rule
@@ -2963,7 +3003,7 @@ openemperor-sandbox-city-v11-demolition-tests: CMakeFiles/openemperor-sandbox-ci
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v11-demolition-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=55 "Finished codegen for target openemperor-sandbox-city-v11-demolition-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v11-demolition-tests.dir/codegen
 
 # clean rule for target.
@@ -2983,12 +3023,12 @@ CMakeFiles/openemperor-sandbox-city-v12-tests.dir/all: CMakeFiles/openemperor-pe
 CMakeFiles/openemperor-sandbox-city-v12-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v12-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v12-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v12-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v12-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=59 "Built target openemperor-sandbox-city-v12-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v12-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v12-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v12-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 19
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v12-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v12-tests.dir/rule
@@ -3000,7 +3040,7 @@ openemperor-sandbox-city-v12-tests: CMakeFiles/openemperor-sandbox-city-v12-test
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v12-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v12-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v12-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=59 "Finished codegen for target openemperor-sandbox-city-v12-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v12-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v12-tests.dir/codegen
 
 # clean rule for target.
@@ -3020,12 +3060,12 @@ CMakeFiles/openemperor-sandbox-city-v13-tests.dir/all: CMakeFiles/openemperor-pe
 CMakeFiles/openemperor-sandbox-city-v13-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v13-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v13-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v13-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v13-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v13-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=57 "Built target openemperor-sandbox-city-v13-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v13-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v13-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 19
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v13-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v13-tests.dir/rule
@@ -3037,7 +3077,7 @@ openemperor-sandbox-city-v13-tests: CMakeFiles/openemperor-sandbox-city-v13-test
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v13-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v13-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v13-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v13-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=57 "Finished codegen for target openemperor-sandbox-city-v13-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v13-tests.dir/codegen
 
 # clean rule for target.
@@ -3057,12 +3097,12 @@ CMakeFiles/openemperor-sandbox-city-v14-tests.dir/all: CMakeFiles/openemperor-pe
 CMakeFiles/openemperor-sandbox-city-v14-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v14-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v14-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v14-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v14-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=60 "Built target openemperor-sandbox-city-v14-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v14-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v14-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v14-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 19
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v14-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v14-tests.dir/rule
@@ -3074,7 +3114,7 @@ openemperor-sandbox-city-v14-tests: CMakeFiles/openemperor-sandbox-city-v14-test
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v14-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v14-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v14-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=60 "Finished codegen for target openemperor-sandbox-city-v14-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v14-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v14-tests.dir/codegen
 
 # clean rule for target.
@@ -3094,7 +3134,7 @@ CMakeFiles/openemperor-sandbox-city-v15-tests.dir/all: CMakeFiles/openemperor-pe
 CMakeFiles/openemperor-sandbox-city-v15-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v15-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v15-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v15-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v15-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=61 "Built target openemperor-sandbox-city-v15-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=58 "Built target openemperor-sandbox-city-v15-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v15-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -3111,7 +3151,7 @@ openemperor-sandbox-city-v15-tests: CMakeFiles/openemperor-sandbox-city-v15-test
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v15-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v15-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v15-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=61 "Finished codegen for target openemperor-sandbox-city-v15-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=58 "Finished codegen for target openemperor-sandbox-city-v15-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v15-tests.dir/codegen
 
 # clean rule for target.
@@ -3131,12 +3171,12 @@ CMakeFiles/openemperor-sandbox-city-v16-tests.dir/all: CMakeFiles/openemperor-pe
 CMakeFiles/openemperor-sandbox-city-v16-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v16-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v16-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v16-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v16-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-city-v16-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=59 "Built target openemperor-sandbox-city-v16-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v16-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-city-v16-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 19
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-city-v16-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-city-v16-tests.dir/rule
@@ -3148,7 +3188,7 @@ openemperor-sandbox-city-v16-tests: CMakeFiles/openemperor-sandbox-city-v16-test
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-city-v16-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-city-v16-tests.dir/build.make CMakeFiles/openemperor-sandbox-city-v16-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-city-v16-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=59 "Finished codegen for target openemperor-sandbox-city-v16-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-city-v16-tests.dir/codegen
 
 # clean rule for target.
@@ -3163,12 +3203,12 @@ CMakeFiles/openemperor-sandbox-city-v16-tests.dir/clean:
 CMakeFiles/openemperor-city-start-guidance-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-city-start-guidance-tests.dir/build.make CMakeFiles/openemperor-city-start-guidance-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-city-start-guidance-tests.dir/build.make CMakeFiles/openemperor-city-start-guidance-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-city-start-guidance-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=12 "Built target openemperor-city-start-guidance-tests"
 .PHONY : CMakeFiles/openemperor-city-start-guidance-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-city-start-guidance-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 3
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-city-start-guidance-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-city-start-guidance-tests.dir/rule
@@ -3180,7 +3220,7 @@ openemperor-city-start-guidance-tests: CMakeFiles/openemperor-city-start-guidanc
 # codegen rule for target.
 CMakeFiles/openemperor-city-start-guidance-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-city-start-guidance-tests.dir/build.make CMakeFiles/openemperor-city-start-guidance-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-city-start-guidance-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=12 "Finished codegen for target openemperor-city-start-guidance-tests"
 .PHONY : CMakeFiles/openemperor-city-start-guidance-tests.dir/codegen
 
 # clean rule for target.
@@ -3195,12 +3235,12 @@ CMakeFiles/openemperor-city-start-guidance-tests.dir/clean:
 CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/build.make CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/build.make CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sandbox-courier-triage-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=61 "Built target openemperor-sandbox-courier-triage-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 3
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/rule
@@ -3212,7 +3252,7 @@ openemperor-sandbox-courier-triage-tests: CMakeFiles/openemperor-sandbox-courier
 # codegen rule for target.
 CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/build.make CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sandbox-courier-triage-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=61 "Finished codegen for target openemperor-sandbox-courier-triage-tests"
 .PHONY : CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/codegen
 
 # clean rule for target.
@@ -3301,7 +3341,7 @@ CMakeFiles/openemperor-map-semantic-tests.dir/all: CMakeFiles/openemperor-maps.d
 CMakeFiles/openemperor-map-semantic-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-semantic-tests.dir/build.make CMakeFiles/openemperor-map-semantic-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-semantic-tests.dir/build.make CMakeFiles/openemperor-map-semantic-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=26 "Built target openemperor-map-semantic-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=25 "Built target openemperor-map-semantic-tests"
 .PHONY : CMakeFiles/openemperor-map-semantic-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -3318,7 +3358,7 @@ openemperor-map-semantic-tests: CMakeFiles/openemperor-map-semantic-tests.dir/ru
 # codegen rule for target.
 CMakeFiles/openemperor-map-semantic-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-semantic-tests.dir/build.make CMakeFiles/openemperor-map-semantic-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=26 "Finished codegen for target openemperor-map-semantic-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=25 "Finished codegen for target openemperor-map-semantic-tests"
 .PHONY : CMakeFiles/openemperor-map-semantic-tests.dir/codegen
 
 # clean rule for target.
@@ -3371,7 +3411,7 @@ CMakeFiles/openemperor-map-view-tests.dir/all: CMakeFiles/openemperor-maps.dir/a
 CMakeFiles/openemperor-map-view-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-view-tests.dir/build.make CMakeFiles/openemperor-map-view-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-view-tests.dir/build.make CMakeFiles/openemperor-map-view-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=27,28 "Built target openemperor-map-view-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=26,27 "Built target openemperor-map-view-tests"
 .PHONY : CMakeFiles/openemperor-map-view-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -3388,7 +3428,7 @@ openemperor-map-view-tests: CMakeFiles/openemperor-map-view-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-map-view-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-view-tests.dir/build.make CMakeFiles/openemperor-map-view-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=27,28 "Finished codegen for target openemperor-map-view-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=26,27 "Finished codegen for target openemperor-map-view-tests"
 .PHONY : CMakeFiles/openemperor-map-view-tests.dir/codegen
 
 # clean rule for target.
@@ -3406,12 +3446,12 @@ CMakeFiles/openemperor-stored-graphics-tests.dir/all: CMakeFiles/openemperor-map
 CMakeFiles/openemperor-stored-graphics-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-stored-graphics-tests.dir/build.make CMakeFiles/openemperor-stored-graphics-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-stored-graphics-tests.dir/build.make CMakeFiles/openemperor-stored-graphics-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=91,92 "Built target openemperor-stored-graphics-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=91,92,93 "Built target openemperor-stored-graphics-tests"
 .PHONY : CMakeFiles/openemperor-stored-graphics-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-stored-graphics-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 18
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 19
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-stored-graphics-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-stored-graphics-tests.dir/rule
@@ -3423,7 +3463,7 @@ openemperor-stored-graphics-tests: CMakeFiles/openemperor-stored-graphics-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-stored-graphics-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-stored-graphics-tests.dir/build.make CMakeFiles/openemperor-stored-graphics-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=91,92 "Finished codegen for target openemperor-stored-graphics-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=91,92,93 "Finished codegen for target openemperor-stored-graphics-tests"
 .PHONY : CMakeFiles/openemperor-stored-graphics-tests.dir/codegen
 
 # clean rule for target.
@@ -3441,7 +3481,7 @@ CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/all: CMakeFiles/openemperor-
 CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/build.make CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/build.make CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=48 "Built target openemperor-ordinary-wall-gate-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=46 "Built target openemperor-ordinary-wall-gate-tests"
 .PHONY : CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -3458,7 +3498,7 @@ openemperor-ordinary-wall-gate-tests: CMakeFiles/openemperor-ordinary-wall-gate-
 # codegen rule for target.
 CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/build.make CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=48 "Finished codegen for target openemperor-ordinary-wall-gate-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=46 "Finished codegen for target openemperor-ordinary-wall-gate-tests"
 .PHONY : CMakeFiles/openemperor-ordinary-wall-gate-tests.dir/codegen
 
 # clean rule for target.
@@ -3476,7 +3516,7 @@ CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/all: CMakeFiles/open
 CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/build.make CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/build.make CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=47 "Built target openemperor-ordinary-gate-presentation-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=45 "Built target openemperor-ordinary-gate-presentation-tests"
 .PHONY : CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -3493,7 +3533,7 @@ openemperor-ordinary-gate-presentation-tests: CMakeFiles/openemperor-ordinary-ga
 # codegen rule for target.
 CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/build.make CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=47 "Finished codegen for target openemperor-ordinary-gate-presentation-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=45 "Finished codegen for target openemperor-ordinary-gate-presentation-tests"
 .PHONY : CMakeFiles/openemperor-ordinary-gate-presentation-tests.dir/codegen
 
 # clean rule for target.
@@ -3511,12 +3551,12 @@ CMakeFiles/openemperor-terrain-preview-tests.dir/all: CMakeFiles/openemperor-map
 CMakeFiles/openemperor-terrain-preview-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-terrain-preview-tests.dir/build.make CMakeFiles/openemperor-terrain-preview-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-terrain-preview-tests.dir/build.make CMakeFiles/openemperor-terrain-preview-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=93 "Built target openemperor-terrain-preview-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-terrain-preview-tests"
 .PHONY : CMakeFiles/openemperor-terrain-preview-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-terrain-preview-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 16
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-terrain-preview-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-terrain-preview-tests.dir/rule
@@ -3528,7 +3568,7 @@ openemperor-terrain-preview-tests: CMakeFiles/openemperor-terrain-preview-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-terrain-preview-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-terrain-preview-tests.dir/build.make CMakeFiles/openemperor-terrain-preview-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=93 "Finished codegen for target openemperor-terrain-preview-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-terrain-preview-tests"
 .PHONY : CMakeFiles/openemperor-terrain-preview-tests.dir/codegen
 
 # clean rule for target.
@@ -3544,12 +3584,12 @@ CMakeFiles/openemperor-scene-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 CMakeFiles/openemperor-scene-tests.dir/all: CMakeFiles/openemperor-scene.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-tests.dir/build.make CMakeFiles/openemperor-scene-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-tests.dir/build.make CMakeFiles/openemperor-scene-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-scene-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=80 "Built target openemperor-scene-tests"
 .PHONY : CMakeFiles/openemperor-scene-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-scene-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 7
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-scene-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-scene-tests.dir/rule
@@ -3561,7 +3601,7 @@ openemperor-scene-tests: CMakeFiles/openemperor-scene-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-scene-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-tests.dir/build.make CMakeFiles/openemperor-scene-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-scene-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=80 "Finished codegen for target openemperor-scene-tests"
 .PHONY : CMakeFiles/openemperor-scene-tests.dir/codegen
 
 # clean rule for target.
@@ -3577,12 +3617,12 @@ CMakeFiles/openemperor-scene-renderer-tests.dir/all: CMakeFiles/openemperor-sg3.
 CMakeFiles/openemperor-scene-renderer-tests.dir/all: CMakeFiles/openemperor-scene.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-renderer-tests.dir/build.make CMakeFiles/openemperor-scene-renderer-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-renderer-tests.dir/build.make CMakeFiles/openemperor-scene-renderer-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=78,79 "Built target openemperor-scene-renderer-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=79 "Built target openemperor-scene-renderer-tests"
 .PHONY : CMakeFiles/openemperor-scene-renderer-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-scene-renderer-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 8
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 7
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-scene-renderer-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-scene-renderer-tests.dir/rule
@@ -3594,7 +3634,7 @@ openemperor-scene-renderer-tests: CMakeFiles/openemperor-scene-renderer-tests.di
 # codegen rule for target.
 CMakeFiles/openemperor-scene-renderer-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-renderer-tests.dir/build.make CMakeFiles/openemperor-scene-renderer-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=78,79 "Finished codegen for target openemperor-scene-renderer-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=79 "Finished codegen for target openemperor-scene-renderer-tests"
 .PHONY : CMakeFiles/openemperor-scene-renderer-tests.dir/codegen
 
 # clean rule for target.
@@ -3609,12 +3649,12 @@ CMakeFiles/openemperor-scene-renderer-tests.dir/clean:
 CMakeFiles/openemperor-sg3-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-tests.dir/build.make CMakeFiles/openemperor-sg3-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-tests.dir/build.make CMakeFiles/openemperor-sg3-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=88 "Built target openemperor-sg3-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sg3-tests"
 .PHONY : CMakeFiles/openemperor-sg3-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sg3-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 5
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sg3-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sg3-tests.dir/rule
@@ -3626,7 +3666,7 @@ openemperor-sg3-tests: CMakeFiles/openemperor-sg3-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-sg3-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-tests.dir/build.make CMakeFiles/openemperor-sg3-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=88 "Finished codegen for target openemperor-sg3-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sg3-tests"
 .PHONY : CMakeFiles/openemperor-sg3-tests.dir/codegen
 
 # clean rule for target.
@@ -3641,12 +3681,12 @@ CMakeFiles/openemperor-sg3-tests.dir/clean:
 CMakeFiles/openemperor-sg3-rgba-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-rgba-tests.dir/build.make CMakeFiles/openemperor-sg3-rgba-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-rgba-tests.dir/build.make CMakeFiles/openemperor-sg3-rgba-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sg3-rgba-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=88 "Built target openemperor-sg3-rgba-tests"
 .PHONY : CMakeFiles/openemperor-sg3-rgba-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sg3-rgba-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 5
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sg3-rgba-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sg3-rgba-tests.dir/rule
@@ -3658,7 +3698,7 @@ openemperor-sg3-rgba-tests: CMakeFiles/openemperor-sg3-rgba-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-sg3-rgba-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-rgba-tests.dir/build.make CMakeFiles/openemperor-sg3-rgba-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sg3-rgba-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=88 "Finished codegen for target openemperor-sg3-rgba-tests"
 .PHONY : CMakeFiles/openemperor-sg3-rgba-tests.dir/codegen
 
 # clean rule for target.
@@ -3673,12 +3713,12 @@ CMakeFiles/openemperor-sg3-rgba-tests.dir/clean:
 CMakeFiles/openemperor-sg3-omega-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-omega-tests.dir/build.make CMakeFiles/openemperor-sg3-omega-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-omega-tests.dir/build.make CMakeFiles/openemperor-sg3-omega-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=87 "Built target openemperor-sg3-omega-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sg3-omega-tests"
 .PHONY : CMakeFiles/openemperor-sg3-omega-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sg3-omega-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 5
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sg3-omega-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sg3-omega-tests.dir/rule
@@ -3690,7 +3730,7 @@ openemperor-sg3-omega-tests: CMakeFiles/openemperor-sg3-omega-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-sg3-omega-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-omega-tests.dir/build.make CMakeFiles/openemperor-sg3-omega-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=87 "Finished codegen for target openemperor-sg3-omega-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sg3-omega-tests"
 .PHONY : CMakeFiles/openemperor-sg3-omega-tests.dir/codegen
 
 # clean rule for target.
@@ -3705,7 +3745,7 @@ CMakeFiles/openemperor-sg3-omega-tests.dir/clean:
 CMakeFiles/openemperor-sg3-alpha-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-alpha-tests.dir/build.make CMakeFiles/openemperor-sg3-alpha-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-alpha-tests.dir/build.make CMakeFiles/openemperor-sg3-alpha-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=85 "Built target openemperor-sg3-alpha-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=86 "Built target openemperor-sg3-alpha-tests"
 .PHONY : CMakeFiles/openemperor-sg3-alpha-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -3722,7 +3762,7 @@ openemperor-sg3-alpha-tests: CMakeFiles/openemperor-sg3-alpha-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-sg3-alpha-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-alpha-tests.dir/build.make CMakeFiles/openemperor-sg3-alpha-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=85 "Finished codegen for target openemperor-sg3-alpha-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=86 "Finished codegen for target openemperor-sg3-alpha-tests"
 .PHONY : CMakeFiles/openemperor-sg3-alpha-tests.dir/codegen
 
 # clean rule for target.
@@ -3769,12 +3809,12 @@ CMakeFiles/openemperor-sg3-alpha-audit-tests.dir/clean:
 CMakeFiles/openemperor-sg3-isometric-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-isometric-tests.dir/build.make CMakeFiles/openemperor-sg3-isometric-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-isometric-tests.dir/build.make CMakeFiles/openemperor-sg3-isometric-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=86 "Built target openemperor-sg3-isometric-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sg3-isometric-tests"
 .PHONY : CMakeFiles/openemperor-sg3-isometric-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sg3-isometric-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 5
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sg3-isometric-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sg3-isometric-tests.dir/rule
@@ -3786,7 +3826,7 @@ openemperor-sg3-isometric-tests: CMakeFiles/openemperor-sg3-isometric-tests.dir/
 # codegen rule for target.
 CMakeFiles/openemperor-sg3-isometric-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-isometric-tests.dir/build.make CMakeFiles/openemperor-sg3-isometric-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=86 "Finished codegen for target openemperor-sg3-isometric-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sg3-isometric-tests"
 .PHONY : CMakeFiles/openemperor-sg3-isometric-tests.dir/codegen
 
 # clean rule for target.
@@ -3801,12 +3841,12 @@ CMakeFiles/openemperor-sg3-isometric-tests.dir/clean:
 CMakeFiles/openemperor-sg3-loader-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-loader-tests.dir/build.make CMakeFiles/openemperor-sg3-loader-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-loader-tests.dir/build.make CMakeFiles/openemperor-sg3-loader-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-sg3-loader-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=87 "Built target openemperor-sg3-loader-tests"
 .PHONY : CMakeFiles/openemperor-sg3-loader-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-sg3-loader-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 5
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-sg3-loader-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-sg3-loader-tests.dir/rule
@@ -3818,7 +3858,7 @@ openemperor-sg3-loader-tests: CMakeFiles/openemperor-sg3-loader-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-sg3-loader-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sg3-loader-tests.dir/build.make CMakeFiles/openemperor-sg3-loader-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-sg3-loader-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=87 "Finished codegen for target openemperor-sg3-loader-tests"
 .PHONY : CMakeFiles/openemperor-sg3-loader-tests.dir/codegen
 
 # clean rule for target.
@@ -3866,12 +3906,12 @@ CMakeFiles/openemperor-walker-visual-tests.dir/clean:
 CMakeFiles/openemperor-building-visual-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-building-visual-tests.dir/build.make CMakeFiles/openemperor-building-visual-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-building-visual-tests.dir/build.make CMakeFiles/openemperor-building-visual-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=12 "Built target openemperor-building-visual-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-building-visual-tests"
 .PHONY : CMakeFiles/openemperor-building-visual-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-building-visual-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 5
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-building-visual-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-building-visual-tests.dir/rule
@@ -3883,7 +3923,7 @@ openemperor-building-visual-tests: CMakeFiles/openemperor-building-visual-tests.
 # codegen rule for target.
 CMakeFiles/openemperor-building-visual-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-building-visual-tests.dir/build.make CMakeFiles/openemperor-building-visual-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=12 "Finished codegen for target openemperor-building-visual-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-building-visual-tests"
 .PHONY : CMakeFiles/openemperor-building-visual-tests.dir/codegen
 
 # clean rule for target.
@@ -3898,7 +3938,7 @@ CMakeFiles/openemperor-building-visual-tests.dir/clean:
 CMakeFiles/openemperor-road-topology-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-topology-tests.dir/build.make CMakeFiles/openemperor-road-topology-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-topology-tests.dir/build.make CMakeFiles/openemperor-road-topology-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=54 "Built target openemperor-road-topology-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=52 "Built target openemperor-road-topology-tests"
 .PHONY : CMakeFiles/openemperor-road-topology-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -3915,7 +3955,7 @@ openemperor-road-topology-tests: CMakeFiles/openemperor-road-topology-tests.dir/
 # codegen rule for target.
 CMakeFiles/openemperor-road-topology-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-topology-tests.dir/build.make CMakeFiles/openemperor-road-topology-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=54 "Finished codegen for target openemperor-road-topology-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=52 "Finished codegen for target openemperor-road-topology-tests"
 .PHONY : CMakeFiles/openemperor-road-topology-tests.dir/codegen
 
 # clean rule for target.
@@ -3930,7 +3970,7 @@ CMakeFiles/openemperor-road-topology-tests.dir/clean:
 CMakeFiles/openemperor-road-responsiveness-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-responsiveness-tests.dir/build.make CMakeFiles/openemperor-road-responsiveness-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-responsiveness-tests.dir/build.make CMakeFiles/openemperor-road-responsiveness-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=53 "Built target openemperor-road-responsiveness-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=51 "Built target openemperor-road-responsiveness-tests"
 .PHONY : CMakeFiles/openemperor-road-responsiveness-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -3947,7 +3987,7 @@ openemperor-road-responsiveness-tests: CMakeFiles/openemperor-road-responsivenes
 # codegen rule for target.
 CMakeFiles/openemperor-road-responsiveness-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-responsiveness-tests.dir/build.make CMakeFiles/openemperor-road-responsiveness-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=53 "Finished codegen for target openemperor-road-responsiveness-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=51 "Finished codegen for target openemperor-road-responsiveness-tests"
 .PHONY : CMakeFiles/openemperor-road-responsiveness-tests.dir/codegen
 
 # clean rule for target.
@@ -3962,12 +4002,12 @@ CMakeFiles/openemperor-road-responsiveness-tests.dir/clean:
 CMakeFiles/openemperor-frame-pacing-tests.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-frame-pacing-tests.dir/build.make CMakeFiles/openemperor-frame-pacing-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-frame-pacing-tests.dir/build.make CMakeFiles/openemperor-frame-pacing-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=14 "Built target openemperor-frame-pacing-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-frame-pacing-tests"
 .PHONY : CMakeFiles/openemperor-frame-pacing-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-frame-pacing-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 1
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-frame-pacing-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-frame-pacing-tests.dir/rule
@@ -3979,7 +4019,7 @@ openemperor-frame-pacing-tests: CMakeFiles/openemperor-frame-pacing-tests.dir/ru
 # codegen rule for target.
 CMakeFiles/openemperor-frame-pacing-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-frame-pacing-tests.dir/build.make CMakeFiles/openemperor-frame-pacing-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=14 "Finished codegen for target openemperor-frame-pacing-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-frame-pacing-tests"
 .PHONY : CMakeFiles/openemperor-frame-pacing-tests.dir/codegen
 
 # clean rule for target.
@@ -3995,7 +4035,7 @@ CMakeFiles/openemperor-road-visual-tests.dir/all: CMakeFiles/openemperor-sg3.dir
 CMakeFiles/openemperor-road-visual-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-visual-tests.dir/build.make CMakeFiles/openemperor-road-visual-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-visual-tests.dir/build.make CMakeFiles/openemperor-road-visual-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=55 "Built target openemperor-road-visual-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=53 "Built target openemperor-road-visual-tests"
 .PHONY : CMakeFiles/openemperor-road-visual-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -4012,7 +4052,7 @@ openemperor-road-visual-tests: CMakeFiles/openemperor-road-visual-tests.dir/rule
 # codegen rule for target.
 CMakeFiles/openemperor-road-visual-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-visual-tests.dir/build.make CMakeFiles/openemperor-road-visual-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=55 "Finished codegen for target openemperor-road-visual-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=53 "Finished codegen for target openemperor-road-visual-tests"
 .PHONY : CMakeFiles/openemperor-road-visual-tests.dir/codegen
 
 # clean rule for target.
@@ -4099,7 +4139,7 @@ CMakeFiles/openemperor-scene-composition-tests.dir/all: CMakeFiles/openemperor-p
 CMakeFiles/openemperor-scene-composition-tests.dir/all: CMakeFiles/openemperor-recovery.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=74,75,76,77 "Built target openemperor-scene-composition-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=75,76,77,78 "Built target openemperor-scene-composition-tests"
 .PHONY : CMakeFiles/openemperor-scene-composition-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -4116,7 +4156,7 @@ openemperor-scene-composition-tests: CMakeFiles/openemperor-scene-composition-te
 # codegen rule for target.
 CMakeFiles/openemperor-scene-composition-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=74,75,76,77 "Finished codegen for target openemperor-scene-composition-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=75,76,77,78 "Finished codegen for target openemperor-scene-composition-tests"
 .PHONY : CMakeFiles/openemperor-scene-composition-tests.dir/codegen
 
 # clean rule for target.
@@ -4265,7 +4305,7 @@ CMakeFiles/openemperor-asset-catalog-tests.dir/all: CMakeFiles/openemperor-maps.
 CMakeFiles/openemperor-asset-catalog-tests.dir/all: CMakeFiles/openemperor-simulation.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-asset-catalog-tests.dir/build.make CMakeFiles/openemperor-asset-catalog-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-asset-catalog-tests.dir/build.make CMakeFiles/openemperor-asset-catalog-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=11 "Built target openemperor-asset-catalog-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=10 "Built target openemperor-asset-catalog-tests"
 .PHONY : CMakeFiles/openemperor-asset-catalog-tests.dir/all
 
 # Build rule for subdir invocation for target.
@@ -4282,7 +4322,7 @@ openemperor-asset-catalog-tests: CMakeFiles/openemperor-asset-catalog-tests.dir/
 # codegen rule for target.
 CMakeFiles/openemperor-asset-catalog-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-asset-catalog-tests.dir/build.make CMakeFiles/openemperor-asset-catalog-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=11 "Finished codegen for target openemperor-asset-catalog-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=10 "Finished codegen for target openemperor-asset-catalog-tests"
 .PHONY : CMakeFiles/openemperor-asset-catalog-tests.dir/codegen
 
 # clean rule for target.
@@ -4297,12 +4337,12 @@ CMakeFiles/openemperor-asset-catalog-tests.dir/clean:
 CMakeFiles/openemperor-asset-browser-tests.dir/all: CMakeFiles/openemperor-sg3.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-asset-browser-tests.dir/build.make CMakeFiles/openemperor-asset-browser-tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-asset-browser-tests.dir/build.make CMakeFiles/openemperor-asset-browser-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=10 "Built target openemperor-asset-browser-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Built target openemperor-asset-browser-tests"
 .PHONY : CMakeFiles/openemperor-asset-browser-tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/openemperor-asset-browser-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 5
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openemperor-asset-browser-tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles 0
 .PHONY : CMakeFiles/openemperor-asset-browser-tests.dir/rule
@@ -4314,7 +4354,7 @@ openemperor-asset-browser-tests: CMakeFiles/openemperor-asset-browser-tests.dir/
 # codegen rule for target.
 CMakeFiles/openemperor-asset-browser-tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-asset-browser-tests.dir/build.make CMakeFiles/openemperor-asset-browser-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num=10 "Finished codegen for target openemperor-asset-browser-tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/oli/github/OpenEmperor/build-gate-passages/CMakeFiles --progress-num= "Finished codegen for target openemperor-asset-browser-tests"
 .PHONY : CMakeFiles/openemperor-asset-browser-tests.dir/codegen
 
 # clean rule for target.

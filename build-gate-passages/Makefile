@@ -816,6 +816,19 @@ openemperor-sandbox-view-tests/fast:
 .PHONY : openemperor-sandbox-view-tests/fast
 
 #=============================================================================
+# Target rules for targets named openemperor-sandbox-gate-budget-view-tests
+
+# Build rule for target.
+openemperor-sandbox-gate-budget-view-tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 openemperor-sandbox-gate-budget-view-tests
+.PHONY : openemperor-sandbox-gate-budget-view-tests
+
+# fast build rule for target.
+openemperor-sandbox-gate-budget-view-tests/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build
+.PHONY : openemperor-sandbox-gate-budget-view-tests/fast
+
+#=============================================================================
 # Target rules for targets named openemperor-menu-session-tests
 
 # Build rule for target.
@@ -2003,6 +2016,7 @@ src/app/RoadDrag.o: src/app/RoadDrag.cpp.o
 src/app/RoadDrag.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/RoadDrag.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/RoadDrag.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/RoadDrag.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/RoadDrag.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/RoadDrag.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/src/app/RoadDrag.cpp.o
@@ -2018,6 +2032,7 @@ src/app/RoadDrag.i: src/app/RoadDrag.cpp.i
 src/app/RoadDrag.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/RoadDrag.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/RoadDrag.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/RoadDrag.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/RoadDrag.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/RoadDrag.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/src/app/RoadDrag.cpp.i
@@ -2033,6 +2048,7 @@ src/app/RoadDrag.s: src/app/RoadDrag.cpp.s
 src/app/RoadDrag.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/RoadDrag.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/RoadDrag.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/RoadDrag.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/RoadDrag.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/RoadDrag.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/src/app/RoadDrag.cpp.s
@@ -2048,6 +2064,7 @@ src/app/RoadTopology.o: src/app/RoadTopology.cpp.o
 src/app/RoadTopology.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/RoadTopology.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/RoadTopology.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/RoadTopology.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/RoadTopology.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/RoadTopology.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/src/app/RoadTopology.cpp.o
@@ -2063,6 +2080,7 @@ src/app/RoadTopology.i: src/app/RoadTopology.cpp.i
 src/app/RoadTopology.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/RoadTopology.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/RoadTopology.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/RoadTopology.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/RoadTopology.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/RoadTopology.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/src/app/RoadTopology.cpp.i
@@ -2078,6 +2096,7 @@ src/app/RoadTopology.s: src/app/RoadTopology.cpp.s
 src/app/RoadTopology.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/RoadTopology.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/RoadTopology.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/RoadTopology.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/RoadTopology.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/RoadTopology.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-gate-passage-road-view-tests.dir/build.make CMakeFiles/openemperor-gate-passage-road-view-tests.dir/src/app/RoadTopology.cpp.s
@@ -2141,6 +2160,7 @@ src/app/SandboxUiLayout.o: src/app/SandboxUiLayout.cpp.o
 src/app/SandboxUiLayout.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/SandboxUiLayout.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/SandboxUiLayout.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/SandboxUiLayout.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/SandboxUiLayout.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/SandboxUiLayout.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/app/SandboxUiLayout.cpp.o
@@ -2153,6 +2173,7 @@ src/app/SandboxUiLayout.i: src/app/SandboxUiLayout.cpp.i
 src/app/SandboxUiLayout.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/SandboxUiLayout.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/SandboxUiLayout.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/SandboxUiLayout.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/SandboxUiLayout.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/SandboxUiLayout.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/app/SandboxUiLayout.cpp.i
@@ -2165,6 +2186,7 @@ src/app/SandboxUiLayout.s: src/app/SandboxUiLayout.cpp.s
 src/app/SandboxUiLayout.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/SandboxUiLayout.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/SandboxUiLayout.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/SandboxUiLayout.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/SandboxUiLayout.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/SandboxUiLayout.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/app/SandboxUiLayout.cpp.s
@@ -2177,6 +2199,7 @@ src/app/SandboxView.o: src/app/SandboxView.cpp.o
 src/app/SandboxView.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/SandboxView.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/SandboxView.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/SandboxView.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/SandboxView.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/SandboxView.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/app/SandboxView.cpp.o
@@ -2189,6 +2212,7 @@ src/app/SandboxView.i: src/app/SandboxView.cpp.i
 src/app/SandboxView.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/SandboxView.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/SandboxView.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/SandboxView.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/SandboxView.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/SandboxView.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/app/SandboxView.cpp.i
@@ -2201,6 +2225,7 @@ src/app/SandboxView.s: src/app/SandboxView.cpp.s
 src/app/SandboxView.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/SandboxView.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/SandboxView.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/SandboxView.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/SandboxView.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/SandboxView.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/app/SandboxView.cpp.s
@@ -2240,6 +2265,7 @@ src/app/VisualSelection.o: src/app/VisualSelection.cpp.o
 src/app/VisualSelection.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/VisualSelection.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/VisualSelection.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/VisualSelection.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/VisualSelection.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/VisualSelection.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-compatibility-tests.dir/build.make CMakeFiles/openemperor-compatibility-tests.dir/src/app/VisualSelection.cpp.o
@@ -2253,6 +2279,7 @@ src/app/VisualSelection.i: src/app/VisualSelection.cpp.i
 src/app/VisualSelection.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/VisualSelection.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/VisualSelection.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/VisualSelection.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/VisualSelection.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/VisualSelection.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-compatibility-tests.dir/build.make CMakeFiles/openemperor-compatibility-tests.dir/src/app/VisualSelection.cpp.i
@@ -2266,6 +2293,7 @@ src/app/VisualSelection.s: src/app/VisualSelection.cpp.s
 src/app/VisualSelection.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/VisualSelection.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/VisualSelection.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/VisualSelection.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/VisualSelection.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/VisualSelection.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-compatibility-tests.dir/build.make CMakeFiles/openemperor-compatibility-tests.dir/src/app/VisualSelection.cpp.s
@@ -2279,6 +2307,7 @@ src/app/WalkerPose.o: src/app/WalkerPose.cpp.o
 src/app/WalkerPose.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/WalkerPose.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/WalkerPose.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/WalkerPose.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/WalkerPose.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/WalkerPose.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-walker-visual-tests.dir/build.make CMakeFiles/openemperor-walker-visual-tests.dir/src/app/WalkerPose.cpp.o
@@ -2292,6 +2321,7 @@ src/app/WalkerPose.i: src/app/WalkerPose.cpp.i
 src/app/WalkerPose.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/WalkerPose.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/WalkerPose.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/WalkerPose.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/WalkerPose.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/WalkerPose.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-walker-visual-tests.dir/build.make CMakeFiles/openemperor-walker-visual-tests.dir/src/app/WalkerPose.cpp.i
@@ -2305,6 +2335,7 @@ src/app/WalkerPose.s: src/app/WalkerPose.cpp.s
 src/app/WalkerPose.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/app/WalkerPose.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/app/WalkerPose.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/app/WalkerPose.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/app/WalkerPose.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/app/WalkerPose.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-walker-visual-tests.dir/build.make CMakeFiles/openemperor-walker-visual-tests.dir/src/app/WalkerPose.cpp.s
@@ -3542,6 +3573,7 @@ src/renderer/BuildingSprite.o: src/renderer/BuildingSprite.cpp.o
 src/renderer/BuildingSprite.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/BuildingSprite.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/BuildingSprite.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/BuildingSprite.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/BuildingSprite.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/BuildingSprite.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-building-visual-tests.dir/build.make CMakeFiles/openemperor-building-visual-tests.dir/src/renderer/BuildingSprite.cpp.o
@@ -3556,6 +3588,7 @@ src/renderer/BuildingSprite.i: src/renderer/BuildingSprite.cpp.i
 src/renderer/BuildingSprite.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/BuildingSprite.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/BuildingSprite.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/BuildingSprite.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/BuildingSprite.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/BuildingSprite.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-building-visual-tests.dir/build.make CMakeFiles/openemperor-building-visual-tests.dir/src/renderer/BuildingSprite.cpp.i
@@ -3570,6 +3603,7 @@ src/renderer/BuildingSprite.s: src/renderer/BuildingSprite.cpp.s
 src/renderer/BuildingSprite.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/BuildingSprite.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/BuildingSprite.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/BuildingSprite.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/BuildingSprite.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/BuildingSprite.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-building-visual-tests.dir/build.make CMakeFiles/openemperor-building-visual-tests.dir/src/renderer/BuildingSprite.cpp.s
@@ -3585,6 +3619,7 @@ src/renderer/HealthPostFallbackRenderer.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/HealthPostFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-health-fallback-tests.dir/build.make CMakeFiles/openemperor-health-fallback-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.o
@@ -3598,6 +3633,7 @@ src/renderer/HealthPostFallbackRenderer.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/HealthPostFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-health-fallback-tests.dir/build.make CMakeFiles/openemperor-health-fallback-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.i
@@ -3611,6 +3647,7 @@ src/renderer/HealthPostFallbackRenderer.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/HealthPostFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-health-fallback-tests.dir/build.make CMakeFiles/openemperor-health-fallback-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/renderer/HealthPostFallbackRenderer.cpp.s
@@ -3647,6 +3684,7 @@ src/renderer/RoadSpriteSet.o: src/renderer/RoadSpriteSet.cpp.o
 src/renderer/RoadSpriteSet.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/RoadSpriteSet.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/RoadSpriteSet.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/RoadSpriteSet.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/RoadSpriteSet.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/RoadSpriteSet.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-visual-tests.dir/build.make CMakeFiles/openemperor-road-visual-tests.dir/src/renderer/RoadSpriteSet.cpp.o
@@ -3661,6 +3699,7 @@ src/renderer/RoadSpriteSet.i: src/renderer/RoadSpriteSet.cpp.i
 src/renderer/RoadSpriteSet.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/RoadSpriteSet.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/RoadSpriteSet.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/RoadSpriteSet.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/RoadSpriteSet.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/RoadSpriteSet.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-visual-tests.dir/build.make CMakeFiles/openemperor-road-visual-tests.dir/src/renderer/RoadSpriteSet.cpp.i
@@ -3675,6 +3714,7 @@ src/renderer/RoadSpriteSet.s: src/renderer/RoadSpriteSet.cpp.s
 src/renderer/RoadSpriteSet.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/RoadSpriteSet.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/RoadSpriteSet.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/RoadSpriteSet.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/RoadSpriteSet.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/RoadSpriteSet.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-road-visual-tests.dir/build.make CMakeFiles/openemperor-road-visual-tests.dir/src/renderer/RoadSpriteSet.cpp.s
@@ -3716,6 +3756,7 @@ src/renderer/StoredCamera.o: src/renderer/StoredCamera.cpp.o
 src/renderer/StoredCamera.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/StoredCamera.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/StoredCamera.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/StoredCamera.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/StoredCamera.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/StoredCamera.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/src/renderer/StoredCamera.cpp.o
@@ -3731,6 +3772,7 @@ src/renderer/StoredCamera.i: src/renderer/StoredCamera.cpp.i
 src/renderer/StoredCamera.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/StoredCamera.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/StoredCamera.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/StoredCamera.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/StoredCamera.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/StoredCamera.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/src/renderer/StoredCamera.cpp.i
@@ -3746,6 +3788,7 @@ src/renderer/StoredCamera.s: src/renderer/StoredCamera.cpp.s
 src/renderer/StoredCamera.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/StoredCamera.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/StoredCamera.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/StoredCamera.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/StoredCamera.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/StoredCamera.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/src/renderer/StoredCamera.cpp.s
@@ -3761,6 +3804,7 @@ src/renderer/StoredGraphicsRenderer.o: src/renderer/StoredGraphicsRenderer.cpp.o
 src/renderer/StoredGraphicsRenderer.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/StoredGraphicsRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.o
@@ -3780,6 +3824,7 @@ src/renderer/StoredGraphicsRenderer.i: src/renderer/StoredGraphicsRenderer.cpp.i
 src/renderer/StoredGraphicsRenderer.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/StoredGraphicsRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.i
@@ -3799,6 +3844,7 @@ src/renderer/StoredGraphicsRenderer.s: src/renderer/StoredGraphicsRenderer.cpp.s
 src/renderer/StoredGraphicsRenderer.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/StoredGraphicsRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-map-input-tests.dir/build.make CMakeFiles/openemperor-map-input-tests.dir/src/renderer/StoredGraphicsRenderer.cpp.s
@@ -3881,6 +3927,7 @@ src/renderer/WalkerSpriteSet.o: src/renderer/WalkerSpriteSet.cpp.o
 src/renderer/WalkerSpriteSet.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/WalkerSpriteSet.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/WalkerSpriteSet.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/WalkerSpriteSet.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/WalkerSpriteSet.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/WalkerSpriteSet.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-walker-visual-tests.dir/build.make CMakeFiles/openemperor-walker-visual-tests.dir/src/renderer/WalkerSpriteSet.cpp.o
@@ -3895,6 +3942,7 @@ src/renderer/WalkerSpriteSet.i: src/renderer/WalkerSpriteSet.cpp.i
 src/renderer/WalkerSpriteSet.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/WalkerSpriteSet.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/WalkerSpriteSet.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/WalkerSpriteSet.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/WalkerSpriteSet.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/WalkerSpriteSet.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-walker-visual-tests.dir/build.make CMakeFiles/openemperor-walker-visual-tests.dir/src/renderer/WalkerSpriteSet.cpp.i
@@ -3909,6 +3957,7 @@ src/renderer/WalkerSpriteSet.s: src/renderer/WalkerSpriteSet.cpp.s
 src/renderer/WalkerSpriteSet.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/WalkerSpriteSet.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/WalkerSpriteSet.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/WalkerSpriteSet.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/WalkerSpriteSet.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/WalkerSpriteSet.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-walker-visual-tests.dir/build.make CMakeFiles/openemperor-walker-visual-tests.dir/src/renderer/WalkerSpriteSet.cpp.s
@@ -3924,6 +3973,7 @@ src/renderer/WellFallbackRenderer.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/WellFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-well-fallback-tests.dir/build.make CMakeFiles/openemperor-well-fallback-tests.dir/src/renderer/WellFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/WellFallbackRenderer.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/WellFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/WellFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/WellFallbackRenderer.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/renderer/WellFallbackRenderer.cpp.o
@@ -3937,6 +3987,7 @@ src/renderer/WellFallbackRenderer.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/WellFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-well-fallback-tests.dir/build.make CMakeFiles/openemperor-well-fallback-tests.dir/src/renderer/WellFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/WellFallbackRenderer.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/WellFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/WellFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/WellFallbackRenderer.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/renderer/WellFallbackRenderer.cpp.i
@@ -3950,6 +4001,7 @@ src/renderer/WellFallbackRenderer.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor.dir/build.make CMakeFiles/openemperor.dir/src/renderer/WellFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-well-fallback-tests.dir/build.make CMakeFiles/openemperor-well-fallback-tests.dir/src/renderer/WellFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-view-tests.dir/src/renderer/WellFallbackRenderer.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/src/renderer/WellFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-session-tests.dir/build.make CMakeFiles/openemperor-menu-session-tests.dir/src/renderer/WellFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-menu-input-tests.dir/build.make CMakeFiles/openemperor-menu-input-tests.dir/src/renderer/WellFallbackRenderer.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-scene-composition-tests.dir/build.make CMakeFiles/openemperor-scene-composition-tests.dir/src/renderer/WellFallbackRenderer.cpp.s
@@ -4389,6 +4441,30 @@ tests/FramePacingTests.s: tests/FramePacingTests.cpp.s
 tests/FramePacingTests.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-frame-pacing-tests.dir/build.make CMakeFiles/openemperor-frame-pacing-tests.dir/tests/FramePacingTests.cpp.s
 .PHONY : tests/FramePacingTests.cpp.s
+
+tests/GateBudgetPreflightShim.o: tests/GateBudgetPreflightShim.cpp.o
+.PHONY : tests/GateBudgetPreflightShim.o
+
+# target to build an object file
+tests/GateBudgetPreflightShim.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/tests/GateBudgetPreflightShim.cpp.o
+.PHONY : tests/GateBudgetPreflightShim.cpp.o
+
+tests/GateBudgetPreflightShim.i: tests/GateBudgetPreflightShim.cpp.i
+.PHONY : tests/GateBudgetPreflightShim.i
+
+# target to preprocess a source file
+tests/GateBudgetPreflightShim.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/tests/GateBudgetPreflightShim.cpp.i
+.PHONY : tests/GateBudgetPreflightShim.cpp.i
+
+tests/GateBudgetPreflightShim.s: tests/GateBudgetPreflightShim.cpp.s
+.PHONY : tests/GateBudgetPreflightShim.s
+
+# target to generate assembly for a file
+tests/GateBudgetPreflightShim.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/tests/GateBudgetPreflightShim.cpp.s
+.PHONY : tests/GateBudgetPreflightShim.cpp.s
 
 tests/GatePassageRoadViewTests.o: tests/GatePassageRoadViewTests.cpp.o
 .PHONY : tests/GatePassageRoadViewTests.o
@@ -5398,6 +5474,30 @@ tests/SandboxCourierTriageTests.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/build.make CMakeFiles/openemperor-sandbox-courier-triage-tests.dir/tests/SandboxCourierTriageTests.cpp.s
 .PHONY : tests/SandboxCourierTriageTests.cpp.s
 
+tests/SandboxGateBudgetViewTests.o: tests/SandboxGateBudgetViewTests.cpp.o
+.PHONY : tests/SandboxGateBudgetViewTests.o
+
+# target to build an object file
+tests/SandboxGateBudgetViewTests.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/tests/SandboxGateBudgetViewTests.cpp.o
+.PHONY : tests/SandboxGateBudgetViewTests.cpp.o
+
+tests/SandboxGateBudgetViewTests.i: tests/SandboxGateBudgetViewTests.cpp.i
+.PHONY : tests/SandboxGateBudgetViewTests.i
+
+# target to preprocess a source file
+tests/SandboxGateBudgetViewTests.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/tests/SandboxGateBudgetViewTests.cpp.i
+.PHONY : tests/SandboxGateBudgetViewTests.cpp.i
+
+tests/SandboxGateBudgetViewTests.s: tests/SandboxGateBudgetViewTests.cpp.s
+.PHONY : tests/SandboxGateBudgetViewTests.s
+
+# target to generate assembly for a file
+tests/SandboxGateBudgetViewTests.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/build.make CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/tests/SandboxGateBudgetViewTests.cpp.s
+.PHONY : tests/SandboxGateBudgetViewTests.cpp.s
+
 tests/SandboxGatePassageTests.o: tests/SandboxGatePassageTests.cpp.o
 .PHONY : tests/SandboxGatePassageTests.o
 
@@ -6359,6 +6459,7 @@ help:
 	@echo "... openemperor-sandbox-city-v8-tests"
 	@echo "... openemperor-sandbox-city-v9-tests"
 	@echo "... openemperor-sandbox-courier-triage-tests"
+	@echo "... openemperor-sandbox-gate-budget-view-tests"
 	@echo "... openemperor-sandbox-gate-passage-tests"
 	@echo "... openemperor-sandbox-household-tests"
 	@echo "... openemperor-sandbox-industry-tests"
@@ -6695,6 +6796,9 @@ help:
 	@echo "... tests/FramePacingTests.o"
 	@echo "... tests/FramePacingTests.i"
 	@echo "... tests/FramePacingTests.s"
+	@echo "... tests/GateBudgetPreflightShim.o"
+	@echo "... tests/GateBudgetPreflightShim.i"
+	@echo "... tests/GateBudgetPreflightShim.s"
 	@echo "... tests/GatePassageRoadViewTests.o"
 	@echo "... tests/GatePassageRoadViewTests.i"
 	@echo "... tests/GatePassageRoadViewTests.s"
@@ -6821,6 +6925,9 @@ help:
 	@echo "... tests/SandboxCourierTriageTests.o"
 	@echo "... tests/SandboxCourierTriageTests.i"
 	@echo "... tests/SandboxCourierTriageTests.s"
+	@echo "... tests/SandboxGateBudgetViewTests.o"
+	@echo "... tests/SandboxGateBudgetViewTests.i"
+	@echo "... tests/SandboxGateBudgetViewTests.s"
 	@echo "... tests/SandboxGatePassageTests.o"
 	@echo "... tests/SandboxGatePassageTests.i"
 	@echo "... tests/SandboxGatePassageTests.s"

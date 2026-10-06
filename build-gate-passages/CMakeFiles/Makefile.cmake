@@ -140,6 +140,7 @@ set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/openemperor-health-fallback-tests.dir/DependInfo.cmake"
   "CMakeFiles/openemperor-well-fallback-tests.dir/DependInfo.cmake"
   "CMakeFiles/openemperor-sandbox-view-tests.dir/DependInfo.cmake"
+  "CMakeFiles/openemperor-sandbox-gate-budget-view-tests.dir/DependInfo.cmake"
   "CMakeFiles/openemperor-menu-session-tests.dir/DependInfo.cmake"
   "CMakeFiles/openemperor-input-coordinate-tests.dir/DependInfo.cmake"
   "CMakeFiles/openemperor-input-diagnostics-tests.dir/DependInfo.cmake"
