@@ -2,6 +2,8 @@
 
 This authored sandbox integration starts from `479076a79aebc0b10baf1f310d7f65bee6df0530`. It connects paid roads through supported original GateHouse objects; it does not reconstruct Emperor military permissions, gate operation or courier rules. Oliver's positive feedback on the two gate maps is **User-reported visual acceptance**, not passage/routing or native-input acceptance.
 
+After the budget hotfix Oliver additionally reports “es läuft der walker kann durch gehen”: **User-reported successful gate traversal in the tested session**. Return, goods balance, Save/Load restart and other maps are not established by that report. The subsequent [Xia compatibility pass](map-permissions-compatibility.md) safely admits two evidenced editor-marker states while preserving all previously prepared policy-1 maps and gate connections.
+
 ## Blockers and evidence
 
 The screenshot used City-v10. Its exact drag start/end and first blocker are unknown, so it does not establish a gate-only cause. The unchanged legacy `sandbox_buildable_v1` mask requires exact `0x80` terrain, object word zero, on-map geometry and a successfully rendered historical singleton footprint. Improved gate pictures do not grant road permission.
@@ -17,6 +19,8 @@ New City-v16 games use rule **3**, inheriting rule 2's economy, maintenance, ser
 Policy **1** admits paid roads on exactly `0x80` or the diagnosed `0xC0` ground-plus-road marking, with object word zero, on-map and without original occupancy. Original road markings do not automatically create sandbox roads. No other terrain bits are admitted: water, vegetation, walls, rocks, Pinnacles, unknown combinations and off-map remain blocked. Buildings retain the old strict mask with protected original occupancy removed; their terrain permission is not expanded.
 
 Active original square footprints are conservatively protected independently of their pictures. The bounded zero-side Industrial map-marker types 162/163/174/180/185 additionally protect their exact origins without an invented square footprint. Duplicate marker origins are allowed; physical/gate conflicts fail. Unknown zero-side sources, manager classes, schemas, references and incomplete/conflicting claims reject preparation explicitly. Other original maps can therefore remain unsupported for rule 3.
+
+The compatibility pass adds exact validated Industrial type-175 exit-point and type-165 terrain-editor states to the same conservative origin reservation. It changes no existing marker, terrain whitelist or physical/gate conflict rule. See [source evidence, state bounds and compatibility comparisons](map-permissions-compatibility.md#central-change-and-compatibility).
 
 ## Gate geometry and commands
 
@@ -62,7 +66,7 @@ The initial gate-pass implementation passed **107/107 tests without skips** in D
 
 The final packaged native Metal executable, in an independently identified private app/root, visibly starts a new City-v16 rule-3 city and loads the actual Kaifeng inside-passage save paused at tick 51 with 824 Funds. Native-delivered keyboard F5/F9 retains an identical saved document; existing Z zoom cycles through 2×, 4× and 1× and R restores fit without changing that World. Automated pointer delivery instead supplies an incorrect top-edge point and does not activate the intended menu button: this is **automation-delivery failure**, leaving the short human mouse/road-drag check open. No input-coordinate correction was added. Direct scripted close renders of both paid gate layouts are separate evidence; a roof can obscure the actual courier.
 
-The bounded corpus policy probe prepares **77/167 maps** and explicitly rejects 90: 83 unknown zero-side footprints, two conservative occupancy conflicts and five unsupported `cResWall` managers. In particular Xia remains unsupported for the new rule 3; its old profiles remain valid. These counts are policy preparation, not corpus-wide render or gameplay acceptance. All 239 frozen original files remain byte-identical. Detailed raw-cell diagnoses, private cities, captures and machine reports stay under ignored `.local/gate-passages/` (sanitizer/review reports under `.local/road-gate-passages/`).
+The historical bounded corpus policy probe prepared **77/167 maps** and explicitly rejected 90: 83 unknown zero-side footprints, two conservative occupancy conflicts and five unsupported `cResWall` managers. Xia was unsupported for rule 3 in that baseline; its old profiles remained valid. The fresh [compatibility census](map-permissions-compatibility.md#corpus-first-failure-versus-all-diagnosed-objects) reproduces that baseline and now prepares **93/167**, including Xia, with every old canonical policy/fingerprint unchanged. These counts are policy preparation, not corpus-wide render or gameplay acceptance. All 239 original files frozen for the historical probe remained byte-identical. Its raw-cell diagnoses, private cities, captures and machine reports stay under ignored `.local/gate-passages/` (sanitizer/review reports under `.local/road-gate-passages/`).
 
 ## Budget-copy crash hotfix (2026-10-06)
 

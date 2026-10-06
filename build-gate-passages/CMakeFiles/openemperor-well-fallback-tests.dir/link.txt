@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names "CMakeFiles/openemperor-well-fallback-tests.dir/tests/WellFallbackRendererTests.cpp.o" "CMakeFiles/openemperor-well-fallback-tests.dir/src/renderer/WellFallbackRenderer.cpp.o" -o openemperor-well-fallback-tests  -Wl,-rpath,/opt/homebrew/lib /opt/homebrew/lib/libSDL3.0.dylib

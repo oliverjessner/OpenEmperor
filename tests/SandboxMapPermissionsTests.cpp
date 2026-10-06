@@ -7,6 +7,7 @@
 #include <zlib.h>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 using namespace openemperor;
 namespace {
 constexpr std::size_t count=228U*228U;
@@ -28,6 +29,93 @@ void free_and_protected(){Fixture f;f.legacy[raw(start)]=0;auto p=f.make();check
 void road_markings(){Fixture f;f.map.terrain_raw.values[raw(start)]=0xc0;auto p=f.make();check(p->road_allowed({100,110})&&!p->building_allowed({100,110})&&!p->fixed_passage({100,110}),"explicit ground-road raw marking permits paid roads only, not building or fixed road");f.map.objects_raw.values[raw(start)]=1;check(!f.make()->road_allowed({100,110}),"road-marked original objects stay blocked");for(auto value:{0x40U,0xc1U,0x1c0U,0x800c0U}){f.map.objects_raw.values[raw(start)]=0;f.map.terrain_raw.values[raw(start)]=value;check(!f.make()->road_allowed({100,110}),"ground-road whitelist admits no extra bits");}}
 void passage_layouts(){for(int layout:{0,1}){Fixture f;f.gate(layout);auto p=f.make();check(p->gates().size()==1&&p->gates()[0].id==simulation::FixedGateId{7},"stable original gate ID is distinct and zero manager index valid");const std::array<simulation::Cell,3> corridor=layout?std::array<simulation::Cell,3>{{{100,112},{101,112},{102,112}}}:std::array<simulation::Cell,3>{{{102,110},{102,111},{102,112}}};const std::array<simulation::Cell,2> openings=layout?std::array<simulation::Cell,2>{{{99,112},{103,112}}}:std::array<simulation::Cell,2>{{{102,109},{102,113}}};check(p->gates()[0].corridor==std::vector(corridor.begin(),corridor.end())&&p->gates()[0].openings==openings,"literal independently authored short-axis corridor and two openings");for(auto c:p->gates()[0].protected_footprint)check(p->protected_original(c)&&!p->building_allowed(c),"all15 protected from buildings");for(unsigned k=0;k<3;++k)check(p->fixed_passage(corridor[k])&&p->road_allowed(corridor[k])&&p->cell_height(corridor[k])==-1,"exactthree corridor cells and signed height retained");check(p->transport_edge_allowed(openings[0],corridor[0])&&p->transport_edge_allowed(corridor[0],openings[0])&&p->transport_edge_allowed(openings[1],corridor[2])&&p->transport_edge_allowed(corridor[2],openings[1]),"both opening directions");check(p->transport_edge_allowed(corridor[0],corridor[1])&&p->transport_edge_allowed(corridor[1],corridor[2]),"ordinary internal neighbor edges");const simulation::Cell side=layout?simulation::Cell{101,111}:simulation::Cell{101,111};check(p->transport_edge_blocker(side,corridor[1])==simulation::BuildBlocker::GateSideEntry,"solid side entry denied");check(!p->road_allowed({100,110})&&p->road_blocker({100,110})==simulation::BuildBlocker::GateSolidPart,"solid gate corner denied independently of corridor");Fixture no_render=f;no_render.plan.height_bytes=f.plan.height_bytes;no_render.legacy.assign(count,0);auto missing=no_render.make();check(missing->gates()[0].corridor==p->gates()[0].corridor&&missing->road_mask()==p->road_mask(),"no render-derived legacy permissions prerequisite for gate/roads");}}
 void markers(){for(int type:{162,163,174,180,185}){Fixture f;auto e=f.source(start);e.entity_class=maps::OriginalEntityClass::Industrial;e.type=std::int16_t(type);e.footprint_side=0;f.entities.records.push_back(e);auto second=e;second.manager_index=1;second.original_id=maps::OriginalEntityId{8};second.serialized_original_id=8;f.entities.records.push_back(second);auto p=f.make();check(p->protected_original({100,110})&&!p->road_allowed({100,110})&&p->road_allowed({101,110}),"bounded marker reserves only exact saved origin; duplicate markers are not duplicate physical claims");}Fixture bad;auto e=bad.source(start);e.entity_class=maps::OriginalEntityClass::Industrial;e.footprint_side=0;e.type=35;bad.entities.records.push_back(e);rejects([&]{bad.make();},"unknown zero-side marker must not free occupancy");Fixture other;other.gate(0);auto marker=other.source(start,8,1);marker.entity_class=maps::OriginalEntityClass::Industrial;marker.footprint_side=0;marker.type=163;other.entities.records.push_back(marker);rejects([&]{other.make();},"marker/gate conflict fail closed");}
+void saved_editor_marker_origins() {
+ const std::array<std::pair<int,unsigned>,5> sources{{{175,3},{175,4},{165,3},{165,4},{165,5}}};
+ for (const auto [type,schema]:sources) {
+  Fixture f;
+  auto marker=f.source(start);
+  marker.entity_class=maps::OriginalEntityClass::Industrial;
+  marker.type=std::int16_t(type);marker.footprint_side=0;marker.subindex=0;
+  marker.provenance.base_schema=std::uint16_t(schema);
+  marker.provenance.wrapper_schema=marker.provenance.extended_schema=1;
+  f.entities.records.push_back(marker);
+  f.map.terrain_raw.values[raw(start)]=0xc0;
+  const auto p=f.make();
+  check(p->protected_original({100,110}) && !p->road_allowed({100,110}) &&
+        !p->building_allowed({100,110}) &&
+        p->road_blocker({100,110})==simulation::BuildBlocker::OriginalStructure &&
+        p->building_blocker({100,110})==simulation::BuildBlocker::OriginalStructure,
+        "saved marker origin protected even on independently road-permitted raw ground");
+  check(p->road_allowed({101,110}) && p->building_allowed({101,110}) &&
+        !p->protected_original({101,110}) && p->gates().empty(),
+        "marker reservation is one exact origin, not an invented square or transport link");
+  auto mutate=[&](auto edit,const char* message) {
+   auto bad=f;edit(bad.entities.records[0]);
+   rejects([&]{bad.make();},message);
+  };
+  mutate([](auto&e){e.provenance.base_schema=6;},"unknown marker base schema rejected");
+  if (type==175)
+   mutate([](auto&e){e.provenance.base_schema=5;},"unevidenced exit schema combination rejected");
+  mutate([](auto&e){e.provenance.wrapper_schema=2;},"unknown marker wrapper rejected");
+  mutate([](auto&e){e.provenance.extended_schema=2;},"unknown marker state schema rejected");
+  mutate([](auto&e){e.provenance.class_wrapper_schema=1;},"unknown marker class wrapper rejected");
+  mutate([](auto&e){e.type=176;},"same zero side does not admit unknown type");
+  mutate([](auto&e){e.entity_class=maps::OriginalEntityClass::Building;},"same marker type in different class rejected");
+  mutate([](auto&e){e.status=2;},"unevidenced active marker status rejected");
+  mutate([](auto&e){e.subindex=1;},"unevidenced marker subindex rejected");
+  mutate([](auto&e){e.original_id.reset();},"marker requires valid original identity");
+  mutate([](auto&e){e.serialized_original_id=8;},"marker original identity mismatch rejected");
+  mutate([](auto&e){++e.serialized_cell_reference;},"marker requires exact serialized reference");
+  mutate([](auto&e){e.local_x=-1;},"negative marker origin rejected");
+  mutate([](auto&e){e.local_y=170;},"outside marker origin rejected");
+  auto outside=f;
+  outside.entities.records[0].local_x=outside.entities.records[0].local_y=0;
+  outside.entities.records[0].serialized_cell_reference=int(raw({29,29}));
+  rejects([&]{outside.make();},"marker origin outside candidate diamond rejected");
+  auto offmap=f;offmap.map.terrain_raw.values[raw(start)]|=0x80000;
+  rejects([&]{offmap.make();},"marker origin on raw off-map terrain rejected");
+  auto duplicate=f;auto second=marker;
+  second.manager_index=1;second.original_id=maps::OriginalEntityId{8};second.serialized_original_id=8;
+  duplicate.entities.records.push_back(second);
+  check(duplicate.make()->canonical_state()==p->canonical_state(),
+        "distinct validated markers sharing an origin follow existing marker duplicate contract");
+  duplicate.entities.records[1].type=163;
+  check(duplicate.make()->canonical_state()==p->canonical_state(),
+        "new and existing validated marker origins share the same reservation");
+  duplicate.entities.records[1]=marker;
+  rejects([&]{duplicate.make();},"duplicate marker identity still rejected");
+  for (bool marker_first:{false,true}) {
+   auto physical=f;auto building=f.source(start,8,1);
+   physical.entities.records.push_back(building);
+   if (!marker_first) std::reverse(physical.entities.records.begin(),physical.entities.records.end());
+   rejects([&]{physical.make();},"physical/marker overlap rejected in either record order");
+   for (const maps::GridCell claim:{start,maps::GridCell{102,110},maps::GridCell{102,109}}) {
+    Fixture gate;gate.gate(0);auto gate_marker=marker;
+    gate_marker.manager_index=1;gate_marker.original_id=maps::OriginalEntityId{8};gate_marker.serialized_original_id=8;
+    gate_marker.local_x=std::int16_t(claim.x-29);gate_marker.local_y=std::int16_t(claim.y-29);
+    gate_marker.serialized_cell_reference=int(raw(claim));
+    gate.entities.records.push_back(gate_marker);
+    if (marker_first) std::reverse(gate.entities.records.begin(),gate.entities.records.end());
+    rejects([&]{gate.make();},"marker cannot occupy a gate solid cell, corridor or opening in either order");
+   }
+  }
+  auto terrain=f;terrain.map.terrain_raw.values[raw({101,110})]=0x82;
+  check(!terrain.make()->road_allowed({101,110}) && !terrain.make()->building_allowed({101,110}),
+        "marker support does not expand the terrain whitelist");
+  if (type==165) {
+   auto water=f;water.map.terrain_raw.values[raw(start)]=4;
+   water.map.terrain_raw.values[raw({101,110})]=4;
+   const auto reserved=water.make();
+   check(reserved->protected_original({100,110}) && !reserved->road_allowed({100,110}) &&
+         !reserved->building_allowed({100,110}) && !reserved->road_allowed({101,110}) &&
+         !reserved->building_allowed({101,110}),
+         "literal water cells stay blocked; editor marker does not clear water or create roads");
+  }
+  auto inactive=f;inactive.entities.records[0].status=0;
+  check(inactive.make()->road_allowed({100,110}) && !inactive.make()->protected_original({100,110}),
+        "inactive records retain the previous non-occupying contract");
+ }
+}
 void invalid_sources(){Fixture f;f.gate(0);auto mutate=[&](auto edit,const char* msg){auto bad=f;edit(bad);rejects([&]{bad.make();},msg);};mutate([](auto&b){b.map.terrain_raw.values[raw({104,112})]&=~8U;},"partial gate claims rejected");mutate([](auto&b){++b.entities.records[0].serialized_cell_reference;},"reference mismatch rejected");mutate([](auto&b){b.entities.records[0].gate_house->layout=2;},"unknown layout rejected");mutate([](auto&b){b.entities.records[0].provenance.class_wrapper_schema=3;},"unknown gate wrapper rejected");mutate([](auto&b){b.plan.height_bytes[raw({102,111})]=0;},"unequal corridor heights rejected");mutate([](auto&b){b.plan.height_bytes[raw({102,109})]=0;},"unequal opening height rejected");mutate([](auto&b){auto e=b.source({102,111},8,1);b.entities.records.push_back(e);},"overlapping original structure rejected");mutate([](auto&b){b.entities.manager_schema=0;},"unknown full manager schema rejected");mutate([](auto&b){b.plan.height_bytes.pop_back();},"truncated heights rejected");rejects([&]{maps::make_sandbox_map_permissions(f.map,f.plan,f.geometry,f.legacy,f.entities,2);},"unknown map policy rejected");Fixture h;h.plan.height_bytes[raw(start)]=128;h.plan.height_bytes[raw({101,110})]=127;auto p=h.make();check(p->cell_height({100,110})==-128&&p->cell_height({101,110})==127&&p->transport_edge_blocker({100,110},{101,110})==simulation::BuildBlocker::UnsupportedHeightTransition,"signed byte extremes do not create steep edges");}
 void standalone_reader(){
  Fixture f;f.gate(1);
@@ -53,4 +141,4 @@ void standalone_reader(){
 }
 void legacy_contract(){Fixture f;maps::StoredCell c;c.storage=start;c.cell_index=raw(start);c.terrain_raw=0x80;c.objects_raw=0;c.footprint_index=0;c.status=maps::StoredStatus::Rendered;f.plan.cells.push_back(c);maps::PlacedFootprint fp;fp.origin=start;fp.width_cells=fp.height_cells=1;fp.status=maps::StoredStatus::Rendered;f.plan.footprints.push_back(fp);check(maps::make_sandbox_buildable_mask(f.plan,f.geometry)[raw(start)]==1,"legacy successful1x1 rendered fixture");f.plan.cells[0].status=maps::StoredStatus::DecodeFailed;check(maps::make_sandbox_buildable_mask(f.plan,f.geometry)[raw(start)]==0,"legacy decode dependence remains exact");f.plan.cells[0].status=maps::StoredStatus::Rendered;f.plan.footprints[0].width_cells=2;check(maps::make_sandbox_buildable_mask(f.plan,f.geometry)[raw(start)]==0,"legacy footprint dependence remains exact");}
 }
-int main(){try{free_and_protected();road_markings();passage_layouts();markers();invalid_sources();standalone_reader();legacy_contract();std::cout<<"Sandbox map permission tests passed\n";return 0;}catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}}
+int main(){try{free_and_protected();road_markings();passage_layouts();markers();saved_editor_marker_origins();invalid_sources();standalone_reader();legacy_contract();std::cout<<"Sandbox map permission tests passed\n";return 0;}catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}}

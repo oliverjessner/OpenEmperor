@@ -38,16 +38,62 @@ using simulation::BuildBlocker;
 using simulation::Cell;
 std::size_t storage(GridCell cell) {return std::size_t(cell.y)*stored_grid_width+cell.x;}
 Cell simulation_cell(GridCell cell) {return {int(cell.x),int(cell.y)};}
-bool bounded_map_marker(const OriginalEntityRecord& entity) {
-    // These zero-side Industrial records are named map-editor markers in the
-    // original Model, not evidence of a square building footprint. Reserve
-    // their exact saved origins conservatively; raw terrain/objects govern
-    // the rest of the map. Other zero-side classes/types remain unsupported.
-    if (entity.entity_class!=OriginalEntityClass::Industrial || entity.footprint_side!=0) return false;
-    return entity.type==162 || entity.type==163 || entity.type==174 || entity.type==180 || entity.type==185;
+enum class OriginalOccupancy { SavedSquare, MarkerOrigin, Unsupported };
+OriginalOccupancy original_occupancy(const OriginalEntityRecord& entity) {
+    if (entity.footprint_side>0 && entity.footprint_side<=16)
+        return OriginalOccupancy::SavedSquare;
+    if (entity.entity_class!=OriginalEntityClass::Industrial || entity.footprint_side!=0)
+        return OriginalOccupancy::Unsupported;
+    // Preserve the existing five marker contracts exactly.
+    switch (entity.type) {
+    case 162: case 163: case 174: case 180: case 185:
+        return OriginalOccupancy::MarkerOrigin;
+    case 175:
+        // The evidenced saved exit point has no physical rectangle: the
+        // original editor stores a coordinate pair and restore skips physical
+        // reconstruction. We still protect its exact origin conservatively.
+        // See docs/map-permissions-compatibility.md; zero side alone is never
+        // sufficient, and other source states remain unsupported.
+        if (entity.status==3 && entity.subindex==0 &&
+            (entity.provenance.base_schema==3 || entity.provenance.base_schema==4) &&
+            entity.provenance.wrapper_schema==1 && entity.provenance.extended_schema==1 &&
+            entity.provenance.class_wrapper_schema==0)
+            return OriginalOccupancy::MarkerOrigin;
+        break;
+    case 165:
+        // The Water editor tool writes terrain at one point, not a building
+        // owner rectangle. Its saved marker is also skipped by physical
+        // restore. Reserve the origin; do not import the editor operation or
+        // relax any raw terrain permission. These three base schemas are
+        // independently observed with this exact saved state.
+        if (entity.status==3 && entity.subindex==0 &&
+            (entity.provenance.base_schema==3 || entity.provenance.base_schema==4 ||
+             entity.provenance.base_schema==5) && entity.provenance.wrapper_schema==1 &&
+            entity.provenance.extended_schema==1 && entity.provenance.class_wrapper_schema==0)
+            return OriginalOccupancy::MarkerOrigin;
+        break;
+    default: break;
+    }
+    return OriginalOccupancy::Unsupported;
 }
 void permission_require(bool condition,const char* reason) {
     if (!condition) throw std::invalid_argument(std::string("map permissions: ")+reason);
+}
+[[noreturn]] void unsupported_occupancy(const OriginalEntityRecord& entity,GridCell origin,
+                                      const ParsedEmperorMap& map) {
+    const auto at=storage(origin);
+    throw std::invalid_argument("map permissions: unsupported active original occupancy: ID "+
+        std::to_string(entity.serialized_original_id)+", manager "+std::to_string(entity.manager_index)+
+        ", "+original_entity_class_name(entity.entity_class)+" type "+std::to_string(entity.type)+
+        ", status "+std::to_string(entity.status)+", side "+std::to_string(entity.footprint_side)+
+        ", subindex "+std::to_string(entity.subindex)+", base/wrapper/state "+
+        std::to_string(entity.provenance.base_schema)+"/"+std::to_string(entity.provenance.wrapper_schema)+
+        "/"+std::to_string(entity.provenance.extended_schema)+", local ("+
+        std::to_string(entity.local_x)+","+std::to_string(entity.local_y)+"), storage ("+
+        std::to_string(origin.x)+","+std::to_string(origin.y)+"), reference "+
+        std::to_string(entity.serialized_cell_reference)+", record logical "+
+        std::to_string(entity.provenance.logical_record_offset)+", terrain "+
+        std::to_string(map.terrain_raw.values[at])+", objects "+std::to_string(map.objects_raw.values[at]));
 }
 std::int8_t signed_height(std::uint8_t byte) {
     return std::int8_t(byte<128U ? int(byte):int(byte)-256);
@@ -121,14 +167,15 @@ std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permission
             "active original origin/reference mismatch");
         unsigned width=entity.footprint_side,height=entity.footprint_side;
         const bool gate=entity.entity_class==OriginalEntityClass::GateHouse;
-        const bool marker=bounded_map_marker(entity);
+        const auto occupancy=original_occupancy(entity);
+        const bool marker=!gate && occupancy==OriginalOccupancy::MarkerOrigin;
         if (gate) {
             permission_require(entity.type==130 && entity.gate_house &&
                 (entity.gate_house->layout==0 || entity.gate_house->layout==1),"unsupported original GateHouse type/layout");
             width=entity.gate_house->layout==0 ? 5U:3U;height=entity.gate_house->layout==0 ? 3U:5U;
             gates.push_back(&entity);
         } else if (marker) width=height=1;
-        else permission_require(width>0 && width<=16,"unbounded active original saved footprint");
+        else if (occupancy==OriginalOccupancy::Unsupported) unsupported_occupancy(entity,origin,map);
         for (unsigned dy=0;dy<height;++dy) for (unsigned dx=0;dx<width;++dx) {
             const GridCell cell{origin.x+dx,origin.y+dy};
             permission_require(geometry.contains(cell),"active original footprint outside map");

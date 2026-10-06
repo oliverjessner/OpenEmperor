@@ -29,3 +29,5 @@ server/data/db_logos/*
 .local/
 __pycache__/
 *.pyc
+
+/build-gate-passages/

@@ -1,2 +1,0 @@
-/usr/bin/ar qc libopenemperor-persistence.a "CMakeFiles/openemperor-persistence.dir/src/persistence/SandboxSave.cpp.o" "CMakeFiles/openemperor-persistence.dir/src/platform/AtomicReplace.cpp.o"
-/usr/bin/ranlib libopenemperor-persistence.a

@@ -3,12 +3,12 @@ set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-    echo "Usage: tools/test_gate_passages.sh <original-data-directory> [Kaifeng|Zhengzhou]" >&2
+    echo "Usage: tools/test_gate_passages.sh <original-data-directory> [Kaifeng|Zhengzhou|Xia|Banpo]" >&2
     exit 2
 fi
 original_data=$(CDPATH= cd -- "$1" && pwd)
 map_name=${2:-Kaifeng}
-case "$map_name" in Kaifeng|Zhengzhou) ;; *) echo "Choose Kaifeng or Zhengzhou." >&2; exit 2 ;; esac
+case "$map_name" in Kaifeng|Zhengzhou|Xia|Banpo) ;; *) echo "Choose Kaifeng, Zhengzhou, Xia or Banpo." >&2; exit 2 ;; esac
 test -f "$original_data/Cities/$map_name.map"
 
 build_dir="$repo_dir/build-gate-passages"
