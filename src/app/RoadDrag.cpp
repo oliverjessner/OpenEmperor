@@ -24,7 +24,29 @@ RoadPlan plan_road(const simulation::World& world,simulation::Cell start,
     plan.reason=validated.reason;
     plan.new_road_count=validated.new_road_count;
     plan.total_cost=validated.total_cost;
+    plan.diagnostic=validated.diagnostic;
+    plan.additional_blockers=validated.additional_blockers;
+    plan.cell_diagnostics=validated.cell_diagnostics;
     return plan;
+}
+
+std::string road_plan_status(const RoadPlan& plan) {
+    if (plan.valid || !plan.diagnostic.cell) return plan.reason;
+    const auto cell=*plan.diagnostic.cell;
+    return "Blocked at ("+std::to_string(cell.x)+","+std::to_string(cell.y)+
+        "): "+plan.reason;
+}
+
+bool road_cell_blocked(const RoadPlan& plan,simulation::Cell cell) {
+    for (const auto& item:plan.cell_diagnostics)
+        if (item.cell==cell && !item.allowed) return true;
+    const auto blocks=[&](const simulation::BuildDiagnostic& item) {
+        return (item.cell && *item.cell==cell) ||
+            (item.edge && (item.edge->from==cell || item.edge->to==cell));
+    };
+    if (blocks(plan.diagnostic)) return true;
+    for (const auto& item:plan.additional_blockers) if (blocks(item)) return true;
+    return false;
 }
 
 bool commit_road(simulation::World& world,const RoadPlan& plan,std::string& reason) {

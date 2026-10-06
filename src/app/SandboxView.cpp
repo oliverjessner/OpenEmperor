@@ -122,10 +122,14 @@ std::string joined_buildings(const std::vector<simulation::Object>& kinds) {
 }
 }
 
-SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::RulesProfile rules)
+SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::RulesProfile rules,
+                         std::uint32_t rule_version)
     : geometry_(session.map.declared_map_size),background_(std::move(session.plan)),demo_(demo),
-      rules_(rules) {
+      rules_(rules),requested_rule_version_(rule_version ? rule_version:
+          simulation::current_rule_version(rules)),original_map_(std::move(session.map)) {
     if (!geometry_.supported) throw std::invalid_argument("sandbox requires supported map geometry");
+    if (!simulation::rule_version_supported(rules_,requested_rule_version_))
+        throw std::invalid_argument("unsupported sandbox rule version");
     if (simulation::production_profile(rules_)) tool_=5;
 }
 SandboxView::~SandboxView() { shutdown(); }
@@ -166,6 +170,7 @@ void SandboxView::load_now() {
         throw std::runtime_error("Save map or rules differ from current sandbox");
     auto replacement=persistence::restore_save(document,data_root_,buildable_mask_);
     world_=std::make_unique<simulation::World>(std::move(replacement));
+    update_window_title();
     clear_visual_selection(); visual_hits_.clear(); visual_frame_valid_=false;
     saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     cancel_gesture();
@@ -225,22 +230,39 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         }
     }
     buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
+    const auto active_version=initial_save_ ? initial_save_->world.rule_version:
+        requested_rule_version_;
+    std::shared_ptr<const simulation::MapPermissions> permissions;
+    if (rules_==simulation::RulesProfile::CityV16 && active_version==3)
+        permissions=maps::load_sandbox_map_permissions(original_map_,background_.plan(),
+            geometry_,buildable_mask_,initial_save_ ?
+                initial_save_->map_permissions_policy_version:
+                simulation::kMapPermissionsPolicyVersion);
+    original_map_={};
     if (initial_save_) {
         world_=std::make_unique<simulation::World>(persistence::restore_save(*initial_save_,data_root_,
-            buildable_mask_));
+            buildable_mask_,std::move(permissions)));
         clock_.pause_and_reset();
         last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)"+
             (initial_save_->migrated_from_schema1 ? "; save schema 1 migrated in memory":"");
         initial_save_.reset();
-    } else world_=std::make_unique<simulation::World>(maps::stored_grid_width,maps::stored_grid_height,
-        buildable_mask_,rules_);
+    } else if (permissions)
+        world_=std::make_unique<simulation::World>(std::move(permissions),rules_,active_version);
+    else world_=std::make_unique<simulation::World>(maps::stored_grid_width,maps::stored_grid_height,
+        buildable_mask_,rules_,active_version);
     reset_camera();
     if (demo_) place_demo();
     if (initial_save_ == std::nullopt && !demo_) {
         saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     }
     if (!builtin_errors.empty()) last_message_=builtin_errors.front();
-    const std::string title="OpenEmperor "+std::string(version::display)+" - "+profile_title(rules_);
+    update_window_title();
+}
+void SandboxView::update_window_title() {
+    if (!window_ || !world_) return;
+    std::string title="OpenEmperor "+std::string(version::display)+" - "+profile_title(rules_);
+    if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
+        " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     SDL_SetWindowTitle(window_,title.c_str());
 }
 void SandboxView::shutdown() {
@@ -327,7 +349,7 @@ void SandboxView::set_building_visuals(const std::filesystem::path& manifest,
     auto profile=assets::load_building_visual_profile(data_root_,manifest);
     if (source!=VisualProfileSource::Builtin) {
         const auto version=world_ ? world_->rule_version():initial_save_ ?
-            initial_save_->world.rule_version:simulation::current_rule_version(rules_);
+            initial_save_->world.rule_version:requested_rule_version_;
         for (const auto [role,kind]:{std::pair{assets::BuildingVisualRole::Well,simulation::Object::Well},
                 std::pair{assets::BuildingVisualRole::HealthPost,simulation::Object::HealthPost}})
             if (const auto* entry=profile.find(role); entry && entry->footprint_side!=
@@ -1751,7 +1773,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     }
     if (road_start_ && road_preview_.valid) {
         for (const auto cell:road_preview_.cells) {
-            if (world_->object_at(cell)==simulation::Object::Road) continue;
+            if (world_->object_at(cell)==simulation::Object::Road || world_->fixed_passage(cell)) continue;
             const auto ground=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
             const auto id=static_cast<unsigned>(cell.y*world_->width()+cell.x);
             instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxRoad,id},cell,
@@ -2233,7 +2255,9 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     if (road_start_) {
         if (!road_preview_.valid) for (const auto cell:road_preview_.cells) {
             const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
-            if (!draw_diamond({top.x,top.y-20},245,60,65,true)) return false;
+            const bool blocked=sandbox_ui::road_cell_blocked(road_preview_,cell);
+            if (!draw_diamond({top.x,top.y-20},blocked ? 245:151,
+                blocked ? 60:161,blocked ? 65:121,true,blocked ? 0.65F:0.25F)) return false;
         }
         return true;
     }
@@ -2312,6 +2336,27 @@ int SandboxView::demolition_hint_extra_height() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
+    if (selected_ && !selected_walker_ && world_->map_permissions()) {
+        const auto& permissions=*world_->map_permissions();
+        if (const auto* gate=permissions.fixed_gate(*selected_)) {
+            lines={"Original gate #"+std::to_string(gate->id.value),
+                permissions.fixed_passage(*selected_) ? "Fixed passage":"Protected gate structure",
+                "OpenEmperor open passage rule"};
+            for (std::size_t side=0;side<2;++side) {
+                const auto corridor=side==0 ? gate->corridor.front():gate->corridor.back();
+                lines.push_back(std::string("Opening ")+(side==0 ? "A":"B")+
+                    (world_->transport_edge_allowed(corridor,gate->openings[side]) ?
+                        " connected":" not connected"));
+            }
+            if (debug_open_) {
+                const auto provenance=maps::landscape_inspection_lines(background_.plan(),
+                    {static_cast<unsigned>(selected_->x),static_cast<unsigned>(selected_->y)},
+                    background_.elevated(),&camera_);
+                lines.insert(lines.end(),provenance.begin(),provenance.end());
+            }
+            return wrap_panel_lines(lines);
+        }
+    }
     if (debug_open_ && selected_walker_) {
         const auto found=std::find_if(world_->couriers().begin(),world_->couriers().end(),
             [&](const auto& courier){return courier.id==*selected_walker_;});
@@ -2820,6 +2865,8 @@ bool SandboxView::draw_hud() {
     std::string overview=profile;
     if (simulation::market_profile(rules_))
         overview+=" v"+std::to_string(world_->rule_version());
+    if (world_->map_permissions())
+        overview+=" | Map policy "+std::to_string(world_->map_permissions()->policy_version());
     overview+=" | Tick "+std::to_string(world_->ticks())+" | "+
         (clock_.paused()?"Paused ":"Running ")+std::to_string(clock_.speed())+"x";
     if (simulation::water_profile(rules_)) {
@@ -2893,17 +2940,18 @@ bool SandboxView::draw_hud() {
     if (!SDL_SetRenderDrawColor(renderer_,230,236,244,255)) return false;
     if (managed_ && !draw_text(layout_.top.w-82*layout_.scale,18*layout_.scale,
                                "[ MENU ]",80*layout_.scale)) return false;
-    std::string status=road_start_ && !road_preview_.valid ? road_preview_.reason :
+    std::string status=road_start_ && !road_preview_.valid ? sandbox_ui::road_plan_status(road_preview_) :
         last_message_.empty() ? "OpenEmperor sandbox | Select a tool, then click the map" :
         last_message_;
     if (simulation::city_profile(rules_) && road_start_ &&
         !road_preview_.valid && road_preview_.reason=="Not enough money") {
-        const auto count=std::count_if(road_preview_.cells.begin(),road_preview_.cells.end(),
-            [&](simulation::Cell cell) { return world_->object_at(cell)!=simulation::Object::Road; });
+        const auto count=world_->map_permissions() ? road_preview_.new_road_count:
+            static_cast<std::size_t>(std::count_if(road_preview_.cells.begin(),road_preview_.cells.end(),
+                [&](simulation::Cell cell) { return world_->object_at(cell)!=simulation::Object::Road; }));
         status="Need "+std::to_string(count*simulation::Rules::road_cost)+
             " funds; treasury "+std::to_string(world_->treasury());
     }
-    if (simulation::city_profile(rules_) && hovered_ &&
+    if (simulation::city_profile(rules_) && !road_start_ && hovered_ &&
         tool_!=(simulation::production_profile(rules_) ? 5:4)) {
         const auto result=preview(*hovered_);
         if (!result.accepted && std::string_view(result.reason)=="Not enough money") {

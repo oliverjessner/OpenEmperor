@@ -830,7 +830,7 @@ void city_v15_health_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* re
 void city_v16_maintenance_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
     namespace perf=openemperor::performance;
     std::vector<std::uint8_t> mask;auto session=city_v10_fixture(temp,mask);const auto border=session.plan.border;
-    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16);
+    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16,2);
     Temp outside;view.configure_save(temp.path,"Cities/Synthetic.map",outside.path/"budget-save.json");
     view.initialize(window,renderer);bool running=true;
     const auto put=[&](simulation::CommandType type,simulation::Cell cell) {
@@ -913,7 +913,7 @@ void city_v16_geometry_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* 
         {"schema_version",1},{"mode","curated_building_preview"},{"buildings",entries}};};
     save_profile();std::vector<std::uint8_t> mask;
     auto session=city_v10_fixture(temp,mask);const auto border=session.plan.border;
-    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16);
+    openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16,2);
     Temp outside;view.configure_save(temp.path,"Cities/Synthetic.map",outside.path/"safety.json");
     view.set_building_visuals(manifest,openemperor::VisualProfileSource::Builtin);
     view.initialize(window,renderer);bool running=true;
@@ -980,7 +980,7 @@ void city_v16_geometry_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* 
     view.save_now();auto legacy=openemperor::persistence::read_save(view.save_path());legacy.world.rule_version=1;
     view.shutdown();
     auto old_session=city_v10_fixture(temp,mask);
-    openemperor::SandboxView old_view(std::move(old_session),false,simulation::RulesProfile::CityV16);
+    openemperor::SandboxView old_view(std::move(old_session),false,simulation::RulesProfile::CityV16,2);
     old_view.configure_save(temp.path,"Cities/Synthetic.map",outside.path/"legacy.json",legacy);
     entries["well"]=source["buildings"]["pottery"];entries["well"]["footprint_side"]=2;save_profile();
     old_view.set_building_visuals(manifest,openemperor::VisualProfileSource::Builtin);
@@ -1051,7 +1051,7 @@ void road_continuity_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* re
     for (const auto& pattern:patterns) {
         save_profile(false);
         auto session=raised_session();const auto border=session.plan.border;
-        openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16);
+        openemperor::SandboxView view(std::move(session),false,simulation::RulesProfile::CityV16,2);
         view.configure_save(temp.path,"Cities/Synthetic.map",temp.path/"unused.json");
         view.set_road_visuals(manifest);view.initialize(window,renderer);bool running=true;
         std::vector<Cell> cells;
@@ -1328,7 +1328,7 @@ void input_reliability_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* 
         resize(view,1100,700);view.shutdown();
     }
     {
-        std::vector<std::uint8_t> mask;View view(city_v10_fixture(temp,mask),false,simulation::RulesProfile::CityV16);
+        std::vector<std::uint8_t> mask;View view(city_v10_fixture(temp,mask),false,simulation::RulesProfile::CityV16,2);
         view.initialize(window,renderer);if(!view.paused())view.handle_event(key(SDLK_SPACE),running);
         const auto before=view.world().snapshot();const auto camera=view.camera();View::PanKeyState d;d.d=true;
         view.update(.02,d);check(same_camera(camera,view.camera()),"D remains reserved for desirability in newer profiles");

@@ -223,6 +223,15 @@ RecoveryEntry make_entry(const std::string& history,const std::optional<Recovery
     e.schema=saved.source_schema_version;e.population=population(saved);e.treasury=saved.world.treasury;
     return e;
 }
+void validate_policy_readback(const SaveDocument& saved,const SaveDocument& source) {
+    if (source.world.profile!=simulation::RulesProfile::CityV16 || source.world.rule_version!=3) return;
+    require(saved.source_schema_version==19 && saved.world==source.world &&
+            saved.map_relative==source.map_relative && saved.map_sha256==source.map_sha256 &&
+            saved.buildable_sha256==source.buildable_sha256 &&
+            saved.map_permissions_policy_version==source.map_permissions_policy_version &&
+            saved.map_permissions_sha256==source.map_permissions_sha256,
+            "recovery read-back differs from schema19 world or map policy");
+}
 void validate_entry_document(RecoveryEntry& entry) {
     try {
         std::error_code ec;
@@ -268,6 +277,7 @@ std::string RecoveryStore::create_history(const SaveDocument& document,
     try {
         write_save(save,document,data_root_,buildable,faults.save);
         auto verified=read_save(save);
+        validate_policy_readback(verified,document);
         auto entry=make_entry(history,parent,0,true,"start.json",save,verified);
         Metadata metadata{history,parent,1,{entry}};
         const auto metadata_bytes=metadata_json(metadata).dump(2);
@@ -311,6 +321,7 @@ RecoveryEntry RecoveryStore::write_checkpoint(const std::string& history,
     try {
         write_save(save,document,data_root_,buildable,faults.save);
         auto verified=read_save(save);
+        validate_policy_readback(verified,document);
         auto entry=make_entry(history,metadata.parent,sequence,false,filename,save,verified);
         require(storage_usage(recovery_root_)<=budget_,"recovery storage budget is full");
         metadata.next_sequence=sequence+1;

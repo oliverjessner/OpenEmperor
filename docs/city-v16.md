@@ -2,9 +2,13 @@
 
 Current native input delivery and the executable short human check are centralized in [Native Input Reliability](input-reliability.md) and [input acceptance](testing-input-acceptance.md). Historical observations below retain their original scope; they do not mark the current human checklist PASS or close profile-specific balance/replanning playthroughs.
 
-## Current rule 2: corrected Safety geometry
+## Current rule 3: original map roads and gate passages
 
-New City-v16 games use rule **2**, retaining the exact rule-1 economy, maintenance, health, fire and water parameters. Only Well and HealthPost now occupy **2×2**. Central footprint/cell/front/contains APIs take the explicit rule version; placement, all-cell owner picking, perimeter entrances, Manhattan water/desirability distances, previews, selection, demolition and restore use them. Cost/workers/radius/limits remain Well 60/0/5/4 and HealthPost 120/2/road-service/2. The paid 1,280/1,300 dry starter contains neither and remains unchanged.
+New City-v16 games use rule **3**, immutable original-map road permissions and fixed GateHouse passages. Schema **19** binds their versioned canonical fingerprint. Economy and 2×2 Well/HealthPost inherit rule 2 exactly. Rules 1/2 and schema 18 remain unchanged without migration; the general menu default remains City-v11 rule 3. See [the contract and isolated test starter](gate-passages.md).
+
+## Historical rule 2: corrected Safety geometry
+
+Rule **2** retains the exact rule-1 economy, maintenance, health, fire and water parameters. Only Well and HealthPost now occupy **2×2**. Central footprint/cell/front/contains APIs take the explicit rule version; placement, all-cell owner picking, perimeter entrances, Manhattan water/desirability distances, previews, selection, demolition and restore use them. Cost/workers/radius/limits remain Well 60/0/5/4 and HealthPost 120/2/road-service/2. The paid 1,280/1,300 dry starter contains neither and remains unchanged.
 
 Schema **18** supports versions 1 and 2 without new fields or automatic migration. Existing City-v16 v1 saves retain 1×1 Well/Post; City-v14/15 remain exact. No optional copy upgrade was added. Built-in exact-pack rule-2 presentation uses identified original base Well 1559 and Herbalist 1580; the old rules retain compatible custom 1×1 visuals or authored fallbacks. Basic roads use the corrected original topology mapping. See [presentation evidence and limits](reverse/original-presentation-correction.md).
 

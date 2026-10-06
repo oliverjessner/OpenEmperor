@@ -231,6 +231,7 @@ target_include_directories(openemperor-maps PUBLIC src)
 target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohmann_json::nlohmann_json openemperor-scene)
 openemperor_enable_warnings(openemperor-maps)
 add_library(openemperor-simulation STATIC
+    src/simulation/MapPermissions.cpp
     src/simulation/World.cpp
     src/simulation/WorldFire.cpp
     src/simulation/WorldHealth.cpp
@@ -240,6 +241,7 @@ add_library(openemperor-simulation STATIC
     src/simulation/CityStartGuidance.cpp)
 target_include_directories(openemperor-simulation PUBLIC src)
 openemperor_enable_warnings(openemperor-simulation)
+target_link_libraries(openemperor-maps PUBLIC openemperor-simulation)
 add_library(openemperor-persistence STATIC src/persistence/SandboxSave.cpp
     src/platform/AtomicReplace.cpp)
 target_include_directories(openemperor-persistence PUBLIC src)
@@ -388,6 +390,24 @@ if(BUILD_TESTING)
     add_test(NAME sandbox-input-reliability COMMAND openemperor-sandbox-view-tests --input-only)
     set_tests_properties(sandbox-input-reliability PROPERTIES TIMEOUT 60)
     add_executable(openemperor-sandbox-save-tests tests/SandboxSaveTests.cpp)
+    add_executable(openemperor-gate-passage-save-tests tests/GatePassageSaveTests.cpp)
+    add_executable(openemperor-gate-passage-road-view-tests tests/GatePassageRoadViewTests.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp)
+    add_executable(openemperor-sandbox-gate-passage-tests tests/SandboxGatePassageTests.cpp)
+    add_executable(openemperor-sandbox-map-permissions-tests tests/SandboxMapPermissionsTests.cpp)
+    target_link_libraries(openemperor-sandbox-map-permissions-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-sandbox-map-permissions-tests)
+    add_test(NAME sandbox-map-permissions COMMAND openemperor-sandbox-map-permissions-tests)
+    target_link_libraries(openemperor-sandbox-gate-passage-tests PRIVATE openemperor-simulation)
+    openemperor_enable_warnings(openemperor-sandbox-gate-passage-tests)
+    add_test(NAME sandbox-fixed-gate-passages COMMAND openemperor-sandbox-gate-passage-tests)
+    target_link_libraries(openemperor-gate-passage-road-view-tests PRIVATE openemperor-simulation)
+    openemperor_enable_warnings(openemperor-gate-passage-road-view-tests)
+    add_test(NAME gate-passage-road-preview COMMAND openemperor-gate-passage-road-view-tests)
+    target_link_libraries(openemperor-gate-passage-save-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-gate-passage-save-tests)
+    add_test(NAME gate-passage-save-recovery COMMAND openemperor-gate-passage-save-tests)
+    set_tests_properties(gate-passage-save-recovery PROPERTIES TIMEOUT 120)
     target_link_libraries(openemperor-sandbox-save-tests PRIVATE openemperor-persistence)
     openemperor_enable_warnings(openemperor-sandbox-save-tests)
     add_test(NAME sandbox-save-resume COMMAND openemperor-sandbox-save-tests)

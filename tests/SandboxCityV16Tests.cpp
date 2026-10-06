@@ -388,10 +388,11 @@ void endurance(std::uint32_t version=1) {
     std::cout<<"100,000 ticks,46 buildings/26 couriers,168/400t, phased bills,debt/recovery,demolition/rebuild,Fire/Health/Water,20 save/autosave/recovery roundtrips; funds "<<w.treasury()<<", upkeep "<<w.maintenance_spent_total()<<'\n';
 }
 void geometry() {
-    check(sim::current_rule_version(sim::RulesProfile::CityV16)==2 &&
+    check(sim::current_rule_version(sim::RulesProfile::CityV16)==3 &&
         sim::rule_version_supported(sim::RulesProfile::CityV16,1) &&
         sim::rule_version_supported(sim::RulesProfile::CityV16,2) &&
-        !sim::rule_version_supported(sim::RulesProfile::CityV16,3),"rule2 support");
+        sim::rule_version_supported(sim::RulesProfile::CityV16,3) &&
+        !sim::rule_version_supported(sim::RulesProfile::CityV16,4),"City16 version support");
     Temp t;
     for (const auto profile:{sim::RulesProfile::CityV14,sim::RulesProfile::CityV15,sim::RulesProfile::CityV16})
         for (const auto kind:{sim::Object::Well,sim::Object::HealthPost})

@@ -1,4 +1,5 @@
 #pragma once
+#include "simulation/MapPermissions.h"
 
 #include "core/PerformanceDiagnostics.h"
 
@@ -215,11 +216,6 @@ constexpr std::int64_t starting_treasury_for(RulesProfile profile) {
         Rules::starting_treasury;
 }
 
-struct Cell {
-    int x=0;
-    int y=0;
-    bool operator==(const Cell&) const = default;
-};
 enum class Object : std::uint8_t {
     Empty, Road, Workshop, Warehouse, ClaySource, Pottery, Household, Farm, ServicePost, Market,
     FireWatch, Well, HealthPost
@@ -277,12 +273,16 @@ struct CommandResult {
     std::string reason;
     std::uint64_t sequence=0;
     std::uint64_t tick=0;
+    BuildDiagnostic diagnostic{};
 };
 struct RoadBatchValidation {
     bool accepted=false;
     std::string reason;
     std::size_t new_road_count=0;
     std::int64_t total_cost=0;
+    BuildDiagnostic diagnostic{};
+    std::vector<BuildDiagnostic> additional_blockers{};
+    std::vector<RoadCellDiagnostic> cell_diagnostics{};
 };
 enum class CourierPhase { IdleAtWorkshop, ToWarehouse, Returning };
 const char* courier_phase_name(CourierPhase phase);
@@ -482,6 +482,8 @@ class World {
 public:
     World(int width,int height,std::vector<std::uint8_t> buildable,
           RulesProfile profile=RulesProfile::LogisticsV1,std::uint32_t rule_version=0);
+    World(std::shared_ptr<const MapPermissions> permissions,
+          RulesProfile profile=RulesProfile::CityV16,std::uint32_t rule_version=0);
     RulesProfile profile() const { return profile_; }
     std::uint32_t rule_version() const { return rule_version_; }
     const ProfileRules& active_rules() const { return profile_rules(profile_,rule_version_); }
@@ -489,6 +491,11 @@ public:
     int height() const { return height_; }
     bool in_bounds(Cell cell) const;
     bool buildable(Cell cell) const;
+    bool road_buildable(Cell cell) const;
+    bool fixed_passage(Cell cell) const;
+    bool transport_cell(Cell cell) const;
+    bool transport_edge_allowed(Cell from,Cell to) const;
+    const std::shared_ptr<const MapPermissions>& map_permissions() const { return permissions_; }
     Object object_at(Cell cell) const;
     std::optional<BuildingId> building_owner_at(Cell cell) const;
     const BuildingState& building(BuildingId id) const;
@@ -585,6 +592,7 @@ public:
     std::string canonical_state() const;
     WorldSnapshot snapshot() const;
     static World restore(const WorldSnapshot& snapshot,std::vector<std::uint8_t> buildable);
+    static World restore(const WorldSnapshot& snapshot,std::shared_ptr<const MapPermissions> permissions);
     void import_snapshot(const WorldSnapshot& snapshot);
     CommandResult validate(Command command) const;
     CommandResult execute(Command command);
@@ -620,6 +628,9 @@ private:
     void update_fire();
     CommandResult execute_impl(Command command,bool refresh_after);
     std::size_t index(Cell cell) const;
+    bool permission_edge_allowed(Cell from,Cell to) const;
+    static World restore_impl(const WorldSnapshot& snapshot,std::vector<std::uint8_t> buildable,
+                              std::shared_ptr<const MapPermissions> permissions);
     std::optional<std::vector<Cell>> find_road_route(Cell start,Cell goal) const;
     std::optional<std::vector<Cell>> find_route_to_building(Cell start,BuildingId target) const;
     const std::vector<Cell>* route_for_revision();
@@ -646,6 +657,7 @@ private:
     RulesProfile profile_;
     std::uint32_t rule_version_=1;
     std::vector<std::uint8_t> buildable_;
+    std::shared_ptr<const MapPermissions> permissions_;
     std::vector<Object> objects_;
     std::vector<std::uint32_t> owners_;
     std::vector<BuildingState> buildings_;

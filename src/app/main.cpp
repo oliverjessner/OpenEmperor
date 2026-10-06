@@ -489,6 +489,8 @@ int main(int argc, char* argv[]) {
             }
             if (sandbox_save_supplied || load_sandbox_supplied)
                 openemperor::persistence::validate_save_target(sandbox_save_path,data_directory);
+            const auto active_rule_version=initial ? initial->world.rule_version:
+                openemperor::simulation::current_rule_version(sandbox_rules);
             auto session=openemperor::maps::load_stored_map_session(data_directory,sandbox_path,
                 openemperor::maps::FootprintPolicy::EdgeByte4x4Preview,
                 openemperor::maps::StoredGraphicsProfile::Slot8,great_wall_mode);
@@ -507,7 +509,11 @@ int main(int argc, char* argv[]) {
             std::cout << "Sandbox: " << sandbox_path.generic_string()
                       << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
                       << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"
-                      << " | rules=" << openemperor::simulation::rules_profile_name(sandbox_rules) << '\n';
+                      << " | rules=" << openemperor::simulation::rules_profile_name(sandbox_rules)
+                      << " | rule=" << active_rule_version;
+            if (sandbox_rules==openemperor::simulation::RulesProfile::CityV16 && active_rule_version==3)
+                std::cout << " | map-policy=" << openemperor::simulation::kMapPermissionsPolicyVersion;
+            std::cout << '\n';
         } catch (const std::exception& error) {
             std::cerr << "Sandbox load failed: " << error.what() << '\n'; return 1;
         }

@@ -2,6 +2,7 @@
 #include "app/ResourceLocator.h"
 #include "renderer/StoredGraphicsRenderer.h"
 #include "maps/StoredGraphicsPlan.h"
+#include "maps/OriginalMapEntities.h"
 #include "persistence/SandboxSave.h"
 #include <SDL3/SDL.h>
 #include <zlib.h>
@@ -41,9 +42,11 @@ Bytes sg3(bool tile) {
     }
     return b;
 }
-Bytes map_file() {
+Bytes map_file(bool valid_manager=true) {
     using namespace openemperor::maps;
-    Bytes raw(static_cast<std::size_t>(objects_logical_offset+grid_byte_length),0);
+    Bytes raw(static_cast<std::size_t>(original_entities_logical_offset+6),0);
+    // Complete empty authored manager for the rule-3 immutable map policy.
+    u16(raw,static_cast<std::size_t>(original_entities_logical_offset),valid_manager ? 1:99);
     const std::array<std::uint8_t,8> signature{5,0,0xfe,0xca,0,0,2,0};
     std::copy(signature.begin(),signature.end(),raw.begin()); u32(raw,84,84);
     for (std::size_t i=0;i<228U*228U;++i) {
@@ -188,11 +191,13 @@ int main(int argc,char* argv[]) {
             click(maintenance_menu,90,650);finish_load(maintenance_menu);
             check(maintenance_menu.state()==Menu::State::Playing && maintenance_menu.sandbox() &&
                 maintenance_menu.sandbox()->world().profile()==openemperor::simulation::RulesProfile::CityV16 &&
+                maintenance_menu.sandbox()->world().rule_version()==3 &&
+                maintenance_menu.sandbox()->world().map_permissions() &&
                 maintenance_menu.sandbox()->world().treasury()==20 &&
                 maintenance_menu.sandbox()->world().current_maintenance_rate()==48 &&
                 maintenance_menu.sandbox()->world().maintenance_spent_total()==0,"menu paid maintenance starter");
             maintenance_menu.sandbox()->save_now();const auto entries=openemperor::menu::list_saves(root);
-            check(entries.entries.size()==1 && entries.entries[0].schema==18 &&
+            check(entries.entries.size()==1 && entries.entries[0].schema==19 &&
                 entries.entries[0].profile==openemperor::simulation::city_v16_profile_name,"City-v16 save list identity");
             maintenance_menu.shutdown();
         }
@@ -390,12 +395,18 @@ int main(int argc,char* argv[]) {
             check(menu.render(),"Great Wall preview setup did not render");
             check(menu.sandbox()->world().snapshot()==saved && menu.sandbox()->save_path()==first_save,
                   "session-only Great Wall choice changed the retained World or save target");
+            // Deliberately unsupported source manager tests failed preview
+            // preparation, independently of the valid rule-3 fixture above.
+            write(t.root/"data/Cities/A.map",map_file(false));
+            write(t.root/"data/Cities/B.map",map_file(false));
             key(menu,SDLK_RETURN); finish_load(menu);
             if (!(menu.state()==Menu::State::NewSandbox &&
                   menu.message().find("Great Wall preview preparation failed")!=std::string::npos &&
                   menu.sandbox()->world().snapshot()==saved && menu.sandbox()->save_path()==first_save))
                 throw std::runtime_error("failed Great Wall preparation retained state="+
                     std::to_string(static_cast<int>(menu.state()))+", message="+menu.message());
+            write(t.root/"data/Cities/A.map",map_file());
+            write(t.root/"data/Cities/B.map",map_file());
             key(menu,SDLK_G); // Return to Automatic without persisting the preview choice.
             key(menu,SDLK_ESCAPE); key(menu,SDLK_RETURN);
             {

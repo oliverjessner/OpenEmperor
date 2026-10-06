@@ -283,7 +283,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         out.taxes=number(field(h,"taxes"));
         out.construction_spent=number(field(h,"construction_spent"));
     }
-    if (schema>=10 && schema<=18) {
+    if (schema>=10 && schema<=19) {
         const bool v11=schema>=11;
         require(bs.is_array() && bs.size()<=building_collection_limit(profile) &&
                 cs.is_array() && cs.size()<=courier_collection_limit(profile),
@@ -388,7 +388,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
         s.next_courier_id=static_cast<std::uint32_t>(number(field(j,"next_courier_id"),UINT32_MAX));
         const auto treasury=field(j,"treasury");
         require(treasury.is_number_integer(),"City treasury must be an integer");
-        if (schema==18) {
+        if (schema>=18) {
             s.treasury=signed_number(treasury);
             s.maintenance_spent_total=number(field(j,"maintenance_spent_total"));
         } else {
@@ -566,8 +566,8 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     return s;
 }
 json document_json(const SaveDocument& d) {
-    return {{"format","openemperor-sandbox-save"},{"schema_version",
-             d.world.profile==simulation::RulesProfile::CityV16 ? 18:
+    json out={{"format","openemperor-sandbox-save"},{"schema_version",
+             d.world.profile==simulation::RulesProfile::CityV16 ? (d.world.rule_version==3 ? 19:18):
              d.world.profile==simulation::RulesProfile::CityV15 ? 17:
              d.world.profile==simulation::RulesProfile::CityV14 ? 16:
              d.world.profile==simulation::RulesProfile::CityV13 ? 15:
@@ -588,11 +588,15 @@ json document_json(const SaveDocument& d) {
         {"rules",{{"id",rules_profile_name(d.world.profile)},
                   {"version",d.world.rule_version}}},
         {"world",snapshot_json(d.world)}};
+    if (d.world.profile==simulation::RulesProfile::CityV16 && d.world.rule_version==3)
+        out["profiles"]["map_permissions"]={{"version",d.map_permissions_policy_version},
+                                             {"sha256",d.map_permissions_sha256}};
+    return out;
 }
 SaveDocument parse_document(const json& j) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema>=1 && schema<=18,"unsupported save schema version");
+    require(schema>=1 && schema<=19,"unsupported save schema version");
     const auto& m=field(j,"map"); const auto& p=field(j,"profiles");
     const auto& r=field(j,"rules");
     SaveDocument d;
@@ -602,6 +606,16 @@ SaveDocument parse_document(const json& j) {
     d.map_sha256=str(field(m,"sha256"));
     d.buildable_sha256=str(field(p,"buildable_sha256"));
     require(valid_hash(d.map_sha256) && valid_hash(d.buildable_sha256),"invalid save fingerprint");
+    if (schema==19) {
+        const auto& policy=field(p,"map_permissions");
+        require(policy.is_object() && policy.size()==2,
+                "save map permissions must contain only version and SHA-256, not transit links");
+        d.map_permissions_policy_version=static_cast<std::uint32_t>(number(field(policy,"version"),UINT32_MAX));
+        require(d.map_permissions_policy_version==simulation::kMapPermissionsPolicyVersion,
+                "unsupported saved map-permissions policy version");
+        d.map_permissions_sha256=str(field(policy,"sha256"));
+        require(valid_hash(d.map_permissions_sha256),"invalid map-permissions fingerprint");
+    }
     require(number(field(m,"part_index"))==0,"unsupported map part index");
     require(str(field(p,"graphics"))==maps::stored_graphics_slot8_profile &&
             str(field(p,"footprint"))=="edge-byte-4x4" &&
@@ -641,7 +655,7 @@ SaveDocument parse_document(const json& j) {
             (d.world.profile!=simulation::RulesProfile::CityV13 || schema==15) &&
             (d.world.profile!=simulation::RulesProfile::CityV14 || schema==16) &&
             (d.world.profile!=simulation::RulesProfile::CityV15 || schema==17) &&
-            (d.world.profile!=simulation::RulesProfile::CityV16 || schema==18) &&
+            (d.world.profile!=simulation::RulesProfile::CityV16 || schema==18 || schema==19) &&
             (d.world.profile!=simulation::RulesProfile::CityV11 ||
                 (schema==11 ? d.world.rule_version<=2 :
                  (schema==12 && d.world.rule_version==3) ||
@@ -669,6 +683,8 @@ SaveDocument parse_document(const json& j) {
             d.world.rule_version==1),"schema 17 requires City-v15 rule 1");
     require(schema!=18 || (d.world.profile==simulation::RulesProfile::CityV16 &&
             (d.world.rule_version==1 || d.world.rule_version==2)),"schema 18 requires City-v16 rule 1 or 2");
+    require(schema!=19 || (d.world.profile==simulation::RulesProfile::CityV16 &&
+            d.world.rule_version==3),"schema 19 requires City-v16 rule 3");
     auto parsed=parse_snapshot(field(j,"world"),schema,d.world.profile);
     parsed.profile=d.world.profile; parsed.rule_version=d.world.rule_version;
     if (schema==1 && parsed.profile==simulation::RulesProfile::ProductionV2) {
@@ -689,9 +705,17 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
                            const std::vector<std::uint8_t>& mask,const simulation::World& world) {
     safe_relative(relative);
     const auto map=maps::resolve_map_path(root,relative);
-    SaveDocument d{relative,hash_file(map),digest(mask.data(),mask.size()),world.snapshot()};
+    SaveDocument d;
+    d.map_relative=relative;d.map_sha256=hash_file(map);
+    d.buildable_sha256=digest(mask.data(),mask.size());d.world=world.snapshot();
     // Validate the snapshot against the actual mask before publishing it.
-    (void)simulation::World::restore(d.world,mask);
+    if (d.world.profile==simulation::RulesProfile::CityV16 && d.world.rule_version==3) {
+        d.prepared_permissions=world.map_permissions();
+        require(static_cast<bool>(d.prepared_permissions),"City-v16 rule 3 requires prepared map permissions");
+        d.map_permissions_policy_version=d.prepared_permissions->policy_version();
+        d.map_permissions_sha256=map_permissions_fingerprint(*d.prepared_permissions,d.map_sha256);
+        (void)simulation::World::restore(d.world,d.prepared_permissions);
+    } else (void)simulation::World::restore(d.world,mask);
     return d;
 }
 SaveDocument read_save(const fs::path& path) {
@@ -737,11 +761,39 @@ SaveDocument upgrade_city_v11_v3_to_v4(const SaveDocument& source) {
 }
 simulation::World restore_save(const SaveDocument& d,const fs::path& root,
                                std::vector<std::uint8_t> mask) {
+    return restore_save(d,root,std::move(mask),d.prepared_permissions);
+}
+std::string map_permissions_fingerprint(const simulation::MapPermissions& permissions,
+                                        const std::string& map_sha256) {
+    require(valid_hash(map_sha256),"invalid original-map fingerprint for map permissions");
+    require(permissions.policy_version()==simulation::kMapPermissionsPolicyVersion,
+            "unsupported map-permissions policy version");
+    const auto framed=std::string("openemperor-map-permissions-v1\n")+
+        std::to_string(permissions.policy_version())+"\n"+map_sha256+"\n"+permissions.canonical_state();
+    return digest(reinterpret_cast<const unsigned char*>(framed.data()),framed.size());
+}
+simulation::World restore_save(const SaveDocument& d,const fs::path& root,
+                               std::vector<std::uint8_t> mask,
+                               std::shared_ptr<const simulation::MapPermissions> permissions) {
     safe_relative(d.map_relative);
     const auto map=maps::resolve_map_path(root,d.map_relative);
     require(hash_file(map)==d.map_sha256,"original map SHA-256 differs from save");
     require(digest(mask.data(),mask.size())==d.buildable_sha256,
             "sandbox buildable mask SHA-256 differs from save");
+    if (d.world.profile==simulation::RulesProfile::CityV16 && d.world.rule_version==3) {
+        require(d.source_schema_version==0 || d.source_schema_version==19,
+                "City-v16 rule 3 requires schema19; legacy saves are not migrated");
+        require(d.map_permissions_policy_version==simulation::kMapPermissionsPolicyVersion,
+                "unsupported saved map-permissions policy version");
+        if (!permissions)
+            permissions=maps::read_sandbox_map_permissions(root,d.map_relative,mask,d.map_permissions_policy_version);
+        require(permissions && permissions->policy_version()==d.map_permissions_policy_version,
+                "prepared map-permissions policy differs from save");
+        require(valid_hash(d.map_permissions_sha256) &&
+                map_permissions_fingerprint(*permissions,d.map_sha256)==d.map_permissions_sha256,
+                "map-permissions SHA-256 differs from save (permissions or topology changed)");
+        return simulation::World::restore(d.world,std::move(permissions));
+    }
     return simulation::World::restore(d.world,std::move(mask));
 }
 void validate_save_target(const fs::path& path,const fs::path& root) {

@@ -52,7 +52,8 @@ public:
         std::uint64_t invalid_edge_fallbacks=0;
     };
     explicit SandboxView(maps::StoredMapSession session, bool demo,
-                         simulation::RulesProfile rules=simulation::RulesProfile::LogisticsV1);
+                         simulation::RulesProfile rules=simulation::RulesProfile::LogisticsV1,
+                         std::uint32_t rule_version=0);
     ~SandboxView();
     void initialize(SDL_Window* window, SDL_Renderer* renderer);
     void shutdown();
@@ -201,6 +202,7 @@ private:
     bool select_visual(scene::Point screen);
     void clear_visual_selection();
     void reset_camera();
+    void update_window_title();
     void resize_camera();
     void place_demo();
     bool draw_diamond(scene::Point world, std::uint8_t r, std::uint8_t g, std::uint8_t b, bool fill, float alpha=0.65F);
@@ -281,6 +283,10 @@ private:
     bool demo_=false;
     int tool_=4;
     simulation::RulesProfile rules_;
+    std::uint32_t requested_rule_version_=0;
+    // Retained only through initialization, when immutable map permissions are
+    // prepared. Rendering and navigation never consult the original raw map.
+    maps::ParsedEmperorMap original_map_;
     int last_courier_draws_=0;
     std::filesystem::path data_root_,map_relative_,save_path_;
     std::filesystem::path walker_manifest_;

@@ -7,6 +7,7 @@ namespace {
 constexpr std::array<simulation::Cell,4> directions{{{0,-1},{1,0},{0,1},{-1,0}}};
 bool is_road(const simulation::World& world,std::span<const simulation::Cell> planned,
              simulation::Cell cell) {
+    if (world.fixed_passage(cell)) return false;
     return world.object_at(cell)==simulation::Object::Road ||
         std::find(planned.begin(),planned.end(),cell)!=planned.end();
 }
@@ -21,7 +22,9 @@ RoadNeighborMask road_neighbor_mask_for_preview(const simulation::World& world,
     RoadNeighborMask mask=0;
     for (std::size_t bit=0;bit<directions.size();++bit) {
         const simulation::Cell neighbor{cell.x+directions[bit].x,cell.y+directions[bit].y};
-        if (is_road(world,planned,neighbor))
+        const auto& permissions=world.map_permissions();
+        if ((is_road(world,planned,neighbor) || world.fixed_passage(neighbor)) &&
+            (!permissions || permissions->transport_edge_allowed(cell,neighbor)))
             mask=static_cast<RoadNeighborMask>(mask | (1U<<bit));
     }
     return mask;
@@ -36,7 +39,9 @@ EntranceMask entrance_mask_for_preview(const simulation::World& world,
     EntranceMask mask=0;
     for (std::size_t bit=0;bit<directions.size();++bit) {
         const simulation::Cell neighbor{cell.x+directions[bit].x,cell.y+directions[bit].y};
-        if (is_building(world.object_at(neighbor)))
+        const auto& permissions=world.map_permissions();
+        if (is_building(world.object_at(neighbor)) &&
+            (!permissions || permissions->transport_edge_allowed(cell,neighbor)))
             mask=static_cast<EntranceMask>(mask | (1U<<bit));
     }
     return mask;
