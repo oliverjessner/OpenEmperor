@@ -1,0 +1,43 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/openemperor-sg3.dir/src/assets/AssetCatalog.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/AssetCatalog.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/BuildingVisualProfile.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/BuildingVisualProfile.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/CompatibilityProfile.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/CompatibilityProfile.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/GreatWallDependencyPaths.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/GreatWallDependencyPaths.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/RgbaPngEncoder.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/RgbaPngEncoder.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/RgbaPngReader.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/RgbaPngReader.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/RoadVisualProfile.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/RoadVisualProfile.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3AlphaAudit.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3AlphaAudit.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3AlphaDecoder.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3AlphaDecoder.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3Archive.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3Archive.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3ImageLoader.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3ImageLoader.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3IsometricDecoder.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3IsometricDecoder.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3OmegaDecoder.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3OmegaDecoder.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3PayloadLayout.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3PayloadLayout.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3RgbaDecoder.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3RgbaDecoder.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3ShadowComposition.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/Sg3ShadowComposition.cpp.o.d"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/WalkerVisualProfile.cpp.o"
+  "CMakeFiles/openemperor-sg3.dir/src/assets/WalkerVisualProfile.cpp.o.d"
+  "libopenemperor-sg3.a"
+  "libopenemperor-sg3.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/openemperor-sg3.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

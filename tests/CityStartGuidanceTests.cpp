@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -25,6 +26,176 @@ sim::World make_world() {
     constexpr int width=48,height=24;
     return {width,height,std::vector<std::uint8_t>(width*height,1),
             sim::RulesProfile::CityV11,2};
+}
+
+void road_only_permission_budget_copy() {
+    constexpr int width=24,height=16;
+    std::vector<sim::MapCellPermission> cells(width*height,{true,true,false,0,
+        sim::BuildBlocker::None,sim::BuildBlocker::None});
+    const sim::Cell road_only{4,4};
+    const auto road_index=static_cast<std::size_t>(road_only.y*width+road_only.x);
+    cells[road_index].building_allowed=false;
+    cells[road_index].building_blocker=
+        sim::BuildBlocker::LegacyBuildabilityRestriction;
+    const auto permissions=std::make_shared<const sim::MapPermissions>(width,height,
+        sim::kMapPermissionsPolicyVersion,std::move(cells),
+        std::vector<sim::FixedGatePassage>{});
+    sim::World world(permissions,sim::RulesProfile::CityV16,3);
+    require(world.road_buildable(road_only) && !world.buildable(road_only),
+        "fixture did not separate road and building permission");
+    put(world,sim::CommandType::PlaceRoad,road_only.x,road_only.y);
+    const sim::Command purchase{sim::CommandType::PlaceClaySource,{10,4}};
+    require(world.taxes_collected_total()==0 && world.validate(purchase).accepted,
+        "road-only budget fixture has tax or an invalid purchase");
+    const auto before=world.snapshot();
+    const auto policy_before=permissions->canonical_state();
+    require(!sim::starter_budget_warning(world,purchase),
+        "adequately funded road-only fixture emitted a budget warning");
+    require(world.snapshot()==before && world.map_permissions()==permissions &&
+            permissions->canonical_state()==policy_before,
+        "road-only budget check mutated source World or map policy");
+
+    for (int i=0;i<5;++i) put(world,sim::CommandType::PlaceHousehold,i*3,12);
+    const sim::Command sixth{sim::CommandType::PlaceHousehold,{15,12}};
+    const auto cancelled=world.snapshot();
+    const auto warning=sim::starter_budget_warning(world,sixth);
+    require(warning && warning->purchase_cost==80 && warning->funds_after_purchase==818 &&
+            warning->minimum_remaining_building_funds==850 &&
+            warning->minimum_remaining_house_funds==0,
+        "road-only policy did not retain the ordinary starter reserve warning");
+    require(world.snapshot()==cancelled && permissions->canonical_state()==policy_before,
+        "cancelled road-only budget purchase changed source state");
+    const auto committed=world.execute(sixth);
+    require(committed.accepted && committed.changed && world.treasury()==818 &&
+            world.command_sequence()==cancelled.command_sequence+1,
+        "approved road-only budget purchase did not run one paid command");
+}
+
+constexpr int gate_size=24;
+sim::Cell gate_axis(sim::Cell p,bool horizontal) {
+    return horizontal ? sim::Cell{p.y,p.x}:p;
+}
+
+std::shared_ptr<const sim::MapPermissions> guidance_gate_policy(bool horizontal) {
+    std::vector<sim::MapCellPermission> cells(gate_size*gate_size,{true,true,false,1,
+        sim::BuildBlocker::None,sim::BuildBlocker::None});
+    const auto at=[&](sim::Cell p)->sim::MapCellPermission& {
+        p=gate_axis(p,horizontal);
+        return cells[static_cast<std::size_t>(p.y*gate_size+p.x)];
+    };
+    sim::FixedGatePassage gate;gate.id={101};
+    for (int y=7;y<=9;++y) for (int x=5;x<=9;++x) {
+        gate.protected_footprint.push_back(gate_axis({x,y},horizontal));
+        at({x,y})={false,false,true,1,sim::BuildBlocker::GateSolidPart,
+            sim::BuildBlocker::OriginalStructure};
+    }
+    for (int y=7;y<=9;++y) {
+        gate.corridor.push_back(gate_axis({7,y},horizontal));
+        at({7,y}).road_allowed=true;
+    }
+    gate.openings={gate_axis({7,6},horizontal),gate_axis({7,10},horizontal)};
+    for (int x=0;x<gate_size;++x) if (x<5 || x>9)
+        at({x,8})={false,false,true,1,sim::BuildBlocker::OriginalStructure,
+            sim::BuildBlocker::OriginalStructure};
+    at({4,5}).building_allowed=false;
+    at({4,5}).building_blocker=sim::BuildBlocker::LegacyBuildabilityRestriction;
+    at({22,22}).height=-2;
+    return std::make_shared<const sim::MapPermissions>(gate_size,gate_size,
+        sim::kMapPermissionsPolicyVersion,std::move(cells),
+        std::vector<sim::FixedGatePassage>{std::move(gate)});
+}
+
+void full_policy_budget_copy(bool horizontal) {
+    const auto permissions=guidance_gate_policy(horizontal);
+    const auto policy_before=permissions->canonical_state();
+    sim::World world(permissions,sim::RulesProfile::CityV16,3);
+    for (const auto p:{sim::Cell{0,0},sim::Cell{3,0},sim::Cell{10,0},sim::Cell{13,0}}) {
+        const auto q=gate_axis(p,horizontal);
+        put(world,sim::CommandType::PlaceHousehold,q.x,q.y);
+    }
+    const auto source=gate_axis({3,3},horizontal);
+    const auto destination=gate_axis({7,12},horizontal);
+    put(world,sim::CommandType::PlaceClaySource,source.x,source.y);
+    put(world,sim::CommandType::PlacePottery,destination.x,destination.y);
+    for (const auto p:{sim::Cell{4,5},sim::Cell{5,5},sim::Cell{6,5},sim::Cell{7,5},
+            sim::Cell{7,6},sim::Cell{7,10},sim::Cell{7,11}}) {
+        const auto q=gate_axis(p,horizontal);
+        put(world,sim::CommandType::PlaceRoad,q.x,q.y);
+    }
+    const auto owner=*world.building_owner_at(source);
+    const auto courier=std::ranges::find_if(world.couriers(),[&](const auto& c) {
+        return c.owner==owner;
+    });
+    require(courier!=world.couriers().end(),"gate guidance fixture has no courier");
+    const auto id=courier->id;
+    const auto inside=[&] {
+        const auto& c=world.courier(id);
+        return c.phase==sim::CourierPhase::ToWarehouse && !c.path.empty() &&
+            world.fixed_passage(c.path[c.path_vertex]) && c.edge_progress==1;
+    };
+    for (int i=0;i<1'000 && !inside();++i) world.tick();
+    require(inside() && world.taxes_collected_total()==0,
+        "gate budget fixture did not reach active untaxed passage travel");
+    const auto before=world.snapshot();
+    const auto canonical_before=world.canonical_state();
+    auto hypothetical=sim::World::restore(before,permissions);
+    require(hypothetical.map_permissions()==permissions && hypothetical.snapshot()==before &&
+            hypothetical.fixed_passage(gate_axis({7,8},horizontal)) &&
+            permissions->gates()[0].protected_footprint.size()==15 &&
+            permissions->cell_height(gate_axis({22,22},horizontal))==-2 &&
+            hypothetical.transport_edge_allowed(gate_axis({7,6},horizontal),
+                gate_axis({7,7},horizontal)) &&
+            hypothetical.map_permissions()->transport_edge_blocker(
+                gate_axis({7,8},horizontal),gate_axis({6,8},horizontal))==
+                    sim::BuildBlocker::GateSideEntry &&
+            hypothetical.map_permissions()->transport_edge_blocker(
+                gate_axis({22,21},horizontal),gate_axis({22,22},horizontal))==
+                    sim::BuildBlocker::UnsupportedHeightTransition,
+        "hypothetical restore lost shared policy, gate, opening or signed heights");
+    const sim::Command purchase{sim::CommandType::PlaceFarm,{18,18}};
+    require(world.validate(purchase).accepted && !sim::starter_budget_warning(world,purchase),
+        "active passage courier prevented a valid adequately funded budget check");
+    require(hypothetical.execute(purchase).accepted && hypothetical.snapshot()!=before &&
+            world.snapshot()==before && world.canonical_state()==canonical_before &&
+            world.map_permissions()==permissions && permissions->canonical_state()==policy_before,
+        "hypothetical purchase changed source World or immutable policy");
+    hypothetical.tick();world.tick();
+    const auto& copied=hypothetical.courier(id);
+    const auto& actual=world.courier(id);
+    require(copied.phase==actual.phase && copied.path==actual.path &&
+            copied.path_vertex==actual.path_vertex && copied.edge_progress==actual.edge_progress &&
+            copied.cargo==actual.cargo && copied.reserved==actual.reserved &&
+            hypothetical.courier_position(id)==world.courier_position(id) &&
+            permissions->canonical_state()==policy_before,
+        "hypothetical purchase lost gate-courier continuation context");
+
+    auto invalid=before;
+    invalid.roads.push_back(gate_axis({6,8},horizontal));
+    bool rejected=false;
+    try { (void)sim::World::restore(invalid,permissions); }
+    catch (const std::invalid_argument&) { rejected=true; }
+    require(rejected,"invalid road on protected gate solid part was accepted");
+}
+
+void legacy_budget_copy_versions() {
+    constexpr int width=24,height=16;
+    for (const auto profile:{sim::RulesProfile::CityV10,sim::RulesProfile::CityV16})
+        for (const auto version:{1U,2U}) {
+            if (profile==sim::RulesProfile::CityV10 && version==2) continue;
+            sim::World world(width,height,std::vector<std::uint8_t>(width*height,1),profile,version);
+            require(!world.map_permissions(),"legacy profile acquired map permissions");
+            for (int i=0;i<5;++i) put(world,sim::CommandType::PlaceHousehold,i*3,12);
+            const sim::Command sixth{sim::CommandType::PlaceHousehold,{15,12}};
+            const auto before=world.snapshot();
+            const auto warning=sim::starter_budget_warning(world,sixth);
+            if (profile==sim::RulesProfile::CityV10)
+                require(!warning,"City-v10 acquired a City-v11 budget warning");
+            else require(warning && warning->purchase_cost==80 &&
+                    warning->funds_after_purchase==820 &&
+                    warning->minimum_remaining_building_funds==850,
+                "legacy City-v16 budget behavior changed");
+            require(world.snapshot()==before,"legacy budget copy changed source World");
+        }
 }
 
 void put_house(sim::World& world,int ordinal) {
@@ -336,6 +507,10 @@ void exhausted_house_limit_is_explicit() {
 
 int main() {
     try {
+        road_only_permission_budget_copy();
+        full_policy_budget_copy(false);
+        full_policy_budget_copy(true);
+        legacy_budget_copy_versions();
         screenshot_budget_blockade();
         workforce_recovery_and_real_tax();
         shrunken_house_recommendation();

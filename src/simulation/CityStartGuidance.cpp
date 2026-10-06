@@ -175,7 +175,10 @@ std::optional<StarterBudgetWarning> starter_budget_warning(
     if (!market_profile(world.profile()) ||
         (world.profile()==RulesProfile::CityV11 && world.rule_version()<2) ||
         world.taxes_collected_total()>0) return std::nullopt;
-    auto hypothetical=World::restore(world.snapshot(),copy_buildable_mask(world));
+    const auto snapshot=world.snapshot();
+    auto hypothetical=world.map_permissions() ?
+        World::restore(snapshot,world.map_permissions()):
+        World::restore(snapshot,copy_buildable_mask(world));
     for (const auto command:commands) {
         const auto result=hypothetical.execute(command);
         if (!result.accepted) return std::nullopt;

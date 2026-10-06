@@ -1,0 +1,2 @@
+/usr/bin/ar qc libopenemperor-scene.a "CMakeFiles/openemperor-scene.dir/src/scene/IsoProjection.cpp.o" "CMakeFiles/openemperor-scene.dir/src/scene/Scene.cpp.o"
+/usr/bin/ranlib libopenemperor-scene.a

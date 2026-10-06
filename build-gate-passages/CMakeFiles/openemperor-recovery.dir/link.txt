@@ -1,0 +1,2 @@
+/usr/bin/ar qc libopenemperor-recovery.a "CMakeFiles/openemperor-recovery.dir/src/persistence/RecoveryStore.cpp.o" "CMakeFiles/openemperor-recovery.dir/src/app/AutosaveController.cpp.o"
+/usr/bin/ranlib libopenemperor-recovery.a

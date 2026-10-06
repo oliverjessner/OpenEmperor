@@ -1,0 +1,9 @@
+{
+  "display_version": "0.1.0-alpha.2",
+  "project_version": "0.1.0",
+  "revision": "8c2ef2a63417",
+  "dirty": true,
+  "architecture": "arm64",
+  "build_type": "Release",
+  "deployment_target": "unspecified"
+}

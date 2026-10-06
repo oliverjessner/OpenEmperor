@@ -1530,10 +1530,22 @@ simulation::CommandResult SandboxView::execute(simulation::Command command) {
 simulation::CommandResult SandboxView::request_execute(simulation::Command command) {
     const auto validated=world_->validate(command);
     if (!validated.accepted || !validated.changed) return execute(command);
-    performance::ScopedTimer timer(performance::Timing::BudgetCheck);
-    if (const auto warning=simulation::starter_budget_warning(*world_,command)) {
+    std::optional<simulation::StarterBudgetWarning> warning;
+    try {
+        performance::ScopedTimer timer(performance::Timing::BudgetCheck);
+        warning=simulation::starter_budget_warning(*world_,command);
+    } catch (const std::exception& error) {
+        // This read-only preflight has not executed a source command. Reject
+        // the purchase here; mutation/commit failures stay outside this guard.
         cancel_gesture();
-        budget_warning_=warning;
+        budget_warning_.reset(); pending_command_.reset(); pending_road_.reset();
+        budget_button_pressed_.reset();
+        last_message_=std::string("Purchase check failed: ")+error.what();
+        return {false,false,last_message_,world_->command_sequence()+1,world_->ticks()};
+    }
+    if (warning) {
+        cancel_gesture();
+        budget_warning_=std::move(warning);
         pending_command_=command;
         pending_road_.reset();
         last_message_="Starter budget confirmation required.";

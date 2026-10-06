@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names "CMakeFiles/openemperor-scene-tests.dir/tests/SceneTests.cpp.o" -o openemperor-scene-tests  libopenemperor-scene.a libopenemperor-sg3.a /opt/homebrew/Cellar/openssl@3/3.6.5/lib/libcrypto.dylib

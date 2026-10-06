@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "gog-derived-2.0.0.2-en-assetset-1",
+  "evidence": "Exactly fingerprinted files from the locally validated GOG-derived Emperor data set. Recognition is limited to these bytes and does not imply support for other distributions or revisions.",
+  "files": [
+    {"path": "DATA/SprMain.sg3", "sha256": "3e2817d2644453acc92068d6c1e26532212be213b43b848ebe95ba21654adef8"},
+    {"path": "DATA/SprMain.555", "sha256": "d84eb6759e9ce50b0ad75596773b9224f9c1a9b8dd80b691c066c3de7e8df438"},
+    {"path": "DATA/China_General.sg3", "sha256": "c9ae527102c312098cbfe82932ce1b39c6c96692981c874dc853306835583e46"},
+    {"path": "DATA/China_General.555", "sha256": "3cb09cd2c954eb355e2253482845e7117b353c24506575795bcaa1fe45db33f2"},
+    {"path": "DATA/China_Terrain.sg3", "sha256": "56e9fe6bbbbdc93d28f44883bd9bd8f9cfe0198f024a5af1e4589d47319f374d"},
+    {"path": "DATA/China_Terrain.555", "sha256": "c5f5a28b8c2663af06ca4c63f18191e4b2fecec65bd77ee7f51d1e2dc5ae23ff"}
+  ],
+  "profiles": {
+    "walker": "walkers.json",
+    "building": "buildings.json",
+    "road": "roads.json"
+  }
+}

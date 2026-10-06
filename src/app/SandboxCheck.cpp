@@ -53,9 +53,14 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         const auto initial_taxes=view.world().taxes_collected_total();
         const auto initial_construction_spent=view.world().construction_spent_total();
         std::optional<simulation::World> walker_control;
-        if (!visuals.walker.empty() || !visuals.building.empty() || !visuals.road.empty())
-            walker_control.emplace(simulation::World::restore(view.world().snapshot(),
-                                                               view.buildable_mask()));
+        if (!visuals.walker.empty() || !visuals.building.empty() || !visuals.road.empty()) {
+            // The control must retain road permissions, gate edges and heights;
+            // the legacy building mask alone is not a complete rule-3 map.
+            const auto& permissions=view.world().map_permissions();
+            walker_control.emplace(permissions ?
+                simulation::World::restore(view.world().snapshot(),permissions):
+                simulation::World::restore(view.world().snapshot(),view.buildable_mask()));
+        }
         bool simulation_neutral=true;
         bool saved=false,reparsed=false,fresh_world=false,direct_equal=false,continued_equal=true;
         std::optional<simulation::World> resumed;

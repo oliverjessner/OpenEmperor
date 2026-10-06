@@ -329,6 +329,19 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-sandbox-view-tests PRIVATE openemperor-recovery SDL3::SDL3
         openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
+    add_executable(openemperor-sandbox-gate-budget-view-tests
+        tests/SandboxGateBudgetViewTests.cpp tests/GateBudgetPreflightShim.cpp
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp
+        src/renderer/RoadSpriteSet.cpp src/renderer/WellFallbackRenderer.cpp
+        src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-sandbox-gate-budget-view-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-sandbox-gate-budget-view-tests)
+    add_test(NAME sandbox-gate-budget-view COMMAND openemperor-sandbox-gate-budget-view-tests)
+    set_tests_properties(sandbox-gate-budget-view PROPERTIES TIMEOUT 60)
     add_test(NAME sandbox-city-v15-view COMMAND openemperor-sandbox-view-tests --health-only)
     add_test(NAME road-continuity-production-pixels COMMAND openemperor-sandbox-view-tests --road-continuity-only)
     set_tests_properties(road-continuity-production-pixels PROPERTIES TIMEOUT 60)
