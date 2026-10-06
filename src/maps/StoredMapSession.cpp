@@ -4,6 +4,7 @@
 #include "assets/Sg3ImageLoader.h"
 #include "maps/EmperorContainer.h"
 #include "maps/MapCatalog.h"
+#include "maps/MapRulesCheck.h"
 #include "maps/MapGraphicCandidates.h"
 #include "maps/LandscapeProvenance.h"
 #include "maps/RegeneratedMapRenderPlan.h"
@@ -17,9 +18,13 @@ namespace openemperor::maps {
 StoredMapSession load_stored_map_session(const std::filesystem::path& data_root,
                                         const std::filesystem::path& map_relative,
                                         FootprintPolicy policy, StoredGraphicsProfile profile,
-                                        GreatWallPresentationMode great_wall) {
+                                        GreatWallPresentationMode great_wall,
+                                        const std::string& expected_input_sha256) {
     const auto map_path=resolve_map_path(data_root,map_relative);
     const auto container=EmperorContainer::open(map_path);
+    const auto input_sha256=expected_input_sha256.empty() ? std::string{}:map_input_sha256(container);
+    if (!expected_input_sha256.empty() && input_sha256!=expected_input_sha256)
+        throw std::runtime_error("Map changed since the map-rules check. Check the selected map again.");
     if (container.multipart()) throw std::runtime_error("map browser requires standalone map");
     auto map=read_emperor_map(container,0);
     const MapGeometry geometry{map.declared_map_size};
@@ -39,6 +44,6 @@ StoredMapSession load_stored_map_session(const std::filesystem::path& data_root,
     add_regenerated_wall_registration(plan,registrations);
     read_ordinary_gate_presentation(plan,container,0);
     build_regenerated_map_render_plan(plan,registrations);
-    return {std::move(map),std::move(plan)};
+    return {std::move(map),std::move(plan),input_sha256};
 }
 } // namespace openemperor::maps

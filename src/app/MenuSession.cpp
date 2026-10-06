@@ -17,7 +17,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     ResetSettings, OpenMenu, VisualsFile, VisualsClear, BuildingVisualsFile, BuildingVisualsClear,
     RoadVisualsFile, RoadVisualsClear, AdvancedVisuals, UpgradeCopy, ConfirmUpgradeCopy,
     CancelUpgrade, ToggleAutosave, ToggleSaveView, DeleteRecovery, ConfirmDeleteRecovery,
-    CancelDeleteRecovery, GreatWallChoice,
+    CancelDeleteRecovery, GreatWallChoice, RecheckMap,
     MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 constexpr simulation::RulesProfile profiles[]={simulation::RulesProfile::LogisticsV1,
     simulation::RulesProfile::ProductionV2,simulation::RulesProfile::HouseholdV3,
@@ -57,9 +57,11 @@ std::string data_error(const std::exception& error) {
 }
 }
 MenuSession::MenuSession(fs::path explicit_data,fs::path app_root,std::unique_ptr<DialogAdapter> dialog,
-                         fs::path resource_root,maps::GreatWallPresentationMode great_wall)
+                         fs::path resource_root,maps::GreatWallPresentationMode great_wall,
+                         MapRulesPreflight::Checker map_checker)
     : explicit_data_(std::move(explicit_data)),app_root_(std::move(app_root)),
-      resource_root_(std::move(resource_root)),dialog_(std::move(dialog)),great_wall_mode_(great_wall) {}
+      resource_root_(std::move(resource_root)),dialog_(std::move(dialog)),
+      map_preflight_(std::move(map_checker)),great_wall_mode_(great_wall) {}
 MenuSession::~MenuSession() { shutdown(); }
 void MenuSession::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     window_=window; renderer_=renderer;
@@ -84,6 +86,7 @@ void MenuSession::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     rebuild_buttons(); initialized_=true;
 }
 void MenuSession::shutdown() {
+    map_preflight_.shutdown(); starting_map_check_.reset();
     if (dialog_) dialog_->cancel_pending();
     ++dialog_generation_; dialog_kind_=DialogKind::None;
     inbox_.reset();
@@ -92,10 +95,14 @@ void MenuSession::shutdown() {
     window_=nullptr; renderer_=nullptr; initialized_=false;
 }
 void MenuSession::set_state(State state) {
+    const bool entering_setup=state==State::NewSandbox && state_!=state;
+    if (state_==State::NewSandbox && state_!=state) map_preflight_.invalidate();
     if (state_!=state && dialog_kind_!=DialogKind::None) {
         ++dialog_generation_; dialog_->cancel_pending(); dialog_kind_=DialogKind::None;
     }
-    state_=state; pressed_action_=-1; pending_action_.reset(); rebuild_buttons();
+    state_=state; pressed_action_=-1; pending_action_.reset();
+    if (entering_setup) check_selected_map();
+    rebuild_buttons();
 }
 void MenuSession::persist_settings() {
     if (settings_reset_required_) { message_="Confirm settings reset before saving preferences"; return; }
@@ -170,14 +177,37 @@ void MenuSession::open_dialog(DialogKind kind) {
         else dialog_->open_file(window_,std::move(callback));
     } catch (const std::exception& e) { dialog_kind_=DialogKind::None; message_="File chooser could not open: "+std::string(e.what()); }
 }
+std::optional<maps::MapRulesRequest> MenuSession::selected_map_request() const {
+    if (map_index_>=catalog_.entries.size() || catalog_.data_root.empty()) return std::nullopt;
+    const auto version=simulation::current_rule_version(settings_.profile);
+    return maps::MapRulesRequest{catalog_.data_root,catalog_.entries[map_index_].relative_path,
+        settings_.profile,version,maps::map_rules_policy_version(settings_.profile,version)};
+}
+void MenuSession::check_selected_map() {
+    if (state_!=State::NewSandbox) return;
+    pressed_action_=-1; pending_action_.reset(); starting_map_check_.reset();
+    if (const auto request=selected_map_request()) map_preflight_.select(*request);
+    else map_preflight_.invalidate();
+}
+bool MenuSession::map_rules_can_start() const {
+    const auto request=selected_map_request();
+    return state_==State::NewSandbox && request && map_preflight_.can_start() &&
+        map_preflight_.result().request==*request;
+}
 void MenuSession::start_new() {
-    const auto& map=catalog_.entries.at(map_index_);
-    if (!map.map_profile) { message_="Selected map is unsupported"; return; }
+    if (!map_rules_can_start()) {
+        const auto& result=map_preflight_.result();
+        message_=result.status==maps::MapRulesStatus::Checking ? "Wait for the map rules check." :
+            result.reason.empty() ? "Check the selected map rules before starting." : result.reason;
+        return;
+    }
+    starting_map_check_=map_preflight_.result();
     pending_save_path_.clear();
     pending_recovery_parent_.reset();
     return_state_=State::NewSandbox; set_state(State::Loading); loading_drawn_=false;
 }
 void MenuSession::start_load(const fs::path& path) {
+    starting_map_check_.reset();
     std::error_code error;
     const auto resolved=fs::canonical(path,error);
     pending_save_path_=error ? path : resolved;
@@ -203,7 +233,8 @@ void MenuSession::finish_loading() {
             save_path=new_save_target(app_root_,settings_.data_root);
         }
         auto loaded=maps::load_stored_map_session(settings_.data_root,map,
-            maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8,great_wall_mode_);
+            maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8,great_wall_mode_,
+            starting_map_check_ && !document ? starting_map_check_->input_sha256:std::string{});
         if (upgrade_copy_ || recovery_load) {
             save_path=new_save_target(app_root_,settings_.data_root);
         }
@@ -219,6 +250,9 @@ void MenuSession::finish_loading() {
         if (!visuals.building.empty()) view->set_building_visuals(visuals.building,visuals.building_source);
         if (!visuals.road.empty()) view->set_road_visuals(visuals.road,visuals.road_source);
         view->initialize(window_,renderer_);
+        if (starting_map_check_ && !document &&
+            view->capture_save_document().map_sha256!=starting_map_check_->input_sha256)
+            throw std::runtime_error("Original map changed after its rules check. Check the map again.");
         if (upgrade_copy_)
             persistence::write_save(save_path,*upgraded_document,settings_.data_root,
                                     view->buildable_mask());
@@ -244,6 +278,7 @@ void MenuSession::finish_loading() {
 }
 void MenuSession::commit_candidate() {
     if (!candidate_) return;
+    starting_map_check_.reset();
     if (sandbox_) { sandbox_->shutdown(); sandbox_.reset(); }
     sandbox_=std::move(candidate_); seen_save_generation_=sandbox_->save_generation();
     autosave_=std::move(candidate_autosave_);
@@ -302,7 +337,9 @@ void MenuSession::perform(int action) {
         }
         if (action>=MapSelectBase) {
             const auto index=map_scroll_+static_cast<std::size_t>(action-MapSelectBase);
-            if (index<catalog_.entries.size()) { map_index_=index; rebuild_buttons(); }
+            if (index<catalog_.entries.size() && index!=map_index_) {
+                map_index_=index; check_selected_map(); rebuild_buttons();
+            }
             return;
         }
         switch (action) {
@@ -327,14 +364,17 @@ void MenuSession::perform(int action) {
         case Resume: if (sandbox_) set_state(State::Playing); break;
         case DataFolder: confirm_or(AfterConfirm::ChangeData); break;
         case Quit: confirm_or(AfterConfirm::Quit); break;
-        case MapPrev: if (map_index_>0) --map_index_; rebuild_buttons(); break;
-        case MapNext: if (map_index_+1<catalog_.entries.size()) ++map_index_; rebuild_buttons(); break;
+        case MapPrev: if (map_index_>0) { --map_index_; check_selected_map(); } rebuild_buttons(); break;
+        case MapNext: if (map_index_+1<catalog_.entries.size()) { ++map_index_; check_selected_map(); } rebuild_buttons(); break;
         case ProfilePrev: case ProfileNext: {
             auto it=std::find(std::begin(profiles),std::end(profiles),settings_.profile);
             int index=static_cast<int>(it-std::begin(profiles));
             index=std::clamp(index+(action==ProfileNext?1:-1),0,
                 static_cast<int>(std::size(profiles))-1);
-            settings_.profile=profiles[index]; rebuild_buttons(); break;
+            if (settings_.profile!=profiles[index]) {
+                settings_.profile=profiles[index]; check_selected_map();
+            }
+            rebuild_buttons(); break;
         }
         case Demo: demo_=!demo_; settings_.prepared_starter=demo_; rebuild_buttons(); break;
         case GreatWallChoice:
@@ -342,6 +382,7 @@ void MenuSession::perform(int action) {
                 (static_cast<unsigned>(great_wall_mode_)+1U)%5U);
             rebuild_buttons(); break;
         case Start: start_new(); break;
+        case RecheckMap: check_selected_map(); message_.clear(); rebuild_buttons(); break;
         case Back: set_state(State::MainMenu); break;
         case SavePrev: if (save_index_>0) --save_index_; rebuild_buttons(); break;
         case SaveNext:
@@ -406,7 +447,9 @@ void MenuSession::perform(int action) {
             if (sandbox_) { sandbox_->save_now(); record_save(); }
             [[fallthrough]];
         case ConfirmDiscard:
-            if (after_confirm_==AfterConfirm::Quit) running_=false;
+            if (after_confirm_==AfterConfirm::Quit) {
+                map_preflight_.invalidate(); running_=false;
+            }
             else if (after_confirm_==AfterConfirm::Replace) commit_candidate();
             else if (after_confirm_==AfterConfirm::ChangeData) {
                 if (sandbox_) { sandbox_->shutdown(); sandbox_.reset(); }
@@ -557,6 +600,10 @@ void MenuSession::advance() {
         }
     }
     if (pending_action_) { const auto action=*pending_action_; pending_action_.reset(); perform(action); }
+    if (map_preflight_.poll() && state_==State::NewSandbox) {
+        // A layout/status boundary must not complete a press begun before it.
+        pressed_action_=-1; rebuild_buttons();
+    }
     if (sandbox_ && sandbox_->save_generation()!=seen_save_generation_) record_save();
     finish_loading();
 }
@@ -594,6 +641,8 @@ void MenuSession::rebuild_buttons() {
         add(ProfilePrev,"Previous rules",40,205); add(ProfileNext,"Next rules",230,205);
         add(Demo,demo_?"Prepared starter settlement":"Empty city",40,270,260);
         add(Start,"Start sandbox",40,315); add(Back,"Back",230,315);
+        buttons_[buttons_.size()-2].enabled=map_rules_can_start();
+        add(RecheckMap,"Check again",430,315,280);
         add(GreatWallChoice,std::string("G Great Wall: ")+maps::great_wall_presentation_mode_name(great_wall_mode_),40,360,370);
         add(AdvancedVisuals,advanced_visuals_open_?"Hide advanced visuals":"Advanced...",430,360,210);
         if (advanced_visuals_open_) {
@@ -603,16 +652,16 @@ void MenuSession::rebuild_buttons() {
             add(RoadVisualsFile,"Road JSON...",40,480);
             add(RoadVisualsClear,selection_label("Roads",road_profile_path_),230,480);
         }
-        const auto begin=map_index_>4?map_index_-4:0;
+        const auto begin=map_index_>1?map_index_-1:0;
         map_scroll_=begin;
-        for (std::size_t i=begin;i<catalog_.entries.size() && i<begin+11;++i) {
+        for (std::size_t i=begin;i<catalog_.entries.size() && i<begin+3;++i) {
             const auto& entry=catalog_.entries[i];
             std::string name=entry.relative_path.generic_string();
             if (name.size()>32) name=name.substr(0,29)+"...";
             buttons_.push_back({SDL_FRect{430.0f,95.0f+22.0f*static_cast<float>(i-begin),
-                280.0f,20.0f},(i==map_index_?"> ":"  ")+name,
+                280.0f,20.0f},(i==map_index_?"> ":"? ")+name,
                 MapSelectBase+static_cast<int>(i-begin),
-                entry.map_profile});
+                true});
         }
     } else if (state_==State::LoadSandbox) {
         const auto count=recovery_view_?recovery_entries_.size():saves_.entries.size();
@@ -699,12 +748,10 @@ bool MenuSession::render() {
         const auto& e=catalog_.entries[map_index_];
         if (!label(40,85,"Map "+std::to_string(map_index_+1)+" / "+std::to_string(catalog_.entries.size())+
             ": "+e.relative_path.generic_string())) return false;
-        if (!label(40,165,"Declared size: "+(e.declared_size?std::to_string(*e.declared_size):"unsupported")+
-            (e.error.empty()?"":" - "+e.error))) return false;
+        if (!label(430,40,std::string("Format: ")+(e.map_profile?"readable":"unreadable")) ||
+            !label(430,56,"Size: "+(e.declared_size?std::to_string(*e.declared_size):"unknown")) ||
+            !label(430,80,"?: rules unchecked")) return false;
         if (!label(40,245,description(settings_.profile))) return false;
-        if (simulation::maintenance_profile(settings_.profile) &&
-            (!label(40,180,"Recurring building upkeep adds") ||
-             !label(40,192,"long-term budget pressure."))) return false;
         if (!label(40,258,std::string("Technical: ")+simulation::rules_profile_name(settings_.profile)+
             " | rule "+std::to_string(simulation::current_rule_version(settings_.profile)))) return false;
         if (!label(310,278,demo_ ?
@@ -712,6 +759,38 @@ bool MenuSession::render() {
         if (!label(40,345,compatibility_.compatible() ?
             "Visuals: Compatible preview detected":"Visuals: Diagnostic fallback")) return false;
         if (advanced_visuals_open_ && !label(40,385,"Advanced visual previews (developer overrides)")) return false;
+        const auto& check=map_preflight_.result();
+        std::string status;
+        switch (check.status) {
+        case maps::MapRulesStatus::Unchecked: status="Map rules not checked."; break;
+        case maps::MapRulesStatus::Checking: status="Checking map rules..."; break;
+        case maps::MapRulesStatus::MapRulesChecked:
+            status=settings_.profile==simulation::RulesProfile::CityV16 ?
+                "Map rules checked for City v16 v3.":"Map rules checked for selected rules.";
+            break;
+        case maps::MapRulesStatus::UnsupportedForRules: status="Not yet supported with these rules."; break;
+        case maps::MapRulesStatus::InputError: status="Map check failed. Check files and retry."; break;
+        }
+        if (!label(40,102,status)) return false;
+        std::string detail=check.status==maps::MapRulesStatus::MapRulesChecked ?
+            "Original map rules checked. Graphics, building permissions, starter and session still checked on Start.":
+            check.reason+(check.detail.empty()?"":" Details: "+check.detail);
+        // Draw only bounded stored strings; render never starts parser or file work.
+        const auto columns=static_cast<std::size_t>(std::max(16,(width-64)/8));
+        int line_y=165;
+        while (!detail.empty() && line_y<=197) {
+            auto length=std::min(columns,detail.size());
+            if (length<detail.size()) {
+                const auto space=detail.rfind(' ',length);
+                if (space!=std::string::npos && space>columns/2) length=space;
+            }
+            std::string line=detail.substr(0,length);
+            detail.erase(0,length);
+            while (!detail.empty() && detail.front()==' ') detail.erase(0,1);
+            if (!detail.empty() && line_y==197) line+="...";
+            if (!label(40,line_y,line)) return false;
+            line_y+=16;
+        }
     } else if (state_==State::LoadSandbox) {
         if (recovery_view_) {
             if (!label(280,105,"Recovery history: "+std::to_string(recovery_entries_.size())+

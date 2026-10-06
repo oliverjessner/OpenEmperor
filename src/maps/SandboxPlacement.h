@@ -14,6 +14,19 @@ namespace openemperor::maps {
 
 inline constexpr const char* sandbox_buildable_profile = "sandbox_buildable_v1";
 
+class SandboxMapRulesUnsupported : public std::invalid_argument {
+public:
+    using std::invalid_argument::invalid_argument;
+};
+
+// Validate the same original manager/occupancy/gate/height prerequisites used
+// by the rule-3 producer. No legacy mask is supplied, no usable MapPermissions
+// are made or returned, and renderer/starter readiness is outside this check.
+void validate_sandbox_original_map_rules(
+    const ParsedEmperorMap& map, const MapGeometry& geometry,
+    const OriginalMapEntities& entities, std::span<const std::uint8_t> height_bytes,
+    std::uint32_t policy_version = simulation::kMapPermissionsPolicyVersion);
+
 // Conservative, diagnostic placement mask. Call after the stored renderer has
 // updated decode statuses. Neither the map nor its plan is mutated here.
 std::vector<std::uint8_t> make_sandbox_buildable_mask(const StoredGraphicsPlan& plan,
@@ -34,7 +47,8 @@ std::shared_ptr<const simulation::MapPermissions> make_sandbox_map_permissions(
 std::shared_ptr<const simulation::MapPermissions> load_sandbox_map_permissions(
     const ParsedEmperorMap& map, const StoredGraphicsPlan& plan, const MapGeometry& geometry,
     std::span<const std::uint8_t> legacy_mask,
-    std::uint32_t policy_version = simulation::kMapPermissionsPolicyVersion);
+    std::uint32_t policy_version = simulation::kMapPermissionsPolicyVersion,
+    const std::string& expected_input_sha256 = {});
 // Persistence reconstructs the same immutable contract without a renderer or
 // a presentation plan. Unknown policy/source data fails before publication.
 std::shared_ptr<const simulation::MapPermissions> read_sandbox_map_permissions(

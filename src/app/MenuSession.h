@@ -4,6 +4,7 @@
 #include "app/SandboxView.h"
 #include "app/VisualSelection.h"
 #include "app/AutosaveController.h"
+#include "app/MapRulesPreflight.h"
 #include <SDL3/SDL.h>
 #include <deque>
 #include <memory>
@@ -17,7 +18,8 @@ public:
     MenuSession(std::filesystem::path explicit_data={},std::filesystem::path app_root={},
                 std::unique_ptr<DialogAdapter> dialog=std::make_unique<NativeDialog>(),
                 std::filesystem::path resource_root={},
-                maps::GreatWallPresentationMode great_wall=maps::GreatWallPresentationMode::Automatic);
+                maps::GreatWallPresentationMode great_wall=maps::GreatWallPresentationMode::Automatic,
+                MapRulesPreflight::Checker map_checker=maps::check_map_rules);
     ~MenuSession();
     void initialize(SDL_Window* window,SDL_Renderer* renderer);
     void shutdown();
@@ -34,6 +36,8 @@ public:
     const std::filesystem::path& app_root() const { return app_root_; }
     const assets::CompatibilityResult& compatibility() const { return compatibility_; }
     VisualSelection visual_selection() const;
+    const maps::MapRulesResult& map_rules_result() const { return map_preflight_.result(); }
+    bool map_rules_can_start() const;
     struct DiagnosticButtonHit {
         int action;
         bool enabled;
@@ -51,6 +55,8 @@ private:
     void open_dialog(DialogKind kind);
     void accept_data(const std::filesystem::path& path);
     void refresh_saves();
+    std::optional<maps::MapRulesRequest> selected_map_request() const;
+    void check_selected_map();
     void start_new();
     void start_load(const std::filesystem::path& path);
     void finish_loading();
@@ -79,6 +85,8 @@ private:
     State confirm_return_state_=State::MainMenu;
     AfterConfirm after_confirm_=AfterConfirm::None;
     Settings settings_;
+    MapRulesPreflight map_preflight_;
+    std::optional<maps::MapRulesResult> starting_map_check_;
     assets::CompatibilityResult compatibility_;
     maps::MapCatalog catalog_;
     SaveList saves_;

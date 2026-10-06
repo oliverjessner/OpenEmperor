@@ -3,6 +3,7 @@
 #include "maps/EmperorMap.h"
 #include "maps/LandscapeProvenance.h"
 #include "maps/MapCatalog.h"
+#include "maps/MapRulesCheck.h"
 
 #include <set>
 #include <stdexcept>
@@ -79,10 +80,13 @@ OriginalOccupancy original_occupancy(const OriginalEntityRecord& entity) {
 void permission_require(bool condition,const char* reason) {
     if (!condition) throw std::invalid_argument(std::string("map permissions: ")+reason);
 }
+void original_rules_require(bool condition,const char* reason) {
+    if (!condition) throw SandboxMapRulesUnsupported(std::string("map permissions: ")+reason);
+}
 [[noreturn]] void unsupported_occupancy(const OriginalEntityRecord& entity,GridCell origin,
                                       const ParsedEmperorMap& map) {
     const auto at=storage(origin);
-    throw std::invalid_argument("map permissions: unsupported active original occupancy: ID "+
+    throw SandboxMapRulesUnsupported("map permissions: unsupported active original occupancy: ID "+
         std::to_string(entity.serialized_original_id)+", manager "+std::to_string(entity.manager_index)+
         ", "+original_entity_class_name(entity.entity_class)+" type "+std::to_string(entity.type)+
         ", status "+std::to_string(entity.status)+", side "+std::to_string(entity.footprint_side)+
@@ -98,24 +102,25 @@ void permission_require(bool condition,const char* reason) {
 std::int8_t signed_height(std::uint8_t byte) {
     return std::int8_t(byte<128U ? int(byte):int(byte)-256);
 }
-}
-
-std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permissions(
+struct OriginalRulePreparation {
+    std::vector<simulation::MapCellPermission> cells;
+    std::vector<simulation::FixedGatePassage> passages;
+};
+OriginalRulePreparation prepare_original_rules(
     const ParsedEmperorMap& map,const MapGeometry& geometry,
-    std::span<const std::uint8_t> legacy_mask,const OriginalMapEntities& entities,
+    const OriginalMapEntities& entities,
     std::span<const std::uint8_t> height_bytes,std::uint32_t policy_version) {
     permission_require(policy_version==simulation::kMapPermissionsPolicyVersion,"unsupported policy version");
     permission_require(geometry.supported && map.declared_map_size==geometry.declared_size &&
         map.stored_width==stored_grid_width && map.stored_height==stored_grid_height &&
         map.terrain_raw.values.size()==permission_cells && map.objects_raw.values.size()==permission_cells &&
-        legacy_mask.size()==permission_cells && height_bytes.size()==permission_cells,
-        "incomplete or mismatched original map/height/legacy inputs");
+        height_bytes.size()==permission_cells,
+        "incomplete or mismatched original map/height inputs");
     permission_require(entities.manager_schema==1 && entities.declared_map_size==map.declared_map_size &&
         entities.records.size()<=maximum_original_entity_records,"complete supported original manager required");
     std::vector<simulation::MapCellPermission> cells(permission_cells);
     for (unsigned y=0;y<stored_grid_height;++y) for (unsigned x=0;x<stored_grid_width;++x) {
         const GridCell cell{x,y};const auto at=storage(cell);auto& out=cells[at];
-        permission_require(legacy_mask[at]<=1,"invalid legacy mask byte");
         out.height=signed_height(height_bytes[at]);
         if (!geometry.contains(cell) || (map.terrain_raw.values[at]&offmap)) {
             out.road_blocker=out.building_blocker=BuildBlocker::OutsideMap;continue;
@@ -125,8 +130,9 @@ std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permission
         const auto terrain=map.terrain_raw.values[at];
         out.road_allowed=(terrain==0x80U || terrain==0xc0U) && map.objects_raw.values[at]==0;
         out.road_blocker=out.road_allowed ? BuildBlocker::None:BuildBlocker::UnsupportedTerrain;
-        out.building_allowed=legacy_mask[at]!=0 && terrain==0x80U && map.objects_raw.values[at]==0;
-        out.building_blocker=out.building_allowed ? BuildBlocker::None:BuildBlocker::LegacyBuildabilityRestriction;
+        // Building authority is deliberately absent here. Only the actual
+        // producer below can apply its renderer-derived legacy mask.
+        out.building_blocker=BuildBlocker::LegacyBuildabilityRestriction;
         // Raw structure terrain remains protected without inventing an entity
         // or an original body from a saved graphic/visible grass pixel.
         if (map.terrain_raw.values[at]&0xc008U) {
@@ -143,15 +149,15 @@ std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permission
     // assertion that their complete original model composition is reproduced.
     for (const auto& entity:entities.records) {
         if (!entity.active()) continue;
-        permission_require(static_cast<unsigned>(entity.entity_class)<=static_cast<unsigned>(OriginalEntityClass::Tower) &&
+        original_rules_require(static_cast<unsigned>(entity.entity_class)<=static_cast<unsigned>(OriginalEntityClass::Tower) &&
             (entity.provenance.base_schema==3 || entity.provenance.base_schema==4 || entity.provenance.base_schema==5),
             "unknown active original class/base schema");
         if (entity.entity_class==OriginalEntityClass::GateHouse)
-            permission_require(entity.provenance.wrapper_schema==1 && entity.provenance.extended_schema==1 &&
+            original_rules_require(entity.provenance.wrapper_schema==1 && entity.provenance.extended_schema==1 &&
                 (entity.provenance.class_wrapper_schema==1 || entity.provenance.class_wrapper_schema==2),
                 "unknown active GateHouse wrapper schema");
         if (entity.entity_class==OriginalEntityClass::Tower)
-            permission_require(entity.provenance.wrapper_schema==1 && entity.provenance.extended_schema==1 &&
+            original_rules_require(entity.provenance.wrapper_schema==1 && entity.provenance.extended_schema==1 &&
                 entity.provenance.class_wrapper_schema==0,"unknown active Tower wrapper schema");
         permission_require(entity.original_id && entity.original_id->value>0 &&
             entity.original_id->value<=maximum_original_entity_records &&
@@ -170,7 +176,7 @@ std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permission
         const auto occupancy=original_occupancy(entity);
         const bool marker=!gate && occupancy==OriginalOccupancy::MarkerOrigin;
         if (gate) {
-            permission_require(entity.type==130 && entity.gate_house &&
+            original_rules_require(entity.type==130 && entity.gate_house &&
                 (entity.gate_house->layout==0 || entity.gate_house->layout==1),"unsupported original GateHouse type/layout");
             width=entity.gate_house->layout==0 ? 5U:3U;height=entity.gate_house->layout==0 ? 3U:5U;
             gates.push_back(&entity);
@@ -181,7 +187,7 @@ std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permission
             permission_require(geometry.contains(cell),"active original footprint outside map");
             const auto at=storage(cell);
             permission_require(!(map.terrain_raw.values[at]&offmap),"active original footprint on off-map terrain");
-            permission_require(!owner[at] && (marker || !marker_reserved[at]),"conflicting complete original occupancy");
+            original_rules_require(!owner[at] && (marker || !marker_reserved[at]),"conflicting complete original occupancy");
             if (marker) marker_reserved[at]=1;
             else owner[at]=entity.original_id->value;
             if (gate) permission_require((map.terrain_raw.values[at]&0x8008U)==0x8008U &&
@@ -199,7 +205,7 @@ std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permission
         const auto level=cells[storage(origin)].height;
         for (unsigned dy=0;dy<height;++dy) for (unsigned dx=0;dx<width;++dx) {
             const GridCell cell{origin.x+dx,origin.y+dy};
-            permission_require(cells[storage(cell)].height==level,"unsupported height variation in original GateHouse");
+            original_rules_require(cells[storage(cell)].height==level,"unsupported height variation in original GateHouse");
             passage.protected_footprint.push_back(simulation_cell(cell));
         }
         // OpenEmperor-authored short-axis corridor, perpendicular to the
@@ -215,8 +221,8 @@ std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permission
             permission_require(opening.x>=0 && opening.y>=0 && geometry.contains({unsigned(opening.x),unsigned(opening.y)}),
                 "original GateHouse opening outside map");
             const auto at=storage({unsigned(opening.x),unsigned(opening.y)});
-            permission_require(!owner[at] && !cells[at].protected_original,"original GateHouse opening conflicts with original structure");
-            permission_require(cells[at].height==level,"unsupported height transition at original GateHouse opening");
+            original_rules_require(!owner[at] && !cells[at].protected_original,"original GateHouse opening conflicts with original structure");
+            original_rules_require(cells[at].height==level,"unsupported height transition at original GateHouse opening");
         }
         for (const auto cell:passage.corridor) {
             auto& out=cells[storage({unsigned(cell.x),unsigned(cell.y)})];
@@ -224,8 +230,32 @@ std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permission
         }
         passages.push_back(std::move(passage));
     }
+    return {std::move(cells),std::move(passages)};
+}
+} // namespace
+
+void validate_sandbox_original_map_rules(
+    const ParsedEmperorMap& map,const MapGeometry& geometry,const OriginalMapEntities& entities,
+    std::span<const std::uint8_t> height_bytes,std::uint32_t policy_version) {
+    (void)prepare_original_rules(map,geometry,entities,height_bytes,policy_version);
+}
+
+std::shared_ptr<const simulation::MapPermissions> prepare_sandbox_map_permissions(
+    const ParsedEmperorMap& map,const MapGeometry& geometry,
+    std::span<const std::uint8_t> legacy_mask,const OriginalMapEntities& entities,
+    std::span<const std::uint8_t> height_bytes,std::uint32_t policy_version) {
+    permission_require(legacy_mask.size()==permission_cells,"incomplete or mismatched legacy input");
+    for (const auto byte:legacy_mask) permission_require(byte<=1,"invalid legacy mask byte");
+    auto original=prepare_original_rules(map,geometry,entities,height_bytes,policy_version);
+    for (std::size_t at=0;at<permission_cells;++at) {
+        auto& out=original.cells[at];
+        if (out.protected_original || out.building_blocker==BuildBlocker::OutsideMap) continue;
+        out.building_allowed=legacy_mask[at]!=0 && map.terrain_raw.values[at]==0x80U &&
+            map.objects_raw.values[at]==0;
+        out.building_blocker=out.building_allowed ? BuildBlocker::None:BuildBlocker::LegacyBuildabilityRestriction;
+    }
     return std::make_shared<const simulation::MapPermissions>(int(stored_grid_width),int(stored_grid_height),
-        policy_version,std::move(cells),std::move(passages));
+        policy_version,std::move(original.cells),std::move(original.passages));
 }
 
 std::shared_ptr<const simulation::MapPermissions> make_sandbox_map_permissions(
@@ -236,9 +266,12 @@ std::shared_ptr<const simulation::MapPermissions> make_sandbox_map_permissions(
 }
 std::shared_ptr<const simulation::MapPermissions> load_sandbox_map_permissions(
     const ParsedEmperorMap& map,const StoredGraphicsPlan& plan,const MapGeometry& geometry,
-    std::span<const std::uint8_t> legacy_mask,std::uint32_t policy_version) {
+    std::span<const std::uint8_t> legacy_mask,std::uint32_t policy_version,
+    const std::string& expected_input_sha256) {
     permission_require(policy_version==simulation::kMapPermissionsPolicyVersion,"unsupported policy version");
     const auto container=EmperorContainer::open(resolve_map_path(plan.data_root,plan.map_relative));
+    if (!expected_input_sha256.empty() && map_input_sha256(container)!=expected_input_sha256)
+        throw std::runtime_error("Map changed since the map-rules check. Check the selected map again.");
     permission_require(!container.multipart(),"requires standalone original map");
     const auto entities=read_original_map_entities(container,0);
     return make_sandbox_map_permissions(map,plan,geometry,legacy_mask,entities,policy_version);

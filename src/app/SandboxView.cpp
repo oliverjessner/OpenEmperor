@@ -126,7 +126,8 @@ SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::Ru
                          std::uint32_t rule_version)
     : geometry_(session.map.declared_map_size),background_(std::move(session.plan)),demo_(demo),
       rules_(rules),requested_rule_version_(rule_version ? rule_version:
-          simulation::current_rule_version(rules)),original_map_(std::move(session.map)) {
+          simulation::current_rule_version(rules)),original_map_(std::move(session.map)),
+      expected_map_input_sha256_(std::move(session.input_sha256)) {
     if (!geometry_.supported) throw std::invalid_argument("sandbox requires supported map geometry");
     if (!simulation::rule_version_supported(rules_,requested_rule_version_))
         throw std::invalid_argument("unsupported sandbox rule version");
@@ -237,7 +238,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         permissions=maps::load_sandbox_map_permissions(original_map_,background_.plan(),
             geometry_,buildable_mask_,initial_save_ ?
                 initial_save_->map_permissions_policy_version:
-                simulation::kMapPermissionsPolicyVersion);
+                simulation::kMapPermissionsPolicyVersion,expected_map_input_sha256_);
     original_map_={};
     if (initial_save_) {
         world_=std::make_unique<simulation::World>(persistence::restore_save(*initial_save_,data_root_,

@@ -287,6 +287,7 @@ private:
     // Retained only through initialization, when immutable map permissions are
     // prepared. Rendering and navigation never consult the original raw map.
     maps::ParsedEmperorMap original_map_;
+    std::string expected_map_input_sha256_; // Session-start binding; never a save or policy field.
     int last_courier_draws_=0;
     std::filesystem::path data_root_,map_relative_,save_path_;
     std::filesystem::path walker_manifest_;

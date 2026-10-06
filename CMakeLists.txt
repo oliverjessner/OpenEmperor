@@ -93,6 +93,7 @@ endif()
 
 find_package(ZLIB REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+find_package(Threads REQUIRED)
 
 include(cmake/OpenEmperorWarnings.cmake)
 
@@ -107,7 +108,7 @@ add_executable(openemperor
     src/app/MapRenderCheck.cpp
     src/app/SandboxView.cpp
     src/app/WalkerPose.cpp
-    src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MenuSession.cpp
+    src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MenuSession.cpp src/app/MapRulesPreflight.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/app/SandboxCheck.cpp
     src/app/SandboxRoutingCheck.cpp
@@ -226,6 +227,7 @@ add_library(openemperor-maps STATIC
     src/maps/MapCatalog.cpp
     src/maps/StoredMapSession.cpp
     src/maps/SandboxPlacement.cpp
+    src/maps/MapRulesCheck.cpp
 )
 target_include_directories(openemperor-maps PUBLIC src)
 target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohmann_json::nlohmann_json openemperor-scene)
@@ -254,7 +256,7 @@ add_library(openemperor-recovery STATIC
 target_include_directories(openemperor-recovery PUBLIC src)
 target_link_libraries(openemperor-recovery PUBLIC openemperor-persistence)
 openemperor_enable_warnings(openemperor-recovery)
-target_link_libraries(openemperor PRIVATE openemperor-recovery)
+target_link_libraries(openemperor PRIVATE openemperor-recovery Threads::Threads)
 
 add_executable(openemperor-map-inspect tools/map-inspector/main.cpp)
 target_link_libraries(openemperor-map-inspect PRIVATE openemperor-maps nlohmann_json::nlohmann_json)
@@ -353,17 +355,31 @@ if(BUILD_TESTING)
     add_test(NAME sandbox-software-view COMMAND openemperor-sandbox-view-tests)
     set_tests_properties(sandbox-software-view PROPERTIES TIMEOUT 240)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
-        src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
+        src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
     target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
         src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
-    target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
+    target_link_libraries(openemperor-menu-session-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
     set_tests_properties(menu-session-flow PROPERTIES TIMEOUT 30)
+
+    add_executable(openemperor-menu-map-rules-tests tests/MenuMapRulesTests.cpp
+        src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
+        src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-menu-map-rules-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
+    openemperor_enable_warnings(openemperor-menu-map-rules-tests)
+    add_test(NAME menu-map-rules-selection COMMAND openemperor-menu-map-rules-tests)
+    set_tests_properties(menu-map-rules-selection PROPERTIES TIMEOUT 45)
 
     add_executable(openemperor-input-coordinate-tests tests/InputCoordinateTests.cpp src/scene/IsoProjection.cpp)
     target_include_directories(openemperor-input-coordinate-tests PRIVATE src)
@@ -380,17 +396,29 @@ if(BUILD_TESTING)
     set_tests_properties(input-diagnostics-bounded PROPERTIES TIMEOUT 20)
 
     add_executable(openemperor-menu-input-tests tests/MenuInputTests.cpp
-        src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp
+        src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
         src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/renderer/StoredGraphicsRenderer.cpp
         src/renderer/StoredCamera.cpp src/renderer/WalkerSpriteSet.cpp
         src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
         src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
-    target_link_libraries(openemperor-menu-input-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
+    target_link_libraries(openemperor-menu-input-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
     openemperor_enable_warnings(openemperor-menu-input-tests)
     add_test(NAME menu-input-boundaries COMMAND openemperor-menu-input-tests)
     set_tests_properties(menu-input-boundaries PROPERTIES TIMEOUT 30)
+
+    add_executable(openemperor-map-rules-check-tests tests/MapRulesCheckTests.cpp)
+    target_link_libraries(openemperor-map-rules-check-tests PRIVATE openemperor-maps)
+    openemperor_enable_warnings(openemperor-map-rules-check-tests)
+    add_test(NAME map-rules-selected-service COMMAND openemperor-map-rules-check-tests)
+    set_tests_properties(map-rules-selected-service PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-map-rules-preflight-tests tests/MapRulesPreflightTests.cpp
+        src/app/MapRulesPreflight.cpp)
+    target_link_libraries(openemperor-map-rules-preflight-tests PRIVATE openemperor-maps Threads::Threads)
+    openemperor_enable_warnings(openemperor-map-rules-preflight-tests)
+    add_test(NAME map-rules-selected-worker COMMAND openemperor-map-rules-preflight-tests)
+    set_tests_properties(map-rules-selected-worker PROPERTIES TIMEOUT 30)
 
     add_executable(openemperor-map-input-tests tests/MapViewInputTests.cpp
         src/app/MapBrowser.cpp tests/MapDebugViewInputAdapter.cpp src/renderer/TerrainPreviewRenderer.cpp

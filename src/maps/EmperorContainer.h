@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <span>
 #include <stdexcept>
 #include <vector>
 
@@ -35,6 +36,8 @@ public:
     static EmperorContainer open(const std::filesystem::path& path);
     bool multipart() const { return multipart_; }
     std::uint64_t physical_size() const { return file_.size(); }
+    // Read-only identity of the exact bytes retained by this parsed context.
+    std::span<const std::uint8_t> physical_bytes() const { return file_; }
     const std::vector<PartInfo>& parts() const { return parts_; }
     const std::vector<std::uint32_t>& ignored_part_table_words() const { return ignored_table_words_; }
     std::vector<std::uint8_t> read_part(std::size_t part) const;

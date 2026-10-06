@@ -32,12 +32,16 @@ public:
         : bytes_(bytes), logical_offset_(logical_offset) {}
     std::size_t position() const { return position_; }
     void record(std::uint32_t index) { record_ = index; }
-    [[noreturn]] void fail(std::string_view reason, std::size_t at) const {
+    [[noreturn]] void fail(std::string_view reason, std::size_t at, bool unsupported=false) const {
         std::string message = "original entity manager";
         if (record_) message += " record " + std::to_string(*record_);
         message += " at logical " + std::to_string(logical_offset_ + at) + ": ";
         message += reason;
+        if (unsupported) throw OriginalEntityUnsupported(message);
         throw OriginalEntityError(message);
+    }
+    [[noreturn]] void unsupported(std::string_view reason, std::size_t at) const {
+        fail(reason,at,true);
     }
     void require(std::size_t count, std::string_view purpose) const {
         if (position_ > bytes_.size() || count > bytes_.size() - position_)
@@ -97,7 +101,7 @@ void expect_schema(Reader& reader, std::uint16_t expected, std::string_view purp
     const auto at = reader.position();
     const auto schema = reader.u16(purpose);
     if (schema != expected)
-        reader.fail(std::string("unsupported ") + std::string(purpose) + " " + std::to_string(schema), at);
+        reader.unsupported(std::string("unsupported ") + std::string(purpose) + " " + std::to_string(schema), at);
 }
 
 } // namespace
@@ -173,7 +177,7 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
     result.logical_offset = logical_offset;
     result.declared_map_size = declared_map_size;
     result.manager_schema = reader.u16("manager schema");
-    if (result.manager_schema != 1) reader.fail("unsupported manager schema", 0);
+    if (result.manager_schema != 1) reader.unsupported("unsupported manager schema", 0);
     const auto count = reader.i32("record count");
     if (count < 0 || count > static_cast<std::int32_t>(maximum_original_entity_records))
         reader.fail("record count outside 0..4000", 2);
@@ -198,7 +202,7 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
             const auto name_bytes = reader.take(name_length, "MFC class name");
             const std::string_view name(reinterpret_cast<const char*>(name_bytes.data()), name_bytes.size());
             const auto recognized = known_class(name);
-            if (!recognized) reader.fail(std::string("unsupported MFC class '") + std::string(name) + "'", record_at);
+            if (!recognized) reader.unsupported(std::string("unsupported MFC class '") + std::string(name) + "'", record_at);
             entity_class = *recognized;
             references.push_back({ReferenceKind::Class, entity_class});
         } else if ((tag & 0x8000) != 0) {
@@ -222,7 +226,7 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
         const auto base_at = reader.position();
         const auto schema = reader.u16("Building schema");
         const auto length = base_length(schema);
-        if (length == 0) reader.fail("unsupported Building schema " + std::to_string(schema), base_at);
+        if (length == 0) reader.unsupported("unsupported Building schema " + std::to_string(schema), base_at);
         // The schema has already been consumed; obtain the full proven base slice.
         reader.take(length - 2, "Building record");
         const auto base = bytes.subspan(base_at, length);
@@ -267,7 +271,7 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
             // cMonInfo561e30: schema9 read562218..562393/common562a1b,
             // schema10 read562078..562213. Both have the same selected offsets.
             if (ext_schema != 9 && ext_schema != 10)
-                reader.fail("unsupported monument state schema " + std::to_string(ext_schema), ext_at);
+                reader.unsupported("unsupported monument state schema " + std::to_string(ext_schema), ext_at);
             const std::size_t ext_length = ext_schema == 9 ? 138 : 139;
             reader.take(ext_length - 2, "monument state");
             const auto ext = bytes.subspan(ext_at, ext_length);
@@ -311,7 +315,7 @@ OriginalMapEntities parse_original_map_entities(std::span<const std::uint8_t> by
             const auto class_at = reader.position();
             const auto class_schema = reader.u16("GateHouse wrapper schema");
             if (class_schema != 1 && class_schema != 2)
-                reader.fail("unsupported GateHouse wrapper schema " + std::to_string(class_schema), class_at);
+                reader.unsupported("unsupported GateHouse wrapper schema " + std::to_string(class_schema), class_at);
             if (class_schema == 2) reader.take(8, "GateHouse attached-unit state");
             record.provenance.logical_class_wrapper_offset = logical_offset + class_at;
             record.provenance.class_wrapper_schema = class_schema;

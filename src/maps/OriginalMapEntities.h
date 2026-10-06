@@ -25,6 +25,13 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+// A structurally read field names an original class/schema outside the bounded
+// reader. Distinct from damaged/truncated input, without admitting the source.
+class OriginalEntityUnsupported : public OriginalEntityError {
+public:
+    using OriginalEntityError::OriginalEntityError;
+};
+
 enum class OriginalEntityClass { Building, Monument, Fill, Industrial, Ferry, GateHouse, Tower };
 const char* original_entity_class_name(OriginalEntityClass entity_class);
 

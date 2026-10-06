@@ -95,13 +95,26 @@ using Menu=openemperor::menu::MenuSession;
 SDL_Event mouse(Uint32 type,float x,float y) {
     SDL_Event e{}; e.type=type; e.button.button=SDL_BUTTON_LEFT; e.button.x=x; e.button.y=y; return e;
 }
+void wait_map_check(Menu& menu) {
+    const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while (menu.map_rules_result().status==openemperor::maps::MapRulesStatus::Checking &&
+           std::chrono::steady_clock::now()<deadline) {
+        menu.advance(); std::this_thread::yield();
+    }
+    check(menu.map_rules_can_start(),"selected map rules did not pass before Start");
+}
 void click(Menu& menu,float x,float y) {
     x*=0.75f; y*=0.75f; // Fixture coordinates below were written at 2x logical scale.
+    if (menu.state()==Menu::State::NewSandbox) {
+        const auto hit=menu.diagnostic_button_hit(x,y);
+        if (hit && hit->action==12) wait_map_check(menu);
+    }
     menu.handle_event(mouse(SDL_EVENT_MOUSE_BUTTON_DOWN,x,y));
     menu.handle_event(mouse(SDL_EVENT_MOUSE_BUTTON_UP,x,y));
     menu.advance();
 }
 void key(Menu& menu,SDL_Keycode keycode) {
+    if (menu.state()==Menu::State::NewSandbox && keycode==SDLK_RETURN) wait_map_check(menu);
     SDL_Event e{}; e.type=SDL_EVENT_KEY_DOWN; e.key.key=keycode;
     menu.handle_event(e); menu.advance();
 }
@@ -399,6 +412,7 @@ int main(int argc,char* argv[]) {
             // preparation, independently of the valid rule-3 fixture above.
             write(t.root/"data/Cities/A.map",map_file(false));
             write(t.root/"data/Cities/B.map",map_file(false));
+            click(menu,900,650); // Recheck changed source; legacy rules do not import occupancy.
             key(menu,SDLK_RETURN); finish_load(menu);
             if (!(menu.state()==Menu::State::NewSandbox &&
                   menu.message().find("Great Wall preview preparation failed")!=std::string::npos &&

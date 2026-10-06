@@ -8,6 +8,8 @@
 #include <memory>
 #include <stdexcept>
 #include <string_view>
+#include <chrono>
+#include <thread>
 
 namespace {
 using Menu = openemperor::menu::MenuSession;
@@ -22,6 +24,17 @@ void require(bool condition, const char* message) {
     if (!condition) throw std::runtime_error(message);
 }
 void click(Menu& menu, float x, float y) {
+    if (menu.state()==Menu::State::NewSandbox) {
+        const auto hit=menu.diagnostic_button_hit(x*0.75f,y*0.75f);
+        if (hit && hit->action==12) {
+            const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
+            while (menu.map_rules_result().status==openemperor::maps::MapRulesStatus::Checking &&
+                   std::chrono::steady_clock::now()<deadline) {
+                menu.advance(); std::this_thread::yield();
+            }
+            require(menu.map_rules_can_start(),"selected map rules check failed");
+        }
+    }
     SDL_Event event{}; event.button.button=SDL_BUTTON_LEFT;
     event.button.x=x*0.75f; event.button.y=y*0.75f;
     event.type=SDL_EVENT_MOUSE_BUTTON_DOWN; menu.handle_event(event);
