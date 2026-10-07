@@ -13,7 +13,8 @@ SYSTEM_PREFIXES = ("/usr/lib/", "/System/Library/")
 RESOURCE_FILES = {"BuildInfo.json", "LICENSE-SDL.txt", "LICENSE-OpenSSL.txt",
                   "LICENSE-nlohmann-json.txt"}
 COMPATIBILITY_ID = "gog-derived-2.0.0.2-en-assetset-1"
-COMPATIBILITY_FILES = {"manifest.json", "walkers.json", "buildings.json", "roads.json", "fire.json"}
+COMPATIBILITY_FILES = {"manifest.json", "walkers.json", "buildings.json", "roads.json", "fire.json",
+                       "fire-inspector.json"}
 FORBIDDEN_COMPATIBILITY_SUFFIXES = {".sg3", ".555", ".map", ".pak", ".exe", ".png",
                                     ".jpg", ".jpeg", ".bmp", ".rgba", ".raw"}
 MAX_COMPATIBILITY_JSON_BYTES = 256 * 1024
@@ -42,7 +43,7 @@ def validate_compatibility_json(path):
         elif isinstance(value, list):
             for child in value:
                 visit(child, key)
-        elif isinstance(value, str) and key in {"path", "archive", "walker", "building", "road", "profile"}:
+        elif isinstance(value, str) and key in {"path", "archive", "walker", "building", "road", "profile", "core_files"}:
             candidate = Path(value)
             if candidate.is_absolute() or ".." in candidate.parts or "." in candidate.parts or "\\" in value:
                 raise ValueError("unsafe path in compatibility JSON: " + value)
@@ -156,6 +157,57 @@ def verify(app, signature=True, required_arch="arm64"):
                 not all(type(v) in (int, float) and math.isfinite(v) and abs(v) <= 256
                         for v in frame["anchor"]) or frame["anchor"] != [40, 80]):
             raise ValueError("fire frame metadata is malformed")
+    optional_inspector = manifest.get("optional_fire_inspector")
+    if (not isinstance(optional_inspector, dict) or
+            set(optional_inspector) != {"profile", "core_files", "files"} or
+            optional_inspector.get("profile") != "fire-inspector.json" or
+            optional_inspector.get("core_files") != ["DATA/SprMain.sg3", "DATA/SprMain.555"] or
+            optional_inspector.get("files") != []):
+        raise ValueError("Inspector dependency declaration changed")
+    inspector_core_hashes = {
+        "DATA/SprMain.sg3": "3e2817d2644453acc92068d6c1e26532212be213b43b848ebe95ba21654adef8",
+        "DATA/SprMain.555": "d84eb6759e9ce50b0ad75596773b9224f9c1a9b8dd80b691c066c3de7e8df438",
+    }
+    core_files = manifest.get("files")
+    if not isinstance(core_files, list):
+        raise ValueError("Inspector reused core fingerprint list is missing")
+    for path, digest in inspector_core_hashes.items():
+        pins = [item for item in core_files if isinstance(item, dict) and item.get("path") == path]
+        if len(pins) != 1 or pins[0].get("sha256") != digest:
+            raise ValueError("Inspector reused core fingerprint is missing or changed")
+    inspector = compatibility_documents["fire-inspector.json"]
+    if (not isinstance(inspector, dict) or inspector.get("schema_version") != 3 or
+            inspector.get("mode") != "curated_walker_preview" or
+            not isinstance(inspector.get("roles"), dict) or
+            set(inspector["roles"]) != {"fire_inspector"}):
+        raise ValueError("Inspector role/schema metadata is invalid")
+    role = inspector["roles"]["fire_inspector"]
+    if (not isinstance(role, dict) or role.get("clip_id") != "curated-sprmain-inspector-walk" or
+            type(role.get("ticks_per_frame")) is not int or role["ticks_per_frame"] != 2 or
+            not isinstance(role.get("evidence"), str) or not 1 <= len(role["evidence"]) <= 512 or
+            role.get("idle") != "neg_x_0" or
+            not isinstance(role.get("frames"), list) or len(role["frames"]) != 48 or
+            not isinstance(role.get("clips"), dict) or
+            set(role["clips"]) != {"pos_x", "neg_x", "pos_y", "neg_y"}):
+        raise ValueError("Inspector clip metadata is invalid")
+    bases = {"neg_x": 433, "neg_y": 434, "pos_x": 435, "pos_y": 436}
+    frames = {}
+    for frame in role["frames"]:
+        if (not isinstance(frame, dict) or not isinstance(frame.get("alias"), str) or
+                frame["alias"] in frames or frame.get("archive") != "DATA/SprMain.sg3" or
+                type(frame.get("image_index")) is not int or frame["image_index"] <= 0 or
+                not isinstance(frame.get("foot_anchor"), list) or len(frame["foot_anchor"]) != 2 or
+                not all(type(v) in (int, float) and math.isfinite(v) and abs(v) <= 256
+                        for v in frame["foot_anchor"])):
+            raise ValueError("Inspector frame metadata is invalid")
+        frames[frame["alias"]] = frame
+    for direction, base in bases.items():
+        aliases = [f"{direction}_{phase}" for phase in range(12)]
+        if role["clips"][direction] != aliases:
+            raise ValueError("Inspector required direction/sequence changed")
+        for phase, alias in enumerate(aliases):
+            if alias not in frames or frames[alias]["image_index"] != base + 8 * phase:
+                raise ValueError("Inspector required physical frame changed")
     build_info_path = contents / "Resources" / "BuildInfo.json"
     try:
         build_info = json.loads(build_info_path.read_text())

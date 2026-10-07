@@ -12,7 +12,12 @@
 
 namespace openemperor::assets {
 enum class StorageDirection { PosX, NegX, PosY, NegY };
-enum class WalkerVisualRole : std::uint8_t { Clay, Pottery, Household };
+enum class WalkerVisualRole : std::uint8_t { Clay=0, Pottery=1, Household=2, FireInspector=3 };
+inline constexpr std::size_t walker_core_role_count=3;
+inline constexpr std::size_t walker_visual_role_count=4;
+inline constexpr std::size_t walker_max_frame_aliases=256;
+inline constexpr std::size_t walker_max_unique_assets=256;
+inline constexpr std::uint64_t walker_max_rgba_bytes=64U*1024U*1024U;
 constexpr std::size_t walker_role_index(WalkerVisualRole role) {
     return static_cast<std::size_t>(role);
 }
@@ -26,16 +31,19 @@ struct WalkerFrame {
 struct WalkerRoleVisual {
     std::uint32_t ticks_per_frame=1;
     std::string evidence;
+    std::string clip_id; // Optional only for legacy roles; required for schema-3 FireInspector.
     std::vector<WalkerFrame> frames;
     std::array<std::vector<std::size_t>,4> clips; // Indices into frames; order is manifest order.
     std::size_t idle_frame=0;
 };
 struct WalkerVisualProfile {
     std::uint32_t schema_version=1;
-    std::array<std::optional<WalkerRoleVisual>,3> roles;
+    std::array<std::optional<WalkerRoleVisual>,walker_visual_role_count> roles;
     std::vector<RgbaImage> unique_images; // Deduplicated across all configured roles.
     const WalkerRoleVisual* find(WalkerVisualRole role) const {
-        const auto& value=roles[walker_role_index(role)];
+        const auto index=walker_role_index(role);
+        if (index>=roles.size()) return nullptr;
+        const auto& value=roles[index];
         return value ? &*value:nullptr;
     }
 };
@@ -45,4 +53,11 @@ constexpr std::size_t direction_index(StorageDirection direction) {
 // Manifest may be outside data_root; every referenced SG3 and derived .555 must stay within it.
 WalkerVisualProfile load_walker_visual_profile(const std::filesystem::path& data_root,
                                                const std::filesystem::path& manifest);
+// A built-in supplement must contain only a complete schema-3 FireInspector.
+// Global deduplication and existing alias/asset/RGBA budgets include the core.
+// Any error leaves the supplied core profile unchanged.
+void append_fire_inspector_visual_profile(const std::filesystem::path& data_root,
+                                         const std::filesystem::path& manifest,
+                                         WalkerVisualProfile& profile);
+std::uint64_t walker_rgba_bytes(const WalkerVisualProfile& profile);
 }

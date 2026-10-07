@@ -117,7 +117,8 @@ def session_stress(build: Path) -> dict[str, object]:
         except CheckFailure as error:
             raise CheckFailure(f"menu lifecycle iteration {iteration + 1} failed: {error}") from error
     return {"result": "pass", "sessions": 100,
-            "all_owned_texture_counters_zero_at_session_end": True,
+            "stored_graphics_texture_counter_zero_at_session_end": True,
+            "walker_building_road_fire_lifetime": "covered_by_production_regression_tests",
             "seconds": round(time.monotonic() - started, 3)}
 
 
@@ -206,7 +207,10 @@ def original_check(args: argparse.Namespace, executable: Path) -> dict[str, obje
             any(compatibility.get(key) != value for key, value in expected_sources.items())):
         raise CheckFailure("known original data did not activate the expected automatic visual profiles")
     road_visuals = result.get("road_visuals", {})
-    if (result.get("walker_visuals", {}).get("unique_assets") != 48 or
+    walker_visuals = result.get("walker_visuals", {})
+    inspector_active = walker_visuals.get("fire_inspector", {}).get("active", False)
+    expected_walker_assets = 80 if inspector_active and not args.walker_visuals else 48
+    if (walker_visuals.get("unique_assets") != expected_walker_assets or
             result.get("building_visuals", {}).get("decoded_unique_assets") != 7 or
             road_visuals.get("unique_assets") != 12 or
             road_visuals.get("draws", 0) <= 0 or
@@ -216,6 +220,7 @@ def original_check(args: argparse.Namespace, executable: Path) -> dict[str, obje
             "industry_ticks": result.get("ticks"), "frames_rendered": result.get("frames_rendered"),
             "five_courier_frames": result.get("frames_with_five_couriers"),
             "compatibility": compatibility,
+            "Inspector_visuals": walker_visuals.get("fire_inspector", {}),
             "candidate_city": {key: city.get(key) for key in ("rules", "rule_version",
                 "ticks_before", "ticks", "treasury_before", "treasury", "treasury_delta",
                 "taxes_collected_total", "first_tax_tick", "first_tax_total",
@@ -238,7 +243,8 @@ def package_check() -> dict[str, object]:
     if bundled & forbidden:
         raise CheckFailure("local visual profiles or alpha reports entered the app bundle")
     compatibility_root = app / "Contents/Resources/Compatibility/gog-derived-2.0.0.2-en-assetset-1"
-    compatibility_names = {"manifest.json", "walkers.json", "buildings.json", "roads.json"}
+    compatibility_names = {"manifest.json", "walkers.json", "buildings.json", "roads.json",
+                           "fire.json", "fire-inspector.json"}
     if (not compatibility_root.is_dir() or
             {path.name for path in compatibility_root.iterdir()} != compatibility_names):
         raise CheckFailure("packaged compatibility metadata is incomplete")
@@ -327,8 +333,8 @@ def main() -> int:
             "render_stress": render_stress(debug),
             "sanitized_render_stress": render_stress(sanitize, sanitizer_env)}
         report["resources"] = {"result": "pass", "owned_texture_counters":
-            ["StoredGraphicsRenderer", "WalkerSpriteSet", "BuildingSprite", "RoadSpriteSet"],
-            "all_zero_after_test_sessions": True}
+            ["StoredGraphicsRenderer", "WalkerSpriteSet", "BuildingSprite", "RoadSpriteSet", "FireSpriteSet"],
+            "zero_counters_after_corresponding_production_tests": True}
         report["sessions"] = session_stress(debug)
         report["ui_stress"] = {"result": "pass", "gesture_resize_high_dpi":
             "covered_by_sandbox-software-view", "dialog_lifetime_settings_failures":

@@ -20,6 +20,9 @@ struct VisualSelection {
     VisualProfileSource road_source = VisualProfileSource::Fallback;
     VisualProfileSource fire_source = VisualProfileSource::Fallback;
     std::string fire_fallback_reason;
+    std::filesystem::path fire_inspector;
+    VisualProfileSource fire_inspector_source = VisualProfileSource::Fallback;
+    std::string fire_inspector_fallback_reason;
 };
 
 VisualSelection select_visual_profiles(const assets::CompatibilityResult& compatibility,

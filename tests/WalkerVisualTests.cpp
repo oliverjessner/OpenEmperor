@@ -112,7 +112,7 @@ void profile_checks(Fixture& fixture) {
           profile.unique_images[1].pixels[0]==0 && profile.unique_images[1].pixels[1]==255 &&
           profile.unique_images[1].pixels[3]==255,
           "verified shadow marker was not prepared independently from ordinary color");
-    auto invalid=fixture.valid();invalid["schema_version"]=3;fixture.save(invalid);
+    auto invalid=fixture.valid();invalid["schema_version"]=4;fixture.save(invalid);
     rejects([&]{ openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest); },"version accepted");
     invalid=fixture.valid();invalid["clips"]["pos_x"]=Json::array();fixture.save(invalid);
     rejects([&]{ openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest); },"empty clip accepted");

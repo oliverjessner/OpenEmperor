@@ -152,6 +152,106 @@ void validate_archive_entries(const nlohmann::json& value,std::size_t& count) {
         validate_archive_entries(child,count);
     } else if (value.is_array()) for (const auto& child:value) validate_archive_entries(child,count);
 }
+
+const nlohmann::json inspector_fingerprints=[] {
+    auto pair=fire_fingerprints;pair[0]["path"]="files/F.sg3";pair[1]["path"]="files/F.555";
+    return pair;
+}();
+void inspector_pack(const fs::path& resources,nlohmann::json optional={}) {
+    fire_pack(resources);
+    const auto root=resources/"Compatibility/test-pack";
+    std::ifstream input(root/"manifest.json");auto document=nlohmann::json::parse(input);
+    document["optional_fire_inspector"]=optional.empty() ? nlohmann::json{
+        {"profile","fire-inspector.json"},{"files",inspector_fingerprints}}:std::move(optional);
+    write(root/"manifest.json",document.dump());
+    write(root/"fire-inspector.json",nlohmann::json{{"schema_version",3},
+        {"roles",{{"fire_inspector",{{"frames",nlohmann::json::array({
+            {{"archive","files/F.sg3"}}})}}}}}}.dump());
+}
+void validate_optional_inspector() {
+    Temp temp;const auto resources=temp.path/"resources",root=temp.path/"data";
+    data(root);write(root/"files/D","d");write(root/"files/E","e");
+    write(root/"files/F.sg3","d");write(root/"files/F.555","e");inspector_pack(resources);
+    const auto detect=[&] {return openemperor::assets::detect_compatibility(root,resources/"Compatibility");};
+    const auto preserved=[&](const auto& result) {
+        check(result.compatible() && result.files_hashed==3 && result.fire_compatible() &&
+            result.fire_files_hashed==2,"optional Inspector changed core or original fire compatibility");
+        const auto selected=openemperor::select_visual_profiles(result);
+        check(selected.walker_source==openemperor::VisualProfileSource::Builtin &&
+            selected.building_source==openemperor::VisualProfileSource::Builtin &&
+            selected.road_source==openemperor::VisualProfileSource::Builtin &&
+            selected.fire_source==openemperor::VisualProfileSource::Builtin,
+            "optional Inspector disabled existing visuals");
+    };
+    auto exact=detect();preserved(exact);
+    check(exact.fire_inspector_compatible() && exact.fire_inspector_files_hashed==2,
+        "new Inspector dependencies were not independently fingerprinted");
+    auto selected=openemperor::select_visual_profiles(exact);
+    check(selected.fire_inspector==exact.profile->fire_inspector_profile &&
+        selected.fire_inspector_source==openemperor::VisualProfileSource::Builtin &&
+        selected.fire_inspector_fallback_reason.empty(),"automatic Inspector supplement not selected");
+    selected=openemperor::select_visual_profiles(exact,"custom.json");
+    check(selected.walker_source==openemperor::VisualProfileSource::Custom &&
+        selected.fire_inspector.empty() && selected.fire_inspector_source==openemperor::VisualProfileSource::Custom &&
+        !selected.fire_inspector_fallback_reason.empty() &&
+        selected.fire_source==openemperor::VisualProfileSource::Builtin,
+        "custom walker received a hidden Inspector supplement or changed original fire");
+    const auto count=openemperor::assets::compatibility_detection_count();
+    for (int i=0;i<1000;++i)(void)openemperor::select_visual_profiles(exact);
+    check(openemperor::assets::compatibility_detection_count()==count,"Inspector selection rehashed files");
+    for (const auto& path:{"F.sg3","F.555"}) {
+        fs::remove(root/"files"/path);auto missing=detect();preserved(missing);
+        check(!missing.fire_inspector_compatible() && missing.fire_inspector_status==
+            openemperor::assets::CompatibilityStatus::MissingFile,"optional Inspector missing-file fallback not independent");
+        selected=openemperor::select_visual_profiles(missing);
+        check(selected.fire_inspector.empty() && !selected.fire_inspector_fallback_reason.empty(),
+            "Inspector fallback has no named cause");
+        write(root/"files"/path,path==std::string("F.sg3") ? "d":"e");
+    }
+    write(root/"files/F.555","changed");auto changed=detect();preserved(changed);
+    check(changed.fire_inspector_status==openemperor::assets::CompatibilityStatus::FingerprintMismatch &&
+        changed.fire_inspector_files_hashed==2,"second Inspector input identity inferred from archive");
+    write(root/"files/F.555","e");
+    const auto invalid=[&](nlohmann::json optional) {
+        inspector_pack(resources,std::move(optional));const auto result=detect();preserved(result);
+        check(!result.fire_inspector_compatible() && !result.profile->fire_inspector_metadata_error.empty(),
+            "invalid optional Inspector metadata changed core instead of named fallback");
+    };
+    invalid({{"profile","../fire-inspector.json"},{"files",inspector_fingerprints}});
+    invalid({{"profile","fire-inspector.json"},{"files",nlohmann::json::array()}});
+    invalid({{"profile","fire-inspector.json"},{"files",nlohmann::json::array()},
+        {"core_files",{"files/A","files/B"}}});
+    auto bad=inspector_fingerprints;bad[0]["path"]="../outside";
+    invalid({{"profile","fire-inspector.json"},{"files",bad}});
+    bad=inspector_fingerprints;bad[0]["sha256"]="bad";
+    invalid({{"profile","fire-inspector.json"},{"files",bad}});
+    bad=inspector_fingerprints;bad.push_back(bad[0]);
+    invalid({{"profile","fire-inspector.json"},{"files",bad}});
+    bad=inspector_fingerprints;for(int i=0;i<3;++i)bad.push_back(inspector_fingerprints[0]);
+    invalid({{"profile","fire-inspector.json"},{"files",bad}});
+    inspector_pack(resources);fs::remove(resources/"Compatibility/test-pack/fire-inspector.json");
+    const auto missing_resource=detect();preserved(missing_resource);
+    check(!missing_resource.fire_inspector_compatible(),"missing Inspector resource activated supplement");
+    // Explicit reuse of a pair already verified by the core performs no new hashes.
+    inspector_pack(resources);
+    const auto manifest=resources/"Compatibility/test-pack/manifest.json";
+    std::ifstream input(manifest);auto doc=nlohmann::json::parse(input);input.close();
+    doc["files"][0]["path"]="files/F.sg3";doc["files"][0]["sha256"]=inspector_fingerprints[0]["sha256"];
+    doc["files"][1]["path"]="files/F.555";doc["files"][1]["sha256"]=inspector_fingerprints[1]["sha256"];
+    doc["optional_fire_inspector"]["files"]=nlohmann::json::array();
+    doc["optional_fire_inspector"]["core_files"]={"files/F.sg3","files/F.555"};
+    write(manifest,doc.dump());auto reused=detect();preserved(reused);
+    check(reused.fire_inspector_compatible() && reused.fire_inspector_files_hashed==0,
+        "already fingerprinted pair not reused independently of fire");
+    doc["optional_fire_inspector"]["core_files"]={"files/F.sg3"};write(manifest,doc.dump());
+    auto unpinned=detect();preserved(unpinned);
+    check(!unpinned.fire_inspector_compatible(),"derived555 admitted without its own fingerprint");
+    doc["optional_fire_inspector"]["core_files"]={"files/F.sg3","files/F.555"};
+    write(manifest,doc.dump());write(root/"files/C","unknown");auto unknown=detect();
+    check(!unknown.compatible() && !unknown.fire_inspector_compatible() &&
+        openemperor::select_visual_profiles(unknown).fire_inspector.empty(),"unknown core activated Inspector");
+}
+
 void validate_committed_pack(const fs::path& resource_root) {
     const auto root=resource_root/"Compatibility/gog-derived-2.0.0.2-en-assetset-1";
     const auto profile=openemperor::assets::load_compatibility_profile(root/"manifest.json");
@@ -255,6 +355,38 @@ void validate_committed_pack(const fs::path& resource_root) {
     for(const auto& item:profile.fire_files)
         check(expected_fire_files.at(item.relative_path.generic_string())==item.sha256,
               "optional fire source hash changed");
+    check(profile.fire_inspector_metadata_error.empty() && profile.fire_inspector_files.empty() &&
+          profile.fire_inspector_profile.filename()=="fire-inspector.json",
+          "committed Inspector supplement did not independently reuse pinned core pair");
+    std::ifstream inspector_stream(profile.fire_inspector_profile);
+    const auto inspector=nlohmann::json::parse(inspector_stream);
+    reject_blob_keys(inspector);std::size_t inspector_archives=0;
+    validate_archive_entries(inspector,inspector_archives);
+    check(inspector.value("schema_version",0)==3 && inspector.value("mode","")=="curated_walker_preview" &&
+          inspector.at("roles").size()==1 && inspector.at("roles").contains("fire_inspector") &&
+          inspector_archives==48,"committed Inspector schema or physical frame count changed");
+    const auto& role=inspector.at("roles").at("fire_inspector");
+    check(role.at("clip_id")=="curated-sprmain-inspector-walk" && role.at("ticks_per_frame")==2 &&
+          role.at("idle")=="neg_x_0" && role.at("clips").size()==4,
+          "committed Inspector identity, timing, idle or directions changed");
+    std::map<std::string,nlohmann::json> inspector_frames;
+    for(const auto& frame:role.at("frames")) {
+        const auto alias=frame.at("alias").get<std::string>();
+        check(inspector_frames.emplace(alias,frame).second && frame.at("archive")=="DATA/SprMain.sg3",
+              "committed Inspector alias or archive is invalid");
+        check(frame.at("foot_anchor").is_array() && frame.at("foot_anchor").size()==2,
+              "committed Inspector frame has no explicit foot anchor");
+    }
+    for(const auto& [direction,base]:std::map<std::string,unsigned>{
+            {"neg_x",433},{"neg_y",434},{"pos_x",435},{"pos_y",436}}) {
+        const auto& clip=role.at("clips").at(direction);
+        check(clip.size()==12,"committed Inspector direction is not the complete twelve-phase clip");
+        for(unsigned phase=0;phase<12;++phase) {
+            const auto alias=direction+"_"+std::to_string(phase);
+            check(clip.at(phase)==alias && inspector_frames.at(alias).at("image_index")==base+8*phase,
+                  "committed Inspector physical direction sequence changed");
+        }
+    }
     std::ifstream fire_stream(profile.fire_profile);const auto fire=nlohmann::json::parse(fire_stream);
     reject_blob_keys(fire);std::size_t fire_archives=0;validate_archive_entries(fire,fire_archives);
     check(fire.value("schema_version",0)==1 && fire.value("mode","")=="curated_fire_presentation" &&
@@ -313,7 +445,7 @@ int main(int argc,char* argv[]) {
         check(openemperor::assets::compatibility_detection_count()==before,
               "visual/frame selection recomputed fingerprints");
         validate_committed_pack(fs::canonical(argv[1]));
-        validate_optional_fire();
+        validate_optional_fire();validate_optional_inspector();
         std::cout<<"compatibility fingerprint, atomic selection and metadata checks passed\n";
         return 0;
     } catch (const std::exception& error) {

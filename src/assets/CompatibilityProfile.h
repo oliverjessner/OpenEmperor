@@ -31,6 +31,9 @@ struct CompatibilityProfile {
     std::filesystem::path fire_profile;
     std::vector<CompatibilityFingerprint> fire_files;
     std::string fire_metadata_error;
+    std::filesystem::path fire_inspector_profile;
+    std::vector<CompatibilityFingerprint> fire_inspector_files;
+    std::string fire_inspector_metadata_error;
 };
 
 struct CompatibilityResult {
@@ -45,6 +48,13 @@ struct CompatibilityResult {
     bool fire_compatible() const {
         return compatible() && fire_status == CompatibilityStatus::Compatible &&
             !profile->fire_profile.empty();
+    }
+    CompatibilityStatus fire_inspector_status = CompatibilityStatus::Unknown;
+    std::size_t fire_inspector_files_hashed = 0;
+    std::string fire_inspector_detail = "optional FireInspector animation is not declared";
+    bool fire_inspector_compatible() const {
+        return compatible() && fire_inspector_status == CompatibilityStatus::Compatible &&
+            !profile->fire_inspector_profile.empty();
     }
 };
 

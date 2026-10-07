@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iomanip>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -200,6 +201,66 @@ CompatibilityProfile load_compatibility_profile(const fs::path& manifest) {
             result.fire_metadata_error=std::string("optional fire metadata invalid: ")+exception.what();
         }
     }
+    if (document.contains("optional_fire_inspector")) {
+        try {
+            const auto& inspector=document.at("optional_fire_inspector");
+            if (!inspector.is_object() || !inspector.contains("files") ||
+                !inspector.at("files").is_array() ||
+                inspector.at("files").size()>max_fire_fingerprints)
+                throw std::runtime_error("invalid optional Inspector fingerprint list");
+            const auto inspector_profile=checked_file(result.pack_root,
+                required_relative(inspector,"profile"));
+            if (!inspector_profile)
+                throw std::runtime_error("optional Inspector metadata resource is missing or unsafe");
+            std::set<fs::path> covered;
+            if (inspector.contains("core_files")) {
+                const auto& core=inspector.at("core_files");
+                if (!core.is_array() || core.size()>max_fire_fingerprints)
+                    throw std::runtime_error("invalid optional Inspector core-file references");
+                for (const auto& item:core) {
+                    if (!item.is_string())
+                        throw std::runtime_error("optional Inspector core-file reference is not a path");
+                    const fs::path path(item.get<std::string>());
+                    if (!safe_relative(path) || !covered.insert(path).second ||
+                        std::none_of(result.files.begin(),result.files.end(),[&](const auto& fingerprint) {
+                            return fingerprint.relative_path==path;
+                        })) throw std::runtime_error("optional Inspector core file is not independently fingerprinted");
+                }
+            }
+            std::vector<CompatibilityFingerprint> files;
+            for (const auto& entry:inspector.at("files")) {
+                if (!entry.is_object())
+                    throw std::runtime_error("optional Inspector fingerprint is not an object");
+                CompatibilityFingerprint fingerprint;
+                fingerprint.relative_path=required_relative(entry,"path");
+                fingerprint.sha256=required_string(entry,"sha256");
+                if (!sha256_text(fingerprint.sha256) || !covered.insert(fingerprint.relative_path).second)
+                    throw std::runtime_error("optional Inspector fingerprint is invalid or duplicated");
+                files.push_back(std::move(fingerprint));
+            }
+            // Empty new dependencies are permitted only when every referenced
+            // SG3 and derived555 already has a declared core fingerprint.
+            const auto metadata=nlohmann::json::parse(read_bounded_text(*inspector_profile));
+            const auto& roles=metadata.at("roles");
+            if (metadata.value("schema_version",0U)!=3 || !roles.is_object() ||
+                roles.size()!=1 || !roles.contains("fire_inspector"))
+                throw std::runtime_error("optional Inspector resource must contain only schema-3 FireInspector");
+            const auto& frames=roles.at("fire_inspector").at("frames");
+            if (!frames.is_array() || frames.empty() || frames.size()>256)
+                throw std::runtime_error("optional Inspector resource has invalid frame references");
+            for (const auto& frame:frames) {
+                const auto archive=required_relative(frame,"archive");
+                auto pixels=archive;pixels.replace_extension(".555");
+                if (archive.extension()!=".sg3" || !covered.contains(archive) || !covered.contains(pixels))
+                    throw std::runtime_error("optional Inspector frame dependency is not independently fingerprinted");
+            }
+            result.fire_inspector_profile=*inspector_profile;
+            result.fire_inspector_files=std::move(files);
+        } catch (const std::exception& exception) {
+            result.fire_inspector_metadata_error=
+                std::string("optional FireInspector metadata invalid: ")+exception.what();
+        }
+    }
     return result;
 }
 
@@ -306,6 +367,37 @@ CompatibilityResult detect_compatibility(const fs::path& data_root,
                 } catch (const std::exception& exception) {
                     result.fire_status=CompatibilityStatus::Unknown;
                     result.fire_detail=std::string("optional fire input could not be checked: ")+
+                        exception.what();
+                }
+            }
+            if (!fire.fire_inspector_metadata_error.empty()) {
+                result.fire_inspector_detail=fire.fire_inspector_metadata_error;
+            } else if (!fire.fire_inspector_profile.empty()) {
+                result.fire_inspector_status=CompatibilityStatus::Compatible;
+                result.fire_inspector_detail="fingerprinted original Inspector figure dependency detected";
+                try {
+                    for (const auto& expected:fire.fire_inspector_files) {
+                        const auto candidate=checked_file(root,expected.relative_path);
+                        if (!candidate) {
+                            std::error_code exists_error;
+                            const bool absent=!fs::exists(root/expected.relative_path,exists_error) && !exists_error;
+                            result.fire_inspector_status=absent ? CompatibilityStatus::MissingFile:
+                                CompatibilityStatus::FingerprintMismatch;
+                            result.fire_inspector_detail="optional Inspector file missing or unsafe: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                        ++result.fire_inspector_files_hashed;
+                        if (sha256_file(*candidate)!=expected.sha256) {
+                            result.fire_inspector_status=CompatibilityStatus::FingerprintMismatch;
+                            result.fire_inspector_detail="optional Inspector fingerprint mismatch: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                    }
+                } catch (const std::exception& exception) {
+                    result.fire_inspector_status=CompatibilityStatus::Unknown;
+                    result.fire_inspector_detail=std::string("optional Inspector input could not be checked: ")+
                         exception.what();
                 }
             }

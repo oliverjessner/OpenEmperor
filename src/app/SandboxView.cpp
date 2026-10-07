@@ -235,6 +235,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         fire_manifest_.clear();
         set_fire_visuals(manifest,source);
     }
+    prepare_fire_inspector_extension();
     buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
     const auto active_version=initial_save_ ? initial_save_->world.rule_version:
         requested_rule_version_;
@@ -277,6 +278,7 @@ void SandboxView::shutdown() {
     walker_diagnostic_open_=false;
     walker_sprites_.reset();
     walker_profile_.reset();
+    fire_inspector_core_images_.reset();
     building_sprite_.reset();
     building_profile_.reset();
     road_sprites_.reset();
@@ -296,6 +298,8 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
         walker_sprites_.reset(); walker_profile_.reset(); walker_manifest_.clear();
         visual_hits_.clear(); visual_frame_valid_=false;
         walker_source_=VisualProfileSource::Fallback;
+        fire_inspector_core_images_.reset();
+        fire_inspector_fallback_reason_="Core walker sprites unavailable";
         walker_diagnostic_open_=false;
         return;
     }
@@ -304,12 +308,21 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
         throw std::runtime_error("walker visuals require a production sandbox profile");
     auto profile=assets::load_walker_visual_profile(data_root_,manifest);
     auto textures=std::make_unique<WalkerSpriteSet>();
-    textures->initialize(renderer_,profile);
+    auto available=assets::walker_max_rgba_bytes;
+    if (profile.schema_version==3) {
+        available=fire_remaining_texture_bytes()+
+            (walker_profile_ ? assets::walker_rgba_bytes(*walker_profile_):0);
+        const auto fire_bytes=fire_sprites_ ? fire_sprites_->logical_bytes():0;
+        available=available>=fire_bytes ? available-fire_bytes:0;
+    }
+    textures->initialize(renderer_,profile,available);
     walker_sprites_=std::move(textures);
     walker_profile_=std::move(profile);
     visual_hits_.clear(); visual_frame_valid_=false;
     walker_manifest_=manifest;
     walker_source_=source;
+    fire_inspector_core_images_.reset();
+    fire_inspector_fallback_draws_=0;
     walker_visuals_enabled_=true;
     walker_role_stats_={};
     walker_moving_drawn_.fill(false);
@@ -317,12 +330,80 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
     walker_diagnostic_role_=walker_diagnostic_direction_=walker_diagnostic_step_=0;
     last_message_="Curated walker previews active";
     enforce_fire_texture_budget();
+    if (world_) prepare_fire_inspector_extension();
+}
+void SandboxView::remove_fire_inspector_extension() {
+    if (!fire_inspector_core_images_) return;
+    walker_sprites_->truncate(*fire_inspector_core_images_);
+    walker_profile_->roles[assets::walker_role_index(assets::WalkerVisualRole::FireInspector)].reset();
+    walker_profile_->unique_images.resize(*fire_inspector_core_images_);
+    walker_profile_->schema_version=fire_inspector_core_schema_;
+    fire_inspector_core_images_.reset();
+    visual_hits_.clear();visual_frame_valid_=false;
+}
+void SandboxView::set_fire_inspector_visuals(const std::filesystem::path& manifest,
+        VisualProfileSource source,std::string fallback_reason) {
+    remove_fire_inspector_extension();
+    fire_inspector_manifest_=manifest;fire_inspector_source_=source;
+    fire_inspector_fallback_reason_=fallback_reason.empty() ?
+        "No Inspector clip selected":std::move(fallback_reason);
+    fire_inspector_fallback_draws_=0;
+    if (renderer_) prepare_fire_inspector_extension();
+}
+void SandboxView::prepare_fire_inspector_extension() {
+    if (fire_inspector_manifest_.empty() || fire_inspector_core_images_) return;
+    if (!simulation::fire_profile(rules_)) {
+        fire_inspector_fallback_reason_="Active rules have no FireInspector presentation";return;
+    }
+    if (!walker_profile_ || !walker_sprites_) {
+        fire_inspector_fallback_reason_="Core walker sprites unavailable";return;
+    }
+    if (walker_profile_->find(assets::WalkerVisualRole::FireInspector)) return;
+    if (walker_source_!=VisualProfileSource::Builtin ||
+        fire_inspector_source_!=VisualProfileSource::Builtin) {
+        fire_inspector_fallback_reason_="Explicit custom walkers are not supplemented";return;
+    }
+    const auto core_images=walker_profile_->unique_images.size();
+    const auto core_schema=walker_profile_->schema_version;
+    const auto core_bytes=assets::walker_rgba_bytes(*walker_profile_);
+    const auto fire_bytes=fire_sprites_ ? fire_sprites_->logical_bytes():0;
+    const auto remaining=fire_remaining_texture_bytes();
+    const auto available=core_bytes+(remaining>=fire_bytes ? remaining-fire_bytes:0);
+    try {
+        assets::append_fire_inspector_visual_profile(data_root_,fire_inspector_manifest_,*walker_profile_);
+        walker_sprites_->append(*walker_profile_,available);
+        fire_inspector_core_images_=core_images;fire_inspector_core_schema_=core_schema;
+        fire_inspector_core_bytes_=core_bytes;fire_inspector_fallback_reason_.clear();
+        visual_hits_.clear();visual_frame_valid_=false;
+    } catch (const std::exception& error) {
+        walker_profile_->roles[assets::walker_role_index(assets::WalkerVisualRole::FireInspector)].reset();
+        walker_profile_->unique_images.resize(core_images);
+        walker_profile_->schema_version=core_schema;
+        fire_inspector_fallback_reason_=std::string("Inspector preparation failed: ")+error.what();
+    }
+}
+SandboxView::FireInspectorDisplayStats SandboxView::fire_inspector_display_stats() const {
+    FireInspectorDisplayStats stats;
+    const auto* visual=walker_profile_ ? walker_profile_->find(assets::WalkerVisualRole::FireInspector):nullptr;
+    stats.configured=visual && walker_sprites_;
+    stats.active=stats.configured && walker_visuals_enabled_;
+    stats.fallback_reason=stats.configured ? (walker_visuals_enabled_ ? "":"F2 marker comparison"):
+        walker_source_==VisualProfileSource::Custom ? "Custom profile has no FireInspector role":
+        fire_inspector_fallback_reason_;
+    if (visual) { stats.clip_id=visual->clip_id;stats.frames=visual->frames.size(); }
+    if (fire_inspector_core_images_) {
+        stats.additional_assets=walker_profile_->unique_images.size()-*fire_inspector_core_images_;
+        stats.additional_bytes=assets::walker_rgba_bytes(*walker_profile_)-fire_inspector_core_bytes_;
+    }
+    stats.draws=walker_role_stats_[assets::walker_role_index(assets::WalkerVisualRole::FireInspector)].draws;
+    stats.fallback_draws=fire_inspector_fallback_draws_;
+    return stats;
 }
 SandboxView::WalkerDisplayStats SandboxView::walker_display_stats() const {
     WalkerDisplayStats stats;
     if (walker_profile_) {
         stats.schema_version=walker_profile_->schema_version;
-        for (std::size_t role=0;role<3;++role) {
+        for (std::size_t role=0;role<assets::walker_visual_role_count;++role) {
             const auto& visual=walker_profile_->roles[role];
             stats.roles[role]=walker_role_stats_[role];
             stats.roles[role].configured=visual.has_value();
@@ -451,6 +532,11 @@ std::uint64_t SandboxView::fire_remaining_texture_bytes() const {
     return limit-used;
 }
 void SandboxView::enforce_fire_texture_budget() {
+    if (fire_inspector_core_images_ && (fire_remaining_texture_bytes()==0 ||
+        (fire_sprites_ && fire_sprites_->logical_bytes()>fire_remaining_texture_bytes()))) {
+        remove_fire_inspector_extension();
+        fire_inspector_fallback_reason_="Session RGBA texture budget exhausted";
+    }
     if (fire_sprites_ && fire_sprites_->logical_bytes()>fire_remaining_texture_bytes())
         set_fire_visuals({},VisualProfileSource::Fallback,"Session RGBA texture budget exhausted");
 }
@@ -469,6 +555,8 @@ void SandboxView::set_fire_visuals(const std::filesystem::path& manifest,
         set_fire_visuals({},VisualProfileSource::Fallback,"Active rules have no fire presentation");
         return;
     }
+    const bool restore_inspector=fire_inspector_core_images_.has_value();
+    if (restore_inspector) remove_fire_inspector_extension();
     try {
         auto profile=assets::load_fire_visual_profile(data_root_,manifest);
         auto sprites=std::make_unique<FireSpriteSet>();
@@ -480,6 +568,7 @@ void SandboxView::set_fire_visuals(const std::filesystem::path& manifest,
     } catch (const std::exception& error) {
         set_fire_visuals({},VisualProfileSource::Fallback,std::string("Fire clip preparation failed: ")+error.what());
     }
+    if (restore_inspector) prepare_fire_inspector_extension();
 }
 SandboxView::FireDisplayStats SandboxView::fire_display_stats() const {
     FireDisplayStats stats;
@@ -1398,7 +1487,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
         else if (walker_diagnostic_open_ && walker_profile_) {
             if (event.key.key==SDLK_V) {
-                walker_diagnostic_role_=(walker_diagnostic_role_+1)%3;
+                walker_diagnostic_role_=(walker_diagnostic_role_+1)%assets::walker_visual_role_count;
                 walker_diagnostic_step_=0;
             } else if (event.key.key==SDLK_Q || event.key.key==SDLK_BACKSLASH) {
                 walker_diagnostic_direction_=(walker_diagnostic_direction_+1)%4;
@@ -2133,11 +2222,13 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             }
             const SDL_Color missing=debug_open_ ? SDL_Color{255,90,60,255}:
                 SDL_Color{126,126,116,255};
+            if (courier.role==simulation::CourierRole::FireInspector) ++fire_inspector_fallback_draws_;
             if (!draw_agent(position,missing,cargo_color,courier.cargo,
                             marker_shift)) return false;
             return !debug_open_ || SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
                 static_cast<float>(ground.y)-20,"W?");
         }
+        if (courier.role==simulation::CourierRole::FireInspector) ++fire_inspector_fallback_draws_;
         if (!draw_agent(position,marker_color,cargo_color,courier.cargo,marker_shift)) return false;
         if (debug_open_ && (courier.role==simulation::CourierRole::Food ||
                             courier.role==simulation::CourierRole::Service ||
@@ -2486,10 +2577,27 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     if (debug_open_ && selected_walker_) {
         const auto found=std::find_if(world_->couriers().begin(),world_->couriers().end(),
             [&](const auto& courier){return courier.id==*selected_walker_;});
-        if (found!=world_->couriers().end()) return wrap_panel_lines({
-            "Visible walker #"+std::to_string(static_cast<unsigned>(found->id)),
-            std::string("Phase: ")+simulation::courier_phase_name(found->phase),
-            "Cargo: "+std::to_string(found->cargo)});
+        if (found!=world_->couriers().end()) {
+            std::vector<std::string> walker_lines{
+                "Visible walker #"+std::to_string(static_cast<unsigned>(found->id)),
+                std::string("Phase: ")+simulation::courier_phase_name(found->phase),
+                "Cargo: "+std::to_string(found->cargo)};
+            if (found->role==simulation::CourierRole::FireInspector) {
+                const auto stats=fire_inspector_display_stats();
+                walker_lines.push_back("Role: FireInspector");
+                walker_lines.push_back("Owner: "+std::to_string(static_cast<unsigned>(found->owner))+
+                    " target: "+std::to_string(static_cast<unsigned>(found->target)));
+                auto reason=stats.fallback_reason;
+                if (stats.active) {
+                    const auto pose=walker_pose(*found,world_->ticks(),*walker_profile_);
+                    if (pose.fallback==WalkerFallback::InvalidEdge) reason="Invalid current path edge";
+                    else if (pose.fallback==WalkerFallback::UnmappedDirection) reason="Unmapped path direction";
+                }
+                walker_lines.push_back(reason.empty() ? "Curated clip: "+stats.clip_id:
+                    "Marker fallback: "+reason);
+            }
+            return wrap_panel_lines(walker_lines);
+        }
     }
     if (debug_open_ && selected_ && (selected_landscape_ || world_->object_at(*selected_)==simulation::Object::Empty))
         return wrap_panel_lines(maps::landscape_inspection_lines(background_.plan(),
@@ -2531,6 +2639,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("City-wide burning "+std::to_string(world_->burning_buildings()));
         if (debug_open_) {
             lines.push_back("Fireproof; footprint 1x1");
+            const auto inspector=fire_inspector_display_stats();
+            lines.push_back(inspector.active ? "Inspector: curated original walk clip":
+                "Inspector marker: "+inspector.fallback_reason);
             const auto* entry=building_profile_ ? building_profile_->find(assets::BuildingVisualRole::FireWatch):nullptr;
             lines.push_back(std::string("Building visuals ")+(building_enabled_ ? "ON":"OFF"));
             lines.push_back(entry ? "SG3 "+entry->id.archive_relative_path.generic_string()+
@@ -3138,7 +3249,7 @@ bool SandboxView::draw_hud() {
     if (debug_open_ && walker_profile_) {
         status+=" | Walkers ";
         status+=walker_visuals_enabled_ ? "ON ":"OFF ";
-        for (std::size_t r=0;r<3;++r) {
+        for (std::size_t r=0;r<assets::walker_visual_role_count;++r) {
             if (r) status+=' ';
             status+=assets::walker_role_name(static_cast<assets::WalkerVisualRole>(r));
             status+=walker_profile_->roles[r] ? ":yes":":no";
@@ -3367,6 +3478,22 @@ bool SandboxView::draw_hud() {
         if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,fire_line,
                        layout_.map.w-16*layout_.scale)) return false;
         debug_row+=14;
+        if (simulation::fire_profile(rules_)) {
+            const auto inspector=fire_inspector_display_stats();
+            const auto line=inspector.active ? "FireInspector: Curated original walk clip":
+                "FireInspector: Marker - "+inspector.fallback_reason;
+            if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,line,
+                           layout_.map.w-16*layout_.scale)) return false;
+            debug_row+=14;
+            if (inspector.configured) {
+                if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,
+                    inspector.clip_id+" | "+std::to_string(inspector.frames)+" frames | +"+
+                    std::to_string(inspector.additional_assets)+" textures / "+
+                    std::to_string(inspector.additional_bytes)+" B | draws "+std::to_string(inspector.draws),
+                    layout_.map.w-16*layout_.scale)) return false;
+                debug_row+=14;
+            }
+        }
         if (simulation::population_profile(rules_)) {
             std::string staffing="Staffing order:";
             for (const auto& b:world_->buildings()) {

@@ -43,7 +43,7 @@ public:
             std::uint64_t fallback_unmapped=0,fallback_invalid_edge=0;
         };
         std::uint32_t schema_version=0;
-        std::array<Role,3> roles{};
+        std::array<Role,assets::walker_visual_role_count> roles{};
         std::array<bool,4> configured{};
         std::array<bool,4> moving_drawn{};
         std::size_t decoded_assets=0;
@@ -108,6 +108,17 @@ public:
     void load_now();
     void set_walker_visuals(const std::filesystem::path& manifest,
                             VisualProfileSource source=VisualProfileSource::Custom);
+    // Built-in optional tail; explicit custom walker profiles are never supplemented.
+    void set_fire_inspector_visuals(const std::filesystem::path& manifest,
+                                   VisualProfileSource source=VisualProfileSource::Builtin,
+                                   std::string fallback_reason={});
+    struct FireInspectorDisplayStats {
+        bool configured=false,active=false;
+        std::string clip_id,fallback_reason;
+        std::size_t frames=0,additional_assets=0;
+        std::uint64_t additional_bytes=0,draws=0,fallback_draws=0;
+    };
+    FireInspectorDisplayStats fire_inspector_display_stats() const;
     void set_building_visuals(const std::filesystem::path& manifest,
                               VisualProfileSource source=VisualProfileSource::Custom);
     void set_road_visuals(const std::filesystem::path& manifest,
@@ -248,6 +259,8 @@ private:
     scene::Point building_visual_ground(simulation::Cell origin,
                                                   simulation::Object kind) const;
     std::uint64_t fire_remaining_texture_bytes() const;
+    void remove_fire_inspector_extension();
+    void prepare_fire_inspector_extension();
     void enforce_fire_texture_budget();
     maps::MapGeometry geometry_;
     StoredGraphicsRenderer background_;
@@ -315,7 +328,13 @@ private:
     bool walker_diagnostic_light_=false;
     std::size_t walker_diagnostic_role_=0,walker_diagnostic_direction_=0,
                 walker_diagnostic_step_=0;
-    std::array<WalkerDisplayStats::Role,3> walker_role_stats_{};
+    std::array<WalkerDisplayStats::Role,assets::walker_visual_role_count> walker_role_stats_{};
+    std::filesystem::path fire_inspector_manifest_;
+    VisualProfileSource fire_inspector_source_=VisualProfileSource::Fallback;
+    std::string fire_inspector_fallback_reason_="No Inspector clip selected";
+    std::optional<std::size_t> fire_inspector_core_images_;
+    std::uint32_t fire_inspector_core_schema_=0;
+    std::uint64_t fire_inspector_core_bytes_=0,fire_inspector_fallback_draws_=0;
     std::array<bool,4> walker_moving_drawn_{};
     std::uint64_t walker_unmapped_fallbacks_=0, walker_invalid_edge_fallbacks_=0;
     std::filesystem::path building_manifest_;

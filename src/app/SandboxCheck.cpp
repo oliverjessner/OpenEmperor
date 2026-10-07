@@ -48,6 +48,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         if (!visuals.building.empty()) view.set_building_visuals(visuals.building,visuals.building_source);
         if (!visuals.road.empty()) view.set_road_visuals(visuals.road,visuals.road_source);
         view.set_fire_visuals(visuals.fire,visuals.fire_source,visuals.fire_fallback_reason);
+        view.set_fire_inspector_visuals(visuals.fire_inspector,visuals.fire_inspector_source,
+            visuals.fire_inspector_fallback_reason);
         view.initialize(window,renderer);
         const auto initial_ticks=view.world().ticks();
         const auto initial_treasury=view.world().treasury();
@@ -236,7 +238,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             constexpr const char* directions[]={"pos_x","neg_x","pos_y","neg_y"};
             nlohmann::json configured=nlohmann::json::array();
             nlohmann::json roles=nlohmann::json::object();
-            for (std::size_t r=0;r<3;++r) {
+            for (std::size_t r=0;r<assets::walker_visual_role_count;++r) {
                 const auto name=assets::walker_role_name(static_cast<assets::WalkerVisualRole>(r));
                 const auto& role=stats.roles[r];
                 if (role.configured) configured.push_back(name);
@@ -253,6 +255,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             return nlohmann::json{{"schema_version",stats.schema_version},
                 {"configured_roles",configured},{"unique_assets",stats.decoded_assets},
                 {"texture_uploads",stats.texture_uploads},{"roles",roles},
+                {"fire_inspector",{{"active",view.fire_inspector_display_stats().active},
+                    {"clip_id",view.fire_inspector_display_stats().clip_id},
+                    {"fallback_reason",view.fire_inspector_display_stats().fallback_reason},
+                    {"additional_assets",view.fire_inspector_display_stats().additional_assets},
+                    {"additional_rgba_bytes",view.fire_inspector_display_stats().additional_bytes}}},
                 {"simulation_equal_to_control",simulation_neutral},
                 {"manual_visual_review",false},
                 {"save_resume_equal",resume_check ? nlohmann::json(direct_equal && continued_equal):
@@ -362,6 +369,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"draws_by_role",draws},{"placeholder_fallbacks_by_role",fallbacks},
                     {"simulation_equal_to_control",simulation_neutral},
                     {"manual_visual_review",false}}},
+                {"walker_visuals",walker_visuals_report()},
                 {"resume",{{"requested",resume_check},{"saved",saved},{"reparsed",reparsed},
                     {"fresh_world",fresh_world},{"direct_equal",direct_equal},
                     {"continued_equal",continued_equal}}},

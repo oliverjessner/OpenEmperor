@@ -20,6 +20,9 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
     result.fire_fallback_reason=compatibility.compatible() ? compatibility.fire_detail:
         compatibility.detail.empty() ? "unsupported original data revision":
         "unsupported original data: "+compatibility.detail;
+    result.fire_inspector_fallback_reason=compatibility.compatible() ? compatibility.fire_inspector_detail:
+        compatibility.detail.empty() ? "unsupported original data revision":
+        "unsupported original data: "+compatibility.detail;
     if (compatibility.compatible()) {
         result.walker = compatibility.profile->walker_profile;
         result.building = compatibility.profile->building_profile;
@@ -31,10 +34,19 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
             result.fire_source=VisualProfileSource::Builtin;
             result.fire_fallback_reason.clear();
         }
+        if (compatibility.fire_inspector_compatible()) {
+            result.fire_inspector=compatibility.profile->fire_inspector_profile;
+            result.fire_inspector_source=VisualProfileSource::Builtin;
+            result.fire_inspector_fallback_reason.clear();
+        }
     }
     if (!custom_walker.empty()) {
         result.walker = custom_walker;
         result.walker_source = VisualProfileSource::Custom;
+        result.fire_inspector.clear();
+        result.fire_inspector_source=VisualProfileSource::Custom;
+        result.fire_inspector_fallback_reason=
+            "Custom walker profile selected; no built-in FireInspector supplement";
     }
     if (!custom_building.empty()) {
         result.building = custom_building;

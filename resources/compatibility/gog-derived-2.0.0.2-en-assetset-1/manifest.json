@@ -45,5 +45,13 @@
         "sha256": "0668087731938c626fe01211cc02e102c93022e728e9ea649eb9ed9322cf1a94"
       }
     ]
+  },
+  "optional_fire_inspector": {
+    "profile": "fire-inspector.json",
+    "core_files": [
+      "DATA/SprMain.sg3",
+      "DATA/SprMain.555"
+    ],
+    "files": []
   }
 }

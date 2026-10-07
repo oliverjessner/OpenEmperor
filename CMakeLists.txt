@@ -136,7 +136,8 @@ set(OPENEMPEROR_COMPATIBILITY_FILES
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/walkers.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/roads.json"
-    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire.json")
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire-inspector.json")
 if(OPENEMPEROR_BUILD_MACOS_APP)
     set_source_files_properties(${OPENEMPEROR_COMPATIBILITY_FILES} PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources/Compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}")
@@ -372,6 +373,17 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-fire-overlay-pixel-tests)
     add_test(NAME fire-overlay-production-pixels COMMAND openemperor-fire-overlay-pixel-tests)
     set_tests_properties(fire-overlay-production-pixels PROPERTIES TIMEOUT 45)
+    add_executable(openemperor-fire-inspector-view-tests tests/FireInspectorViewTests.cpp
+        src/app/SandboxView.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-fire-inspector-view-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-fire-inspector-view-tests)
+    add_test(NAME fire-inspector-production-view COMMAND openemperor-fire-inspector-view-tests)
+    set_tests_properties(fire-inspector-production-view PROPERTIES TIMEOUT 90)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
@@ -711,6 +723,13 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-sg3-loader-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-sg3-loader-tests)
     add_test(NAME sg3-image-loader COMMAND openemperor-sg3-loader-tests)
+    add_executable(openemperor-fire-inspector-walker-tests tests/FireInspectorWalkerTests.cpp
+        src/app/WalkerPose.cpp)
+    target_link_libraries(openemperor-fire-inspector-walker-tests PRIVATE
+        openemperor-sg3 openemperor-simulation SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-fire-inspector-walker-tests)
+    add_test(NAME fire-inspector-walker-profile-pose-render COMMAND openemperor-fire-inspector-walker-tests)
+    set_tests_properties(fire-inspector-walker-profile-pose-render PROPERTIES TIMEOUT 60)
     add_executable(openemperor-walker-visual-tests tests/WalkerVisualTests.cpp
         src/app/WalkerPose.cpp src/renderer/WalkerSpriteSet.cpp)
     target_link_libraries(openemperor-walker-visual-tests PRIVATE
@@ -833,3 +852,14 @@ add_executable(openemperor-fire-visual-fixture EXCLUDE_FROM_ALL tools/FireVisual
 target_link_libraries(openemperor-fire-visual-fixture PRIVATE
     openemperor-recovery SDL3::SDL3 openemperor-version)
 openemperor_enable_warnings(openemperor-fire-visual-fixture)
+
+add_executable(openemperor-fire-inspector-fixture EXCLUDE_FROM_ALL tools/FireInspectorFixture.cpp
+    src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
+    src/app/SandboxView.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+    src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+    src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+    src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+target_link_libraries(openemperor-fire-inspector-fixture PRIVATE
+    openemperor-recovery SDL3::SDL3 openemperor-version)
+openemperor_enable_warnings(openemperor-fire-inspector-fixture)
