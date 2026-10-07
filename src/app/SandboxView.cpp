@@ -230,6 +230,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             builtin_errors.push_back(std::string("Built-in road preview could not be loaded; using fallback tiles: ")+error.what());
         }
     }
+    if (!fire_manifest_.empty()) {
+        const auto manifest=fire_manifest_;const auto source=fire_source_;
+        fire_manifest_.clear();
+        set_fire_visuals(manifest,source);
+    }
     buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
     const auto active_version=initial_save_ ? initial_save_->world.rule_version:
         requested_rule_version_;
@@ -276,6 +281,10 @@ void SandboxView::shutdown() {
     building_profile_.reset();
     road_sprites_.reset();
     road_profile_.reset();
+    fire_sprites_.reset();
+    fire_profile_.reset();
+    fire_frames_drawn_.fill(false);
+    fire_draws_=fire_fallback_draws_=0;
     background_.shutdown();
     world_.reset();
     window_=nullptr;
@@ -307,6 +316,7 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
     walker_unmapped_fallbacks_=walker_invalid_edge_fallbacks_=0;
     walker_diagnostic_role_=walker_diagnostic_direction_=walker_diagnostic_step_=0;
     last_message_="Curated walker previews active";
+    enforce_fire_texture_budget();
 }
 SandboxView::WalkerDisplayStats SandboxView::walker_display_stats() const {
     WalkerDisplayStats stats;
@@ -368,6 +378,7 @@ void SandboxView::set_building_visuals(const std::filesystem::path& manifest,
     building_enabled_=true;
     building_drawn_instances_.fill(0);building_placeholder_fallbacks_.fill(0);
     last_message_="Curated building preview active";
+    enforce_fire_texture_budget();
 }
 SandboxView::BuildingDisplayStats SandboxView::building_display_stats() const {
     BuildingDisplayStats stats;
@@ -420,6 +431,74 @@ void SandboxView::set_road_visuals(const std::filesystem::path& manifest,
     road_enabled_=true;
     road_masks_seen_.fill(false);road_draws_=road_fallbacks_current_=0;
     last_message_="Curated road preview active";
+    enforce_fire_texture_budget();
+}
+std::uint64_t SandboxView::fire_remaining_texture_bytes() const {
+    constexpr auto limit=maps::stored_max_texture_bytes;
+    auto used=background_.plan().logical_texture_bytes;
+    if (used>limit) return 0;
+    const auto add=[&](const auto& images) {
+        for (const auto& image:images) {
+            const auto bytes=static_cast<std::uint64_t>(image.pixels.size());
+            if (bytes>limit-used) return false;
+            used+=bytes;
+        }
+        return true;
+    };
+    if ((walker_profile_ && !add(walker_profile_->unique_images)) ||
+        (building_profile_ && !add(building_profile_->unique_images)) ||
+        (road_profile_ && !add(road_profile_->unique_images))) return 0;
+    return limit-used;
+}
+void SandboxView::enforce_fire_texture_budget() {
+    if (fire_sprites_ && fire_sprites_->logical_bytes()>fire_remaining_texture_bytes())
+        set_fire_visuals({},VisualProfileSource::Fallback,"Session RGBA texture budget exhausted");
+}
+void SandboxView::set_fire_visuals(const std::filesystem::path& manifest,
+                                  VisualProfileSource source,std::string fallback_reason) {
+    if (manifest.empty()) {
+        fire_sprites_.reset();fire_profile_.reset();fire_manifest_.clear();
+        fire_source_=VisualProfileSource::Fallback;
+        fire_fallback_reason_=fallback_reason.empty() ? "No fire clip selected":std::move(fallback_reason);
+        fire_frames_drawn_.fill(false);
+        fire_draws_=fire_fallback_draws_=0;
+        return;
+    }
+    if (!renderer_) { fire_manifest_=manifest;fire_source_=source;return; }
+    if (!simulation::fire_profile(rules_)) {
+        set_fire_visuals({},VisualProfileSource::Fallback,"Active rules have no fire presentation");
+        return;
+    }
+    try {
+        auto profile=assets::load_fire_visual_profile(data_root_,manifest);
+        auto sprites=std::make_unique<FireSpriteSet>();
+        sprites->initialize(renderer_,profile,fire_remaining_texture_bytes());
+        fire_sprites_=std::move(sprites);fire_profile_=std::move(profile);
+        fire_manifest_=manifest;fire_source_=source;fire_fallback_reason_.clear();
+        fire_frames_drawn_.fill(false);
+        fire_draws_=fire_fallback_draws_=0;
+    } catch (const std::exception& error) {
+        set_fire_visuals({},VisualProfileSource::Fallback,std::string("Fire clip preparation failed: ")+error.what());
+    }
+}
+SandboxView::FireDisplayStats SandboxView::fire_display_stats() const {
+    FireDisplayStats stats;
+    stats.animated=fire_profile_.has_value() && bool(fire_sprites_);
+    stats.fallback_reason=fire_fallback_reason_;stats.draws=fire_draws_;
+    stats.fallback_draws=fire_fallback_draws_;stats.frames_drawn=fire_frames_drawn_;
+    if (fire_profile_) {
+        stats.clip_id=fire_profile_->clip_id;stats.frames=fire_profile_->frames.size();
+        stats.unique_assets=fire_profile_->unique_images.size();
+    }
+    if (fire_sprites_) {
+        stats.texture_uploads=fire_sprites_->texture_count();
+        stats.logical_bytes=fire_sprites_->logical_bytes();
+    }
+    return stats;
+}
+std::optional<std::size_t> SandboxView::fire_frame_for(simulation::BuildingId id) const {
+    return world_ && fire_profile_ ? assets::fire_frame_index(*fire_profile_,world_->ticks(),
+        static_cast<std::uint64_t>(id)):std::nullopt;
 }
 SandboxView::RoadDisplayStats SandboxView::road_display_stats() const {
     RoadDisplayStats stats;
@@ -1754,6 +1833,7 @@ bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,
 }
 bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     last_courier_draws_=0;
+    fire_draws_=fire_fallback_draws_=0;
     road_fallbacks_current_=0;
     auto& instances=draw_instances_;
     instances.clear();
@@ -1814,7 +1894,35 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const auto owner=world_->building_owner_at(cell);
         if (!owner || !simulation::fire_eligible(world_->building(*owner).kind)) return true;
         const bool burning=world_->building_on_fire(*owner);
-        if (burning) {
+        if (burning && fire_profile_ && fire_sprites_) {
+            const auto frame=fire_frame_for(*owner);
+            if (!frame) return false; // Complete preparation guarantees a valid selection.
+            const auto& building=world_->building(*owner);
+            const auto side=simulation::building_footprint(rules_,world_->rule_version(),building.kind).width;
+            const auto role=visual_role(cell,building.kind);
+            const auto* entry=role ? building_entry(*role):nullptr;
+            // Curated roof attachment, independent of F4. Original timing/pivots
+            // are not claimed: center the footprint and lift into its visible body.
+            const double rise=entry ? std::clamp(entry->ground_y*0.3,12.0,36.0):12.0;
+            const scene::Point attachment{center.x,center.y-(20.0*(side-1)+rise)*camera_.zoom};
+            const double scale=camera_.zoom*(side==1 ? 0.75:1.0);
+            const scene::Point clip_min{static_cast<double>(layout_.map.x),static_cast<double>(layout_.map.y)};
+            const scene::Point clip_max{static_cast<double>(layout_.map.x+layout_.map.w),
+                static_cast<double>(layout_.map.y+layout_.map.h)};
+            // Owner centers are never a culling oracle for a protruding flame.
+            const auto bounds=fire_sprites_->clip_bounds(attachment,scale);
+            if (bounds && bounds->max.x>clip_min.x && bounds->max.y>clip_min.y &&
+                bounds->min.x<clip_max.x && bounds->min.y<clip_max.y) {
+                const auto selected=FireSpriteSet::bounds(*frame,attachment,scale,*fire_profile_);
+                if (!selected) return false;
+                if (selected->max.x>clip_min.x && selected->max.y>clip_min.y &&
+                    selected->min.x<clip_max.x && selected->min.y<clip_max.y) {
+                    if (!fire_sprites_->draw(*frame,attachment,scale,*fire_profile_,clip_min,clip_max)) return false;
+                    ++fire_draws_;fire_frames_drawn_[*frame]=true;
+                }
+            }
+        } else if (burning) {
+            ++fire_fallback_draws_;
             const float size=static_cast<float>(std::max(7.0,14.0*camera_.zoom));
             const float flicker=static_cast<float>((world_->ticks()/4U)%3U)*size*0.15F;
             const float x=static_cast<float>(center.x),y=static_cast<float>(center.y)-size;
@@ -3250,6 +3358,15 @@ bool SandboxView::draw_hud() {
         if (!draw_text(8*layout_.scale,layout_.map.y+8*layout_.scale,debug,
                        layout_.map.w-16*layout_.scale)) return false;
         int debug_row=22;
+        const auto fire=fire_display_stats();
+        const std::string fire_line=fire.animated ?
+            "Fire visual: Original animated clip | "+fire.clip_id+" | frames "+
+                std::to_string(fire.frames)+" | shared textures "+std::to_string(fire.texture_uploads)+
+                " | RGBA "+std::to_string(fire.logical_bytes)+" B | draws "+std::to_string(fire.draws):
+            "Fire visual: Fallback - "+fire.fallback_reason;
+        if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,fire_line,
+                       layout_.map.w-16*layout_.scale)) return false;
+        debug_row+=14;
         if (simulation::population_profile(rules_)) {
             std::string staffing="Staffing order:";
             for (const auto& b:world_->buildings()) {
@@ -3328,6 +3445,8 @@ bool SandboxView::draw_hud() {
             " | Roads: "+debug_source(road_source_);
         if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,visual_line,
                        layout_.map.w-16*layout_.scale)) return false;
+        debug_row+=14;
+
     }
     return true;
 }

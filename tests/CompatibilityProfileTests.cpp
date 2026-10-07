@@ -43,6 +43,90 @@ void pack(const fs::path& resources,nlohmann::json files=fingerprints) {
 void data(const fs::path& root) {
     write(root/"files/A","a");write(root/"files/B","b");write(root/"files/C","c");
 }
+const nlohmann::json fire_fingerprints={
+    {{"path","files/D"},{"sha256","18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4"}},
+    {{"path","files/E"},{"sha256","3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"}}
+};
+void fire_pack(const fs::path& resources,nlohmann::json optional={}) {
+    pack(resources);
+    const auto root=resources/"Compatibility/test-pack";
+    std::ifstream input(root/"manifest.json");
+    auto document=nlohmann::json::parse(input);
+    document["optional_fire"]=optional.empty() ? nlohmann::json{
+        {"profile","fire.json"},{"files",fire_fingerprints}}:std::move(optional);
+    write(root/"manifest.json",document.dump());
+    write(root/"fire.json","{}");
+}
+void validate_optional_fire() {
+    Temp temp;const auto resources=temp.path/"resources",root=temp.path/"data";
+    data(root);write(root/"files/D","d");write(root/"files/E","e");fire_pack(resources);
+    const auto detect=[&] { return openemperor::assets::detect_compatibility(root,resources/"Compatibility"); };
+    const auto core_preserved=[&](const auto& result) {
+        check(result.compatible() && result.files_hashed==3,"optional fire changed core compatibility");
+        const auto selected=openemperor::select_visual_profiles(result);
+        check(selected.walker_source==openemperor::VisualProfileSource::Builtin &&
+              selected.building_source==openemperor::VisualProfileSource::Builtin &&
+              selected.road_source==openemperor::VisualProfileSource::Builtin,
+              "optional fire disabled existing categories");
+    };
+    auto exact=detect();core_preserved(exact);
+    check(exact.fire_compatible() && exact.fire_files_hashed==2,
+          "optional fire pair not independently fingerprinted");
+    auto selected=openemperor::select_visual_profiles(exact);
+    check(selected.fire_source==openemperor::VisualProfileSource::Builtin &&
+          selected.fire==exact.profile->fire_profile && selected.fire_fallback_reason.empty(),
+          "matching optional fire not automatically selected");
+    const auto detection_before=openemperor::assets::compatibility_detection_count();
+    for (int i=0;i<1000;++i) (void)openemperor::select_visual_profiles(exact);
+    check(openemperor::assets::compatibility_detection_count()==detection_before,
+          "fire frame selection rehashed source files");
+    for (const char* missing:{"D","E"}) {
+        fs::remove(root/"files"/missing);const auto result=detect();core_preserved(result);
+        check(!result.fire_compatible() && result.fire_status==openemperor::assets::CompatibilityStatus::MissingFile,
+              "missing optional fire file did not produce independent fallback");
+        selected=openemperor::select_visual_profiles(result);
+        check(selected.fire.empty() && selected.fire_source==openemperor::VisualProfileSource::Fallback &&
+              !selected.fire_fallback_reason.empty(),"optional missing-file fallback is not named");
+        write(root/"files"/missing,std::string(missing==std::string("D") ? "d":"e"));
+    }
+    write(root/"files/E","changed");auto changed=detect();core_preserved(changed);
+    check(changed.fire_status==openemperor::assets::CompatibilityStatus::FingerprintMismatch &&
+          changed.fire_files_hashed==2,"second optional file was inferred from first fingerprint");
+    write(root/"files/E","e");
+    fs::remove(root/"files/E");write(temp.path/"outside","e");
+    std::error_code symlink_error;fs::create_symlink(temp.path/"outside",root/"files/E",symlink_error);
+    if (!symlink_error) {
+        const auto unsafe=detect();core_preserved(unsafe);
+        check(!unsafe.fire_compatible(),"optional fire symlink accepted");
+    }
+    fs::remove(root/"files/E");write(root/"files/E","e");
+    const auto malformed=[&](nlohmann::json optional) {
+        fire_pack(resources,std::move(optional));const auto result=detect();core_preserved(result);
+        check(!result.fire_compatible() && !result.profile->fire_metadata_error.empty(),
+              "malformed optional metadata did not preserve core with named fallback");
+    };
+    malformed({{"profile","../fire.json"},{"files",fire_fingerprints}});
+    malformed({{"profile","fire.json"},{"files",nlohmann::json::array()}});
+    auto unsafe_files=fire_fingerprints;unsafe_files[0]["path"]="../outside";
+    malformed({{"profile","fire.json"},{"files",unsafe_files}});
+    auto bad_hash=fire_fingerprints;bad_hash[0]["sha256"]="not-a-hash";
+    malformed({{"profile","fire.json"},{"files",bad_hash}});
+    auto duplicates=fire_fingerprints;duplicates.push_back(duplicates[0]);
+    malformed({{"profile","fire.json"},{"files",duplicates}});
+    auto too_many=fire_fingerprints;for(int i=0;i<3;++i)too_many.push_back(fire_fingerprints[0]);
+    malformed({{"profile","fire.json"},{"files",too_many}});
+    fire_pack(resources);fs::remove(resources/"Compatibility/test-pack/fire.json");
+    const auto missing_resource=detect();core_preserved(missing_resource);
+    check(!missing_resource.fire_compatible() && !missing_resource.fire_detail.empty(),
+          "missing fire metadata resource rejected the existing pack");
+    fire_pack(resources);write(root/"files/C","different");
+    const auto unknown=detect();check(!unknown.compatible() && !unknown.fire_compatible(),
+        "unknown core revision inferred compatibility from optional assets");
+    check(openemperor::select_visual_profiles(unknown).fire.empty(),"unknown data activated fire");
+    pack(resources);write(root/"files/C","c");const auto legacy=detect();core_preserved(legacy);
+    check(!legacy.fire_compatible() && openemperor::select_visual_profiles(legacy).fire.empty(),
+          "legacy compatibility pack changed its optional-fire default");
+}
 bool safe_relative(const fs::path& path) {
     if (path.empty() || path.is_absolute()) return false;
     for (const auto& part:path) if (part==".." || part==".") return false;
@@ -163,6 +247,26 @@ void validate_committed_pack(const fs::path& resource_root) {
         reject_blob_keys(*document);validate_archive_entries(*document,archives);
     }
     check(archives==77,"built-in profile archive entry count changed");
+    const std::map<std::string,std::string> expected_fire_files={
+        {"DATA/destruction.sg3","f5539108b6d585b31fc6f807e4da10f4ac796ee805f0bf065379923f821d035b"},
+        {"DATA/destruction.555","0668087731938c626fe01211cc02e102c93022e728e9ea649eb9ed9322cf1a94"}};
+    check(profile.fire_files.size()==2 && profile.fire_metadata_error.empty(),
+          "committed optional fire identity is incomplete");
+    for(const auto& item:profile.fire_files)
+        check(expected_fire_files.at(item.relative_path.generic_string())==item.sha256,
+              "optional fire source hash changed");
+    std::ifstream fire_stream(profile.fire_profile);const auto fire=nlohmann::json::parse(fire_stream);
+    reject_blob_keys(fire);std::size_t fire_archives=0;validate_archive_entries(fire,fire_archives);
+    check(fire.value("schema_version",0)==1 && fire.value("mode","")=="curated_fire_presentation" &&
+          fire.value("ticks_per_frame",0)==2 && fire.at("frames").size()==50 && fire_archives==50,
+          "committed fire clip bounds or timing changed");
+    for(std::uint32_t i=0;i<50;++i) {
+        const auto& frame=fire.at("frames").at(i);
+        check(frame.at("archive")=="DATA/destruction.sg3" &&
+              frame.at("image_index").get<std::uint32_t>()==201+i &&
+              frame.at("anchor").get<std::array<int,2>>()==std::array<int,2>{40,80},
+              "committed fire explicit physical frame order or authored anchor changed");
+    }
 }
 }
 
@@ -209,6 +313,7 @@ int main(int argc,char* argv[]) {
         check(openemperor::assets::compatibility_detection_count()==before,
               "visual/frame selection recomputed fingerprints");
         validate_committed_pack(fs::canonical(argv[1]));
+        validate_optional_fire();
         std::cout<<"compatibility fingerprint, atomic selection and metadata checks passed\n";
         return 0;
     } catch (const std::exception& error) {

@@ -14,9 +14,12 @@ struct VisualSelection {
     std::filesystem::path walker;
     std::filesystem::path building;
     std::filesystem::path road;
+    std::filesystem::path fire;
     VisualProfileSource walker_source = VisualProfileSource::Fallback;
     VisualProfileSource building_source = VisualProfileSource::Fallback;
     VisualProfileSource road_source = VisualProfileSource::Fallback;
+    VisualProfileSource fire_source = VisualProfileSource::Fallback;
+    std::string fire_fallback_reason;
 };
 
 VisualSelection select_visual_profiles(const assets::CompatibilityResult& compatibility,

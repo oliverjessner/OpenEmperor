@@ -26,6 +26,11 @@ struct CompatibilityProfile {
     std::filesystem::path walker_profile;
     std::filesystem::path building_profile;
     std::filesystem::path road_profile;
+    // Independently fingerprinted optional presentation. Failure never changes
+    // the existing walker/building/road compatibility contract.
+    std::filesystem::path fire_profile;
+    std::vector<CompatibilityFingerprint> fire_files;
+    std::string fire_metadata_error;
 };
 
 struct CompatibilityResult {
@@ -34,6 +39,13 @@ struct CompatibilityResult {
     std::size_t files_hashed = 0;
     std::string detail;
     bool compatible() const { return status == CompatibilityStatus::Compatible && profile.has_value(); }
+    CompatibilityStatus fire_status = CompatibilityStatus::Unknown;
+    std::size_t fire_files_hashed = 0;
+    std::string fire_detail = "optional fire animation is not declared";
+    bool fire_compatible() const {
+        return compatible() && fire_status == CompatibilityStatus::Compatible &&
+            !profile->fire_profile.empty();
+    }
 };
 
 CompatibilityProfile load_compatibility_profile(const std::filesystem::path& manifest);

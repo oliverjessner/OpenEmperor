@@ -2,6 +2,7 @@
 """Strict structural verifier for the local OpenEmperor developer bundle."""
 import argparse
 import json
+import math
 import os
 import plistlib
 import subprocess
@@ -12,7 +13,7 @@ SYSTEM_PREFIXES = ("/usr/lib/", "/System/Library/")
 RESOURCE_FILES = {"BuildInfo.json", "LICENSE-SDL.txt", "LICENSE-OpenSSL.txt",
                   "LICENSE-nlohmann-json.txt"}
 COMPATIBILITY_ID = "gog-derived-2.0.0.2-en-assetset-1"
-COMPATIBILITY_FILES = {"manifest.json", "walkers.json", "buildings.json", "roads.json"}
+COMPATIBILITY_FILES = {"manifest.json", "walkers.json", "buildings.json", "roads.json", "fire.json"}
 FORBIDDEN_COMPATIBILITY_SUFFIXES = {".sg3", ".555", ".map", ".pak", ".exe", ".png",
                                     ".jpg", ".jpeg", ".bmp", ".rgba", ".raw"}
 MAX_COMPATIBILITY_JSON_BYTES = 256 * 1024
@@ -41,7 +42,7 @@ def validate_compatibility_json(path):
         elif isinstance(value, list):
             for child in value:
                 visit(child, key)
-        elif isinstance(value, str) and key in {"path", "archive", "walker", "building", "road"}:
+        elif isinstance(value, str) and key in {"path", "archive", "walker", "building", "road", "profile"}:
             candidate = Path(value)
             if candidate.is_absolute() or ".." in candidate.parts or "." in candidate.parts or "\\" in value:
                 raise ValueError("unsafe path in compatibility JSON: " + value)
@@ -120,6 +121,41 @@ def verify(app, signature=True, required_arch="arm64"):
                                           "building": "buildings.json",
                                           "road": "roads.json"}):
         raise ValueError("compatibility manifest identity or profile allowlist changed")
+    optional_fire = manifest.get("optional_fire")
+    if (not isinstance(optional_fire, dict) or
+            set(optional_fire) != {"profile", "files"} or
+            optional_fire.get("profile") != "fire.json" or
+            not isinstance(optional_fire.get("files"), list) or
+            len(optional_fire["files"]) != 2):
+        raise ValueError("optional fire compatibility metadata is incomplete")
+    fire_paths = set()
+    for item in optional_fire["files"]:
+        if (not isinstance(item, dict) or set(item) != {"path", "sha256"} or
+                not isinstance(item.get("path"), str) or
+                not isinstance(item.get("sha256"), str) or
+                len(item["sha256"]) != 64 or
+                any(c not in "0123456789abcdef" for c in item["sha256"])):
+            raise ValueError("optional fire fingerprint is malformed")
+        fire_paths.add(item["path"])
+    if fire_paths != {"DATA/destruction.sg3", "DATA/destruction.555"}:
+        raise ValueError("optional fire source-file set changed")
+    fire = compatibility_documents["fire.json"]
+    if (not isinstance(fire, dict) or fire.get("schema_version") != 1 or
+            fire.get("mode") != "curated_fire_presentation" or
+            not isinstance(fire.get("clip_id"), str) or not fire["clip_id"] or
+            not isinstance(fire.get("evidence"), str) or not fire["evidence"] or
+            type(fire.get("ticks_per_frame")) is not int or
+            fire["ticks_per_frame"] != 2 or
+            not isinstance(fire.get("frames"), list) or len(fire["frames"]) != 50):
+        raise ValueError("fire clip metadata is malformed or unbounded")
+    for number, frame in enumerate(fire["frames"]):
+        if (not isinstance(frame, dict) or frame.get("archive") != "DATA/destruction.sg3" or
+                type(frame.get("image_index")) is not int or
+                frame["image_index"] != 201 + number or
+                not isinstance(frame.get("anchor"), list) or len(frame["anchor"]) != 2 or
+                not all(type(v) in (int, float) and math.isfinite(v) and abs(v) <= 256
+                        for v in frame["anchor"]) or frame["anchor"] != [40, 80]):
+            raise ValueError("fire frame metadata is malformed")
     build_info_path = contents / "Resources" / "BuildInfo.json"
     try:
         build_info = json.loads(build_info_path.read_text())

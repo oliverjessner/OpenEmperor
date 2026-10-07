@@ -14,6 +14,7 @@
 #include "renderer/WalkerSpriteSet.h"
 #include "renderer/BuildingSprite.h"
 #include "renderer/RoadSpriteSet.h"
+#include "renderer/FireSpriteSet.h"
 #include "scene/WorldDrawOrder.h"
 
 #include <memory>
@@ -111,6 +112,19 @@ public:
                               VisualProfileSource source=VisualProfileSource::Custom);
     void set_road_visuals(const std::filesystem::path& manifest,
                           VisualProfileSource source=VisualProfileSource::Custom);
+    // Optional presentation; an incomplete clip selects the complete marker fallback.
+    void set_fire_visuals(const std::filesystem::path& manifest,
+                         VisualProfileSource source=VisualProfileSource::Builtin,
+                         std::string fallback_reason={});
+    struct FireDisplayStats {
+        bool animated=false;
+        std::string clip_id,fallback_reason;
+        std::size_t frames=0,unique_assets=0,texture_uploads=0;
+        std::uint64_t logical_bytes=0,draws=0,fallback_draws=0;
+        std::array<bool,assets::fire_frame_limit> frames_drawn{};
+    };
+    FireDisplayStats fire_display_stats() const;
+    std::optional<std::size_t> fire_frame_for(simulation::BuildingId id) const;
     void set_compatibility(std::string id) { compatibility_id_=std::move(id); }
     VisualProfileSource walker_visual_source() const { return walker_source_; }
     VisualProfileSource building_visual_source() const { return building_source_; }
@@ -232,7 +246,9 @@ private:
     std::vector<simulation::BuildingId> placed_buildings() const;
     scene::Point world_for(simulation::Position cell) const;
     scene::Point building_visual_ground(simulation::Cell origin,
-                                        simulation::Object kind) const;
+                                                  simulation::Object kind) const;
+    std::uint64_t fire_remaining_texture_bytes() const;
+    void enforce_fire_texture_budget();
     maps::MapGeometry geometry_;
     StoredGraphicsRenderer background_;
     std::unique_ptr<simulation::World> world_;
@@ -313,6 +329,13 @@ private:
     VisualProfileSource road_source_=VisualProfileSource::Fallback;
     std::optional<assets::RoadVisualProfile> road_profile_;
     std::unique_ptr<RoadSpriteSet> road_sprites_;
+    std::filesystem::path fire_manifest_;
+    VisualProfileSource fire_source_=VisualProfileSource::Fallback;
+    std::optional<assets::FireVisualProfile> fire_profile_;
+    std::unique_ptr<FireSpriteSet> fire_sprites_;
+    std::string fire_fallback_reason_="No fire clip selected";
+    std::array<bool,assets::fire_frame_limit> fire_frames_drawn_{};
+    std::uint64_t fire_draws_=0,fire_fallback_draws_=0;
     bool road_enabled_=true;
     std::array<bool,16> road_masks_seen_{};
     std::uint64_t road_draws_=0,road_fallbacks_current_=0;

@@ -17,12 +17,20 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
                                        const std::filesystem::path& custom_road) {
     VisualSelection result;
     result.compatibility = compatibility;
+    result.fire_fallback_reason=compatibility.compatible() ? compatibility.fire_detail:
+        compatibility.detail.empty() ? "unsupported original data revision":
+        "unsupported original data: "+compatibility.detail;
     if (compatibility.compatible()) {
         result.walker = compatibility.profile->walker_profile;
         result.building = compatibility.profile->building_profile;
         result.road = compatibility.profile->road_profile;
         result.walker_source = result.building_source = result.road_source =
             VisualProfileSource::Builtin;
+        if (compatibility.fire_compatible()) {
+            result.fire=compatibility.profile->fire_profile;
+            result.fire_source=VisualProfileSource::Builtin;
+            result.fire_fallback_reason.clear();
+        }
     }
     if (!custom_walker.empty()) {
         result.walker = custom_walker;

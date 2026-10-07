@@ -1,0 +1,409 @@
+{
+  "schema_version": 1,
+  "mode": "curated_fire_presentation",
+  "clip_id": "original-destruction-fire1",
+  "evidence": "Original destruction fire1 registration and bounded linear frame sequence, physical records 201 through 250; all 50 frames decoded and reviewed as a coherent flame clip. Two ticks per frame, stable visual phase offset and the common [40,80] attachment are OpenEmperor-authored presentation, not verified original timing or positioning.",
+  "ticks_per_frame": 2,
+  "frames": [
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 201,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 202,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 203,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 204,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 205,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 206,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 207,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 208,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 209,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 210,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 211,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 212,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 213,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 214,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 215,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 216,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 217,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 218,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 219,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 220,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 221,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 222,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 223,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 224,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 225,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 226,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 227,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 228,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 229,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 230,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 231,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 232,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 233,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 234,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 235,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 236,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 237,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 238,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 239,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 240,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 241,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 242,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 243,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 244,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 245,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 246,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 247,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 248,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 249,
+      "anchor": [
+        40,
+        80
+      ]
+    },
+    {
+      "archive": "DATA/destruction.sg3",
+      "image_index": 250,
+      "anchor": [
+        40,
+        80
+      ]
+    }
+  ]
+}

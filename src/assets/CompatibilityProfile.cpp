@@ -19,6 +19,7 @@ namespace {
 constexpr std::uintmax_t max_manifest_bytes = 64U * 1024U;
 constexpr std::size_t max_profiles = 16;
 constexpr std::size_t max_fingerprints = 64;
+constexpr std::size_t max_fire_fingerprints = 4;
 std::atomic<std::uint64_t> detection_count{0};
 
 bool safe_relative(const fs::path& path) {
@@ -168,6 +169,37 @@ CompatibilityProfile load_compatibility_profile(const fs::path& manifest) {
     result.walker_profile = resolve("walker");
     result.building_profile = resolve("building");
     result.road_profile = resolve("road");
+    if (document.contains("optional_fire")) {
+        try {
+            const auto& fire=document.at("optional_fire");
+            if (!fire.is_object() || !fire.contains("files") ||
+                !fire.at("files").is_array() || fire.at("files").empty() ||
+                fire.at("files").size()>max_fire_fingerprints)
+                throw std::runtime_error("invalid optional fire fingerprint list");
+            const auto relative=required_relative(fire,"profile");
+            const auto fire_profile=checked_file(result.pack_root,relative);
+            if (!fire_profile)
+                throw std::runtime_error("optional fire metadata resource is missing or unsafe");
+            std::vector<CompatibilityFingerprint> fire_files;
+            for (const auto& entry:fire.at("files")) {
+                if (!entry.is_object())
+                    throw std::runtime_error("optional fire fingerprint is not an object");
+                CompatibilityFingerprint fingerprint;
+                fingerprint.relative_path=required_relative(entry,"path");
+                fingerprint.sha256=required_string(entry,"sha256");
+                if (!sha256_text(fingerprint.sha256))
+                    throw std::runtime_error("optional fire fingerprint is not lowercase SHA-256");
+                if (std::any_of(fire_files.begin(),fire_files.end(),[&](const auto& existing) {
+                    return existing.relative_path==fingerprint.relative_path;
+                })) throw std::runtime_error("optional fire fingerprint path is duplicated");
+                fire_files.push_back(std::move(fingerprint));
+            }
+            result.fire_profile=*fire_profile;
+            result.fire_files=std::move(fire_files);
+        } catch (const std::exception& exception) {
+            result.fire_metadata_error=std::string("optional fire metadata invalid: ")+exception.what();
+        }
+    }
     return result;
 }
 
@@ -242,8 +274,42 @@ CompatibilityResult detect_compatibility(const fs::path& data_root,
         }
         fallback.files_hashed = std::max(fallback.files_hashed, hashed);
         if (!missing && !unsafe && !mismatch) {
-            return {CompatibilityStatus::Compatible, std::move(profile), hashed,
-                    "Compatible original data detected"};
+            CompatibilityResult result{CompatibilityStatus::Compatible,std::move(profile),hashed,
+                "Compatible original data detected"};
+            const auto& fire=*result.profile;
+            if (!fire.fire_metadata_error.empty()) {
+                result.fire_detail=fire.fire_metadata_error;
+            } else if (!fire.fire_profile.empty()) {
+                result.fire_status=CompatibilityStatus::Compatible;
+                result.fire_detail="independently fingerprinted original fire animation detected";
+                try {
+                    for (const auto& expected:fire.fire_files) {
+                        const auto candidate=checked_file(root,expected.relative_path);
+                        if (!candidate) {
+                            std::error_code exists_error;
+                            const bool absent=!fs::exists(root/expected.relative_path,exists_error) &&
+                                !exists_error;
+                            result.fire_status=absent ? CompatibilityStatus::MissingFile:
+                                CompatibilityStatus::FingerprintMismatch;
+                            result.fire_detail="optional fire file missing or unsafe: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                        ++result.fire_files_hashed;
+                        if (sha256_file(*candidate)!=expected.sha256) {
+                            result.fire_status=CompatibilityStatus::FingerprintMismatch;
+                            result.fire_detail="optional fire fingerprint mismatch: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                    }
+                } catch (const std::exception& exception) {
+                    result.fire_status=CompatibilityStatus::Unknown;
+                    result.fire_detail=std::string("optional fire input could not be checked: ")+
+                        exception.what();
+                }
+            }
+            return result;
         }
         fallback.profile.reset();
         fallback.status = missing ? CompatibilityStatus::MissingFile :

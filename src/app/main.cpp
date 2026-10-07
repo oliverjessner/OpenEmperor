@@ -506,6 +506,7 @@ int main(int argc, char* argv[]) {
                 sandbox_view->set_building_visuals(visuals.building,visuals.building_source);
             if (!visuals.road.empty())
                 sandbox_view->set_road_visuals(visuals.road,visuals.road_source);
+            sandbox_view->set_fire_visuals(visuals.fire,visuals.fire_source,visuals.fire_fallback_reason);
             std::cout << "Sandbox: " << sandbox_path.generic_string()
                       << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
                       << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"

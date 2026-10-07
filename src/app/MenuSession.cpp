@@ -249,6 +249,7 @@ void MenuSession::finish_loading() {
         if (!visuals.walker.empty()) view->set_walker_visuals(visuals.walker,visuals.walker_source);
         if (!visuals.building.empty()) view->set_building_visuals(visuals.building,visuals.building_source);
         if (!visuals.road.empty()) view->set_road_visuals(visuals.road,visuals.road_source);
+        view->set_fire_visuals(visuals.fire,visuals.fire_source,visuals.fire_fallback_reason);
         view->initialize(window_,renderer_);
         if (starting_map_check_ && !document &&
             view->capture_save_document().map_sha256!=starting_map_check_->input_sha256)
