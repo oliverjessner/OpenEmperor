@@ -420,6 +420,18 @@ AnimatedGeometry animated_geometry(const openemperor::SandboxView& view,simulati
     return {{ground.x,ground.y-(20.0*(side-1)+rise)*view.camera().zoom},
             view.camera().zoom*(side==1 ? .75:1.0)};
 }
+void zoom_to_animated(openemperor::SandboxView& view,simulation::BuildingId house,double target) {
+    const auto geometry=animated_geometry(view,house);
+    SDL_Event event{};event.type=SDL_EVENT_MOUSE_WHEEL;
+    // Keep the independently authored attachment fixed vertically. Zooming
+    // around the old triangle's lower pivot clipped every opaque witness at 4x
+    // when the income header reduced the map aperture.
+    event.wheel.mouse_x=static_cast<float>(geometry.attachment.x+60*view.camera().zoom);
+    event.wheel.mouse_y=static_cast<float>(geometry.attachment.y);
+    event.wheel.y=static_cast<float>(std::log(target/view.camera().zoom)/std::log(1.15));
+    bool running=true;view.handle_event(event,running);
+    check(std::abs(view.camera().zoom-target)<.00001,"actual SDL wheel animated zoom target");
+}
 Pixel image_pixel(const openemperor::assets::RgbaImage& image,int x,int y) {
     const auto at=(static_cast<std::size_t>(y)*image.width+static_cast<std::size_t>(x))*4U;
     return {image.pixels.at(at),image.pixels.at(at+1),image.pixels.at(at+2),image.pixels.at(at+3)};
@@ -430,7 +442,7 @@ void verify_animated_pixels(SDL_Surface* frame,const openemperor::SandboxView& v
     if (!selected) throw std::runtime_error("prepared clip did not select frame: "+view.fire_display_stats().fallback_reason);
     const auto& entry=profile.frames.at(*selected);const auto& image=profile.unique_images.at(entry.image_index);
     const auto geometry=animated_geometry(view,id,house_metadata);const auto& map=view.layout().map;
-    int matches=0;
+    int matches=0,in_map_witnesses=0;
     // Source witnesses have a uniform 3x3 interior, so fractional nearest
     // rasterization cannot turn a border rounding difference into a failure.
     for (int y=1;y+1<image.height;y+=3) for (int x=1;x+1<image.width;x+=3) {
@@ -442,8 +454,10 @@ void verify_animated_pixels(SDL_Surface* frame,const openemperor::SandboxView& v
         const int px=static_cast<int>(std::floor(geometry.attachment.x+(x+.5-entry.anchor_x)*geometry.scale));
         const int py=static_cast<int>(std::floor(geometry.attachment.y+(y+.5-entry.anchor_y)*geometry.scale));
         if (!map.contains(px,py)) continue;
+        ++in_map_witnesses;
         if (pixel(frame,px,py)==source) ++matches;
     }
+    check(in_map_witnesses>=3,"animated test fixture clipped its opaque pixel witnesses");
     check(matches>=3,"actual Sandbox did not render the selected prepared flame texture");
 }
 bool same_effect_region(SDL_Surface* first,SDL_Surface* second,const AnimatedGeometry& geometry,
@@ -533,7 +547,7 @@ void animated_checks(SDL_Window* window,SDL_Renderer* renderer) {
         for (const bool diagnostics:{false,true}) {
             if (diagnostics) {view.handle_event(key(SDLK_F1),running);clear.handle_event(key(SDLK_F1),running);}
             for (const double zoom:{1.0,1.15,2.0,4.0,1.0}) {
-                zoom_to(view,house,zoom);zoom_to(clear,house,zoom);
+                zoom_to_animated(view,house,zoom);zoom_to_animated(clear,house,zoom);
                 render_no_work(view);auto pixels=read_frame(renderer);check(bool(pixels),"zoom animated pixels");
                 verify_animated_pixels(pixels.get(),view,house,profile);
                 check(view.fire_display_stats().fallback_draws==0 && view.world().snapshot()==authoritative,

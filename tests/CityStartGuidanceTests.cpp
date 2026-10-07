@@ -1,8 +1,10 @@
 #include "simulation/CityStartGuidance.h"
+#include "core/PerformanceDiagnostics.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <climits>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -503,6 +505,346 @@ void exhausted_house_limit_is_explicit() {
         "exhausted House limit falsely cleared an impossible workforce completion");
 }
 
+sim::World guidance_world(sim::RulesProfile profile=sim::RulesProfile::CityV16,
+                          std::uint32_t version=1) {
+    return {48,24,std::vector<std::uint8_t>(48*24,1),profile,version};
+}
+
+sim::BuildingId building_kind(const sim::World& world,sim::Object kind) {
+    for (const auto& b:world.buildings()) if (b.placed && b.kind==kind) return b.id;
+    throw std::runtime_error("missing fixture building");
+}
+
+const sim::StarterFacilityInstance& instance(const sim::CityStartGuidance& status,
+                                             sim::BuildingId id) {
+    const auto found=std::ranges::find(status.facility_instances,id,
+        &sim::StarterFacilityInstance::id);
+    require(found!=status.facility_instances.end(),"missing concrete facility ID");
+    return *found;
+}
+
+const sim::HouseholdStartStatus& household(const sim::CityStartGuidance& status,
+                                           sim::BuildingId id) {
+    const auto found=std::ranges::find(status.households,id,&sim::HouseholdStartStatus::id);
+    require(found!=status.households.end(),"missing concrete House ID");
+    return *found;
+}
+
+sim::BuildingSnapshot& snapshot_home(sim::WorldSnapshot& snapshot,sim::BuildingId id) {
+    const auto found=std::ranges::find(snapshot.buildings,id,&sim::BuildingSnapshot::id);
+    require(found!=snapshot.buildings.end(),"missing fixture snapshot building");
+    return *found;
+}
+
+sim::World paid_guidance_starter(sim::RulesProfile profile=sim::RulesProfile::CityV16) {
+    auto world=guidance_world(profile);
+    put(world,sim::CommandType::PlaceClaySource,0,2);
+    put(world,sim::CommandType::PlacePottery,0,5);
+    put(world,sim::CommandType::PlaceWarehouse,3,2);
+    put(world,sim::CommandType::PlaceFarm,4,5);
+    put(world,sim::CommandType::PlaceMarket,3,5);
+    put(world,sim::CommandType::PlaceServicePost,5,5);
+    for (int x=0;x<=14;++x) put(world,sim::CommandType::PlaceRoad,x,4);
+    for (const auto p:{sim::Cell{6,2},sim::Cell{6,5},sim::Cell{9,2},sim::Cell{9,5}})
+        put(world,sim::CommandType::PlaceHousehold,p.x,p.y);
+    if (sim::fire_profile(profile)) put(world,sim::CommandType::PlaceFireWatch,14,5);
+    return world;
+}
+
+void corresponding_failed_city_and_staffing() {
+    // Independently authored valid city, not a reconstruction of Oliver's save.
+    // Its initial population is 18, rather than the screenshot's reported 16.
+    auto world=guidance_world();
+    put(world,sim::CommandType::PlaceClaySource,0,2);
+    put(world,sim::CommandType::PlacePottery,0,5);
+    put(world,sim::CommandType::PlaceWarehouse,3,2);
+    put(world,sim::CommandType::PlaceMarket,3,5);
+    put(world,sim::CommandType::PlaceFireWatch,14,5);
+    put(world,sim::CommandType::PlaceWell,11,3);
+    put(world,sim::CommandType::PlaceFarm,4,5);
+    for (const auto p:{sim::Cell{6,2},sim::Cell{6,5},sim::Cell{9,2}})
+        put(world,sim::CommandType::PlaceHousehold,p.x,p.y);
+    for (int x=0;x<48;++x) put(world,sim::CommandType::PlaceRoad,x,16);
+    for (int x=0;x<24;++x) put(world,sim::CommandType::PlaceRoad,x,17);
+    const auto before=world.snapshot();
+    const auto farm=building_kind(world,sim::Object::Farm);
+    const auto status=sim::inspect_city_start(world);
+    require(world.treasury()==26 && world.construction_spent_total()==1274 &&
+            status.funds_current==26 && status.taxes_received_total==0 &&
+            status.missing_supply_buildings==std::vector{sim::Object::ServicePost} &&
+            status.missing_supply_costs.size()==1 &&
+            status.missing_supply_costs[0].kind==sim::Object::ServicePost &&
+            status.missing_supply_costs[0].cost==100 &&
+            status.missing_building_funds_gap==74,
+        "corresponding failed city lost its exact Service-only 74-Funds gap");
+    require(status.workforce_supply==18 && status.workforce_used==18 &&
+            status.workforce_active_demand==22 && status.workforce_installed_demand==22 &&
+            status.workforce_required_for_starter==24 && status.houses_needed_for_shortfall==1 &&
+            status.minimum_house_funds_for_starter==80 && status.construction_funds_gap==154 &&
+            instance(status,farm).workers_assigned==0 && instance(status,farm).workers_required==4 &&
+            instance(status,farm).condition==sim::StarterSupplyCondition::Unstaffed,
+        "current allocation and simultaneous-full-staffing estimate were conflated");
+    require(status.households_ready_now==0 && status.households_missing_service==3 &&
+            status.households_missing_food==3 && status.households_missing_pottery==3 &&
+            status.maintenance.installed_rate==46 && status.maintenance.next_bill_tick==400 &&
+            status.maintenance.next_bill_cost==46 && status.maintenance.interval_cost==46 &&
+            status.maintenance.funds_after_interval==-20 && world.snapshot()==before,
+        "failed-city supply/upkeep diagnosis mutated or misreported current facts");
+    const auto priority=world.execute(sim::set_building_workforce_priority(
+        farm,sim::WorkforcePriority::High));
+    require(priority.accepted,"ordinary Farm priority command rejected");
+    const auto changed=sim::inspect_city_start(world);
+    require(instance(changed,farm).workers_assigned==4 &&
+            std::ranges::any_of(changed.facility_instances,[&](const auto& f) {
+                return f.id!=farm && f.condition==sim::StarterSupplyCondition::Unstaffed;
+            }) && changed.workforce_supply==18 && changed.workforce_active_demand==22,
+        "priority shift was falsely described as creating enough workers for every facility");
+    std::cout<<"Corresponding synthetic failed city: population18 (screenshot16), Funds26, "
+        "Farm0/4, demand22/full starter24, Service100/gap74, upkeep46/400t\n";
+}
+
+void infrastructure_is_not_delivered_supply() {
+    auto world=paid_guidance_starter();
+    const auto before=world.snapshot();
+    const auto status=sim::inspect_city_start(world);
+    require(status.complete_supply_chain && status.missing_supply_buildings.empty() &&
+            status.households.size()==4 && status.households_ready_now==0 &&
+            status.households_missing_food==4 && status.households_missing_pottery==4 &&
+            status.households_missing_service==4 && status.workforce_used==24,
+        "complete paid infrastructure was claimed to prove actual House supply");
+    for (const auto& home:status.households)
+        require(!home.demand_ready_now && home.demand_ticks_remaining==400 &&
+                home.last_demand_status==0 && home.taxes_contributed==0,
+            "new House was granted delivered goods, a tax or elapsed demand");
+    require(status.maintenance.funds_after_interval==-28 &&
+            !sim::starter_budget_warning_for_road_purchase(world,2) && world.snapshot()==before,
+        "advisory upkeep turned the legitimate 20-Funds starter into a mandatory warning");
+    // Query and road-price projections remain bounded reads at every iteration.
+    namespace perf=openemperor::performance;
+    perf::reset();perf::set_enabled(true);
+    for (int i=0;i<100;++i) {
+        (void)sim::inspect_city_start(world);
+        (void)world.maintenance_projection();
+        (void)sim::starter_budget_warning_for_road_purchase(world,2);
+    }
+    for (std::size_t i=0;i<static_cast<std::size_t>(perf::Counter::Count);++i)
+        require(perf::counter(static_cast<perf::Counter>(i))==0,
+            "read-only guidance/road query performed "+std::string(perf::counter_names[i]));
+    perf::set_enabled(false);
+    require(world.snapshot()==before,"repeated diagnosis changed the prepared starter");
+    while (world.ticks()<399) world.tick();
+    require(world.taxes_collected_total()==0 && world.maintenance_spent_total()==0 &&
+            world.treasury()==20,"read-only guidance advanced or funded the starter");
+    world.tick();
+    require(world.taxes_collected_total()==75 && world.maintenance_spent_total()==48 &&
+            world.treasury()==47,"ordinary tick400 tax-before-upkeep cash flow changed");
+    while (world.ticks()<800) world.tick();
+    require(world.taxes_collected_total()==175 && world.maintenance_spent_total()==96 &&
+            world.treasury()==99,"ordinary tick800 cash flow changed");
+    std::cout<<"Paid synthetic starter unchanged: 1280/1300,24/24,tax400=75/upkeep48/Funds47, "
+        "taxes800=175/upkeep96/Funds99; 100 reads all12 counters zero\n";
+}
+
+void removed_service_retains_current_supply_and_history() {
+    auto world=paid_guidance_starter();
+    while (world.ticks()<799) world.tick();
+    const auto post=building_kind(world,sim::Object::ServicePost);
+    for (const auto& b:world.buildings()) if (sim::World::operation_controllable(b.kind))
+        require(world.execute(sim::set_building_operation(b.id,false)).accepted,
+            "pause before safe service demolition rejected");
+    const auto limit=world.ticks()+600;
+    while (!world.demolition_status(post).allowed && world.ticks()<limit) world.tick();
+    require(world.demolition_status(post).allowed,"ordinary service trip did not return");
+    std::optional<sim::BuildingId> ready;
+    for (const auto& b:world.buildings()) if (b.kind==sim::Object::Household &&
+        world.household_demand_status(b.id).ready) { ready=b.id;break; }
+    require(ready.has_value(),"natural retained-goods service fixture has no supplied House");
+    const auto coverage=world.building(*ready).service_until_tick;
+    const auto funds=world.treasury();
+    require(world.execute(sim::demolish_building(post)).accepted &&
+            world.treasury()==funds && world.building(*ready).service_until_tick==coverage,
+        "safe demolition refunded Funds or removed existing service coverage");
+    const auto status=sim::inspect_city_start(world);
+    require(status.taxes_have_been_collected && status.taxes_received_total>0 &&
+            status.missing_supply_buildings==std::vector{sim::Object::ServicePost} &&
+            !status.complete_supply_chain && household(status,*ready).demand_ready_now &&
+            household(status,*ready).service_ticks_remaining==coverage-world.ticks() &&
+            household(status,*ready).taxes_contributed>0,
+        "missing Service Post incorrectly erased retained supply or actual tax history");
+    const auto tax_before=world.building(*ready).taxes_paid_total;
+    const auto remaining=400-world.building(*ready).demand_progress;
+    for (int i=0;i<remaining;++i) world.tick();
+    require(world.building(*ready).taxes_paid_total==tax_before+25,
+        "retained actual Food/Pottery/Service failed an ordinary dry-House demand");
+    // Paused all supply eventually expires; prior taxes never disable diagnosis.
+    while (world.ticks()<=coverage) world.tick();
+    const auto blocked=sim::inspect_city_start(world);
+    require(blocked.taxes_have_been_collected && blocked.households_missing_service>0 &&
+            !household(blocked,*ready).service_available &&
+            !household(blocked,*ready).demand_ready_now &&
+            !sim::starter_budget_warning_for_road_purchase(world,2),
+        "historical taxes hid current supply blockers or re-enabled startup modals");
+}
+
+void current_demand_matches_real_demand() {
+    auto source=paid_guidance_starter();
+    while (source.ticks()<1199) source.tick();
+    const auto id=building_kind(source,sim::Object::Household);
+    require(source.household_demand_status(id).ready,"natural demand fixture lacks supplied goods");
+    const auto original=source.snapshot();
+    // Valid synthetic incident deadlines isolate the three unchanged demand
+    // blockers. Goods, histories and money are all naturally produced.
+    for (int variant=0;variant<7;++variant) {
+        auto snapshot=original;
+        auto& b=snapshot_home(snapshot,id);
+        if (variant==1 || variant==3 || variant==4) {
+            b.fire_risk=0;b.fire_protection_until_tick=0;
+            b.fire_until_tick=snapshot.ticks+(variant==4 ? 1:100);
+        }
+        if (variant==2 || variant==3 || variant==5) {
+            b.health_risk=0;b.health_protection_until_tick=0;
+            b.sick_until_tick=snapshot.ticks+(variant==5 ? 1:100);
+        }
+        if (variant==6) b.service_until_tick=snapshot.ticks+1;
+        auto world=sim::World::restore(snapshot,std::vector<std::uint8_t>(48*24,1));
+        const auto before=world.building(id);
+        const auto report=sim::inspect_city_start(world);
+        const bool current_ready=variant==0 || variant==6;
+        require(household(report,id).demand_ready_now==current_ready &&
+                household(report,id).burning==(variant==1 || variant==3 || variant==4) &&
+                household(report,id).sick==(variant==2 || variant==3 || variant==5) &&
+                household(report,id).demand_ticks_remaining==1 &&
+                world.snapshot()==snapshot,
+            "current House condition or read-only incident diagnosis diverged");
+        world.tick();
+        const bool paid=variant==0 || variant==4 || variant==5;
+        const auto& after=world.building(id);
+        require(after.taxes_paid_total==before.taxes_paid_total+(paid ? 25:0) &&
+                after.consumed_total==before.consumed_total+(paid ? 1:0) &&
+                after.food_consumed_total==before.food_consumed_total+(paid ? 1:0) &&
+                after.last_demand_status==(paid ? 1:2),
+            "shared demand predicate changed actual tax/consumption at incident/service boundary");
+    }
+    require(source.snapshot()==original,"incident diagnostics changed the source starter");
+}
+
+void future_maintenance_boundaries_and_purchase() {
+    auto world=guidance_world();
+    put(world,sim::CommandType::PlaceWell,10,10);
+    const auto well=building_kind(world,sim::Object::Well);
+    auto projection=world.maintenance_projection();
+    require(projection.horizon_end_tick==400 && projection.next_bill_tick==400 &&
+            projection.next_bill_cost==2 && projection.interval_cost==2 &&
+            projection.funds_after_interval==1238,"placement created immediate/prorated upkeep");
+    while (world.ticks()<100) world.tick();
+    put(world,sim::CommandType::PlaceClaySource,14,10);
+    const auto clay=building_kind(world,sim::Object::ClaySource);
+    require(world.execute(sim::set_building_operation(clay,false)).accepted,
+        "maintenance pause fixture rejected");
+    require(world.maintenance_projection(299).interval_cost==0 &&
+            world.maintenance_projection(300).interval_cost==2,
+        "strict future horizon included an out-of-range bill");
+    projection=world.maintenance_projection();
+    require(projection.installed_rate==10 && projection.next_bill_tick==400 &&
+            projection.next_bill_cost==2 && projection.interval_cost==10 &&
+            projection.funds_after_interval==1110,"staggered buildings were billed together");
+    while (world.ticks()<399) world.tick();
+    require(world.maintenance_projection().next_bill_tick==400,"next positive-age bill off by one");
+    world.tick();
+    projection=world.maintenance_projection();
+    require(world.treasury()==1118 && world.maintenance_due_in(well)==0 &&
+            projection.next_bill_tick==500 && projection.next_bill_cost==8 &&
+            projection.interval_cost==10 && projection.funds_after_interval==1108,
+        "already booked bill was counted twice or pause exempted ownership upkeep");
+    const auto retained=world.snapshot();
+    auto debt=retained;
+    debt.treasury=-5;debt.maintenance_spent_total+=1123;
+    auto negative=sim::World::restore(debt,std::vector<std::uint8_t>(48*24,1));
+    require(negative.maintenance_projection().funds_after_interval==-15 &&
+            negative.snapshot()==debt,"debt query wrapped or altered ownership history");
+    require(world.execute(sim::demolish_building(clay)).accepted && world.treasury()==1118 &&
+            world.maintenance_projection().interval_cost==2,
+        "demolition refunded money or retained removed future bills");
+
+    auto purchase=guidance_world();
+    for (int i=0;i<6;++i) put_house(purchase,i);
+    const auto source=purchase.snapshot();
+    const auto warning=sim::starter_budget_warning(purchase,
+        {sim::CommandType::PlaceClaySource,{20,2}});
+    require(warning && warning->funds_after_purchase==700 &&
+            warning->minimum_remaining_building_funds==730 &&
+            warning->minimum_remaining_house_funds==0 &&
+            warning->maintenance.installed_rate==8 && warning->maintenance.next_bill_tick==400 &&
+            warning->maintenance.next_bill_cost==8 && warning->maintenance.interval_cost==8 &&
+            warning->maintenance.funds_after_interval==692 &&
+            std::ranges::none_of(warning->missing_supply_costs,[](const auto& cost) {
+                return cost.kind==sim::Object::ClaySource;
+            }) && purchase.snapshot()==source,
+        "planned purchase omitted its normal first bill or counted the bought facility twice");
+    // A smaller cost-based road preview has identical ownership but lower cash.
+    const auto road=sim::starter_budget_warning_for_road_purchase(purchase,52);
+    require(road && road->funds_after_purchase==768 && road->missing_building_funds_gap==82 &&
+            road->maintenance.installed_rate==0 && road->maintenance.interval_cost==0 &&
+            road->maintenance.funds_after_interval==768 && purchase.snapshot()==source,
+        "cost-based road warning invented upkeep or changed the World");
+}
+
+void arithmetic_limits_and_legacy_maintenance() {
+    auto world=guidance_world();
+    put(world,sim::CommandType::PlaceWell,10,10);
+    auto minimum=world.snapshot();
+    minimum.treasury=INT64_MIN;
+    minimum.maintenance_spent_total=static_cast<std::uint64_t>(INT64_MAX)+1+1240;
+    auto low=sim::World::restore(minimum,std::vector<std::uint8_t>(48*24,1));
+    const auto status=sim::inspect_city_start(low);
+    require(status.maintenance.interval_cost==2 && !status.maintenance.funds_after_interval &&
+            !status.missing_building_funds_gap && !status.construction_funds_gap &&
+            low.snapshot()==minimum,"INT64_MIN query wrapped or concealed an arithmetic limit");
+    minimum.treasury+=2;minimum.maintenance_spent_total-=2;
+    auto boundary=sim::World::restore(minimum,std::vector<std::uint8_t>(48*24,1));
+    require(boundary.maintenance_projection().funds_after_interval==INT64_MIN,
+        "representable signed-minimum upkeep boundary was rejected");
+
+    auto high=guidance_world();
+    put(high,sim::CommandType::PlaceHousehold,0,0);
+    const auto removed=building_kind(high,sim::Object::Household);
+    require(high.execute(sim::demolish_building(removed)).accepted,"synthetic maximum fixture rejected");
+    put(high,sim::CommandType::PlaceWell,10,10);
+    auto maximum=high.snapshot();
+    const auto credit=static_cast<std::uint64_t>(INT64_MAX-maximum.treasury);
+    maximum.treasury=INT64_MAX;maximum.taxes_collected_total+=credit;
+    maximum.demolition_history.taxes+=credit;
+    high=sim::World::restore(maximum,std::vector<std::uint8_t>(48*24,1));
+    require(sim::inspect_city_start(high).missing_building_funds_gap==0 &&
+            high.maintenance_projection().funds_after_interval==INT64_MAX-2,
+        "INT64_MAX query overflowed subtractive projection");
+
+    auto late=world.snapshot();late.ticks=UINT64_MAX-2400;
+    auto end=sim::World::restore(late,std::vector<std::uint8_t>(48*24,1));
+    const auto future=end.maintenance_projection();
+    require(future.horizon_end_tick==UINT64_MAX-2000 && future.next_bill_tick &&
+            *future.next_bill_tick>end.ticks() && future.interval_cost==2 &&
+            future.funds_after_interval==1238,"valid late tick lost its bounded future bill");
+    const auto exhausted=end.maintenance_projection(2401);
+    require(!exhausted.horizon_end_tick && !exhausted.interval_cost &&
+            !exhausted.funds_after_interval && end.snapshot()==late,
+        "unrepresentable late horizon wrapped or changed World state");
+    require(!end.maintenance_projection(UINT64_MAX).horizon_end_tick,
+        "unrepresentable query horizon silently wrapped");
+
+    for (const auto profile:{sim::RulesProfile::CityV11,sim::RulesProfile::CityV12,
+            sim::RulesProfile::CityV13,sim::RulesProfile::CityV14,sim::RulesProfile::CityV15}) {
+        auto legacy=guidance_world(profile);
+        put(legacy,sim::CommandType::PlaceClaySource,0,2);
+        const auto current=legacy.snapshot();
+        const auto p=legacy.maintenance_projection();
+        require(!p.applicable && p.installed_rate==0 && !p.next_bill_tick &&
+                p.interval_cost==0 && p.funds_after_interval==1180 &&
+                !sim::inspect_city_start(legacy).maintenance.applicable &&
+                legacy.snapshot()==current,"legacy profile acquired invented ownership costs");
+    }
+}
+
 } // namespace
 
 int main() {
@@ -518,6 +860,12 @@ int main() {
         workforce_reserve_is_guarded();
         post_purchase_reserve_cases();
         exhausted_house_limit_is_explicit();
+        corresponding_failed_city_and_staffing();
+        infrastructure_is_not_delivered_supply();
+        removed_service_retains_current_supply_and_history();
+        current_demand_matches_real_demand();
+        future_maintenance_boundaries_and_purchase();
+        arithmetic_limits_and_legacy_maintenance();
         std::cout<<"City-v11 start diagnosis, recovery, tax and budget warning passed\n";
         return 0;
     } catch (const std::exception& error) {

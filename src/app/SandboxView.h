@@ -175,6 +175,7 @@ public:
     const std::filesystem::path& save_path() const { return save_path_; }
     bool paused() const { return clock_.paused(); }
     bool help_open() const { return help_open_; }
+    bool income_open() const { return income_open_; }
     bool water_overlay() const { return water_overlay_; }
     bool health_overlay() const { return health_overlay_; }
     std::optional<bool> predicted_water() const { return predicted_water_; }
@@ -187,6 +188,9 @@ public:
     std::optional<simulation::BuildingId> selected_building() const;
     std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
     std::vector<std::string> inspection_lines() const;
+    std::vector<std::string> income_summary_lines() const;
+    std::vector<std::string> income_lines() const;
+    std::vector<std::string> budget_warning_lines() const;
     std::vector<std::string> demolition_hint_lines() const;
     const sandbox_ui::RoadPlan& road_preview() const { return road_preview_; }
     std::uint64_t road_plan_build_count() const { return road_plan_build_count_; }
@@ -249,6 +253,8 @@ private:
     bool request_road(const sandbox_ui::RoadPlan& plan);
     sandbox_ui::Rect budget_build_rect() const;
     sandbox_ui::Rect budget_cancel_rect() const;
+    sandbox_ui::Rect budget_panel_rect() const;
+    sandbox_ui::Rect menu_button_rect() const;
     std::optional<OperationAction> operation_action_at(double x,double y) const;
     sandbox_ui::Rect operation_toggle_rect() const;
     sandbox_ui::Rect operation_priority_rect(int index) const;
@@ -288,6 +294,7 @@ private:
     bool panel_open_=true;
     bool debug_open_=false;
     bool help_open_=false;
+    bool income_open_=false;
     bool water_overlay_=false;
     bool health_overlay_=false;
     std::optional<bool> predicted_water_;
@@ -302,6 +309,7 @@ private:
     std::uint64_t desirability_preview_revision_=UINT64_MAX;
     std::uint64_t desirability_preview_build_count_=0;
     int panel_scroll_=0;
+    int income_scroll_=0;
     std::optional<scene::Point> pointer_;
     bool hover_dirty_=true;
     std::optional<simulation::Cell> planned_start_,planned_end_;

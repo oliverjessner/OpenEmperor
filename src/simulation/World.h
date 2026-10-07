@@ -347,6 +347,21 @@ struct BuildingState {
     std::uint64_t health_protection_until_tick=0, sick_until_tick=0;
     bool operator==(const BuildingState&) const = default;
 };
+// Current demand inputs, not a promise of payment at a future deadline.
+struct HouseholdDemandStatus {
+    bool pottery_available=false,food_available=false,service_available=false;
+    bool food_required=false,service_required=false;
+    bool burning=false,sick=false,ready=false;
+};
+// Ownership costs in (current tick, current tick + horizon], with no new
+// construction, demolition or income. Missing values denote arithmetic limits.
+struct MaintenanceProjection {
+    bool applicable=false;
+    std::uint64_t horizon_ticks=Rules::maintenance_interval_ticks;
+    std::optional<std::uint64_t> horizon_end_tick,next_bill_tick;
+    std::int64_t installed_rate=0,next_bill_cost=0;
+    std::optional<std::int64_t> interval_cost,funds_after_interval;
+};
 bool fire_eligible(Object kind);
 bool courier_can_target(CourierRole role,const BuildingState& target);
 struct CourierState {
@@ -526,6 +541,8 @@ public:
     std::uint64_t maintenance_spent_total() const { return maintenance_spent_total_; }
     std::int64_t current_maintenance_rate() const;
     std::optional<std::uint64_t> maintenance_due_in(BuildingId id) const;
+    MaintenanceProjection maintenance_projection(
+        std::uint64_t horizon=Rules::maintenance_interval_ticks) const;
     std::uint64_t food_produced_total() const { return food_produced_total_; }
     ResourceInventory resource_inventory() const;
     int workforce_supply() const;
@@ -559,6 +576,7 @@ public:
     struct WellCoverage { int households=0, currently_dry=0; };
     WellCoverage well_coverage_at(Cell origin) const;
     bool household_service_active(BuildingId id) const;
+    HouseholdDemandStatus household_demand_status(BuildingId id) const;
     std::uint64_t household_service_remaining(BuildingId id) const;
     std::uint64_t household_move_in_grace_remaining(BuildingId id) const;
     int covered_households() const;
@@ -637,6 +655,8 @@ private:
     void refresh_routes();
     void tick_production_v2();
     std::int64_t household_demand_tax(const BuildingState& home,std::uint64_t resulting_count) const;
+    HouseholdDemandStatus household_demand_status(
+        const BuildingState& home,std::uint64_t evaluation_tick) const;
     void preflight_maintenance_tick() const;
     void bill_maintenance();
     bool maintenance_economy_valid() const;

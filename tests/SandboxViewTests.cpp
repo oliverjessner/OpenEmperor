@@ -875,7 +875,7 @@ void city_v16_maintenance_checks(const Temp& temp,SDL_Window* window,SDL_Rendere
     select({112,104});view.execute(simulation::set_building_operation(post,false));
     check(contains("Maintenance: 4 every 400 ticks") && contains("Worker phase:") && contains("Maintenance continues while paused."),"Health Post upkeep inspector");
     view.tick_once();check(view.world().treasury()==-58 && view.world().maintenance_spent_total()==78,"negative Funds UI fixture");
-    check(contains("Due this tick"),"due-at-current-tick inspector");
+    check(contains("Next due: 400 ticks"),"already-booked current bill must show strictly future next due");
     const auto snapshot=view.world().snapshot();view.save_now();view.tick_once();view.load_now();
     check(view.paused() && view.world().snapshot()==snapshot && openemperor::persistence::read_save(view.save_path()).source_schema_version==18,"negative schema18 load paused");
     perf::set_enabled(true);perf::reset();
@@ -2553,6 +2553,15 @@ int main(int argc,char** argv) {
             temp.path.parent_path()/(temp.path.filename().string()+"-warning-save.json"),
             std::move(warning_document));
         warning_view.initialize(window,renderer);
+        warning_view.set_tool(5);
+        const auto inspect_house=warning_view.camera().world_to_screen(maps::terrain_ground({112,101},72));
+        mouse_click(warning_view,static_cast<float>(inspect_house.x),static_cast<float>(inspect_house.y),running);
+        check(warning_view.selected_building().has_value(),"budget House inspection selection fixture");
+        std::string house_inspection;
+        for (const auto& line:warning_view.inspection_lines()) house_inspection+=line+" ";
+        for (const auto* retained:{"House level 0","Population 6/6","Move-in grace 800 ticks","Food consumed 0"})
+            check(house_inspection.find(retained)!=std::string::npos,
+                  "City-v11 House inspector lost existing nonduplicate facts");
         const simulation::Command warned{simulation::CommandType::PlaceHousehold,{115,101}};
         const auto before_warning=warning_view.world().snapshot();
         const auto requested=warning_view.request_execute(warned);
@@ -2570,8 +2579,13 @@ int main(int argc,char** argv) {
         check(!warning_view.request_execute(warned).accepted &&
               warning_view.budget_warning_pending(),"second warning was not opened");
         warning_view.handle_event(key(SDLK_RETURN),running);
+        check(!warning_view.budget_warning_pending() && warning_view.world().snapshot()==before_warning,
+              "budget default Return must cancel without changing World");
+        check(!warning_view.request_execute(warned).accepted && warning_view.budget_warning_pending(),
+              "explicit Build warning did not reopen");
+        warning_view.handle_event(key(SDLK_Y),running);
         check(!warning_view.budget_warning_pending(),
-              "Build anyway Return event did not close confirmation");
+              "Build anyway Y event did not close confirmation");
         check(warning_view.world().command_sequence()==before_warning.command_sequence+1 &&
               warning_view.world().treasury()==before_warning.treasury-
                   simulation::Rules::household_cost &&

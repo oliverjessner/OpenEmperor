@@ -25,6 +25,19 @@ struct StarterFacilityStatus {
     StarterSupplyCondition condition=StarterSupplyCondition::MissingBuilding;
 };
 
+struct StarterBuildingCost {
+    Object kind=Object::Empty;
+    std::int64_t cost=0;
+};
+
+struct StarterFacilityInstance {
+    BuildingId id=BuildingId::ClaySource;
+    Object kind=Object::Empty;
+    StarterSupplyCondition condition=StarterSupplyCondition::MissingBuilding;
+    int workers_assigned=0,workers_required=0;
+    bool operating_enabled=true,burning=false,delivery_active=false;
+};
+
 struct HouseholdStartStatus {
     BuildingId id=BuildingId::Household;
     bool pottery_available=false;
@@ -34,6 +47,9 @@ struct HouseholdStartStatus {
     std::uint64_t move_in_grace_remaining=0;
     int last_demand_status=0;
     std::uint64_t taxes_contributed=0;
+    bool burning=false,sick=false,demand_ready_now=false;
+    std::uint64_t service_ticks_remaining=0;
+    int pottery_inbound=0,food_inbound=0;
 };
 
 struct CityStartGuidance {
@@ -60,6 +76,16 @@ struct CityStartGuidance {
     bool starter_workforce_within_house_limit=true;
     bool complete_supply_chain=false;
     bool taxes_have_been_collected=false;
+    std::int64_t funds_current=0;
+    std::uint64_t taxes_received_total=0;
+    std::vector<StarterBuildingCost> missing_supply_costs;
+    std::vector<StarterFacilityInstance> facility_instances;
+    std::size_t households_ready_now=0,households_burning=0,households_sick=0;
+    std::size_t households_missing_food=0,households_missing_pottery=0,
+        households_missing_service=0;
+    // Null means the exact gap exceeds int64. Reserve costs remain exact.
+    std::optional<std::int64_t> missing_building_funds_gap,construction_funds_gap;
+    MaintenanceProjection maintenance;
 };
 
 struct StarterBudgetWarning {
@@ -72,6 +98,9 @@ struct StarterBudgetWarning {
     std::size_t household_slots_remaining=0;
     bool starter_workforce_within_house_limit=true;
     std::vector<Object> remaining_missing_supply_buildings;
+    std::vector<StarterBuildingCost> missing_supply_costs;
+    std::optional<std::int64_t> missing_building_funds_gap;
+    MaintenanceProjection maintenance;
 };
 
 CityStartGuidance inspect_city_start(const World& world);

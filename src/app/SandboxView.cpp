@@ -629,7 +629,8 @@ void SandboxView::update_layout(bool preserve_center) {
         throw std::runtime_error(SDL_GetError());
     const auto next=sandbox_ui::make_layout(width,height,window_width,window_height,panel_open_,
         simulation::fire_profile(rules_),simulation::desirability_profile(rules_),
-        simulation::water_profile(rules_),simulation::health_profile(rules_));
+        simulation::water_profile(rules_),simulation::health_profile(rules_),
+        simulation::market_profile(rules_));
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) return;
     // Panel toggles and resize change the clipped viewport before another
@@ -648,6 +649,7 @@ void SandboxView::update_layout(bool preserve_center) {
         camera_.offset.y+=layout_.map.y;
     }
     panel_scroll_=0;
+    income_scroll_=0;
     if (preserve_center) {
         float mouse_x=0,mouse_y=0;
         (void)SDL_GetMouseState(&mouse_x,&mouse_y);
@@ -1003,6 +1005,7 @@ void SandboxView::set_tool(int tool) {
     if (action_enabled(action)) perform_action(action);
 }
 bool SandboxView::action_enabled(sandbox_ui::Action action) const {
+    if (action==sandbox_ui::Action::ToggleIncome) return simulation::market_profile(rules_);
     const auto count_kind=[&](simulation::Object kind) {
         return std::count_if(world_->buildings().begin(),world_->buildings().end(),
             [&](const simulation::BuildingState& b) { return b.placed && b.kind==kind; });
@@ -1086,6 +1089,7 @@ void SandboxView::cancel_gesture() {
     road_preview_={};
     invalidate_road_preview_cache();
     menu_pressed_=false;
+    budget_button_pressed_.reset();
 }
 
 sandbox_ui::Rect SandboxView::operation_toggle_rect() const {
@@ -1102,7 +1106,7 @@ sandbox_ui::Rect SandboxView::operation_priority_rect(int index) const {
 }
 
 std::optional<SandboxView::OperationAction> SandboxView::operation_action_at(double x,double y) const {
-    if (!layout_.panel_open || !world_ || !world_->operation_controls_supported())
+    if (income_open_ || !layout_.panel_open || !world_ || !world_->operation_controls_supported())
         return std::nullopt;
     const auto id=selected_building();
     if (!id || !simulation::World::operation_controllable(world_->building(*id).kind))
@@ -1155,15 +1159,27 @@ bool SandboxView::resolve_demolition(bool confirm) {
 sandbox_ui::Rect SandboxView::budget_build_rect() const {
     const int w=std::min(540*layout_.scale,std::max(0,layout_.map.w-24*layout_.scale));
     const int x=layout_.map.x+(layout_.map.w-w)/2;
-    const int y=layout_.map.y+layout_.map.h/2+72*layout_.scale;
-    return {x+12*layout_.scale,y,250*layout_.scale,34*layout_.scale};
+    const auto panel=budget_panel_rect();
+    const int y=panel.y+panel.h-58*layout_.scale;
+    return {x+12*layout_.scale,y,std::min(250*layout_.scale,std::max(0,(w-36*layout_.scale)/2)),34*layout_.scale};
 }
 
 sandbox_ui::Rect SandboxView::budget_cancel_rect() const {
     auto rect=budget_build_rect();
-    rect.x+=266*layout_.scale;
-    rect.w=std::max(0,250*layout_.scale);
+    rect.x+=rect.w+16*layout_.scale;
     return rect;
+}
+sandbox_ui::Rect SandboxView::budget_panel_rect() const {
+    const int scale=layout_.scale;
+    const int width=std::min(540*scale,std::max(0,layout_.map.w-24*scale));
+    const int rows=budget_warning_ ? static_cast<int>(budget_warning_lines().size()):0;
+    const int height=budget_warning_ ? std::max(260*scale,(98+rows*17)*scale):260*scale;
+    return {layout_.map.x+(layout_.map.w-width)/2,
+        layout_.map.y+(layout_.map.h-height)/2,width,height};
+}
+sandbox_ui::Rect SandboxView::menu_button_rect() const {
+    return {std::max(0,layout_.top.w-96*layout_.scale),
+        (simulation::market_profile(rules_) ? 44:8)*layout_.scale,88*layout_.scale,28*layout_.scale};
 }
 void SandboxView::perform_action(sandbox_ui::Action action) {
     using A=sandbox_ui::Action;
@@ -1233,6 +1249,12 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     } else if (action==A::ToggleHelp) {
         cancel_gesture(); help_open_=!help_open_;
         last_message_=help_open_ ? "Help opened; press H or ? to close":"Help closed";
+    } else if (action==A::ToggleIncome) {
+        cancel_gesture();
+        income_open_=!(income_open_ && layout_.panel_open);
+        income_scroll_=0;
+        if (income_open_) { panel_open_=true; update_layout(true); }
+        last_message_=income_open_ ? "Income details opened; T returns to the Inspector":"Income details closed";
     }
     refresh_hover();
 }
@@ -1366,11 +1388,11 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     }
     if (budget_warning_) {
         if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-            if (event.key.key==SDLK_ESCAPE || event.key.key==SDLK_N) {
+            if (event.key.key==SDLK_ESCAPE || event.key.key==SDLK_N ||
+                event.key.key==SDLK_RETURN || event.key.key==SDLK_KP_ENTER) {
                 (void)resolve_budget_warning(false); return;
             }
-            if (event.key.key==SDLK_RETURN || event.key.key==SDLK_KP_ENTER ||
-                event.key.key==SDLK_Y) {
+            if (event.key.key==SDLK_Y) {
                 (void)resolve_budget_warning(true); return;
             }
         }
@@ -1411,6 +1433,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             return;
         }
         if (help_open_) return;
+        if (event.key.key==SDLK_T && simulation::market_profile(rules_)) {
+            perform_action(sandbox_ui::Action::ToggleIncome); return;
+        }
         if (event.key.key>=SDLK_1 && event.key.key<=
             (simulation::service_profile(rules_) ? SDLK_9 :
              rules_==simulation::RulesProfile::CityV7 ? SDLK_8 :
@@ -1527,13 +1552,15 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (point) {
             pointer_=point;
             if (layout_.panel.contains(point->x,point->y)) {
-                const auto rows=placed_buildings().size()+inspection_lines().size();
+                const auto rows=income_open_ ? income_lines().size():
+                    placed_buildings().size()+inspection_lines().size();
                 const int total=56*layout_.scale+static_cast<int>(rows)*18*layout_.scale;
                 const int limit=std::max(0,total-layout_.panel.h);
                 // Preserve integral-notch scrolling without narrowing an
                 // untrusted float or overflowing the scaled scroll delta.
-                const double next=panel_scroll_-std::trunc(double(event.wheel.y))*24*layout_.scale;
-                panel_scroll_=static_cast<int>(std::clamp(next,0.0,double(limit)));
+                auto& scroll=income_open_ ? income_scroll_:panel_scroll_;
+                const double next=scroll-std::trunc(double(event.wheel.y))*24*layout_.scale;
+                scroll=static_cast<int>(std::clamp(next,0.0,double(limit)));
             }
             else if (layout_.map.contains(point->x,point->y) && !road_start_)
                 camera_.zoom_at(*point,std::pow(1.15,event.wheel.y));
@@ -1554,11 +1581,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
         if (event.button.button!=SDL_BUTTON_LEFT) return;
         pointer_=render_point(event.button.x,event.button.y);
-        if (managed_ && pointer_ && layout_.top.contains(pointer_->x,pointer_->y) &&
-            pointer_->x>=layout_.top.w-88*layout_.scale) { menu_pressed_=true; return; }
+        if (managed_ && pointer_ && menu_button_rect().contains(pointer_->x,pointer_->y)) { menu_pressed_=true; return; }
         refresh_hover();
         if (!pointer_) return;
-        if (layout_.panel_open && world_->demolition_supported() && selected_building() &&
+        if (!income_open_ && layout_.panel_open && world_->demolition_supported() && selected_building() &&
             demolition_button_rect().contains(pointer_->x,pointer_->y)) {
             pressed_demolition_=true; ui_pressed_=true; return;
         }
@@ -1570,7 +1596,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
         if (layout_.ui_at(pointer_->x,pointer_->y)) {
             ui_pressed_=true;
-            if (layout_.panel.contains(pointer_->x,pointer_->y)) {
+            if (!income_open_ && layout_.panel.contains(pointer_->x,pointer_->y)) {
                 const int relative=static_cast<int>(pointer_->y)-building_list_y()+panel_scroll_;
                 if (relative>=0) {
                     const auto entries=placed_buildings();
@@ -1600,8 +1626,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
     if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
         pointer_=render_point(event.button.x,event.button.y);
         if (menu_pressed_) {
-            const bool hit=pointer_ && layout_.top.contains(pointer_->x,pointer_->y) &&
-                pointer_->x>=layout_.top.w-88*layout_.scale;
+            const bool hit=pointer_ && menu_button_rect().contains(pointer_->x,pointer_->y);
             cancel_gesture(); if (hit) menu_requested_=true; return;
         }
         refresh_hover(true);
@@ -1632,7 +1657,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 if (relative>=0) {
                     const auto index=static_cast<std::size_t>(relative/(18*layout_.scale));
                     if (index<entries.size() && entries[index]==*pressed_building_)
-                        { clear_visual_selection(); selected_=world_->building(*pressed_building_).cell; }
+                        { clear_visual_selection(); selected_=world_->building(*pressed_building_).cell; income_open_=false; }
                     panel_scroll_=0;
                 }
             }
@@ -1641,6 +1666,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (!map_pressed_) return;
         auto cell=pointer_ ? pick(*pointer_) : std::nullopt;
         const bool selecting=tool_==(simulation::production_profile(rules_) ? 5:4);
+        if (selecting && pointer_ && layout_.map.contains(pointer_->x,pointer_->y)) income_open_=false;
         if (selecting && debug_open_ && pointer_ && select_visual(*pointer_)) {
             cancel_gesture(); refresh_hover(); return;
         }
@@ -2635,8 +2661,27 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Maintenance: "+std::to_string(cost)+" every "+
             std::to_string(simulation::Rules::maintenance_interval_ticks)+" ticks");
         const auto due=world_->maintenance_due_in(id);
-        if (due) lines.push_back(*due ? "Next due: "+std::to_string(*due)+" ticks":"Due this tick");
+        if (due) lines.push_back("Next due: "+std::to_string(*due ? *due:
+            simulation::Rules::maintenance_interval_ticks)+" ticks");
         if (!b.operating_enabled) lines.push_back("Maintenance continues while paused.");
+    };
+    const auto add_house_income=[&](simulation::BuildingId id) {
+        const auto& home=world_->building(id);
+        const auto demand=world_->household_demand_status(id);
+        lines.push_back(std::string("Food: ")+(demand.food_available ? "available":"missing")+
+            " ("+std::to_string(home.food_stock)+")");
+        lines.push_back(std::string("Pottery: ")+(demand.pottery_available ? "available":"missing")+
+            " ("+std::to_string(home.pottery_stock)+")");
+        lines.push_back(demand.service_available ? "Service active: "+
+            std::to_string(world_->household_service_remaining(id))+" ticks left":"Service: missing");
+        if (demand.burning) lines.push_back("Fire blocks demand now.");
+        if (demand.sick) lines.push_back("Sickness blocks demand now.");
+        lines.push_back("Next demand: "+std::to_string(simulation::Rules::household_demand_ticks-
+            home.demand_progress)+" ticks");
+        lines.push_back(home.last_demand_status==0 ? "Last demand: none yet":
+            home.last_demand_status==1 ? "Last demand: supplied; tax paid":"Last demand: unmet; no tax");
+        lines.push_back("Taxes contributed: "+std::to_string(world_->household_tax_contributed(id)));
+        lines.push_back("Payment depends on conditions at the demand deadline.");
     };
     if (fire_watch_selected()) {
         const auto id=*selected_building();
@@ -2714,6 +2759,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         const auto& b=world_->building(id);
         const int score=world_->household_desirability(id);
         lines.push_back("House #"+std::to_string(static_cast<std::uint32_t>(id)));
+        add_house_income(id);
         add_maintenance(id);
         if (simulation::health_profile(rules_)) {
             lines.push_back(std::string("Health: ")+(world_->household_sick(id) ? "Sick":
@@ -2754,80 +2800,12 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 (source.contribution>0 ? "+":"")+std::to_string(source.contribution));
         }
         if (sources.empty()) lines.push_back("None in radius 8.");
-        lines.push_back("Pottery "+std::to_string(b.pottery_stock)+"/8; Food "+std::to_string(b.food_stock)+"/8");
-        lines.push_back(std::string("Service: ")+(world_->household_service_active(id) ? "active":"missing"));
         lines.push_back("Fire: "+std::string(world_->building_on_fire(id) ? "ON FIRE":
             world_->building_fire_protected(id) ? "protected":"unprotected"));
-        lines.push_back("Demand in "+std::to_string(simulation::Rules::household_demand_ticks-b.demand_progress)+" ticks");
         lines.push_back("Fulfilled "+std::to_string(b.fulfilled_demand)+"; missed "+std::to_string(b.missed_demand));
-        const auto next=b.fulfilled_demand+1;
-        const int next_level=simulation::water_profile(rules_) && !world_->household_has_water(id) ? 0:
-            std::min(cap,next>=simulation::Rules::city_v7_level2_demands ? 2:
-            next>=simulation::Rules::city_v7_level1_demands ? 1:0);
-        lines.push_back("Next supplied tax: "+std::to_string(next_level==2 ? 60:next_level==1 ? 40:25));
-        lines.push_back("Taxes paid total: "+std::to_string(b.taxes_paid_total));
         lines.push_back("Full supply still required; score gives no goods or Service.");
         if (debug_open_) lines.push_back("Origin "+std::to_string(b.cell.x)+","+std::to_string(b.cell.y));
         return wrap_panel_lines(lines);
-    }
-    if (simulation::market_profile(rules_)) {
-        const auto guidance=simulation::inspect_city_start(*world_);
-        const auto facility_kinds=[&](simulation::StarterSupplyCondition condition) {
-            std::vector<simulation::Object> kinds;
-            for (const auto& facility:guidance.facilities)
-                if (facility.condition==condition) kinds.push_back(facility.kind);
-            return kinds;
-        };
-        const auto add_pipeline_state=[&]() {
-            const auto burning=facility_kinds(simulation::StarterSupplyCondition::OnFire);
-            const auto paused=facility_kinds(simulation::StarterSupplyCondition::Paused);
-            const auto unstaffed=facility_kinds(simulation::StarterSupplyCondition::Unstaffed);
-            const auto no_target=facility_kinds(
-                simulation::StarterSupplyCondition::NoReachableTarget);
-            const auto awaiting=facility_kinds(simulation::StarterSupplyCondition::AwaitingGoods);
-            if (!burning.empty()) lines.push_back("On fire: "+joined_buildings(burning)+".");
-            if (!paused.empty()) lines.push_back("Paused by player: "+joined_buildings(paused)+".");
-            if (!unstaffed.empty()) lines.push_back("Unstaffed: "+joined_buildings(unstaffed)+".");
-            if (!no_target.empty())
-                lines.push_back("No reachable delivery target: "+joined_buildings(no_target)+".");
-            if (!awaiting.empty())
-                lines.push_back("Awaiting production or delivery: "+joined_buildings(awaiting)+".");
-            return !burning.empty() || !paused.empty() || !unstaffed.empty() || !no_target.empty() || !awaiting.empty();
-        };
-        lines.push_back("START STATUS");
-        if (!guidance.missing_supply_buildings.empty()) {
-            lines.push_back("No tax income possible yet.");
-            lines.push_back("Still needed: "+joined_buildings(guidance.missing_supply_buildings)+".");
-            lines.push_back("Minimum building reserve: "+
-                std::to_string(guidance.minimum_missing_building_funds)+" funds, plus roads.");
-            lines.push_back("Workers now "+std::to_string(guidance.workforce_supply)+"/"+
-                std::to_string(guidance.workforce_required_now)+"; full starter "+
-                std::to_string(guidance.workforce_required_for_starter)+" required.");
-            (void)add_pipeline_state();
-        }
-        if (guidance.household_count==0 && guidance.missing_supply_buildings.empty()) {
-            lines.push_back("No tax income possible yet: no House.");
-        }
-        if (guidance.starter_workforce_shortfall>0) {
-            lines.push_back("Starter workforce incomplete.");
-            lines.push_back(std::to_string(guidance.houses_needed_for_shortfall)+
-                " more Houses would initially add "+
-                std::to_string(guidance.houses_needed_for_shortfall*
-                               simulation::Rules::household_initial_population)+" workers.");
-            lines.push_back("Reserve at least "+
-                std::to_string(guidance.minimum_house_funds_for_starter)+
-                " funds for those Houses, plus roads.");
-            if (!guidance.starter_workforce_within_house_limit)
-                lines.push_back("Starter workforce cannot be completed within the remaining house limit.");
-            lines.push_back("Estimate only; roads and sustained supply still matter.");
-        } else if (guidance.missing_supply_buildings.empty() && guidance.household_count>0) {
-            if (guidance.taxes_have_been_collected)
-                lines.push_back("Complete demand has produced tax income.");
-            const bool delayed=add_pipeline_state();
-            if (!delayed && !guidance.taxes_have_been_collected)
-                lines.push_back("Supply ready; Houses are waiting for a demand deadline.");
-        }
-        lines.push_back("Tax requires Food, Pottery and active Service at the deadline.");
     }
     if (selected_ && world_->object_at(*selected_)==simulation::Object::Road) {
         constexpr const char* names[]{"neg_y","pos_x","pos_y","neg_x"};
@@ -2856,6 +2834,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     if (!id) {
         lines.push_back("Select a building or list entry");
         lines.push_back("Placed: "+std::to_string(placed_buildings().size()));
+        if (simulation::market_profile(rules_)) lines.push_back("Income details: T / Income");
         return lines;
     }
     const auto& b=world_->building(*id);
@@ -2866,6 +2845,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
+    if (simulation::market_profile(rules_) && b.kind==simulation::Object::Household) add_house_income(*id);
     add_maintenance(*id);
     if (simulation::fire_profile(rules_) && simulation::fire_eligible(b.kind)) {
         lines.push_back("Fire risk: "+std::to_string(b.fire_risk)+"/"+
@@ -2963,7 +2943,15 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Fulfilled "+std::to_string(b.fulfilled_demand)+
             " Missed "+std::to_string(b.missed_demand));
         lines.push_back("Consumed "+std::to_string(b.consumed_total));
-        if (simulation::food_profile(rules_)) {
+        if (simulation::market_profile(rules_)) {
+            lines.push_back("House level "+std::to_string(world_->household_level(*id)));
+            if (simulation::population_profile(rules_)) lines.push_back("Population "+
+                std::to_string(b.population)+"/"+std::to_string(world_->household_population_capacity(*id)));
+            lines.push_back("Move-in grace "+std::to_string(world_->household_move_in_grace_remaining(*id))+" ticks");
+            lines.push_back("Food reserved "+std::to_string(b.reserved_food_incoming));
+            lines.push_back("Food consumed "+std::to_string(b.food_consumed_total));
+        }
+        if (simulation::food_profile(rules_) && !simulation::market_profile(rules_)) {
             lines.push_back("Tax requires Food, Pottery and Service at the demand deadline.");
             const auto next=b.fulfilled_demand+1;
             const auto next_tax=next>=simulation::Rules::city_v7_level2_demands ? 60:
@@ -3092,6 +3080,194 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     }
     return simulation::maintenance_profile(rules_) ? wrap_panel_lines(lines):lines;
 }
+std::vector<std::string> SandboxView::income_summary_lines() const {
+    const auto status=simulation::inspect_city_start(*world_);
+    if (!status.applicable) return {};
+    std::string funds="Funds "+std::to_string(status.funds_current)+" | ";
+    funds+=status.taxes_received_total ? "Taxes received: "+std::to_string(status.taxes_received_total):
+        "Taxes: none yet";
+    if (status.maintenance.applicable) funds+=" | Upkeep "+
+        std::to_string(status.maintenance.installed_rate)+"/"+
+        std::to_string(simulation::Rules::maintenance_interval_ticks)+"t";
+    std::string houses="Current Houses: ";
+    if (status.households.empty()) houses+="none; no household tax";
+    else {
+        std::vector<std::string> blockers;
+        if (status.households_burning) blockers.push_back("burning "+std::to_string(status.households_burning));
+        if (status.households_sick) blockers.push_back("sick "+std::to_string(status.households_sick));
+        if (status.households_missing_service) blockers.push_back("Service missing "+std::to_string(status.households_missing_service));
+        if (status.households_missing_food) blockers.push_back("Food missing "+std::to_string(status.households_missing_food));
+        if (status.households_missing_pottery) blockers.push_back("Pottery missing "+std::to_string(status.households_missing_pottery));
+        for (const auto& blocker:blockers) { if (houses!="Current Houses: ") houses+=", "; houses+=blocker; }
+        if (blockers.empty()) houses+="supplied now; payment depends on the demand deadline";
+    }
+    std::string next;
+    const auto unstaffed=std::find_if(status.facility_instances.begin(),status.facility_instances.end(),
+        [](const auto& facility) { return facility.kind==simulation::Object::Farm &&
+            facility.condition==simulation::StarterSupplyCondition::Unstaffed; });
+    const auto bottleneck=unstaffed!=status.facility_instances.end() ? unstaffed:
+        std::find_if(status.facility_instances.begin(),status.facility_instances.end(),[](const auto& facility) {
+            return facility.condition==simulation::StarterSupplyCondition::Unstaffed;
+        });
+    if (bottleneck!=status.facility_instances.end()) next=
+        std::string(simulation::starter_building_name(bottleneck->kind))+" #"+
+        std::to_string(static_cast<std::uint32_t>(bottleneck->id))+" unstaffed "+
+        std::to_string(bottleneck->workers_assigned)+"/"+std::to_string(bottleneck->workers_required);
+    if (!status.missing_supply_buildings.empty()) {
+        if (!next.empty()) next+=" | ";
+        next+=status.missing_supply_buildings.size()==1 ?
+            std::string(simulation::starter_building_name(status.missing_supply_buildings.front())):
+            "Missing supply buildings";
+        next+=" cost "+std::to_string(status.minimum_missing_building_funds);
+        if (!status.missing_building_funds_gap) next+="; gap exceeds display range";
+        else if (*status.missing_building_funds_gap>0) next+="; short "+std::to_string(*status.missing_building_funds_gap);
+        else next+="; affordable before roads";
+    }
+    if (next.empty()) next="Income details: T | Current stocks and coverage can change";
+    return {std::move(funds),std::move(houses),std::move(next)};
+}
+
+std::vector<std::string> SandboxView::income_lines() const {
+    const auto status=simulation::inspect_city_start(*world_);
+    if (!status.applicable) return {};
+    std::vector<std::string> lines{
+        "Funds: "+std::to_string(status.funds_current),
+        status.taxes_received_total ? "Taxes received total: "+std::to_string(status.taxes_received_total):"Taxes: none received yet",
+        "Houses pay for actual supplied demand; Market creates no Food or Service."};
+    if (status.maintenance.applicable) lines.push_back("Installed upkeep: "+
+        std::to_string(status.maintenance.installed_rate)+" / "+
+        std::to_string(simulation::Rules::maintenance_interval_ticks)+" ticks");
+    if (status.households_missing_service) lines.push_back("Service missing in "+std::to_string(status.households_missing_service)+" Houses now.");
+    if (status.households_burning) lines.push_back(std::to_string(status.households_burning)+" Houses burning: demand blocked.");
+    if (status.households_sick) lines.push_back(std::to_string(status.households_sick)+" Houses sick: demand blocked.");
+    if (status.missing_supply_buildings.empty()) lines.push_back("Basic buildings installed. This does not prove House supply.");
+    else {
+        lines.push_back("Missing for ongoing supply:");
+        for (const auto& missing:status.missing_supply_costs)
+            lines.push_back(std::string(simulation::starter_building_name(missing.kind))+": "+std::to_string(missing.cost)+" Funds");
+        if (!status.missing_building_funds_gap) lines.push_back("Building funds gap exceeds supported range.");
+        else if (*status.missing_building_funds_gap>0)
+            lines.push_back("Short "+std::to_string(*status.missing_building_funds_gap)+" for these buildings alone.");
+        else lines.push_back("These buildings are affordable before roads.");
+        lines.push_back("Existing stocks / Service can remain after a supply building is removed.");
+    }
+    lines.push_back("Workers available: "+std::to_string(status.workforce_supply)+
+        "; assigned: "+std::to_string(status.workforce_used));
+    lines.push_back("Active demand: "+std::to_string(status.workforce_active_demand)+
+        "; installed demand: "+std::to_string(status.workforce_installed_demand));
+    lines.push_back("Active excludes paused / burning operations; installed includes them.");
+    bool staffing_issue=false;
+    for (const auto& facility:status.facility_instances) {
+        if (facility.condition!=simulation::StarterSupplyCondition::Unstaffed) continue;
+        staffing_issue=true;
+        lines.push_back(std::string(simulation::starter_building_name(facility.kind))+" #"+
+            std::to_string(static_cast<std::uint32_t>(facility.id))+" unstaffed: "+
+            std::to_string(facility.workers_assigned)+"/"+std::to_string(facility.workers_required));
+    }
+    lines.push_back("NEXT STEPS");
+    if (staffing_issue) lines.push_back("Review staffing of the named business; changing priority can take workers from another.");
+    if (!status.missing_supply_buildings.empty()) {
+        if (status.missing_building_funds_gap && *status.missing_building_funds_gap==0)
+            lines.push_back("Build missing supply and connect it by road.");
+        else lines.push_back("Building funds are short. Review existing supply and staffing before spending more.");
+    } else if (!status.household_count)
+        lines.push_back("No House is installed. Check the House construction estimate.");
+    else if (status.households_ready_now<status.household_count)
+        lines.push_back("Check House stocks, Service and business delivery status below.");
+    else lines.push_back("Houses are supplied now. Wait for actual demand; conditions may change.");
+    lines.push_back("CONSTRUCTION PLAN (estimate)");
+    lines.push_back("Missing buildings: "+std::to_string(status.minimum_missing_building_funds));
+    lines.push_back("Full-staff starter demand: "+std::to_string(status.workforce_required_for_starter));
+    lines.push_back("Extra Houses estimate: "+std::to_string(status.houses_needed_for_shortfall)+
+        " / "+std::to_string(status.minimum_house_funds_for_starter)+" Funds");
+    const auto construction_reserve=status.minimum_missing_building_funds+
+        status.minimum_house_funds_for_starter;
+    lines.push_back("Construction reserve: "+std::to_string(construction_reserve)+" (estimate)");
+    if (construction_reserve>0) {
+        if (!status.construction_funds_gap) lines.push_back("Plan funds gap exceeds supported range.");
+        else if (*status.construction_funds_gap>0) lines.push_back("Plan funds gap: "+
+            std::to_string(*status.construction_funds_gap)+" (estimate)");
+    }
+    lines.push_back("Assumes simultaneous full staffing and "+
+        std::to_string(simulation::Rules::household_initial_population)+" initial residents per new House.");
+    if (!status.starter_workforce_within_house_limit) lines.push_back("Estimated House count exceeds the remaining House limit.");
+    lines.push_back("Other staffing / population sequences may work. This is not a minimum solution.");
+    lines.push_back("Future roads excluded; land and reachability are not proven.");
+    lines.push_back("Construction reserve does not guarantee funds until first tax.");
+    if (status.maintenance.applicable) {
+        const auto& upkeep=status.maintenance;
+        lines.push_back("UPKEEP (separate assumption)");
+        lines.push_back("Current buildings; no new income or purchases.");
+        if (upkeep.next_bill_tick) lines.push_back("Next future bill: "+std::to_string(upkeep.next_bill_cost)+
+            " in "+std::to_string(*upkeep.next_bill_tick-world_->ticks())+" ticks");
+        else lines.push_back(upkeep.installed_rate ? "Next bill exceeds supported tick range.":"No future bill for current buildings.");
+        if (upkeep.interval_cost) lines.push_back("Next "+std::to_string(upkeep.horizon_ticks)+
+            " ticks upkeep: "+std::to_string(*upkeep.interval_cost));
+        else lines.push_back("Upkeep horizon exceeds supported range.");
+        if (upkeep.funds_after_interval) lines.push_back("Funds after that upkeep: "+std::to_string(*upkeep.funds_after_interval));
+        else lines.push_back("Funds after upkeep exceed supported range.");
+        lines.push_back("Paused / unstaffed buildings still pay. Demolition gives no refund.");
+    }
+    lines.push_back("CURRENT BUSINESSES");
+    for (const auto& facility:status.facility_instances) {
+        lines.push_back(std::string(simulation::starter_building_name(facility.kind))+" #"+
+            std::to_string(static_cast<std::uint32_t>(facility.id))+": "+
+            std::to_string(facility.workers_assigned)+"/"+std::to_string(facility.workers_required)+" workers");
+        using C=simulation::StarterSupplyCondition;
+        const auto state=facility.condition==C::Paused ? "Paused by player":
+            facility.condition==C::OnFire ? "Burning; new work suspended":
+            facility.condition==C::Unstaffed ? "Unstaffed; new work suspended":
+            facility.condition==C::NoReachableTarget ? "No reachable delivery target":
+            facility.condition==C::AwaitingGoods ? "Awaiting goods / production":"Staffed; work enabled";
+        lines.push_back(state);
+        if (facility.delivery_active) lines.push_back("Existing delivery trip in progress.");
+    }
+    lines.push_back("CURRENT HOUSE CONDITIONS");
+    lines.push_back("Next demand is not a promised tax payment. Conditions are tested then.");
+    for (const auto& house:status.households) {
+        lines.push_back("House #"+std::to_string(static_cast<std::uint32_t>(house.id)));
+        lines.push_back(std::string("Food: ")+(house.food_available ? "available":"missing")+
+            "; Pottery: "+(house.pottery_available ? "available":"missing"));
+        lines.push_back(house.service_available ? "Service active: "+std::to_string(house.service_ticks_remaining)+" ticks left":"Service: missing");
+        if (house.burning) lines.push_back("Fire blocks demand now.");
+        if (house.sick) lines.push_back("Sickness blocks demand now.");
+        if (house.food_inbound || house.pottery_inbound) lines.push_back("Incoming: Food "+
+            std::to_string(house.food_inbound)+", Pottery "+std::to_string(house.pottery_inbound));
+        lines.push_back("Next demand: "+std::to_string(house.demand_ticks_remaining)+" ticks");
+        lines.push_back(house.last_demand_status==0 ? "Last demand: none yet":
+            house.last_demand_status==1 ? "Last demand: supplied; tax paid":"Last demand: unmet; no tax");
+        lines.push_back("Taxes contributed: "+std::to_string(house.taxes_contributed));
+    }
+    return wrap_panel_lines(lines);
+}
+
+std::vector<std::string> SandboxView::budget_warning_lines() const {
+    if (!budget_warning_) return {};
+    const auto& warning=*budget_warning_;
+    std::vector<std::string> lines{
+        "Purchase: "+std::to_string(warning.purchase_cost)+" Funds; afterwards: "+
+            std::to_string(warning.funds_after_purchase),
+        warning.remaining_missing_supply_buildings.empty() ? "Basic supply buildings remain installed.":
+            "Still missing: "+joined_buildings(warning.remaining_missing_supply_buildings),
+        "Missing buildings cost: "+std::to_string(warning.minimum_remaining_building_funds)};
+    if (warning.funds_after_purchase<warning.minimum_remaining_building_funds)
+        lines.push_back("Short "+std::to_string(warning.minimum_remaining_building_funds-warning.funds_after_purchase)+
+            " for those buildings alone, excluding roads.");
+    lines.push_back("Full-staff estimate: +"+std::to_string(warning.additional_houses_needed)+
+        " Houses / "+std::to_string(warning.minimum_remaining_house_funds)+" Funds");
+    if (!warning.starter_workforce_within_house_limit) lines.push_back("Estimated House count exceeds remaining slots.");
+    lines.push_back("Construction reserve: "+std::to_string(warning.minimum_remaining_start_cost)+
+        "; future roads excluded.");
+    lines.push_back("Estimate assumes all starter jobs staffed together.");
+    if (warning.maintenance.applicable) {
+        lines.push_back("Separate upkeep: "+std::to_string(warning.maintenance.installed_rate)+" / "+
+            std::to_string(simulation::Rules::maintenance_interval_ticks)+" ticks");
+        lines.push_back("Paused / unstaffed buildings still pay upkeep.");
+    }
+    lines.push_back("This reserve does not guarantee funds until first tax.");
+    const int width=std::min(540*layout_.scale,std::max(0,layout_.map.w-24*layout_.scale));
+    return sandbox_ui::wrap_text(lines,static_cast<std::size_t>(std::max(1,(width-28*layout_.scale)/(10*layout_.scale))));
+}
 bool SandboxView::draw_text(double x,double y,const std::string& value,int max_width) {
     if (max_width<=0) return true;
     const float scale=1.25F*static_cast<float>(layout_.scale);
@@ -3194,11 +3370,21 @@ bool SandboxView::draw_hud() {
     }
     else overview+=" | Goods "+std::to_string(world_->total_produced());
     if (world_->burning_buildings()>0 && !SDL_SetRenderDrawColor(renderer_,255,174,80,255)) return false;
-    if (!draw_text(8*layout_.scale,18*layout_.scale,overview,
+    if (simulation::market_profile(rules_)) {
+        overview=profile+" v"+std::to_string(world_->rule_version())+" | Tick "+
+            std::to_string(world_->ticks())+" | "+(clock_.paused() ? "Paused ":"Running ")+
+            std::to_string(clock_.speed())+"x";
+        if (!draw_text(8*layout_.scale,10*layout_.scale,overview,layout_.top.w-310*layout_.scale)) return false;
+        const auto income=income_summary_lines();
+        for (std::size_t i=0;i<income.size();++i)
+            if (!draw_text(8*layout_.scale,(28+static_cast<int>(i)*18)*layout_.scale,income[i],
+                layout_.top.w-(managed_ && i>0 ? 112:16)*layout_.scale)) return false;
+    } else if (!draw_text(8*layout_.scale,18*layout_.scale,overview,
         layout_.top.w-200*layout_.scale)) return false;
     if (!SDL_SetRenderDrawColor(renderer_,230,236,244,255)) return false;
-    if (managed_ && !draw_text(layout_.top.w-82*layout_.scale,18*layout_.scale,
-                               "[ MENU ]",80*layout_.scale)) return false;
+    const auto menu=menu_button_rect();
+    if (managed_ && !draw_text(menu.x+6*layout_.scale,menu.y+10*layout_.scale,
+                               "[ MENU ]",menu.w-8*layout_.scale)) return false;
     std::string status=road_start_ && !road_preview_.valid ? sandbox_ui::road_plan_status(road_preview_) :
         last_message_.empty() ? "OpenEmperor sandbox | Select a tool, then click the map" :
         last_message_;
@@ -3218,17 +3404,6 @@ bool SandboxView::draw_hud() {
             status="Need "+std::to_string(cost)+" funds; treasury "+
                 std::to_string(world_->treasury());
         }
-    }
-    if (simulation::market_profile(rules_) && !budget_warning_ && !pending_demolition_) {
-        const auto guidance=simulation::inspect_city_start(*world_);
-        if (!guidance.missing_supply_buildings.empty())
-            status+=" | No tax: missing "+joined_buildings(guidance.missing_supply_buildings)+
-                " | minimum "+std::to_string(guidance.minimum_missing_building_funds)+" funds";
-        else if (guidance.starter_workforce_shortfall>0)
-            status+=" | Worker shortage "+std::to_string(guidance.workforce_supply)+"/"+
-                std::to_string(guidance.workforce_required_for_starter);
-        else if (guidance.taxes_have_been_collected)
-            status+=" | Complete demand has paid tax";
     }
     if (simulation::maintenance_profile(rules_) && hovered_ && !road_start_ && tool_!=5 && tool_!=6) {
         const auto type=command_type(rules_,tool_);
@@ -3325,6 +3500,7 @@ bool SandboxView::draw_hud() {
         case A::Load: return "Load F9";
         case A::TogglePanel: return layout_.panel_open ? "Hide info":"Show info";
         case A::ToggleHelp: return help_open_ ? "Hide help":"Help";
+        case A::ToggleIncome: return income_open_ ? "Inspect T":"Income T";
         }
         return "";
     };
@@ -3346,6 +3522,7 @@ bool SandboxView::draw_hud() {
         case A::Health: active=health_overlay_; break;
         case A::Well: active=tool_==12; break;
         case A::Water: active=water_overlay_; break;
+        case A::ToggleIncome: active=income_open_; break;
         case A::Desirability: active=desirability_overlay_; break;
         default: break;
         }
@@ -3388,7 +3565,24 @@ bool SandboxView::draw_hud() {
         if (!draw_text(button.rect.x+5*layout_.scale,button.rect.y+10*layout_.scale,
                        text,button.rect.w-8*layout_.scale)) return false;
     }
-    if (layout_.panel_open) {
+    if (layout_.panel_open && income_open_) {
+        if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
+        if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
+            "INCOME - T / SELECT RETURNS",layout_.panel.w-20*layout_.scale)) return false;
+        const auto details=income_lines();
+        const SDL_Rect clip{layout_.panel.x,layout_.panel.y+40*layout_.scale,
+            layout_.panel.w,std::max(0,layout_.panel.h-40*layout_.scale)};
+        // Draw only complete wrapped rows. draw_text temporarily scales SDL's
+        // coordinates, which would also scale an absolute-pixel clip here.
+        for (std::size_t i=0;i<details.size();++i) {
+            const int y=layout_.panel.y+(46+static_cast<int>(i)*17)*layout_.scale-income_scroll_;
+            if (y<clip.y || y+10*layout_.scale>=clip.y+clip.h) continue;
+            if (!SDL_SetRenderDrawColor(renderer_,205,225,238,255) ||
+                !draw_text(layout_.panel.x+10*layout_.scale,y,details[i],
+                    layout_.panel.w-20*layout_.scale)) return false;
+        }
+    }
+    if (layout_.panel_open && !income_open_) {
         if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
         if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
                        selected_building() && world_->building(*selected_building()).kind==simulation::Object::Well ? "WELL INSPECTOR":
@@ -3720,7 +3914,7 @@ bool SandboxView::draw_help_overlay() {
         text(0,13,"Diagnostics do not change the world") &&
         text(1,2,"ECONOMY AND WORKFORCE") &&
         text(1,3,"Houses pay tax after full supply") &&
-        text(1,4,"Farm, Market and Service enable tax") &&
+        text(1,4,"T Income: supply / costs / upkeep") &&
         text(1,5,"Residents provide Available workers") &&
         text(1,6,"Assigned is actual staffed workforce") &&
         text(1,7,"Active excludes paused / burning work") &&
@@ -3734,42 +3928,18 @@ bool SandboxView::draw_help_overlay() {
 bool SandboxView::draw_budget_warning_overlay() {
     if (!budget_warning_) return true;
     const int scale=layout_.scale;
-    const int width=std::min(540*scale,std::max(0,layout_.map.w-24*scale));
-    const int height=260*scale;
-    if (width<=0 || layout_.map.h<height) return true;
-    const int x=layout_.map.x+(layout_.map.w-width)/2;
-    const int y=layout_.map.y+(layout_.map.h-height)/2;
+    const auto bounds=budget_panel_rect();
+    const int width=bounds.w;
+    const int x=bounds.x,y=bounds.y;
+    if (width<=0) return true;
     const SDL_FRect panel{static_cast<float>(x),static_cast<float>(y),
-                          static_cast<float>(width),static_cast<float>(height)};
+                          static_cast<float>(width),static_cast<float>(bounds.h)};
     if (!SDL_SetRenderDrawColor(renderer_,18,25,36,250) || !SDL_RenderFillRect(renderer_,&panel) ||
         !SDL_SetRenderDrawColor(renderer_,244,238,220,255) ||
         !draw_text(x+14*scale,y+16*scale,"STARTER BUDGET WARNING",width-28*scale)) return false;
-    std::vector<std::string> lines;
-    lines.push_back(budget_warning_->starter_workforce_within_house_limit ?
-        "This purchase leaves too little money for the complete starter reserve.":
-        "Starter workforce cannot be completed within the remaining house limit.");
-    if (!budget_warning_->remaining_missing_supply_buildings.empty()) {
-        lines.push_back("Still needed: "+joined_buildings(
-            budget_warning_->remaining_missing_supply_buildings)+".");
-        lines.push_back("Minimum building reserve: "+
-            std::to_string(budget_warning_->minimum_remaining_building_funds)+
-            " funds, plus roads.");
-    }
-    if (budget_warning_->additional_houses_needed>0) {
-        lines.push_back("Starter workforce incomplete: "+
-            std::to_string(budget_warning_->additional_houses_needed)+
-            " more Houses would initially add "+
-            std::to_string(budget_warning_->additional_houses_needed*
-                           simulation::Rules::household_initial_population)+" workers.");
-        lines.push_back("Reserve at least "+
-            std::to_string(budget_warning_->minimum_remaining_house_funds)+
-            " funds for those Houses, plus roads.");
-    }
-    lines.push_back("Funds after purchase: "+
-        std::to_string(budget_warning_->funds_after_purchase)+
-        " | total minimum: "+std::to_string(budget_warning_->minimum_remaining_start_cost));
+    const auto lines=budget_warning_lines();
     for (std::size_t i=0;i<lines.size();++i)
-        if (!draw_text(x+14*scale,y+(43+21*static_cast<int>(i))*scale,
+        if (!draw_text(x+14*scale,y+(43+17*static_cast<int>(i))*scale,
                        lines[i],width-28*scale)) return false;
     const auto draw_button=[&](sandbox_ui::Rect rect,SDL_Color color,const char* label) {
         const SDL_FRect area{static_cast<float>(rect.x),static_cast<float>(rect.y),
@@ -3779,8 +3949,8 @@ bool SandboxView::draw_budget_warning_overlay() {
             SDL_SetRenderDrawColor(renderer_,245,247,250,255) &&
             draw_text(rect.x+10*scale,rect.y+11*scale,label,rect.w-20*scale);
     };
-    return draw_button(budget_build_rect(),{117,74,48,255},"Build anyway (Y / Enter)") &&
-        draw_button(budget_cancel_rect(),{45,76,94,255},"Cancel (N / Esc)");
+    return draw_button(budget_build_rect(),{117,74,48,255},"Build anyway (Y)") &&
+        draw_button(budget_cancel_rect(),{45,76,94,255},"Cancel (Enter / Esc)");
 }
 bool SandboxView::draw_demolition_overlay() {
     if (!pending_demolition_) return true;

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <stdexcept>
 
 namespace openemperor::simulation {
@@ -45,6 +46,66 @@ std::optional<std::uint64_t> World::maintenance_due_in(BuildingId id) const {
     return Rules::maintenance_interval_ticks-age%Rules::maintenance_interval_ticks;
 }
 
+MaintenanceProjection World::maintenance_projection(std::uint64_t horizon) const {
+    MaintenanceProjection result;
+    result.applicable=maintenance_profile(profile_);
+    result.horizon_ticks=horizon;
+    if (horizon<=UINT64_MAX-ticks_) result.horizon_end_tick=ticks_+horizon;
+    result.installed_rate=current_maintenance_rate();
+    std::int64_t total=0;
+    bool representable=result.horizon_end_tick.has_value();
+    // Bounded building collection; no simulation, navigation or mutable cache.
+    for (const auto& b:buildings_) {
+        const auto cost=b.placed ? maintenance_cost(profile_,b.kind):0;
+        if (!cost) continue;
+        if (ticks_<b.placed_tick) { representable=false; continue; }
+        // Unlike maintenance_due_in(), an already booked bill at this tick is
+        // excluded. At age zero the first bill is also one full interval away.
+        const auto distance=Rules::maintenance_interval_ticks-
+            (ticks_-b.placed_tick)%Rules::maintenance_interval_ticks;
+        if (distance<=UINT64_MAX-ticks_) {
+            const auto next=ticks_+distance;
+            if (!result.next_bill_tick || next<*result.next_bill_tick) {
+                result.next_bill_tick=next;
+                result.next_bill_cost=cost;
+            } else if (next==*result.next_bill_tick) result.next_bill_cost+=cost;
+        }
+        if (horizon<distance) continue;
+        const auto count=1+(horizon-distance)/Rules::maintenance_interval_ticks;
+        if (count>static_cast<std::uint64_t>((INT64_MAX-total)/cost)) {
+            representable=false;
+            continue;
+        }
+        total+=static_cast<std::int64_t>(count)*cost;
+    }
+    if (representable) {
+        result.interval_cost=total;
+        if (treasury_>=INT64_MIN+total) result.funds_after_interval=treasury_-total;
+    }
+    return result;
+}
+
+HouseholdDemandStatus World::household_demand_status(BuildingId id) const {
+    return household_demand_status(building(id),ticks_);
+}
+
+HouseholdDemandStatus World::household_demand_status(
+    const BuildingState& home,std::uint64_t evaluation_tick) const {
+    HouseholdDemandStatus result;
+    result.food_required=food_profile(profile_);
+    result.service_required=service_profile(profile_);
+    if (!home.placed || home.kind!=Object::Household) return result;
+    result.pottery_available=home.pottery_stock>0;
+    result.food_available=home.food_stock>0;
+    result.service_available=result.service_required && home.service_until_tick>evaluation_tick;
+    result.burning=fire_profile(profile_) && home.fire_until_tick>evaluation_tick;
+    result.sick=health_profile(profile_) && home.sick_until_tick>evaluation_tick;
+    result.ready=!result.burning && !result.sick && result.pottery_available &&
+        (!result.food_required || result.food_available) &&
+        (!result.service_required || result.service_available);
+    return result;
+}
+
 std::int64_t World::household_demand_tax(const BuildingState& home,std::uint64_t count) const {
     const int history=count>=Rules::city_v7_level2_demands ? 2:
         count>=Rules::city_v7_level1_demands ? 1:0;
@@ -66,8 +127,7 @@ void World::preflight_maintenance_tick() const {
     std::uint64_t bill=0;
     for (const auto& b:buildings_) if (b.placed) {
         if (b.kind==Object::Household && b.demand_progress==Rules::household_demand_ticks-1 &&
-            b.fire_until_tick<=next && b.sick_until_tick<=next && b.pottery_stock>0 &&
-            b.food_stock>0 && b.service_until_tick>next) {
+            household_demand_status(b,next).ready) {
             if (b.fulfilled_demand==UINT64_MAX)
                 throw std::overflow_error("household fulfilled counter exhausted");
             const auto tax=household_demand_tax(b,b.fulfilled_demand+1);

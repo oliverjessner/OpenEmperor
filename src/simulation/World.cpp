@@ -1919,10 +1919,7 @@ void World::tick_production_v2() {
         if (home.placed) {
             if (++home.demand_progress==Rules::household_demand_ticks) {
                 home.demand_progress=0;
-                const bool fulfilled=!building_on_fire(home.id) && !household_sick(home.id) &&
-                    home.pottery_stock>0 &&
-                    (!food_profile(profile_) || home.food_stock>0) &&
-                    (!service_profile(profile_) || household_service_active(home.id));
+                const bool fulfilled=household_demand_status(home,ticks_).ready;
                 if (fulfilled) {
                     if (home.fulfilled_demand==UINT64_MAX || home.consumed_total==UINT64_MAX ||
                         (food_profile(profile_) && home.food_consumed_total==UINT64_MAX))

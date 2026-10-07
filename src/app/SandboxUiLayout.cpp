@@ -32,13 +32,13 @@ bool Layout::ui_at(double x,double y) const {
         panel.contains(x,y);
 }
 
-Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health) {
+Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health,bool income) {
     Layout out;
     out.scale=std::max(1,static_cast<int>(std::lround(std::min(
         width/static_cast<double>(std::max(1,window_width)),
         height/static_cast<double>(std::max(1,window_height))))));
     const int unit=out.scale;
-    const int top=std::min(height,52*unit);
+    const int top=std::min(height,(income ? 80:52)*unit);
     const int status=std::min(std::max(0,height-top),24*unit);
     const bool wrapped_tools=width<(health ? 2440:water ? 2180:fire_watch ? 1980:1800)*unit;
     const int tool_rows=wrapped_tools ? (health ? 4:fire_watch ? 3:2):1;
@@ -58,7 +58,7 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     if (desirability) tools.push_back(Action::Desirability);
     if (water) { tools.push_back(Action::Well); tools.push_back(Action::Water); }
     if (health) { tools.push_back(Action::HealthPost); tools.push_back(Action::Health); }
-    out.buttons.resize(tools.size()+10);
+    out.buttons.resize(tools.size()+(income ? 11:10));
     constexpr std::array<Action,8> controls={Action::Pause,Action::Step,Action::Speed1,
         Action::Speed2,Action::Speed4,Action::Reset,Action::Save,Action::Load};
     const int pad=4*unit;
@@ -79,6 +79,8 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     out.buttons[tools.size()+8]={Action::TogglePanel,out.panel_toggle,true};
     out.buttons[tools.size()+9]={Action::ToggleHelp,{std::max(0,width-186*unit),8*unit,
         84*unit,32*unit},true};
+    if (income) out.buttons[tools.size()+10]={Action::ToggleIncome,
+        {std::max(0,width-298*unit),8*unit,106*unit,32*unit},true};
     return out;
 }
 

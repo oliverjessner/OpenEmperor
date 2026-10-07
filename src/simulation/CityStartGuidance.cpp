@@ -68,6 +68,77 @@ StarterSupplyCondition facility_condition(const World& world,Object kind) {
     return StarterSupplyCondition::DeliveringOrReady;
 }
 
+StarterFacilityInstance facility_instance(const World& world,const BuildingState& building) {
+    StarterFacilityInstance result;
+    result.id=building.id;
+    result.kind=building.kind;
+    result.workers_required=world.workforce_required(building.id);
+    result.workers_assigned=world.workers_assigned(building.id);
+    result.operating_enabled=building.operating_enabled;
+    result.burning=world.building_on_fire(building.id);
+    bool owns_courier=false,no_road=false,awaiting=false,active=false;
+    for (const auto& courier:world.couriers()) {
+        if (!courier.enabled || courier.owner!=building.id) continue;
+        owns_courier=true;
+        result.delivery_active=result.delivery_active ||
+            courier.phase!=CourierPhase::IdleAtWorkshop;
+        // Current staffing and operation decide the facility condition below.
+        // A previously dispatched trip remains a separate fact, even on pause.
+        const auto status=world.courier_dispatch_status(courier.id).status;
+        no_road=no_road || status==CourierDispatchStatus::NoRoad ||
+            status==CourierDispatchStatus::NoTarget ||
+            status==CourierDispatchStatus::WaitingForRoadRevision;
+        awaiting=awaiting || status==CourierDispatchStatus::NoStock;
+        active=active || status==CourierDispatchStatus::Ready ||
+            status==CourierDispatchStatus::AlreadyMoving ||
+            status==CourierDispatchStatus::TargetFull;
+    }
+    if (world.operation_controls_supported() && World::operation_controllable(building.kind) &&
+        !result.operating_enabled) result.condition=StarterSupplyCondition::Paused;
+    else if (result.burning) result.condition=StarterSupplyCondition::OnFire;
+    else if (!world.building_staffed(building.id)) result.condition=StarterSupplyCondition::Unstaffed;
+    else {
+        if (!owns_courier) {
+            if (building.kind==Object::Pottery) awaiting=building.output==0;
+            else active=true;
+        }
+        result.condition=no_road && !active ? StarterSupplyCondition::NoReachableTarget:
+            awaiting && !active ? StarterSupplyCondition::AwaitingGoods:
+            StarterSupplyCondition::DeliveringOrReady;
+    }
+    return result;
+}
+
+std::optional<std::int64_t> funds_gap(std::int64_t cost,std::int64_t funds) {
+    if (funds>=cost) return 0;
+    if (funds<0 && cost>INT64_MAX+funds) return std::nullopt;
+    return cost-funds;
+}
+
+StarterBudgetWarning budget_warning(CityStartGuidance status,
+                                    std::int64_t purchase_cost,std::int64_t after) {
+    StarterBudgetWarning result;
+    result.purchase_cost=purchase_cost;
+    result.funds_after_purchase=after;
+    result.minimum_remaining_building_funds=status.minimum_missing_building_funds;
+    result.minimum_remaining_house_funds=status.minimum_house_funds_for_starter;
+    result.minimum_remaining_start_cost=result.minimum_remaining_building_funds+
+        result.minimum_remaining_house_funds;
+    result.additional_houses_needed=status.houses_needed_for_shortfall;
+    result.household_slots_remaining=status.household_slots_remaining;
+    result.starter_workforce_within_house_limit=status.starter_workforce_within_house_limit;
+    result.remaining_missing_supply_buildings=std::move(status.missing_supply_buildings);
+    result.missing_supply_costs=std::move(status.missing_supply_costs);
+    result.missing_building_funds_gap=funds_gap(result.minimum_remaining_building_funds,after);
+    result.maintenance=status.maintenance;
+    // Road purchases have no hypothetical World and no ownership-cost change.
+    // The same arithmetic also preserves the concrete purchase's derived costs.
+    result.maintenance.funds_after_interval.reset();
+    if (result.maintenance.interval_cost && after>=INT64_MIN+*result.maintenance.interval_cost)
+        result.maintenance.funds_after_interval=after-*result.maintenance.interval_cost;
+    return result;
+}
+
 std::size_t house_limit(const World& world) {
     return scalable_profile(world.profile()) ?
         Rules::city_v10_household_limit:household_limit;
@@ -103,6 +174,9 @@ CityStartGuidance inspect_city_start(const World& world) {
     CityStartGuidance result;
     result.applicable=market_profile(world.profile());
     if (!result.applicable) return result;
+    result.funds_current=world.treasury();
+    result.taxes_received_total=world.taxes_collected_total();
+    result.maintenance=world.maintenance_projection();
     result.workforce_supply=world.workforce_supply();
     result.workforce_required_now=world.active_workforce_required();
     result.workforce_active_demand=world.active_workforce_required();
@@ -116,7 +190,9 @@ CityStartGuidance inspect_city_start(const World& world) {
         result.missing_supply_buildings.push_back(kind);
         const auto command=command_for(kind);
         if (command) {
-            result.minimum_missing_building_funds+=world.construction_cost(*command);
+            const auto cost=world.construction_cost(*command);
+            result.missing_supply_costs.push_back({kind,cost});
+            result.minimum_missing_building_funds+=cost;
             result.workforce_required_for_starter+=kind==Object::ClaySource ? Rules::clay_source_workers:
                 kind==Object::Pottery ? Rules::pottery_workers:
                 kind==Object::Warehouse ? Rules::warehouse_workers:
@@ -125,14 +201,25 @@ CityStartGuidance inspect_city_start(const World& world) {
         }
     }
     for (const auto& building:world.buildings()) {
+        if (building.placed && building.kind!=Object::Household && building.kind!=Object::Well)
+            result.facility_instances.push_back(facility_instance(world,building));
         if (!building.placed || building.kind!=Object::Household) continue;
         ++result.household_count;
+        const auto demand=world.household_demand_status(building.id);
         const auto remaining=building.demand_progress>=Rules::household_demand_ticks ? 0U:
             static_cast<unsigned>(Rules::household_demand_ticks-building.demand_progress);
-        result.households.push_back({building.id,building.pottery_stock>0,building.food_stock>0,
-            world.household_service_active(building.id),remaining,
+        result.households.push_back({building.id,demand.pottery_available,demand.food_available,
+            demand.service_available,remaining,
             world.household_move_in_grace_remaining(building.id),building.last_demand_status,
-            world.household_tax_contributed(building.id)});
+            world.household_tax_contributed(building.id),demand.burning,demand.sick,demand.ready,
+            world.household_service_remaining(building.id),
+            building.reserved_incoming,building.reserved_food_incoming});
+        result.households_ready_now+=demand.ready;
+        result.households_burning+=demand.burning;
+        result.households_sick+=demand.sick;
+        result.households_missing_pottery+=!demand.pottery_available;
+        result.households_missing_food+=demand.food_required && !demand.food_available;
+        result.households_missing_service+=demand.service_required && !demand.service_available;
     }
     const auto limit=house_limit(world);
     result.household_slots_remaining=result.household_count<limit ? limit-result.household_count:0;
@@ -162,6 +249,10 @@ CityStartGuidance inspect_city_start(const World& world) {
             std::numeric_limits<std::int64_t>::max():
             std::max<std::int64_t>(0,result.suggested_house_cost-funds);
     }
+    result.missing_building_funds_gap=funds_gap(result.minimum_missing_building_funds,
+                                               world.treasury());
+    result.construction_funds_gap=funds_gap(result.minimum_missing_building_funds+
+        result.minimum_house_funds_for_starter,world.treasury());
     return result;
 }
 
@@ -196,10 +287,7 @@ std::optional<StarterBudgetWarning> starter_budget_warning(
     const auto after=hypothetical.treasury();
     if (status.starter_workforce_within_house_limit && after>=reserve)
         return std::nullopt;
-    return StarterBudgetWarning{purchase_cost,after,building_reserve,house_reserve,reserve,
-        status.houses_needed_for_shortfall,status.household_slots_remaining,
-        status.starter_workforce_within_house_limit,
-        std::move(status.missing_supply_buildings)};
+    return budget_warning(std::move(status),purchase_cost,after);
 }
 
 std::optional<StarterBudgetWarning> starter_budget_warning_for_road_purchase(
@@ -217,10 +305,7 @@ std::optional<StarterBudgetWarning> starter_budget_warning_for_road_purchase(
     const auto reserve=building_reserve+house_reserve;
     const auto after=world.treasury()-purchase_cost;
     if (status.starter_workforce_within_house_limit && after>=reserve) return std::nullopt;
-    return StarterBudgetWarning{purchase_cost,after,building_reserve,house_reserve,reserve,
-        status.houses_needed_for_shortfall,status.household_slots_remaining,
-        status.starter_workforce_within_house_limit,
-        std::move(status.missing_supply_buildings)};
+    return budget_warning(std::move(status),purchase_cost,after);
 }
 
 } // namespace openemperor::simulation

@@ -396,6 +396,18 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-menu-session-tests)
     add_test(NAME menu-session-flow COMMAND openemperor-menu-session-tests)
     set_tests_properties(menu-session-flow PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-sandbox-economy-guidance-view-tests tests/SandboxEconomyGuidanceViewTests.cpp
+        src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
+        src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
+        src/app/SandboxView.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp)
+    target_sources(openemperor-sandbox-economy-guidance-view-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-sandbox-economy-guidance-view-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
+    openemperor_enable_warnings(openemperor-sandbox-economy-guidance-view-tests)
+    add_test(NAME sandbox-economy-guidance-view COMMAND openemperor-sandbox-economy-guidance-view-tests)
+    set_tests_properties(sandbox-economy-guidance-view PROPERTIES TIMEOUT 90)
 
     add_executable(openemperor-menu-map-rules-tests tests/MenuMapRulesTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
@@ -863,3 +875,14 @@ add_executable(openemperor-fire-inspector-fixture EXCLUDE_FROM_ALL tools/FireIns
 target_link_libraries(openemperor-fire-inspector-fixture PRIVATE
     openemperor-recovery SDL3::SDL3 openemperor-version)
 openemperor_enable_warnings(openemperor-fire-inspector-fixture)
+
+add_executable(openemperor-economy-start-fixture EXCLUDE_FROM_ALL tools/EconomyStartFixture.cpp
+    src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
+    src/app/SandboxView.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+    src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+    src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+    src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+target_link_libraries(openemperor-economy-start-fixture PRIVATE
+    openemperor-recovery SDL3::SDL3 openemperor-version)
+openemperor_enable_warnings(openemperor-economy-start-fixture)

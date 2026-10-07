@@ -177,7 +177,7 @@ void modal_purchase(SDL_Window* window,SDL_Renderer* renderer) {
     check(!view.budget_warning_pending() && view.world().snapshot()==before,"rule3 budget cancel changed source");
     permissions_unchanged(view,policy,canonical);
     check(!view.request_execute(warned).accepted && view.budget_warning_pending(),"rule3 budget reopen");
-    view.handle_event(key(SDLK_RETURN),running);
+    view.handle_event(key(SDLK_Y),running);
     check(!view.budget_warning_pending() && view.world().object_at(warned.cell)==sim::Object::Household &&
         view.world().command_sequence()==before.command_sequence+1 &&
         view.world().treasury()==before.treasury-80 && view.world().ticks()==before.ticks &&
