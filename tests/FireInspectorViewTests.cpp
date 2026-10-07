@@ -176,6 +176,200 @@ void optional_failure_checks(SDL_Window* window,SDL_Renderer* renderer) {
         custom.fire_inspector_display_stats().fallback_reason.find("Custom")!=std::string::npos,
         "explicit legacy custom override secretly gained builtin Inspector");custom.shutdown();
 }
+void live_hit(View& view,sim::CourierId id) {
+    const auto before=view.fire_inspector_display_stats();render_pure(view);
+    const auto after=view.fire_inspector_display_stats();
+    check(openemperor::walker_live_visible(view.world().courier(id)) &&
+        (before.active ? after.draws==before.draws+1:after.fallback_draws==before.fallback_draws+1),
+        "active trip did not submit its sprite/marker exactly once");
+    auto hit=ground(view,id);
+    if (before.active) hit.y-=8;
+    else { const auto number=static_cast<unsigned>(id);hit.x+=number==1 ? -5:number==2 ? 5:number==3 ? 0:number==4 ? -10:number==5 ? 10:14; }
+    click(view,hit);
+    check(view.input_diagnostic_state().selected_walker==static_cast<std::uint32_t>(id),
+        "drawn active sprite/marker did not retain its live Walker hit");
+}
+void hidden_home(View& view,sim::CourierId id,sim::BuildingId watch,SDL_Renderer* renderer) {
+    const auto before=view.fire_inspector_display_stats();render_pure(view);
+    const auto after=view.fire_inspector_display_stats();
+    check(!openemperor::walker_live_visible(view.world().courier(id)) &&
+        after.draws==before.draws && after.fallback_draws==before.fallback_draws &&
+        view.input_diagnostic_state().selected_walker!=static_cast<std::uint32_t>(id),
+        "home Idle Inspector retained a live draw/counter/selection");
+    const auto output=read(renderer);const auto point=ground(view,id);
+    check(pixel(output.get(),static_cast<int>(point.x),static_cast<int>(point.y-8))!=Pixel{0,0,255,255},
+        "Idle Inspector torso remained outside its Watch");
+    for (const auto offset:{openemperor::scene::Point{0,-8},openemperor::scene::Point{-5,0}}) {
+        click(view,{point.x+offset.x,point.y+offset.y});
+        check(view.input_diagnostic_state().selected_walker!=static_cast<std::uint32_t>(id),
+            "hidden sprite/marker retained an invisible Walker hit");
+    }
+    click(view,point);
+    std::string inspection;
+    for (const auto& line:view.inspection_lines()) { inspection+=line;inspection+=' '; }
+    check(view.input_diagnostic_state().selected_walker==0 &&
+        view.input_diagnostic_state().selected_cell==view.world().building(watch).cell &&
+        inspection.find("Fire Watch #")!=std::string::npos &&
+        inspection.find("Inspector phase: Idle at source")!=std::string::npos &&
+        inspection.find("Workers assigned")!=std::string::npos,
+        "hidden logical Inspector made Watch selection/diagnostics unavailable");
+}
+void visibility_lifecycle_checks(SDL_Window* window,SDL_Renderer* renderer,bool inspector_assets) {
+    authored::Fixture fixture;
+    View view(session(fixture),false,sim::RulesProfile::CityV12);
+    configure(view,fixture,inspector_assets ? fixture.supplement:fs::path{});view.initialize(window,renderer);
+    auto control=sim::World::restore(view.world().snapshot(),view.buildable_mask());
+    const auto command=[&](sim::Command input) {
+        const auto actual=view.execute(input),plain=control.execute(input);
+        check(actual.accepted && plain.accepted && actual.changed==plain.changed &&
+            view.world().snapshot()==control.snapshot(),"visibility changed paid command/full World state");
+    };
+    const auto step=[&] { view.tick_once();control.tick();check(view.world().snapshot()==control.snapshot(),"visibility changed full tick outcome"); };
+    command({sim::CommandType::PlaceFireWatch,{111,111}});
+    const auto watch=*view.world().building_owner_at({111,111});const auto id=inspector_id(view,watch);
+    check(view.world().workers_assigned(watch)==0 && view.world().courier_position(id) &&
+        view.world().courier(id).enabled && view.world().courier(id).phase==sim::CourierPhase::IdleAtWorkshop,
+        "unstaffed Watch changed existing logical Courier/position");
+    zoom_to(view,id,1.0);toggle(view,SDLK_F1);hidden_home(view,id,watch,renderer);
+    check(view.last_courier_draws()==0,"new unstaffed Watch submitted a live Inspector");
+    toggle(view,SDLK_F2);hidden_home(view,id,watch,renderer);
+    check(view.last_courier_draws()==0,"F2 exposed home Idle fallback marker");
+    toggle(view,SDLK_F2);
+    if (inspector_assets) {
+        const auto stable=view.world().snapshot();toggle(view,SDLK_F3);
+        for (int role=0;role<3;++role) toggle(view,SDLK_V);
+        render_pure(view);
+        check(view.last_courier_draws()==0 && view.fire_inspector_display_stats().draws==0 &&
+            view.world().snapshot()==stable,"separate Inspector idle asset preview became a live World instance");
+        toggle(view,SDLK_F3);
+    }
+    const auto idle_saved=view.world().snapshot();toggle(view,SDLK_F5);
+    check(fs::is_regular_file(fixture.root/"save.json"),"Idle save missing");
+    command({sim::CommandType::PlaceHousehold,{119,115}});
+    check(view.world().workers_assigned(watch)==2 && view.world().courier(id).phase==sim::CourierPhase::IdleAtWorkshop,
+        "paid population did not staff Watch before actual dispatch");
+    hidden_home(view,id,watch,renderer);
+    toggle(view,SDLK_F9);control=sim::World::restore(idle_saved,view.buildable_mask());
+    check(view.world().snapshot()==control.snapshot(),"Idle reload changed logical state");
+    hidden_home(view,id,watch,renderer);
+    command({sim::CommandType::PlaceHousehold,{119,115}});
+    const auto target=*view.world().building_owner_at({119,115});
+    for (int x=111;x<=118;++x) command({sim::CommandType::PlaceRoad,{x,112}});
+    for (int y=113;y<=115;++y) command({sim::CommandType::PlaceRoad,{118,y}});
+    hidden_home(view,id,watch,renderer);step();
+    check(view.world().ticks()==1 && view.world().burning_buildings()==0 &&
+        view.world().courier(id).phase==sim::CourierPhase::ToWarehouse &&
+        view.world().building(target).fire_protection_until_tick==0,
+        "preventive dispatch without fire was changed or protection granted early");
+    int budget=30;
+    while (budget-- && !(view.world().courier(id).path_vertex>=2 && view.world().courier(id).edge_progress==0)) step();
+    check(budget>=0,"preventive patrol failed to reach clear road waypoint");
+    live_hit(view,id);
+    if (inspector_assets) { toggle(view,SDLK_F2);live_hit(view,id);toggle(view,SDLK_F2);live_hit(view,id); }
+    command(sim::set_building_operation(watch,false));
+    check(view.world().workers_assigned(watch)==0,"paused underway Watch retained assigned workers");live_hit(view,id);
+    command(sim::set_building_operation(watch,true));
+    command({sim::CommandType::PlacePottery,{110,118}});const auto pottery=*view.world().building_owner_at({110,118});
+    command(sim::set_building_workforce_priority(pottery,sim::WorkforcePriority::High));
+    check(view.world().building(watch).operating_enabled && view.world().workers_assigned(watch)==0,
+        "ordinary priority did not remove underway Watch staffing");
+    const auto old_role_before=view.walker_display_stats().roles[1].draws;live_hit(view,id);
+    check(view.walker_display_stats().roles[1].draws==old_role_before+1,
+        "Inspector visibility change hid an older idle Pottery sprite");
+    command({sim::CommandType::RemoveRoad,{118,114}});
+    check(view.world().courier(id).route_pending && view.world().courier(id).path.size()==1 &&
+        view.world().courier(id).phase==sim::CourierPhase::ToWarehouse,
+        "ordinary road interruption did not create a real one-cell waiting trip");
+    const auto waiting_position=view.world().courier_position(id);step();live_hit(view,id);
+    render_pure(view);const auto waiting_pixels=read(renderer);const auto waiting_ground=ground(view,id);
+    const auto same_waiting_pixels=[&] {
+        render_pure(view);const auto actual=read(renderer);
+        for (int y=-14;y<=3;++y) for (int x=-6;x<=6;++x)
+            check(pixel(actual.get(),static_cast<int>(waiting_ground.x)+x,static_cast<int>(waiting_ground.y)+y)==
+                pixel(waiting_pixels.get(),static_cast<int>(waiting_ground.x)+x,static_cast<int>(waiting_ground.y)+y),
+                "one-cell waiting/reloaded Inspector changed its static visible pixels");
+    };
+    const auto waiting_saved=view.world().snapshot();toggle(view,SDLK_F5);
+    for (int repeat=0;repeat<5;++repeat) {
+        step();live_hit(view,id);same_waiting_pixels();
+        check(view.world().courier_position(id)==waiting_position,"waiting figure moved");
+    }
+    toggle(view,SDLK_F9);control=sim::World::restore(waiting_saved,view.buildable_mask());
+    check(view.world().snapshot()==control.snapshot() && view.world().courier_position(id)==waiting_position &&
+        view.input_diagnostic_state().selected_walker==0,"waiting reload changed state/position or retained stale selection");
+    live_hit(view,id);same_waiting_pixels();
+    command({sim::CommandType::PlaceRoad,{118,114}});live_hit(view,id);
+    bool arrived=false;budget=200;openemperor::scene::Point stale_hit{};
+    while (budget-- && view.world().courier(id).phase!=sim::CourierPhase::IdleAtWorkshop) {
+        const auto phase=view.world().courier(id).phase;
+        step();const auto& courier=view.world().courier(id);
+        if (phase==sim::CourierPhase::ToWarehouse && courier.phase==sim::CourierPhase::Returning) {
+            arrived=true;
+            check(view.world().burning_buildings()==0 && view.world().building(target).fire_protection_until_tick==view.world().ticks()+2400,
+                "preventive arrival failed existing protection semantics");
+            command(sim::set_building_operation(watch,false));
+        }
+        if (courier.phase!=sim::CourierPhase::IdleAtWorkshop) {
+            const auto before=view.fire_inspector_display_stats();render_pure(view);const auto after=view.fire_inspector_display_stats();
+            check(openemperor::walker_live_visible(courier) &&
+                (before.active ? after.draws==before.draws+1:after.fallback_draws==before.fallback_draws+1),
+                "unassigned/paused/outgoing/Returning trip disappeared");
+            stale_hit=ground(view,id);if (before.active) stale_hit.y-=8;else stale_hit.x-=5;
+        }
+    }
+    check(arrived && budget>=0 && view.input_diagnostic_state().selected_walker==0 &&
+        !view.input_diagnostic_state().selected_cell,"completed return retained a selected Walker/cell before redraw");
+    click(view,stale_hit);
+    check(view.input_diagnostic_state().selected_walker!=static_cast<std::uint32_t>(id),
+        "pre-redraw cached hit resurrected returned Idle Inspector");
+    hidden_home(view,id,watch,renderer);
+    std::cout<<(inspector_assets ? "sprite":"missing-assets marker")
+             <<" visibility: unstaffed/staffed Idle hidden, preventive dispatch1, real single-cell wait/reload, paused+unassigned trip, protection/return neutral\n";
+    view.shutdown();check(openemperor::WalkerSpriteSet::live_texture_count()==0 &&
+        openemperor::FireSpriteSet::live_texture_count()==0,"visibility lifecycle leaked prepared resources");
+}
+void last_fire_return_checks(SDL_Window* window,SDL_Renderer* renderer) {
+    authored::Fixture fixture;View view(session(fixture),false,sim::RulesProfile::CityV12);
+    configure(view,fixture,fixture.supplement);view.initialize(window,renderer);
+    const auto target=put(view,sim::CommandType::PlaceHousehold,{119,115});
+    const auto watch=put(view,sim::CommandType::PlaceFireWatch,{111,111});
+    check(view.execute(sim::set_building_operation(watch,false)).accepted,"pause sole-fire fixture Watch");
+    for (int x=111;x<=118;++x) check(view.execute({sim::CommandType::PlaceRoad,{x,112}}).accepted,"sole-fire horizontal road");
+    for (int y=113;y<=115;++y) check(view.execute({sim::CommandType::PlaceRoad,{118,y}}).accepted,"sole-fire curved road");
+    const auto id=inspector_id(view,watch);auto control=sim::World::restore(view.world().snapshot(),view.buildable_mask());
+    const auto step=[&] { view.tick_once();control.tick();check(view.world().snapshot()==control.snapshot(),"visibility changed sole-fire command/tick state"); };
+    while (view.world().ticks()<2000) step();
+    check(view.world().burning_buildings()==1 && view.world().building_on_fire(target),"sole natural fire fixture");
+    check(view.execute(sim::set_building_operation(watch,true)).accepted && control.execute(sim::set_building_operation(watch,true)).accepted,"resume sole-fire Watch");
+    step();check(view.world().building_on_fire(target) && view.world().courier(id).phase==sim::CourierPhase::ToWarehouse,
+        "dispatch changed sole-fire extinguishing semantics");
+    zoom_to(view,id,1.0);toggle(view,SDLK_F1);
+    int budget=30;while (budget-- && !(view.world().courier(id).path_vertex>=2 && view.world().courier(id).edge_progress==0)) step();
+    check(budget>=0,"fire trip failed clear waypoint");live_hit(view,id);
+    budget=150;while (budget-- && view.world().courier(id).phase==sim::CourierPhase::ToWarehouse) step();
+    check(budget>=0 && view.world().courier(id).phase==sim::CourierPhase::Returning && view.world().burning_buildings()==0 &&
+        view.world().building(target).fire_until_tick==view.world().ticks() &&
+        view.world().building(target).fire_protection_until_tick==view.world().ticks()+2400,"last fire did not end on actual unchanged arrival");
+    const auto arrival_tick=view.world().ticks();
+    check(view.execute(sim::set_building_operation(watch,false)).accepted && control.execute(sim::set_building_operation(watch,false)).accepted,"pause next sole-fire patrol");
+    budget=150;openemperor::scene::Point last_hit{};
+    while (budget-- && view.world().courier(id).phase!=sim::CourierPhase::IdleAtWorkshop) {
+        check(view.world().burning_buildings()==0 && openemperor::walker_live_visible(view.world().courier(id)),"Returning hidden after last fire ended");
+        const auto before=view.fire_inspector_display_stats();render_pure(view);
+        check(view.fire_inspector_display_stats().draws==before.draws+1,"last-fire return did not draw its figure");
+        last_hit=ground(view,id);last_hit.y-=8;step();
+    }
+    check(budget>=0 && view.input_diagnostic_state().selected_walker==0,"sole-fire return left stale selection");
+    check(view.execute(sim::demolish_building(watch)).accepted && control.execute(sim::demolish_building(watch)).accepted &&
+        view.world().snapshot()==control.snapshot(),"ordinary idle Watch demolition changed control state");
+    // The submitted frame still contains the now-erased CourierId. Inspect it
+    // before any redraw to verify safe lookup, not only ordinary hit rebuilding.
+    click(view,last_hit);check(view.input_diagnostic_state().selected_walker!=static_cast<std::uint32_t>(id),
+        "cached erased Courier hit resurrected demolished Watch Inspector");
+    render_pure(view);
+    std::cout<<"sole natural fire: dispatch2001, unchanged arrival"<<arrival_tick<<", burning0 return visible, cached erased hit safe\n";
+    view.shutdown();
+}
 void production_checks(SDL_Window* window,SDL_Renderer* renderer) {
     authored::Fixture fixture;
     const auto profile=openemperor::assets::load_walker_visual_profile(fixture.data,fixture.supplement);
@@ -285,7 +479,8 @@ int main(int argc,char* argv[]) {
         auto target=std::unique_ptr<SDL_Texture,decltype(&SDL_DestroyTexture)>(
             SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,1280,720),SDL_DestroyTexture);
         check(bool(target) && SDL_SetRenderTarget(renderer,target.get()),"own pre-Present pixel target");
-        optional_failure_checks(window,renderer);production_checks(window,renderer);
+        optional_failure_checks(window,renderer);visibility_lifecycle_checks(window,renderer,true);
+        visibility_lifecycle_checks(window,renderer,false);last_fire_return_checks(window,renderer);production_checks(window,renderer);
         check(SDL_SetRenderTarget(renderer,nullptr),"release pixel target");target.reset();
         SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
         std::cout<<"production Inspector activation/fallback/core+fire budgets/pixels/alpha picking/zoom/arrival/return passed\n";return 0;

@@ -1,6 +1,10 @@
 #include "app/WalkerPose.h"
 
 namespace openemperor {
+bool walker_live_visible(const simulation::CourierState& courier) {
+    return courier.role!=simulation::CourierRole::FireInspector ||
+        (courier.enabled && courier.phase!=simulation::CourierPhase::IdleAtWorkshop);
+}
 std::optional<assets::WalkerVisualRole> walker_visual_role(simulation::CourierRole role) {
     switch (role) {
     case simulation::CourierRole::Clay: return assets::WalkerVisualRole::Clay;

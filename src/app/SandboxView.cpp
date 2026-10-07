@@ -1213,7 +1213,7 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         last_message_=desirability_overlay_ ? "Desirability ON: green Good, amber Neutral, red Poor":
             "Desirability OFF";
     } else if (action==A::Pause) clock_.toggle_pause();
-    else if (action==A::Step) clock_.step_once(*world_);
+    else if (action==A::Step) { clock_.step_once(*world_); clear_hidden_walker_selection(); }
     else if (action==A::Speed1) clock_.set_speed(1);
     else if (action==A::Speed2) clock_.set_speed(2);
     else if (action==A::Speed4) clock_.set_speed(4);
@@ -1680,8 +1680,12 @@ void SandboxView::update(double seconds,PanKeyState keys) {
     }
     if (hover_dirty_ || road_start_) refresh_hover();
     clock_.update(seconds,*world_);
+    clear_hidden_walker_selection();
 }
-void SandboxView::tick_once() { if (!budget_warning_ && !pending_demolition_) world_->tick(); }
+void SandboxView::tick_once() {
+    if (!budget_warning_ && !pending_demolition_) world_->tick();
+    clear_hidden_walker_selection();
+}
 simulation::CommandResult SandboxView::execute(simulation::Command command) {
     const auto result=world_->execute(command);
     last_message_=result.reason;
@@ -1791,6 +1795,12 @@ scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
 void SandboxView::clear_visual_selection() {
     selected_landscape_=false; selected_walker_.reset();
 }
+void SandboxView::clear_hidden_walker_selection() {
+    if (simulation::production_profile(rules_) && selected_walker_ &&
+        !walker_live_visible(world_->courier(*selected_walker_))) {
+        clear_visual_selection(); selected_.reset(); panel_scroll_=0;
+    }
+}
 void SandboxView::record_visual_hit(const DrawInstance& instance) {
     if (instance.placement_preview || instance.object==simulation::Object::Road) return;
     const auto append=[&](const VisualHit& next) {
@@ -1871,6 +1881,16 @@ bool SandboxView::select_visual(scene::Point screen) {
     const auto world=visual_hit_camera_.screen_to_world(screen);
     const VisualHit* dynamic=nullptr;
     for (auto it=visual_hits_.rbegin();it!=visual_hits_.rend();++it) {
+        // A submitted frame can precede the tick that returns an Inspector home.
+        if (simulation::production_profile(rules_) && it->walker) {
+            const auto& couriers=world_->couriers();
+            const auto current=std::lower_bound(couriers.begin(),couriers.end(),*it->walker,
+                [](const simulation::CourierState& courier,simulation::CourierId id) {
+                    return courier.id<id;
+                });
+            if (current==couriers.end() || current->id!=*it->walker ||
+                !walker_live_visible(*current)) continue;
+        }
         const double x=world.x-it->origin.x,y=world.y-it->origin.y;
         if (x<0 || y<0 || x>=it->width || y>=it->height) continue;
         if (it->diamond && std::abs(x-40)/40+std::abs(y-20)/20>1) continue;
@@ -1921,6 +1941,7 @@ bool SandboxView::draw_diamond(scene::Point world,std::uint8_t r,std::uint8_t g,
     return true;
 }
 bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
+    clear_hidden_walker_selection();
     last_courier_draws_=0;
     fire_draws_=fire_fallback_draws_=0;
     road_fallbacks_current_=0;
@@ -2257,6 +2278,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                                  simulation::Object::Empty,simulation::CourierId::Clay,*position});
         }
     } else for (const auto& state:world_->couriers()) {
+        if (!walker_live_visible(state)) continue;
         const auto position=world_->courier_position(state.id);
         if (!position) continue;
         const auto ground=world_for(*position);

@@ -16,6 +16,8 @@ struct WalkerPose {
     WalkerFallback fallback=WalkerFallback::None;
 };
 std::optional<assets::WalkerVisualRole> walker_visual_role(simulation::CourierRole role);
+// Live-map visibility is separate from the static F3/profile pose preview.
+bool walker_live_visible(const simulation::CourierState& courier);
 WalkerPose walker_pose(const simulation::CourierState& courier,std::uint64_t world_tick,
                        const assets::WalkerRoleVisual& role_visual);
 WalkerPose walker_pose(const simulation::CourierState& courier,std::uint64_t world_tick,

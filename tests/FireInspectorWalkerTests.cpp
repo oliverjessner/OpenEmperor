@@ -267,6 +267,37 @@ void pose_checks(const assets::WalkerVisualProfile& profile) {
     check(walker_pose(courier,7,partial).fallback==WalkerFallback::UnmappedDirection &&
         !walker_pose(courier,7,partial).frame,"unmapped custom Inspector direction hid fallback");
 }
+void live_visibility_checks(const assets::WalkerVisualProfile& profile) {
+    using namespace openemperor;
+    sim::CourierState courier;courier.role=sim::CourierRole::FireInspector;
+    courier.enabled=true;courier.phase=sim::CourierPhase::IdleAtWorkshop;
+    check(!walker_live_visible(courier) && walker_pose(courier,31,profile).frame==profile.roles[3]->idle_frame,
+        "Idle Inspector escaped Watch or lost its separate diagnostic idle frame");
+    for (const auto phase:{sim::CourierPhase::ToWarehouse,sim::CourierPhase::Returning}) {
+        courier.phase=phase;
+        for (const bool pending:{false,true}) {
+            courier.route_pending=pending;courier.edge_progress=0;courier.path={{3,3}};
+            check(walker_live_visible(courier) && !walker_pose(courier,31,profile).moving,
+                "active one-cell/static Inspector confused with home Idle");
+            courier.path={{3,3},{4,3}};courier.edge_progress=1;
+            check(walker_live_visible(courier) && walker_pose(courier,31,profile).moving,
+                "begun outgoing/return edge hidden by presentation");
+            courier.enabled=false;
+            check(!walker_live_visible(courier),"disabled Inspector remained live visible");
+            courier.enabled=true;
+        }
+    }
+    constexpr std::array old_roles{sim::CourierRole::Clay,sim::CourierRole::Pottery,
+        sim::CourierRole::Household,sim::CourierRole::Food,sim::CourierRole::Service,
+        sim::CourierRole::HealthWorker,sim::CourierRole::MarketPotteryInbound,
+        sim::CourierRole::MarketFoodInbound,sim::CourierRole::MarketPotteryDistribution,
+        sim::CourierRole::MarketFoodDistribution,sim::CourierRole::None};
+    for (const auto role:old_roles) for (const bool enabled:{false,true})
+        for (const auto phase:{sim::CourierPhase::IdleAtWorkshop,sim::CourierPhase::ToWarehouse,sim::CourierPhase::Returning}) {
+            courier.role=role;courier.enabled=enabled;courier.phase=phase;
+            check(walker_live_visible(courier),"Inspector-only visibility filter changed an older role");
+        }
+}
 using Color=std::array<std::uint8_t,4>;
 Color pixel(SDL_Renderer* renderer,int x,int y) {
     auto* surface=SDL_RenderReadPixels(renderer,nullptr);check(surface!=nullptr,"renderer readback");
@@ -451,6 +482,8 @@ void actual_gate_neutrality(const assets::WalkerVisualProfile& profile,bool hori
         perf::set_enabled(true);perf::reset();
         for (int repeat=0;repeat<5;++repeat) {
             const auto pose=walker_pose(courier,world.ticks(),profile);
+            check(walker_live_visible(courier)==(courier.phase!=sim::CourierPhase::IdleAtWorkshop),
+                "real gate Inspector visibility does not follow authoritative trip phase");
             check(pose.role==assets::WalkerVisualRole::FireInspector && pose.frame && !pose.loaded,
                 "actual Inspector role/pose became marker or cargo");
             if (pose.moving) {
@@ -489,7 +522,8 @@ void actual_gate_neutrality(const assets::WalkerVisualProfile& profile,bool hori
     const auto waiting_position=world.courier_position(id);waiting_seen=true;
     const auto saved=world.snapshot();auto restored=sim::World::restore(saved,permissions);
     check(restored.snapshot()==saved && restored.map_permissions()==permissions &&
-        walker_pose(restored.courier(id),restored.ticks(),profile).frame==waiting_frame,
+        walker_pose(restored.courier(id),restored.ticks(),profile).frame==waiting_frame &&
+        walker_live_visible(restored.courier(id)),
         "waiting restore lost full permissions or directional static pose");
     for (int pause=0;pause<25;++pause) {
         step();restored.tick();
@@ -519,6 +553,10 @@ void actual_gate_neutrality(const assets::WalkerVisualProfile& profile,bool hori
     budget=200;
     while (budget-- && world.courier(id).phase!=sim::CourierPhase::IdleAtWorkshop) step();
     returned=world.courier(id).phase==sim::CourierPhase::IdleAtWorkshop;
+    const auto idle_checkpoint=world.snapshot();const auto idle_restored=sim::World::restore(idle_checkpoint,permissions);
+    check(!walker_live_visible(world.courier(id)) && !walker_live_visible(idle_restored.courier(id)) &&
+        idle_restored.snapshot()==idle_checkpoint && idle_restored.map_permissions()==permissions,
+        "completed return/Idle restore changed visibility or complete gate permissions");
     check(gate_seen && begun_seen && waiting_seen && arrival_seen && returning_seen && returned &&
         std::all_of(directions.begin(),directions.end(),[](bool seen){return seen;}),
         "actual Inspector missed gate, begun edge, wait, arrival, return or storage direction");
@@ -537,7 +575,7 @@ void actual_gate_neutrality(const assets::WalkerVisualProfile& profile,bool hori
     for (int tick=0;tick<2050;++tick) {
         unstaffed.tick();const auto stable=unstaffed.snapshot();
         const auto pose=walker_pose(unstaffed.courier(empty_id),unstaffed.ticks(),profile);
-        check(!pose.moving && pose.frame==profile.roles[3]->idle_frame &&
+        check(!walker_live_visible(unstaffed.courier(empty_id)) && !pose.moving && pose.frame==profile.roles[3]->idle_frame &&
             unstaffed.courier(empty_id).phase==sim::CourierPhase::IdleAtWorkshop &&
             !unstaffed.building_staffed(empty_watch) && unstaffed.snapshot()==stable,"unstaffed sprite invented departure/workforce");
     }
@@ -547,7 +585,7 @@ int main(int argc,char* argv[]) {
     try {
         const bool metal=argc==2 && std::string_view(argv[1])=="metal";
         check(argc==1 || metal,"usage: inspector-tests [metal]");
-        Fixture fixture;const auto profile=profile_checks(fixture);pose_checks(profile);
+        Fixture fixture;const auto profile=profile_checks(fixture);pose_checks(profile);live_visibility_checks(profile);
         render_checks(fixture,profile,metal);
         actual_gate_neutrality(profile,false);actual_gate_neutrality(profile,true);
         std::cout<<"Inspector schema/atomic supplementation/directions/pixels/texture lifetime/real gated fire patrol passed\n";

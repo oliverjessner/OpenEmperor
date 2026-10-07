@@ -226,6 +226,7 @@ private:
     void record_visual_hit(const DrawInstance& instance);
     bool select_visual(scene::Point screen);
     void clear_visual_selection();
+    void clear_hidden_walker_selection();
     void reset_camera();
     void update_window_title();
     void resize_camera();
