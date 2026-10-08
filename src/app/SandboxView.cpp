@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -1715,6 +1716,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_F6) {
             if (road_profile_) {
                 road_enabled_=!road_enabled_;
+                visual_hits_.clear(); visual_frame_valid_=false;
                 last_message_=road_enabled_ ? "Road visuals ON":"Road visuals OFF";
             } else last_message_="No road visuals loaded";
         }
@@ -1728,7 +1730,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_F7) {
             unified_depth_=!unified_depth_;
             visual_hits_.clear(); visual_frame_valid_=false;
-            last_message_=unified_depth_ ? "Depth painter: unified":"Depth painter: legacy";
+            last_message_=unified_depth_ ?
+                (background_.landscape_mode()==LandscapeDebugMode::Snapshot ?
+                    "Depth painter: unified snapshot":"Depth painter: ground roads + spatial"):
+                "Depth painter: legacy";
         }
         else if (walker_diagnostic_open_ && walker_profile_) {
             if (event.key.key==SDLK_V) {
@@ -2075,7 +2080,7 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
                     hit.flip_x=frame.flip_x;
                     hit.width=image.width; hit.height=image.height;
                     append(hit);
-                    if (pose.loaded) {
+                    if (pose.loaded && debug_open_) {
                         const double size=std::max(5.0,8.0*camera_.zoom)/camera_.zoom;
                         hit.image.reset();hit.origin={ground.x+size*.3,ground.y-size*1.5};
                         hit.width=hit.height=size*.6;append(hit);
@@ -2160,7 +2165,8 @@ bool SandboxView::select_visual(scene::Point screen) {
         }
         dynamic=&*it;break;
     }
-    const auto stored=background_.hit_test_item(screen,visual_hit_camera_);
+    const auto stored=background_.hit_test_item(screen,visual_hit_camera_,
+        road_ground_replacements_,static_cast<std::size_t>(world_->width()));
     if (!dynamic && !stored) return false;
     clear_visual_selection(); panel_scroll_=0;
     if (dynamic && (!stored || !visual_hit_unified_ || stored->key<dynamic->key)) {
@@ -2472,7 +2478,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                         walker_role_stats_[role_index].directions_drawn[
                             assets::direction_index(*pose.direction)]=true;
                 }
-                if (pose.loaded) {
+                if (pose.loaded && debug_open_) {
                     const float size=static_cast<float>(std::max(5.0,8.0*camera_.zoom));
                     const SDL_FRect cargo{static_cast<float>(ground.x)+size*.3F,
                         static_cast<float>(ground.y)-size*1.5F,size*.6F,size*.6F};
@@ -2572,9 +2578,20 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const double flat_y=(position.x+position.y-2*geometry_.border)*20.0+20.0;
         instance.key.depth+=flat_y-world_for(position).y;
     }
-    std::sort(instances.begin(),instances.end(),[](const DrawInstance& a,const DrawInstance& b) {
+    // Sandbox roads are flat surfaces. Retain the historical Snapshot and F7
+    // comparison paths, including their old shared road/object ordering.
+    const bool road_ground_pass=unified_depth_ &&
+        background_.landscape_mode()!=LandscapeDebugMode::Snapshot;
+    const auto spatial_begin=road_ground_pass ?
+        std::partition(instances.begin(),instances.end(),[](const DrawInstance& instance) {
+            return instance.object==simulation::Object::Road;
+        }):instances.begin();
+    const auto road_ground_count=static_cast<std::size_t>(spatial_begin-instances.begin());
+    const auto less=[](const DrawInstance& a,const DrawInstance& b) {
         return a.key<b.key;
-    });
+    };
+    std::sort(instances.begin(),spatial_begin,less);
+    std::sort(spatial_begin,instances.end(),less);
     const auto draw_instance_body=[&](std::size_t index)->bool {
         const auto& instance=instances[index];
         if (instance.key.layer!=scene::WorldVisualLayer::SandboxWalker)
@@ -2631,6 +2648,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     };
     painter_stats_={};
     painter_stats_.stored_order_builds=background_.stored_order_builds();
+    painter_stats_.road_ground_pass=road_ground_pass;
+    painter_stats_.road_ground_items=road_ground_count;
     const auto replacement_for=[&](std::size_t i)->std::uint8_t {
         const auto& item=background_.draw_items()[i];
         if (item.regenerated) return 0; // Multi-cell landscape never replaces road ground.
@@ -2657,11 +2676,16 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     const auto draw_stored=[&](std::size_t i) {
         return replacement_for(i)!=0 || background_.draw_item(i,render_camera);
     };
+    // The same prepared road raster/preview draws once, after the existing
+    // Ground and preview backdrop, before any spatial object or walker.
+    for (std::size_t i=0;i<road_ground_count;++i)
+        if (!draw_instance(i)) return false;
     if (unified_depth_) {
         scene::WorldMergeStats stats;
-        if (!scene::merge_world_draw_streams(background_.draw_items(),instances,
+        const auto spatial=std::span<const DrawInstance>{instances}.subspan(road_ground_count);
+        if (!scene::merge_world_draw_streams(background_.draw_items(),spatial,
             draw_stored,
-            draw_instance,stats)) return false;
+            [&](std::size_t i){return draw_instance(road_ground_count+i);},stats)) return false;
         static_cast<scene::WorldMergeStats&>(painter_stats_)=stats;
     } else {
         for (std::size_t i=0;i<background_.draw_items().size();++i)
@@ -4066,8 +4090,10 @@ bool SandboxView::draw_hud() {
                        layout_.map.w-16*layout_.scale)) return false;
         debug_row+=14;
         const std::string depth_line=std::string("Depth painter: ")+
-            (unified_depth_ ? "unified":"legacy")+" | stored "+
-            std::to_string(painter_stats_.stored_items_visited)+" | sandbox "+
+            (painter_stats_.road_ground_pass ? "ground+spatial":unified_depth_ ? "snapshot":"legacy")+
+            " | roads "+std::to_string(painter_stats_.road_ground_items)+" | stored "+
+            std::to_string(painter_stats_.stored_items_visited)+
+            (painter_stats_.road_ground_pass ? " | spatial ":" | shared ")+
             std::to_string(painter_stats_.sandbox_items);
         if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,depth_line,
                        layout_.map.w-16*layout_.scale)) return false;

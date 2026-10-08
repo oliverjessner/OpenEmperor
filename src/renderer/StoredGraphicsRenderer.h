@@ -8,6 +8,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <vector>
 
 struct SDL_Renderer;
@@ -49,7 +50,10 @@ public:
     void set_landscape_mode(LandscapeDebugMode mode);
     LandscapeDebugMode landscape_mode() const { return landscape_mode_; }
     bool elevated() const { return landscape_mode_!=LandscapeDebugMode::Snapshot && plan_.landscape_layers_available; }
-    std::optional<StoredVisualHit> hit_test_item(scene::Point screen, const scene::Camera2D& camera) const;
+    // A caller may exclude singleton graphics that its submitted road pass
+    // replaced or moved into an early preview backdrop. Empty keeps old behavior.
+    std::optional<StoredVisualHit> hit_test_item(scene::Point screen, const scene::Camera2D& camera,
+        std::span<const std::uint8_t> ground_replacements={},std::size_t replacement_width=0) const;
     std::optional<maps::GridCell> hit_test(scene::Point screen, const scene::Camera2D& camera) const;
 
     bool draw_selection(const scene::Camera2D& camera,

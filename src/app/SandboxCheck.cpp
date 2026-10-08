@@ -590,6 +590,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"road",visual_profile_source_name(view.road_visual_source())}};
                 const auto painter=view.painter_stats();
                 report["depth_painter"]={{"mode",view.unified_depth() ? "unified":"legacy"},
+                    {"road_ground_pass",painter.road_ground_pass},
+                    {"road_ground_items",painter.road_ground_items},
                     {"stored_items_visited",painter.stored_items_visited},
                     {"sandbox_items",painter.sandbox_items},
                     {"stored_before_sandbox_count",painter.stored_before_sandbox_count},

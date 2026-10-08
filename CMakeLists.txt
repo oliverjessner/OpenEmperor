@@ -776,6 +776,16 @@ if(BUILD_TESTING)
         openemperor-recovery openemperor-version SDL3::SDL3)
     openemperor_enable_warnings(openemperor-market-walker-view-tests)
     add_test(NAME market-walker-production-view COMMAND openemperor-market-walker-view-tests)
+    add_executable(openemperor-road-ground-occlusion-tests tests/RoadGroundOcclusionTests.cpp
+        src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-road-ground-occlusion-tests PRIVATE
+        openemperor-recovery openemperor-version SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-road-ground-occlusion-tests)
+    add_test(NAME road-ground-occlusion-production-pixels COMMAND openemperor-road-ground-occlusion-tests)
     add_executable(openemperor-walker-visual-tests tests/WalkerVisualTests.cpp
         src/app/WalkerPose.cpp src/renderer/WalkerSpriteSet.cpp)
     target_link_libraries(openemperor-walker-visual-tests PRIVATE

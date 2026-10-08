@@ -242,6 +242,10 @@ void additional_pixels(const Temp& t,SDL_Renderer* r) {
         openemperor::StoredGraphicsRenderer v(std::move(s.plan));v.initialize(r);v.set_landscape_mode(openemperor::LandscapeDebugMode::Regenerated);
         clear();check(v.render(c,{})&&pixel(r,screen(c,body))==blue,"authored transparent Base hole reveals rear cliff");
         check(v.hit_test(screen(c,body),c)==maps::GridCell{113,113},"Combined alpha hole lets rear stored hit through");
+        std::vector<std::uint8_t> replaced(228U*228U,1);
+        const auto structural=v.hit_test_item(screen(c,roof),c,replaced,228);
+        check(structural && structural->cell==maps::GridCell{114,117},
+            "singleton road exclusions retain the regenerated Great Wall roof hit");
         const scene::Point empty{-158,1523};
         check(!v.hit_test(screen(c,empty),c),"transparent full image rectangle never claims an object hit");
     }
@@ -450,6 +454,20 @@ void sandbox_cases(const Temp& t,SDL_Window* w,SDL_Renderer* r) {
     click(v,cargo,running);
     auto lines=v.inspection_lines();
     check(std::any_of(lines.begin(),lines.end(),[](const auto& line){return line.find("Visible walker #")!=std::string::npos;}),"actual protruding sprite cargo selects its foremost walker");
+    // The independently authored wall is opaque red at this point; the tiny
+    // loaded sprite is elsewhere. Normal presentation must expose that wall,
+    // while the existing F1 diagnostic keeps its real cargo rectangle and hit.
+    v.handle_event(key(SDLK_F1),running);
+    perf::set_enabled(true);perf::reset();
+    check(v.render()&&pixel(r,cargo)==red,"normal original sprite has no protruding artificial cargo rectangle");
+    for(std::size_t n=0;n<static_cast<std::size_t>(perf::Counter::Count);++n)
+        check(perf::counter(static_cast<perf::Counter>(n))==0,"normal sprite cargo suppression performs no asset or authority work");
+    perf::set_enabled(false);
+    check(v.world().snapshot()==snapshot,"normal cargo presentation preserves complete World and real cargo");
+    v.handle_event(key(SDLK_F1),running);
+    check(v.render()&&pixel(r,cargo)==Color{25,95,255,255},"F1 restores actual sprite cargo diagnostic without a tick");
+    click(v,cargo,running);lines=v.inspection_lines();
+    check(std::any_of(lines.begin(),lines.end(),[](const auto& line){return line.find("Visible walker #")!=std::string::npos;}),"restored visible F1 cargo selects its same foremost walker");
     v.set_walker_visuals({});check(v.render(),"fallback courier and protruding cargo");
     const auto marker_cargo=screen(v.camera(),{-3.5,1731.5});
     check(pixel(r,marker_cargo)==Color{25,95,255,255},"fallback loaded cargo independently paints over wall");

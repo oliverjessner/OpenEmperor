@@ -706,6 +706,51 @@ int main() {
             preview.set_landscape_mode(openemperor::LandscapeDebugMode::Decorations);
             check(preview.hit_test(alpha_pixel,camera)==maps::GridCell{114,114},
                 "cached visible overlay alpha identifies its owner above ground");
+            {
+                // Two valid singleton images deliberately share one authored
+                // raster origin. Their storage grounds still give distinct
+                // front/back keys, so excluding the front must expose the back.
+                auto overlapping=maps::make_stored_graphics_plan(map,candidates,
+                    sparse_geometry({{114,114},{115,114}}),terrain_catalog,*terrain_layout,
+                    elevation_catalog,*elevation_layout,true);
+                overlapping.landscape_layers_available=true;
+                overlapping.height_bytes.assign(228U*228U,0);
+                const auto origin=overlapping.footprints.front().image_origin;
+                for(auto& footprint:overlapping.footprints) footprint.image_origin=origin;
+                openemperor::StoredGraphicsRenderer filtered(std::move(overlapping));
+                filtered.initialize(renderer);
+                filtered.set_landscape_mode(openemperor::LandscapeDebugMode::Decorations);
+                const auto point=camera.world_to_screen({origin.x+38,origin.y});
+                std::vector<std::uint8_t> replaced(228U*228U,0);
+                const auto expected_front=maps::GridCell{115,114},expected_back=maps::GridCell{114,114};
+                const auto is_front=[&](std::span<const std::uint8_t> mask={},std::size_t width=0) {
+                    const auto hit=filtered.hit_test_item(point,camera,mask,width);
+                    return hit && hit->cell==expected_front;
+                };
+                check(is_front(),"default stored hit API retains the foremost authored singleton");
+                check(is_front(replaced,228),"zero replacement map retains the ordinary stored hit");
+                openemperor::performance::set_enabled(true);openemperor::performance::reset();
+                for(const std::uint8_t state:{std::uint8_t{1},std::uint8_t{2}}) {
+                    replaced[114U*228U+115U]=state;
+                    const auto rear=filtered.hit_test_item(point,camera,replaced,228);
+                    check(rear && rear->cell==expected_back,
+                        "real-road and preview-ground exclusions expose a lower visible overlay");
+                    replaced[114U*228U+114U]=state;
+                    check(!filtered.hit_test_item(point,camera,replaced,228),
+                        "no invisible replaced singleton retains an alpha hit");
+                    replaced[114U*228U+114U]=0;replaced[114U*228U+115U]=0;
+                }
+                for(std::size_t n=0;n<static_cast<std::size_t>(openemperor::performance::Counter::Count);++n)
+                    check(openemperor::performance::counter(static_cast<openemperor::performance::Counter>(n))==0,
+                        "replacement-aware stored inspection is pure across all counters");
+                openemperor::performance::set_enabled(false);
+                check(is_front(replaced,0) &&
+                    is_front(std::span<const std::uint8_t>(replaced.data(),1),228),
+                    "empty-width and short masks cannot index or suppress unrelated stored pixels");
+                check(filtered.stored_order_builds()==1 && filtered.upload_count()==3,
+                    "replacement-aware hit lookup rebuilds and uploads nothing");
+                filtered.shutdown();
+            }
             // Exercise the same component callbacks and merge used by SandboxView,
             // with a red building/walker crossing the tall blue overlay pixel.
             for (auto layer:{scene::WorldVisualLayer::SandboxBuilding,scene::WorldVisualLayer::SandboxWalker})
@@ -1522,6 +1567,11 @@ int main() {
                   pixel(renderer,199,150)==std::array<std::uint8_t,4>{255,0,0,255} &&
                   pixel(renderer,199,270)==std::array<std::uint8_t,4>{0,0,255,255},
                   "full 318x167 image includes top Omega overlay and asymmetric base orientation");
+            const auto full_body=single_preview.hit_test_item({199,143},single_camera);
+            std::vector<std::uint8_t> replaced(228U*228U,1);
+            const auto retained_body=single_preview.hit_test_item({199,143},single_camera,replaced,228);
+            check(full_body && retained_body && full_body->cell==retained_body->cell,
+                "singleton road exclusions never suppress a valid four-cell-side stored body");
             single_preview.shutdown();
             openemperor::StoredGraphicsRenderer preview{std::move(walls)};
             preview.initialize(renderer);

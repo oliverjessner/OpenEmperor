@@ -161,7 +161,10 @@ public:
         std::uint64_t draws=0,fallback_draws=0;
     };
     RoadDisplayStats road_display_stats() const;
-    struct PainterStats : scene::WorldMergeStats { std::size_t stored_order_builds=0; };
+    struct PainterStats : scene::WorldMergeStats {
+        std::size_t stored_order_builds=0,road_ground_items=0;
+        bool road_ground_pass=false;
+    };
     PainterStats painter_stats() const { return painter_stats_; }
     bool unified_depth() const { return unified_depth_; }
     bool building_visuals_active() const { return building_enabled_ && building_profile_.has_value(); }

@@ -108,6 +108,13 @@ All 16 masks plus long straight, L, T, crossroads and 5×5 were rendered locally
 
 ## Road continuity correction (2026-10-03)
 
+The later [Walker ground/cargo correction](rendering/road-ground-occlusion.md)
+retains this replacement/geometry contract. Productive unified Sandbox Road
+surfaces draw once after existing Ground and alpha-preview backdrops, before
+the unchanged historical/building/walker spatial merge. F7/Full Snapshot keep
+the historical shared Road ordering. The continuity oracle below remains
+required, including both painter modes and alpha-128 previews.
+
 The earlier connected-road acceptance above is **FAILED / superseded by real user playtest**. Correct topology and zero fallbacks did not prevent the complete stored grass image of a front road cell from painting over the road behind it. The full Xia compositor reproduced the user's paving-island failure on both eight-cell straights; isolated `RoadSpriteSet` pairs did not reproduce it.
 
 The exact pack now opts into schema-1 **`"replaces_ground": true`**. A configured road replaces its stored **single-cell image including its old Omega overlay**, rather than adding another image to that cell. Multi-cell stored objects remain in the ordinary painter. F6 off, absent profiles, missing masks and profiles omitting the flag retain their existing additive/fallback behavior. The original refresh writes one selected cell graphic; no separate paving underlay was established. See the [bounded draw/projection audit](reverse/original-presentation-correction.md#road-continuity-follow-up).

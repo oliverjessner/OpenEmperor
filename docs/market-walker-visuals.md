@@ -1,5 +1,17 @@
 # Food and Market walker presentation
 
+The subsequent [Walker ground/cargo correction](rendering/road-ground-occlusion.md)
+starts from clean `22962777dc2df4dc1cffb8312361f0a14f16c400`. It independently
+reproduces adjoining Road writes over opaque legs and the separate diagnostic
+cargo rectangle. Productive unified Sandbox Roads now draw once before the
+unchanged spatial painter. Original sprites show that extra rectangle and
+its hit only in F1; actual Inspector cargo and fallback/F2 diagnostics remain.
+All families, native/reflected pixels, foot anchors, transport state and saves
+stay exact. F7 remains the historical ordering comparison. The completion
+evidence below describes the earlier figure-activation milestone; current
+pixel, ordinary-app, performance and suite evidence are recorded in the
+linked correction report. Service/HealthWorker are still unmapped.
+
 The approved completion starts from clean HEAD **`238741f0b5839e8213e62e03e6b49da241afafe0`**. It adds explicit horizontal display transforms and automatic original Supplier/Distributor activation to the existing Food/Market presentation. The earlier preparation starts from `40eb5da99ac4f8cb2967e60034e62ad5d8fd4cb0`, before the five transport roles had visual mappings. Their existing transports already operate; this task supplies figures without changing a trip or its goods.
 
 Oliver reports successful supply, tax receipts and visible House development, with **203 Funds, 525 received taxes and 35 residents** in his latest screenshot. This is a successful user-reported observation of that city, not a loaded complete save, an independently viewed attachment in this request or proof that all historical transport questions are resolved. His current city is not taken over or overwritten for acceptance.

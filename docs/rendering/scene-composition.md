@@ -9,6 +9,18 @@ authority, complete first-draw reproduction and the original per-pixel
 compositor remain unverified. The baseline and research below are distinct from the implementation and
 validation evidence recorded later in this report.
 
+The later [Walker ground/cargo correction](road-ground-occlusion.md), based
+on `22962777`, changes only explicit Sandbox Road surfaces in productive
+unified rendering: existing Ground/Base and preview backdrops, Roads once,
+then the unchanged historical/building/walker spatial merge. Historical
+Road landscape components keep `EarlyBaseSpatialOverlay`; structural Great
+Wall policy, keys, signed heights, alpha, culling and readiness stay exact.
+F7 and Full Snapshot retain their earlier comparison paths. Normal sprite
+cargo rectangles/hits are now F1-only; fallback diagnostics remain. Stored
+visual picking additionally skips bounded historical singleton images
+already replaced or moved to an early Road-preview backdrop. The older
+baseline and acceptance measurements below retain their historical scope.
+
 ## Research and baseline
 
 The fresh baseline used clean HEAD

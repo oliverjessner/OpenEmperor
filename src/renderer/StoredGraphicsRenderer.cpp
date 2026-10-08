@@ -482,7 +482,8 @@ bool StoredGraphicsRenderer::draw_component(std::size_t index, const scene::Came
     return true;
 }
 std::optional<StoredVisualHit> StoredGraphicsRenderer::hit_test_item(scene::Point screen,
-    const scene::Camera2D& camera) const {
+    const scene::Camera2D& camera,std::span<const std::uint8_t> ground_replacements,
+    std::size_t replacement_width) const {
     const auto world=camera.screen_to_world(screen);
     for (auto it=draw_order_.rbegin();it!=draw_order_.rend();++it) {
         if (it->regenerated) {
@@ -501,6 +502,10 @@ std::optional<StoredVisualHit> StoredGraphicsRenderer::hit_test_item(scene::Poin
         if (!it->footprint) continue;
         if (landscape_mode_!=LandscapeDebugMode::Snapshot && suppressed_footprints_[it->plan_index]) continue;
         const auto& f=plan_.footprints[it->plan_index];
+        if (f.width_cells==1 && f.height_cells==1 && replacement_width>0 &&
+            f.origin.x<replacement_width && f.origin.y<ground_replacements.size()/replacement_width &&
+            ground_replacements[static_cast<std::size_t>(f.origin.y)*replacement_width+f.origin.x]!=0)
+            continue;
         const auto asset_index=render_asset_index(f);
         if (plan_.assets[asset_index].status!=maps::StoredStatus::Rendered || !overlay_visible(f)) continue;
         const auto& r=plan_.assets[asset_index].record;
