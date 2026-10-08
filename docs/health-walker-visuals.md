@@ -2,6 +2,8 @@
 
 **IMPLEMENTED** on supported, independently fingerprinted original data: the ordinary Application/main draws the animated Health figure on actual visits, cure and return. Technical normal-app observation is distinct from human Health acceptance.
 
+On 2026-10-08 Oliver confirms that the HealthWorker is visible in normal play: **User-reported Health visibility PASS**. This closes the figure-visibility check for his tested session. A complete human construction, goal, stability and recovery playthrough remains separate; see [the City-v16 playthrough](city-v16-playthrough.md).
+
 This bounded presentation pass starts from clean HEAD **`ec32265f137611d26bb49805fb26baa2df0d13de`**. HealthWorker was the last implemented CourierRole without a visual family. Oliver confirms the preceding Service figure works in his normal session; that is **User-reported Service PASS**, separate from Health evidence. Service's assets, feet and cadence remain unchanged.
 
 Visual **HealthWorker = 7** appends after the unchanged values 0–6. Simulation **CourierRole::HealthWorker = 11** remains exact. Schema **6** adds optional `health_worker`; schemas 1–5 retain their historical role, frame and transform contracts. This does not introduce a City rule or save schema.
@@ -51,7 +53,7 @@ All **4,001 complete canonical World rows** for ticks0–4000, compared by SHA-2
 
 The frozen final normal-app cases compare 121 observations/115 distinct ticks for the first sick visit, 457/451 for two independent Posts, 35/31 for paid 0/2 (no live figure or draws), and 124/117 for a paused owner and actual road-cut/F5/F9/paid repair. They contain 38, 72 and 42 positive original body witnesses respectively for travelling cases, covering all four directions, both Couriers and distinct actual gait. Sixteen interrupted observations preserve the static asset/flip/feet/canvas. A separate real-clock **Space** run observes 61 complete controls/54 distinct ticks, 30 positive native body witnesses, actual arrival/return/home hiding and full F5/F9 equality at 3480. Real-clock frame skipping is recorded; that run does not claim every intermediate tick was observed. All observed complete states equal their old-production controls.
 
-All twelve existing render-counter deltas are zero, including file reads/bytes, decodes/uploads, World copies/commands/ticks, BFS/cache and route refreshes. The app retains **176 Walker textures and 1,346 eager global uploads**, constant through all cases; normal F1-off frames have zero extra sprite Cargo rectangles. Every owned test process exits, with zero owned textures after shutdown. Original scene contacts were independently inspected. Human Health acceptance remains open.
+All twelve existing render-counter deltas are zero, including file reads/bytes, decodes/uploads, World copies/commands/ticks, BFS/cache and route refreshes. The app retains **176 Walker textures and 1,346 eager global uploads**, constant through all cases; normal F1-off frames have zero extra sprite Cargo rectangles. Every owned test process exits, with zero owned textures after shutdown. Original scene contacts were independently inspected. Human Health visibility was still open during that pass; the later user confirmation is recorded above.
 
 The exact versioned starter command passes on final 350 sources with fresh private root `player-Xia-X0Z0FC`. Its passive dummy/software startup smoke checks current Release building, actual paid fixture and ordinary main menu without event/gameplay injection. Loading and Space are proved by the separate scripted normal-application runs above. Existing user roots/processes are untouched.
 
@@ -69,7 +71,7 @@ The sanitizer suite uses `OPENEMPEROR_ENABLE_SANITIZERS=ON`, `ASAN_OPTIONS=detec
 
 A final rehash confirms all **1,464 original files/819,711,091 bytes**, system SDL 3.4.14, all 101 protected simulation/navigation/maps/persistence/renderer source files and seven prior nonmanifest metadata profiles unchanged. All implemented non-None CourierRoles now map to a visual family; optional failures, incomplete custom profiles or deliberate F2 comparisons can still use markers. This establishes bounded OpenEmperor presentation, not Emperor original profession/timing/pivot or complete composition parity.
 
-Consolidated ignored evidence is `.local/health-walker/final-validation-report.json`; `actual-main-report.json`, `assets-evidence-summary.json`, `pipeline-focused-report.json`, `resource-final-report.json` and `package-final-summary.json` retain separate provenance. Human Health playthrough and original profession/feet/timing or complete Emperor parity are not implied by technical checks.
+Consolidated ignored evidence is `.local/health-walker/final-validation-report.json`; `actual-main-report.json`, `assets-evidence-summary.json`, `pipeline-focused-report.json`, `resource-final-report.json` and `package-final-summary.json` retain separate provenance. The complete human Health playthrough and original profession/feet/timing or Emperor parity are not implied by these technical checks or the later visibility confirmation.
 
 ## Test the current code
 

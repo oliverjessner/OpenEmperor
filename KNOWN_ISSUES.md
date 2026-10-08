@@ -4,8 +4,6 @@ Only current limitations and outstanding acceptance checks are listed here.
 
 - **Native input acceptance:** the Xia/Handan human checklist, including pointer selection, road dragging, modal focus/resize handling and external-display interaction, remains incomplete. Historical automation delivery failures do not establish a player-coordinate defect. See [the input checklist](docs/testing-input-acceptance.md).
 
-- **Human gameplay acceptance:** full City-v11-v4 demolition/replanning and City-v12–16 balance, Health, Water, desirability and Recovery playthroughs remain pending. HealthWorker's human playthrough is still open. See [demolition acceptance](docs/testing-city-v11-v4.md), [City-v12](docs/city-v12.md), [City-v13](docs/city-v13.md), [City-v14](docs/city-v14.md), [City-v15](docs/city-v15.md), [City-v16](docs/city-v16.md) and [HealthWorker acceptance](docs/health-walker-visuals.md).
-
 - **Unsupported rule-3 maps:** the 167-map census has 66 unknown-occupancy failures, three known conflicts and five unsupported `cResWall` managers. Full corpus rendering and gameplay acceptance remains open. Unsupported gate heights can also refuse a map. See [map compatibility](docs/map-permissions-compatibility.md).
 
 - **Incomplete ordinary wall/gate presentation:** Tower and ResWall bodies, additional Type-256 wall components, and gate states, views and lifecycle outside the validated static layouts remain unsupported. See [ordinary wall/gate limits](docs/reverse/ordinary-wall-gates.md).

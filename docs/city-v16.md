@@ -8,6 +8,8 @@ Current [income and startup budget guidance](economy-start-guidance.md) separate
 
 New City-v16 games use rule **3**, immutable original-map road permissions and fixed GateHouse passages. Schema **19** binds their versioned canonical fingerprint. Economy and 2×2 Well/HealthPost inherit rule 2 exactly. Rules 1/2 and schema 18 remain unchanged without migration; the general menu default remains City-v11 rule 3. See [the contract and isolated test starter](gate-passages.md).
 
+The separate [paid Xia goal playthrough](city-v16-playthrough.md) records the combined rule-3 economy, expansion, settlement-goal, stability and persistence checks. Earlier rule-1/2 measurements below retain their original scope.
+
 ## Historical rule 2: corrected Safety geometry
 
 Rule **2** retains the exact rule-1 economy, maintenance, health, fire and water parameters. Only Well and HealthPost now occupy **2×2**. Central footprint/cell/front/contains APIs take the explicit rule version; placement, all-cell owner picking, perimeter entrances, Manhattan water/desirability distances, previews, selection, demolition and restore use them. Cost/workers/radius/limits remain Well 60/0/5/4 and HealthPost 120/2/road-service/2. The paid 1,280/1,300 dry starter contains neither and remains unchanged.
