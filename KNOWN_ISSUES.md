@@ -23,5 +23,3 @@ Only current limitations and outstanding acceptance checks are listed here.
 - **Original compatibility:** original Emperor savegames are unsupported. Automatic original-sprite profiles recognise only the pinned GOG-derived asset revision; other revisions use presentation fallbacks. Original gameplay parity remains incomplete. See [save architecture](docs/architecture.md) and [asset compatibility](docs/architecture.md#compatibility-resources-and-presentation).
 
 - **macOS distribution acceptance:** the developer app is ad-hoc signed, without Developer ID signing or notarization. Finder/Gatekeeper launch and an independent clean-Mac run remain unverified. See [packaging limits](docs/macos-packaging.md).
-
-- **Project license:** a public source license has not been selected.
