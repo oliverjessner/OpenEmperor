@@ -50,6 +50,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         view.set_fire_visuals(visuals.fire,visuals.fire_source,visuals.fire_fallback_reason);
         view.set_fire_inspector_visuals(visuals.fire_inspector,visuals.fire_inspector_source,
             visuals.fire_inspector_fallback_reason);
+        view.set_market_walker_visuals(visuals.market_walker,visuals.market_walker_source,
+            visuals.market_walker_fallback_reason);
         view.initialize(window,renderer);
         const auto initial_ticks=view.world().ticks();
         const auto initial_treasury=view.world().treasury();

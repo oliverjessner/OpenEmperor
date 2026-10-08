@@ -23,6 +23,9 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
     result.fire_inspector_fallback_reason=compatibility.compatible() ? compatibility.fire_inspector_detail:
         compatibility.detail.empty() ? "unsupported original data revision":
         "unsupported original data: "+compatibility.detail;
+    result.market_walker_fallback_reason=compatibility.compatible() ? compatibility.market_walker_detail:
+        compatibility.detail.empty() ? "unsupported original data revision":
+        "unsupported original data: "+compatibility.detail;
     if (compatibility.compatible()) {
         result.walker = compatibility.profile->walker_profile;
         result.building = compatibility.profile->building_profile;
@@ -39,6 +42,11 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
             result.fire_inspector_source=VisualProfileSource::Builtin;
             result.fire_inspector_fallback_reason.clear();
         }
+        if (compatibility.market_walker_compatible()) {
+            result.market_walker=compatibility.profile->market_walker_profile;
+            result.market_walker_source=VisualProfileSource::Builtin;
+            result.market_walker_fallback_reason.clear();
+        }
     }
     if (!custom_walker.empty()) {
         result.walker = custom_walker;
@@ -47,6 +55,10 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
         result.fire_inspector_source=VisualProfileSource::Custom;
         result.fire_inspector_fallback_reason=
             "Custom walker profile selected; no built-in FireInspector supplement";
+        result.market_walker.clear();
+        result.market_walker_source=VisualProfileSource::Custom;
+        result.market_walker_fallback_reason=
+            "Custom walker profile selected; no built-in Food/Market supplement";
     }
     if (!custom_building.empty()) {
         result.building = custom_building;

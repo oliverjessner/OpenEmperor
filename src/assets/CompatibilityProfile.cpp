@@ -261,6 +261,54 @@ CompatibilityProfile load_compatibility_profile(const fs::path& manifest) {
                 std::string("optional FireInspector metadata invalid: ")+exception.what();
         }
     }
+    if (document.contains("optional_market_walkers")) {
+        try {
+            const auto& market=document.at("optional_market_walkers");
+            if (!market.is_object() || !market.contains("files") ||
+                !market.at("files").is_array() || market.at("files").empty() ||
+                market.at("files").size()>max_fire_fingerprints)
+                throw std::runtime_error("invalid optional Food/Market fingerprint list");
+            const auto market_profile=checked_file(result.pack_root,
+                required_relative(market,"profile"));
+            if (!market_profile)
+                throw std::runtime_error("optional Food/Market metadata resource is missing or unsafe");
+            std::set<fs::path> covered;
+            std::vector<CompatibilityFingerprint> files;
+            for (const auto& entry:market.at("files")) {
+                if (!entry.is_object())
+                    throw std::runtime_error("optional Food/Market fingerprint is not an object");
+                CompatibilityFingerprint fingerprint;
+                fingerprint.relative_path=required_relative(entry,"path");
+                fingerprint.sha256=required_string(entry,"sha256");
+                if (!sha256_text(fingerprint.sha256) || !covered.insert(fingerprint.relative_path).second)
+                    throw std::runtime_error("optional Food/Market fingerprint is invalid or duplicated");
+                files.push_back(std::move(fingerprint));
+            }
+            const auto metadata=nlohmann::json::parse(read_bounded_text(*market_profile));
+            const auto& roles=metadata.at("roles");
+            if (metadata.value("schema_version",0U)!=4 || !roles.is_object() ||
+                roles.size()!=2 || !roles.contains("supplier") || !roles.contains("distributor"))
+                throw std::runtime_error("optional Food/Market resource must contain only schema-4 Supplier/Distributor");
+            std::size_t aliases=0;
+            for (const auto* role:{"supplier","distributor"}) {
+                const auto& frames=roles.at(role).at("frames");
+                if (!frames.is_array() || frames.empty() || frames.size()>256-aliases)
+                    throw std::runtime_error("optional Food/Market resource has invalid frame references");
+                aliases+=frames.size();
+                for (const auto& frame:frames) {
+                    const auto archive=required_relative(frame,"archive");
+                    auto pixels=archive;pixels.replace_extension(".555");
+                    if (archive.extension()!=".sg3" || !covered.contains(archive) || !covered.contains(pixels))
+                        throw std::runtime_error("optional Food/Market frame dependency is not independently fingerprinted");
+                }
+            }
+            result.market_walker_profile=*market_profile;
+            result.market_walker_files=std::move(files);
+        } catch (const std::exception& exception) {
+            result.market_walker_metadata_error=
+                std::string("optional Food/Market metadata invalid: ")+exception.what();
+        }
+    }
     return result;
 }
 
@@ -398,6 +446,37 @@ CompatibilityResult detect_compatibility(const fs::path& data_root,
                 } catch (const std::exception& exception) {
                     result.fire_inspector_status=CompatibilityStatus::Unknown;
                     result.fire_inspector_detail=std::string("optional Inspector input could not be checked: ")+
+                        exception.what();
+                }
+            }
+            if (!fire.market_walker_metadata_error.empty()) {
+                result.market_walker_detail=fire.market_walker_metadata_error;
+            } else if (!fire.market_walker_profile.empty()) {
+                result.market_walker_status=CompatibilityStatus::Compatible;
+                result.market_walker_detail="independently fingerprinted Food/Market walking figures detected";
+                try {
+                    for (const auto& expected:fire.market_walker_files) {
+                        const auto candidate=checked_file(root,expected.relative_path);
+                        if (!candidate) {
+                            std::error_code exists_error;
+                            const bool absent=!fs::exists(root/expected.relative_path,exists_error) && !exists_error;
+                            result.market_walker_status=absent ? CompatibilityStatus::MissingFile:
+                                CompatibilityStatus::FingerprintMismatch;
+                            result.market_walker_detail="optional Food/Market file missing or unsafe: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                        ++result.market_walker_files_hashed;
+                        if (sha256_file(*candidate)!=expected.sha256) {
+                            result.market_walker_status=CompatibilityStatus::FingerprintMismatch;
+                            result.market_walker_detail="optional Food/Market fingerprint mismatch: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                    }
+                } catch (const std::exception& exception) {
+                    result.market_walker_status=CompatibilityStatus::Unknown;
+                    result.market_walker_detail=std::string("optional Food/Market input could not be checked: ")+
                         exception.what();
                 }
             }

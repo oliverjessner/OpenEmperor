@@ -2,6 +2,7 @@
 #include "assets/Sg3ImageLoader.h"
 #include "assets/Sg3ShadowComposition.h"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <limits>
@@ -68,7 +69,8 @@ struct ParseState {
     }
 };
 WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
-                            bool inspector=false,bool require_internal=false) {
+                            bool animated=false,bool require_internal=false,
+                            const char* family="FireInspector") {
     if (!json.is_object() || !json.contains("ticks_per_frame") ||
         !json.at("ticks_per_frame").is_number_unsigned())
         throw std::runtime_error("walker ticks_per_frame must be positive");
@@ -78,7 +80,7 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
     WalkerRoleVisual role;
     role.ticks_per_frame=static_cast<std::uint32_t>(tick_count);
     role.evidence=bounded_string(json,"evidence",512);
-    if (inspector) role.clip_id=bounded_string(json,"clip_id",64);
+    if (animated) role.clip_id=bounded_string(json,"clip_id",64);
     if (!json.contains("frames") || !json.at("frames").is_array() ||
         json.at("frames").empty() ||
         json.at("frames").size()>walker_max_frame_aliases-state.aliases_total)
@@ -115,7 +117,8 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
             throw std::runtime_error("walker physical image_index outside SG3 table");
         const auto& metadata=archive.images[frame.id.image_index];
         if (require_internal && metadata.external_flag!=0)
-            throw std::runtime_error("FireInspector automatic supplement requires internal bitmap dependencies");
+            throw std::runtime_error(std::string(family)+
+                " automatic supplement requires internal bitmap dependencies");
         if (classify_sg3_image_type(metadata.image_type)!=Sg3ImageKind::Sprite ||
             metadata.data_length==0 || metadata.horizontal_mirror_offset!=0 ||
             metadata.width<=0 || metadata.height<=0)
@@ -179,11 +182,13 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
     role.idle_frame=found->second;
     return role;
 }
-std::optional<WalkerVisualRole> named_role(const std::string& name,bool inspector) {
+std::optional<WalkerVisualRole> named_role(const std::string& name,std::int64_t version) {
     if (name=="clay") return WalkerVisualRole::Clay;
     if (name=="pottery") return WalkerVisualRole::Pottery;
     if (name=="household") return WalkerVisualRole::Household;
-    if (inspector && name=="fire_inspector") return WalkerVisualRole::FireInspector;
+    if (version>=3 && name=="fire_inspector") return WalkerVisualRole::FireInspector;
+    if (version>=4 && name=="supplier") return WalkerVisualRole::Supplier;
+    if (version>=4 && name=="distributor") return WalkerVisualRole::Distributor;
     return std::nullopt;
 }
 fs::path checked_root(const fs::path& data_root) {
@@ -213,25 +218,25 @@ nlohmann::json read_manifest(const fs::path& manifest) {
         json.value("mode",std::string{})!="curated_walker_preview")
         throw std::runtime_error("unsupported walker visual profile schema/mode");
     const auto version=json.at("schema_version").get<std::int64_t>();
-    if (version!=1 && version!=2 && version!=3)
+    if (version!=1 && version!=2 && version!=3 && version!=4)
         throw std::runtime_error("unsupported walker visual profile schema version");
     return json;
 }
-void require_animated_inspector(const WalkerRoleVisual& role,const ParseState& state,
-                                bool complete) {
+void require_animated_role(const WalkerRoleVisual& role,const ParseState& state,
+                           bool complete,const char* family) {
     for (const auto& frame:role.frames) {
         const auto& image=state.image(frame.image_index);
         bool visible=false;
         for (std::size_t offset=3;offset<image.pixels.size();offset+=4)
             if (image.pixels[offset]) { visible=true; break; }
-        if (!visible) throw std::runtime_error("FireInspector frame has no visible decoded pixels");
+        if (!visible) throw std::runtime_error(std::string(family)+" frame has no visible decoded pixels");
     }
     for (const auto& clip:role.clips) {
         if (clip.empty() && !complete) continue;
         if (clip.empty())
-            throw std::runtime_error("FireInspector supplement requires all four animated directions");
+            throw std::runtime_error(std::string(family)+" supplement requires all four animated directions");
         if (clip.size()<2)
-            throw std::runtime_error("FireInspector mapped direction requires at least two frames");
+            throw std::runtime_error(std::string(family)+" mapped direction requires at least two frames");
         const auto& first=state.image(role.frames.at(clip.front()).image_index);
         bool different=false;
         for (const auto frame:clip) {
@@ -240,8 +245,40 @@ void require_animated_inspector(const WalkerRoleVisual& role,const ParseState& s
                 image.pixels!=first.pixels) different=true;
         }
         if (!different)
-            throw std::runtime_error("FireInspector supplement direction has no different decoded frames");
+            throw std::runtime_error(std::string(family)+" supplement direction has no different decoded frames");
     }
+}
+ParseState append_state(const fs::path& root,const WalkerVisualProfile& profile) {
+    ParseState state;
+    state.root=root;
+    state.existing=&profile;
+    state.image_base=profile.unique_images.size();
+    state.canonical_identity=true;
+    state.rgba_bytes=walker_rgba_bytes(profile);
+    for (const auto& visual:profile.roles) if (visual) {
+        if (visual->frames.size()>walker_max_frame_aliases-state.aliases_total)
+            throw std::runtime_error("walker total frame alias budget exceeded");
+        state.aliases_total+=visual->frames.size();
+        for (const auto& frame:visual->frames) {
+            if (frame.image_index>=state.image_base)
+                throw std::runtime_error("walker core frame references an absent prepared image");
+            const auto path=checked_file(root,root/relative_archive(frame.id.archive_relative_path.generic_string()));
+            state.unique.try_emplace(std::make_pair(path.generic_string(),frame.id.image_index),
+                                     frame.image_index);
+        }
+    }
+    return state;
+}
+void commit_append(WalkerVisualProfile& profile,ParseState& state,std::uint32_t version) {
+    // No retained pixel copies: all fallible preparation precedes committing
+    // the new image and role tails. Reserving can fail without changing values.
+    static_assert(std::is_nothrow_move_constructible_v<RgbaImage>);
+    static_assert(std::is_nothrow_move_constructible_v<WalkerRoleVisual>);
+    profile.unique_images.reserve(state.image_base+state.profile.unique_images.size());
+    for (auto& image:state.profile.unique_images) profile.unique_images.push_back(std::move(image));
+    for (std::size_t i=0;i<state.profile.roles.size();++i)
+        if (state.profile.roles[i]) profile.roles[i].emplace(std::move(*state.profile.roles[i]));
+    profile.schema_version=std::max(profile.schema_version,version);
 }
 } // namespace
 
@@ -251,6 +288,8 @@ const char* walker_role_name(WalkerVisualRole role) {
     case WalkerVisualRole::Pottery: return "pottery";
     case WalkerVisualRole::Household: return "household";
     case WalkerVisualRole::FireInspector: return "fire_inspector";
+    case WalkerVisualRole::Supplier: return "supplier";
+    case WalkerVisualRole::Distributor: return "distributor";
     }
     return "unknown";
 }
@@ -277,7 +316,7 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
     const auto version=json.at("schema_version").get<std::int64_t>();
     ParseState state;
     state.root=root;
-    state.canonical_identity=version==3;
+    state.canonical_identity=version>=3;
     state.profile.schema_version=static_cast<std::uint32_t>(version);
     if (version==1) {
         if (json.value("role",std::string{})!="clay")
@@ -286,15 +325,18 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
     } else {
         if (!json.contains("roles") || !json.at("roles").is_object() ||
             json.at("roles").empty() || json.at("roles").size()>
-                (version==2 ? walker_core_role_count:walker_visual_role_count))
+                (version==2 ? walker_core_role_count:
+                    version==3 ? walker_schema3_role_count:walker_visual_role_count))
             throw std::runtime_error("walker roles exceed this schema's role limit");
         for (const auto& [name,value]:json.at("roles").items()) {
-            const auto role=named_role(name,version==3);
+            const auto role=named_role(name,version);
             if (!role) throw std::runtime_error("unknown walker visual role: "+name);
+            const bool animated=walker_role_index(*role)>=walker_core_role_count;
+            const char* family=*role==WalkerVisualRole::FireInspector ? "FireInspector":
+                *role==WalkerVisualRole::Supplier ? "Supplier":"Distributor";
             state.profile.roles[walker_role_index(*role)]=parse_role(value,state,
-                *role==WalkerVisualRole::FireInspector);
-            if (*role==WalkerVisualRole::FireInspector)
-                require_animated_inspector(*state.profile.find(*role),state,false);
+                animated);
+            if (animated) require_animated_role(*state.profile.find(*role),state,false,family);
         }
     }
     return std::move(state.profile);
@@ -311,32 +353,32 @@ void append_fire_inspector_visual_profile(const fs::path& data_root,
         throw std::runtime_error("FireInspector supplement must contain only its schema-3 role");
     if (profile.find(WalkerVisualRole::FireInspector))
         throw std::runtime_error("FireInspector role is already configured");
-    ParseState state;
-    state.root=root;
-    state.existing=&profile;
-    state.image_base=profile.unique_images.size();
-    state.canonical_identity=true;
-    state.rgba_bytes=walker_rgba_bytes(profile);
-    for (const auto& visual:profile.roles) if (visual) {
-        if (visual->frames.size()>walker_max_frame_aliases-state.aliases_total)
-            throw std::runtime_error("walker total frame alias budget exceeded");
-        state.aliases_total+=visual->frames.size();
-        for (const auto& frame:visual->frames) {
-            if (frame.image_index>=state.image_base)
-                throw std::runtime_error("walker core frame references an absent prepared image");
-            const auto path=checked_file(root,root/relative_archive(frame.id.archive_relative_path.generic_string()));
-            state.unique.try_emplace(std::make_pair(path.generic_string(),frame.id.image_index),
-                                     frame.image_index);
-        }
-    }
+    auto state=append_state(root,profile);
     auto role=parse_role(json.at("roles").at("fire_inspector"),state,true,true);
-    require_animated_inspector(role,state,true);
-    // No core pixel copies: all fallible preparation precedes committing new tails.
-    static_assert(std::is_nothrow_move_constructible_v<RgbaImage>);
-    static_assert(std::is_nothrow_move_constructible_v<WalkerRoleVisual>);
-    profile.unique_images.reserve(state.image_base+state.profile.unique_images.size());
-    for (auto& image:state.profile.unique_images) profile.unique_images.push_back(std::move(image));
-    profile.roles[walker_role_index(WalkerVisualRole::FireInspector)].emplace(std::move(role));
-    profile.schema_version=3;
+    require_animated_role(role,state,true,"FireInspector");
+    state.profile.roles[walker_role_index(WalkerVisualRole::FireInspector)].emplace(std::move(role));
+    commit_append(profile,state,3);
+}
+
+void append_market_visual_profile(const fs::path& data_root,const fs::path& manifest,
+                                  WalkerVisualProfile& profile) {
+    const auto root=checked_root(data_root);
+    const auto json=read_manifest(manifest);
+    if (json.at("schema_version").get<std::int64_t>()!=4 ||
+        !json.contains("roles") || !json.at("roles").is_object() ||
+        json.at("roles").size()!=2 || !json.at("roles").contains("supplier") ||
+        !json.at("roles").contains("distributor"))
+        throw std::runtime_error("market supplement must contain only its two schema-4 families");
+    if (profile.find(WalkerVisualRole::Supplier) || profile.find(WalkerVisualRole::Distributor))
+        throw std::runtime_error("market walker family is already configured");
+    auto state=append_state(root,profile);
+    for (const auto role:{WalkerVisualRole::Supplier,WalkerVisualRole::Distributor}) {
+        const auto name=walker_role_name(role);
+        const char* family=role==WalkerVisualRole::Supplier ? "Supplier":"Distributor";
+        auto visual=parse_role(json.at("roles").at(name),state,true,true,family);
+        require_animated_role(visual,state,true,family);
+        state.profile.roles[walker_role_index(role)].emplace(std::move(visual));
+    }
+    commit_append(profile,state,4);
 }
 }

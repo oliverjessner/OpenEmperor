@@ -68,6 +68,27 @@ void WalkerSpriteSet::truncate(std::size_t image_count) {
     live_textures-=textures_.size()-image_count;
     textures_.resize(image_count);texture_bytes_.resize(image_count);
 }
+void WalkerSpriteSet::retain_images(const std::vector<std::size_t>& indices) {
+    std::vector<SDL_Texture*> retained;
+    std::vector<std::uint64_t> bytes;
+    retained.reserve(indices.size());bytes.reserve(indices.size());
+    std::uint64_t total=0;
+    for (std::size_t i=0;i<indices.size();++i) {
+        const auto index=indices[i];
+        if (index>=textures_.size() || (i && index<=indices[i-1]))
+            throw std::invalid_argument("walker retained images must be ordered active indices");
+        retained.push_back(textures_[index]);bytes.push_back(texture_bytes_[index]);
+        total+=texture_bytes_[index];
+    }
+    // All validation and allocation precede releasing any texture. Retaining
+    // another role never decodes, uploads or recreates its shared pixels.
+    std::size_t next=0;
+    for (std::size_t i=0;i<textures_.size();++i) {
+        if (next<indices.size() && indices[next]==i) { ++next;continue; }
+        SDL_DestroyTexture(textures_[i]);--live_textures;
+    }
+    textures_=std::move(retained);texture_bytes_=std::move(bytes);logical_bytes_=total;
+}
 void WalkerSpriteSet::shutdown() {
     truncate(0);renderer_=nullptr;
 }

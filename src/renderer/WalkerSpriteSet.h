@@ -20,6 +20,9 @@ public:
                 std::uint64_t available_total_rgba_bytes=assets::walker_max_rgba_bytes);
     // Releases an optional image tail without recreating the retained prefix.
     void truncate(std::size_t image_count);
+    // Load-time role removal keeps shared images and their existing textures.
+    // Indices are the strictly increasing retained old image indices.
+    void retain_images(const std::vector<std::size_t>& indices);
     void shutdown();
     bool draw(std::size_t frame,scene::Point ground,double zoom,
               const assets::WalkerRoleVisual& role_visual,

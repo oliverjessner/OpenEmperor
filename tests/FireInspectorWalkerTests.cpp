@@ -106,7 +106,8 @@ assets::WalkerVisualProfile profile_checks(Fixture& fixture) {
     static_assert(assets::walker_role_index(WalkerVisualRole::Pottery)==1);
     static_assert(assets::walker_role_index(WalkerVisualRole::Household)==2);
     static_assert(assets::walker_role_index(WalkerVisualRole::FireInspector)==3);
-    static_assert(assets::walker_visual_role_count==4 && assets::walker_core_role_count==3);
+    static_assert(assets::walker_visual_role_count==6 && assets::walker_schema3_role_count==4 &&
+                  assets::walker_core_role_count==3);
     auto core=assets::load_walker_visual_profile(fixture.data,fixture.core);
     const auto original=core;
     check(core.schema_version==2 && core.unique_images.size()==1 &&
@@ -214,8 +215,9 @@ assets::WalkerVisualProfile profile_checks(Fixture& fixture) {
 void pose_checks(const assets::WalkerVisualProfile& profile) {
     using namespace openemperor;
     check(walker_visual_role(sim::CourierRole::FireInspector)==assets::WalkerVisualRole::FireInspector &&
-        !walker_visual_role(sim::CourierRole::HealthWorker) && !walker_visual_role(sim::CourierRole::Food),
-        "presentation role mapping expanded beyond Inspector");
+        !walker_visual_role(sim::CourierRole::HealthWorker) &&
+        walker_visual_role(sim::CourierRole::Food)==assets::WalkerVisualRole::Supplier,
+        "Inspector/legacy Food role mapping or unmapped Health changed");
     sim::CourierState courier;courier.id=static_cast<sim::CourierId>(901);
     courier.owner=static_cast<sim::BuildingId>(705);courier.target=static_cast<sim::BuildingId>(1024);
     courier.role=sim::CourierRole::FireInspector;courier.enabled=true;
@@ -289,9 +291,7 @@ void live_visibility_checks(const assets::WalkerVisualProfile& profile) {
     }
     constexpr std::array old_roles{sim::CourierRole::Clay,sim::CourierRole::Pottery,
         sim::CourierRole::Household,sim::CourierRole::Food,sim::CourierRole::Service,
-        sim::CourierRole::HealthWorker,sim::CourierRole::MarketPotteryInbound,
-        sim::CourierRole::MarketFoodInbound,sim::CourierRole::MarketPotteryDistribution,
-        sim::CourierRole::MarketFoodDistribution,sim::CourierRole::None};
+        sim::CourierRole::HealthWorker,sim::CourierRole::None};
     for (const auto role:old_roles) for (const bool enabled:{false,true})
         for (const auto phase:{sim::CourierPhase::IdleAtWorkshop,sim::CourierPhase::ToWarehouse,sim::CourierPhase::Returning}) {
             courier.role=role;courier.enabled=enabled;courier.phase=phase;

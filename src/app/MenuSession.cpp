@@ -252,6 +252,8 @@ void MenuSession::finish_loading() {
         view->set_fire_visuals(visuals.fire,visuals.fire_source,visuals.fire_fallback_reason);
         view->set_fire_inspector_visuals(visuals.fire_inspector,visuals.fire_inspector_source,
             visuals.fire_inspector_fallback_reason);
+        view->set_market_walker_visuals(visuals.market_walker,visuals.market_walker_source,
+            visuals.market_walker_fallback_reason);
         view->initialize(window_,renderer_);
         if (starting_map_check_ && !document &&
             view->capture_save_document().map_sha256!=starting_map_check_->input_sha256)

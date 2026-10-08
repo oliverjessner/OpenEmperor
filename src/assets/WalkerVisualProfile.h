@@ -12,9 +12,12 @@
 
 namespace openemperor::assets {
 enum class StorageDirection { PosX, NegX, PosY, NegY };
-enum class WalkerVisualRole : std::uint8_t { Clay=0, Pottery=1, Household=2, FireInspector=3 };
+enum class WalkerVisualRole : std::uint8_t {
+    Clay=0, Pottery=1, Household=2, FireInspector=3, Supplier=4, Distributor=5
+};
 inline constexpr std::size_t walker_core_role_count=3;
-inline constexpr std::size_t walker_visual_role_count=4;
+inline constexpr std::size_t walker_schema3_role_count=4;
+inline constexpr std::size_t walker_visual_role_count=6;
 inline constexpr std::size_t walker_max_frame_aliases=256;
 inline constexpr std::size_t walker_max_unique_assets=256;
 inline constexpr std::uint64_t walker_max_rgba_bytes=64U*1024U*1024U;
@@ -31,7 +34,7 @@ struct WalkerFrame {
 struct WalkerRoleVisual {
     std::uint32_t ticks_per_frame=1;
     std::string evidence;
-    std::string clip_id; // Optional only for legacy roles; required for schema-3 FireInspector.
+    std::string clip_id; // Required for FireInspector and schema-4 supplier/distributor families.
     std::vector<WalkerFrame> frames;
     std::array<std::vector<std::size_t>,4> clips; // Indices into frames; order is manifest order.
     std::size_t idle_frame=0;
@@ -59,5 +62,11 @@ WalkerVisualProfile load_walker_visual_profile(const std::filesystem::path& data
 void append_fire_inspector_visual_profile(const std::filesystem::path& data_root,
                                          const std::filesystem::path& manifest,
                                          WalkerVisualProfile& profile);
+// A built-in schema-4 supplement contains exactly the complete supplier and
+// distributor families. Both roles share the existing global budgets and
+// physical assets; any failure retains all existing roles and prepared images.
+void append_market_visual_profile(const std::filesystem::path& data_root,
+                                  const std::filesystem::path& manifest,
+                                  WalkerVisualProfile& profile);
 std::uint64_t walker_rgba_bytes(const WalkerVisualProfile& profile);
 }

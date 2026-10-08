@@ -34,6 +34,9 @@ struct CompatibilityProfile {
     std::filesystem::path fire_inspector_profile;
     std::vector<CompatibilityFingerprint> fire_inspector_files;
     std::string fire_inspector_metadata_error;
+    std::filesystem::path market_walker_profile;
+    std::vector<CompatibilityFingerprint> market_walker_files;
+    std::string market_walker_metadata_error;
 };
 
 struct CompatibilityResult {
@@ -55,6 +58,13 @@ struct CompatibilityResult {
     bool fire_inspector_compatible() const {
         return compatible() && fire_inspector_status == CompatibilityStatus::Compatible &&
             !profile->fire_inspector_profile.empty();
+    }
+    CompatibilityStatus market_walker_status = CompatibilityStatus::Unknown;
+    std::size_t market_walker_files_hashed = 0;
+    std::string market_walker_detail = "optional Food/Market walkers are not declared";
+    bool market_walker_compatible() const {
+        return compatible() && market_walker_status == CompatibilityStatus::Compatible &&
+            !profile->market_walker_profile.empty();
     }
 };
 
