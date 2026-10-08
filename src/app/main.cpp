@@ -513,6 +513,8 @@ int main(int argc, char* argv[]) {
                 visuals.market_walker_fallback_reason);
             sandbox_view->set_service_walker_visuals(visuals.service_walker,visuals.service_walker_source,
                 visuals.service_walker_fallback_reason);
+            sandbox_view->set_health_walker_visuals(visuals.health_walker,visuals.health_walker_source,
+                visuals.health_walker_fallback_reason);
             std::cout << "Sandbox: " << sandbox_path.generic_string()
                       << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
                       << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"

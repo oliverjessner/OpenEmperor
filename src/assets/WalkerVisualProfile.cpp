@@ -60,6 +60,7 @@ struct ParseState {
     std::map<std::string,Sg3Archive> archives;
     std::uint64_t rgba_bytes=0;
     std::size_t aliases_total=0;
+    std::size_t alias_limit=walker_legacy_max_frame_aliases;
     const WalkerVisualProfile* existing=nullptr;
     std::size_t image_base=0;
     bool canonical_identity=false;
@@ -84,15 +85,16 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
     if (animated) role.clip_id=bounded_string(json,"clip_id",64);
     if (!json.contains("frames") || !json.at("frames").is_array() ||
         json.at("frames").empty() ||
-        json.at("frames").size()>walker_max_frame_aliases-state.aliases_total)
-        throw std::runtime_error("walker total frames must contain 1..256 aliases");
+        json.at("frames").size()>state.alias_limit-state.aliases_total)
+        throw std::runtime_error("walker total frames must contain 1.."+
+            std::to_string(state.alias_limit)+" aliases");
     state.aliases_total+=json.at("frames").size();
     std::map<std::string,std::size_t> aliases; // Scoped to this role only.
     for (const auto& item:json.at("frames")) {
         if (!item.is_object()) throw std::runtime_error("walker frame must be an object");
         WalkerFrame frame;
         if (state.strict_frame_schema) {
-            const std::string schema=state.strict_frame_schema==5 ? "schema-5":"schema-4";
+            const std::string schema="schema-"+std::to_string(state.strict_frame_schema);
             for (const auto& [key,value]:item.items()) {
                 (void)value;
                 if (key!="alias" && key!="archive" && key!="image_index" &&
@@ -102,7 +104,8 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
             if (item.contains("flip_x")) {
                 if (!allow_flip)
                     throw std::runtime_error(schema+" flip_x is limited to "+
-                        (state.strict_frame_schema==5 ? "Supplier/Distributor/Service":"Supplier/Distributor")+" frames");
+                        (state.strict_frame_schema>=6 ? "Supplier/Distributor/Service/HealthWorker":
+                         state.strict_frame_schema==5 ? "Supplier/Distributor/Service":"Supplier/Distributor")+" frames");
                 if (!item.at("flip_x").is_boolean())
                     throw std::runtime_error(schema+" walker flip_x must be boolean");
                 frame.flip_x=item.at("flip_x").get<bool>();
@@ -208,6 +211,7 @@ std::optional<WalkerVisualRole> named_role(const std::string& name,std::int64_t 
     if (version>=4 && name=="supplier") return WalkerVisualRole::Supplier;
     if (version>=4 && name=="distributor") return WalkerVisualRole::Distributor;
     if (version>=5 && name=="service") return WalkerVisualRole::Service;
+    if (version>=6 && name=="health_worker") return WalkerVisualRole::HealthWorker;
     return std::nullopt;
 }
 fs::path checked_root(const fs::path& data_root) {
@@ -237,7 +241,7 @@ nlohmann::json read_manifest(const fs::path& manifest) {
         json.value("mode",std::string{})!="curated_walker_preview")
         throw std::runtime_error("unsupported walker visual profile schema/mode");
     const auto version=json.at("schema_version").get<std::int64_t>();
-    if (version!=1 && version!=2 && version!=3 && version!=4 && version!=5)
+    if (version!=1 && version!=2 && version!=3 && version!=4 && version!=5 && version!=6)
         throw std::runtime_error("unsupported walker visual profile schema version");
     return json;
 }
@@ -267,15 +271,17 @@ void require_animated_role(const WalkerRoleVisual& role,const ParseState& state,
             throw std::runtime_error(std::string(family)+" supplement direction has no different decoded frames");
     }
 }
-ParseState append_state(const fs::path& root,const WalkerVisualProfile& profile) {
+ParseState append_state(const fs::path& root,const WalkerVisualProfile& profile,
+                        std::uint32_t appended_schema) {
     ParseState state;
     state.root=root;
     state.existing=&profile;
     state.image_base=profile.unique_images.size();
     state.canonical_identity=true;
     state.rgba_bytes=walker_rgba_bytes(profile);
+    state.alias_limit=walker_frame_alias_limit(std::max(profile.schema_version,appended_schema));
     for (const auto& visual:profile.roles) if (visual) {
-        if (visual->frames.size()>walker_max_frame_aliases-state.aliases_total)
+        if (visual->frames.size()>state.alias_limit-state.aliases_total)
             throw std::runtime_error("walker total frame alias budget exceeded");
         state.aliases_total+=visual->frames.size();
         for (const auto& frame:visual->frames) {
@@ -310,6 +316,7 @@ const char* walker_role_name(WalkerVisualRole role) {
     case WalkerVisualRole::Supplier: return "supplier";
     case WalkerVisualRole::Distributor: return "distributor";
     case WalkerVisualRole::Service: return "service";
+    case WalkerVisualRole::HealthWorker: return "health_worker";
     }
     return "unknown";
 }
@@ -339,6 +346,7 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
     state.canonical_identity=version>=3;
     state.strict_frame_schema=version>=4 ? static_cast<std::uint32_t>(version):0;
     state.profile.schema_version=static_cast<std::uint32_t>(version);
+    state.alias_limit=walker_frame_alias_limit(state.profile.schema_version);
     if (version==1) {
         if (json.value("role",std::string{})!="clay")
             throw std::runtime_error("schema-1 walker role must be clay");
@@ -348,7 +356,8 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
             json.at("roles").empty() || json.at("roles").size()>
                 (version==2 ? walker_core_role_count:
                     version==3 ? walker_schema3_role_count:
-                    version==4 ? walker_schema4_role_count:walker_visual_role_count))
+                    version==4 ? walker_schema4_role_count:
+                    version==5 ? walker_schema5_role_count:walker_visual_role_count))
             throw std::runtime_error("walker roles exceed this schema's role limit");
         for (const auto& [name,value]:json.at("roles").items()) {
             const auto role=named_role(name,version);
@@ -356,13 +365,15 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
             const bool animated=walker_role_index(*role)>=walker_core_role_count;
             const char* family=*role==WalkerVisualRole::FireInspector ? "FireInspector":
                 *role==WalkerVisualRole::Supplier ? "Supplier":
-                *role==WalkerVisualRole::Distributor ? "Distributor":"Service";
+                *role==WalkerVisualRole::Distributor ? "Distributor":
+                *role==WalkerVisualRole::Service ? "Service":"HealthWorker";
             state.profile.roles[walker_role_index(*role)]=parse_role(value,state,
                 animated,false,family,*role==WalkerVisualRole::Supplier ||
                                      *role==WalkerVisualRole::Distributor ||
-                                     *role==WalkerVisualRole::Service);
+                                     *role==WalkerVisualRole::Service ||
+                                     *role==WalkerVisualRole::HealthWorker);
             if (animated) require_animated_role(*state.profile.find(*role),state,
-                *role==WalkerVisualRole::Service,family);
+                *role==WalkerVisualRole::Service || *role==WalkerVisualRole::HealthWorker,family);
         }
     }
     return std::move(state.profile);
@@ -379,7 +390,7 @@ void append_fire_inspector_visual_profile(const fs::path& data_root,
         throw std::runtime_error("FireInspector supplement must contain only its schema-3 role");
     if (profile.find(WalkerVisualRole::FireInspector))
         throw std::runtime_error("FireInspector role is already configured");
-    auto state=append_state(root,profile);
+    auto state=append_state(root,profile,3);
     auto role=parse_role(json.at("roles").at("fire_inspector"),state,true,true);
     require_animated_role(role,state,true,"FireInspector");
     state.profile.roles[walker_role_index(WalkerVisualRole::FireInspector)].emplace(std::move(role));
@@ -397,7 +408,7 @@ void append_market_visual_profile(const fs::path& data_root,const fs::path& mani
         throw std::runtime_error("market supplement must contain only its two schema-4 families");
     if (profile.find(WalkerVisualRole::Supplier) || profile.find(WalkerVisualRole::Distributor))
         throw std::runtime_error("market walker family is already configured");
-    auto state=append_state(root,profile);
+    auto state=append_state(root,profile,4);
     state.strict_frame_schema=4;
     for (const auto role:{WalkerVisualRole::Supplier,WalkerVisualRole::Distributor}) {
         const auto name=walker_role_name(role);
@@ -418,11 +429,28 @@ void append_service_visual_profile(const fs::path& data_root,const fs::path& man
         throw std::runtime_error("Service supplement must contain only its schema-5 role");
     if (profile.find(WalkerVisualRole::Service))
         throw std::runtime_error("Service role is already configured");
-    auto state=append_state(root,profile);
+    auto state=append_state(root,profile,5);
     state.strict_frame_schema=5;
     auto role=parse_role(json.at("roles").at("service"),state,true,true,"Service",true);
     require_animated_role(role,state,true,"Service");
     state.profile.roles[walker_role_index(WalkerVisualRole::Service)].emplace(std::move(role));
     commit_append(profile,state,5);
+}
+void append_health_visual_profile(const fs::path& data_root,const fs::path& manifest,
+                                  WalkerVisualProfile& profile) {
+    const auto root=checked_root(data_root);
+    const auto json=read_manifest(manifest);
+    if (json.at("schema_version").get<std::int64_t>()!=6 ||
+        !json.contains("roles") || !json.at("roles").is_object() ||
+        json.at("roles").size()!=1 || !json.at("roles").contains("health_worker"))
+        throw std::runtime_error("HealthWorker supplement must contain only its schema-6 role");
+    if (profile.find(WalkerVisualRole::HealthWorker))
+        throw std::runtime_error("HealthWorker role is already configured");
+    auto state=append_state(root,profile,6);
+    state.strict_frame_schema=6;
+    auto role=parse_role(json.at("roles").at("health_worker"),state,true,true,"HealthWorker",true);
+    require_animated_role(role,state,true,"HealthWorker");
+    state.profile.roles[walker_role_index(WalkerVisualRole::HealthWorker)].emplace(std::move(role));
+    commit_append(profile,state,6);
 }
 }

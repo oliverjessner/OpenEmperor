@@ -1,4 +1,5 @@
 #include "assets/CompatibilityProfile.h"
+#include "assets/WalkerVisualProfile.h"
 
 #include <nlohmann/json.hpp>
 #include <openssl/evp.h>
@@ -357,6 +358,54 @@ CompatibilityProfile load_compatibility_profile(const fs::path& manifest) {
                 std::string("optional Service metadata invalid: ")+exception.what();
         }
     }
+    if (document.contains("optional_health_walkers")) {
+        try {
+            const auto& health=document.at("optional_health_walkers");
+            if (!health.is_object() || !health.contains("files") ||
+                !health.at("files").is_array() || health.at("files").empty() ||
+                health.at("files").size()>max_fire_fingerprints)
+                throw std::runtime_error("invalid optional HealthWorker fingerprint list");
+            const auto health_profile=checked_file(result.pack_root,
+                required_relative(health,"profile"));
+            if (!health_profile)
+                throw std::runtime_error("optional HealthWorker metadata resource is missing or unsafe");
+            std::set<fs::path> covered;
+            std::vector<CompatibilityFingerprint> files;
+            for (const auto& entry:health.at("files")) {
+                if (!entry.is_object())
+                    throw std::runtime_error("optional HealthWorker fingerprint is not an object");
+                CompatibilityFingerprint fingerprint;
+                fingerprint.relative_path=required_relative(entry,"path");
+                fingerprint.sha256=required_string(entry,"sha256");
+                if (!sha256_text(fingerprint.sha256) || !covered.insert(fingerprint.relative_path).second)
+                    throw std::runtime_error("optional HealthWorker fingerprint is invalid or duplicated");
+                files.push_back(std::move(fingerprint));
+            }
+            const auto metadata=nlohmann::json::parse(read_bounded_text(*health_profile));
+            const auto& roles=metadata.at("roles");
+            if (metadata.value("schema_version",0U)!=6 || !roles.is_object() ||
+                roles.size()!=1 || !roles.contains("health_worker"))
+                throw std::runtime_error("optional HealthWorker resource must contain only schema-6 HealthWorker");
+            std::size_t aliases=0;
+            for (const auto* role:{"health_worker"}) {
+                const auto& frames=roles.at(role).at("frames");
+                if (!frames.is_array() || frames.empty() || frames.size()>walker_frame_alias_limit(6)-aliases)
+                    throw std::runtime_error("optional HealthWorker resource has invalid frame references");
+                aliases+=frames.size();
+                for (const auto& frame:frames) {
+                    const auto archive=required_relative(frame,"archive");
+                    auto pixels=archive;pixels.replace_extension(".555");
+                    if (archive.extension()!=".sg3" || !covered.contains(archive) || !covered.contains(pixels))
+                        throw std::runtime_error("optional HealthWorker frame dependency is not independently fingerprinted");
+                }
+            }
+            result.health_walker_profile=*health_profile;
+            result.health_walker_files=std::move(files);
+        } catch (const std::exception& exception) {
+            result.health_walker_metadata_error=
+                std::string("optional HealthWorker metadata invalid: ")+exception.what();
+        }
+    }
     return result;
 }
 
@@ -556,6 +605,37 @@ CompatibilityResult detect_compatibility(const fs::path& data_root,
                 } catch (const std::exception& exception) {
                     result.service_walker_status=CompatibilityStatus::Unknown;
                     result.service_walker_detail=std::string("optional Service input could not be checked: ")+
+                        exception.what();
+                }
+            }
+            if (!fire.health_walker_metadata_error.empty()) {
+                result.health_walker_detail=fire.health_walker_metadata_error;
+            } else if (!fire.health_walker_profile.empty()) {
+                result.health_walker_status=CompatibilityStatus::Compatible;
+                result.health_walker_detail="independently fingerprinted HealthWorker walking figures detected";
+                try {
+                    for (const auto& expected:fire.health_walker_files) {
+                        const auto candidate=checked_file(root,expected.relative_path);
+                        if (!candidate) {
+                            std::error_code exists_error;
+                            const bool absent=!fs::exists(root/expected.relative_path,exists_error) && !exists_error;
+                            result.health_walker_status=absent ? CompatibilityStatus::MissingFile:
+                                CompatibilityStatus::FingerprintMismatch;
+                            result.health_walker_detail="optional HealthWorker file missing or unsafe: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                        ++result.health_walker_files_hashed;
+                        if (sha256_file(*candidate)!=expected.sha256) {
+                            result.health_walker_status=CompatibilityStatus::FingerprintMismatch;
+                            result.health_walker_detail="optional HealthWorker fingerprint mismatch: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                    }
+                } catch (const std::exception& exception) {
+                    result.health_walker_status=CompatibilityStatus::Unknown;
+                    result.health_walker_detail=std::string("optional HealthWorker input could not be checked: ")+
                         exception.what();
                 }
             }

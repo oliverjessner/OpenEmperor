@@ -256,6 +256,8 @@ void MenuSession::finish_loading() {
             visuals.market_walker_fallback_reason);
         view->set_service_walker_visuals(visuals.service_walker,visuals.service_walker_source,
             visuals.service_walker_fallback_reason);
+        view->set_health_walker_visuals(visuals.health_walker,visuals.health_walker_source,
+            visuals.health_walker_fallback_reason);
         view->initialize(window_,renderer_);
         if (starting_map_check_ && !document &&
             view->capture_save_document().map_sha256!=starting_map_check_->input_sha256)

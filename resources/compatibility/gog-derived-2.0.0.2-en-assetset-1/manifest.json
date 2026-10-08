@@ -79,5 +79,18 @@
         "sha256": "d84eb6759e9ce50b0ad75596773b9224f9c1a9b8dd80b691c066c3de7e8df438"
       }
     ]
+  },
+  "optional_health_walkers": {
+    "profile": "health-walker.json",
+    "files": [
+      {
+        "path": "DATA/SprMain.sg3",
+        "sha256": "3e2817d2644453acc92068d6c1e26532212be213b43b848ebe95ba21654adef8"
+      },
+      {
+        "path": "DATA/SprMain.555",
+        "sha256": "d84eb6759e9ce50b0ad75596773b9224f9c1a9b8dd80b691c066c3de7e8df438"
+      }
+    ]
   }
 }

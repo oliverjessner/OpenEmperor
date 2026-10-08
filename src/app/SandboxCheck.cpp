@@ -54,6 +54,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             visuals.market_walker_fallback_reason);
         view.set_service_walker_visuals(visuals.service_walker,visuals.service_walker_source,
             visuals.service_walker_fallback_reason);
+        view.set_health_walker_visuals(visuals.health_walker,visuals.health_walker_source,
+            visuals.health_walker_fallback_reason);
         view.initialize(window,renderer);
         const auto initial_ticks=view.world().ticks();
         const auto initial_treasury=view.world().treasury();
@@ -241,6 +243,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             const auto stats=view.walker_display_stats();
             const auto market=view.market_walker_display_stats();
             const auto service=view.service_walker_display_stats();
+            const auto health=view.health_walker_display_stats();
             constexpr const char* directions[]={"pos_x","neg_x","pos_y","neg_y"};
             nlohmann::json configured=nlohmann::json::array();
             nlohmann::json roles=nlohmann::json::object();
@@ -259,6 +262,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"fallback_invalid_edge",role.fallback_invalid_edge}};
             }
             return nlohmann::json{{"schema_version",stats.schema_version},
+                {"frame_aliases",stats.frame_aliases},{"frame_alias_limit",stats.frame_alias_limit},
+                {"logical_rgba_bytes",stats.logical_rgba_bytes},
                 {"configured_roles",configured},{"unique_assets",stats.decoded_assets},
                 {"texture_uploads",stats.texture_uploads},{"roles",roles},
                 {"market_walkers",{{"active",market.active},{"configured",market.configured},
@@ -271,6 +276,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"frame_aliases",service.frames},{"additional_assets",service.additional_assets},
                     {"additional_rgba_bytes",service.additional_bytes},{"draws",service.draws},
                     {"fallback_draws",service.fallback_draws}}},
+                {"health_walker",{{"active",health.active},{"configured",health.configured},
+                    {"clip_id",health.clip_id},{"fallback_reason",health.fallback_reason},
+                    {"frame_aliases",health.frames},{"additional_assets",health.additional_assets},
+                    {"additional_rgba_bytes",health.additional_bytes},{"draws",health.draws},
+                    {"fallback_draws",health.fallback_draws}}},
                 {"fire_inspector",{{"active",view.fire_inspector_display_stats().active},
                     {"clip_id",view.fire_inspector_display_stats().clip_id},
                     {"fallback_reason",view.fire_inspector_display_stats().fallback_reason},

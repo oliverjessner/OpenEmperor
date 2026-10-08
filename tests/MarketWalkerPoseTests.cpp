@@ -86,8 +86,8 @@ void contracts(const assets::WalkerVisualProfile& visuals) {
             "New family changed old waiting/idle contract.");
     }
     check(oe::walker_visual_role(sim::CourierRole::Service)==assets::WalkerVisualRole::Service&&
-          !oe::walker_visual_role(sim::CourierRole::HealthWorker),
-        "Service append or unchanged Health fallback mapping is wrong.");
+          oe::walker_visual_role(sim::CourierRole::HealthWorker)==assets::WalkerVisualRole::HealthWorker,
+        "Service/Health append-only visual mapping is wrong.");
 }
 constexpr int extent=24;
 auto gate_permissions() {

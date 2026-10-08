@@ -179,6 +179,23 @@ def check_negative(app, scratch):
         target = p / compatibility / "roads.json"
         target.unlink(); target.symlink_to("/tmp/roads.json")
     reject("compatibility-symlink", compatibility_symlink)
+    reject("missing-health-metadata",
+           lambda p: (p / compatibility / "health-walker.json").unlink())
+    def health_mutation(p, change):
+        path = p / compatibility / "health-walker.json"
+        document = json.loads(path.read_text())
+        change(document)
+        path.write_text(json.dumps(document))
+    reject("health-incomplete-direction", lambda p: health_mutation(p,
+           lambda d: d["roles"]["health_worker"]["clips"].pop("neg_y")))
+    reject("health-invalid-display-flip", lambda p: health_mutation(p,
+           lambda d: d["roles"]["health_worker"]["frames"][0].update(flip_x=False)))
+    def health_fingerprint(p):
+        path = p / compatibility / "manifest.json"
+        document = json.loads(path.read_text())
+        document["optional_health_walkers"]["files"][1]["sha256"] = "0" * 64
+        path.write_text(json.dumps(document))
+    reject("health-independent-fingerprint", health_fingerprint)
     reject("invalid-signature", lambda p: (p / "Contents/Resources/BuildInfo.json").write_text("changed"), signed=True)
     occupied = scratch / "write-failure"; occupied.write_bytes(b"occupied")
     try:

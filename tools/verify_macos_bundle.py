@@ -14,7 +14,8 @@ RESOURCE_FILES = {"BuildInfo.json", "LICENSE-SDL.txt", "LICENSE-OpenSSL.txt",
                   "LICENSE-nlohmann-json.txt"}
 COMPATIBILITY_ID = "gog-derived-2.0.0.2-en-assetset-1"
 COMPATIBILITY_FILES = {"manifest.json", "walkers.json", "buildings.json", "roads.json", "fire.json",
-                       "fire-inspector.json", "market-walkers.json"}
+                       "fire-inspector.json", "market-walkers.json", "service-walker.json",
+                       "health-walker.json"}
 FORBIDDEN_COMPATIBILITY_SUFFIXES = {".sg3", ".555", ".map", ".pak", ".exe", ".png",
                                     ".jpg", ".jpeg", ".bmp", ".rgba", ".raw"}
 MAX_COMPATIBILITY_JSON_BYTES = 256 * 1024
@@ -49,6 +50,60 @@ def validate_compatibility_json(path):
                 raise ValueError("unsafe path in compatibility JSON: " + value)
     visit(document)
     return document
+
+
+def validate_civilian_supplement(manifest, documents, section, filename, schema,
+                                 family, alias_prefix, base, clip_id):
+    optional = manifest.get(section)
+    pins = {
+        "DATA/SprMain.sg3": "3e2817d2644453acc92068d6c1e26532212be213b43b848ebe95ba21654adef8",
+        "DATA/SprMain.555": "d84eb6759e9ce50b0ad75596773b9224f9c1a9b8dd80b691c066c3de7e8df438",
+    }
+    # Each supplement independently declares its exact source pair.
+    if (not isinstance(optional, dict) or set(optional) != {"profile", "files"} or
+            optional.get("profile") != filename or
+            not isinstance(optional.get("files"), list) or len(optional["files"]) != 2 or
+            any(not isinstance(item, dict) or set(item) != {"path", "sha256"} or
+                not isinstance(item.get("path"), str) or not isinstance(item.get("sha256"), str)
+                for item in optional["files"]) or
+            {item["path"]: item["sha256"] for item in optional["files"]} != pins):
+        raise ValueError(family + " independent dependency fingerprints changed")
+    document = documents[filename]
+    if (not isinstance(document, dict) or type(document.get("schema_version")) is not int or
+            document.get("schema_version") != schema or
+            document.get("mode") != "curated_walker_preview" or
+            not isinstance(document.get("roles"), dict) or set(document["roles"]) != {family}):
+        raise ValueError(family + " role/schema metadata is invalid")
+    role = document["roles"][family]
+    if (not isinstance(role, dict) or role.get("clip_id") != clip_id or
+            type(role.get("ticks_per_frame")) is not int or role["ticks_per_frame"] != 2 or
+            not isinstance(role.get("evidence"), str) or not 1 <= len(role["evidence"]) <= 512 or
+            role.get("idle") != alias_prefix + "-neg_y-0" or
+            not isinstance(role.get("frames"), list) or len(role["frames"]) != 48 or
+            not isinstance(role.get("clips"), dict) or
+            set(role["clips"]) != {"pos_x", "neg_x", "pos_y", "neg_y"}):
+        raise ValueError(family + " clip metadata is invalid")
+    frames = {}
+    for frame in role["frames"]:
+        if (not isinstance(frame, dict) or
+                set(frame) != {"alias", "archive", "image_index", "foot_anchor", "flip_x"} or
+                not isinstance(frame.get("alias"), str) or frame["alias"] in frames or
+                frame.get("archive") != "DATA/SprMain.sg3" or
+                type(frame.get("image_index")) is not int or frame["image_index"] <= 0 or
+                type(frame.get("flip_x")) is not bool or
+                not isinstance(frame.get("foot_anchor"), list) or len(frame["foot_anchor"]) != 2 or
+                not all(type(v) in (int, float) and math.isfinite(v) and abs(v) <= 256
+                        for v in frame["foot_anchor"])):
+            raise ValueError(family + " frame/display transform metadata is invalid")
+        frames[frame["alias"]] = frame
+    for direction, offset in {"neg_y": 0, "neg_x": 0, "pos_x": 2, "pos_y": 2}.items():
+        aliases = [f"{alias_prefix}-{direction}-{phase}" for phase in range(12)]
+        if role["clips"][direction] != aliases:
+            raise ValueError(family + " required direction/sequence changed")
+        for phase, alias in enumerate(aliases):
+            if (alias not in frames or frames[alias]["image_index"] != base + offset + 8 * phase or
+                    frames[alias]["flip_x"] != (direction in {"neg_x", "pos_y"})):
+                raise ValueError(family + " native source or explicit display flip changed")
 
 
 def verify(app, signature=True, required_arch="arm64"):
@@ -259,6 +314,12 @@ def verify(app, signature=True, required_arch="arm64"):
                 if (alias not in frames or frames[alias]["image_index"] != base + offset + 8 * phase or
                         frames[alias]["flip_x"] != (direction in {"neg_x", "pos_y"})):
                     raise ValueError("Market native physical frame or explicit display flip changed")
+    validate_civilian_supplement(manifest, compatibility_documents,
+        "optional_service_walkers", "service-walker.json", 5, "service", "service", 1417,
+        "curated-sprmain-service-walk")
+    validate_civilian_supplement(manifest, compatibility_documents,
+        "optional_health_walkers", "health-walker.json", 6, "health_worker", "health", 2925,
+        "curated-sprmain-health-worker-walk")
     build_info_path = contents / "Resources" / "BuildInfo.json"
     try:
         build_info = json.loads(build_info_path.read_text())

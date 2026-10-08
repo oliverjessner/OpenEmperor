@@ -13,13 +13,18 @@
 namespace openemperor::assets {
 enum class StorageDirection { PosX, NegX, PosY, NegY };
 enum class WalkerVisualRole : std::uint8_t {
-    Clay=0, Pottery=1, Household=2, FireInspector=3, Supplier=4, Distributor=5, Service=6
+    Clay=0, Pottery=1, Household=2, FireInspector=3, Supplier=4, Distributor=5, Service=6, HealthWorker=7
 };
 inline constexpr std::size_t walker_core_role_count=3;
 inline constexpr std::size_t walker_schema3_role_count=4;
 inline constexpr std::size_t walker_schema4_role_count=6;
-inline constexpr std::size_t walker_visual_role_count=7;
-inline constexpr std::size_t walker_max_frame_aliases=256;
+inline constexpr std::size_t walker_schema5_role_count=7;
+inline constexpr std::size_t walker_visual_role_count=8;
+inline constexpr std::size_t walker_legacy_max_frame_aliases=256;
+inline constexpr std::size_t walker_max_frame_aliases=320;
+constexpr std::size_t walker_frame_alias_limit(std::uint32_t schema_version) {
+    return schema_version>=6 ? walker_max_frame_aliases:walker_legacy_max_frame_aliases;
+}
 inline constexpr std::size_t walker_max_unique_assets=256;
 inline constexpr std::uint64_t walker_max_rgba_bytes=64U*1024U*1024U;
 constexpr std::size_t walker_role_index(WalkerVisualRole role) {
@@ -31,12 +36,12 @@ struct WalkerFrame {
     AssetId id; // Physical SG3 record, never a packed runtime image ID.
     double foot_x=0, foot_y=0; // Explicit display anchor, after any frame transform.
     std::size_t image_index=0; // Index into unique_images.
-    bool flip_x=false; // Supplier/Distributor >=4, Service >=5; pixels stay native.
+    bool flip_x=false; // Supplier/Distributor >=4, Service >=5, HealthWorker >=6; pixels stay native.
 };
 struct WalkerRoleVisual {
     std::uint32_t ticks_per_frame=1;
     std::string evidence;
-    std::string clip_id; // Required for FireInspector, Supplier, Distributor and Service.
+    std::string clip_id; // Required for all roles after the original three.
     std::vector<WalkerFrame> frames;
     std::array<std::vector<std::size_t>,4> clips; // Indices into frames; order is manifest order.
     std::size_t idle_frame=0;
@@ -76,5 +81,11 @@ void append_market_visual_profile(const std::filesystem::path& data_root,
 void append_service_visual_profile(const std::filesystem::path& data_root,
                                    const std::filesystem::path& manifest,
                                    WalkerVisualProfile& profile);
+// A schema-6 supplement contains only the complete animated HealthWorker role.
+// Candidate preparation retains all prior roles/native images atomically and
+// uses the resulting schema's bounded alias limit, unchanged assets/RGBA limits.
+void append_health_visual_profile(const std::filesystem::path& data_root,
+                                  const std::filesystem::path& manifest,
+                                  WalkerVisualProfile& profile);
 std::uint64_t walker_rgba_bytes(const WalkerVisualProfile& profile);
 }

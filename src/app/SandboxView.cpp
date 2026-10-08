@@ -288,6 +288,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     prepare_fire_inspector_extension();
     prepare_market_walker_extension();
     prepare_service_walker_extension();
+    prepare_health_walker_extension();
     buildable_mask_=maps::make_sandbox_buildable_mask(background_.plan(),geometry_);
     const auto active_version=initial_save_ ? initial_save_->world.rule_version:
         requested_rule_version_;
@@ -330,7 +331,7 @@ void SandboxView::shutdown() {
     walker_diagnostic_open_=false;
     walker_sprites_.reset();
     walker_profile_.reset();
-    fire_inspector_extension_=market_walker_extension_=service_walker_extension_=false;
+    fire_inspector_extension_=market_walker_extension_=service_walker_extension_=health_walker_extension_=false;
     building_sprite_.reset();
     building_profile_.reset();
     road_sprites_.reset();
@@ -350,10 +351,11 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
         walker_sprites_.reset(); walker_profile_.reset(); walker_manifest_.clear();
         visual_hits_.clear(); visual_frame_valid_=false;
         walker_source_=VisualProfileSource::Fallback;
-        fire_inspector_extension_=market_walker_extension_=service_walker_extension_=false;
+        fire_inspector_extension_=market_walker_extension_=service_walker_extension_=health_walker_extension_=false;
         fire_inspector_fallback_reason_="Core walker sprites unavailable";
         market_walker_fallback_reason_="Core walker sprites unavailable";
         service_walker_fallback_reason_="Core walker sprites unavailable";
+        health_walker_fallback_reason_="Core walker sprites unavailable";
         walker_diagnostic_open_=false;
         return;
     }
@@ -377,7 +379,7 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
     walker_manifest_=manifest;
     walker_source_=source;
     walker_core_schema_=walker_profile_->schema_version;
-    fire_inspector_extension_=market_walker_extension_=service_walker_extension_=false;
+    fire_inspector_extension_=market_walker_extension_=service_walker_extension_=health_walker_extension_=false;
     fire_inspector_fallback_draws_=0;
     walker_visuals_enabled_=true;
     walker_role_stats_={};
@@ -386,7 +388,7 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
     walker_diagnostic_role_=walker_diagnostic_direction_=walker_diagnostic_step_=0;
     last_message_="Curated walker previews active";
     enforce_fire_texture_budget();
-    if (world_) { prepare_fire_inspector_extension();prepare_market_walker_extension();prepare_service_walker_extension(); }
+    if (world_) { prepare_fire_inspector_extension();prepare_market_walker_extension();prepare_service_walker_extension();prepare_health_walker_extension(); }
 }
 void SandboxView::remove_fire_inspector_extension() {
     if (!fire_inspector_extension_) return;
@@ -406,6 +408,12 @@ void SandboxView::remove_service_walker_extension() {
     std::array<bool,assets::walker_visual_role_count> removed{};
     removed[assets::walker_role_index(assets::WalkerVisualRole::Service)]=true;
     remove_walker_roles(removed);service_walker_extension_=false;
+}
+void SandboxView::remove_health_walker_extension() {
+    if (!health_walker_extension_) return;
+    std::array<bool,assets::walker_visual_role_count> removed{};
+    removed[assets::walker_role_index(assets::WalkerVisualRole::HealthWorker)]=true;
+    remove_walker_roles(removed);health_walker_extension_=false;
 }
 void SandboxView::remove_walker_roles(
         const std::array<bool,assets::walker_visual_role_count>& removed) {
@@ -438,6 +446,15 @@ void SandboxView::remove_walker_roles(
         walker_profile_->schema_version=std::max(walker_profile_->schema_version,4U);
     if (walker_profile_->find(assets::WalkerVisualRole::Service))
         walker_profile_->schema_version=std::max(walker_profile_->schema_version,5U);
+    if (walker_profile_->find(assets::WalkerVisualRole::HealthWorker))
+        walker_profile_->schema_version=std::max(walker_profile_->schema_version,6U);
+    std::size_t remaining_aliases=0;
+    for (const auto& role:walker_profile_->roles) if (role)
+        remaining_aliases+=role->frames.size();
+    // Old supplements can join a schema-6 aggregate above the historical bound.
+    // Removing Health must not relabel their retained frames as a <=5 profile.
+    if (remaining_aliases>assets::walker_legacy_max_frame_aliases)
+        walker_profile_->schema_version=std::max(walker_profile_->schema_version,6U);
     visual_hits_.clear();visual_frame_valid_=false;
 }
 void SandboxView::set_fire_inspector_visuals(const std::filesystem::path& manifest,
@@ -643,14 +660,76 @@ SandboxView::ServiceWalkerDisplayStats SandboxView::service_walker_display_stats
     stats.fallback_draws=service_walker_fallback_draws_;
     return stats;
 }
+void SandboxView::set_health_walker_visuals(const std::filesystem::path& manifest,
+        VisualProfileSource source,std::string fallback_reason) {
+    remove_health_walker_extension();
+    health_walker_manifest_=manifest;health_walker_source_=source;
+    health_walker_fallback_reason_=fallback_reason.empty() ?
+        "No HealthWorker clip selected":std::move(fallback_reason);
+    health_walker_fallback_draws_=0;
+    if (renderer_) prepare_health_walker_extension();
+}
+void SandboxView::prepare_health_walker_extension() {
+    if (health_walker_manifest_.empty() || health_walker_extension_) return;
+    if (!simulation::health_profile(rules_)) {
+        health_walker_fallback_reason_="Active rules have no HealthWorker presentation";return;
+    }
+    if (!walker_profile_ || !walker_sprites_) {
+        health_walker_fallback_reason_="Core walker sprites unavailable";return;
+    }
+    using Role=assets::WalkerVisualRole;
+    if (walker_profile_->find(Role::HealthWorker)) return;
+    if (walker_source_!=VisualProfileSource::Builtin ||
+        health_walker_source_!=VisualProfileSource::Builtin) {
+        health_walker_fallback_reason_="Explicit custom walkers are not supplemented";return;
+    }
+    const auto images=walker_profile_->unique_images.size();
+    const auto schema=walker_profile_->schema_version;
+    const auto available=session_texture_headroom(false,true);
+    if (!available) {
+        health_walker_fallback_reason_="Session RGBA texture budget exhausted";return;
+    }
+    try {
+        assets::append_health_visual_profile(data_root_,health_walker_manifest_,*walker_profile_);
+        walker_sprites_->append(*walker_profile_,*available);
+        health_walker_extension_=true;health_walker_fallback_reason_.clear();
+        visual_hits_.clear();visual_frame_valid_=false;
+    } catch (const std::exception& error) {
+        walker_profile_->roles[assets::walker_role_index(Role::HealthWorker)].reset();
+        walker_profile_->unique_images.resize(images);walker_profile_->schema_version=schema;
+        health_walker_fallback_reason_=std::string("HealthWorker preparation failed: ")+error.what();
+    }
+}
+SandboxView::HealthWalkerDisplayStats SandboxView::health_walker_display_stats() const {
+    HealthWalkerDisplayStats stats;
+    const auto* visual=walker_profile_ ? walker_profile_->find(assets::WalkerVisualRole::HealthWorker):nullptr;
+    stats.configured=visual && walker_sprites_;
+    stats.active=stats.configured && walker_visuals_enabled_;
+    stats.fallback_reason=stats.configured ? (walker_visuals_enabled_ ? "":"F2 marker comparison"):
+        walker_source_==VisualProfileSource::Custom ? "Custom profile has no HealthWorker role":
+        health_walker_fallback_reason_;
+    if (visual) { stats.clip_id=visual->clip_id;stats.frames=visual->frames.size(); }
+    if (health_walker_extension_) {
+        std::array<bool,assets::walker_visual_role_count> selected{};
+        selected[assets::walker_role_index(assets::WalkerVisualRole::HealthWorker)]=true;
+        const auto [assets,bytes]=exclusive_walker_images(selected);
+        stats.additional_assets=assets;stats.additional_bytes=bytes;
+    }
+    stats.draws=walker_role_stats_[assets::walker_role_index(assets::WalkerVisualRole::HealthWorker)].draws;
+    stats.fallback_draws=health_walker_fallback_draws_;
+    return stats;
+}
 SandboxView::WalkerDisplayStats SandboxView::walker_display_stats() const {
     WalkerDisplayStats stats;
     if (walker_profile_) {
         stats.schema_version=walker_profile_->schema_version;
+        stats.frame_alias_limit=assets::walker_frame_alias_limit(stats.schema_version);
+        stats.logical_rgba_bytes=assets::walker_rgba_bytes(*walker_profile_);
         for (std::size_t role=0;role<assets::walker_visual_role_count;++role) {
             const auto& visual=walker_profile_->roles[role];
             stats.roles[role]=walker_role_stats_[role];
             stats.roles[role].configured=visual.has_value();
+            if (visual) stats.frame_aliases+=visual->frames.size();
             if (visual) for (std::size_t direction=0;direction<4;++direction)
                 stats.roles[role].directions_configured[direction]=
                     !visual->clips[direction].empty();
@@ -783,6 +862,10 @@ std::optional<std::uint64_t> SandboxView::session_texture_headroom(
 }
 void SandboxView::enforce_fire_texture_budget() {
     const auto exhausted=[&] { return !session_texture_headroom(true,true); };
+    if (health_walker_extension_ && exhausted()) {
+        remove_health_walker_extension();
+        health_walker_fallback_reason_="Session RGBA texture budget exhausted";
+    }
     if (service_walker_extension_ && exhausted()) {
         remove_service_walker_extension();
         service_walker_fallback_reason_="Session RGBA texture budget exhausted";
@@ -829,6 +912,10 @@ void SandboxView::set_fire_visuals(const std::filesystem::path& manifest,
         using Role=assets::WalkerVisualRole;
         // Preserve the fire-priority policy only on genuine aggregate pressure.
         // Plan optional eviction without changing any existing pixels/textures.
+        if ((!available || bytes>*available) && health_walker_extension_) {
+            removed[assets::walker_role_index(Role::HealthWorker)]=true;
+            available=available_for();
+        }
         if ((!available || bytes>*available) && service_walker_extension_) {
             removed[assets::walker_role_index(Role::Service)]=true;
             available=available_for();
@@ -850,6 +937,10 @@ void SandboxView::set_fire_visuals(const std::filesystem::path& manifest,
         // optional textures may be released. Surviving roles need no source I/O.
         if (std::any_of(removed.begin(),removed.end(),[](bool value) { return value; })) {
             remove_walker_roles(removed);
+            if (removed[assets::walker_role_index(Role::HealthWorker)]) {
+                health_walker_extension_=false;
+                health_walker_fallback_reason_="Session RGBA texture budget exhausted";
+            }
             if (removed[assets::walker_role_index(Role::Service)]) {
                 service_walker_extension_=false;
                 service_walker_fallback_reason_="Session RGBA texture budget exhausted";
@@ -2582,6 +2673,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             if (courier.role==simulation::CourierRole::FireInspector) ++fire_inspector_fallback_draws_;
             if (food_market_visual(visual_role)) ++market_walker_fallback_draws_;
             if (visual_role==assets::WalkerVisualRole::Service) ++service_walker_fallback_draws_;
+            if (visual_role==assets::WalkerVisualRole::HealthWorker) ++health_walker_fallback_draws_;
             if (!draw_agent(position,missing,cargo_color,courier.cargo,
                             marker_shift)) return false;
             return !debug_open_ || SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
@@ -2590,6 +2682,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         if (courier.role==simulation::CourierRole::FireInspector) ++fire_inspector_fallback_draws_;
         if (food_market_visual(visual_role)) ++market_walker_fallback_draws_;
         if (visual_role==assets::WalkerVisualRole::Service) ++service_walker_fallback_draws_;
+        if (visual_role==assets::WalkerVisualRole::HealthWorker) ++health_walker_fallback_draws_;
         if (!draw_agent(position,marker_color,cargo_color,courier.cargo,marker_shift)) return false;
         if (debug_open_ && (courier.role==simulation::CourierRole::Food ||
                             courier.role==simulation::CourierRole::Service ||
@@ -2973,7 +3066,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 role==assets::WalkerVisualRole::FireInspector && (fire_inspector_extension_ || !configured) ?
                     fire_inspector_source_:
                 role==assets::WalkerVisualRole::Service && (service_walker_extension_ || !configured) ?
-                    service_walker_source_:walker_source_;
+                    service_walker_source_:
+                role==assets::WalkerVisualRole::HealthWorker && (health_walker_extension_ || !configured) ?
+                    health_walker_source_:walker_source_;
             walker_lines.push_back(std::string("Family: ")+(role ? assets::walker_role_name(*role):"unassigned")+
                 " | source: "+visual_profile_source_name(source));
             if (found->path.size()>1 && found->path_vertex<found->path.size()-1) {
@@ -4213,6 +4308,7 @@ std::string SandboxView::walker_clip_status(const simulation::CourierState& cour
         else if (food_market_visual(role)) reason=market_walker_fallback_reason_;
         else if (role==assets::WalkerVisualRole::FireInspector) reason=fire_inspector_fallback_reason_;
         else if (role==assets::WalkerVisualRole::Service) reason=service_walker_fallback_reason_;
+        else if (role==assets::WalkerVisualRole::HealthWorker) reason=health_walker_fallback_reason_;
         else reason="Core profile has no configured "+std::string(assets::walker_role_name(*role));
     } else if (!walker_sprites_) reason="Walker asset preparation unavailable";
     else {
@@ -4248,7 +4344,9 @@ std::vector<SandboxView::WalkerDiagnostic> SandboxView::walker_diagnostics() con
             role==assets::WalkerVisualRole::FireInspector && (fire_inspector_extension_ || !configured) ?
                 fire_inspector_source_:
             role==assets::WalkerVisualRole::Service && (service_walker_extension_ || !configured) ?
-                service_walker_source_:walker_source_;
+                service_walker_source_:
+                role==assets::WalkerVisualRole::HealthWorker && (health_walker_extension_ || !configured) ?
+                    health_walker_source_:walker_source_;
         row.profile_source=role ? visual_profile_source_name(source):"unassigned";
         row.status=walker_clip_status(courier);
         const auto* visual=role && walker_profile_ ? walker_profile_->find(*role):nullptr;

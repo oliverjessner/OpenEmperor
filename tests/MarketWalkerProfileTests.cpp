@@ -76,7 +76,7 @@ void schema_checks(Fixture& fixture,const fs::path& manifest) {
     static_assert(assets::walker_role_index(Role::Supplier)==4);
     static_assert(assets::walker_role_index(Role::Distributor)==5);
     static_assert(assets::walker_core_role_count==3 && assets::walker_schema3_role_count==4 &&
-                  assets::walker_schema4_role_count==6 && assets::walker_visual_role_count==7);
+                  assets::walker_schema4_role_count==6 && assets::walker_schema5_role_count==7 && assets::walker_visual_role_count==8);
     check(std::string_view(assets::walker_role_name(Role::Supplier))=="supplier" &&
           std::string_view(assets::walker_role_name(Role::Distributor))=="distributor",
           "market family names disagree with appended enum values");
@@ -117,7 +117,7 @@ void schema_checks(Fixture& fixture,const fs::path& manifest) {
           !custom.roles[0] && !custom.roles[3],"explicit custom gained hidden roles/directions");
     auto unknown=market();unknown["roles"]["service"]=one_role;Fixture::save(manifest,unknown);
     rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},"schema4 accepted unknown service role");
-    unknown=market();unknown["schema_version"]=6;Fixture::save(manifest,unknown);
+    unknown=market();unknown["schema_version"]=7;Fixture::save(manifest,unknown);
     rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},"future schema accepted");
 }
 void flip_checks(Fixture& fixture,const fs::path& manifest) {

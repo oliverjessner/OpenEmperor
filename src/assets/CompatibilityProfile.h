@@ -40,6 +40,9 @@ struct CompatibilityProfile {
     std::filesystem::path service_walker_profile;
     std::vector<CompatibilityFingerprint> service_walker_files;
     std::string service_walker_metadata_error;
+    std::filesystem::path health_walker_profile;
+    std::vector<CompatibilityFingerprint> health_walker_files;
+    std::string health_walker_metadata_error;
 };
 
 struct CompatibilityResult {
@@ -75,6 +78,13 @@ struct CompatibilityResult {
     bool service_walker_compatible() const {
         return compatible() && service_walker_status == CompatibilityStatus::Compatible &&
             !profile->service_walker_profile.empty();
+    }
+    CompatibilityStatus health_walker_status = CompatibilityStatus::Unknown;
+    std::size_t health_walker_files_hashed = 0;
+    std::string health_walker_detail = "optional HealthWorker walker is not declared";
+    bool health_walker_compatible() const {
+        return compatible() && health_walker_status == CompatibilityStatus::Compatible &&
+            !profile->health_walker_profile.empty();
     }
 };
 

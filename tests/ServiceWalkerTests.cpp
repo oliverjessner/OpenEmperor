@@ -112,10 +112,10 @@ struct Fixture {
 void schema_checks(Fixture& f) {
     static_assert(assets::walker_role_index(Role::Clay)==0&&assets::walker_role_index(Role::Pottery)==1&&assets::walker_role_index(Role::Household)==2);
     static_assert(assets::walker_role_index(Role::FireInspector)==3&&assets::walker_role_index(Role::Supplier)==4&&assets::walker_role_index(Role::Distributor)==5&&assets::walker_role_index(Role::Service)==6);
-    static_assert(assets::walker_core_role_count==3&&assets::walker_schema3_role_count==4&&assets::walker_schema4_role_count==6&&assets::walker_visual_role_count==7);
-    static_assert(assets::walker_max_frame_aliases==256&&assets::walker_max_unique_assets==256&&assets::walker_max_rgba_bytes==64U*1024U*1024U);
+    static_assert(assets::walker_core_role_count==3&&assets::walker_schema3_role_count==4&&assets::walker_schema4_role_count==6&&assets::walker_schema5_role_count==7&&assets::walker_visual_role_count==8);
+    static_assert(assets::walker_legacy_max_frame_aliases==256&&assets::walker_frame_alias_limit(5)==256&&assets::walker_max_frame_aliases==320&&assets::walker_max_unique_assets==256&&assets::walker_max_rgba_bytes==64U*1024U*1024U);
     const auto good=f.profile();check(good.schema_version==5&&good.find(Role::Service)&&good.unique_images.size()==2&&assets::walker_rgba_bytes(good)==1528,"schema5 Service physical dedupe/bytes changed");
-    check(std::string_view(assets::walker_role_name(Role::Service))=="service"&&oe::walker_visual_role(sim::CourierRole::Service)==Role::Service&&!oe::walker_visual_role(sim::CourierRole::HealthWorker),"append-only Service logical mapping or Health fallback changed");
+    check(std::string_view(assets::walker_role_name(Role::Service))=="service"&&oe::walker_visual_role(sim::CourierRole::Service)==Role::Service&&oe::walker_visual_role(sim::CourierRole::HealthWorker)==Role::HealthWorker,"append-only Service logical mapping or Health append mapping changed");
     const auto& role=*good.find(Role::Service);check(role.frames.size()==4&&role.frames[2].image_index==role.frames[0].image_index&&role.frames[3].image_index==role.frames[1].image_index&&role.frames[2].foot_x==6&&role.frames[3].foot_x==9,"explicit reflected feet were transformed again or duplicated images");
     const auto invalid=[&](Json j,const char* reason){authored::Fixture::save(f.service,j);rejects([&]{(void)f.profile();},reason);};
     for(int v:{1,2,3,4}) {auto j=Fixture::manifest();j["schema_version"]=v;invalid(j,"older schema admitted Service role");}
@@ -177,7 +177,7 @@ void pose_checks(const assets::WalkerVisualProfile& profile) {
         check(oe::walker_live_visible(c)==(phase!=sim::CourierPhase::IdleAtWorkshop)&&!oe::walker_pose(c,8,profile).moving&&oe::walker_pose(c,8,profile).frame==visual.idle_frame,"Service live visibility inferred cargo/path/movement instead of phase");
     }
     c.phase=sim::CourierPhase::ToWarehouse;c.path={{0,0},{std::numeric_limits<int>::min(),std::numeric_limits<int>::max()}};c.route_pending=false;check(oe::walker_pose(c,4,profile).fallback==oe::WalkerFallback::InvalidEdge,"extreme malformed Service edge overflowed");
-    for(auto role:{sim::CourierRole::Clay,sim::CourierRole::Pottery,sim::CourierRole::Household,sim::CourierRole::Food,sim::CourierRole::HealthWorker,sim::CourierRole::None}){c.role=role;c.phase=sim::CourierPhase::IdleAtWorkshop;check(oe::walker_live_visible(c),"Service visibility changed an older idle role");}
+    for(auto role:{sim::CourierRole::Clay,sim::CourierRole::Pottery,sim::CourierRole::Household,sim::CourierRole::Food,sim::CourierRole::None}){c.role=role;c.phase=sim::CourierPhase::IdleAtWorkshop;check(oe::walker_live_visible(c),"Service visibility changed an older idle role");}
 }
 Color pixel(SDL_Surface* surface,oe::scene::Point p) {Color result{};check(SDL_ReadSurfacePixel(surface,static_cast<int>(p.x),static_cast<int>(p.y),&result[0],&result[1],&result[2],&result[3]),"owned pixel witness failed");return result;}
 void pixel_checks(SDL_Renderer* renderer,Fixture& f) {

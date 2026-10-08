@@ -1,0 +1,552 @@
+{
+  "schema_version": 6,
+  "mode": "curated_walker_preview",
+  "roles": {
+    "health_worker": {
+      "clip_id": "curated-sprmain-health-worker-walk",
+      "ticks_per_frame": 2,
+      "evidence": "Original SprMain2925 native twelve-phase walking sequences and opposite mirror-reference metadata verified. Curated OpenEmperor HealthWorker presentation; two-tick cadence and common foot reference are authored, and original profession/timing/pivot are unproved.",
+      "frames": [
+        {
+          "alias": "health-neg_x-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2925,
+          "foot_anchor": [
+            19,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2933,
+          "foot_anchor": [
+            18,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2941,
+          "foot_anchor": [
+            17,
+            42
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2949,
+          "foot_anchor": [
+            17,
+            42
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2957,
+          "foot_anchor": [
+            18,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2965,
+          "foot_anchor": [
+            18,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2973,
+          "foot_anchor": [
+            18,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2981,
+          "foot_anchor": [
+            20,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2989,
+          "foot_anchor": [
+            22,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2997,
+          "foot_anchor": [
+            24,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 3005,
+          "foot_anchor": [
+            22,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_x-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 3013,
+          "foot_anchor": [
+            23,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-neg_y-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2925,
+          "foot_anchor": [
+            14,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2933,
+          "foot_anchor": [
+            16,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2941,
+          "foot_anchor": [
+            16,
+            42
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2949,
+          "foot_anchor": [
+            18,
+            42
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2957,
+          "foot_anchor": [
+            16,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2965,
+          "foot_anchor": [
+            13,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2973,
+          "foot_anchor": [
+            11,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2981,
+          "foot_anchor": [
+            13,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2989,
+          "foot_anchor": [
+            14,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2997,
+          "foot_anchor": [
+            16,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 3005,
+          "foot_anchor": [
+            20,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-neg_y-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 3013,
+          "foot_anchor": [
+            23,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2927,
+          "foot_anchor": [
+            11,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2935,
+          "foot_anchor": [
+            13,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2943,
+          "foot_anchor": [
+            16,
+            42
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2951,
+          "foot_anchor": [
+            18,
+            42
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2959,
+          "foot_anchor": [
+            19,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2967,
+          "foot_anchor": [
+            20,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2975,
+          "foot_anchor": [
+            19,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2983,
+          "foot_anchor": [
+            15,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2991,
+          "foot_anchor": [
+            15,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2999,
+          "foot_anchor": [
+            17,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 3007,
+          "foot_anchor": [
+            16,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_x-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 3015,
+          "foot_anchor": [
+            13,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "health-pos_y-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2927,
+          "foot_anchor": [
+            18,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2935,
+          "foot_anchor": [
+            20,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2943,
+          "foot_anchor": [
+            22,
+            42
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2951,
+          "foot_anchor": [
+            24,
+            42
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2959,
+          "foot_anchor": [
+            22,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2967,
+          "foot_anchor": [
+            21,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2975,
+          "foot_anchor": [
+            19,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2983,
+          "foot_anchor": [
+            18,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2991,
+          "foot_anchor": [
+            18,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 2999,
+          "foot_anchor": [
+            18,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 3007,
+          "foot_anchor": [
+            18,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "health-pos_y-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 3015,
+          "foot_anchor": [
+            18,
+            44
+          ],
+          "flip_x": true
+        }
+      ],
+      "clips": {
+        "neg_x": [
+          "health-neg_x-0",
+          "health-neg_x-1",
+          "health-neg_x-2",
+          "health-neg_x-3",
+          "health-neg_x-4",
+          "health-neg_x-5",
+          "health-neg_x-6",
+          "health-neg_x-7",
+          "health-neg_x-8",
+          "health-neg_x-9",
+          "health-neg_x-10",
+          "health-neg_x-11"
+        ],
+        "neg_y": [
+          "health-neg_y-0",
+          "health-neg_y-1",
+          "health-neg_y-2",
+          "health-neg_y-3",
+          "health-neg_y-4",
+          "health-neg_y-5",
+          "health-neg_y-6",
+          "health-neg_y-7",
+          "health-neg_y-8",
+          "health-neg_y-9",
+          "health-neg_y-10",
+          "health-neg_y-11"
+        ],
+        "pos_x": [
+          "health-pos_x-0",
+          "health-pos_x-1",
+          "health-pos_x-2",
+          "health-pos_x-3",
+          "health-pos_x-4",
+          "health-pos_x-5",
+          "health-pos_x-6",
+          "health-pos_x-7",
+          "health-pos_x-8",
+          "health-pos_x-9",
+          "health-pos_x-10",
+          "health-pos_x-11"
+        ],
+        "pos_y": [
+          "health-pos_y-0",
+          "health-pos_y-1",
+          "health-pos_y-2",
+          "health-pos_y-3",
+          "health-pos_y-4",
+          "health-pos_y-5",
+          "health-pos_y-6",
+          "health-pos_y-7",
+          "health-pos_y-8",
+          "health-pos_y-9",
+          "health-pos_y-10",
+          "health-pos_y-11"
+        ]
+      },
+      "idle": "health-neg_y-0"
+    }
+  }
+}

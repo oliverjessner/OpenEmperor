@@ -43,6 +43,9 @@ public:
             std::uint64_t fallback_unmapped=0,fallback_invalid_edge=0;
         };
         std::uint32_t schema_version=0;
+        std::size_t frame_aliases=0;
+        std::size_t frame_alias_limit=0;
+        std::size_t logical_rgba_bytes=0;
         std::array<Role,assets::walker_visual_role_count> roles{};
         std::array<bool,4> configured{};
         std::array<bool,4> moving_drawn{};
@@ -140,6 +143,16 @@ public:
         std::uint64_t additional_bytes=0,draws=0,fallback_draws=0;
     };
     ServiceWalkerDisplayStats service_walker_display_stats() const;
+    void set_health_walker_visuals(const std::filesystem::path& manifest,
+                                   VisualProfileSource source=VisualProfileSource::Builtin,
+                                   std::string fallback_reason={});
+    struct HealthWalkerDisplayStats {
+        bool configured=false,active=false;
+        std::string clip_id,fallback_reason;
+        std::size_t frames=0,additional_assets=0;
+        std::uint64_t additional_bytes=0,draws=0,fallback_draws=0;
+    };
+    HealthWalkerDisplayStats health_walker_display_stats() const;
     void set_building_visuals(const std::filesystem::path& manifest,
                               VisualProfileSource source=VisualProfileSource::Custom);
     void set_road_visuals(const std::filesystem::path& manifest,
@@ -318,6 +331,8 @@ private:
     void prepare_market_walker_extension();
     void remove_service_walker_extension();
     void prepare_service_walker_extension();
+    void remove_health_walker_extension();
+    void prepare_health_walker_extension();
     void remove_walker_roles(const std::array<bool,assets::walker_visual_role_count>& removed);
     std::pair<std::size_t,std::uint64_t> exclusive_walker_images(
         const std::array<bool,assets::walker_visual_role_count>& selected) const;
@@ -405,6 +420,11 @@ private:
     std::string service_walker_fallback_reason_="No Service clip selected";
     bool service_walker_extension_=false;
     std::uint64_t service_walker_fallback_draws_=0;
+    std::filesystem::path health_walker_manifest_;
+    VisualProfileSource health_walker_source_=VisualProfileSource::Fallback;
+    std::string health_walker_fallback_reason_="No HealthWorker clip selected";
+    bool health_walker_extension_=false;
+    std::uint64_t health_walker_fallback_draws_=0;
     std::array<bool,4> walker_moving_drawn_{};
     std::uint64_t walker_unmapped_fallbacks_=0, walker_invalid_edge_fallbacks_=0;
     std::filesystem::path building_manifest_;
