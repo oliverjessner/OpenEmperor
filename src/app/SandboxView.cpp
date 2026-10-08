@@ -54,6 +54,26 @@ const char* courier_good_label(simulation::Good good) {
     }
     return "Unknown";
 }
+const char* storage_direction_label(assets::StorageDirection direction) {
+    switch (direction) {
+    case assets::StorageDirection::PosX: return "pos_x";
+    case assets::StorageDirection::NegX: return "neg_x";
+    case assets::StorageDirection::PosY: return "pos_y";
+    case assets::StorageDirection::NegY: return "neg_y";
+    }
+    return "unknown";
+}
+std::optional<assets::StorageDirection> current_storage_direction(
+        const simulation::CourierState& courier) {
+    if (courier.path.size()<2 || courier.path_vertex>=courier.path.size()-1) return std::nullopt;
+    const auto from=courier.path[courier.path_vertex],to=courier.path[courier.path_vertex+1];
+    const auto dx=std::int64_t(to.x)-from.x,dy=std::int64_t(to.y)-from.y;
+    if (dx==1 && dy==0) return assets::StorageDirection::PosX;
+    if (dx==-1 && dy==0) return assets::StorageDirection::NegX;
+    if (dx==0 && dy==1) return assets::StorageDirection::PosY;
+    if (dx==0 && dy==-1) return assets::StorageDirection::NegY;
+    return std::nullopt;
+}
 const char* tool_name(simulation::RulesProfile rules,int tool) {
     if (simulation::production_profile(rules)) {
         switch (tool) {
@@ -1682,6 +1702,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
         else if (event.key.key==SDLK_F3 && walker_profile_) {
             walker_diagnostic_open_=!walker_diagnostic_open_;
+            visual_hits_.clear();visual_frame_valid_=false;
             last_message_=walker_diagnostic_open_ ? "Walker clip inspection ON":"Walker clip inspection OFF";
         }
         else if (event.key.key==SDLK_F4) {
@@ -2051,6 +2072,7 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
                     const auto& frame=visual->frames[*pose.frame];
                     const auto& image=walker_profile_->unique_images[frame.image_index];
                     hit.image=frame.image_index; hit.origin={ground.x-frame.foot_x,ground.y-frame.foot_y};
+                    hit.flip_x=frame.flip_x;
                     hit.width=image.width; hit.height=image.height;
                     append(hit);
                     if (pose.loaded) {
@@ -2131,7 +2153,9 @@ bool SandboxView::select_visual(scene::Point screen) {
                 (building_profile_ ? &building_profile_->unique_images:nullptr);
             if (!images || *it->image>=images->size()) continue;
             const auto& image=(*images)[*it->image];
-            const auto offset=(std::size_t(std::floor(y))*image.width+std::size_t(std::floor(x)))*4+3;
+            const auto display_x=std::size_t(std::floor(x));
+            const auto source_x=it->flip_x ? image.width-1-display_x:display_x;
+            const auto offset=(std::size_t(std::floor(y))*image.width+source_x)*4+3;
             if (offset>=image.pixels.size() || image.pixels[offset]==0) continue;
         }
         dynamic=&*it;break;
@@ -2829,28 +2853,30 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         if (found!=world_->couriers().end()) {
             std::vector<std::string> walker_lines{
                 "Visible walker #"+std::to_string(static_cast<unsigned>(found->id)),
+                std::string("Role: ")+courier_role_label(found->role),
+                "Owner: "+std::to_string(static_cast<unsigned>(found->owner))+
+                    " target: "+std::to_string(static_cast<unsigned>(found->target)),
                 std::string("Phase: ")+simulation::courier_phase_name(found->phase),
-                "Cargo: "+std::to_string(found->cargo)};
-            if (food_market_visual(walker_visual_role(found->role))) {
-                walker_lines.push_back(std::string("Role: ")+courier_role_label(found->role));
-                walker_lines.push_back("Owner: "+std::to_string(static_cast<unsigned>(found->owner))+
-                    " target: "+std::to_string(static_cast<unsigned>(found->target)));
-                walker_lines.push_back(std::string("Goods: ")+courier_good_label(found->good));
-                walker_lines.push_back(walker_clip_status(*found));
-            } else if (found->role==simulation::CourierRole::FireInspector) {
-                const auto stats=fire_inspector_display_stats();
-                walker_lines.push_back("Role: FireInspector");
-                walker_lines.push_back("Owner: "+std::to_string(static_cast<unsigned>(found->owner))+
-                    " target: "+std::to_string(static_cast<unsigned>(found->target)));
-                auto reason=stats.fallback_reason;
-                if (stats.active) {
-                    const auto pose=walker_pose(*found,world_->ticks(),*walker_profile_);
-                    if (pose.fallback==WalkerFallback::InvalidEdge) reason="Invalid current path edge";
-                    else if (pose.fallback==WalkerFallback::UnmappedDirection) reason="Unmapped path direction";
-                }
-                walker_lines.push_back(reason.empty() ? "Curated clip: "+stats.clip_id:
-                    "Marker fallback: "+reason);
+                "Cargo: "+std::to_string(found->cargo),
+                std::string("Goods: ")+courier_good_label(found->good)};
+            const auto role=walker_visual_role(found->role);
+            const bool configured=role && walker_profile_ && walker_profile_->find(*role);
+            const auto source=walker_source_==VisualProfileSource::Custom ? walker_source_:
+                food_market_visual(role) && (market_walker_extension_ || !configured) ? market_walker_source_:
+                role==assets::WalkerVisualRole::FireInspector && (fire_inspector_extension_ || !configured) ?
+                    fire_inspector_source_:walker_source_;
+            walker_lines.push_back(std::string("Family: ")+(role ? assets::walker_role_name(*role):"unassigned")+
+                " | source: "+visual_profile_source_name(source));
+            if (found->path.size()>1 && found->path_vertex<found->path.size()-1) {
+                const auto from=found->path[found->path_vertex],to=found->path[found->path_vertex+1];
+                const auto direction=current_storage_direction(*found);
+                walker_lines.push_back("Edge: ("+std::to_string(from.x)+","+std::to_string(from.y)+
+                    ")->("+std::to_string(to.x)+","+std::to_string(to.y)+") "+
+                    (direction ? storage_direction_label(*direction):"invalid"));
+            } else {
+                walker_lines.push_back("Edge: none | static pose");
             }
+            walker_lines.push_back(walker_clip_status(*found));
             return wrap_panel_lines(walker_lines);
         }
     }
@@ -3945,6 +3971,38 @@ bool SandboxView::draw_hud() {
                     layout_.map.w-16*layout_.scale)) return false;
                 debug_row+=14;
             }
+            std::size_t logical=0,live_submitted=0,supplier=0,distributor=0,foreign_markers=0;
+            std::array<bool,static_cast<std::size_t>(simulation::CourierRole::HealthWorker)+1> logical_roles{};
+            for (const auto& courier:world_->couriers()) {
+                const auto role=walker_visual_role(courier.role);
+                const auto hit=std::find_if(visual_hits_.begin(),visual_hits_.end(),
+                    [&](const VisualHit& value){return value.walker==courier.id;});
+                const bool submitted=walker_live_visible(courier) && hit!=visual_hits_.end() &&
+                    !help_open_ && !budget_warning_ && !pending_demolition_ && !walker_diagnostic_open_;
+                if (food_market_visual(role)) {
+                    ++logical;
+                    logical_roles[static_cast<std::size_t>(courier.role)]=true;
+                    if (submitted) {
+                        ++live_submitted;
+                        if (hit->image) {
+                            if (role==assets::WalkerVisualRole::Supplier) ++supplier;
+                            else ++distributor;
+                        }
+                    }
+                } else if (submitted && !hit->image &&
+                    (courier.role==simulation::CourierRole::Service ||
+                     courier.role==simulation::CourierRole::HealthWorker)) ++foreign_markers;
+            }
+            if (logical>0) {
+                if (!draw_text(8*layout_.scale,layout_.map.y+debug_row*layout_.scale,
+                    "Food/Market roles "+std::to_string(std::count(logical_roles.begin(),logical_roles.end(),true))+
+                    " | instances "+std::to_string(logical)+" | submitted "+std::to_string(live_submitted)+
+                    " | families "+std::to_string(int(!market.clip_ids[0].empty())+int(!market.clip_ids[1].empty()))+
+                    " | S/D figures "+std::to_string(supplier)+"/"+
+                    std::to_string(distributor)+" | Service/Health markers "+
+                    std::to_string(foreign_markers),layout_.map.w-16*layout_.scale)) return false;
+                debug_row+=14;
+            }
         }
         if (simulation::population_profile(rules_)) {
             std::string staffing="Staffing order:";
@@ -4032,18 +4090,74 @@ bool SandboxView::draw_hud() {
 std::string SandboxView::walker_clip_status(const simulation::CourierState& courier) const {
     const auto role=walker_visual_role(courier.role);
     const auto* visual=role && walker_profile_ ? walker_profile_->find(*role):nullptr;
+    if (!walker_live_visible(courier)) return "Hidden live instance: "+
+        std::string(simulation::courier_phase_name(courier.phase));
     std::string reason;
-    if (!walker_visuals_enabled_) reason="F2 marker comparison";
-    else if (!visual || !walker_sprites_) reason=walker_source_==VisualProfileSource::Custom ?
-        "Custom profile has no configured "+std::string(role ? assets::walker_role_name(*role):"role"):
-        market_walker_fallback_reason_;
+    if (!role) reason=std::string(courier_role_label(courier.role))+
+        " has no assigned visual family (outside Food/Market)";
+    else if (!walker_visuals_enabled_) reason="F2 marker comparison";
+    else if (!visual) {
+        if (walker_source_==VisualProfileSource::Custom)
+            reason="Custom profile has no configured "+std::string(assets::walker_role_name(*role));
+        else if (food_market_visual(role)) reason=market_walker_fallback_reason_;
+        else if (role==assets::WalkerVisualRole::FireInspector) reason=fire_inspector_fallback_reason_;
+        else reason="Core profile has no configured "+std::string(assets::walker_role_name(*role));
+    } else if (!walker_sprites_) reason="Walker asset preparation unavailable";
     else {
         const auto pose=walker_pose(courier,world_->ticks(),*visual);
         if (pose.fallback==WalkerFallback::InvalidEdge) reason="Invalid current path edge";
         else if (pose.fallback==WalkerFallback::UnmappedDirection) reason="Unmapped path direction";
     }
     if (!visual && reason.empty()) reason="No configured visual family";
-    return reason.empty() ? "Curated clip: "+visual->clip_id:"Marker fallback: "+reason;
+    if (!reason.empty()) return "Marker fallback: "+reason;
+    const auto pose=walker_pose(courier,world_->ticks(),*visual);
+    const auto* frame=pose.frame ? &visual->frames[*pose.frame]:nullptr;
+    return "Curated clip: "+(visual->clip_id.empty() ? std::string(assets::walker_role_name(*role)):visual->clip_id)+
+        (frame ? " | #"+std::to_string(frame->id.image_index)+(frame->flip_x ? " flip_x":" native"):"");
+}
+std::vector<SandboxView::WalkerDiagnostic> SandboxView::walker_diagnostics() const {
+    std::vector<WalkerDiagnostic> rows;
+    if (!world_ || !simulation::production_profile(rules_)) return rows;
+    rows.reserve(world_->couriers().size());
+    for (const auto& courier:world_->couriers()) {
+        WalkerDiagnostic row;
+        row.id=courier.id;row.role=courier.role;row.owner=courier.owner;row.target=courier.target;
+        row.phase=courier.phase;row.good=courier.good;row.cargo=courier.cargo;
+        row.route_pending=courier.route_pending;row.marker_comparison=!walker_visuals_enabled_;
+        row.live_visible=walker_live_visible(courier);row.direction=current_storage_direction(courier);
+        if (courier.path.size()>1 && courier.path_vertex<courier.path.size()-1) {
+            row.edge_from=courier.path[courier.path_vertex];row.edge_to=courier.path[courier.path_vertex+1];
+        }
+        const auto role=walker_visual_role(courier.role);
+        row.family=role ? assets::walker_role_name(*role):"unassigned";
+        const bool configured=role && walker_profile_ && walker_profile_->find(*role);
+        const auto source=walker_source_==VisualProfileSource::Custom ? walker_source_:
+            food_market_visual(role) && (market_walker_extension_ || !configured) ? market_walker_source_:
+            role==assets::WalkerVisualRole::FireInspector && (fire_inspector_extension_ || !configured) ?
+                fire_inspector_source_:walker_source_;
+        row.profile_source=role ? visual_profile_source_name(source):"unassigned";
+        row.status=walker_clip_status(courier);
+        const auto* visual=role && walker_profile_ ? walker_profile_->find(*role):nullptr;
+        if (visual) {
+            row.clip_id=visual->clip_id;
+            const auto pose=walker_pose(courier,world_->ticks(),*visual);
+            if (pose.frame) row.native_asset=visual->frames[*pose.frame].id;
+        }
+        if (const auto position=world_->courier_position(courier.id))
+            row.screen_ground=camera_.world_to_screen(world_for(*position));
+        if (row.live_visible && visual_frame_valid_) {
+            const auto hit=std::find_if(visual_hits_.begin(),visual_hits_.end(),
+                [&](const VisualHit& value){return value.walker==courier.id;});
+            if (hit!=visual_hits_.end()) {
+                row.submitted=true;row.sprite_drawn=hit->image.has_value();row.flip_x=hit->flip_x;
+                row.image_origin=visual_hit_camera_.world_to_screen(hit->origin);
+                row.image_width=hit->width*visual_hit_camera_.zoom;
+                row.image_height=hit->height*visual_hit_camera_.zoom;
+            }
+        }
+        rows.push_back(std::move(row));
+    }
+    return rows;
 }
 bool SandboxView::draw_walker_diagnostic() {
     if (!walker_diagnostic_open_ || !walker_profile_ || !walker_sprites_) return true;
@@ -4086,7 +4200,7 @@ bool SandboxView::draw_walker_diagnostic() {
             "  foot "+compact(frame.foot_x)+","+compact(frame.foot_y)) ||
         !label(5,frame.id.archive_relative_path.generic_string()) ||
         !label(6,"tick/frame "+std::to_string(visual->ticks_per_frame)+" | "+visual->evidence) ||
-        !label(7,"Clip: "+visual->clip_id))
+        !label(7,"Clip: "+visual->clip_id+(frame.flip_x ? " | flip_x":" | native")))
         return false;
     const double zoom=(walker_diagnostic_zoom4_ ? 4.0:1.0)*layout_.scale;
     const scene::Point ground{panel.x+panel.w-105*scale,panel.y+300*scale};
@@ -4251,7 +4365,8 @@ bool SandboxView::render() {
         if (!SDL_SetRenderClipRect(renderer_,nullptr) || !map_ok) return false;
         // A submitted blocking overlay hides the map until another frame is
         // drawn, including after any Help/budget/demolition close branch.
-        visual_frame_valid_=!help_open_ && !budget_warning_ && !pending_demolition_;
+        visual_frame_valid_=!help_open_ && !budget_warning_ && !pending_demolition_ &&
+            !walker_diagnostic_open_;
     }
     bool ui_ok=false;
     {

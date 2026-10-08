@@ -63,6 +63,7 @@ struct ParseState {
     const WalkerVisualProfile* existing=nullptr;
     std::size_t image_base=0;
     bool canonical_identity=false;
+    bool schema4_frames=false;
     const RgbaImage& image(std::size_t index) const {
         return index<image_base ? existing->unique_images.at(index):
             profile.unique_images.at(index-image_base);
@@ -70,7 +71,7 @@ struct ParseState {
 };
 WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
                             bool animated=false,bool require_internal=false,
-                            const char* family="FireInspector") {
+                            const char* family="FireInspector",bool allow_flip=false) {
     if (!json.is_object() || !json.contains("ticks_per_frame") ||
         !json.at("ticks_per_frame").is_number_unsigned())
         throw std::runtime_error("walker ticks_per_frame must be positive");
@@ -90,6 +91,21 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
     for (const auto& item:json.at("frames")) {
         if (!item.is_object()) throw std::runtime_error("walker frame must be an object");
         WalkerFrame frame;
+        if (state.schema4_frames) {
+            for (const auto& [key,value]:item.items()) {
+                (void)value;
+                if (key!="alias" && key!="archive" && key!="image_index" &&
+                    key!="foot_anchor" && key!="flip_x")
+                    throw std::runtime_error("unknown schema-4 walker frame field: "+key);
+            }
+            if (item.contains("flip_x")) {
+                if (!allow_flip)
+                    throw std::runtime_error("schema-4 flip_x is limited to Supplier/Distributor frames");
+                if (!item.at("flip_x").is_boolean())
+                    throw std::runtime_error("schema-4 walker flip_x must be boolean");
+                frame.flip_x=item.at("flip_x").get<bool>();
+            }
+        }
         frame.alias=bounded_string(item,"alias",64);
         frame.id.archive_relative_path=relative_archive(bounded_string(item,"archive",4096));
         if (!item.contains("image_index") || !item.at("image_index").is_number_unsigned())
@@ -317,6 +333,7 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
     ParseState state;
     state.root=root;
     state.canonical_identity=version>=3;
+    state.schema4_frames=version==4;
     state.profile.schema_version=static_cast<std::uint32_t>(version);
     if (version==1) {
         if (json.value("role",std::string{})!="clay")
@@ -335,7 +352,8 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
             const char* family=*role==WalkerVisualRole::FireInspector ? "FireInspector":
                 *role==WalkerVisualRole::Supplier ? "Supplier":"Distributor";
             state.profile.roles[walker_role_index(*role)]=parse_role(value,state,
-                animated);
+                animated,false,family,*role==WalkerVisualRole::Supplier ||
+                                     *role==WalkerVisualRole::Distributor);
             if (animated) require_animated_role(*state.profile.find(*role),state,false,family);
         }
     }
@@ -372,10 +390,11 @@ void append_market_visual_profile(const fs::path& data_root,const fs::path& mani
     if (profile.find(WalkerVisualRole::Supplier) || profile.find(WalkerVisualRole::Distributor))
         throw std::runtime_error("market walker family is already configured");
     auto state=append_state(root,profile);
+    state.schema4_frames=true;
     for (const auto role:{WalkerVisualRole::Supplier,WalkerVisualRole::Distributor}) {
         const auto name=walker_role_name(role);
         const char* family=role==WalkerVisualRole::Supplier ? "Supplier":"Distributor";
-        auto visual=parse_role(json.at("roles").at(name),state,true,true,family);
+        auto visual=parse_role(json.at("roles").at(name),state,true,true,family,true);
         require_animated_role(visual,state,true,family);
         state.profile.roles[walker_role_index(role)].emplace(std::move(visual));
     }

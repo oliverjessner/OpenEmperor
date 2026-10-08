@@ -177,6 +177,25 @@ public:
     bool walker_visuals_active() const { return walker_visuals_enabled_ && walker_profile_.has_value(); }
     std::size_t walker_texture_count() const { return walker_sprites_ ? walker_sprites_->texture_count():0; }
     WalkerDisplayStats walker_display_stats() const;
+    // Bounded read-only diagnosis of current Couriers and the last submitted
+    // live frame. Exporting these rows is an external test/tool operation.
+    struct WalkerDiagnostic {
+        simulation::CourierId id{};
+        simulation::CourierRole role{};
+        simulation::BuildingId owner{},target{};
+        simulation::CourierPhase phase{};
+        simulation::Good good{};
+        int cargo=0;
+        bool live_visible=false,submitted=false,sprite_drawn=false,route_pending=false;
+        bool flip_x=false,marker_comparison=false;
+        std::optional<simulation::Cell> edge_from,edge_to;
+        std::optional<assets::StorageDirection> direction;
+        std::string family,profile_source,clip_id,status;
+        std::optional<assets::AssetId> native_asset;
+        scene::Point screen_ground{},image_origin{};
+        double image_width=0,image_height=0;
+    };
+    std::vector<WalkerDiagnostic> walker_diagnostics() const;
     std::uint64_t io_generation() const { return io_generation_; }
     std::uint64_t save_generation() const { return save_generation_; }
     bool dirty() const { return world_ && (world_->ticks()!=saved_tick_ ||
@@ -233,6 +252,7 @@ private:
         std::optional<std::size_t> image;
         scene::Point origin;
         double width=0,height=0;
+        bool flip_x=false; // Display transform; alpha is sampled from the native image.
         bool diamond=false;
         simulation::Object mesh=simulation::Object::Empty;
         scene::Point mesh_ground;

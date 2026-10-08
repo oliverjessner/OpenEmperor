@@ -53,5 +53,18 @@
       "DATA/SprMain.555"
     ],
     "files": []
+  },
+  "optional_market_walkers": {
+    "profile": "market-walkers.json",
+    "files": [
+      {
+        "path": "DATA/SprMain2.sg3",
+        "sha256": "09fc9fccddb9a30266740325b01cf69c53b26ed08016f9ecdd1759e7afb40b39"
+      },
+      {
+        "path": "DATA/SprMain2.555",
+        "sha256": "53b1a9b5154316e505ac1a0d46b6796c1f568f4765ec154e313be0aff82daa7e"
+      }
+    ]
   }
 }

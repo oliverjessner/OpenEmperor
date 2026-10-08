@@ -137,7 +137,8 @@ set(OPENEMPEROR_COMPATIBILITY_FILES
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/roads.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire.json"
-    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire-inspector.json")
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire-inspector.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/market-walkers.json")
 if(OPENEMPEROR_BUILD_MACOS_APP)
     set_source_files_properties(${OPENEMPEROR_COMPATIBILITY_FILES} PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources/Compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}")
@@ -746,6 +747,10 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-market-walker-profile-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-market-walker-profile-tests)
     add_test(NAME market-walker-profile COMMAND openemperor-market-walker-profile-tests)
+    add_executable(openemperor-market-walker-flip-tests tests/MarketWalkerFlipTests.cpp)
+    target_link_libraries(openemperor-market-walker-flip-tests PRIVATE openemperor-sg3 SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-market-walker-flip-tests)
+    add_test(NAME market-walker-display-flip-pixels COMMAND openemperor-market-walker-flip-tests)
     add_executable(openemperor-market-walker-pose-tests tests/MarketWalkerPoseTests.cpp
         src/app/WalkerPose.cpp)
     target_link_libraries(openemperor-market-walker-pose-tests PRIVATE openemperor-simulation)

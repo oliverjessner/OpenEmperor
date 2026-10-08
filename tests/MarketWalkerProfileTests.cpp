@@ -27,7 +27,7 @@ bool same_role(const assets::WalkerRoleVisual& a,const assets::WalkerRoleVisual&
     for (std::size_t i=0;i<a.frames.size();++i) {
         const auto& x=a.frames[i];const auto& y=b.frames[i];
         if (x.alias!=y.alias || x.id!=y.id || x.foot_x!=y.foot_x || x.foot_y!=y.foot_y ||
-            x.image_index!=y.image_index) return false;
+            x.image_index!=y.image_index || x.flip_x!=y.flip_x) return false;
     }
     return true;
 }
@@ -117,6 +117,79 @@ void schema_checks(Fixture& fixture,const fs::path& manifest) {
     rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},"schema4 accepted unknown service role");
     unknown=market();unknown["schema_version"]=5;Fixture::save(manifest,unknown);
     rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},"future schema accepted");
+}
+void flip_checks(Fixture& fixture,const fs::path& manifest) {
+    // Omission and explicit false keep the native frame. An explicit flipped
+    // alias shares its physical source and preserves already-reflected feet.
+    auto document=market();
+    for (const auto name:{"supplier","distributor"}) {
+        auto& frames=document["roles"][name]["frames"];
+        frames[0]["flip_x"]=false;
+        auto reflected=frames[1];reflected["alias"]="reflected-gait";
+        reflected["flip_x"]=true;reflected["foot_anchor"]={2.25,9.5};
+        frames.push_back(reflected);
+    }
+    Fixture::save(manifest,document);
+    const auto prepared=assets::load_walker_visual_profile(fixture.data,manifest);
+    for (const auto role:{Role::Supplier,Role::Distributor}) {
+        const auto& frames=prepared.find(role)->frames;
+        check(!frames[0].flip_x && !frames[1].flip_x && frames.back().flip_x,
+              "omitted/false/true flip_x did not retain exact explicit meaning");
+        check(frames[1].image_index==frames.back().image_index &&
+              frames.back().foot_x==2.25 && frames.back().foot_y==9.5,
+              "display flip copied native pixels or transformed the explicit foot a second time");
+    }
+    check(prepared.unique_images.size()==8 && assets::walker_rgba_bytes(prepared)==6016,
+          "display transform doubled physical images/bytes");
+    auto core=core_with_inspector(fixture);const auto old=core;
+    assets::append_market_visual_profile(fixture.data,manifest,core);
+    check(core.roles[4]->frames.back().flip_x && core.roles[5]->frames.back().flip_x &&
+          core.unique_images.size()==16,"optional append lost explicit transform or dedupe");
+    for (std::size_t i=0;i<4;++i) check(same_role(*core.roles[i],*old.roles[i]),
+                                      "display flip changed an old role");
+    const auto invalid=[&](Json value,const char* reason) {
+        Fixture::save(manifest,value);
+        rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},reason);
+        auto unchanged=old;
+        rejects([&]{assets::append_market_visual_profile(fixture.data,manifest,unchanged);},reason);
+        check(same_profile(unchanged,old),"invalid transform changed retained core/Inspector");
+    };
+    for (const auto& value:std::array<Json,5>{0,1,"true",nullptr,Json::array({true})}) {
+        auto bad=market();bad["roles"]["distributor"]["frames"][7]["flip_x"]=value;
+        invalid(bad,"nonboolean flip_x activated");
+    }
+    for (const auto name:{"flipX","flip_y","horizontal_flip","rotation","rotate","scale"}) {
+        auto bad=market();bad["roles"]["distributor"]["frames"][7][name]=true;
+        invalid(bad,"unknown schema4 transform field silently ignored");
+    }
+    for (const auto role:{"clay","pottery","household","fire_inspector"}) {
+        auto bad=Fixture::legacy();bad["schema_version"]=4;
+        if (std::string_view(role)=="fire_inspector")
+            bad["roles"][role]=Fixture::inspector()["roles"]["fire_inspector"];
+        bad["roles"][role]["frames"][0]["flip_x"]=false;Fixture::save(manifest,bad);
+        rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},
+                "schema4 transform field was accepted on a historical visual role");
+    }
+    // Historical schemas ignored unknown fields. Preserve that behavior and
+    // native output instead of retroactively introducing a new transform.
+    for (const auto version:{1,2,3}) {
+        auto legacy=Fixture::legacy();legacy["schema_version"]=version;
+        if (version==1) {
+            legacy=Fixture::legacy()["roles"]["clay"];legacy["schema_version"]=1;
+            legacy["mode"]="curated_walker_preview";legacy["role"]="clay";
+            legacy["frames"][0]["flip_x"]=true;legacy["frames"][0]["flip_y"]=true;
+        } else {
+            legacy["roles"]["clay"]["frames"][0]["flip_x"]=true;
+            legacy["roles"]["clay"]["frames"][0]["flip_y"]=true;
+            if (version==3) {
+                legacy["roles"]["fire_inspector"]=Fixture::inspector()["roles"]["fire_inspector"];
+                legacy["roles"]["fire_inspector"]["frames"][0]["flip_x"]=true;
+            }
+        }
+        Fixture::save(manifest,legacy);const auto native=assets::load_walker_visual_profile(fixture.data,manifest);
+        for (const auto& role:native.roles) if (role) for (const auto& frame:role->frames)
+            check(!frame.flip_x,"historical schema silently acquired display mirroring");
+    }
 }
 void append_checks(Fixture& fixture,const fs::path& manifest) {
     auto profile=core_with_inspector(fixture);
@@ -266,7 +339,7 @@ int main() {
         write(fixture.data/"DATA/market.sg3",fixture.archive);
         write(fixture.data/"DATA/market.555",fixture.bitmap);
         const auto manifest=fixture.root/"market.json";
-        schema_checks(fixture,manifest);append_checks(fixture,manifest);
+        schema_checks(fixture,manifest);flip_checks(fixture,manifest);append_checks(fixture,manifest);
         rejection_checks(fixture,manifest);budget_checks(fixture,manifest);
         std::cout<<"PASS schema1-3 preserved; schema4 families; complete/partial clips; canonical physical dedupe; "
             "independent anchors; both append orders; atomic fallback; global256 alias/asset and64MiB bounds\n";

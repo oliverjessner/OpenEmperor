@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <string_view>
@@ -236,26 +237,51 @@ void public_pack(const fs::path& resources) {
     check(resource.at("schema_version")==4 && resource.at("mode")=="curated_walker_preview" &&
           resource.at("roles").size()==2 && resource.at("roles").contains("supplier") &&
           resource.at("roles").contains("distributor"),"public resource declared wrong families/schema");
+    check(profile.market_walker_files.size()==2,"public market dependencies are not the separate native pair");
+    const std::map<std::string,std::string> expected_fingerprints={
+        {"DATA/SprMain2.sg3","09fc9fccddb9a30266740325b01cf69c53b26ed08016f9ecdd1759e7afb40b39"},
+        {"DATA/SprMain2.555","53b1a9b5154316e505ac1a0d46b6796c1f568f4765ec154e313be0aff82daa7e"}};
     std::set<fs::path> dependencies;
-    for (const auto& fingerprint:profile.market_walker_files) dependencies.insert(fingerprint.relative_path);
+    for (const auto& fingerprint:profile.market_walker_files) {
+        check(expected_fingerprints.at(fingerprint.relative_path.generic_string())==fingerprint.sha256,
+              "public market source fingerprint changed");
+        dependencies.insert(fingerprint.relative_path);
+    }
     std::size_t aliases=0;
+    std::set<std::uint32_t> physical_sources;
     for (const auto& [name,role]:resource.at("roles").items()) {
-        (void)name;const auto& frames=role.at("frames");aliases+=frames.size();
+        const auto& frames=role.at("frames");aliases+=frames.size();
         check(frames.is_array() && !frames.empty() && frames.size()<=256,"invalid public frame references");
         std::set<std::string> frame_aliases;
+        std::map<std::string,Json> references;
         for (const auto& frame:frames) {
             fs::path archive(frame.at("archive").get<std::string>()),bitmap=archive;bitmap.replace_extension(".555");
             check(dependencies.contains(archive) && dependencies.contains(bitmap) &&
                   frame_aliases.insert(frame.at("alias").get<std::string>()).second,
                   "public frame lacks pinned dependencies or unique alias");
+            check(frame.at("flip_x").is_boolean() && frame.at("foot_anchor").is_array() &&
+                  frame.at("foot_anchor").size()==2,"public frame lacks explicit flip/display feet");
+            references.emplace(frame.at("alias").get<std::string>(),frame);
+            physical_sources.insert(frame.at("image_index").get<std::uint32_t>());
         }
         for (const auto direction:{"pos_x","neg_x","pos_y","neg_y"}) {
             const auto& clip=role.at("clips").at(direction);
-            check(clip.is_array() && clip.size()>=2 && clip.size()<=64,"public moving direction incomplete");
-            for (const auto& alias:clip) check(frame_aliases.contains(alias.get<std::string>()),"public clip uses absent alias");
+            check(clip.is_array() && clip.size()==12,"public moving direction is not the complete twelve-phase sequence");
+            for (std::size_t phase=0;phase<clip.size();++phase) {
+                const auto alias=clip[phase].get<std::string>();
+                check(frame_aliases.contains(alias),"public clip uses absent alias");
+                const auto& frame=references.at(alias);
+                const auto dir=std::string_view(direction);
+                const std::size_t base=name=="supplier" ? 3605U:5585U;
+                const auto column=dir=="pos_x" || dir=="pos_y" ? 2U:0U;
+                check(frame.at("image_index").get<std::size_t>()==base+column+8U*phase &&
+                      frame.at("flip_x").get<bool>()==(dir=="neg_x" || dir=="pos_y"),
+                      "public clip references an unsupported mirror record or wrong display transform");
+            }
         }
     }
-    check(aliases<=256,"public family aliases bypass global budget");
+    check(aliases==96 && physical_sources.size()==48 && aliases<=256,
+          "public complete families lost native physical dedupe or alias bounds");
     std::cout<<"Public market metadata/fingerprint coverage PASS (no original pixel decoding claimed).\n";
 }
 }

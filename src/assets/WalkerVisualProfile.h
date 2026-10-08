@@ -28,8 +28,9 @@ const char* walker_role_name(WalkerVisualRole role);
 struct WalkerFrame {
     std::string alias;
     AssetId id; // Physical SG3 record, never a packed runtime image ID.
-    double foot_x=0, foot_y=0;
+    double foot_x=0, foot_y=0; // Explicit display anchor, after any frame transform.
     std::size_t image_index=0; // Index into unique_images.
+    bool flip_x=false; // Schema-4 Supplier/Distributor display only; pixels stay native.
 };
 struct WalkerRoleVisual {
     std::uint32_t ticks_per_frame=1;

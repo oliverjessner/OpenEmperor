@@ -20,7 +20,7 @@
 #include <string_view>
 
 // Production SandboxView pixels and actual ordinary transports, using only
-// independently authored map/container bytes and unmirrored schema-4 images.
+// independently authored map/container bytes and native/display-flipped schema-4 images.
 namespace {
 namespace fs=std::filesystem;
 namespace oe=openemperor;
@@ -96,6 +96,112 @@ struct Fixture {
         if (sprites) view.set_walker_visuals(profile,oe::VisualProfileSource::Custom);
     }
 };
+void equal_documents(View&,View&,const Fixture&,const char*);
+// Two native, unequal canvases. Opposing aliases reflect only at display time.
+// These authored bytes deliberately have noncenter feet, extreme-column color,
+// a transparent corner/interior hole and the supported shadow marker.
+void asymmetric_profile(Fixture& fixture) {
+    authored::Bytes archive(40680+6*72,0),bitmap{0,0,0,0};
+    authored::u32(archive,0,static_cast<std::uint32_t>(archive.size()));
+    authored::u32(archive,4,214);authored::u32(archive,12,6);authored::u32(archive,16,6);authored::u32(archive,20,1);
+    const std::string group="authored-asymmetric.bmp";
+    std::copy(group.begin(),group.end(),archive.begin()+680);authored::u32(archive,680+124,6);
+    Json frames=Json::array();
+    for(int phase=0;phase<2;++phase) {
+        const int w=9+4*phase,h=15+4*phase,fx=3+phase,fy=h-1;
+        std::vector<std::uint16_t> raster(static_cast<std::size_t>(w*h),0);
+        for(int y=fy-11;y<=fy-5;++y)for(int x=0;x<w;++x)
+            raster[static_cast<std::size_t>(y*w+x)]=x<w/2?0x001f:0x03e0;
+        for(int y=fy-9;y<=fy-7;++y)for(int x=fx;x<=fx+1;++x)raster[static_cast<std::size_t>(y*w+x)]=0;
+        raster[static_cast<std::size_t>((fy-11)*w)]=0; // Asymmetric corner.
+        for(int x=fx-1;x<=fx;++x)raster[static_cast<std::size_t>((fy-1)*w+x)]=0x7fff;
+        raster[static_cast<std::size_t>((fy-2)*w+w-2)]=0x7c00;
+        raster[static_cast<std::size_t>((fy-13)*w+(phase?w-2:1))]=0x7fe0;
+        authored::Bytes payload;
+        for(int y=0;y<h;++y)for(int x=0;x<w;) {
+            if(!raster[static_cast<std::size_t>(y*w+x)]) {
+                int n=1;while(x+n<w&&!raster[static_cast<std::size_t>(y*w+x+n)])++n;
+                payload.push_back(255);payload.push_back(static_cast<std::uint8_t>(n));x+=n;
+            }else {
+                int n=1;while(x+n<w&&raster[static_cast<std::size_t>(y*w+x+n)])++n;
+                payload.push_back(static_cast<std::uint8_t>(n));
+                for(int i=0;i<n;++i){const auto c=raster[static_cast<std::size_t>(y*w+x+i)];payload.push_back(static_cast<std::uint8_t>(c));payload.push_back(static_cast<std::uint8_t>(c>>8U));}x+=n;
+            }
+        }
+        const auto at=40680+static_cast<std::size_t>(1+2*phase)*72;
+        authored::u32(archive,at,static_cast<std::uint32_t>(bitmap.size()));authored::u32(archive,at+4,static_cast<std::uint32_t>(payload.size()));
+        authored::u16(archive,at+20,static_cast<std::uint16_t>(w));authored::u16(archive,at+22,static_cast<std::uint16_t>(h));authored::u16(archive,at+50,256);archive[at+59]=1;
+        bitmap.insert(bitmap.end(),payload.begin(),payload.end());
+        for(const bool flip:{false,true})frames.push_back({{"alias",std::string(flip?"reflected-":"native-")+std::to_string(phase)},
+            {"archive","DATA/walker.sg3"},{"image_index",1+2*phase},{"foot_anchor",{flip?w-fx:fx,fy}},{"flip_x",flip}});
+    }
+    authored::write(fixture.data/"DATA/walker.sg3",archive);authored::write(fixture.data/"DATA/walker.555",bitmap);
+    auto full=authored::Fixture::legacy();full["schema_version"]=4;
+    for(auto& [name,role]:full["roles"].items())role["frames"][0]["foot_anchor"]={3,14};
+    Json role={{"ticks_per_frame",2},{"clip_id","authored-asymmetric-flip"},{"evidence","Independent native bytes and explicit reflected aliases."},
+        {"frames",frames},{"idle","native-0"},{"clips",{{"pos_x",{"native-0","native-1"}},{"neg_y",{"native-0","native-1"}},
+          {"neg_x",{"reflected-0","reflected-1"}},{"pos_y",{"reflected-0","reflected-1"}}}}};
+    full["roles"]["supplier"]=role;full["roles"]["distributor"]=role;authored::Fixture::save(fixture.profile,full);
+}
+void reflected_view_checks(SDL_Window* window,SDL_Renderer* renderer) {
+    Fixture fixture;asymmetric_profile(fixture);const auto profile=assets::load_walker_visual_profile(fixture.data,fixture.profile);
+    View view(fixture.session(),true,sim::RulesProfile::CityV16,3),plain(fixture.session(),true,sim::RulesProfile::CityV16,3);
+    fixture.configure(view,true,"reflected.json");fixture.configure(plain,false,"reflected-control.json");view.initialize(window,renderer);plain.initialize(window,renderer);
+    check(view.walker_texture_count()==2,"display aliases duplicated native textures");
+    zoom_to(view,view.world().couriers().back().id,1.0);key(view,SDLK_F1);key(view,SDLK_5);
+    bool native=false,reflected=false,holes=false,zoomed=false,preview=false,same_frame=false;
+    std::array<bool,2> canvas{};
+    for(int tick=0;tick<650;++tick) {
+        view.tick_once();plain.tick_once();check(view.world().snapshot()==plain.world().snapshot(),"reflected presentation changed complete tick state");
+        pure_render(view);auto output=read(renderer);bool submitted_native=false,submitted_flip=false;
+        for(const auto& row:view.walker_diagnostics()) {
+            if(!row.sprite_drawn||(row.family!="supplier"&&row.family!="distributor"))continue;
+            check(row.profile_source=="custom","configured custom family diagnostic lost provenance");
+            submitted_native=submitted_native||!row.flip_x;submitted_flip=submitted_flip||row.flip_x;
+            const auto& c=view.world().courier(row.id);const auto pose=oe::walker_pose(c,view.world().ticks(),profile);
+            if(!pose.frame||!pose.role)continue;
+            const auto& frame=profile.find(*pose.role)->frames[*pose.frame];const int phase=frame.id.image_index==3?1:0;
+            const int w=9+4*phase,fy=14+4*phase,fx=3+phase;
+            const auto at=ground(view,row.id);const auto sample=[&](int sx,int sy) {
+                const int dx=row.flip_x?w-1-sx:sx;const double ax=row.flip_x?w-fx:fx,z=view.camera().zoom;
+                return oe::scene::Point{at.x+(dx+0.5-ax)*z,at.y+(sy+0.5-fy)*z};
+            };
+            const auto left=sample(0,fy-6),right=sample(w-1,fy-6);
+            const auto visible=[&](oe::scene::Point p,Pixel color) {return p.x>=view.layout().map.x&&p.x<view.layout().map.x+view.layout().map.w&&p.y>=view.layout().map.y&&p.y<view.layout().map.y+view.layout().map.h&&pixel(output.get(),static_cast<int>(p.x),static_cast<int>(p.y))==color;};
+            if(!visible(left,{0,0,255,255})||!visible(right,{0,255,0,255}))continue;
+            // Shared silhouettes can overlap another courier. Require both
+            // independently colored edge hits to identify this actual instance
+            // before accepting it as an unobscured alpha/pixel witness.
+            click(view,left);if(view.input_diagnostic_state().selected_walker!=static_cast<std::uint32_t>(row.id))continue;
+            click(view,right);if(view.input_diagnostic_state().selected_walker!=static_cast<std::uint32_t>(row.id))continue;
+            native=native||!row.flip_x;reflected=reflected||row.flip_x;canvas[static_cast<std::size_t>(phase)]=true;
+            const auto hole=sample(fx,fy-8);click(view,hole);check(view.input_diagnostic_state().selected_walker!=static_cast<std::uint32_t>(row.id),"reflected transparent interior hole retained a body hit");holes=true;
+            if(!zoomed&&row.flip_x) {
+                for(const double z:{1.15,2.0,4.0,1.0}) {zoom_to(view,row.id,z);pure_render(view);output=read(renderer);
+                    check(visible(sample(0,fy-6),{0,0,255,255})&&visible(sample(w-1,fy-6),{0,255,0,255}),"zoom changed reflected foot or extreme source column");
+                    click(view,sample(0,fy-6));check(view.input_diagnostic_state().selected_walker==static_cast<std::uint32_t>(row.id),"zoom reflected alpha hit mismatch");}
+                zoomed=true;
+            }
+            if(!preview&&row.flip_x) {
+                key(view,SDLK_F3);for(int i=0;i<4;++i)key(view,SDLK_V);key(view,SDLK_Q);pure_render(view);const auto diagnostic=read(renderer);
+                // F3 uses panel ground (map+8+470-105,map+8+300) and a native 9x15 image.
+                const double gx=view.layout().map.x+373,gy=view.layout().map.y+308;
+                check(pixel(diagnostic.get(),static_cast<int>(gx+6),static_cast<int>(gy-24))==Pixel{0,0,255,255},"F3 4x preview did not display reflected blue side");
+                check(pixel(diagnostic.get(),static_cast<int>(gx-18),static_cast<int>(gy-24))==Pixel{0,255,0,255},"F3 4x preview used native orientation");
+                key(view,SDLK_X);pure_render(view);const auto preview_one=read(renderer);
+                check(pixel(preview_one.get(),static_cast<int>(gx+1),static_cast<int>(gy-6))==Pixel{0,0,255,255}&&
+                    pixel(preview_one.get(),static_cast<int>(gx-5),static_cast<int>(gy-6))==Pixel{0,255,0,255},"F3 1x reflected orientation mismatch");
+                key(view,SDLK_F3);const auto stale=view.walker_diagnostics();check(std::none_of(stale.begin(),stale.end(),[](const auto& r){return r.submitted;}),"closing F3 retained stale body hits before redraw");
+                pure_render(view);preview=true;
+            }
+        }
+        same_frame=same_frame||(submitted_native&&submitted_flip);
+        if(native&&reflected&&holes&&zoomed&&preview&&same_frame&&canvas[0]&&canvas[1])break;
+    }
+    check(native&&reflected&&holes&&zoomed&&preview&&same_frame&&canvas[0]&&canvas[1],"actual native/reflected variable-canvas route witnesses incomplete");
+    equal_documents(view,plain,fixture,"reflected-final");view.shutdown();plain.shutdown();
+    check(oe::WalkerSpriteSet::live_texture_count()==0&&oe::StoredGraphicsRenderer::live_texture_count()==0,"reflected session leaked textures");
+}
 void equal_documents(View& drawn,View& plain,const Fixture& fixture,const char* tag) {
     const auto a=fixture.map.root/(std::string(tag)+"-drawn.json"),b=fixture.map.root/(std::string(tag)+"-plain.json");
     oe::persistence::write_save(a,drawn.capture_save_document(),fixture.data,drawn.buildable_mask());
@@ -431,7 +537,7 @@ int main(int argc,char** argv) {
         auto target=std::unique_ptr<SDL_Texture,decltype(&SDL_DestroyTexture)>(
             SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,1280,720),SDL_DestroyTexture);
         check(bool(target)&&SDL_SetRenderTarget(renderer,target.get()),"private before-Present target");
-        production_checks(window,renderer);actual_understaffed_trip(window,renderer);actual_legacy_food(window,renderer);
+        production_checks(window,renderer);reflected_view_checks(window,renderer);actual_understaffed_trip(window,renderer);actual_legacy_food(window,renderer);
         check(SDL_SetRenderTarget(renderer,nullptr),"release private target");target.reset();
         SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
         std::cout<<"Production Food/Market paid routes, shared alpha painter, pixels, hidden idle, pause and full SaveDocument neutrality PASS\n";return 0;

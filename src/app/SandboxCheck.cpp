@@ -237,6 +237,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         };
         const auto walker_visuals_report=[&]() {
             const auto stats=view.walker_display_stats();
+            const auto market=view.market_walker_display_stats();
             constexpr const char* directions[]={"pos_x","neg_x","pos_y","neg_y"};
             nlohmann::json configured=nlohmann::json::array();
             nlohmann::json roles=nlohmann::json::object();
@@ -257,6 +258,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             return nlohmann::json{{"schema_version",stats.schema_version},
                 {"configured_roles",configured},{"unique_assets",stats.decoded_assets},
                 {"texture_uploads",stats.texture_uploads},{"roles",roles},
+                {"market_walkers",{{"active",market.active},{"configured",market.configured},
+                    {"clip_ids",market.clip_ids},{"fallback_reason",market.fallback_reason},
+                    {"frame_aliases",market.frames},{"additional_assets",market.additional_assets},
+                    {"additional_rgba_bytes",market.additional_bytes},{"draws",market.draws},
+                    {"fallback_draws",market.fallback_draws}}},
                 {"fire_inspector",{{"active",view.fire_inspector_display_stats().active},
                     {"clip_id",view.fire_inspector_display_stats().clip_id},
                     {"fallback_reason",view.fire_inspector_display_stats().fallback_reason},

@@ -103,6 +103,9 @@ bool WalkerSpriteSet::draw(std::size_t frame,scene::Point ground,double zoom,
         static_cast<float>(image.width*zoom),static_cast<float>(image.height*zoom)};
     if (destination.x+destination.w<=clip_min.x || destination.y+destination.h<=clip_min.y ||
         destination.x>=clip_max.x || destination.y>=clip_max.y) return true;
+    if (selected.flip_x)
+        return SDL_RenderTextureRotated(renderer_,textures_.at(selected.image_index),nullptr,
+                                       &destination,0.0,nullptr,SDL_FLIP_HORIZONTAL);
     return SDL_RenderTexture(renderer_,textures_.at(selected.image_index),nullptr,&destination);
 }
 }

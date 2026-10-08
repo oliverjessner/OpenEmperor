@@ -14,7 +14,7 @@ RESOURCE_FILES = {"BuildInfo.json", "LICENSE-SDL.txt", "LICENSE-OpenSSL.txt",
                   "LICENSE-nlohmann-json.txt"}
 COMPATIBILITY_ID = "gog-derived-2.0.0.2-en-assetset-1"
 COMPATIBILITY_FILES = {"manifest.json", "walkers.json", "buildings.json", "roads.json", "fire.json",
-                       "fire-inspector.json"}
+                       "fire-inspector.json", "market-walkers.json"}
 FORBIDDEN_COMPATIBILITY_SUFFIXES = {".sg3", ".555", ".map", ".pak", ".exe", ".png",
                                     ".jpg", ".jpeg", ".bmp", ".rgba", ".raw"}
 MAX_COMPATIBILITY_JSON_BYTES = 256 * 1024
@@ -208,6 +208,57 @@ def verify(app, signature=True, required_arch="arm64"):
         for phase, alias in enumerate(aliases):
             if alias not in frames or frames[alias]["image_index"] != base + 8 * phase:
                 raise ValueError("Inspector required physical frame changed")
+    optional_market = manifest.get("optional_market_walkers")
+    market_pins = {
+        "DATA/SprMain2.sg3": "09fc9fccddb9a30266740325b01cf69c53b26ed08016f9ecdd1759e7afb40b39",
+        "DATA/SprMain2.555": "53b1a9b5154316e505ac1a0d46b6796c1f568f4765ec154e313be0aff82daa7e",
+    }
+    if (not isinstance(optional_market, dict) or
+            set(optional_market) != {"profile", "files"} or
+            optional_market.get("profile") != "market-walkers.json" or
+            not isinstance(optional_market.get("files"), list) or len(optional_market["files"]) != 2 or
+            any(not isinstance(item, dict) or set(item) != {"path", "sha256"} or
+                not isinstance(item.get("path"), str) or not isinstance(item.get("sha256"), str)
+                for item in optional_market["files"]) or
+            {item["path"]: item["sha256"] for item in optional_market["files"]} != market_pins):
+        raise ValueError("Market separate dependency fingerprints changed")
+    market = compatibility_documents["market-walkers.json"]
+    if (not isinstance(market, dict) or market.get("schema_version") != 4 or market.get("mode") != "curated_walker_preview" or
+            not isinstance(market.get("roles"), dict) or
+            set(market["roles"]) != {"supplier", "distributor"}):
+        raise ValueError("Market role/schema metadata is invalid")
+    for family, base in {"supplier": 3605, "distributor": 5585}.items():
+        role = market["roles"][family]
+        if (not isinstance(role, dict) or role.get("clip_id") != f"curated-sprmain2-{family}-walk" or
+                type(role.get("ticks_per_frame")) is not int or role["ticks_per_frame"] != 2 or
+                not isinstance(role.get("evidence"), str) or not 1 <= len(role["evidence"]) <= 512 or
+                not isinstance(role.get("frames"), list) or len(role["frames"]) != 48 or
+                not isinstance(role.get("clips"), dict) or
+                set(role["clips"]) != {"pos_x", "neg_x", "pos_y", "neg_y"}):
+            raise ValueError("Market clip metadata is invalid")
+        frames = {}
+        for frame in role["frames"]:
+            if (not isinstance(frame, dict) or
+                    set(frame) != {"alias", "archive", "image_index", "foot_anchor", "flip_x"} or
+                    not isinstance(frame.get("alias"), str) or frame["alias"] in frames or
+                    frame.get("archive") != "DATA/SprMain2.sg3" or
+                    type(frame.get("image_index")) is not int or frame["image_index"] <= 0 or
+                    type(frame.get("flip_x")) is not bool or
+                    not isinstance(frame.get("foot_anchor"), list) or len(frame["foot_anchor"]) != 2 or
+                    not all(type(v) in (int, float) and abs(v) <= 256 and math.isfinite(v)
+                            for v in frame["foot_anchor"])):
+                raise ValueError("Market frame/display transform metadata is invalid")
+            frames[frame["alias"]] = frame
+        if not isinstance(role.get("idle"), str) or role["idle"] not in frames:
+            raise ValueError("Market idle frame is missing")
+        for direction, offset in {"neg_y": 0, "neg_x": 0, "pos_x": 2, "pos_y": 2}.items():
+            aliases = [f"{direction}_{phase}" for phase in range(12)]
+            if role["clips"][direction] != aliases:
+                raise ValueError("Market required direction/sequence changed")
+            for phase, alias in enumerate(aliases):
+                if (alias not in frames or frames[alias]["image_index"] != base + offset + 8 * phase or
+                        frames[alias]["flip_x"] != (direction in {"neg_x", "pos_y"})):
+                    raise ValueError("Market native physical frame or explicit display flip changed")
     build_info_path = contents / "Resources" / "BuildInfo.json"
     try:
         build_info = json.loads(build_info_path.read_text())
