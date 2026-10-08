@@ -130,6 +130,16 @@ public:
         std::uint64_t additional_bytes=0,draws=0,fallback_draws=0;
     };
     MarketWalkerDisplayStats market_walker_display_stats() const;
+    void set_service_walker_visuals(const std::filesystem::path& manifest,
+                                   VisualProfileSource source=VisualProfileSource::Builtin,
+                                   std::string fallback_reason={});
+    struct ServiceWalkerDisplayStats {
+        bool configured=false,active=false;
+        std::string clip_id,fallback_reason;
+        std::size_t frames=0,additional_assets=0;
+        std::uint64_t additional_bytes=0,draws=0,fallback_draws=0;
+    };
+    ServiceWalkerDisplayStats service_walker_display_stats() const;
     void set_building_visuals(const std::filesystem::path& manifest,
                               VisualProfileSource source=VisualProfileSource::Custom);
     void set_road_visuals(const std::filesystem::path& manifest,
@@ -306,6 +316,8 @@ private:
     void prepare_fire_inspector_extension();
     void remove_market_walker_extension();
     void prepare_market_walker_extension();
+    void remove_service_walker_extension();
+    void prepare_service_walker_extension();
     void remove_walker_roles(const std::array<bool,assets::walker_visual_role_count>& removed);
     std::pair<std::size_t,std::uint64_t> exclusive_walker_images(
         const std::array<bool,assets::walker_visual_role_count>& selected) const;
@@ -388,6 +400,11 @@ private:
     std::filesystem::path market_walker_manifest_;
     VisualProfileSource market_walker_source_=VisualProfileSource::Fallback;
     std::string market_walker_fallback_reason_="No Food/Market clips selected";
+    std::filesystem::path service_walker_manifest_;
+    VisualProfileSource service_walker_source_=VisualProfileSource::Fallback;
+    std::string service_walker_fallback_reason_="No Service clip selected";
+    bool service_walker_extension_=false;
+    std::uint64_t service_walker_fallback_draws_=0;
     std::array<bool,4> walker_moving_drawn_{};
     std::uint64_t walker_unmapped_fallbacks_=0, walker_invalid_edge_fallbacks_=0;
     std::filesystem::path building_manifest_;

@@ -138,7 +138,8 @@ set(OPENEMPEROR_COMPATIBILITY_FILES
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/roads.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire-inspector.json"
-    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/market-walkers.json")
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/market-walkers.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/service-walker.json")
 if(OPENEMPEROR_BUILD_MACOS_APP)
     set_source_files_properties(${OPENEMPEROR_COMPATIBILITY_FILES} PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources/Compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}")
@@ -766,6 +767,16 @@ if(BUILD_TESTING)
         openemperor-recovery openemperor-version SDL3::SDL3)
     openemperor_enable_warnings(openemperor-market-walker-resource-tests)
     add_test(NAME market-walker-optional-resources COMMAND openemperor-market-walker-resource-tests)
+    add_executable(openemperor-service-walker-resource-tests tests/ServiceWalkerResourceTests.cpp
+        src/app/SandboxView.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
+        src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-service-walker-resource-tests PRIVATE
+        openemperor-recovery openemperor-version SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-service-walker-resource-tests)
+    add_test(NAME service-walker-optional-resources COMMAND openemperor-service-walker-resource-tests)
     add_executable(openemperor-market-walker-view-tests tests/MarketWalkerViewTests.cpp
         src/app/SandboxView.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
         src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
@@ -776,6 +787,16 @@ if(BUILD_TESTING)
         openemperor-recovery openemperor-version SDL3::SDL3)
     openemperor_enable_warnings(openemperor-market-walker-view-tests)
     add_test(NAME market-walker-production-view COMMAND openemperor-market-walker-view-tests)
+    add_executable(openemperor-service-walker-view-tests tests/ServiceWalkerViewTests.cpp
+        src/app/SandboxView.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+        src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+        src/app/VisualSelection.cpp src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+        src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+        src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+    target_link_libraries(openemperor-service-walker-view-tests PRIVATE
+        openemperor-recovery openemperor-version SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-service-walker-view-tests)
+    add_test(NAME service-walker-production-view COMMAND openemperor-service-walker-view-tests)
     add_executable(openemperor-road-ground-occlusion-tests tests/RoadGroundOcclusionTests.cpp
         src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
@@ -793,6 +814,14 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-walker-visual-tests)
     add_test(NAME walker-visual-profile-pose-render COMMAND openemperor-walker-visual-tests)
     set_tests_properties(walker-visual-profile-pose-render PROPERTIES TIMEOUT 30)
+
+    add_executable(openemperor-service-walker-tests tests/ServiceWalkerTests.cpp
+        src/app/WalkerPose.cpp src/renderer/WalkerSpriteSet.cpp)
+    target_link_libraries(openemperor-service-walker-tests PRIVATE
+        openemperor-sg3 openemperor-simulation SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-service-walker-tests)
+    add_test(NAME service-walker-profile-pose-render COMMAND openemperor-service-walker-tests)
+    set_tests_properties(service-walker-profile-pose-render PROPERTIES TIMEOUT 30)
 
     add_executable(openemperor-building-visual-tests tests/BuildingVisualTests.cpp
         src/renderer/BuildingSprite.cpp)
@@ -834,6 +863,12 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-market-walker-compatibility-tests PRIVATE openemperor-sg3)
     openemperor_enable_warnings(openemperor-market-walker-compatibility-tests)
     add_test(NAME market-walker-compatibility-fingerprints COMMAND openemperor-market-walker-compatibility-tests
+        "${OPENEMPEROR_TEST_RESOURCE_ROOT}")
+    add_executable(openemperor-service-walker-compatibility-tests tests/ServiceWalkerCompatibilityTests.cpp
+        src/app/VisualSelection.cpp)
+    target_link_libraries(openemperor-service-walker-compatibility-tests PRIVATE openemperor-sg3)
+    openemperor_enable_warnings(openemperor-service-walker-compatibility-tests)
+    add_test(NAME service-walker-compatibility-fingerprints COMMAND openemperor-service-walker-compatibility-tests
         "${OPENEMPEROR_TEST_RESOURCE_ROOT}")
     add_executable(openemperor-unified-painter-tests tests/UnifiedPainterTests.cpp
         src/renderer/StoredGraphicsRenderer.cpp)
@@ -947,3 +982,14 @@ add_executable(openemperor-market-walker-fixture EXCLUDE_FROM_ALL tools/MarketWa
 target_link_libraries(openemperor-market-walker-fixture PRIVATE
     openemperor-recovery SDL3::SDL3 openemperor-version)
 openemperor_enable_warnings(openemperor-market-walker-fixture)
+
+add_executable(openemperor-service-walker-fixture EXCLUDE_FROM_ALL tools/ServiceWalkerFixture.cpp
+    src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
+    src/app/SandboxView.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+    src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
+    src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
+    src/renderer/WellFallbackRenderer.cpp src/renderer/HealthPostFallbackRenderer.cpp)
+target_link_libraries(openemperor-service-walker-fixture PRIVATE
+    openemperor-recovery SDL3::SDL3 openemperor-version)
+openemperor_enable_warnings(openemperor-service-walker-fixture)

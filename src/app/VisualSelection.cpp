@@ -26,6 +26,9 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
     result.market_walker_fallback_reason=compatibility.compatible() ? compatibility.market_walker_detail:
         compatibility.detail.empty() ? "unsupported original data revision":
         "unsupported original data: "+compatibility.detail;
+    result.service_walker_fallback_reason=compatibility.compatible() ? compatibility.service_walker_detail:
+        compatibility.detail.empty() ? "unsupported original data revision":
+        "unsupported original data: "+compatibility.detail;
     if (compatibility.compatible()) {
         result.walker = compatibility.profile->walker_profile;
         result.building = compatibility.profile->building_profile;
@@ -47,6 +50,11 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
             result.market_walker_source=VisualProfileSource::Builtin;
             result.market_walker_fallback_reason.clear();
         }
+        if (compatibility.service_walker_compatible()) {
+            result.service_walker=compatibility.profile->service_walker_profile;
+            result.service_walker_source=VisualProfileSource::Builtin;
+            result.service_walker_fallback_reason.clear();
+        }
     }
     if (!custom_walker.empty()) {
         result.walker = custom_walker;
@@ -59,6 +67,10 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
         result.market_walker_source=VisualProfileSource::Custom;
         result.market_walker_fallback_reason=
             "Custom walker profile selected; no built-in Food/Market supplement";
+        result.service_walker.clear();
+        result.service_walker_source=VisualProfileSource::Custom;
+        result.service_walker_fallback_reason=
+            "Custom walker profile selected; no built-in Service supplement";
     }
     if (!custom_building.empty()) {
         result.building = custom_building;

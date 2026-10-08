@@ -5,7 +5,7 @@ This bounded presentation correction starts from clean HEAD
 figures walking, Service remaining a marker, and occasional apparent ground
 pixels over figures. His video-state save is unavailable: the evidence below
 reproduces both technical causes, without claiming his exact frame or city.
-Service and HealthWorker remain outside this change.
+Service and HealthWorker remain outside this change; the subsequent [Service pass](../service-walker-visuals.md) implements its separately prepared figure, while HealthWorker stays open.
 
 ## Two independently reproduced causes
 
@@ -270,6 +270,6 @@ tiles and building entrances during Farm/Warehouse→Market→House trips and
 empty returns. Normal original figures should have no extra colored cargo
 rectangle, Roads should remain below feet, and foreground buildings/gate
 roofs should still hide figures. F1 deliberately restores the diagnostic;
-F7 deliberately retains the old ordering comparison. Service/Health markers
+F7 deliberately retains the old ordering comparison. Optional Service fallback/Health markers
 remain expected. Human native play acceptance and complete Emperor renderer
 parity remain open. No commit, push, tag, release or publication is performed.

@@ -66,5 +66,18 @@
         "sha256": "53b1a9b5154316e505ac1a0d46b6796c1f568f4765ec154e313be0aff82daa7e"
       }
     ]
+  },
+  "optional_service_walkers": {
+    "profile": "service-walker.json",
+    "files": [
+      {
+        "path": "DATA/SprMain.sg3",
+        "sha256": "3e2817d2644453acc92068d6c1e26532212be213b43b848ebe95ba21654adef8"
+      },
+      {
+        "path": "DATA/SprMain.555",
+        "sha256": "d84eb6759e9ce50b0ad75596773b9224f9c1a9b8dd80b691c066c3de7e8df438"
+      }
+    ]
   }
 }

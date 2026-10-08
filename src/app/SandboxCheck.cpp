@@ -52,6 +52,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             visuals.fire_inspector_fallback_reason);
         view.set_market_walker_visuals(visuals.market_walker,visuals.market_walker_source,
             visuals.market_walker_fallback_reason);
+        view.set_service_walker_visuals(visuals.service_walker,visuals.service_walker_source,
+            visuals.service_walker_fallback_reason);
         view.initialize(window,renderer);
         const auto initial_ticks=view.world().ticks();
         const auto initial_treasury=view.world().treasury();
@@ -238,6 +240,7 @@ int run_sandbox_check(const std::filesystem::path& data_root,
         const auto walker_visuals_report=[&]() {
             const auto stats=view.walker_display_stats();
             const auto market=view.market_walker_display_stats();
+            const auto service=view.service_walker_display_stats();
             constexpr const char* directions[]={"pos_x","neg_x","pos_y","neg_y"};
             nlohmann::json configured=nlohmann::json::array();
             nlohmann::json roles=nlohmann::json::object();
@@ -263,6 +266,11 @@ int run_sandbox_check(const std::filesystem::path& data_root,
                     {"frame_aliases",market.frames},{"additional_assets",market.additional_assets},
                     {"additional_rgba_bytes",market.additional_bytes},{"draws",market.draws},
                     {"fallback_draws",market.fallback_draws}}},
+                {"service_walker",{{"active",service.active},{"configured",service.configured},
+                    {"clip_id",service.clip_id},{"fallback_reason",service.fallback_reason},
+                    {"frame_aliases",service.frames},{"additional_assets",service.additional_assets},
+                    {"additional_rgba_bytes",service.additional_bytes},{"draws",service.draws},
+                    {"fallback_draws",service.fallback_draws}}},
                 {"fire_inspector",{{"active",view.fire_inspector_display_stats().active},
                     {"clip_id",view.fire_inspector_display_stats().clip_id},
                     {"fallback_reason",view.fire_inspector_display_stats().fallback_reason},

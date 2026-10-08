@@ -309,6 +309,54 @@ CompatibilityProfile load_compatibility_profile(const fs::path& manifest) {
                 std::string("optional Food/Market metadata invalid: ")+exception.what();
         }
     }
+    if (document.contains("optional_service_walkers")) {
+        try {
+            const auto& service=document.at("optional_service_walkers");
+            if (!service.is_object() || !service.contains("files") ||
+                !service.at("files").is_array() || service.at("files").empty() ||
+                service.at("files").size()>max_fire_fingerprints)
+                throw std::runtime_error("invalid optional Service fingerprint list");
+            const auto service_profile=checked_file(result.pack_root,
+                required_relative(service,"profile"));
+            if (!service_profile)
+                throw std::runtime_error("optional Service metadata resource is missing or unsafe");
+            std::set<fs::path> covered;
+            std::vector<CompatibilityFingerprint> files;
+            for (const auto& entry:service.at("files")) {
+                if (!entry.is_object())
+                    throw std::runtime_error("optional Service fingerprint is not an object");
+                CompatibilityFingerprint fingerprint;
+                fingerprint.relative_path=required_relative(entry,"path");
+                fingerprint.sha256=required_string(entry,"sha256");
+                if (!sha256_text(fingerprint.sha256) || !covered.insert(fingerprint.relative_path).second)
+                    throw std::runtime_error("optional Service fingerprint is invalid or duplicated");
+                files.push_back(std::move(fingerprint));
+            }
+            const auto metadata=nlohmann::json::parse(read_bounded_text(*service_profile));
+            const auto& roles=metadata.at("roles");
+            if (metadata.value("schema_version",0U)!=5 || !roles.is_object() ||
+                roles.size()!=1 || !roles.contains("service"))
+                throw std::runtime_error("optional Service resource must contain only schema-5 Service");
+            std::size_t aliases=0;
+            for (const auto* role:{"service"}) {
+                const auto& frames=roles.at(role).at("frames");
+                if (!frames.is_array() || frames.empty() || frames.size()>256-aliases)
+                    throw std::runtime_error("optional Service resource has invalid frame references");
+                aliases+=frames.size();
+                for (const auto& frame:frames) {
+                    const auto archive=required_relative(frame,"archive");
+                    auto pixels=archive;pixels.replace_extension(".555");
+                    if (archive.extension()!=".sg3" || !covered.contains(archive) || !covered.contains(pixels))
+                        throw std::runtime_error("optional Service frame dependency is not independently fingerprinted");
+                }
+            }
+            result.service_walker_profile=*service_profile;
+            result.service_walker_files=std::move(files);
+        } catch (const std::exception& exception) {
+            result.service_walker_metadata_error=
+                std::string("optional Service metadata invalid: ")+exception.what();
+        }
+    }
     return result;
 }
 
@@ -477,6 +525,37 @@ CompatibilityResult detect_compatibility(const fs::path& data_root,
                 } catch (const std::exception& exception) {
                     result.market_walker_status=CompatibilityStatus::Unknown;
                     result.market_walker_detail=std::string("optional Food/Market input could not be checked: ")+
+                        exception.what();
+                }
+            }
+            if (!fire.service_walker_metadata_error.empty()) {
+                result.service_walker_detail=fire.service_walker_metadata_error;
+            } else if (!fire.service_walker_profile.empty()) {
+                result.service_walker_status=CompatibilityStatus::Compatible;
+                result.service_walker_detail="independently fingerprinted Service walking figures detected";
+                try {
+                    for (const auto& expected:fire.service_walker_files) {
+                        const auto candidate=checked_file(root,expected.relative_path);
+                        if (!candidate) {
+                            std::error_code exists_error;
+                            const bool absent=!fs::exists(root/expected.relative_path,exists_error) && !exists_error;
+                            result.service_walker_status=absent ? CompatibilityStatus::MissingFile:
+                                CompatibilityStatus::FingerprintMismatch;
+                            result.service_walker_detail="optional Service file missing or unsafe: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                        ++result.service_walker_files_hashed;
+                        if (sha256_file(*candidate)!=expected.sha256) {
+                            result.service_walker_status=CompatibilityStatus::FingerprintMismatch;
+                            result.service_walker_detail="optional Service fingerprint mismatch: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                    }
+                } catch (const std::exception& exception) {
+                    result.service_walker_status=CompatibilityStatus::Unknown;
+                    result.service_walker_detail=std::string("optional Service input could not be checked: ")+
                         exception.what();
                 }
             }

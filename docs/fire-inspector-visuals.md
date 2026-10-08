@@ -46,7 +46,7 @@ Textures are safely resolved, decoded and eagerly uploaded on the existing initi
 
 ## Original figure milestone validation (2026-10-07)
 
-The role graphic cannot staff a Watch, dispatch a Courier, create patrol coverage or extinguish a building. Only the existing simulation dispatch and actual Inspector arrival change fire/protection state. Returning follows the actual Courier phase/path after arrival. Workforce, priorities/targets, roads/gates/movement, goods/reservations, economy/maintenance, footprints, rules, map policy and Save/Recovery schemas are unchanged. HealthWorker, Food, Service and Market figures remain separate work.
+The role graphic cannot staff a Watch, dispatch a Courier, create patrol coverage or extinguish a building. Only the existing simulation dispatch and actual Inspector arrival change fire/protection state. Returning follows the actual Courier phase/path after arrival. Workforce, priorities/targets, roads/gates/movement, goods/reservations, economy/maintenance, footprints, rules, map policy and Save/Recovery schemas are unchanged. HealthWorker remains separate work; Food/Market and [Service figures](service-walker-visuals.md) are documented in their subsequent presentation passes.
 
 | Evidence | Current status |
 | --- | --- |

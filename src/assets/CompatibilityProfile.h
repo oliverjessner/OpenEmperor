@@ -37,6 +37,9 @@ struct CompatibilityProfile {
     std::filesystem::path market_walker_profile;
     std::vector<CompatibilityFingerprint> market_walker_files;
     std::string market_walker_metadata_error;
+    std::filesystem::path service_walker_profile;
+    std::vector<CompatibilityFingerprint> service_walker_files;
+    std::string service_walker_metadata_error;
 };
 
 struct CompatibilityResult {
@@ -65,6 +68,13 @@ struct CompatibilityResult {
     bool market_walker_compatible() const {
         return compatible() && market_walker_status == CompatibilityStatus::Compatible &&
             !profile->market_walker_profile.empty();
+    }
+    CompatibilityStatus service_walker_status = CompatibilityStatus::Unknown;
+    std::size_t service_walker_files_hashed = 0;
+    std::string service_walker_detail = "optional Service walker is not declared";
+    bool service_walker_compatible() const {
+        return compatible() && service_walker_status == CompatibilityStatus::Compatible &&
+            !profile->service_walker_profile.empty();
     }
 };
 

@@ -1,0 +1,552 @@
+{
+  "schema_version": 5,
+  "mode": "curated_walker_preview",
+  "roles": {
+    "service": {
+      "clip_id": "curated-sprmain-service-walk",
+      "ticks_per_frame": 2,
+      "evidence": "Original SprMain1417 native walking phases and opposite mirror-reference metadata verified. Service assignment, two-tick cadence and common foot reference are curated OpenEmperor presentation; original profession/timing/pivot unproved.",
+      "frames": [
+        {
+          "alias": "service-neg_x-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1417,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1425,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1433,
+          "foot_anchor": [
+            19,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1441,
+          "foot_anchor": [
+            19,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1449,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1457,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1465,
+          "foot_anchor": [
+            18,
+            46
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1473,
+          "foot_anchor": [
+            20,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1481,
+          "foot_anchor": [
+            22,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1489,
+          "foot_anchor": [
+            24,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1497,
+          "foot_anchor": [
+            22,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_x-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1505,
+          "foot_anchor": [
+            21,
+            46
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-neg_y-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1417,
+          "foot_anchor": [
+            11,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1425,
+          "foot_anchor": [
+            12,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1433,
+          "foot_anchor": [
+            15,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1441,
+          "foot_anchor": [
+            17,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1449,
+          "foot_anchor": [
+            16,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1457,
+          "foot_anchor": [
+            13,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1465,
+          "foot_anchor": [
+            12,
+            46
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1473,
+          "foot_anchor": [
+            13,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1481,
+          "foot_anchor": [
+            14,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1489,
+          "foot_anchor": [
+            16,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1497,
+          "foot_anchor": [
+            15,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-neg_y-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1505,
+          "foot_anchor": [
+            12,
+            46
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1419,
+          "foot_anchor": [
+            10,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1427,
+          "foot_anchor": [
+            13,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1435,
+          "foot_anchor": [
+            14,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1443,
+          "foot_anchor": [
+            16,
+            43
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1451,
+          "foot_anchor": [
+            15,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1459,
+          "foot_anchor": [
+            13,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1467,
+          "foot_anchor": [
+            10,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1475,
+          "foot_anchor": [
+            12,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1483,
+          "foot_anchor": [
+            16,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1491,
+          "foot_anchor": [
+            17,
+            44
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1499,
+          "foot_anchor": [
+            16,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_x-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1507,
+          "foot_anchor": [
+            14,
+            45
+          ],
+          "flip_x": false
+        },
+        {
+          "alias": "service-pos_y-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1419,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1427,
+          "foot_anchor": [
+            20,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1435,
+          "foot_anchor": [
+            22,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1443,
+          "foot_anchor": [
+            24,
+            43
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1451,
+          "foot_anchor": [
+            22,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1459,
+          "foot_anchor": [
+            21,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1467,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1475,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1483,
+          "foot_anchor": [
+            19,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1491,
+          "foot_anchor": [
+            19,
+            44
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1499,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        },
+        {
+          "alias": "service-pos_y-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1507,
+          "foot_anchor": [
+            19,
+            45
+          ],
+          "flip_x": true
+        }
+      ],
+      "clips": {
+        "pos_x": [
+          "service-pos_x-0",
+          "service-pos_x-1",
+          "service-pos_x-2",
+          "service-pos_x-3",
+          "service-pos_x-4",
+          "service-pos_x-5",
+          "service-pos_x-6",
+          "service-pos_x-7",
+          "service-pos_x-8",
+          "service-pos_x-9",
+          "service-pos_x-10",
+          "service-pos_x-11"
+        ],
+        "neg_x": [
+          "service-neg_x-0",
+          "service-neg_x-1",
+          "service-neg_x-2",
+          "service-neg_x-3",
+          "service-neg_x-4",
+          "service-neg_x-5",
+          "service-neg_x-6",
+          "service-neg_x-7",
+          "service-neg_x-8",
+          "service-neg_x-9",
+          "service-neg_x-10",
+          "service-neg_x-11"
+        ],
+        "pos_y": [
+          "service-pos_y-0",
+          "service-pos_y-1",
+          "service-pos_y-2",
+          "service-pos_y-3",
+          "service-pos_y-4",
+          "service-pos_y-5",
+          "service-pos_y-6",
+          "service-pos_y-7",
+          "service-pos_y-8",
+          "service-pos_y-9",
+          "service-pos_y-10",
+          "service-pos_y-11"
+        ],
+        "neg_y": [
+          "service-neg_y-0",
+          "service-neg_y-1",
+          "service-neg_y-2",
+          "service-neg_y-3",
+          "service-neg_y-4",
+          "service-neg_y-5",
+          "service-neg_y-6",
+          "service-neg_y-7",
+          "service-neg_y-8",
+          "service-neg_y-9",
+          "service-neg_y-10",
+          "service-neg_y-11"
+        ]
+      },
+      "idle": "service-neg_y-0"
+    }
+  }
+}

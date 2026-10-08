@@ -76,7 +76,7 @@ void schema_checks(Fixture& fixture,const fs::path& manifest) {
     static_assert(assets::walker_role_index(Role::Supplier)==4);
     static_assert(assets::walker_role_index(Role::Distributor)==5);
     static_assert(assets::walker_core_role_count==3 && assets::walker_schema3_role_count==4 &&
-                  assets::walker_visual_role_count==6);
+                  assets::walker_schema4_role_count==6 && assets::walker_visual_role_count==7);
     check(std::string_view(assets::walker_role_name(Role::Supplier))=="supplier" &&
           std::string_view(assets::walker_role_name(Role::Distributor))=="distributor",
           "market family names disagree with appended enum values");
@@ -105,7 +105,9 @@ void schema_checks(Fixture& fixture,const fs::path& manifest) {
     Fixture::save(manifest,full);
     const auto six=assets::load_walker_visual_profile(fixture.data,manifest);
     check(six.schema_version==4 && six.unique_images.size()==8,"schema4 failed full-profile global dedupe");
-    for (const auto& role:six.roles) check(role.has_value(),"schema4 dropped a declared family");
+    for (std::size_t i=0;i<assets::walker_schema4_role_count;++i)
+        check(six.roles[i].has_value(),"schema4 dropped a declared family");
+    check(!six.find(Role::Service),"schema4 gained a Service role");
     full["schema_version"]=3;Fixture::save(manifest,full);
     rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},"schema3 four-role limit changed");
     auto partial=market();partial["roles"].erase("distributor");
@@ -115,7 +117,7 @@ void schema_checks(Fixture& fixture,const fs::path& manifest) {
           !custom.roles[0] && !custom.roles[3],"explicit custom gained hidden roles/directions");
     auto unknown=market();unknown["roles"]["service"]=one_role;Fixture::save(manifest,unknown);
     rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},"schema4 accepted unknown service role");
-    unknown=market();unknown["schema_version"]=5;Fixture::save(manifest,unknown);
+    unknown=market();unknown["schema_version"]=6;Fixture::save(manifest,unknown);
     rejects([&]{assets::load_walker_visual_profile(fixture.data,manifest);},"future schema accepted");
 }
 void flip_checks(Fixture& fixture,const fs::path& manifest) {

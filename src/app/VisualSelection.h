@@ -26,6 +26,9 @@ struct VisualSelection {
     std::filesystem::path market_walker;
     VisualProfileSource market_walker_source = VisualProfileSource::Fallback;
     std::string market_walker_fallback_reason;
+    std::filesystem::path service_walker;
+    VisualProfileSource service_walker_source = VisualProfileSource::Fallback;
+    std::string service_walker_fallback_reason;
 };
 
 VisualSelection select_visual_profiles(const assets::CompatibilityResult& compatibility,
