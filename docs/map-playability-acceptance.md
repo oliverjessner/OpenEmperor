@@ -446,6 +446,24 @@ unsupported-occupancy record, writes only the private failure JSON and starts
 no application. The positive three-map launcher checks were repeated after
 that final diagnostic change.
 
+## Explicit road connectivity check (2026-10-09)
+
+The same launcher additionally prepares **E-road-disconnected** with ordinary
+paid commands. Its Handan/Badaling Clay and Pottery each have a valid entrance
+but four-cell Road components separated by offset (5,2). At tick 64 actual
+Clay dispatch is NoRoad; normal Road purchase for 2 yields CONNECTED and real
+dispatch 65 / arrival 114 / home 164 with cargo 2 delivered. A–D SaveDocuments and the
+original fixture report remain byte-identical. An unsupported additional E
+attachment is diagnosed separately without disabling A–D.
+
+Select a courier's building, **F1 → G** to request a bounded read-only check;
+repeat G checks compatible target candidates. Current workers/stock/dispatch
+are separate from cached topology. No scan or BFS is added to ordinary frames
+or road preview. See [road connectivity diagnostics](road-connectivity-diagnostics.md)
+for measured entrances, raw edge/height facts, safe repair and evidence limits.
+This is EXPECTED / DIAGNOSTICS IMPROVED; Oliver's exact failure state and a
+production routing bug are not established.
+
 ## Remaining limits
 
 Oliver's exact Chang-an save/actions/selected screenshot cell, exact Anyang

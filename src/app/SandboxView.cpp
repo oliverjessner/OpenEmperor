@@ -221,6 +221,9 @@ void SandboxView::load_now() {
         throw std::runtime_error("Save map or rules differ from current sandbox");
     auto replacement=persistence::restore_save(document,data_root_,buildable_mask_);
     world_=std::make_unique<simulation::World>(std::move(replacement));
+    road_connectivity_report_.reset();
+    road_connectivity_world_=nullptr;
+    road_connectivity_courier_.reset();
     update_window_title();
     clear_visual_selection(); visual_hits_.clear(); visual_frame_valid_=false;
     saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
@@ -1868,6 +1871,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             background_.set_debug_diagnostics(debug_open_);
             last_message_=debug_open_ ? "Debug diagnostics ON":"Debug diagnostics OFF";
         }
+        else if (event.key.key==SDLK_G && debug_open_ && input_focused_) {
+            cancel_gesture();
+            request_road_connectivity_diagnosis();
+        }
         else if (event.key.key==SDLK_F2 && walker_profile_) {
             walker_visuals_enabled_=!walker_visuals_enabled_;
             visual_hits_.clear(); visual_frame_valid_=false;
@@ -2985,6 +2992,138 @@ std::optional<simulation::BuildingId> SandboxView::selected_building() const {
     if (selected_landscape_ || selected_walker_) return {};
     return selected_ ? world_->building_owner_at(*selected_) : std::nullopt;
 }
+const simulation::RoadConnectivityReport* SandboxView::road_connectivity_report() const {
+    if (!world_ || !road_connectivity_report_ || road_connectivity_world_!=world_.get() ||
+        road_connectivity_report_->road_revision!=world_->road_revision() ||
+        road_connectivity_report_->command_sequence!=world_->command_sequence() ||
+        selected_building()!=road_connectivity_report_->source.id) return nullptr;
+    return &*road_connectivity_report_;
+}
+void SandboxView::request_road_connectivity_diagnosis() {
+    const auto source=selected_building();
+    if (!source) { last_message_="Select a courier's building, then press G"; return; }
+    struct Pair { simulation::CourierId courier; simulation::BuildingId target; bool candidate; };
+    std::vector<Pair> pairs;
+    for (const auto& courier:world_->couriers()) {
+        if (!courier.enabled || courier.owner!=*source) continue;
+        auto targets=simulation::road_connectivity_targets(*world_,courier.id);
+        const auto dispatch=world_->courier_dispatch_status(courier.id);
+        const auto actual=dispatch.selected_target ? dispatch.selected_target:
+            courier.phase!=simulation::CourierPhase::IdleAtWorkshop ?
+                std::optional{courier.target}:std::nullopt;
+        if (actual) {
+            const auto found=std::find(targets.begin(),targets.end(),*actual);
+            if (found!=targets.end()) std::rotate(targets.begin(),found,found+1);
+        }
+        for (const auto target:targets)
+            pairs.push_back({courier.id,target,!actual || target!=*actual});
+    }
+    if (pairs.empty()) {
+        road_connectivity_report_.reset();road_connectivity_courier_.reset();
+        last_message_="No compatible target building; no road query performed";
+        return;
+    }
+    auto chosen=pairs.begin();
+    if (const auto* previous=road_connectivity_report()) {
+        const auto found=std::find_if(pairs.begin(),pairs.end(),[&](const auto& pair) {
+            return road_connectivity_courier_==pair.courier && previous->target.id==pair.target;
+        });
+        if (found!=pairs.end()) chosen=std::next(found)==pairs.end() ? pairs.begin():std::next(found);
+    }
+    auto report=simulation::diagnose_road_connectivity(*world_,*source,chosen->target);
+    road_connectivity_report_=std::move(report);road_connectivity_world_=world_.get();
+    road_connectivity_courier_=chosen->courier;
+    road_connectivity_target_candidate_=chosen->candidate;
+    ++road_connectivity_check_count_;
+    panel_scroll_=0;income_open_=false;panel_open_=true;update_layout(true);
+    last_message_=std::string("Road check: ")+
+        simulation::road_connectivity_category_name(road_connectivity_report_->category)+
+        "; G checks the next compatible target";
+}
+std::vector<std::string> SandboxView::road_connectivity_lines() const {
+    const auto source=selected_building();
+    if (!source) return {};
+    const bool owns_courier=std::any_of(world_->couriers().begin(),world_->couriers().end(),
+        [&](const auto& courier) { return courier.enabled && courier.owner==*source; });
+    if (!owns_courier) return {};
+    const auto* report=road_connectivity_report();
+    if (!debug_open_) {
+        const bool no_road=std::any_of(world_->couriers().begin(),world_->couriers().end(),[&](const auto& courier) {
+            return courier.enabled && courier.owner==*source &&
+                world_->courier_dispatch_status(courier.id).status==simulation::CourierDispatchStatus::NoRoad;
+        });
+        return no_road ? std::vector<std::string>{"F1, then G: check road connections"}:std::vector<std::string>{};
+    }
+    if (!report) return {"G: check roads to a compatible target","Checks run only when G is pressed."};
+    const auto cell=[](simulation::Cell point) {
+        return "("+std::to_string(point.x)+","+std::to_string(point.y)+")";
+    };
+    std::vector<std::string> lines{
+        std::string(object_name(report->source.kind))+" #"+
+            std::to_string(static_cast<unsigned>(report->source.id))+" -> "+
+            object_name(report->target.kind)+" #"+std::to_string(static_cast<unsigned>(report->target.id)),
+        road_connectivity_target_candidate_ ? "Candidate target; not a dispatch choice.":"Actual selected/current courier target.",
+        std::string("Road check: ")+simulation::road_connectivity_category_name(report->category),
+        "Source entrances: "+std::to_string(report->source.entrances.size())+
+            " | Target: "+std::to_string(report->target.entrances.size()),
+        "Transport components: "+std::to_string(report->components.size()),
+        "Measured tick "+std::to_string(report->measured_tick)+" | road rev "+std::to_string(report->road_revision),
+        "G: check next compatible target"};
+    if (report->route) lines.push_back("Authoritative route: "+std::to_string(report->route->size())+" cells");
+    if (!report->unsupported_reason.empty()) lines.push_back(report->unsupported_reason);
+    const auto add_endpoint=[&](const auto& endpoint,const char* label) {
+        std::string footprint=std::string(label)+" footprint";
+        for (const auto point:endpoint.footprint) footprint+=" "+cell(point);
+        lines.push_back(std::move(footprint));
+        for (const auto& entrance:endpoint.entrances)
+            lines.push_back(std::string(label)+" entrance "+cell(entrance.building_cell)+" <-> "+cell(entrance.road_cell));
+        for (std::size_t i=0;i<std::min<std::size_t>(2,endpoint.rejected_entrances.size());++i) {
+            const auto& edge=endpoint.rejected_entrances[i];
+            lines.push_back(std::string(label)+" rejected "+cell(edge.from.cell)+" -> "+cell(edge.to.cell));
+            lines.push_back(std::string(simulation::road_connectivity_category_name(edge.category))+" | height "+
+                std::to_string(edge.from.height)+" -> "+std::to_string(edge.to.height));
+            if (!edge.reason.empty()) lines.push_back(edge.reason);
+        }
+        if (!endpoint.rejected_entrances.empty()) lines.push_back(std::string(label)+" rejected entrances: "+
+            std::to_string(endpoint.rejected_entrances.size())+"; showing at most 2.");
+    };
+    add_endpoint(report->source,"Source");add_endpoint(report->target,"Target");
+    const auto ids=[](const auto& components) {
+        std::string text;
+        for (const auto id:components) text+=(text.empty() ? "":" ")+std::to_string(id);
+        return text.empty() ? "none":text;
+    };
+    lines.push_back("Source components: "+ids(report->source_components));
+    lines.push_back("Target components: "+ids(report->target_components));
+    for (std::size_t i=0;!report->route && i<std::min<std::size_t>(3,report->blocked_edges.size());++i) {
+        const auto& edge=report->blocked_edges[i];
+        lines.push_back(std::string(edge.candidate ? "Candidate edge ":"Blocked edge ")+
+            cell(edge.from.cell)+" -> "+cell(edge.to.cell));
+        lines.push_back(std::string(simulation::road_connectivity_category_name(edge.category))+" | height "+
+            std::to_string(edge.from.height)+" -> "+std::to_string(edge.to.height));
+        if (!edge.reason.empty()) lines.push_back(edge.reason);
+        if (edge.from.protected_original || edge.to.protected_original)
+            lines.push_back("Protected original cells on this edge.");
+        if (edge.from.fixed_gate || edge.to.fixed_gate) lines.push_back("Fixed gate edge; existing passage rule applies.");
+        if (edge.candidate_cell) lines.push_back("Candidate Road "+cell(*edge.candidate_cell)+(edge.place_road_allowed ?
+            ": purchase allowed; full repair unproved.":": purchase rejected."));
+    }
+    if (!report->route && report->blocked_edge_count) lines.push_back("Blocked edges measured: "+
+        std::to_string(report->blocked_edge_count)+"; showing at most 3. No unique repair claimed.");
+    for (const auto& courier:report->couriers) if (road_connectivity_courier_==courier.id) {
+        lines.push_back("Dispatch at check: "+std::string(simulation::courier_dispatch_status_name(courier.dispatch_status)));
+        lines.push_back("Workers "+std::to_string(courier.workers_assigned)+"/"+std::to_string(courier.workers_required)+
+            " | output stock "+std::to_string(courier.output_stock));
+        lines.push_back(std::string("Phase ")+simulation::courier_phase_name(courier.phase)+
+            " | cargo "+std::to_string(courier.cargo)+" reserved "+std::to_string(courier.reserved));
+        lines.push_back(courier.route_pending ? "Route pending: yes":"Route pending: no");
+        lines.push_back("Selected dispatch target: "+(courier.selected_target ?
+            std::to_string(static_cast<unsigned>(*courier.selected_target)):std::string("none")));
+        lines.push_back("Route cache rev "+(courier.cached_revision==UINT64_MAX ? std::string("not prepared"):
+            std::to_string(courier.cached_revision))+" | road rev "+std::to_string(courier.road_revision));
+    }
+    return lines;
+}
 bool SandboxView::fire_watch_selected() const {
     const auto id=selected_building();
     return id && world_->building(*id).kind==simulation::Object::FireWatch;
@@ -3120,6 +3259,10 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Taxes contributed: "+std::to_string(world_->household_tax_contributed(id)));
         lines.push_back("Payment depends on conditions at the demand deadline.");
     };
+    const auto add_connectivity=[&]() {
+        const auto diagnostic=road_connectivity_lines();
+        lines.insert(lines.end(),diagnostic.begin(),diagnostic.end());
+    };
     if (fire_watch_selected()) {
         const auto id=*selected_building();
         const auto& b=world_->building(id);
@@ -3137,6 +3280,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             if (c.phase!=simulation::CourierPhase::IdleAtWorkshop && b.operating_enabled)
                 lines.push_back("Pause operation to prevent a new patrol.");
         }
+        add_connectivity();
         add_maintenance(id);
         lines.push_back("City-wide protected "+std::to_string(world_->protected_buildings())+"/"+
             std::to_string(world_->fire_eligible_buildings()));
@@ -3168,6 +3312,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back(std::string("Route status: ")+simulation::courier_dispatch_status_name(
                 world_->courier_dispatch_status(c.id).status));
         }
+        add_connectivity();
         add_maintenance(id);
         int houses=0,protected_houses=0,sick=0;
         for (const auto& h:world_->buildings()) if (h.kind==simulation::Object::Household) {
@@ -3282,6 +3427,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
+    add_connectivity();
     if (simulation::market_profile(rules_) && b.kind==simulation::Object::Household) add_house_income(*id);
     add_maintenance(*id);
     if (simulation::fire_profile(rules_) && simulation::fire_eligible(b.kind)) {
@@ -4447,7 +4593,7 @@ bool SandboxView::draw_help_overlay() {
             "HELP - H / ? closes", "1-0 Build | F Watch | I Well | J Health",
             "Arrows Move | Wheel Zoom | 5 Select", "Space Pause | . Step | + / - Speed",
             "F5 Save | F9 Load | Esc Menu", "D Desirability | U Water | K Health",
-            "F1 Runtime | F2/F4/F6 Visuals", "Houses pay tax after full supply",
+            "F1 + G Road check | F2/F4/F6", "Houses pay tax after full supply",
             "Food, Pottery and Service enable tax", "Residents provide workers",
             "Select a business: Pause / Resume", "High / Normal / Low controls staffing",
             "Wells slow risk; road Health visits cure", "BUILDING MAINTENANCE",
@@ -4490,7 +4636,7 @@ bool SandboxView::draw_help_overlay() {
         text(0,9,"F5 Save | F9 Load | Esc Menu") &&
         text(0,11,"DIAGNOSTICS") &&
         text(0,12,"F1 Runtime | F2/F4/F6 Visuals") &&
-        text(0,13,"Diagnostics do not change the world") &&
+        text(0,13,"F1 + G checks selected building roads") &&
         text(1,2,"ECONOMY AND WORKFORCE") &&
         text(1,3,"Houses pay tax after full supply") &&
         text(1,4,"T Income: supply / costs / upkeep") &&

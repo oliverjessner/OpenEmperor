@@ -240,6 +240,7 @@ target_link_libraries(openemperor-maps PUBLIC ZLIB::ZLIB openemperor-sg3 nlohman
 openemperor_enable_warnings(openemperor-maps)
 add_library(openemperor-simulation STATIC
     src/simulation/MapPermissions.cpp
+    src/simulation/RoadConnectivity.cpp
     src/simulation/World.cpp
     src/simulation/WorldFire.cpp
     src/simulation/WorldHealth.cpp
@@ -351,6 +352,8 @@ if(BUILD_TESTING)
     add_test(NAME sandbox-gate-budget-view COMMAND openemperor-sandbox-gate-budget-view-tests)
     set_tests_properties(sandbox-gate-budget-view PROPERTIES TIMEOUT 60)
     add_test(NAME sandbox-city-v15-view COMMAND openemperor-sandbox-view-tests --health-only)
+    add_test(NAME sandbox-road-connectivity-view COMMAND openemperor-sandbox-view-tests --connectivity-only)
+    set_tests_properties(sandbox-road-connectivity-view PROPERTIES TIMEOUT 60)
     add_test(NAME road-continuity-production-pixels COMMAND openemperor-sandbox-view-tests --road-continuity-only)
     set_tests_properties(road-continuity-production-pixels PROPERTIES TIMEOUT 60)
     add_test(NAME sandbox-city-v16-geometry-view COMMAND openemperor-sandbox-view-tests --geometry16-only)
@@ -507,6 +510,11 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-sandbox-routing-tests PRIVATE openemperor-persistence)
     openemperor_enable_warnings(openemperor-sandbox-routing-tests)
     add_test(NAME sandbox-live-rerouting COMMAND openemperor-sandbox-routing-tests)
+
+    add_executable(openemperor-road-connectivity-tests tests/RoadConnectivityTests.cpp)
+    target_link_libraries(openemperor-road-connectivity-tests PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-road-connectivity-tests)
+    add_test(NAME road-connectivity-diagnostics COMMAND openemperor-road-connectivity-tests)
     set_tests_properties(sandbox-live-rerouting PROPERTIES TIMEOUT 30)
     add_executable(openemperor-sandbox-household-tests tests/SandboxHouseholdTests.cpp)
     target_link_libraries(openemperor-sandbox-household-tests PRIVATE openemperor-persistence)

@@ -63,6 +63,16 @@ echo "City-v16 rule 3 / Map policy 1 / Empty City. An empty city has no sandbox 
 echo "Build Houses, paid roads, Clay Source and Pottery to observe a real Clay trip."
 echo "Optional Load Sandbox: B-paid-courier is a normally paid 2-House city; Space starts its Clay trip."
 echo "C-paid-supply is the paid compact starter; D records actual supply at tick 1600."
+python3 - "$app_data_dir/road-connectivity-report.json" <<'PY'
+import json, pathlib, sys
+report = json.loads(pathlib.Path(sys.argv[1]).read_text())
+if report["status"] == "prepared":
+    print("E-road-disconnected has a normally paid separated Clay/Pottery route: select Clay, then F1 and G.")
+    print("Measured gap in storage coordinates:", report["missing_storage_cell"])
+    print("Buy that Road for 2, then Space observes real delivery and return.")
+else:
+    print("Additional E-road-disconnected unavailable:", report["reason"])
+PY
 echo "T / Income explains missing supply and staffing; F1 shows diagnostics; F2 compares walker markers."
 echo "Private settings, saves and recovery: $app_data_dir"
 exec "$build_dir/openemperor" --data "$original_data" --app-root "$app_data_dir" \

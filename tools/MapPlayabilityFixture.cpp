@@ -9,6 +9,7 @@
 #include "maps/StoredMapSession.h"
 #include "renderer/StoredGraphicsRenderer.h"
 #include "persistence/SandboxSave.h"
+#include "simulation/RoadConnectivity.h"
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -122,6 +123,66 @@ struct SdlSession {
     }
     ~SdlSession() { SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit(); }
 };
+J connectivity_facts(const Loaded& map,const sim::World& world,
+                     sim::BuildingId source,sim::BuildingId target) {
+    const auto before=world.snapshot();
+    const auto policy=world.map_permissions()->canonical_state();
+    const auto report=sim::diagnose_road_connectivity(world,source,target);
+    require(world.snapshot()==before && world.map_permissions()->canonical_state()==policy,
+            "Read-only road diagnosis changed World or map permissions");
+    const auto edge_facts=[&](const sim::RoadConnectivityEdge& edge) {
+        J result={{"from",cell_facts(map,world,edge.from.cell)},
+            {"to",cell_facts(map,world,edge.to.cell)},
+            {"category",sim::road_connectivity_category_name(edge.category)},
+            {"permission_blocker",sim::build_blocker_name(edge.permission_blocker)},
+            {"reason",edge.reason},{"candidate",edge.candidate},
+            {"candidate_cell",nullptr},{"place_road_allowed",edge.place_road_allowed},
+            {"place_road_blocker",sim::build_blocker_name(edge.place_road_diagnostic.blocker)}};
+        if (edge.candidate_cell) result["candidate_cell"]={edge.candidate_cell->x,edge.candidate_cell->y};
+        return result;
+    };
+    const auto endpoint=[&](const sim::RoadConnectivityEndpoint& e) {
+        J result={{"id",unsigned(e.id)},{"kind",unsigned(e.kind)},
+            {"origin",{e.origin.x,e.origin.y}},{"footprint",J::array()},
+            {"entrances",J::array()},{"rejected_entrances",J::array()},
+            {"candidate_entrances",J::array()}};
+        for (const auto c:e.footprint) result["footprint"].push_back({c.x,c.y});
+        for (const auto& entrance:e.entrances) result["entrances"].push_back({
+            {"building",{entrance.building_cell.x,entrance.building_cell.y}},
+            {"road",{entrance.road_cell.x,entrance.road_cell.y}}});
+        for (const auto& edge:e.rejected_entrances) result["rejected_entrances"].push_back(edge_facts(edge));
+        for (const auto& edge:e.candidate_entrances) result["candidate_entrances"].push_back(edge_facts(edge));
+        return result;
+    };
+    J result={{"category",sim::road_connectivity_category_name(report.category)},
+        {"source",endpoint(report.source)},{"target",endpoint(report.target)},
+        {"source_components",report.source_components},{"target_components",report.target_components},
+        {"components",J::array()},{"route",J::array()},{"blocked_edges",J::array()},
+        {"blocked_edge_count",report.blocked_edge_count},{"blocked_category_counts",report.blocked_category_counts},
+        {"measured_tick",report.measured_tick},{"command_sequence",report.command_sequence},
+        {"road_revision",report.road_revision},{"couriers",J::array()},
+        {"cells_scanned",report.cells_scanned},{"component_edge_checks",report.component_edge_checks},
+        {"boundary_edge_checks",report.boundary_edge_checks},
+        {"authoritative_route_queries",report.authoritative_route_queries},
+        {"world_snapshot_and_policy_unchanged",true}};
+    for (const auto& component:report.components) result["components"].push_back({
+        {"id",component.id},{"cells",component.cell_count},
+        {"source_entrances",component.source_entrances},{"target_entrances",component.target_entrances}});
+    if (report.route) for (const auto c:*report.route) result["route"].push_back({c.x,c.y});
+    for (const auto& edge:report.blocked_edges) result["blocked_edges"].push_back(edge_facts(edge));
+    for (const auto& courier:report.couriers) {
+        J state={{"id",unsigned(courier.id)},{"role",unsigned(courier.role)},
+            {"workers_assigned",courier.workers_assigned},{"workers_required",courier.workers_required},
+            {"output_stock",courier.output_stock},{"cargo",courier.cargo},{"reserved",courier.reserved},
+            {"phase",sim::courier_phase_name(courier.phase)},{"route_pending",courier.route_pending},
+            {"target",unsigned(courier.target)},{"selected_target",nullptr},
+            {"dispatch",sim::courier_dispatch_status_name(courier.dispatch_status)},
+            {"cached_revision",courier.cached_revision},{"road_revision",courier.road_revision}};
+        if (courier.selected_target) state["selected_target"]=unsigned(*courier.selected_target);
+        result["couriers"].push_back(std::move(state));
+    }
+    return result;
+}
 int main(int argc,char** argv) {
     std::optional<fs::path> failure_output;
     try {
@@ -226,6 +287,88 @@ int main(int argc,char** argv) {
             report["supply_tick1600"]=facts(supply);
             report["test_cell_diagnosis_paid"]=diagnose(map,supply,at(1,2));
             save_world(output,"D-observed-supply-1600",data,relative,map,supply);
+            // A separate ordinarily paid city; existing A/B/C/D remain exact.
+            // Pottery uses another validated 2x2 starter footprint so both
+            // endpoints retain entrances on opposite sides of one missing road.
+            sim::World disconnected(map.policy,sim::RulesProfile::CityV16,3);
+            std::vector<sim::Command> isolated{
+                {sim::CommandType::PlaceHousehold,at(6,0)},
+                {sim::CommandType::PlaceHousehold,at(9,0)}};
+            for (int dx=1;dx<=9;++dx) if (dx!=5)
+                isolated.push_back({sim::CommandType::PlaceRoad,at(dx,2)});
+            isolated.push_back({sim::CommandType::PlaceClaySource,at(0,0)});
+            isolated.push_back({sim::CommandType::PlacePottery,at(9,3)});
+            // This additional pattern must not disable previously valid A-D
+            // starts when its particular building attachment is unsupported.
+            bool e_supported=map.policy->transport_edge_allowed(at(1,1),at(1,2)) &&
+                map.policy->transport_edge_allowed(at(9,2),at(9,3));
+            for (const auto& command:isolated) e_supported=e_supported && disconnected.validate(command).accepted;
+            if (e_supported) {
+                J road_report={{"status","prepared"},
+                    {"evidence","Separate normally paid technical city; not Oliver's exact save"},
+                    {"map",relative.generic_string()},{"missing_storage_cell",{at(5,2).x,at(5,2).y}},
+                    {"commands",execute_plan(disconnected,isolated)}};
+                for (int tick=0;tick<64;++tick) disconnected.tick();
+                const auto clay=disconnected.buildings()[2].id;
+                const auto pottery=disconnected.buildings()[3].id;
+                const auto courier=disconnected.couriers()[0].id;
+                require(disconnected.courier_dispatch_status(courier).status==sim::CourierDispatchStatus::NoRoad,
+                        "Disconnected fixture does not reproduce actual NoRoad");
+                road_report["before"]=facts(disconnected);
+                road_report["diagnosis"]=connectivity_facts(map,disconnected,clay,pottery);
+                require(road_report["diagnosis"]["category"]=="DISCONNECTED_ROAD_COMPONENTS",
+                        "Missing legal road did not separate the actual entrance components");
+                save_world(output,"E-road-disconnected",data,relative,map,disconnected);
+                const auto before_document=persistence::make_document(data,relative,map.legacy,disconnected);
+                persistence::write_save(output/"diagnostic-before.json",before_document,data,map.legacy);
+                (void)connectivity_facts(map,disconnected,clay,pottery);
+                persistence::write_save(output/"diagnostic-after.json",
+                    persistence::make_document(data,relative,map.legacy,disconnected),data,map.legacy);
+                const auto read_bytes=[](const fs::path& path) {
+                    std::ifstream in(path,std::ios::binary);
+                    return std::string(std::istreambuf_iterator<char>(in),{});
+                };
+                require(read_bytes(output/"diagnostic-before.json")==read_bytes(output/"diagnostic-after.json"),
+                        "Road diagnosis changed complete SaveDocument bytes");
+                road_report["complete_save_documents_unchanged"]=true;
+                road_report["repair_commands"]=execute_plan(disconnected,{{sim::CommandType::PlaceRoad,at(5,2)}});
+                road_report["repaired_diagnosis"]=connectivity_facts(map,disconnected,clay,pottery);
+                require(road_report["repaired_diagnosis"]["category"]=="CONNECTED",
+                        "Ordinary paid gap repair did not restore the authoritative route");
+                bool dispatch=false,arrival=false,home=false;
+                int delivered_cargo=0;
+                auto previous=disconnected.courier(courier).phase;
+                road_report["actual_trip_events"]=J::array();
+                for (int tick=0;tick<300 && !home;++tick) {
+                    disconnected.tick();
+                    const auto phase=disconnected.courier(courier).phase;
+                    if (phase!=previous) {
+                        road_report["actual_trip_events"].push_back(facts(disconnected));
+                        if (phase==sim::CourierPhase::ToWarehouse) delivered_cargo=disconnected.courier(courier).cargo;
+                        if (phase==sim::CourierPhase::Returning) {
+                            require(delivered_cargo>0 && disconnected.courier(courier).cargo==0 &&
+                                disconnected.courier(courier).reserved==0 &&
+                                disconnected.building(pottery).input_clay>=delivered_cargo,
+                                "Clay arrival did not deliver actual cargo to Pottery");
+                            road_report["delivered_clay"]=delivered_cargo;
+                        }
+                        dispatch=dispatch || phase==sim::CourierPhase::ToWarehouse;
+                        arrival=arrival || phase==sim::CourierPhase::Returning;
+                        home=arrival && phase==sim::CourierPhase::IdleAtWorkshop;
+                        previous=phase;
+                    }
+                }
+                require(dispatch && arrival && home,"Paid repair lacks actual Clay delivery and return");
+                road_report["actual_dispatch_arrival_home"]=true;
+                std::ofstream diagnostic(output/"road-connectivity-report.json");
+                diagnostic<<road_report.dump(2)<<'\n';
+                require(bool(diagnostic),"Road-connectivity report write failed");
+            } else {
+                std::ofstream diagnostic(output/"road-connectivity-report.json");
+                diagnostic<<J{{"status","unsupported"},{"map",relative.generic_string()},
+                    {"reason","Additional E recipe has an illegal placement or building attachment; A-D remain available"}}.dump(2)<<'\n';
+                require(bool(diagnostic),"Road-connectivity report write failed");
+            }
         }
         require(StoredGraphicsRenderer::live_texture_count()==0,"Fixture texture ownership leak");
         report["complete_save_readback_restore_pass"]=true;

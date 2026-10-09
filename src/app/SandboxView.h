@@ -5,6 +5,7 @@
 #include "renderer/StoredGraphicsRenderer.h"
 #include "simulation/World.h"
 #include "simulation/CityStartGuidance.h"
+#include "simulation/RoadConnectivity.h"
 #include "persistence/SandboxSave.h"
 #include "app/SandboxUiLayout.h"
 #include "app/RoadDrag.h"
@@ -244,6 +245,10 @@ public:
     std::optional<simulation::BuildingId> selected_building() const;
     std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
     std::vector<std::string> inspection_lines() const;
+    // Explicit F1/G diagnosis only. Inspecting this cache never runs routing.
+    const simulation::RoadConnectivityReport* road_connectivity_report() const;
+    std::uint64_t road_connectivity_check_count() const { return road_connectivity_check_count_; }
+    std::vector<std::string> road_connectivity_lines() const;
     std::vector<std::string> income_summary_lines() const;
     std::vector<std::string> income_lines() const;
     std::vector<std::string> budget_warning_lines() const;
@@ -260,6 +265,7 @@ private:
     int building_list_y() const;
     int demolition_hint_extra_height() const;
     std::vector<std::string> wrap_panel_lines(const std::vector<std::string>& lines) const;
+    void request_road_connectivity_diagnosis();
     enum class OperationAction { Toggle, PriorityHigh, PriorityNormal, PriorityLow };
     struct DrawInstance {
         scene::WorldDrawKey key;
@@ -348,6 +354,11 @@ private:
     std::optional<simulation::Cell> selected_;
     bool selected_landscape_=false;
     std::optional<simulation::CourierId> selected_walker_;
+    std::optional<simulation::RoadConnectivityReport> road_connectivity_report_;
+    const simulation::World* road_connectivity_world_=nullptr;
+    std::optional<simulation::CourierId> road_connectivity_courier_;
+    bool road_connectivity_target_candidate_=true;
+    std::uint64_t road_connectivity_check_count_=0;
     std::optional<simulation::Cell> demo_origin_;
     sandbox_ui::Layout layout_;
     sandbox_ui::RoadPlan road_preview_;

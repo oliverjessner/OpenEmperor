@@ -5,8 +5,12 @@
 #include "app/SandboxVisualOrder.h"
 #include "app/RoadTopology.h"
 #include "maps/TerrainRenderPlan.h"
+#include "maps/EmperorMap.h"
+#include "maps/LandscapeProvenance.h"
+#include "maps/OriginalMapEntities.h"
 
 #include <SDL3/SDL.h>
+#include <zlib.h>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -1339,16 +1343,139 @@ void input_reliability_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* 
     std::cout<<"Sandbox input: real resize/modal presses, actual Down/Up, A-J drag safety, invalid positions/wheel, viewport literals, held-state seam and pure World PASS\n";
 }
 
+maps::StoredMapSession road_connectivity_view_fixture(const Temp& temp,std::vector<std::uint8_t>& mask) {
+    auto session=city_v10_fixture(temp,mask);
+    Bytes raw(maps::original_entities_logical_offset+6,0);
+    const Bytes signature{5,0,0xfe,0xca,0,0,2,0};
+    std::copy(signature.begin(),signature.end(),raw.begin());u32(raw,84,84);
+    const maps::MapGeometry geometry{84};
+    for (unsigned y=0;y<228;++y) for (unsigned x=0;x<228;++x)
+        u32(raw,maps::terrain_logical_offset+4*(std::size_t(y)*228+x),geometry.contains({x,y}) ? 0x80:0x80000);
+    u16(raw,maps::original_entities_logical_offset,1); // Complete empty authored original manager.
+    Bytes packed(4);u32(packed,0,0xfedcbaaa);
+    for (std::size_t at=0;at<raw.size();at+=16384) {
+        const auto count=std::min<std::size_t>(16384,raw.size()-at);
+        uLongf size=compressBound(static_cast<uLong>(count));Bytes compressed(size);
+        check(compress2(compressed.data(),&size,raw.data()+at,static_cast<uLong>(count),6)==Z_OK,
+            "connectivity authored original-format map compression");
+        const auto header=packed.size();packed.resize(header+12);
+        u32(packed,header+4,static_cast<std::uint32_t>(size));u32(packed,header+8,static_cast<std::uint32_t>(count));
+        packed.insert(packed.end(),compressed.begin(),compressed.begin()+static_cast<std::ptrdiff_t>(size));
+    }
+    write(temp.path/"Cities/Synthetic.map",packed);
+    session.map=maps::read_emperor_map(maps::EmperorContainer::open(temp.path/"Cities/Synthetic.map"),0);
+    session.plan.map_relative="Cities/Synthetic.map";session.plan.height_bytes.assign(228U*228U,0);
+    return session;
+}
+void road_connectivity_view_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* renderer) {
+    namespace perf=openemperor::performance;
+    using Category=simulation::RoadConnectivityCategory;
+    std::vector<std::uint8_t> mask;
+    openemperor::SandboxView view(road_connectivity_view_fixture(temp,mask),false,simulation::RulesProfile::CityV16,3);
+    const auto save=temp.path.parent_path()/(temp.path.filename().string()+"-viewer-save.json");
+    view.configure_save(temp.path,"Cities/Synthetic.map",save);view.initialize(window,renderer);
+    bool running=true;if (!view.paused()) view.handle_event(key(SDLK_SPACE),running);
+    const auto put=[&](simulation::CommandType type,simulation::Cell cell) {
+        check(view.execute({type,cell}).accepted,"connectivity UI ordinary paid command");
+    };
+    put(simulation::CommandType::PlaceHousehold,{113,101});
+    put(simulation::CommandType::PlaceHousehold,{116,101});
+    put(simulation::CommandType::PlaceClaySource,{100,101});
+    const auto clay=*view.world().building_owner_at({100,101});
+    put(simulation::CommandType::PlacePottery,{100,104});
+    const auto first=*view.world().building_owner_at({100,104});
+    put(simulation::CommandType::PlacePottery,{106,104});
+    const auto second=*view.world().building_owner_at({106,104});
+    for (int x=100;x<=110;++x) if (x!=104) put(simulation::CommandType::PlaceRoad,{x,103});
+    const auto select=[&](simulation::BuildingId id) {
+        const auto entries=view.world().buildings();
+        const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& b){return b.id==id;});
+        check(found!=entries.end(),"connectivity UI selected list entry exists");
+        const auto panel=view.layout().panel;const int scale=view.layout().scale;
+        mouse_click(view,float(panel.x+20*scale),
+            float(panel.y+(46+18*std::distance(entries.begin(),found)+5)*scale),running);
+        check(view.selected_building()==id,"connectivity UI building list selection");
+    };
+    select(clay);
+    const auto before=view.world().snapshot();view.save_now();
+    const auto document=view.capture_save_document();
+    view.handle_event(key(SDLK_G),running);
+    check(view.road_connectivity_check_count()==0,"F1-off G unexpectedly queries routes");
+    view.handle_event(key(SDLK_F1),running);
+    perf::set_enabled(true);perf::reset();view.handle_event(key(SDLK_G),running);
+    check(view.road_connectivity_check_count()==1 && view.road_connectivity_report() &&
+        view.road_connectivity_report()->category==Category::Connected &&
+        view.road_connectivity_report()->target.id==first,"explicit G authoritative positive route");
+    const auto connected_lines=view.road_connectivity_lines();
+    check(std::none_of(connected_lines.begin(),connected_lines.end(),[](const auto& line) {
+        return line.starts_with("Candidate edge") || line.starts_with("Blocked edges measured:");
+    }),"Connected Inspector implies a frontier repair is required");
+    check(perf::counter(perf::Counter::WorldCopies)==0 && perf::counter(perf::Counter::WorldExecutes)==0 &&
+        perf::counter(perf::Counter::RouteRefreshes)==0 && perf::counter(perf::Counter::BfsCalls)>0 &&
+        perf::counter(perf::Counter::AssetDecodes)==0 && perf::counter(perf::Counter::FileReads)==0,
+        "explicit road diagnosis mutated World/caches or read assets");
+    view.handle_event(key(SDLK_G),running);
+    check(view.road_connectivity_report() && view.road_connectivity_report()->target.id==second &&
+        view.road_connectivity_report()->category==Category::DisconnectedRoadComponents,
+        "G did not cycle to independently disconnected target");
+    const auto cached=*view.road_connectivity_report();
+    perf::reset();
+    for (int i=0;i<8;++i) { (void)view.inspection_lines();(void)view.road_connectivity_lines();check(view.render(),"cached road inspection render"); }
+    for (std::size_t i=0;i<static_cast<std::size_t>(perf::Counter::Count);++i)
+        check(perf::counter(static_cast<perf::Counter>(i))==0,"cached road inspection does per-frame work");
+    check(view.road_connectivity_check_count()==2 && *view.road_connectivity_report()==cached &&
+        view.world().snapshot()==before,"render/inspection reran or mutated explicit diagnosis");
+    const auto after=view.capture_save_document();
+    check(after.world==document.world && after.map_sha256==document.map_sha256 &&
+        after.buildable_sha256==document.buildable_sha256 && after.map_relative==document.map_relative &&
+        after.prepared_permissions==document.prepared_permissions &&
+        after.map_permissions_sha256==document.map_permissions_sha256,"diagnosis changed full save context");
+    auto repeat=key(SDLK_G);repeat.key.repeat=true;view.handle_event(repeat,running);
+    SDL_Event boundary{};boundary.type=SDL_EVENT_WINDOW_FOCUS_LOST;view.handle_event(boundary,running);
+    view.handle_event(key(SDLK_G),running);boundary.type=SDL_EVENT_WINDOW_FOCUS_GAINED;view.handle_event(boundary,running);
+    view.handle_event(key(SDLK_H),running);view.handle_event(key(SDLK_G),running);view.handle_event(key(SDLK_H),running);
+    check(view.road_connectivity_check_count()==2,"repeat/focus/help ran an explicit query");
+    select(first);check(!view.road_connectivity_report(),"selection leaked another source's diagnosis");
+    select(clay);check(view.road_connectivity_report(),"stable selection lost reusable road facts");
+    put(simulation::CommandType::PlaceRoad,{104,103});select(clay);
+    check(!view.road_connectivity_report(),"road revision returned stale diagnosis");
+    view.handle_event(key(SDLK_G),running);
+    check(view.road_connectivity_report() && view.road_connectivity_report()->category==Category::Connected,
+        "legal paid road repair did not acquire fresh connectivity facts");
+    view.load_now();select(clay);
+    check(!view.road_connectivity_report() && view.world().snapshot()==before,
+        "F9 retained diagnosis from a different loaded branch");
+    view.handle_event(key(SDLK_G),running);view.handle_event(key(SDLK_G),running);
+    check(view.road_connectivity_report() && view.road_connectivity_report()->category==Category::DisconnectedRoadComponents,
+        "restored World did not reproduce disconnected diagnosis");
+    put(simulation::CommandType::RemoveRoad,{100,103});
+    put(simulation::CommandType::RemoveRoad,{101,103});select(clay);
+    for (int i=0;i<32;++i) view.tick_once();
+    view.handle_event(key(SDLK_G),running);
+    check(view.road_connectivity_report() && view.road_connectivity_report()->category==Category::SourceNoEntrance,
+        "source with no actual entrance reported a route");
+    const auto text=view.road_connectivity_lines();
+    check(std::any_of(text.begin(),text.end(),[](const auto& line){return line.find("Source entrances: 0")!=std::string::npos;}),
+        "Inspector omitted measured zero source entrances");
+    view.handle_event(key(SDLK_F1),running);
+    const auto ordinary=view.inspection_lines();
+    check(std::any_of(ordinary.begin(),ordinary.end(),[](const auto& line){return line.find("F1, then G")!=std::string::npos;}),
+        "actual NoRoad Inspector has no explicit road-check hint");
+    perf::set_enabled(false);view.shutdown();
+    std::cout<<"Road connectivity UI: explicit/cycled queries, cached zero-work frames, full save purity, ordinary repair and F9 invalidation PASS\n";
+}
+
 int main(int argc,char** argv) {
     try {
         const bool input_only=argc==2 && std::string(argv[1])=="--input-only";
+        const bool connectivity_only=argc==2 && std::string(argv[1])=="--connectivity-only";
         const bool road_only=argc==2 && std::string(argv[1])=="--road-continuity-only";
         const bool geometry_only=argc==2 && std::string(argv[1])=="--geometry16-only";
         const bool maintenance_only=argc==2 && std::string(argv[1])=="--maintenance-only";
         const bool health_only=argc==2 && std::string(argv[1])=="--health-only";
         const bool water_only=argc==2 && std::string(argv[1])=="--water-only";
         const bool alpha_stress=argc==2 && std::string(argv[1])=="--alpha-stress";
-        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only || geometry_only || road_only || input_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
+        check(argc==1 || alpha_stress || water_only || health_only || maintenance_only || geometry_only || road_only || input_only || connectivity_only,"usage: openemperor-sandbox-view-tests [--alpha-stress]");
         {
             const auto layout=openemperor::sandbox_ui::make_layout(1100,700,1100,700,true);
             check(layout.top.h==52 && layout.map.w==796 && layout.map.h==516 &&
@@ -1442,6 +1569,10 @@ int main(int argc,char** argv) {
         SDL_Window* window=nullptr;
         SDL_Renderer* renderer=nullptr;
         check(SDL_CreateWindowAndRenderer("sandbox test",road_only ? 3000:800,road_only ? 2200:600,0,&window,&renderer),"window");
+        if (connectivity_only) {
+            road_connectivity_view_checks(temp,window,renderer);
+            SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+        }
         if (road_only) {
             road_continuity_checks(temp,window,renderer);
             SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
