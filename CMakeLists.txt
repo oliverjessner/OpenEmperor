@@ -1061,3 +1061,11 @@ add_executable(openemperor-audit-original-occupancy EXCLUDE_FROM_ALL
 target_link_libraries(openemperor-audit-original-occupancy PRIVATE
     openemperor-persistence SDL3::SDL3)
 openemperor_enable_warnings(openemperor-audit-original-occupancy)
+
+# Paid technical scenarios on actual original maps; excluded from default tests.
+add_executable(openemperor-map-playability-fixture EXCLUDE_FROM_ALL
+    tools/MapPlayabilityFixture.cpp
+    src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
+target_link_libraries(openemperor-map-playability-fixture PRIVATE
+    openemperor-persistence SDL3::SDL3)
+openemperor_enable_warnings(openemperor-map-playability-fixture)
