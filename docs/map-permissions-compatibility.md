@@ -2,6 +2,8 @@
 
 The subsequent [profile-aware selection pass](map-selection-compatibility.md) exposes these rule prerequisites before graphical session preparation, without changing the occupancy contracts or permissions below.
 
+The later [bounded Industrial type-183 pass](reverse/original-occupancy-pass-next.md) extends exactly one evidenced zero-side point contract. Its fresh 167-map audit prepares **102** policies, versus the historical **93** below, while all 93 prior policies retain exact canonical permissions, gates, edges and fingerprints with their real legacy masks and both explicit mask extremes. The historical baselines and acceptance scope below remain unchanged.
+
 This pass starts from the actual clean HEAD `50bd31e5840fc1c7345befc9146f55898b60971d` (the supplied `d48b00aec76228d8bf820e582a2271fe256e76d9` is its parent). It extends only the load-time original occupancy decision. City-v16 rule **3**, immutable map policy **1**, save schema **19**, traffic, economics, graphics and input retain their existing contracts. There is no migration or publication.
 
 Oliver reports after the budget hotfix: **“es läuft der walker kann durch gehen” — User-reported successful gate traversal in the tested session.** This does not establish a return trip, goods balance, Save/Load restart or acceptance of other maps. The earlier [scripted gate evidence](gate-passages.md#budget-copy-crash-hotfix-2026-10-06) remains separate.

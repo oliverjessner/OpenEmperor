@@ -1052,3 +1052,12 @@ add_executable(openemperor-city-v16-playthrough-fixture EXCLUDE_FROM_ALL tools/C
 target_link_libraries(openemperor-city-v16-playthrough-fixture PRIVATE
     openemperor-recovery SDL3::SDL3 openemperor-version)
 openemperor_enable_warnings(openemperor-city-v16-playthrough-fixture)
+
+# On-demand read-only original-map corpus diagnosis. Reports and proprietary
+# inputs stay under the user's ignored local workspace, outside test fixtures.
+add_executable(openemperor-audit-original-occupancy EXCLUDE_FROM_ALL
+    tools/AuditOriginalOccupancy.cpp
+    src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp)
+target_link_libraries(openemperor-audit-original-occupancy PRIVATE
+    openemperor-persistence SDL3::SDL3)
+openemperor_enable_warnings(openemperor-audit-original-occupancy)

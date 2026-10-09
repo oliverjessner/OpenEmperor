@@ -4,7 +4,7 @@ Only current limitations and outstanding acceptance checks are listed here.
 
 - **Native input acceptance:** the Xia/Handan human checklist, including pointer selection, road dragging, modal focus/resize handling and external-display interaction, remains incomplete. Historical automation delivery failures do not establish a player-coordinate defect. See [the input checklist](docs/testing-input-acceptance.md).
 
-- **Unsupported rule-3 maps:** the 167-map census has 66 unknown-occupancy failures, three known conflicts and five unsupported `cResWall` managers. Full corpus rendering and gameplay acceptance remains open. Unsupported gate heights can also refuse a map. See [map compatibility](docs/map-permissions-compatibility.md).
+- **Unsupported rule-3 maps:** the latest 167-map census prepares 102 policies, with 57 unknown-occupancy first failures, three known conflicts and five unsupported `cResWall` managers. Complete-manager diagnosis still finds 623 unknown records in 13 types across 59 maps. Full corpus rendering and gameplay acceptance remains open. Unsupported gate heights can also refuse a map. See [the bounded type-183 pass](docs/reverse/original-occupancy-pass-next.md) and [historical map compatibility](docs/map-permissions-compatibility.md).
 
 - **Incomplete ordinary wall/gate presentation:** Tower and ResWall bodies, additional Type-256 wall components, and gate states, views and lifecycle outside the validated static layouts remain unsupported. See [ordinary wall/gate limits](docs/reverse/ordinary-wall-gates.md).
 

@@ -30,7 +30,8 @@ void road_markings(){Fixture f;f.map.terrain_raw.values[raw(start)]=0xc0;auto p=
 void passage_layouts(){for(int layout:{0,1}){Fixture f;f.gate(layout);auto p=f.make();check(p->gates().size()==1&&p->gates()[0].id==simulation::FixedGateId{7},"stable original gate ID is distinct and zero manager index valid");const std::array<simulation::Cell,3> corridor=layout?std::array<simulation::Cell,3>{{{100,112},{101,112},{102,112}}}:std::array<simulation::Cell,3>{{{102,110},{102,111},{102,112}}};const std::array<simulation::Cell,2> openings=layout?std::array<simulation::Cell,2>{{{99,112},{103,112}}}:std::array<simulation::Cell,2>{{{102,109},{102,113}}};check(p->gates()[0].corridor==std::vector(corridor.begin(),corridor.end())&&p->gates()[0].openings==openings,"literal independently authored short-axis corridor and two openings");for(auto c:p->gates()[0].protected_footprint)check(p->protected_original(c)&&!p->building_allowed(c),"all15 protected from buildings");for(unsigned k=0;k<3;++k)check(p->fixed_passage(corridor[k])&&p->road_allowed(corridor[k])&&p->cell_height(corridor[k])==-1,"exactthree corridor cells and signed height retained");check(p->transport_edge_allowed(openings[0],corridor[0])&&p->transport_edge_allowed(corridor[0],openings[0])&&p->transport_edge_allowed(openings[1],corridor[2])&&p->transport_edge_allowed(corridor[2],openings[1]),"both opening directions");check(p->transport_edge_allowed(corridor[0],corridor[1])&&p->transport_edge_allowed(corridor[1],corridor[2]),"ordinary internal neighbor edges");const simulation::Cell side=layout?simulation::Cell{101,111}:simulation::Cell{101,111};check(p->transport_edge_blocker(side,corridor[1])==simulation::BuildBlocker::GateSideEntry,"solid side entry denied");check(!p->road_allowed({100,110})&&p->road_blocker({100,110})==simulation::BuildBlocker::GateSolidPart,"solid gate corner denied independently of corridor");Fixture no_render=f;no_render.plan.height_bytes=f.plan.height_bytes;no_render.legacy.assign(count,0);auto missing=no_render.make();check(missing->gates()[0].corridor==p->gates()[0].corridor&&missing->road_mask()==p->road_mask(),"no render-derived legacy permissions prerequisite for gate/roads");}}
 void markers(){for(int type:{162,163,174,180,185}){Fixture f;auto e=f.source(start);e.entity_class=maps::OriginalEntityClass::Industrial;e.type=std::int16_t(type);e.footprint_side=0;f.entities.records.push_back(e);auto second=e;second.manager_index=1;second.original_id=maps::OriginalEntityId{8};second.serialized_original_id=8;f.entities.records.push_back(second);auto p=f.make();check(p->protected_original({100,110})&&!p->road_allowed({100,110})&&p->road_allowed({101,110}),"bounded marker reserves only exact saved origin; duplicate markers are not duplicate physical claims");}Fixture bad;auto e=bad.source(start);e.entity_class=maps::OriginalEntityClass::Industrial;e.footprint_side=0;e.type=35;bad.entities.records.push_back(e);rejects([&]{bad.make();},"unknown zero-side marker must not free occupancy");Fixture other;other.gate(0);auto marker=other.source(start,8,1);marker.entity_class=maps::OriginalEntityClass::Industrial;marker.footprint_side=0;marker.type=163;other.entities.records.push_back(marker);rejects([&]{other.make();},"marker/gate conflict fail closed");}
 void saved_editor_marker_origins() {
- const std::array<std::pair<int,unsigned>,5> sources{{{175,3},{175,4},{165,3},{165,4},{165,5}}};
+ const std::array<std::pair<int,unsigned>,7> sources{{
+  {175,3},{175,4},{165,3},{165,4},{165,5},{183,3},{183,4}}};
  for (const auto [type,schema]:sources) {
   Fixture f;
   auto marker=f.source(start);
@@ -54,8 +55,8 @@ void saved_editor_marker_origins() {
    rejects([&]{bad.make();},message);
   };
   mutate([](auto&e){e.provenance.base_schema=6;},"unknown marker base schema rejected");
-  if (type==175)
-   mutate([](auto&e){e.provenance.base_schema=5;},"unevidenced exit schema combination rejected");
+  if (type==175 || type==183)
+   mutate([](auto&e){e.provenance.base_schema=5;},"unevidenced point-marker schema combination rejected");
   mutate([](auto&e){e.provenance.wrapper_schema=2;},"unknown marker wrapper rejected");
   mutate([](auto&e){e.provenance.extended_schema=2;},"unknown marker state schema rejected");
   mutate([](auto&e){e.provenance.class_wrapper_schema=1;},"unknown marker class wrapper rejected");
@@ -110,6 +111,27 @@ void saved_editor_marker_origins() {
          !reserved->building_allowed({100,110}) && !reserved->road_allowed({101,110}) &&
          !reserved->building_allowed({101,110}),
          "literal water cells stay blocked; editor marker does not clear water or create roads");
+  }
+  if (type==183) {
+   // Literal authored expectations, independent of the classifier: a saved
+   // point is protected even when current terrain/objects no longer describe
+   // an empty grass cell. No surrounding physical square is inferred.
+   for (const auto [terrain_word,objects_word]:
+        std::array<std::pair<unsigned,unsigned>,3>{{{0,0},{0x80,0},{0x80,1}}}) {
+    auto point=f;
+    point.map.terrain_raw.values[raw(start)]=terrain_word;
+    point.map.objects_raw.values[raw(start)]=objects_word;
+    const auto reserved=point.make();
+    check(reserved->protected_original({100,110}) && !reserved->road_allowed({100,110}) &&
+          !reserved->building_allowed({100,110}) &&
+          reserved->road_allowed({101,110}) && reserved->building_allowed({101,110}) &&
+          !reserved->protected_original({101,110}) && reserved->cell_height({100,110})==-1,
+          "saved type183 point protects exact origin without changing neighbors or signed height");
+   }
+   for (std::uint8_t status:std::array<std::uint8_t,3>{1,4,255})
+    mutate([status](auto&e){e.status=status;},"other active type183 statuses remain unsupported");
+   mutate([](auto&e){e.entity_class=static_cast<maps::OriginalEntityClass>(255);},
+          "invalid source class remains unsupported");
   }
   auto inactive=f;inactive.entities.records[0].status=0;
   check(inactive.make()->road_allowed({100,110}) && !inactive.make()->protected_original({100,110}),

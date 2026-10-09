@@ -73,6 +73,18 @@ OriginalOccupancy original_occupancy(const OriginalEntityRecord& entity) {
             entity.provenance.extended_schema==1 && entity.provenance.class_wrapper_schema==0)
             return OriginalOccupancy::MarkerOrigin;
         break;
+    case 183:
+        // The evidenced editor/undo paths store a coordinate point; physical
+        // standalone restore skips this type. Protect each saved origin under
+        // the existing marker contract, without importing fauna behavior or
+        // treating side zero alone as permission. Only these saved states are
+        // evidenced. See docs/reverse/original-occupancy-pass-next.md.
+        if (entity.status==3 && entity.subindex==0 &&
+            (entity.provenance.base_schema==3 || entity.provenance.base_schema==4) &&
+            entity.provenance.wrapper_schema==1 && entity.provenance.extended_schema==1 &&
+            entity.provenance.class_wrapper_schema==0)
+            return OriginalOccupancy::MarkerOrigin;
+        break;
     default: break;
     }
     return OriginalOccupancy::Unsupported;
