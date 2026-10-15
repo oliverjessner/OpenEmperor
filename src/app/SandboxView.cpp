@@ -1683,8 +1683,11 @@ void SandboxView::cancel_gesture() {
     ui_pressed_=false;
     map_pressed_=false;
     road_start_.reset();
+    // Only rebuild (and invalidate the submitted frame) when ramp visuals exist to clear;
+    // otherwise every click would discard the hit-test frame before the next render.
+    const bool had_ramp_state=ramp_start_.has_value()||ramp_topology_.has_preview();
     ramp_start_.reset();ramp_preview_={};
-    refresh_ramp_visual_topology();
+    if(had_ramp_state)refresh_ramp_visual_topology();
     bridge_start_.reset();bridge_preview_={};
     road_preview_={};
     invalidate_road_preview_cache();
