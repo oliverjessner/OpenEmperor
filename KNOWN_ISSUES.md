@@ -59,6 +59,19 @@ complete original-game compatibility.
   parity. Historical Rules1–15 remain exact. See the
   [OE45 evidence](docs/original-economy/oe45-fire-coverage.md); native human
   acceptance remains open.
+- **Rule17 improves the measured whole city but does not establish full stability.**
+  Explicit Rule17/schema33 adds authored deadline-aware service selection while
+  retaining Rule16 fire dispatch and the paid economy. The selected Ancestor/Music
+  swap and south-door Watch plan retains Elite17 over5293→25693 with400/400 needs,
+  zero target fire/devolution/vacancy and+5188 operating Funds. Across all13 occupied
+  Houses, current failures fall391→95 and service failures328→2; Food misses18→15,
+  devolutions25→8 and all-body fire starts164→91. However FoodQuality failures
+  increase80→93,14 House fires and7900 burning House ticks remain, and some Houses
+  have worse Food gaps. This meets the stated intermediate aggregate thresholds,
+  not5200/5200 uninterrupted needs or universal fairness. Historical Rules1–16 and
+  schemas1–32 remain separate. See the
+  [OE46 assessment](docs/original-economy/oe46-citywide-reliability.md); native human
+  acceptance remains unrun.
 - **High-tier progression has a bounded Rule12 blocker.** The
   [paid high-tier check](docs/original-economy/oe38-paid-high-tier-progression.md)
   reaches Common10 through actual purchases and deliveries, but does not hold it
