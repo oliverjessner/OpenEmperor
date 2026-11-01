@@ -43,7 +43,7 @@ whole-city stability, original runtime parity or native human acceptance.
 ## All13 Houses and the first proven causes
 
 Every House has400 real phase39 inputs in the retention window. The private
-`gate-b-service-fire-01/profile.json` retains all5200 inputs, all328 individual
+`gate-b-service-fire-01/profile.json` joins all5200 inputs and retains all328 individual
 service failures, actual last-arrival witnesses, phase35 expiry, current physical
 trips, the next observed successful visit, source/destination fires and all25
 devolution inputs. A physical earliest-arrival bound is explicitly optimistic:
@@ -113,3 +113,60 @@ The city harvests701 Food portions, consumes632 and misses18 of650 demands;
 physical stock plus cargo grows51→120. Neither empty House stock nor an expired
 timer establishes an aggregate production shortage. No original-model bug (H)
 is inferred from these authored transport and dispatch observations.
+
+The complementary private `gate-b-supply-01/complete-house-source-supply-profiles-v03.json`
+contains all5200 complete current/next requirement records, exact entry/end
+House/source fire and inventory state, incoming reservations, water/service
+timers and witnesses,52 non-House source profiles and44 actual actor profiles.
+It records all25 devolution inputs,18 Food-miss contexts,9 Food and3 Goods
+refusals with preserved physical returns. One Goods refusal5444 is a carry-in
+transaction returned5559. Actor phase totals reconcile to897600 actor ticks:
+331463 idle,279835 outward and286302 returning, including real between-tick
+Paper-controller cancellations. The separate OE46 entry/result cache checkpoints
+read production-prepared routes without searching or changing World.
+
+## Paid controls before any engine change
+
+`run-01/paid-controls-independent-audit-01.json` checks all ten attempts against
+the unchanged Rule16 engine, including complete checkpoints, mass, Funds,
+installed816-tick invoices, paid receipts, real evaluation events, actual fires
+and Inspector traces. The original near-Watch/grid layout, paid population gates,
+Paper controller, model prices and construction/worker limits remain the base.
+No controller selects or favors a House ID.
+
+All six actual retention comparisons begin at their own earned16→17 transition
+and last exactly20400 ticks. Different entry dates make these equal-duration
+observations, not equal-calendar single-variable causal experiments.
+
+| Paid contrast | Entry→end | Elite needs /400 | Elite fire ticks | City current/service fails | Food misses | House devolutions | Fire starts | Operating Funds |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| OE45 baseline |5446→25846 |400 |0 |391/328 |18 |25 |164 |+4951 |
+| Ancestor/Music site swap |5446→25846 |394 |0 |287/200 |18 |19 |160 |+5208 |
+| Existing second Market at(125,140) |4120→24520 |399 |600 |458/327 |15 |25 |137 |+4999 |
+| Two additional paid Markets |5038→25438 |400 |1790 |317/265 |6 |20 |156 |+3531 |
+| Ancestor/Music swap, earlier Ancestor purchase |7384→27784 |294 |2340 |458/355 |13 |26 |162 |+2348 |
+| Ancestor/Music swap plus four Markets |5038→25438 |342 |1790 |210/158 |6 |11 |156 |+3641 |
+| Ancestor/Music swap plus south-door Watch |5752→26152 |395 |0 |250/120 |19 |14 |116 |+4875 |
+
+The matched2×2 Music swap puts the second Ancestor at(130,137) and its normally
+paused Music source at(134,131). It retains purchases, prices and installed
+workers. Earlier purchase moves only that Ancestor to the existing population
+phase2. The south-door contrast moves the second paid Watch to(129,135).
+Four-Market plans buy the two existing optional Market nodes at(127,140) and
+(126,140), retain their actual employees and pay their construction/upkeep.
+
+Two alternative Ancestor locations, the omitted medical sites(110,117) and
+(110,122), completed40000 actual search ticks without earning Elite17. Their
+483/186/64/28/221 and455/188/58/22/250 current/service/Food/devolution/fire
+counts are explicitly **not**20400-tick retention comparisons. Two proposed
+Acrobat/Drama swaps were refused before a World window by the full-footprint
+road reservation check: those culture bodies are3×3, unlike the2×2 Ancestor.
+These are preserved layout refusals, not completed gameplay counterexamples.
+
+No paid control meets the joint mandatory Elite retention and city intermediate
+criteria. The south-door Music swap halves service failures but has250 current
+failures,19 Food misses and five Elite Ancestor misses. The four-Market Music
+swap reaches158 service failures and210 current failures but loses Elite needs
+and fire retention. The standalone Music swap's six Elite misses are all Ancestor,
+at14575/14626/14677/14728/14779/14830. These measured service-selection gaps,
+after the legal controls, justify examining a separate narrow generation.
