@@ -19,7 +19,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     CancelUpgrade, ToggleAutosave, ToggleSaveView, DeleteRecovery, ConfirmDeleteRecovery,
     CancelDeleteRecovery, GreatWallChoice, RecheckMap, BridgesChoice, RampsChoice,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
-    OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame,
+    OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame,
     MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 constexpr const char* difficulty_names[]={"Very Easy","Easy","Normal","Hard","Very Hard"};
 std::string original_save_status(bool enabled) {
@@ -187,7 +187,8 @@ void MenuSession::open_dialog(DialogKind kind) {
 std::optional<maps::MapRulesRequest> MenuSession::selected_map_request() const {
     if (map_index_>=catalog_.entries.size() || catalog_.data_root.empty()) return std::nullopt;
     const auto profile=original_new_game_ ? simulation::RulesProfile::CityV16:settings_.profile;
-    const auto version=original_new_game_ ? (original_deadline_fire_dispatch_new_game_ ? simulation::kOriginalDeadlineFireDispatchRuleVersion:
+    const auto version=original_new_game_ ? (original_deadline_service_dispatch_new_game_ ? simulation::kOriginalDeadlineServiceDispatchRuleVersion:
+             original_deadline_fire_dispatch_new_game_ ? simulation::kOriginalDeadlineFireDispatchRuleVersion:
              original_inspector_coordination_new_game_ ? simulation::kOriginalInspectorCoordinationRuleVersion:
         original_cardinal_water_new_game_ ? simulation::kOriginalCardinalWaterRuleVersion:original_market_logistics_new_game_ ? simulation::kOriginalMarketLogisticsRuleVersion:
         original_sustainable_economy_new_game_ ? simulation::kOriginalSustainableRuleVersion:original_fire_protection_new_game_ ?
@@ -273,20 +274,24 @@ void MenuSession::finish_loading() {
             maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8,great_wall_mode_,
             starting_map_check_ && !document ? starting_map_check_->input_sha256:std::string{},
             document ? simulation::original_cardinal_terrain_enabled(document->world.profile,document->world.rule_version):
-                (original_cardinal_water_new_game_||original_inspector_coordination_new_game_||original_deadline_fire_dispatch_new_game_));
+                (original_cardinal_water_new_game_||original_inspector_coordination_new_game_||original_deadline_fire_dispatch_new_game_||original_deadline_service_dispatch_new_game_));
         if (upgrade_copy_ || recovery_load) {
             save_path=new_save_target(app_root_,settings_.data_root);
         }
         const bool original=document ? simulation::original_production_enabled(profile,document->world.rule_version):
             original_new_game_;
         const auto version=document ? document->world.rule_version:original ?
-            (original_deadline_fire_dispatch_new_game_ ? simulation::kOriginalDeadlineFireDispatchRuleVersion:
+            (original_deadline_service_dispatch_new_game_ ? simulation::kOriginalDeadlineServiceDispatchRuleVersion:
+             original_deadline_fire_dispatch_new_game_ ? simulation::kOriginalDeadlineFireDispatchRuleVersion:
              original_inspector_coordination_new_game_ ? simulation::kOriginalInspectorCoordinationRuleVersion:
              original_cardinal_water_new_game_ ? simulation::kOriginalCardinalWaterRuleVersion:original_market_logistics_new_game_ ? simulation::kOriginalMarketLogisticsRuleVersion:
              original_sustainable_economy_new_game_ ? simulation::kOriginalSustainableRuleVersion:
              original_fire_protection_new_game_ ? simulation::kOriginalFireProtectionRuleVersion:simulation::kOriginalProductionRuleVersion):
             ramps_new_game_ && profile==simulation::RulesProfile::CityV16 ? 6U:bridges_new_game_ && profile==simulation::RulesProfile::CityV16 ? 5U:simulation::current_rule_version(profile);
-        auto view=simulation::original_deadline_fire_dispatch_enabled(profile,version) ?
+        auto view=simulation::original_deadline_service_dispatch_enabled(profile,version) ?
+            SandboxView::create_original_deadline_service_dispatch(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_):
+            simulation::original_deadline_fire_dispatch_enabled(profile,version) ?
             SandboxView::create_original_deadline_fire_dispatch(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_):
             simulation::original_inspector_coordination_enabled(profile,version) ?
@@ -451,6 +456,7 @@ void MenuSession::perform(int action) {
         switch (action) {
         case ChooseFolder: open_dialog(DialogKind::Folder); break;
         case NewGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_deadline_fire_dispatch_new_game_=false;
             original_inspector_coordination_new_game_=false;
             original_cardinal_water_new_game_=false;
@@ -459,6 +465,7 @@ void MenuSession::perform(int action) {
             original_fire_protection_new_game_=false;
             original_new_game_=false;advanced_visuals_open_=false;set_state(State::NewSandbox);break;
         case OriginalNewGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_deadline_fire_dispatch_new_game_=false;
             original_inspector_coordination_new_game_=false;
             original_cardinal_water_new_game_=false;
@@ -468,6 +475,7 @@ void MenuSession::perform(int action) {
             original_new_game_=true;advanced_visuals_open_=false;set_state(State::NewSandbox);
             message_=original_save_status(settings_.autosave_enabled);break;
         case OriginalFireProtectionNewGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_deadline_fire_dispatch_new_game_=false;
             original_inspector_coordination_new_game_=false;
             original_cardinal_water_new_game_=false;
@@ -478,6 +486,7 @@ void MenuSession::perform(int action) {
             message_="Rule11: authored paid Fire Watch and real Inspector visits; "+
                 original_save_status(settings_.autosave_enabled);break;
         case OriginalSustainableEconomyNewGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_deadline_fire_dispatch_new_game_=false;
             original_inspector_coordination_new_game_=false;
             original_cardinal_water_new_game_=false;
@@ -487,6 +496,7 @@ void MenuSession::perform(int action) {
             message_="Rule12: three paid Food chains, authored upkeep and paid fire protection; "+
                 original_save_status(settings_.autosave_enabled);break;
         case OriginalMarketLogisticsNewGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_deadline_fire_dispatch_new_game_=false;
             original_inspector_coordination_new_game_=false;
             original_cardinal_water_new_game_=false;
@@ -496,6 +506,7 @@ void MenuSession::perform(int action) {
             message_="Rule13: authored needs-aware goods distribution; "+
                 original_save_status(settings_.autosave_enabled);break;
         case OriginalCardinalWaterNewGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_deadline_fire_dispatch_new_game_=false;
             original_inspector_coordination_new_game_=false;
             original_new_game_=true;original_fire_protection_new_game_=false;
@@ -505,6 +516,7 @@ void MenuSession::perform(int action) {
             message_="Rule14: cardinal-water house desirability, inherited needs-aware logistics; "+
                 original_save_status(settings_.autosave_enabled);break;
         case OriginalInspectorCoordinationNewGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_deadline_fire_dispatch_new_game_=false;
             original_new_game_=true;original_fire_protection_new_game_=false;
             original_sustainable_economy_new_game_=false;original_market_logistics_new_game_=false;
@@ -513,12 +525,21 @@ void MenuSession::perform(int action) {
             message_="Rule15: authored Inspector coordination, inherited cardinal-water economy; "+
                 original_save_status(settings_.autosave_enabled);break;
         case OriginalDeadlineFireDispatchNewGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_new_game_=true;original_fire_protection_new_game_=false;
             original_sustainable_economy_new_game_=false;original_market_logistics_new_game_=false;
             original_cardinal_water_new_game_=false;original_inspector_coordination_new_game_=false;
             original_deadline_fire_dispatch_new_game_=true;
             advanced_visuals_open_=false;set_state(State::NewSandbox);
             message_="Rule16: authored deadline-aware fire dispatch, inherited cardinal-water economy; "+
+                original_save_status(settings_.autosave_enabled);break;
+        case OriginalDeadlineServiceDispatchNewGame:
+            original_new_game_=true;original_fire_protection_new_game_=false;
+            original_sustainable_economy_new_game_=false;original_market_logistics_new_game_=false;
+            original_cardinal_water_new_game_=false;original_inspector_coordination_new_game_=false;
+            original_deadline_fire_dispatch_new_game_=false;original_deadline_service_dispatch_new_game_=true;
+            advanced_visuals_open_=false;set_state(State::NewSandbox);
+            message_="Rule17: authored deadline-aware services, inherited paid fire dispatch; "+
                 original_save_status(settings_.autosave_enabled);break;
         case OriginalDifficulty:
             if (state_==State::NewSandbox && original_new_game_) {
@@ -533,6 +554,7 @@ void MenuSession::perform(int action) {
             }
             break;
         case LoadGame:
+            original_deadline_service_dispatch_new_game_=false;
             original_deadline_fire_dispatch_new_game_=false;
             original_inspector_coordination_new_game_=false;
             original_cardinal_water_new_game_=false;
@@ -764,6 +786,8 @@ void MenuSession::handle_event(const SDL_Event& event) {
             activate_button(OriginalMarketLogisticsNewGame);
         } else if (event.key.key==SDLK_W && state_==State::MainMenu) {
             activate_button(OriginalCardinalWaterNewGame);
+        } else if (event.key.key==SDLK_T && state_==State::MainMenu) {
+            activate_button(OriginalDeadlineServiceDispatchNewGame);
         } else if (event.key.key==SDLK_D && state_==State::MainMenu) {
             activate_button(OriginalDeadlineFireDispatchNewGame);
         } else if (event.key.key==SDLK_I && state_==State::MainMenu) {
@@ -878,15 +902,16 @@ void MenuSession::rebuild_buttons() {
         buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,sandbox_?244:208,210);
         add(OriginalInspectorCoordinationNewGame,"I Inspector coordination",40,sandbox_?280:244,230);
-        add(OriginalDeadlineFireDispatchNewGame,"D Deadline-aware fire dispatch",280,109,280);
-        add(OriginalNewGame,"O Original economy",280,145,280);
-        add(OriginalFireProtectionNewGame,"F Original fire protection",280,181,280);
-        add(OriginalSustainableEconomyNewGame,"S Sustainable economy",280,217,280);
-        add(OriginalMarketLogisticsNewGame,"M Needs-aware logistics",280,253,280);
-        add(OriginalCardinalWaterNewGame,"W Cardinal-water economy",280,289,280);
+        add(OriginalDeadlineFireDispatchNewGame,"D Deadline-aware fire dispatch",280,88,280);
+        add(OriginalDeadlineServiceDispatchNewGame,"T Deadline-aware services",280,326,280);
+        add(OriginalNewGame,"O Original economy",280,122,280);
+        add(OriginalFireProtectionNewGame,"F Original fire protection",280,156,280);
+        add(OriginalSustainableEconomyNewGame,"S Sustainable economy",280,190,280);
+        add(OriginalMarketLogisticsNewGame,"M Needs-aware logistics",280,224,280);
+        add(OriginalCardinalWaterNewGame,"W Cardinal-water economy",280,258,280);
         if (sandbox_ && sandbox_->world().original_production_enabled()) {
-            add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",280,325,280);
-        } else add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",280,325,280);
+            add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",280,292,280);
+        } else add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",280,292,280);
         if (settings_reset_required_) {
             if (sandbox_ && sandbox_->world().original_production_enabled())
                 add(ResetSettings,"Reset preferences",40,sandbox_?316:280,210);
@@ -998,7 +1023,8 @@ bool MenuSession::render() {
     };
     const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?"OpenEmperor":state_==State::NewSandbox?
-            (original_new_game_ ? (original_deadline_fire_dispatch_new_game_ ? "New deadline-aware fire dispatch":
+            (original_new_game_ ? (original_deadline_service_dispatch_new_game_ ? "New deadline-aware services":
+                original_deadline_fire_dispatch_new_game_ ? "New deadline-aware fire dispatch":
                 original_inspector_coordination_new_game_ ? "New Inspector coordination":
                 original_cardinal_water_new_game_ ? "New cardinal-water economy":original_market_logistics_new_game_ ? "New needs-aware logistics":
                 original_sustainable_economy_new_game_ ? "New Sustainable economy":original_fire_protection_new_game_ ?
@@ -1017,7 +1043,7 @@ bool MenuSession::render() {
     } else if (state_==State::MainMenu) {
         if (!label(40,56,std::string(version::display))) return false;
         if (!label(40,70,"Experimental sandbox using your own Emperor game data")) return false;
-        if (!label(280,89,"Original data: Ready")) return false;
+        if (!label(280,79,"Original data: Ready")) return false;
         if (sandbox_ && !label(40,88,"Retained tick "+std::to_string(sandbox_->world().ticks())+
             (sandbox_->dirty()?" (unsaved)":" (saved)"))) return false;
     } else if (state_==State::NewSandbox && original_new_game_ && map_index_<catalog_.entries.size()) {
@@ -1026,7 +1052,8 @@ bool MenuSession::render() {
         auto map_name="Map "+std::to_string(map_index_+1)+" / "+std::to_string(catalog_.entries.size())+
             ": "+e.relative_path.generic_string();
         if (map_name.size()>columns) map_name=map_name.substr(0,columns-3)+"...";
-        if (!label(40,55,original_deadline_fire_dispatch_new_game_ ?
+        if (!label(40,55,original_deadline_service_dispatch_new_game_ ?
+                "Rule17 | authored deadline-aware services | Rule16 fire dispatch":original_deadline_fire_dispatch_new_game_ ?
                 "Rule16 | authored deadline-aware fire dispatch | Rule14 economy":original_inspector_coordination_new_game_ ?
                 "Rule15 | authored Inspector coordination | Rule14 economy":original_cardinal_water_new_game_ ?
                 "Rule14 | cardinal-water house desirability":original_market_logistics_new_game_ ?
@@ -1132,7 +1159,8 @@ bool MenuSession::render() {
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
             if (e.error.empty() && simulation::original_production_enabled(
                     simulation::RulesProfile::CityV16,e.rule_version) &&
-                e.schema==(e.rule_version==simulation::kOriginalDeadlineFireDispatchRuleVersion ? 32U:
+                e.schema==(e.rule_version==simulation::kOriginalDeadlineServiceDispatchRuleVersion ? 33U:
+                    e.rule_version==simulation::kOriginalDeadlineFireDispatchRuleVersion ? 32U:
                     e.rule_version==simulation::kOriginalInspectorCoordinationRuleVersion ? 31U:
                     e.rule_version==simulation::kOriginalCardinalWaterRuleVersion ? 30U:
                     e.rule_version==simulation::kOriginalMarketLogisticsRuleVersion ? 29U:

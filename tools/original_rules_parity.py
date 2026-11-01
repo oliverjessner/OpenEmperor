@@ -26,13 +26,13 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
                                    "original-goods-ledger", "original-goods-rules",
                                    "original-service-rules",
                                    "original-house-evolution", "original-model")
-# Reviewed additive Rules13-16 API: the actual fourth-module probe retains its
-# historical HouseholdV3/CityV7 calls. Rule16 adds explicit factories and
+# Reviewed additive Rules13-17 API: the actual fourth-module probe retains its
+# historical HouseholdV3/CityV7 calls. Rule17 adds explicit factories and
 # constexpr predicates, without World/DTO fields or legacy-default changes.
 # Matching archives are freshly linked; these exact headers do not certify
 # the new rules' gameplay, dispatch or terrain logic.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
-    "World.h": "44e5aac47eb1b962bba0406f68d5189bd4aa9ea5",
+    "World.h": "241ea6cbb97c5195cd2bd5d0063c7548a5e65a43",
     "OriginalTerrainFacts.h": "1a24ed7cb80a0152560b76d9445c04e5b0829ed5",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",
 }

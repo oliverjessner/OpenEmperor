@@ -28,7 +28,7 @@ struct SaveDocument {
     std::shared_ptr<const simulation::MapPermissions> prepared_permissions;
     // Session dependency only; never serialized or restored from JSON.
     std::shared_ptr<const original::OriginalRulesModel> prepared_original_rules_model;
-    // Rule14/15 immutable source-map dependency only; never serialized authority.
+    // Rule14–17 immutable source-map dependency only; never serialized authority.
     std::shared_ptr<const simulation::OriginalTerrainFacts> prepared_original_terrain_facts;
 };
 
@@ -123,6 +123,14 @@ simulation::World restore_original_inspector_coordination(
 // Schema32/Rule16 is a separate explicit authored deadline-aware Inspector dispatch contract.
 // It inherits Rule14's immutable live-map terrain binding, never its generation.
 simulation::World restore_original_deadline_fire_dispatch(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema33/Rule17 explicitly selects authored deadline-aware service dispatch.
+// It retains Rule16's terrain/fire contracts and existing mutable save authority.
+simulation::World restore_original_deadline_service_dispatch(
     const SaveDocument& document,const std::filesystem::path& data_root,
     std::vector<std::uint8_t> buildable,
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,

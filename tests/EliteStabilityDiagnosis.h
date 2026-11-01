@@ -34,7 +34,7 @@ class Observation {
 public:
     Observation(const sim::World& w,const std::filesystem::path& output):
         begin_(w.ticks()),file_(output/"oe44-timeline.jsonl") {
-        check(w.original_cardinal_water_enabled()&&(w.rule_version()==14||w.original_inspector_coordination_enabled()||w.original_deadline_fire_dispatch_enabled()),
+        check(w.original_cardinal_water_enabled()&&(w.rule_version()==14||w.original_inspector_coordination_enabled()||w.original_deadline_fire_dispatch_enabled()||w.original_deadline_service_dispatch_enabled()),
             "OE44 diagnosis requires exact Rule14 or explicit Inspector coordination Rule15");
         check(!std::filesystem::exists(file_),"Preserve previous OE44 timeline");
         stream_.open(file_,std::ios::out|std::ios::binary);
@@ -143,6 +143,9 @@ public:
             {"candidate_selection_explanation","UNPROVEN; private Warehouse/Market selector not duplicated"},
             {"historical_report_format_changed",false},{"native_human","NOT_RUN"}};
     }
+    // Explicit QA checkpoint access to the same read-only prepared-cache
+    // observer; no Navigator query, refresh, World copy or saved authority.
+    static Json prepared_routes(const sim::World& w) {return route_cache(w);}
 private:
     static Json staffing(const Sample& s) {
         Json rows=Json::array();for(const auto& [id,b]:s.bodies)rows.push_back({{"id",id},

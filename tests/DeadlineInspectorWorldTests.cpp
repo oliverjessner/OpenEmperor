@@ -64,7 +64,7 @@ void exact_identity_and_historical_generations() {
         !sim::original_inspector_coordination_enabled(w.profile(),16)&&
         sim::current_rule_version(sim::RulesProfile::CityV16)==4&&
         sim::current_rule_version(sim::RulesProfile::CityV11)==3&&
-        !sim::rule_version_supported(w.profile(),17),"Rule16 widened historical identity/defaults");
+        !sim::rule_version_supported(w.profile(),18),"Rule16 widened historical identity/defaults");
     refuses([&]{sim::World ordinary(fxt.policy,sim::RulesProfile::CityV16,16);},"Ordinary constructor enabled Rule16");
     refuses([&]{(void)sim::World::create_original_deadline_fire_dispatch(fxt.policy,fxt.model,nullptr);},"Missing terrain accepted");
     auto old=fxt.old();

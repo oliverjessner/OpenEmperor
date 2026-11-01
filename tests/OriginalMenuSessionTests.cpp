@@ -122,7 +122,7 @@ void expect_legacy_preferences(const Menu& menu) {
 void check_bounds(const Menu& menu,const std::string& label,float width=600,float height=400) {
     const auto r=menu.diagnostic_button_rect(label);
     check(r && r->x>=0 && r->y>=0 && r->x+r->w<=width && r->y+r->h<=height-42,
-        "Original control exceeds the actual minimum-size menu aperture or footer");
+        "Original control exceeds the actual menu aperture or footer");
 }
 std::map<fs::path,std::string> recovery_files(const fs::path& root) {
     std::map<fs::path,std::string> result;
@@ -195,10 +195,10 @@ void capture_failure_recovery(SDL_Window* window,SDL_Renderer* renderer) {
           "Optional Recovery capture failure prevented candidate commit or changed prior files");
     fs::rename(held,model);menu.shutdown();
 }
-void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustainable=false,bool logistics=false,bool cardinal=false,bool coordination=false,bool deadline=false) {
-    const auto rule=deadline ? 16U:coordination ? 15U:cardinal ? 14U:logistics ? 13U:sustainable ? 12U:11U,
-        schema=deadline ? 32U:coordination ? 31U:cardinal ? 30U:logistics ? 29U:sustainable ? 28U:27U;
-    const auto option=deadline ? "D Deadline-aware fire dispatch":coordination ? "I Inspector coordination":cardinal ? "W Cardinal-water economy":logistics ? "M Needs-aware logistics":sustainable ? "S Sustainable economy":"F Original fire protection";
+void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustainable=false,bool logistics=false,bool cardinal=false,bool coordination=false,bool deadline=false,bool service_deadline=false,float width=600,float height=400) {
+    const auto rule=service_deadline ? 17U:deadline ? 16U:coordination ? 15U:cardinal ? 14U:logistics ? 13U:sustainable ? 12U:11U,
+        schema=service_deadline ? 33U:deadline ? 32U:coordination ? 31U:cardinal ? 30U:logistics ? 29U:sustainable ? 28U:27U;
+    const auto option=service_deadline ? "T Deadline-aware services":deadline ? "D Deadline-aware fire dispatch":coordination ? "I Inspector coordination":cardinal ? "W Cardinal-water economy":logistics ? "M Needs-aware logistics":sustainable ? "S Sustainable economy":"F Original fire protection";
     // Independently authored map/model: normal MenuSession and production View,
     // ordinary paid World commands and actual SDL F5/F9. Real Xia acceptance
     // remains a separate original-data run.
@@ -209,18 +209,20 @@ void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustain
     expect_legacy_preferences(menu);
     check(!menu.original_setup() && !menu.original_fire_protection_setup() && !menu.original_sustainable_economy_setup() &&
         !menu.original_market_logistics_setup() && !menu.original_cardinal_water_setup() &&
-        !menu.original_inspector_coordination_setup() && !menu.original_deadline_fire_dispatch_setup(),"Original successor became a fresh-menu default");
-    check_bounds(menu,option);
-    check_bounds(menu,"M Needs-aware logistics");check_bounds(menu,"Autosave: ON");
+        !menu.original_inspector_coordination_setup() && !menu.original_deadline_fire_dispatch_setup() &&
+        !menu.original_deadline_service_dispatch_setup(),"Original successor became a fresh-menu default");
+    const auto bounds=[&](const std::string& label){check_bounds(menu,label,width,height);};
+    bounds(option);
+    bounds("M Needs-aware logistics");bounds("Autosave: ON");
     const auto logistics_rect=menu.diagnostic_button_rect("M Needs-aware logistics"),autosave_rect=menu.diagnostic_button_rect("Autosave: ON");
     check(logistics_rect && autosave_rect && !SDL_HasRectIntersectionFloat(&*logistics_rect,&*autosave_rect),
         "Explicit logistics entry overlaps Autosave at minimum window size");
-    check_bounds(menu,"W Cardinal-water economy");
+    bounds("W Cardinal-water economy");
     const auto water_rect=menu.diagnostic_button_rect("W Cardinal-water economy");
     check(water_rect && autosave_rect && logistics_rect &&
         !SDL_HasRectIntersectionFloat(&*water_rect,&*autosave_rect) &&
         !SDL_HasRectIntersectionFloat(&*water_rect,&*logistics_rect),"Rule14 entry overlaps another menu action");
-    check_bounds(menu,"I Inspector coordination");
+    bounds("I Inspector coordination");
     const auto inspector_rect=menu.diagnostic_button_rect("I Inspector coordination");
     for(const auto& label:{"O Original economy","F Original fire protection","S Sustainable economy",
                           "M Needs-aware logistics","W Cardinal-water economy","D Deadline-aware fire dispatch","Autosave: ON"}) {
@@ -228,8 +230,23 @@ void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustain
         check(inspector_rect && other && !SDL_HasRectIntersectionFloat(&*inspector_rect,&*other),
             "Rule15 entry overlaps an existing menu action");
     }
-    check_bounds(menu,"D Deadline-aware fire dispatch");
-    if(deadline) {
+    bounds("D Deadline-aware fire dispatch");
+    bounds("T Deadline-aware services");
+    const auto service_rect=menu.diagnostic_button_rect("T Deadline-aware services");
+    for(const auto& label:{"D Deadline-aware fire dispatch","O Original economy","F Original fire protection",
+                          "S Sustainable economy","M Needs-aware logistics","W Cardinal-water economy","Autosave: ON"}) {
+        const auto other=menu.diagnostic_button_rect(label);
+        check(service_rect&&other&&!SDL_HasRectIntersectionFloat(&*service_rect,&*other),
+            "Rule17 entry overlaps another action at minimum window size");
+    }
+    if(service_deadline) {
+        key(menu,SDLK_T);wait_check(menu);
+        check(menu.original_deadline_service_dispatch_setup()&&menu.map_rules_result().request.rule_version==17,
+            "T key did not select the explicit Rule17 preflight");
+        key(menu,SDLK_ESCAPE);
+        check(menu.state()==Menu::State::MainMenu,"Rule17 setup did not return to the main menu");
+        click(menu,window,renderer,option);
+    } else if(deadline) {
         key(menu,SDLK_D);wait_check(menu);
         check(menu.original_deadline_fire_dispatch_setup() && menu.map_rules_result().request.rule_version==16,
             "D key did not select the explicit Rule16 preflight");
@@ -245,10 +262,11 @@ void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustain
         click(menu,window,renderer,option); // Mouse and keyboard select the same action.
     } else if(cardinal)key(menu,SDLK_W);else if(logistics)key(menu,SDLK_M);else click(menu,window,renderer,option);
     wait_check(menu);
-    check(menu.original_setup() && menu.original_fire_protection_setup()==(!sustainable&&!logistics&&!cardinal&&!coordination&&!deadline) &&
+    check(menu.original_setup() && menu.original_fire_protection_setup()==(!sustainable&&!logistics&&!cardinal&&!coordination&&!deadline&&!service_deadline) &&
         menu.original_sustainable_economy_setup()==sustainable &&
         menu.original_market_logistics_setup()==logistics && menu.original_cardinal_water_setup()==cardinal &&
         menu.original_inspector_coordination_setup()==coordination && menu.original_deadline_fire_dispatch_setup()==deadline &&
+        menu.original_deadline_service_dispatch_setup()==service_deadline &&
         menu.map_rules_result().request.rule_version==rule && menu.map_rules_result().request.policy_version==3,
         "Explicit Rule11 menu option did not preflight its own policy3 contract");
     key(menu,SDLK_RETURN);finish_load(menu);
@@ -257,7 +275,8 @@ void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustain
         "Rule11 menu did not buy the actual four-house plan and publish it paused");
     auto& view=*menu.sandbox();
     check(view.world().original_inspector_coordination_enabled()==coordination &&
-        view.world().original_deadline_fire_dispatch_enabled()==deadline,
+        view.world().original_deadline_fire_dispatch_enabled()==deadline &&
+        view.world().original_deadline_service_dispatch_enabled()==service_deadline,
         "Menu session changed the exact Inspector coordination opt-in");
     const auto tool=std::find_if(view.layout().buttons.begin(),view.layout().buttons.end(),
         [](const auto& button){return button.action==oe::sandbox_ui::Action::FireWatch;});
@@ -276,7 +295,7 @@ void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustain
     const auto check_watch_invoice=[&] {
         check(view.selected_building()==watch,"Paid Watch lost its actual inspection selection");
         std::string text;for(const auto& line:view.inspection_lines())text+=line+" ";
-        const auto interval=sustainable||logistics||cardinal||coordination||deadline ? 816U:400U;
+        const auto interval=sustainable||logistics||cardinal||coordination||deadline||service_deadline ? 816U:400U;
         const auto due=view.world().maintenance_due_in(watch);
         check(due && text.find("Maintenance: 4 every "+std::to_string(interval)+" ticks")!=std::string::npos &&
             text.find("Next due: "+std::to_string(*due ? *due:interval)+" ticks")!=std::string::npos,
@@ -300,10 +319,14 @@ void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustain
         "F5 added or omitted the exact Rule15 contract marker");
     if(coordination)check(json.at("rules").at("inspector_coordination")==sim::original_inspector_coordination_contract,
         "F5 wrote another Inspector coordination contract");
-    check(json.at("rules").contains("deadline_fire_dispatch")==deadline,
+    check(json.at("rules").contains("deadline_fire_dispatch")==bool(deadline||service_deadline),
         "F5 added or omitted the exact Rule16 marker");
-    if(deadline)check(json.at("rules").at("deadline_fire_dispatch")==sim::original_deadline_fire_dispatch_contract,
+    if(deadline||service_deadline)check(json.at("rules").at("deadline_fire_dispatch")==sim::original_deadline_fire_dispatch_contract,
         "F5 wrote another deadline fire-dispatch contract");
+    check(json.at("rules").contains("deadline_service_dispatch")==service_deadline,
+        "F5 added or omitted the exact Rule17 marker");
+    if(service_deadline)check(json.at("rules").at("deadline_service_dispatch")==sim::original_deadline_service_dispatch_contract,
+        "F5 wrote another deadline service-dispatch contract");
     for (int i=0;i<20;++i) view.tick_once();
     key(menu,SDLK_F9);same(saved,view.capture_save_document());
     check(oe_influence_fixture::read_text(manual)==bytes,"Rule11 midflight F9 changed its input save bytes");
@@ -332,7 +355,8 @@ void fire_protection_menu(SDL_Window* window,SDL_Renderer* renderer,bool sustain
     Menu fresh({},app,std::move(fresh_dialog));fresh.initialize(window,renderer);
     check(!fresh.original_setup() && !fresh.original_fire_protection_setup() && !fresh.original_sustainable_economy_setup() &&
         !fresh.original_market_logistics_setup() && !fresh.original_cardinal_water_setup() &&
-        !fresh.original_inspector_coordination_setup() && !fresh.original_deadline_fire_dispatch_setup(),"Original successor selection persisted as a new-game default");
+        !fresh.original_inspector_coordination_setup() && !fresh.original_deadline_fire_dispatch_setup() &&
+        !fresh.original_deadline_service_dispatch_setup(),"Original successor selection persisted as a new-game default");
     external_load(fresh,*fresh_callbacks,window,renderer,manual);
     check(fresh.state()==Menu::State::Playing && fresh.sandbox()->world().rule_version()==rule &&
         house_count(fresh.sandbox()->world())==4,"Restart/reload changed Rule11 or repeated the paid starter");
@@ -396,14 +420,32 @@ int main(int argc,char** argv) {
             process_write(fs::absolute(argv[2]),window,renderer);
         } else if (argc==3 && std::string_view(argv[1])=="--process-load") {
             process_load(fs::absolute(argv[2]),window,renderer);
+        } else if (argc==2 && std::string_view(argv[1])=="--rule17-menu") {
+            // Keep the complete historical menu case within its unchanged
+            // deadline, while independently exercising every new Rule17 check
+            // at both actual production UI apertures.
+            fire_protection_menu(window,renderer,false,false,false,false,false,true);
+            SDL_DestroyRenderer(renderer);renderer=nullptr;
+            SDL_DestroyWindow(window);window=nullptr;
+            check(SDL_CreateWindowAndRenderer("Original Rule17 wide menu",1920,1080,
+                SDL_WINDOW_RESIZABLE,&window,&renderer),"Create actual1280x720 logical menu");
+            fire_protection_menu(window,renderer,false,false,false,false,false,true,1280,720);
         } else {
-            check(argc==1 || (argc==3 && std::string_view(argv[1])=="--capture"),"Unknown Original menu test arguments");
-            fire_protection_menu(window,renderer);
-            fire_protection_menu(window,renderer,true);
-            fire_protection_menu(window,renderer,false,true);
-            fire_protection_menu(window,renderer,false,false,true);
-            fire_protection_menu(window,renderer,false,false,false,true);
-            fire_protection_menu(window,renderer,false,false,false,false,true);
+            const bool core_only=argc==2 && std::string_view(argv[1])=="--core-menu";
+            const bool successor_only=argc==2 && std::string_view(argv[1])=="--legacy-successor-menu";
+            check(argc==1 || core_only || successor_only ||
+                (argc==3 && std::string_view(argv[1])=="--capture"),"Unknown Original menu test arguments");
+            // The no-argument lifecycle retains its complete historical order.
+            // CTest runs these same assertions as separately bounded groups.
+            if (!core_only) {
+                fire_protection_menu(window,renderer);
+                fire_protection_menu(window,renderer,true);
+                fire_protection_menu(window,renderer,false,true);
+                fire_protection_menu(window,renderer,false,false,true);
+                fire_protection_menu(window,renderer,false,false,false,true);
+                fire_protection_menu(window,renderer,false,false,false,false,true);
+            }
+            if (!successor_only) {
             capture_failure_recovery(window,renderer);
             const fs::path captures=argc==3 ? fs::absolute(argv[2]):fs::path{};
             oe::testing::economy::Temp temp;const auto root=fs::canonical(temp.root),data=root/"data",app=root/"app";
@@ -594,6 +636,7 @@ int main(int argc,char** argv) {
                 fresh.sandbox()->world().buildings().empty(),"Manual load overrode saved difficulty or repeated starter purchases");
             same(oe::persistence::read_save(manual),fresh.sandbox()->capture_save_document());expect_legacy_preferences(fresh);
             fresh.shutdown();
+            }
         }
         SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
         std::cout<<"Original menu controls, defaults and manual persistence checks passed\n";return 0;

@@ -63,6 +63,16 @@ near-Watch/grid plan with20400 consecutive Elite17 ticks,400/400 current needs,
 no target fire/devolution/vacancy and+4951 operating cashflow. Other city
 buildings still burn and miss needs; indefinite stability remains unproven.
 
+**T Deadline-aware services** separately selects authored **Rule17/schema33/Policy3**,
+also available as `--original-deadline-service-dispatch` with the explicit City-v16
+sandbox arguments. It inherits Rule16's paid fire dispatch and economy, and changes
+only real service target selection using actual expiry, travel and incoming visits.
+Only arrival renews the unchanged service timer. Its exact marker is
+`authored-deadline-service-dispatch-v1`; inherited fire/market/cardinal/source
+identities stay mandatory. Rules1–16 and their saves do not migrate. The
+[OE46 assessment](original-economy/oe46-citywide-reliability.md) records the
+separate citywide diagnosis, paid controls and gameplay acceptance.
+
 ## Legacy profiles and save compatibility
 
 These profiles remain selectable/readable for compatibility; their milestone
@@ -100,6 +110,7 @@ removal gives no refund; rejected/unchanged commands spend nothing.
 | City-v16 rule 14 | 30 | 12000 | Source-bound cardinal-water House DES; inherits Rule13 and all economy/bounds | Rule10 goal |
 | City-v16 rule 15 | 31 | 12000 | Authored Inspector coordination; exact marker, inherited Rule14 terrain/economy and unchanged bounds | Rule10 goal |
 | City-v16 rule 16 | 32 | 12000 | Authored deadline-aware Inspector dispatch; exact marker, inherited source/terrain/market/economy and unchanged costs/limits/times | Rule10 goal |
+| City-v16 rule 17 | 33 | 12000 | Authored deadline-aware service selection; exact marker, inherited Rule16 fire/economy and unchanged workers, models, costs, bounds and timers | Rule10 goal |
 
 Schemas 1–9 keep their historical fixed collection/one-cell semantics. City-v7
 has ten building/six courier entries; City-v8/v9 have eleven/seven. City-v6–8
