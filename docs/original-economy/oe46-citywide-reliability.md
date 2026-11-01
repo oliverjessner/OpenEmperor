@@ -429,6 +429,62 @@ observed fields, classifications and `baseline-lock.json` remain literal.
 the actual command, linked archives and complete comparison. This is bounded
 historical numerical/ABI evidence, not original service-dispatch parity.
 
+## Technical validation
+
+The final complete Release CTest run passes **287 of287 registered tests, zero
+skips**, in157.83s. `run-01/regression-release-ctest-06.execution.json` and
+`regression-release-test-seal-06.json` retain the exact command, inventory, native
+executable/archive identities and guarded result. All outputs stay under OE46.
+Older launchers with fixed private paths were run from a byte-identical mirror
+of authored sources inside OE46, with the original installation supplied through
+the existing explicit CMake data-root setting. No original data was copied into
+that mirror. The one production-model test that had ignored that existing setting
+now uses it; its assertions and skip behavior are unchanged.
+
+The current **54 distinct focused Debug cases** and **54 distinct focused
+ASan/UBSan cases** pass. This is reconciled coverage across the preserved initial
+suite and final affected-case reruns, not a claim that each final54-case scope
+ran in one invocation. The final paid staffing test passes Release/Debug/sanitizer
+in0.68/3.37/1.80s. Final QA-header CLI/help and argument-guard cases were rebuilt
+and retested. ASan uses `detect_leaks=0:abort_on_error=1` on this macOS run;
+UBSan uses `halt_on_error=1:print_stacktrace=1`. Native executables and all linked
+archives remain sealed during each test run.
+
+`run-01/final-regression-proof-01.json` independently reconciles the final
+registered names, arguments and properties with all passing current native
+executables and archive seals. It also verifies the774-file authored mirror used
+for the runs, all786 frozen pre-Rule17 source/archive/binary inputs and all1541
+protected original/installer/OE45 files. The final report-only completion changes
+no compiled source. Initial skips, timeouts and the private-helper incident are
+retained, rather than erased from the successful closure record.
+
+The original aggregate Debug menu case exceeded its unchanged120-second timeout,
+both under the initial suite and when isolated. Removing only the new Rule17
+flow still left the historical aggregate over that budget. Every failure is
+retained. Registration now runs three independent groups, each with the same120s
+limit and every original assertion/lifecycle call preserved:
+
+| Registered case | Scope | Debug | ASan/UBSan |
+| --- | --- | --- | --- |
+| `original-menu-session-flow --core-menu` | Complete original core menu, input, difficulty, save/Recovery and retained-session flows |33.99s |15.86s |
+| `original-menu-successor-flow --legacy-successor-menu` | All six original Rule11–16 paid successor lifecycles, in their original order |99.44s |40.33s |
+| `original-deadline-service-menu --rule17-menu` | Complete Rule17 paid/F5/F9/Recovery/restart flow at600×400 and1280×720 logical apertures |33.34s |13.63s |
+
+The no-argument executable still runs the entire historical aggregate in its
+original order; the same newly compiled Release executable passes that direct
+aggregate in11.02s. `menu-test-case-mapping-01.json` records the exact mapping and
+failed attempts. No timeout, expectation, earned precondition, model value or
+production behavior was relaxed. The first Release attempt's284 passes plus one
+missing-source skip are also retained; corrected explicit data-root runs pass
+the real test and all285 then all287 actual cases.
+
+Coverage includes real service expiry/arrival and same-role commitments,
+Watch/service competition, frozen pre-immigration staffing, source fire/pause,
+road cut/wait/repair and begun edges, complete saved authority/Recovery/F5/F9,
+hostile marker/route/Funds/source refusals, conservation and all historical
+generations. It remains distinct from human gameplay, complete city stability
+and original runtime parity.
+
 ## Reproduction
 
 Build the production application and `openemperor-elite-desirability-acceptance`
@@ -476,3 +532,27 @@ remaining fire/return delays are a separate open contract. Visual captures use
 supplied original assets read-only and do not establish complete height,
 interpenetration or scene parity. Full original parity remains **PARTIAL** even
 when the bounded historical model comparison passes.
+
+## Acceptance status
+
+These statuses apply to the selected paid5293→25693 window and the separately
+documented technical checks, not all maps, all layouts or indefinite play.
+
+| Status | Result | Evidence or remaining bound |
+| --- | --- | --- |
+| TECHNICAL | **PASS** | Complete287-test Release suite,54-case focused Debug and sanitizer coverage, independent restore and inspected software captures. Dedicated original service-only overlay unavailable. |
+| ELITE17_RETENTION | **PASS** | Actual paid type17;20400 ticks,400/400 needs, zero target fire/devolution/vacancy. |
+| CITYWIDE_IMPROVEMENT | **PASS** | All13 stay occupied/400 evaluations each; current391→95, service328→2; Food misses/devolutions/fire starts improve. |
+| CITYWIDE_STABILITY | **PARTIAL** |5105/5200 current evaluations pass; Food gaps, eight devolutions and residential fire interruptions remain. |
+| FOOD | **PARTIAL** | Missed consumptions18→15, but FoodQuality failed evaluations80→93 and per-House tradeoffs remain. |
+| SERVICES | **PARTIAL** | Two real Ancestor failures remain at House10 during fire/begun-trip interruption. |
+| FIRE | **PARTIAL** | Elite fire remains zero; city91 all-body starts,14 House starts/7900 burning House ticks. |
+| FINANCE | **PASS** | Construction5209; retention tax22438−upkeep17250=+5188; minimum Funds5168. |
+| SAVE_COMPATIBILITY | **PASS** | Exact schema33 boundaries; historical116-file corpus, real Rule16 full-state identity and independent Rule17 full-document restore pass. |
+| ORIGINAL_PARITY | **PARTIAL** | Bounded numerical/model/ABI comparison passes; authored dispatch and full original runtime behavior remain unverified. |
+| NATIVE_HUMAN | **NOT_RUN** | Scripted SDL software capture is separate; native macOS/human playtest and optional extra40800/100000 selected-city ticks were not run. |
+
+Original installation/installer and retained OE45 evidence remain byte-,
+permission- and modification-time-identical. Only authored source, tests and
+maintained documentation enter Git. Gate commits are local on
+`feat/oe46-citywide-reliability`; no push, merge, tag or release is performed.
