@@ -46,6 +46,18 @@
   real protection for future dispatches. No new saved authority or protection
   grant; all Rules1–14, limits, needs, costs and defaults remain exact. This
   experiment does not establish uninterrupted Elite17 retention.
+  Authored deadline-aware fire dispatch is a separate explicit rule16/policy3/
+  schema32 experiment with marker `authored-deadline-fire-dispatch-v1` and separate
+  create/restore, D menu and CLI selection. It inherits the source-bound terrain,
+  market and revision27 economy; Rules1–15 and their schemas stay exact. Rank
+  physically reachable targets without a building-class or Elite preference by
+  feasible deadline slack, then deadline, round-trip time and the existing cursor;
+  use one bounded pivot exchange when a shorter earlier-deadline visit and its
+  real return preserve both deadlines while the reverse order misses one;
+  coalesce real incoming trips only with a usable physical ETA. No new saved
+  authority, passive protection, timer/resource grant, model/cost/limit change or
+  automatic migration. Retention and effects on the other homes require the
+  separate [OE45 assessment](docs/original-economy/oe45-fire-coverage.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

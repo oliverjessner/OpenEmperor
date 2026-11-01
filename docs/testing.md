@@ -44,6 +44,105 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Rule16 fire-dispatch experiment
+
+Rule16/Policy3/Schema32 is an explicit authored experiment, selected through
+**D Deadline-aware fire dispatch** or `--original-deadline-fire-dispatch` in the
+normal application. It has separate create/restore APIs and exact marker
+`authored-deadline-fire-dispatch-v1`; its inherited market/cardinal markers and
+live source-bound model/terrain remain mandatory. Rules1–15, general defaults,
+physical movement/fire times, model values, costs and limits stay exact. Only
+real Inspector arrivals grant protection. The separate paid gameplay check in
+the [OE45 assessment](original-economy/oe45-fire-coverage.md) holds Elite17 for
+20400ticks with400/400 current needs, zero target fire/devolution/vacancy and
+positive operating cashflow; this finite result does not follow from unit tests.
+
+With a configured build, the focused contract/save/menu/CLI checks are:
+
+```sh
+cmake --build build --parallel 2 --target \
+  openemperor openemperor-elite-desirability-acceptance \
+  openemperor-deadline-inspector-world-tests openemperor-deadline-inspector-save-tests \
+  openemperor-inspector-coordination-world-tests openemperor-inspector-coordination-save-tests \
+  openemperor-original-economy-rule-gate-tests openemperor-original-menu-session-tests
+ctest --test-dir build --output-on-failure -R '^(original-deadline-inspector-world|original-deadline-inspector-save|original-inspector-coordination-world|original-inspector-coordination-save|original-economy-rule-gate|original-menu-session-flow|original-economy-cli)$'
+```
+
+Repeat the relevant suite in independent Release, Debug and ASan/UBSan builds
+and retain their actual source/build identities. New-generation roundtrips do
+not replace historical canonical-byte checks, independent creator/restore
+processes, road-cut/repair and begun-edge checks, source-fire/pause cases or
+hostile save/accounting/route refusals.
+
+The paid source-integration runner requires the pinned Xia/Normal installation
+contract; it rejects different source identities instead of substituting data.
+Each output below must be a fresh strict descendant of ignored
+`.local/original-economy/oe45/`, disjoint from the original installation. Choose
+a new example label on every repetition. Commands perform ordinary paid
+purchases and World ticks; they never inject a save snapshot or grant stock.
+
+```sh
+binary="$PWD/build/openemperor-elite-desirability-acceptance"
+data="/path/to/data"
+proof="$PWD/.local/original-economy/oe45/example-01"
+
+"$binary" --mode create --rule 16 --diagnosis oe45 --tick-digests sha256 \
+  --variant lean-med --paid-strategy oe45-grid-watch-near --search-ticks 40000 \
+  --data "$data" --output "$proof/creator"
+
+"$binary" --mode resume --rule 16 --diagnosis oe45 --tick-digests sha256 \
+  --variant lean-med --paid-strategy oe45-grid-watch-near \
+  --data "$data" --input "$proof/creator/seed.save.json" \
+  --expected "$proof/creator/result.save.json" --output "$proof/replay"
+
+"$binary" --mode render --rule 16 --diagnosis oe45 --variant lean-med \
+  --data "$data" --resources "$PWD/resources" \
+  --input "$proof/creator/result.save.json" --output "$proof/render-final"
+```
+
+The creator records an actual paid 16→17 transition only if it occurs; then it
+observes exactly 20,400 further ticks and 400 actual phase39 inputs. A failed
+search/window stays failed. The independent resume compares every in-range
+complete creator checkpoint and final canonical SaveDocument bytes, with
+Recovery checked separately.
+
+The optional `--tick-digests sha256` flag shown on create and resume is restricted
+to explicit OE45 Rule15/16 simulation. It records the initial state and every
+ordinary post-tick state as a SHA-256 digest of complete validated saved authority,
+including the full fire journal. Instrumentation stays in the external QA runner;
+there is no normal World tick/frame hook. With the flag selected, resume requires
+the creator's bounded digest CSV, consecutive ticks and an exact complete CSV
+comparison over the inclusive restored-begin through replay-end subrange. A
+missing tick, malformed row, mismatch or exhausted digest budget fails the check.
+Creator and replay may start at different ticks; every state in the observed
+subrange must match. `oe45-state-digests.json` records the enforced comparison
+beside `oe45-state-digests.csv`. This per-tick digest gate remains separate from
+the full checkpoint/Recovery SaveDocument-byte gates and gameplay outcomes.
+
+The deadline world test also includes a fully paid return-blocking regression:
+one earlier-deadline short visit and real return allow the longer visit to
+arrive before its fire expires. It observes both actual arrivals and an exact
+restored continuation, while historical Rule15 keeps its original order.
+Rules13–15 retain their existing contracts; this bounded regression does not
+prove stable Elite17 retention or universal scheduling fairness.
+
+Render uses the actual saved state and production SandboxView, including the
+bounded sizes/zoom/inspector/F5/F9 matrix. If a genuine
+`first-success.save.json` was produced, render that file to another fresh output
+to inspect entry separately. Open the PNGs before claiming visual acceptance;
+scripted software SDL remains separate from native macOS delivery and human play.
+
+Read `report.json`, `retention-metrics.json`, `city-metrics.json`,
+`transport-metrics.json`, `oe45-fire-coverage.json` and `oe45-outcome.json`
+together. Keep entry, actual fire duration, current needs, occupancy,
+devolutions, goods/Food conservation, operating tax minus all installed upkeep,
+minimum Funds and effects on the other twelve homes separate. Dispatches,
+reserved cargo and predicted arrival times are not delivered protection,
+goods or service. A finite class-neutral selection test does not establish
+universal fairness or a successful city retention window.
+
+## Original-map start checks
+
 For a bounded original-map start and paid transport fixtures:
 
 ```sh

@@ -47,6 +47,22 @@ remain unchanged; [market diagnosis](original-economy/oe39-market-diagnosis.md)
 and [retention assessment](original-economy/oe39-market-retention.md) separate
 measured logistics from long-term progression and fire safety.
 
+**W Cardinal-water economy** and **I Inspector coordination** separately select
+Rule14/schema30 and the authored Rule15/schema31 experiment. **D Deadline-aware
+fire dispatch** selects the separate authored **Rule16/schema32/Policy3**
+experiment, also available as `--original-deadline-fire-dispatch` with the explicit
+City-v16 sandbox CLI arguments. It inherits the source-bound terrain,
+needs-aware market selection and revision27 economy. Its Inspector dispatcher
+compares real physical deadlines and travel times across eligible building
+classes; only actual arrivals protect buildings. The exact schema32 marker is
+`authored-deadline-fire-dispatch-v1`; inherited source/market/cardinal identities
+remain required. There are no added resources, passive protection, model, cost,
+limit or timing changes. Rules1–15, saved generations and general defaults remain
+exact. The [OE45 assessment](original-economy/oe45-fire-coverage.md) records a paid
+near-Watch/grid plan with20400 consecutive Elite17 ticks,400/400 current needs,
+no target fire/devolution/vacancy and+4951 operating cashflow. Other city
+buildings still burn and miss needs; indefinite stability remains unproven.
+
 ## Legacy profiles and save compatibility
 
 These profiles remain selectable/readable for compatibility; their milestone
@@ -82,6 +98,8 @@ removal gives no refund; rejected/unchanged commands spend nothing.
 | City-v16 rule 12 | 28 | 12000 | Three Food chains; installed-worker upkeep every 816 ticks; Rule11 fire protection | Rule10 goal |
 | City-v16 rule 13 | 29 | 12000 | Authored needs-aware Warehouse/Market goods selection; inherits Rule12's unchanged economy and bounds | Rule10 goal |
 | City-v16 rule 14 | 30 | 12000 | Source-bound cardinal-water House DES; inherits Rule13 and all economy/bounds | Rule10 goal |
+| City-v16 rule 15 | 31 | 12000 | Authored Inspector coordination; exact marker, inherited Rule14 terrain/economy and unchanged bounds | Rule10 goal |
+| City-v16 rule 16 | 32 | 12000 | Authored deadline-aware Inspector dispatch; exact marker, inherited source/terrain/market/economy and unchanged costs/limits/times | Rule10 goal |
 
 Schemas 1–9 keep their historical fixed collection/one-cell semantics. City-v7
 has ten building/six courier entries; City-v8/v9 have eleven/seven. City-v6–8

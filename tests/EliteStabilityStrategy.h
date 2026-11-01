@@ -1,6 +1,6 @@
 #pragma once
 
-// Explicit OE44 player experiments. The historical OE40 plan remains immutable.
+// Explicit OE44/OE45 player experiments. The historical OE40 plan remains immutable.
 // Every mutation below goes through its existing ordinary validate/execute path.
 #include "EliteDesirabilityStrategy.h"
 #include <algorithm>
@@ -19,6 +19,15 @@ using Json=nlohmann::json;
 using C=sim::CommandType;
 using Plan=std::remove_cv_t<decltype(base::plan)>;
 
+inline bool oe45_grid_watch_layout(std::string_view recipe) {
+    return recipe=="oe45-grid-watch-near"||recipe=="oe45-grid-watch-north"||
+        recipe=="oe45-grid-watch-west"||recipe=="oe45-grid-balanced"||recipe=="oe45-grid-south-door";
+}
+inline bool oe45_recipe(std::string_view recipe) {
+    return recipe=="oe45-grid"||recipe=="oe45-watch-early"||recipe=="oe45-watch-central"||
+        recipe=="oe45-watch-west-door"||recipe=="oe45-medical-pair"||recipe=="oe45-market-near"||
+        recipe=="oe45-warehouse-swap"||recipe=="oe45-grid-central"||oe45_grid_watch_layout(recipe);
+}
 inline bool known(std::string_view recipe) {
     return recipe=="road-grid"||recipe=="market-near"||recipe=="medical-near"||recipe=="medical-pair"||
         recipe=="watch-near"||recipe=="paper-buffer"||recipe=="early-elite"||
@@ -26,7 +35,7 @@ inline bool known(std::string_view recipe) {
         recipe=="combined-religion"||recipe=="combined-services"||recipe=="combined-paper-usable"||
         recipe=="early-refined"||recipe=="combined-refined"||recipe=="early-stagger-watch"||
         recipe=="early-stagger-medical"||recipe=="early-stagger-all"||recipe=="early-adaptive-watch"||
-        recipe=="early-stagger-medical-four-markets";
+        recipe=="early-stagger-medical-four-markets"||oe45_recipe(recipe);
 }
 inline bool timing_recipe(std::string_view recipe) {
     return recipe=="early-stagger-watch"||recipe=="early-stagger-medical"||
@@ -39,16 +48,16 @@ inline bool combined_family(std::string_view recipe) {
     return recipe=="combined"||recipe=="combined-religion"||recipe=="combined-services"||
         recipe=="combined-paper-usable"||recipe=="combined-refined";
 }
-inline bool refined(std::string_view recipe){return recipe=="early-refined"||recipe=="combined-refined";}
+inline bool refined(std::string_view recipe){return recipe=="early-refined"||recipe=="combined-refined"||oe45_recipe(recipe);}
 inline bool active_religion(std::string_view recipe) {
     return recipe=="early-religion"||recipe=="combined-religion"||recipe=="combined-services"||refined(recipe)||timing_recipe(recipe);
 }
 inline bool usable_paper(std::string_view recipe){return recipe=="combined-paper-usable"||refined(recipe)||timing_recipe(recipe);}
-inline bool grid(std::string_view recipe){return recipe=="road-grid"||combined_family(recipe);}
+inline bool grid(std::string_view recipe){return recipe=="road-grid"||combined_family(recipe)||recipe=="oe45-grid"||recipe=="oe45-grid-central"||oe45_grid_watch_layout(recipe);}
 inline bool medical(std::string_view recipe){return recipe=="medical-near"||recipe=="medical-pair"||combined_family(recipe);}
-inline bool medical_pair(std::string_view recipe){return recipe=="medical-pair"||combined_family(recipe);}
+inline bool medical_pair(std::string_view recipe){return recipe=="medical-pair"||combined_family(recipe)||recipe=="oe45-medical-pair";}
 inline bool watches(std::string_view recipe){return recipe=="watch-near"||combined_family(recipe);}
-inline bool paper_buffer(std::string_view recipe){return recipe=="paper-buffer"||combined_family(recipe)||recipe=="early-refined"||timing_recipe(recipe);}
+inline bool paper_buffer(std::string_view recipe){return recipe=="paper-buffer"||combined_family(recipe)||recipe=="early-refined"||timing_recipe(recipe)||oe45_recipe(recipe);}
 inline bool early_elite(std::string_view recipe){return recipe=="early-elite"||recipe=="early-religion"||refined(recipe)||combined_family(recipe)||timing_recipe(recipe);}
 inline bool finance(std::string_view recipe){return recipe=="finance-staged";}
 
@@ -67,6 +76,23 @@ inline Plan plan_for(std::string_view recipe) {
         if(watches(recipe)&&node.plan_id==131)node.cell={118,134};
         if(watches(recipe)&&node.plan_id==132)node.cell={124,135};
         if(refined(recipe)&&node.plan_id==132)node.cell={130,132};
+        // These independent paid contrasts inherit exactly early-refined's
+        // controller, religion and early Elite purchase, then change only the
+        // explicitly selected plan action. Admission remains World authority.
+        if(recipe=="oe45-watch-early"&&node.plan_id==132)node.phase=0;
+        if((recipe=="oe45-watch-central"||recipe=="oe45-grid-central")&&node.plan_id==131)node.cell={124,135};
+        if(recipe=="oe45-watch-west-door"&&node.plan_id==132)node.cell={129,135};
+        if(recipe=="oe45-medical-pair"&&node.plan_id==10){node.lean_omit=false;node.duplicate=false;}
+        if(recipe=="oe45-market-near"&&node.plan_id==125)node.cell={125,140};
+        if(recipe=="oe45-warehouse-swap"&&node.plan_id==124)node.cell={121,136};
+        if(recipe=="oe45-warehouse-swap"&&node.plan_id==130)node.cell={118,136};
+        // Bounded paid grid layouts only. New sites still require ordinary
+        // production admission; there is no replacement site on refusal.
+        if((recipe=="oe45-grid-watch-near"||recipe=="oe45-grid-south-door")&&node.plan_id==131)node.cell={118,134};
+        if(recipe=="oe45-grid-watch-north"&&node.plan_id==131)node.cell={120,124};
+        if((recipe=="oe45-grid-watch-west"||recipe=="oe45-grid-balanced")&&node.plan_id==131)node.cell={113,128};
+        if(recipe=="oe45-grid-balanced"&&node.plan_id==132)node.cell={127,127};
+        if(recipe=="oe45-grid-south-door"&&node.plan_id==132)node.cell={129,135};
         if(active_religion(recipe)&&(node.plan_id==20||node.plan_id==22))node.duplicate=false;
         if(recipe=="combined-services"&&(node.plan_id==11||node.plan_id==13||node.plan_id==15))node.duplicate=false;
     }
@@ -288,12 +314,30 @@ inline std::int64_t building_reserve(const sim::World& w,std::string_view recipe
     return finance(recipe)?std::max<std::int64_t>(1000,installed):installed;
 }
 inline bool door_watch_cell(const Plan& plan,sim::Cell cell,std::string_view recipe) {
+    if(oe45_grid_watch_layout(recipe))return cell==planned(plan,131).cell||cell==planned(plan,132).cell;
     return refined(recipe)&&cell==planned(plan,132).cell;
+}
+inline void validate_oe45_reservations(const sim::World& w,const Plan& plan,std::string_view recipe) {
+    if(!oe45_recipe(recipe)||w.ticks()!=0)return;
+    Reserved reserved;
+    const auto reserve=[&](sim::Object kind,sim::Cell origin) {
+        for(const auto cell:sim::building_footprint_cells(w.profile(),w.rule_version(),kind,origin))
+            q::check(reserved.emplace(cell.x,cell.y).second,"OE45 future paid production footprints overlap");
+    };
+    for(const auto& node:plan)if(included(node)) {
+        const auto kind=sim::placed_object(node.command);
+        q::check(kind.has_value(),"OE45 future paid plan has an unmapped placement");
+        reserve(*kind,node.cell);
+    }
+    reserve(sim::Object::OriginalEliteHouse,base::elite_cell);
+    for(const auto cell:base::roads)if(!door_watch_cell(plan,cell,recipe))
+        q::check(!reserved.contains({cell.x,cell.y}),"OE45 basic paid road overlaps a future complete footprint");
 }
 inline bool apply(sim::World& w,std::string_view recipe,Json& commands,Json& blocked) {
     q::check(known(recipe)&&w.original_cardinal_water_enabled()&&
-        (w.rule_version()==14||w.original_inspector_coordination_enabled()),"Paid OE44 strategy requires exact Rule14 or explicit Inspector coordination Rule15");
+        (w.rule_version()==14||w.original_inspector_coordination_enabled()||w.original_deadline_fire_dispatch_enabled()),"Paid OE44 strategy requires exact Rule14 or explicit Inspector coordination Rule15");
     const auto plan=plan_for(recipe);
+    validate_oe45_reservations(w,plan,recipe);
     for(const auto cell:base::roads)if(!door_watch_cell(plan,cell,recipe)&&!base::initial_road(w,cell))
         if(!append(w,{C::PlaceRoad,cell},"OE44 original basic paid roads",commands,blocked))return false;
     if(early_elite(recipe)&&w.ticks()==0&&!base::elite(w))
@@ -487,6 +531,14 @@ inline Json status(const sim::World& w,std::string_view recipe) {
     result["medical_site_swap"]=medical(recipe);
     result["medical_high_priority_when_pair_active"]=medical_pair(recipe);
     result["medical_pair_active_now"]=medical_pair_active(w,plan,recipe);
+    if(oe45_recipe(recipe))result["oe45_paid_contrast"]={{"base_strategy","early-refined"},
+        {"complete_future_footprints_reserved",true},{"admission_and_routes","ordinary production World"},
+        {"early_second_watch",recipe=="oe45-watch-early"},
+        {"central_first_watch",recipe=="oe45-watch-central"||recipe=="oe45-grid-central"},
+        {"west_door_second_watch",recipe=="oe45-watch-west-door"},
+        {"medical_pairs_enabled",recipe=="oe45-medical-pair"},
+        {"near_market",recipe=="oe45-market-near"},{"warehouse_pottery_site_swap",recipe=="oe45-warehouse-swap"},
+        {"saved_state_or_resource_grants",false}};
     if(watches(recipe)) {
         Json spur=Json::array();for(const auto cell:watch_spur)spur.push_back({cell.x,cell.y});
         result["paid_watch_road_spur"]=std::move(spur);
@@ -516,7 +568,16 @@ inline Json status(const sim::World& w,std::string_view recipe) {
         result["existing_duplicate_service_policy"]={{"religion20_22_operating",true},
             {"culture11_13_15_operating",recipe=="combined-services"},{"academy24_remains_paused",true},{"actual_sources",sources}};
     }
-    if(refined(recipe))result["door_watch"]={{"plan_id",132},{"cell",{planned(plan,132).cell.x,planned(plan,132).cell.y}},
+    if(oe45_grid_watch_layout(recipe)) {
+        Json sites=Json::array();for(const auto key:{131U,132U}) {
+            const auto& node=planned(plan,key);
+            sites.push_back({{"plan_id",key},{"cell",{node.cell.x,node.cell.y}},{"phase",node.phase}});
+        }
+        result["grid_watch_layout"]={{"watch_sites",std::move(sites)},
+            {"both_watch_cells_excluded_from_basic_road_purchases",true},
+            {"complete_future_footprints_reserved_from_grid_roads",true},
+            {"source_admission","ordinary production World; no fallback site"},{"road_removed",false}};
+    } else if(refined(recipe))result["door_watch"]={{"plan_id",132},{"cell",{planned(plan,132).cell.x,planned(plan,132).cell.y}},
         {"exact_unbought_basic_road_cell_omitted",true},{"road_removed",false}};
     if(timing_recipe(recipe)) {
         Json gates=Json::array();for(const auto& node:plan)if(const auto gate=purchase_timing(w,plan,node.plan_id,recipe))gates.push_back(*gate);

@@ -17,6 +17,7 @@ parity remains partial; see [the play guide](player-handoff.md) and [Known Issue
 | Rule13 / schema29 / revision27 | Separate authored needs-aware Warehouse/Market goods selection; inherits Rule12's economy, fire protection and existing limits. |
 | Rule14 / schema30 / revision27 | Separate cardinal-water House query; inherits Rule13 logistics and unchanged economy/bounds, with immutable source terrain. |
 | Rule15 / schema31 / revision27 | Explicit authored Inspector-coordination experiment; inherits Rule14, skips other actual incoming Inspector commitments and unexpired real protection for new dispatches. Elite17 retention remains unproved. |
+| Rule16 / schema32 / revision27 | Separate authored deadline-aware Inspector dispatch; inherits the cardinal-water/market/economy contracts, ranks physical deadlines without building-class preference and coalesces usable incoming trips. Retention assessment is separate. |
 
 Rules1–14 and schemas1–30 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
@@ -68,6 +69,61 @@ trip after a replacement was dispatched, so restore does not forbid all duplicat
 destinations. All fire numbers, prices, needs and installed upkeep remain exact.
 The [OE44 comparison](oe44-elite17-stability.md) documents the measured duplicate
 work and failed retention windows; this opt-in is not a stable-Elite17 promise.
+
+Rule16 has separate `create_original_deadline_fire_dispatch` and
+`restore_original_deadline_fire_dispatch` APIs, **D Deadline-aware fire dispatch**
+and `--original-deadline-fire-dispatch`. Its exact schema32 marker is
+`rules.deadline_fire_dispatch: "authored-deadline-fire-dispatch-v1"`.
+The inherited market/cardinal markers, full source-map/model identities,
+immutable live-rederived terrain and Policy3 remain mandatory. The exact Rule15
+coordination predicate stays Rule15-only; Rule16 selects its own dispatcher.
+There is no migration, new saved mutable authority or change to Rules1–15,
+general defaults, original models, needs, costs, limits, production, consumption,
+movement speed, fire-risk growth, incident duration, protection duration or
+816-tick installed upkeep.
+
+For an idle, operating, staffed Inspector, the selector reads existing bounded
+cached routes and real saved outbound trips. It predicts arrival from physical
+edge count and progress, and an ignition deadline from the unchanged
+placement-relative risk kernel and actual protection expiry. A currently burning
+target that can be reached before natural expiry contributes that expiry as its
+response deadline; a later arrival competes to prevent the next incident.
+There is one ordering for eligible Houses, Markets, Watches and other paid
+buildings, with no unconditional burning-first tier or Elite preference.
+The initial pivot ranks physically feasible arrivals before late ones;
+feasible candidates use the smallest arrival slack, while late candidates use
+the greatest lateness. Ties use earlier deadline, shorter physical round trip
+and the existing canonical cursor. A matching moving Inspector coalesces a new
+dispatch if its ETA meets the target deadline or is no later than the candidate's
+arrival. Route-pending or waiting actors promise no arrival. Source pause/fire
+does not cancel a trip already moving.
+
+One bounded linear scan can replace a feasible pivot with an earlier-deadline
+candidate `k` whose own outward arrival meets its deadline. It does so only
+when visiting `k` and physically returning first still lets the pivot meet its
+original arrival deadline, while the pivot's full
+physical outward/return trip would make `k` miss its deadline. A response to an
+existing fire must arrive strictly before natural expiry; an arrival at the
+predicted ignition tick can prevent ignition because movement precedes fire.
+The same canonical ranking breaks ties among qualifying alternatives. This is
+one pivot and one alternate scan over existing cached routes, with no all-pairs
+graph, saved visit plan, extra navigation or grant of two future visits. Only
+the selected immediate trip dispatches; after its real return, ordinary World
+dispatch evaluates the current state again. Predictions never grant protection
+or reset risk: only actual arrivals invoke the unchanged fire kernel.
+
+The fully paid `paid_return_blocking_exchange` regression in
+`DeadlineInspectorWorldTests.cpp` follows both real arrivals and an exact
+restored continuation, distinguishing the short-first Rule16 order from Rule15.
+It is a bounded dispatch regression, not city retention evidence. Rules13–15
+retain their own unchanged selection contracts.
+
+The [OE45 assessment](oe45-fire-coverage.md) separately records a paid
+near-Watch/grid city with20400 consecutive Elite17 ticks,400/400 current needs,
+zero target fire/devolution/vacancy and+4951 operating cashflow. All twelve other
+Houses remain inhabited with measured residual deficits; other buildings still
+burn. The finite paid result does not establish indefinite stability or universal
+fairness, and selecting the mode alone does not reproduce the plan.
 
 `ModelData` reads the selected installation's `Model/EmperorBuildingModels.txt`
 within its canonical root: regular file, at most 256 KiB, lines at most 4096 bytes,
@@ -143,7 +199,7 @@ arrivals fail. Pause/disconnect preserves cargo and begun-edge safety, using the
 same navigator for return and paid road repair. Goods/target rotation is bounded;
 finite visit tests do not prove universal starvation freedom.
 
-Rule13 and its explicit Rule14/15 descendants replace Warehouse-to-Market/Paper and Market-to-House commodity
+Rule13 and its explicit Rule14/15/16 descendants replace Warehouse-to-Market/Paper and Market-to-House commodity
 selection. It queries actual occupied, operating, non-burning Houses, their
 current model needs, incoming reservations and physically reachable cached routes.
 Missing current goods precede current-stock buffers and usable next-stage goods;
@@ -226,7 +282,7 @@ is separate from native human acceptance.
 
 ## Save safety and developer checks
 
-Schemas26–31 validate complete identities, map/mask/policy/model binding, paid origin,
+Schemas26–32 validate complete identities, map/mask/policy/model binding, paid origin,
 geometry, route/progress, capacities, conservation, timing and finance before
 publication. Unknown/duplicate/missing/mistyped fields, incompatible revisions,
 unsupported authority and impossible histories fail atomically; 8 MiB document and
@@ -239,6 +295,14 @@ Schema29 requires exact Rule13 identity and
 marker, or merely relabelling an old rule/schema header, fails closed. The marker
 identifies immutable policy, not additional mutable authority. Rule12 remains exactly schema28;
 F5/F9, menu load and Recovery retain each saved generation without conversion.
+
+Schema30/Rule14, Schema31/Rule15 and Schema32/Rule16 keep their exact distinct
+markers and create/restore boundaries. Schema32 requires its deadline-dispatch
+marker plus the inherited market/cardinal markers; the Rule15 coordination marker
+is not a Schema32 field. Changed/missing/duplicate/mistyped markers or header-only
+relabels reject before publication. Terrain remains unsaved immutable context and
+is rederived from the live complete source map on restore. F5/F9 and Recovery use
+the selected generation's full source, geometry, accounting and trip checks.
 
 See [testing.md](../testing.md) for build/sanitizer setup. With a configured `build` and your own data:
 

@@ -203,6 +203,24 @@ preservation check are under `.local/original-economy/oe44/run-01/gate-c-parity-
 and `gate-c-parity-public-review.json`. This verifies the legacy comparison ABI;
 Rule15 Inspector behavior and paid retention require their separate tests.
 
+OE45's Rule16 adds explicit deadline-dispatch factories and constexpr capability
+predicates, without adding World or saved-state fields or changing the historical
+HouseholdV3/CityV7 calls used by the fourth-module probe. After reviewing that API
+difference, a fresh Release comparison compiled the separate fork/current
+numerical probes and linked the actual pinned fork HousingView probe against the
+new Release simulation archives. All74 canonical cases, classifications,
+expected/observed values, the18-value HousingView result and the real-model digest
+`[1800,477508576,4125568101]` remain identical to OE44. The fork pins and
+`baseline-lock.json` are unchanged; only the reviewed World header and comparison
+runner fingerprints change in the public report. Exact commands, compiled
+binaries, archive hashes and the independent preservation comparison are under
+`.local/original-economy/oe45/run-01/core-parity-release-final-01/`,
+`core-parity-release-final.execution.json` and `core-parity-public-review-final.json`.
+This final comparison repeats the probes after the return-blocking dispatch
+amendment, with the newly linked simulation archive and unchanged public results.
+This historical numerical/ABI comparison grants no original-parity or paid
+retention claim to the authored Rule16 dispatcher.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the
@@ -223,6 +241,17 @@ cmake --build .local/reswall/release-build --parallel 2 \
 python3 tools/original_rules_parity.py --configuration release \
   --data .local/gog-extracted/app \
   --output .local/original-economy/oe07/reproduction-release
+```
+
+The OE45 comparison used the same pinned fork through its existing private
+mirror and explicitly selected the new Release archives:
+
+```sh
+python3 tools/original_rules_parity.py --configuration release \
+  --fork .local/original-economy/oe36/pinned-fork \
+  --simulation-library .local/original-economy/oe45/run-01/release/libopenemperor-simulation.a \
+  --data .local/gog-extracted/app \
+  --output .local/original-economy/oe45/reproduction-core-parity-release
 ```
 
 `--configuration debug` and `--configuration sanitizer` select the matching

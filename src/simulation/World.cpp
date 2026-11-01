@@ -137,6 +137,40 @@ const std::optional<std::vector<Cell>>* dynamic_route(const CourierState& courie
         [](const auto& value,BuildingId key) { return value.first<key; });
     return found!=courier.dynamic_target_routes.end() && found->first==target ? &found->second:nullptr;
 }
+std::uint64_t saturated_add(std::uint64_t value,std::uint64_t amount) {
+    return amount>UINT64_MAX-value ? UINT64_MAX:value+amount;
+}
+// A prediction of the unchanged placement-relative kernel, never protection.
+// The dispatch phase precedes this tick's movement and fire update. An arrival
+// on the predicted ignition tick therefore still prevents that ignition.
+std::uint64_t next_unvisited_fire(const BuildingState& target,std::uint64_t tick,
+                                  bool after_incident=false) {
+    const auto step=Rules::fire_risk_step_ticks;
+    auto first=std::max(tick,after_incident ? target.fire_until_tick:
+        target.fire_protection_until_tick);
+    if (first<=target.placed_tick) first=saturated_add(target.placed_tick,1);
+    const auto remainder=(first-target.placed_tick)%step;
+    if (remainder) first=saturated_add(first,step-remainder);
+    const auto risk=after_incident ? 0:target.fire_risk;
+    return saturated_add(first,static_cast<std::uint64_t>(Rules::fire_risk_threshold-risk-1)*step);
+}
+struct FireDeadlineChoice {
+    BuildingId target{};
+    std::uint64_t deadline=0,arrival=0,roundtrip=0;
+    bool incident_response=false;
+};
+bool earlier_fire_choice(const FireDeadlineChoice& a,const FireDeadlineChoice& b) {
+    const bool a_late=a.arrival>a.deadline,b_late=b.arrival>b.deadline;
+    // Do useful physically feasible prevention/response before a trip that
+    // cannot meet its own deadline. A late prediction never grants coverage.
+    if (a_late!=b_late) return !a_late;
+    const auto a_slack=a_late ? a.arrival-a.deadline:a.deadline-a.arrival;
+    const auto b_slack=b_late ? b.arrival-b.deadline:b.deadline-b.arrival;
+    if (a_slack!=b_slack) return a_late ? a_slack>b_slack:a_slack<b_slack;
+    if (a.deadline!=b.deadline) return a.deadline<b.deadline;
+    if (a.roundtrip!=b.roundtrip) return a.roundtrip<b.roundtrip;
+    return false; // Complete ties retain the existing canonical cursor order.
+}
 int courier_source_stock(const BuildingState& source,CourierRole role) {
     switch (role) {
     case CourierRole::Household:
@@ -407,7 +441,7 @@ std::uint32_t current_rule_version(RulesProfile profile) {
 bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::ProductionV2) return version==2;
     if (profile==RulesProfile::CityV11) return version>=1 && version<=4;
-    if (profile==RulesProfile::CityV16) return version>=1 && version<=15;
+    if (profile==RulesProfile::CityV16) return version>=1 && version<=16;
     if (fire_profile(profile)) return version==1;
     return version==1;
 }
@@ -447,6 +481,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v13{13,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v14{14,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v15{15,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v16{16,32,64,32,5,800};
+    if (original_deadline_fire_dispatch_enabled(profile,version)) return city_v16_v16;
     if (original_inspector_coordination_enabled(profile,version)) return city_v16_v15;
     if (original_cardinal_water_enabled(profile,version)) return city_v16_v14;
     if (original_market_logistics_enabled(profile,version)) return city_v16_v13;
@@ -2504,6 +2540,83 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
             });
             if (found!=targets.end()) start=(static_cast<std::size_t>(found-targets.begin())+1)%targets.size();
         }
+        if (original_deadline_fire_dispatch_enabled() && c.role==CourierRole::FireInspector) {
+            struct Incoming { BuildingId target{};std::uint64_t arrival=0; };
+            std::array<Incoming,Rules::fire_watch_limit> incoming{};
+            std::size_t incoming_count=0;
+            const auto edge=static_cast<std::uint64_t>(active_rules().courier_edge_ticks);
+            // Only matching, physically moving saved trips provide a bounded
+            // ETA. Source pause/fire/staffing cannot stop an already begun trip;
+            // a pending route provides no future-arrival promise.
+            for (const auto& trip:original_production_->fire_protection->trips) {
+                if (trip.courier_id==c.id) continue;
+                const auto actor=std::find_if(couriers_.begin(),couriers_.end(),[&](const auto& other) {
+                    return other.id==trip.courier_id;
+                });
+                if (actor==couriers_.end() || actor->role!=CourierRole::FireInspector || !actor->enabled ||
+                    actor->phase!=CourierPhase::ToWarehouse || actor->route_pending || actor->owner!=trip.owner ||
+                    actor->target!=trip.target || actor->path.empty() || actor->path_vertex+1>=actor->path.size() ||
+                    trip.travelled.empty() || trip.travelled.back()!=actor->path[actor->path_vertex]) continue;
+                const auto remaining=static_cast<std::uint64_t>(actor->path.size()-1-actor->path_vertex)*edge-
+                    static_cast<std::uint64_t>(actor->edge_progress);
+                if (incoming_count<incoming.size()) incoming[incoming_count++]={trip.target,
+                    saturated_add(ticks_,remaining-1)};
+            }
+            std::optional<FireDeadlineChoice> selected;
+            std::array<FireDeadlineChoice,Rules::original_production_building_limit> candidates{};
+            std::size_t candidate_count=0;
+            bool unserved=false;
+            for (std::size_t step=0;step<targets.size();++step) {
+                const auto& target=*targets[(start+step)%targets.size()];
+                const auto* route=dynamic_route(c,target.id);
+                const auto committed=std::find_if(incoming.begin(),incoming.begin()+incoming_count,
+                    [&](const auto& trip){return trip.target==target.id;});
+                if (!route || !*route || (**route).size()<2) {
+                    if (committed==incoming.begin()+incoming_count) unserved=true;
+                    continue;
+                }
+                const auto edges=static_cast<std::uint64_t>((**route).size()-1);
+                if (!edge || edges>UINT64_MAX/edge/2) continue;
+                const auto movement=edges*edge;
+                const auto arrival=saturated_add(ticks_,movement-1);
+                // A response that reaches a currently burning target before
+                // natural expiry competes with prevention using that actual
+                // expiry. A later arrival can only prevent the next incident.
+                // There is deliberately no unconditional burning-first tier.
+                const bool burning=building_on_fire(target.id);
+                const auto deadline=burning && arrival<target.fire_until_tick ? target.fire_until_tick:
+                    next_unvisited_fire(target,ticks_,burning);
+                if (committed!=incoming.begin()+incoming_count &&
+                    (committed->arrival<=deadline || committed->arrival<=arrival)) continue;
+                unserved=true;
+                const FireDeadlineChoice candidate{target.id,deadline,arrival,movement*2,
+                    burning && arrival<target.fire_until_tick};
+                if (candidate_count<candidates.size()) candidates[candidate_count++]=candidate;
+                if (!selected || earlier_fire_choice(candidate,*selected)) selected=candidate;
+            }
+            if (selected && selected->arrival<=selected->deadline) {
+                // One pivot, one bounded second scan. A short earlier-deadline
+                // visit may fit before the selected long trip, while doing the
+                // long physical return first would make that earlier visit
+                // late. Exchange only when both original deadlines still fit;
+                // total roundtrip work and the time after both visits agree.
+                // This is no all-pairs graph, saved plan or special body class.
+                const auto pivot=*selected;
+                std::optional<FireDeadlineChoice> exchanged;
+                for (std::size_t i=0;i<candidate_count;++i) {
+                    const auto& candidate=candidates[i];
+                    if (candidate.target==pivot.target || candidate.deadline>=pivot.deadline ||
+                        candidate.arrival>candidate.deadline) continue;
+                    const auto pivot_after=saturated_add(pivot.arrival,candidate.roundtrip);
+                    if ((pivot.incident_response ? pivot_after>=pivot.deadline:pivot_after>pivot.deadline) ||
+                        saturated_add(candidate.arrival,pivot.roundtrip)<=candidate.deadline) continue;
+                    if (!exchanged || earlier_fire_choice(candidate,*exchanged)) exchanged=candidate;
+                }
+                if (exchanged) selected=exchanged;
+            }
+            if (selected) return {CourierDispatchStatus::Ready,selected->target};
+            return {unserved ? CourierDispatchStatus::NoRoad:CourierDispatchStatus::NoTarget,std::nullopt};
+        }
         if (original_inspector_coordination_enabled() && c.role==CourierRole::FireInspector) {
             // Derived from bounded, already validated physical trips. A moving
             // actor keeps its commitment if its source pauses, burns or loses
@@ -3989,7 +4102,9 @@ bool World::navigation_valid() const {
 
 std::string World::canonical_state() const {
     std::ostringstream out;
-    if (original_inspector_coordination_enabled()) out<<original_inspector_coordination_contract<<":15:"
+    if (original_deadline_fire_dispatch_enabled()) out<<original_deadline_fire_dispatch_contract<<":16:"
+        <<original_terrain_facts_->source_map_sha256()<<'|';
+    else if (original_inspector_coordination_enabled()) out<<original_inspector_coordination_contract<<":15:"
         <<original_terrain_facts_->source_map_sha256()<<'|';
     else if (original_cardinal_water_enabled()) out<<original_cardinal_water_contract<<":14:"
         <<original_terrain_facts_->source_map_sha256()<<'|';

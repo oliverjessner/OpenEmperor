@@ -96,6 +96,37 @@ Preise, Bedürfnisse, Brandfristen und Unterhalt bleiben erhalten. Die bisherige
 [OE44-Versuche](oe44-elite17-stability.md) halten Elite17 auch hier nicht
 unterbrechungsfrei; der Modus ist kein dauerhaft stabiler Musterbauplan.
 
+**D Deadline-aware fire dispatch** wählt separat den experimentellen Modus
+**Rule16 / Schema32 / Policy3**. Die Wachen vergleichen echte Reisezeiten,
+Schutzablauf und Brandrisiko für alle zugelassenen bezahlten Gebäudeklassen.
+Physisch rechtzeitig erreichbare Ziele kommen zuerst; unter ihnen entscheidet
+der knappste zeitliche Spielraum. Bei Gleichstand folgen frühere Frist,
+kürzere Hin-/Rückfahrt und die bestehende Zielrotation. Ein bereits fahrender
+Inspector vermeidet eine neue Fahrt, wenn seine tatsächliche Route eine
+rechtzeitige oder mindestens ebenso frühe Ankunft erwarten lässt. Wartende oder
+noch zu reparierende Routen versprechen keinen Besuch. Ein brennendes Gebäude
+hat keinen pauschalen Vorrang und das Elite-Haus keinen Sonderbonus.
+
+Erst die tatsächliche Ankunft löscht beziehungsweise schützt. Laufende Fahrten
+bleiben bei einer späteren Wachenpause erhalten. Modellwerte, Bedürfnisse,
+Preise, Gebäude-/Walkergrenzen, Bewegung, Brand- und Schutzzeiten sowie der
+816-Tick-Unterhalt ändern sich nicht; Karten-/Terrainbindung und bedarfsabhängige
+Warenlogistik bleiben übernommen. Rule16 hat eigene Create-/Restore-Pfade und
+den exakten Marker `authored-deadline-fire-dispatch-v1`; Rules1–15 und ihre Saves
+werden nicht umgewandelt. Direktstart mit dem regulär bezahlten Starter:
+
+```sh
+./build/openemperor --data /path/to/data --sandbox Cities/Xia.map --sandbox-rules sandbox-city-v16 --original-deadline-fire-dispatch
+```
+
+Der [OE45-Ergebnisbericht](oe45-fire-coverage.md) belegt den vollständig bezahlten
+Near-Watch/Grid-Plan: echter16→17-Aufstieg bei Tick5446, danach20400Ticks mit
+400/400 erfüllten aktuellen Bedürfnissen, ohne Zielbrand, Rückstufung oder
+Leerstand. Der operative Überschuss beträgt4951Funds, der niedrigste Kontostand
+5017. Alle zwölf übrigen Häuser bleiben bewohnt; dort bestehen weiterhin
+Versorgungsdefizite, Rückstufungen und Brände in der Stadt. Unbegrenzte
+Stabilität und menschliche native Abnahme bleiben offen.
+
 Der [bezahlte High-Tier-Ausbau](oe38-paid-high-tier-progression.md) erreicht
 Common10 (Luxurious Apartment). In den geprüften20400 Folgeticks entstehen
 Hemp-/Ceramics-Lücken und Rückentwicklungen trotz positivem Betriebssaldo;

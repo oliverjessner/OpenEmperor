@@ -404,7 +404,7 @@ void geometry() {
         sim::rule_version_supported(sim::RulesProfile::CityV16,13) &&
         sim::rule_version_supported(sim::RulesProfile::CityV16,14) &&
         sim::rule_version_supported(sim::RulesProfile::CityV16,15) &&
-        !sim::rule_version_supported(sim::RulesProfile::CityV16,16),"City16 version support");
+        !sim::rule_version_supported(sim::RulesProfile::CityV16,17),"City16 version support");
     check(sim::original_fire_protection_enabled(sim::RulesProfile::CityV16,11) &&
         sim::original_fire_protection_enabled(sim::RulesProfile::CityV16,12) &&
         !sim::original_fire_protection_enabled(sim::RulesProfile::CityV16,10),

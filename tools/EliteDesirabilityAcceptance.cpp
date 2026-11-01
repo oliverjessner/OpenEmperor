@@ -9,6 +9,8 @@
 #include "../tests/EliteStabilityStrategy.h"
 #include "../tests/MarketDistributionMetrics.h"
 #include "../tests/EliteStabilityDiagnosis.h"
+#include "../tests/EliteFireCoverageMetrics.h"
+#include "../tests/EliteFireReplayDigest.h"
 #include <openssl/evp.h>
 #include <fstream>
 #include <iomanip>
@@ -21,41 +23,51 @@ namespace paid_strategy=oe_elite_stability_strategy;
 namespace high=oe_high_tier_metrics;
 namespace trace=oe_market_distribution_metrics;
 namespace orig=oe::original;
-constexpr const char* help="elite-desirability-acceptance --mode create|resume|render --data ABS --output NEW_IGNORED_OE40_OR_OE43_DIR [--variant staged|all-paid|lean-med|lean-med-extra-markets] [--rule 14|15 (default14;15 requires diagnosis oe44)] [--search-ticks 40000|60000] [--input EARNED_EXACT_GENERATION_SAVE] [--expected CREATOR_RESULT_SAVE (resume)] [--resources ABS (render)] [--diagnosis oe44 (fresh OE44 output only; render also requires explicit --rule)] [--paid-strategy road-grid|market-near|medical-near|medical-pair|watch-near|paper-buffer|early-elite|finance-staged|combined|early-religion|combined-religion|combined-services|combined-paper-usable|early-refined|combined-refined|early-stagger-watch|early-stagger-medical|early-stagger-all|early-adaptive-watch|early-stagger-medical-four-markets (requires diagnosis oe44 and variant lean-med)]";
-struct Options {std::string mode,variant="staged",diagnosis,paid_strategy;fs::path data,output,input,expected,resources;unsigned rule=14,search=40000;};
+constexpr const char* help="elite-desirability-acceptance --mode create|resume|render --data ABS --output NEW_IGNORED_OE40_OR_OE43_DIR [--variant staged|all-paid|lean-med|lean-med-extra-markets] [--rule 14|15|16 (default14;16 requires diagnosis oe45)] [--search-ticks 40000|60000] [--tick-digests sha256 (explicit OE45 Rule15/16 QA only)] [--input EARNED_EXACT_GENERATION_SAVE] [--expected CREATOR_RESULT_SAVE (resume)] [--resources ABS (render)] [--diagnosis oe44|oe45 (fresh matching diagnosis root only; render also requires explicit --rule)] [--paid-strategy road-grid|market-near|medical-near|medical-pair|watch-near|paper-buffer|early-elite|finance-staged|combined|early-religion|combined-religion|combined-services|combined-paper-usable|early-refined|combined-refined|early-stagger-watch|early-stagger-medical|early-stagger-all|early-adaptive-watch|early-stagger-medical-four-markets|oe45-grid|oe45-watch-early|oe45-watch-central|oe45-watch-west-door|oe45-medical-pair|oe45-market-near|oe45-warehouse-swap|oe45-grid-central|oe45-grid-watch-near|oe45-grid-watch-north|oe45-grid-watch-west|oe45-grid-balanced|oe45-grid-south-door (OE45 recipes require diagnosis oe45; all require variant lean-med)]";
+struct Options {std::string mode,variant="staged",diagnosis,paid_strategy;fs::path data,output,input,expected,resources;unsigned rule=14,search=40000;bool tick_digests=false;};
 Options options(int argc,char** argv){
     Options a;std::map<std::string,std::string> values;
     for(int i=1;i<argc;i+=2){check(i+1<argc,help);const std::string key=argv[i];
-        check(key=="--mode"||key=="--data"||key=="--output"||key=="--variant"||key=="--rule"||key=="--search-ticks"||key=="--input"||key=="--expected"||key=="--resources"||key=="--diagnosis"||key=="--paid-strategy",help);
+        check(key=="--mode"||key=="--data"||key=="--output"||key=="--variant"||key=="--rule"||key=="--search-ticks"||key=="--input"||key=="--expected"||key=="--resources"||key=="--diagnosis"||key=="--paid-strategy"||key=="--tick-digests",help);
         check(values.emplace(key,argv[i+1]).second,"Duplicate Elite proof argument");}
     for(const auto* key:{"--mode","--data","--output"})check(values.contains(key),help);
     a.mode=values.at("--mode");check(a.mode=="create"||a.mode=="resume"||a.mode=="render",help);
     if(values.contains("--variant"))a.variant=values.at("--variant");check(strategy::known(a.variant),help);
     if(values.contains("--rule")) {
         const auto& value=values.at("--rule");const auto result=std::from_chars(value.data(),value.data()+value.size(),a.rule);
-        check(result.ec==std::errc{}&&result.ptr==value.data()+value.size()&&(a.rule==14||a.rule==15),help);
+        check(result.ec==std::errc{}&&result.ptr==value.data()+value.size()&&(a.rule==14||a.rule==15||a.rule==16),help);
     }
-    if(values.contains("--diagnosis")){a.diagnosis=values.at("--diagnosis");check(a.diagnosis=="oe44"&&(a.mode!="render"||values.contains("--rule")),help);}
-    check(a.rule!=15||(!a.diagnosis.empty()&&values.contains("--rule")),"Rule15 requires explicit --rule 15 and --diagnosis oe44");
+    if(values.contains("--diagnosis")){a.diagnosis=values.at("--diagnosis");check((a.diagnosis=="oe44"||a.diagnosis=="oe45")&&(a.mode!="render"||values.contains("--rule")),help);}
+    check(a.rule!=15||(!a.diagnosis.empty()&&values.contains("--rule")),"Rule15 requires explicit --rule 15 and selected diagnosis oe44 or oe45");
+    check(a.rule!=16||(a.diagnosis=="oe45"&&values.contains("--rule")),"Rule16 requires explicit --rule 16 and --diagnosis oe45");
+    if(values.contains("--tick-digests")) {
+        check(values.at("--tick-digests")=="sha256"&&a.diagnosis=="oe45"&&a.mode!="render"&&
+            (a.rule==15||a.rule==16),"Tick digests require explicit OE45 Rule15/16 simulation and sha256");
+        a.tick_digests=true;
+    }
     if(values.contains("--paid-strategy")) {
         a.paid_strategy=values.at("--paid-strategy");
-        check(paid_strategy::known(a.paid_strategy)&&a.diagnosis=="oe44"&&a.variant=="lean-med"&&a.mode!="render",help);
+        check(paid_strategy::known(a.paid_strategy)&&!a.diagnosis.empty()&&a.variant=="lean-med"&&a.mode!="render",help);
+        check(!a.paid_strategy.starts_with("oe45-")||a.diagnosis=="oe45","OE45 player experiments require --diagnosis oe45");
     }
     for(const auto& [key,path]:{std::pair{"--data",&a.data},{"--output",&a.output},{"--input",&a.input},{"--expected",&a.expected},{"--resources",&a.resources}})
         if(values.contains(key))*path=fs::absolute(values.at(key));
     if(values.contains("--search-ticks")){const auto& text=values.at("--search-ticks");const auto parsed=std::from_chars(text.data(),text.data()+text.size(),a.search);
         check(parsed.ec==std::errc{}&&parsed.ptr==text.data()+text.size()&&(a.search==40000||a.search==60000),help);}
     safe(a.data);safe(a.output);check(fs::is_directory(a.data),"Original installation missing");
-    const auto diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe44";
+    const auto diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/
+        (a.diagnosis=="oe45"?".local/original-economy/oe45":".local/original-economy/oe44");
+    const auto prior_diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe44";
     const bool allowed_output=a.diagnosis.empty()?private_output(a.output):
         a.output!=diagnosis_root&&below(a.output,diagnosis_root);
-    check(allowed_output&&!fs::exists(a.output),"Use a fresh ignored output in the selected OE40/OE43 or explicit OE44 diagnosis root");
+    check(allowed_output&&!fs::exists(a.output),"Use a fresh ignored output in the selected OE40/OE43 or explicit matching diagnosis root");
     check(!below(a.output,a.data)&&!below(a.data,a.output),"Output overlaps original data");
     for(const auto& path:{a.input,a.expected})if(!path.empty()){
         safe(path);const bool allowed_input=below(path,private_root())||
-            (!a.diagnosis.empty()&&path!=diagnosis_root&&below(path,diagnosis_root));
+            (!a.diagnosis.empty()&&path!=diagnosis_root&&below(path,diagnosis_root))||
+            (a.diagnosis=="oe45"&&path!=prior_diagnosis_root&&below(path,prior_diagnosis_root));
         check(allowed_input&&fs::is_regular_file(path)&&fs::file_size(path)<=8U*1024U*1024U&&!below(path,a.output),
-            "Use bounded explicit protected OE40 or selected OE44 diagnosis saves");
+            "Use bounded explicit protected OE40 or selected explicit diagnosis saves");
     }
     if(a.mode=="create")check(a.input.empty()&&a.expected.empty()&&a.resources.empty(),help);
     else check(!a.input.empty(),help);
@@ -85,10 +97,11 @@ sim::World restore14(const q::Context& c,const q::save::SaveDocument& d){
     return q::save::restore_original_cardinal_water(d,c.data,c.mask,c.policy,c.model);
 }
 unsigned schema_for_rule(unsigned rule) {
-    check(rule==14||rule==15,"Exact QA Rule14 or Rule15 required");return rule==15?31U:30U;
+    check(rule==14||rule==15||rule==16,"Exact QA Rule14, Rule15 or Rule16 required");return rule==16?32U:rule==15?31U:30U;
 }
 sim::World restore_selected(const q::Context& c,const q::save::SaveDocument& d,unsigned rule) {
     check(d.source_schema_version==schema_for_rule(rule)&&d.world.rule_version==rule,"Exact selected QA rule/schema save required");
+    if(rule==16)return q::save::restore_original_deadline_fire_dispatch(d,c.data,c.mask,c.policy,c.model);
     if(rule==15)return q::save::restore_original_inspector_coordination(d,c.data,c.mask,c.policy,c.model);
     return restore14(c,d);
 }
@@ -113,17 +126,44 @@ const sim::OriginalHousingTransition* entry17(const sim::World& w,sim::BuildingI
 bool entered17(const sim::World& w,sim::BuildingId target){
     return entry17(w,target)&&high::actual_first_target_success(w,target,orig::HouseType::HeavenlyCompound);
 }
+Json compare_tick_digests(const Options& a,std::uint64_t begin,std::uint64_t end) {
+    const auto creator=a.expected.parent_path()/"oe45-state-digests.csv";
+    const auto replay=a.output/"oe45-state-digests.csv";
+    safe(creator);safe(replay);
+    for(const auto& path:{creator,replay})check(fs::is_regular_file(path)&&fs::file_size(path)<=32U*1024U*1024U,
+        "Bounded independent complete tick-digest trace required");
+    std::ifstream input(creator,std::ios::binary);std::string line,expected="tick,sha256\n";
+    check(bool(std::getline(input,line))&&line=="tick,sha256","Invalid creator digest header");
+    std::optional<std::uint64_t> previous;std::uint64_t rows=0,compared=0;
+    while(std::getline(input,line)) {
+        check(++rows<=262144&&line.size()<=85,"Creator tick trace exceeds bounded rows or line size");
+        const auto comma=line.find(',');check(comma!=std::string::npos&&line.size()-comma-1==64,"Invalid creator digest row");
+        std::uint64_t tick=0;const auto parsed=std::from_chars(line.data(),line.data()+comma,tick);
+        check(parsed.ec==std::errc{}&&parsed.ptr==line.data()+comma&&
+            (!previous||(*previous!=UINT64_MAX&&tick==*previous+1)),"Creator digest ticks are not consecutive");
+        check(std::all_of(line.begin()+static_cast<std::ptrdiff_t>(comma+1),line.end(),
+            [](unsigned char v){return (v>='0'&&v<='9')||(v>='a'&&v<='f');}),"Invalid creator SHA256");
+        previous=tick;
+        if(tick>=begin&&tick<=end){expected+=line+'\n';++compared;}
+    }
+    check(input.eof()&&compared==end-begin+1,"Creator digest trace omits an observed tick");
+    check(q::f::read_text(replay)==expected,"Separate-process complete per-tick state digests differ");
+    return {{"status","PASS"},{"begin_tick",begin},{"end_tick",end},{"compared_states",compared},
+        {"complete_csv_bytes_equal",true},{"scope","Validated saved authority, including full fire history; derived caches remain outside this claim"}};
+}
 Json provenance(const sim::World& w,sim::BuildingId target){const auto value=w.original_influence_provenance(target);
     return {{"raw",value.raw_value},{"cardinal_bonus",value.cardinal_water_bonus},{"query",value.value},{"source_map_sha256",value.source_map_sha256},
         {"model_sha256",value.model_sha256},{"selected_cell",{value.selected_cell.x,value.selected_cell.y}}};}
 void simulate(const Options& a){
     const auto pins=source_pins(a.data);const auto c=q::Context::real(a.data);const bool resumed=a.mode=="resume";
     const auto input=resumed?q::f::read_text(a.input):std::string{},expected_bytes=resumed?q::f::read_text(a.expected):std::string{};
-    auto w=resumed?restore_selected(c,q::save::read_save(a.input),a.rule):a.rule==15?
+    auto w=resumed?restore_selected(c,q::save::read_save(a.input),a.rule):a.rule==16?
+        sim::World::create_original_deadline_fire_dispatch(c.policy,c.model,q::save::prepare_original_terrain_facts(c.data,c.map_relative)):a.rule==15?
         sim::World::create_original_inspector_coordination(c.policy,c.model,q::save::prepare_original_terrain_facts(c.data,c.map_relative)):
         sim::World::create_original_cardinal_water(c.policy,c.model,q::save::prepare_original_terrain_facts(c.data,c.map_relative));
     check(w.rule_version()==a.rule&&w.original_cardinal_water_enabled()&&
-        (a.rule!=15||w.original_inspector_coordination_enabled())&&w.original_worker_upkeep_interval()==816&&
+        (a.rule!=15||w.original_inspector_coordination_enabled())&&
+        (a.rule!=16||w.original_deadline_fire_dispatch_enabled())&&w.original_worker_upkeep_interval()==816&&
         w.original_rules_model()->provenance().sha256==strategy::model_sha,"Explicit source-bound selected Rule14/15 with unchanged816 upkeep required");
     fs::create_directories(a.output);Json commands=Json::array(),blocked=nullptr,manifest=Json::array(),comparisons=Json::array();
     const auto independent=orig::load_model_data(c.data);check(bool(independent),"Independent original model preparation failed");
@@ -149,6 +189,7 @@ void simulate(const Options& a){
         check(fs::is_regular_file(creator_report)&&fs::file_size(creator_report)<=1024U*1024U,"Bounded creator recipe report required");
         const auto creator=Json::parse(q::f::read_text(creator_report));check(creator.at("variant")==a.variant&&creator.at("rule")==a.rule&&creator.at("schema")==schema_for_rule(a.rule),"Replay variant or generation differs from creator");
         if(a.rule==15)check(creator.at("inspector_coordination_contract")==sim::original_inspector_coordination_contract,"Replay Inspector coordination contract differs");
+        if(a.rule==16)check(creator.at("deadline_fire_dispatch_contract")==sim::original_deadline_fire_dispatch_contract,"Replay deadline fire-dispatch contract differs");
         check(creator.value("paid_strategy",std::string{})==a.paid_strategy,"Replay paid strategy differs from the independently supplied creator");}
     const auto compare_expected=[&]{if(!resumed)return;for(const auto& entry:expected_manifest)if(entry.at("tick").get<std::uint64_t>()==w.ticks()){
         const auto name=entry.at("file").get<std::string>();if(compared.contains(name))continue;
@@ -161,12 +202,17 @@ void simulate(const Options& a){
     compare_expected();metrics::Observation city(w);std::unique_ptr<high::Observation> observed,retained;
     std::unique_ptr<oe_elite_stability_diagnosis::Observation> diagnosis;
     if(!a.diagnosis.empty())diagnosis=std::make_unique<oe_elite_stability_diagnosis::Observation>(w,a.output);
+    std::unique_ptr<oe_elite_fire_coverage_metrics::Observation> fire_observed;
+    if(a.diagnosis=="oe45")fire_observed=std::make_unique<oe_elite_fire_coverage_metrics::Observation>(w,a.output);
+    std::unique_ptr<oe_elite_fire_replay_digest::Observation> tick_digests;
+    if(a.tick_digests)tick_digests=std::make_unique<oe_elite_fire_replay_digest::Observation>(w,a.output);
     std::unique_ptr<trace::Observation> transported;std::optional<sim::BuildingId> target=strategy::elite(w);
     const auto attach=[&]{if(target&&!observed){observed=std::make_unique<high::Observation>(w,*target,rules);transported=std::make_unique<trace::Observation>(w,*target,rules);}};attach();
     std::optional<std::uint64_t> first;std::uint64_t lost=0,unmet=0,next_unmet=0,evaluations=0;std::int64_t retain_min=w.treasury();Json first_entry=nullptr,evaluation_provenance=Json::array();
     if(target&&entry17(w,*target)){const auto& proof=*entry17(w,*target);first=proof.evaluation.tick;
         first_entry={{"tick",*first},{"input",high::evaluation(proof.evaluation,rules)},{"entry_observed_in_this_process",false}};
-        retained=std::make_unique<high::Observation>(w,*target,rules);}
+        retained=std::make_unique<high::Observation>(w,*target,rules);
+        if(fire_observed)fire_observed->begin_retention(w);}
     std::map<std::string,bool> failure_saved{{"first-current-failure",false},{"first-fire",false},{"first-devolution",false}};
     std::map<std::string,std::uint64_t> creator_failure_ticks;
     if(resumed&&!a.paid_strategy.empty())for(const auto& entry:expected_manifest) {
@@ -190,9 +236,12 @@ void simulate(const Options& a){
     };
     const auto tick_once=[&]{city.before(w);if(observed)observed->before(w);if(transported)transported->before(w);if(retained)retained->before(w);
         if(diagnosis)diagnosis->before(w);
+        if(fire_observed)fire_observed->before(w);
         const auto tick=w.ticks();w.tick();check(w.ticks()==tick+1,"World did not advance one actual tick");city.after(w);
         if(observed)observed->after(w);if(transported)transported->after(w);if(retained)retained->after(w);
-        if(diagnosis)diagnosis->after(w);};
+        if(diagnosis)diagnosis->after(w);
+        if(fire_observed)fire_observed->after(w);
+        if(tick_digests)tick_digests->after(w);};
     try{while(stop_reason.empty()&&w.ticks()<requested_end){
         const bool continued_timing=!a.paid_strategy.empty()&&paid_strategy::timing_recipe(a.paid_strategy);
         if(!first||continued_timing){if(!apply_recipe()){stop_reason="Actual paid command refused";break;}target=strategy::elite(w);attach();}
@@ -209,6 +258,7 @@ void simulate(const Options& a){
             first=w.ticks();checkpoint14(c,a.output,"first-success",w,manifest);
             first_entry={{"tick",w.ticks()},{"input",high::evaluation(proof.evaluation,rules)},{"provenance",provenance(w,*target)},{"entry_observed_in_this_process",true}};
             retained=std::make_unique<high::Observation>(w,*target,rules);retain_min=w.treasury();
+            if(fire_observed)fire_observed->begin_retention(w);
             if(!resumed)requested_end=w.ticks()+20400;
         }
         if(was_retaining&&target){retain_min=std::min(retain_min,w.treasury());if(!entered17(w,*target))++lost;
@@ -243,7 +293,16 @@ void simulate(const Options& a){
     write(a.output/"city-metrics.json",city.report(w));if(observed)write(a.output/"elite-metrics.json",observed->report(w));
     if(transported)write(a.output/"transport-metrics.json",transported->report(w));if(retained)write(a.output/"retention-metrics.json",retention);
     write(a.output/"commands.json",commands);write(a.output/"checkpoints.json",manifest);write(a.output/"evaluation-provenance.json",evaluation_provenance);
-    if(diagnosis)write(a.output/"oe44-diagnosis.json",diagnosis->finish(w));
+    Json diagnostic_result=diagnosis?diagnosis->finish(w):Json(nullptr);
+    if(diagnosis)write(a.output/"oe44-diagnosis.json",diagnostic_result);
+    Json fire_result=fire_observed?fire_observed->finish(w):Json(nullptr);
+    if(fire_observed)write(a.output/"oe45-fire-coverage.json",fire_result);
+    Json digest_result=tick_digests?tick_digests->finish():Json(nullptr);
+    if(tick_digests) {
+        check(!digest_result.at("overflow").get<bool>(),"Per-tick state-digest budget exhausted");
+        digest_result["separate_process_comparison"]=resumed?compare_tick_digests(a,begin,w.ticks()):Json(nullptr);
+        write(a.output/"oe45-state-digests.json",digest_result);
+    }
     check(source_pins(a.data)==pins,"Original input bytes/modes/mtimes changed");if(resumed)check(q::f::read_text(a.input)==input&&q::f::read_text(a.expected)==expected_bytes,"Replay changed protected creator files");
     const Json outcome= !stop_reason.empty()?Json(stop_reason):!first?Json("Bounded search ended without actual Elite16-to-17; final paid population, phase gate, pending purchases and unmet needs are retained"):
         !retained_pass?Json("Actual Elite17 entry retained, but this observed interval does not certify 20400 uninterrupted ticks with 400 needs-met evaluations"):Json(nullptr);
@@ -261,17 +320,35 @@ void simulate(const Options& a){
         {"input_bytes_modes_mtimes_unchanged",true},{"original_executable_ran",false},{"native_human","NOT_RUN"}};
     if(!a.paid_strategy.empty())report["paid_strategy"]=a.paid_strategy;
     if(a.rule==15)report["inspector_coordination_contract"]=sim::original_inspector_coordination_contract;
+    if(a.rule==16)report["deadline_fire_dispatch_contract"]=sim::original_deadline_fire_dispatch_contract;
     write(a.output/"report.json",report);
+    if(a.diagnosis=="oe45") {
+        const bool complete=first&&financial_ticks==20400&&evaluations==400;
+        const bool fire_ok=retained&&retention.at("summary").at("burning_ticks")==0;
+        const bool occupied=retained&&retention.at("summary").at("minimum_target_occupants").get<int>()>0;
+        const bool no_devolution=retained&&retention.at("summary").at("devolutions")==0;
+        const bool finance_ok=complete&&cashflow>=0&&retain_min>=0;
+        const bool technical=stop_reason.empty()&&!diagnostic_result.at("overflow").get<bool>()&&
+            !fire_result.at("trace_overflow").get<bool>()&&
+            (!tick_digests||!digest_result.at("overflow").get<bool>());
+        write(a.output/"oe45-outcome.json",{{"TECHNICAL",technical?"PASS":"FAIL"},
+            {"ELITE17_ENTRY",first?"PASS":"FAIL"},{"FIRE_COVERAGE",complete&&fire_ok?"PASS":"PARTIAL"},
+            {"SUPPLY",complete&&unmet==0?"PASS":"PARTIAL"},{"FINANCE",finance_ok?"PASS":"PARTIAL"},
+            {"ELITE17_RETENTION",technical&&complete&&retained_pass&&fire_ok&&occupied&&no_devolution&&finance_ok?"PASS":"PARTIAL"},
+            {"current_generation_checkpoint_bytes_validated",true},{"historical_compatibility_requires_separate_gate",true},
+            {"whole_city_assessment_requires_comparison",true},{"ORIGINAL_PARITY","UNKNOWN"},{"NATIVE_HUMAN","NOT_RUN"}});
+    }
     std::cout<<"OE40 actual Elite17="<<(first?"reached":"not reached")<<" retention="<<retained_pass<<" tick="<<w.ticks()<<'\n';
 }
 void render_inspector_matrix(const Options& a,oe::SandboxView& view,Sdl& sdl,
         const std::string& input,const q::save::SaveDocument& saved,const fs::path& copy,
         sim::BuildingId target,const Json& pins) {
-    check(a.rule==15&&a.diagnosis=="oe44"&&saved.source_schema_version==31&&
-        view.world().original_inspector_coordination_enabled(),"Exact explicit OE44 schema31 render required");
+    check((a.rule==15||a.rule==16)&&!a.diagnosis.empty()&&saved.source_schema_version==schema_for_rule(a.rule)&&
+        (view.world().original_inspector_coordination_enabled()||view.world().original_deadline_fire_dispatch_enabled()),
+        "Exact explicit Inspector generation render required");
     using Point=oe::scene::Point;
     using Rect=oe::sandbox_ui::Rect;
-    Json captures=Json::array(),matrix=Json::array();std::uint64_t actions=0;
+    Json captures=Json::array(),matrix=Json::array(),watch_captures=Json::array();std::uint64_t actions=0;
     const auto pure=[&]{check(view.paused()&&view.world().snapshot()==saved.world,
         "Inspector action changed complete World or paused state");};
     const auto send=[&](SDL_Event e) {
@@ -325,7 +402,58 @@ void render_inspector_matrix(const Options& a,oe::SandboxView& view,Sdl& sdl,
         check(!view.selected_building(),"Clipped invisible list row remained clickable");++fragment_probes;
     }
     check(fragment_probes>0,"No actually clipped list fragment was probed");
-    wheel(middle(layout.content),1000000);render();
+    if(a.diagnosis=="oe45") {
+        std::vector<sim::CourierId> inspectors;
+        for(const auto& actor:view.world().couriers())if(actor.role==sim::CourierRole::FireInspector)inspectors.push_back(actor.id);
+        for(const auto id:inspectors) {
+            // F9 replaces World; retain only this bounded Inspector record.
+            const auto actor=view.world().courier(id);
+            const auto owner=std::find(entries.begin(),entries.end(),actor.owner);
+            check(owner!=entries.end(),"Actual Inspector lost its paid Watch row");
+            const auto index=static_cast<std::size_t>(owner-entries.begin());
+            wheel(middle(view.inspector_layout().content),1000000);render();
+            for(unsigned n=0;;++n) {
+                check(n<1024,"Watch list selection exceeds its bound");layout=view.inspector_layout();
+                const auto row=layout.list_row_rect(index);
+                if(row.h>0){click(middle(row));break;}
+                check(layout.scroll<layout.scroll_limit,"Paid Watch row is unreachable");
+                wheel(middle(layout.content),-1);render();
+            }
+            check(view.selected_building()==actor.owner,"Actual list did not select the paid Watch");
+            wheel(middle(view.inspector_layout().content),1000000);render();
+            for(const unsigned z:{1U,2U,4U}) {
+                const auto anchor=middle(view.layout().map);
+                wheel(anchor,float(std::log(double(z)/view.camera().zoom)/std::log(1.15)));render();
+                const auto diagnostic=view.walker_diagnostics();
+                const auto found_actor=std::find_if(diagnostic.begin(),diagnostic.end(),[&](const auto& d){return d.id==actor.id;});
+                check(found_actor!=diagnostic.end(),"Actual Inspector render diagnostic is missing");
+                if(found_actor->live_visible) {
+                    const auto camera=view.camera();
+                    const Point ground{(found_actor->screen_ground.x-camera.offset.x)/camera.zoom,
+                        (found_actor->screen_ground.y-camera.offset.y)/camera.zoom};
+                    center(view,ground);render();
+                    const auto centered=view.walker_diagnostics();
+                    const auto visible=std::find_if(centered.begin(),centered.end(),[&](const auto& d){return d.id==actor.id;});
+                    check(visible!=centered.end()&&visible->submitted,"Centered live Inspector was not submitted by production rendering");
+                }
+                std::unique_ptr<SDL_Surface,decltype(&SDL_DestroySurface)> frame(SDL_RenderReadPixels(sdl.renderer,nullptr),SDL_DestroySurface);
+                const auto name="inspector-"+std::to_string(static_cast<unsigned>(actor.id))+"-"+std::to_string(z)+"x.png";
+                check(frame&&!fs::exists(a.output/name)&&SDL_SavePNG(frame.get(),(a.output/name).string().c_str()),"Cannot capture actual Watch inspection");
+                const auto before_save=view.save_generation(),before_load=view.load_generation();
+                keyboard(SDLK_F5);keyboard(SDLK_F9);
+                check(view.save_generation()==before_save+1&&view.load_generation()==before_load+1&&
+                    q::f::read_text(copy)==input,"Actual Watch F5/F9 changed complete canonical bytes");pure();
+                watch_captures.push_back({{"file",name},{"zoom",z},{"courier",static_cast<unsigned>(actor.id)},
+                    {"owner",static_cast<unsigned>(actor.owner)},{"target",static_cast<unsigned>(actor.target)},
+                    {"phase",sim::courier_phase_name(actor.phase)},{"route_pending",actor.route_pending},
+                    {"actual_path",trace::cells(actor.path)},{"path_vertex",actor.path_vertex},{"edge_progress",actor.edge_progress},
+                    {"live_walker_visible",found_actor->live_visible},{"inspection",view.inspection_lines()},
+                    {"complete_f5_f9_equality",true},{"visually_inspected",false}});
+            }
+        }
+        check(watch_captures.size()==6,"Exact two-Watch three-zoom capture scope required");
+    }
+    wheel(middle(view.inspector_layout().content),1000000);render();
     for(unsigned n=0;;++n){check(n<1024,"Elite list selection exceeded its bound");layout=view.inspector_layout();
         const auto row=layout.list_row_rect(target_row);
         if(row.h>0){check(layout.list_row_at(middle(row).x,middle(row).y)==target_row,"Elite list hitbox differs");click(middle(row));break;}
@@ -396,15 +524,19 @@ void render_inspector_matrix(const Options& a,oe::SandboxView& view,Sdl& sdl,
     }
     check(matrix.size()==36&&captures.size()<=72,"Unexpected bounded inspector matrix size");
     check(q::f::read_text(a.input)==input&&source_pins(a.data)==pins,"Inspector render changed protected input or original source pins");
-    write(a.output/"report.json",{{"format","openemperor-oe44-inspector-view-v1"},{"status","PASS"},
-        {"rule",15},{"schema",31},{"inspector_coordination_contract",sim::original_inspector_coordination_contract},
+    Json report{{"format",a.rule==16?"openemperor-oe45-inspector-view-v1":"openemperor-oe44-inspector-view-v1"},{"status","PASS"},
+        {"rule",a.rule},{"schema",schema_for_rule(a.rule)},
         {"actual_sandbox_renderer",true},{"backend",SDL_GetRendererName(sdl.renderer)},{"scripted_dummy_software",true},
         {"target",static_cast<unsigned>(target)},{"actual_type",visual.house_type},{"actual_side",visual.actual_side},
         {"selected_via_actual_building_list",true},{"list_rows_reached",list_seen.size()},{"invisible_list_hits_refused",true},
         {"actually_clipped_fragment_probes",fragment_probes},{"save_load_generations_checked",true},
         {"sprite_center_authority","production OriginalHouseVisualDiagnostic image_origin/width/height"},
         {"matrix",matrix},{"captures",captures},{"checked_actions",actions},{"world_unchanged",true},{"paused_after_every_action",true},
-        {"complete_f5_f9_equality",true},{"source_inputs_unchanged",true},{"captures_visually_inspected",false},{"native_human","NOT_RUN"}});
+        {"complete_f5_f9_equality",true},{"source_inputs_unchanged",true},{"captures_visually_inspected",false},{"native_human","NOT_RUN"}};
+    if(a.rule==16)report["deadline_fire_dispatch_contract"]=sim::original_deadline_fire_dispatch_contract;
+    else report["inspector_coordination_contract"]=sim::original_inspector_coordination_contract;
+    if(a.diagnosis=="oe45")report["fire_watch_captures"]=watch_captures;
+    write(a.output/"report.json",report);
 }
 void render14(const Options& a){
     const auto pins=source_pins(a.data);const auto c=q::Context::real(a.data);const auto input=q::f::read_text(a.input);const auto d=q::save::read_save(a.input);
@@ -412,7 +544,8 @@ void render14(const Options& a){
     fs::create_directories(a.output);const auto copy=a.output/"view.save.json";q::f::write_text(copy,input);Sdl sdl;
     auto session=oe::maps::load_stored_map_session(c.data,c.map_relative,oe::maps::FootprintPolicy::EdgeByte4x4Preview,oe::maps::StoredGraphicsProfile::Slot8,
         oe::maps::GreatWallPresentationMode::Automatic,{},true);
-    auto view=a.rule==15?oe::SandboxView::create_original_inspector_coordination(std::move(session),orig::Difficulty::Normal,false):
+    auto view=a.rule==16?oe::SandboxView::create_original_deadline_fire_dispatch(std::move(session),orig::Difficulty::Normal,false):
+        a.rule==15?oe::SandboxView::create_original_inspector_coordination(std::move(session),orig::Difficulty::Normal,false):
         oe::SandboxView::create_original_cardinal_water(std::move(session),orig::Difficulty::Normal,false);
     view->configure_save(c.data,c.map_relative,copy);
     const auto art=oe::detect_and_select_visual_profiles(c.data,a.resources);
@@ -425,13 +558,13 @@ void render14(const Options& a){
     view->set_original_house_visuals(art.original_house,art.original_house_source,art.original_house_fallback_reason);
     view->initialize(sdl.window,sdl.renderer);const auto before_initial_load=view->load_generation();
     key(*view,SDLK_F9);check(view->paused()&&view->world().snapshot()==d.world,"Actual Rule14 View F9 differs");
-    if(a.rule==15&&a.diagnosis=="oe44")check(view->load_generation()==before_initial_load+1,
+    if((a.rule==15||a.rule==16)&&!a.diagnosis.empty())check(view->load_generation()==before_initial_load+1,
         "Initial OE44 F9 did not complete exactly one actual load");
     const auto before_initial_save=view->save_generation();key(*view,SDLK_F5);
     check(q::f::read_text(copy)==input,"Actual Rule14 View F5 canonical bytes differ");
-    if(a.rule==15&&a.diagnosis=="oe44")check(view->save_generation()==before_initial_save+1,
+    if((a.rule==15||a.rule==16)&&!a.diagnosis.empty())check(view->save_generation()==before_initial_save+1,
         "Initial OE44 F5 did not complete exactly one actual save");
-    if(a.rule==15&&a.diagnosis=="oe44") {
+    if((a.rule==15||a.rule==16)&&!a.diagnosis.empty()) {
         render_inspector_matrix(a,*view,sdl,input,d,copy,*target,pins);
         view->shutdown();return;
     }

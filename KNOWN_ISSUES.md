@@ -3,7 +3,7 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
-- **Original economy is experimental.** Rules10/11/12/13/14/15 are opt-in and include authored
+- **Original economy is experimental.** Rules10/11/12/13/14/15/16 are opt-in and include authored
   immigration, workforce, recipes, harvesting, school-to-house visits and Rule13
   needs-aware goods selection.
   Original venue/performer chains and illness are missing. Houses and productive
@@ -48,6 +48,17 @@ complete original-game compatibility.
   evaluations and has2070 target fire ticks. The
   [OE44 evidence](docs/original-economy/oe44-elite17-stability.md) separates
   technical compatibility, paid entry, supply, fire, finance and human acceptance.
+- **Rule16 has a finite paid Elite17 retention proof.** Separately selected
+  Rule16/schema32 uses authored deadline-aware Inspector dispatch with unchanged
+  physical travel, protection, prices, limits and needs. The paid near-Watch/grid
+  plan reaches type17 at tick5446 and holds it through25846:400/400 current needs,
+  no target fire, devolution or vacancy, +4951 operating cashflow and minimum
+  Funds5017. The other twelve Houses remain inhabited, but still have Food/service
+  deficits and devolutions; city buildings still burn. This is a measured20400-tick
+  result, not indefinite stability, all-city fire coverage or original-runtime
+  parity. Historical Rules1–15 remain exact. See the
+  [OE45 evidence](docs/original-economy/oe45-fire-coverage.md); native human
+  acceptance remains open.
 - **High-tier progression has a bounded Rule12 blocker.** The
   [paid high-tier check](docs/original-economy/oe38-paid-high-tier-progression.md)
   reaches Common10 through actual purchases and deliveries, but does not hold it

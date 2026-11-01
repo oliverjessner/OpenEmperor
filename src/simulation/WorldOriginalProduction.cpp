@@ -215,6 +215,36 @@ World World::restore_original_inspector_coordination(const WorldSnapshot& snapsh
     world.validate_original_services_model();world.validate_original_water_model();world.validate_original_housing_model();world.validate_original_industry_model();
     world.validate_original_finance_model();return world;
 }
+World World::create_original_deadline_fire_dispatch(std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,
+    std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    if (!permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain)
+        invalid("original deadline fire dispatch creation requires policy3, prepared model and immutable terrain facts");
+    const auto capacity=model->house_rules().row_capacity(original::ModelHouse::Shelter);
+    if (capacity<=0 || capacity>INT16_MAX) invalid("invalid original deadline fire dispatch Shelter capacity");
+    const auto width=permissions->width(),height=permissions->height();auto mask=permissions->building_mask();
+    World world(width,height,std::move(mask),RulesProfile::CityV16,kOriginalDeadlineFireDispatchRuleVersion,
+        std::move(permissions),true,std::move(model),std::move(terrain));
+    world.original_production_->fire_protection.emplace();
+    world.validate_original_hemp_model();world.validate_original_food_model();world.validate_original_consumption_model();
+    world.validate_original_services_model();world.validate_original_water_model();world.validate_original_housing_model();world.validate_original_industry_model();
+    world.validate_original_finance_model();world.rebuild_original_influence_cache();return world;
+}
+World World::restore_original_deadline_fire_dispatch(const WorldSnapshot& snapshot,
+    std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,
+    std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    if (!simulation::original_deadline_fire_dispatch_enabled(snapshot.profile,snapshot.rule_version) ||
+        !permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain)
+        invalid("original deadline fire dispatch restore requires exact rule16, policy3, model and terrain facts");
+    const auto capacity=model->house_rules().row_capacity(original::ModelHouse::Shelter);
+    if (capacity<=0 || capacity>INT16_MAX) invalid("invalid original deadline fire dispatch Shelter capacity");
+    validate_original_production_snapshot(snapshot);
+    auto world=restore_impl(snapshot,{},std::move(permissions),true,std::move(model),std::move(terrain));
+    world.validate_original_hemp_model();world.validate_original_food_model();world.validate_original_consumption_model();
+    world.validate_original_services_model();world.validate_original_water_model();world.validate_original_housing_model();world.validate_original_industry_model();
+    world.validate_original_finance_model();return world;
+}
 World World::restore_original_fire_protection(const WorldSnapshot& snapshot,
     std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model) {

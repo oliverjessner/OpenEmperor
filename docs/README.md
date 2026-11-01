@@ -13,6 +13,7 @@ Start with the [quick start](../README.md) and [known issues](../KNOWN_ISSUES.md
 - [Architecture](architecture.md) and [Original economy](original-economy/architecture-map.md): engine boundaries, persistence and versioned runtime contracts.
 - [Economy and fire diagnosis](original-economy/oe35-economy-fire-diagnosis.md): paid strategy comparisons, capital reach and fire-protection limits.
 - [Versioned fire protection](original-economy/oe36-fire-protection.md): paid Rule11 Watches, actual Inspector visits, schema27 and measured effects.
+- [Deadline-aware fire dispatch](original-economy/oe45-fire-coverage.md): explicit Rule16/schema32 experiment; paid retention, supply and finance assessment pending completion.
 - [Sustainable economy](original-economy/oe37-sustainable-economy.md): Rule12 capacity and upkeep, paid twelve-House plan and finite operating-window acceptance.
 - [Testing](testing.md): builds, automated checks and manual acceptance; [current native macOS observations](qa/oe43-native-playtest.md) and the isolated human handoff.
 - [macOS packaging](macos-packaging.md): local app bundles and distribution limits.
