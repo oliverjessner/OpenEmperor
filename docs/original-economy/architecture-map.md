@@ -18,6 +18,7 @@ parity remains partial; see [the play guide](player-handoff.md) and [Known Issue
 | Rule14 / schema30 / revision27 | Separate cardinal-water House query; inherits Rule13 logistics and unchanged economy/bounds, with immutable source terrain. |
 | Rule15 / schema31 / revision27 | Explicit authored Inspector-coordination experiment; inherits Rule14, skips other actual incoming Inspector commitments and unexpired real protection for new dispatches. Elite17 retention remains unproved. |
 | Rule16 / schema32 / revision27 | Separate authored deadline-aware Inspector dispatch; inherits the cardinal-water/market/economy contracts, ranks physical deadlines without building-class preference and coalesces usable incoming trips. Retention assessment is separate. |
+| Rule17 / schema33 / revision27 | Separate authored deadline-aware service selection; inherits Rule16's fire policy and all economy/bounds, ranks actual expiry and physical travel, coalesces real same-role visits and retains a complete canonical House cursor. |
 
 Rules1–14 and schemas1–30 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
@@ -124,6 +125,37 @@ zero target fire/devolution/vacancy and+4951 operating cashflow. All twelve othe
 Houses remain inhabited with measured residual deficits; other buildings still
 burn. The finite paid result does not establish indefinite stability or universal
 fairness, and selecting the mode alone does not reproduce the plan.
+
+Rule17 has separate `create_original_deadline_service_dispatch` and
+`restore_original_deadline_service_dispatch` APIs, **T Deadline-aware services**
+and `--original-deadline-service-dispatch`. Schema33 requires
+`rules.deadline_service_dispatch: "authored-deadline-service-dispatch-v1"`, plus
+the exact inherited fire, market and cardinal markers. The Rule16 predicate and
+restore remain exact16; its unchanged fire selector is explicitly inherited17.
+All nine service roles retain their existing actual visit eligibility, Paper
+input, workforce, source operation/fire gates and prepared navigation.
+
+The service candidate scan uses the complete canonical paid House list as its
+cursor, then tests present occupancy, visit admission, fire and route legality.
+A burning last destination remains a cursor anchor. Deadlines come from actual
+last-arrival witnesses and the existing40/96 countdowns on phase35, independent
+of whether inspection occurs before or after that tick's decay. A never-visited
+House uses its actual first-admission tick. Physical outward ETA includes the
+ordinary dispatch/movement boundary; actual incoming ETA uses remaining edges
+and progress. Paused/burning sources do not cancel already begun visits.
+
+Negative arrival slack precedes positive slack, with greatest lateness first;
+future candidates use least arrival slack. Ties use earlier expiry, shorter real
+round trip, then the canonical cursor. Another enabled, nonwaiting, outbound
+same-role visitor coalesces a candidate only when its real ETA meets the expiry
+or is no later than the candidate's. A faster late replacement may still compete.
+Returning, waiting, pending or merely selected actors grant no service. The scan
+uses existing bounded vectors/routes; no new World copy, scheduler, Navigator,
+all-pairs graph, mutable queue or saved field is introduced. Real arrival alone
+applies the unchanged timer. Food selection, Goods logistics, costs, installed
+upkeep, construction limits and fire timing are separate unchanged contracts.
+The [OE46 assessment](oe46-citywide-reliability.md) separates legal paid controls,
+actual citywide events and finite gameplay acceptance from this authored rule.
 
 `ModelData` reads the selected installation's `Model/EmperorBuildingModels.txt`
 within its canonical root: regular file, at most 256 KiB, lines at most 4096 bytes,
@@ -282,7 +314,7 @@ is separate from native human acceptance.
 
 ## Save safety and developer checks
 
-Schemas26–32 validate complete identities, map/mask/policy/model binding, paid origin,
+Schemas26–33 validate complete identities, map/mask/policy/model binding, paid origin,
 geometry, route/progress, capacities, conservation, timing and finance before
 publication. Unknown/duplicate/missing/mistyped fields, incompatible revisions,
 unsupported authority and impossible histories fail atomically; 8 MiB document and
@@ -303,6 +335,13 @@ is not a Schema32 field. Changed/missing/duplicate/mistyped markers or header-on
 relabels reject before publication. Terrain remains unsaved immutable context and
 is rederived from the live complete source map on restore. F5/F9 and Recovery use
 the selected generation's full source, geometry, accounting and trip checks.
+
+Schema33/Rule17 adds only its exact service marker and inherits schema32's fire,
+market, cardinal, policy3, model and complete-map terrain identities. No additional
+mutable saved authority exists. Missing/unknown/duplicate/mistyped markers,
+cross16/17 restores and header-only relabels fail closed. Historical schemas1–32
+retain their exact bytes and generation; F5/F9, normal menu load and Recovery
+select the explicit33 path without migration.
 
 See [testing.md](../testing.md) for build/sanitizer setup. With a configured `build` and your own data:
 

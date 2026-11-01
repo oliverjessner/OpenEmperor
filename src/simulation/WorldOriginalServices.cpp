@@ -319,6 +319,94 @@ CourierDispatchDecision World::original_service_dispatch_status(const CourierSta
     if (c.role!=courier_role_for(p.type)) throw std::logic_error("original service dispatch has incompatible paid Provider");
     if (p.type==OriginalServiceProviderType::Confucian219 && !original_academy_paper_available(c.owner))
         return {CourierDispatchStatus::NoStock,{}};
+    if (original_deadline_service_dispatch_enabled()) {
+        const auto add=[](std::uint64_t a,std::uint64_t b) {
+            return b>UINT64_MAX-a ? UINT64_MAX:a+b;
+        };
+        // Public queries see the completed tick; actual dispatch sees this
+        // tick before movement/countdown. Both use the same physical phase.
+        const auto dispatch_tick=tick_staffing_active_ ? ticks_:add(ticks_,1);
+        const auto edge=static_cast<std::uint64_t>(active_rules().courier_edge_ticks);
+        const auto role=role_for(p.type);
+        struct Incoming {BuildingId target{};std::uint64_t arrival=0;};
+        std::array<Incoming,original_service_provider_limit> incoming{};
+        std::size_t incoming_count=0;
+        for (const auto& trip:original_production_->services.trips) {
+            if (trip.transfer.courier_id==c.id || trip.arrival_tick) continue;
+            const auto actor=std::find_if(couriers_.begin(),couriers_.end(),[&](const auto& other) {
+                return other.id==trip.transfer.courier_id;
+            });
+            if (actor==couriers_.end() || actor->role!=c.role || !actor->enabled ||
+                actor->phase!=CourierPhase::ToWarehouse || actor->route_pending ||
+                actor->target!=trip.target || actor->path.empty() ||
+                actor->path_vertex+1>=actor->path.size()) continue;
+            const auto& target=house_row(original_economy_->houses,trip.target);
+            if (building_on_fire(trip.target) || !eligible(target,visit_for(p.type))) continue;
+            const auto remaining=static_cast<std::uint64_t>(actor->path.size()-1-actor->path_vertex)*edge-
+                static_cast<std::uint64_t>(actor->edge_progress);
+            if (incoming_count<incoming.size())
+                incoming[incoming_count++]={trip.target,add(dispatch_tick,remaining-1)};
+        }
+        // Keep the cursor in the complete canonical paid House list. A last
+        // destination that burns stays an anchor, rather than resetting the
+        // scan to the first healthy House and skipping later recipients.
+        std::array<const BuildingState*,Rules::city_v10_household_limit> canonical{};
+        std::size_t count=0,start=0;
+        for (const auto& b:buildings_) if (b.placed && original_house_kind(b.kind)) canonical[count++]=&b;
+        for (std::size_t i=0;i<count;++i) if (c.last_dispatched_target==canonical[i]->id) start=(i+1)%count;
+        struct Choice {BuildingId target{};std::uint64_t deadline=0,arrival=0,roundtrip=0;};
+        std::optional<Choice> selected;
+        const auto earlier=[](const Choice& a,const Choice& b) {
+            const bool a_late=a.arrival>a.deadline,b_late=b.arrival>b.deadline;
+            // Unlike an expired fire incident, a late service visit still
+            // renews real coverage. Restore uncovered/negative-laxity Houses
+            // before refreshing positive timers; no lateness grants a visit.
+            if (a_late!=b_late) return a_late;
+            const auto a_gap=a_late ? a.arrival-a.deadline:a.deadline-a.arrival;
+            const auto b_gap=b_late ? b.arrival-b.deadline:b.deadline-b.arrival;
+            if (a_gap!=b_gap) return a_late ? a_gap>b_gap:a_gap<b_gap;
+            if (a.deadline!=b.deadline) return a.deadline<b.deadline;
+            if (a.roundtrip!=b.roundtrip) return a.roundtrip<b.roundtrip;
+            return false; // Exact ties retain the stable canonical cursor.
+        };
+        bool unserved=false;
+        for (std::size_t i=0;i<count;++i) {
+            const auto& target=*canonical[(start+i)%count];
+            const auto& home=house_row(original_economy_->houses,target.id);
+            if (building_on_fire(target.id) || !eligible(home,visit_for(p.type))) continue;
+            const auto* committed=static_cast<const Incoming*>(nullptr);
+            for (std::size_t n=0;n<incoming_count;++n)
+                if (incoming[n].target==target.id && (!committed || incoming[n].arrival<committed->arrival)) committed=&incoming[n];
+            const auto route=std::lower_bound(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),target.id,
+                [](const auto& entry,BuildingId key){return entry.first<key;});
+            if (route==c.dynamic_target_routes.end() || route->first!=target.id || !route->second || route->second->size()<2) {
+                if (!committed) unserved=true;
+                continue;
+            }
+            const auto edges=static_cast<std::uint64_t>(route->second->size()-1);
+            if (!edge || edges>UINT64_MAX/edge/2) continue;
+            const auto movement=edges*edge,arrival=add(dispatch_tick,movement-1);
+            std::uint64_t deadline=0;
+            if (const auto* witness=witness_for(original_production_->services,target.id,role)) {
+                // The retained actual-arrival origin makes this exact on the
+                // phase35 boundary both before and after this tick's decay.
+                const auto index=add(countdowns(witness->arrival_tick-1),original::service_duration(role)-1U);
+                deadline=index>UINT64_MAX/51 ? UINT64_MAX:add(36,index*51);
+            } else {
+                const auto& admitted=house_row(original_production_->housing.houses,target.id).first_admission_tick;
+                if (!admitted) throw std::logic_error("Eligible service House has no real admission");
+                deadline=*admitted;
+            }
+            // Moving visitors remain real after source pause/fire/staff loss.
+            // A waiting, returning or merely planned actor promised nothing.
+            if (committed && (committed->arrival<=deadline || committed->arrival<=arrival)) continue;
+            unserved=true;
+            const Choice candidate{target.id,deadline,arrival,movement*2};
+            if (!selected || earlier(candidate,*selected)) selected=candidate;
+        }
+        if (selected) return {CourierDispatchStatus::Ready,selected->target};
+        return {unserved ? CourierDispatchStatus::NoRoad:CourierDispatchStatus::NoTarget,{}};
+    }
     std::array<const BuildingState*,Rules::city_v10_household_limit> targets{};std::size_t count=0;
     for (const auto& b:buildings_) if (original_house_kind(b.kind) && !building_on_fire(b.id)) {
         const auto& h=house_row(original_economy_->houses,b.id);

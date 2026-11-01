@@ -19,6 +19,12 @@ using Json=nlohmann::json;
 using C=sim::CommandType;
 using Plan=std::remove_cv_t<decltype(base::plan)>;
 
+inline bool oe46_recipe(std::string_view recipe) {
+    return recipe=="oe46-ancestor-music-swap"||recipe=="oe46-ancestor-acrobat-swap"||
+        recipe=="oe46-ancestor-drama-swap"||recipe=="oe46-market-south"||recipe=="oe46-markets-four"||
+        recipe=="oe46-ancestor-west"||recipe=="oe46-ancestor-clinic"||recipe=="oe46-ancestor-music-early"||
+        recipe=="oe46-ancestor-music-four-markets"||recipe=="oe46-ancestor-music-south-door";
+}
 inline bool oe45_grid_watch_layout(std::string_view recipe) {
     return recipe=="oe45-grid-watch-near"||recipe=="oe45-grid-watch-north"||
         recipe=="oe45-grid-watch-west"||recipe=="oe45-grid-balanced"||recipe=="oe45-grid-south-door";
@@ -35,7 +41,7 @@ inline bool known(std::string_view recipe) {
         recipe=="combined-religion"||recipe=="combined-services"||recipe=="combined-paper-usable"||
         recipe=="early-refined"||recipe=="combined-refined"||recipe=="early-stagger-watch"||
         recipe=="early-stagger-medical"||recipe=="early-stagger-all"||recipe=="early-adaptive-watch"||
-        recipe=="early-stagger-medical-four-markets"||oe45_recipe(recipe);
+        recipe=="early-stagger-medical-four-markets"||oe45_recipe(recipe)||oe46_recipe(recipe);
 }
 inline bool timing_recipe(std::string_view recipe) {
     return recipe=="early-stagger-watch"||recipe=="early-stagger-medical"||
@@ -63,6 +69,25 @@ inline bool finance(std::string_view recipe){return recipe=="finance-staged";}
 
 inline Plan plan_for(std::string_view recipe) {
     q::check(known(recipe),"Unknown explicit paid OE44 player strategy");
+    if(oe46_recipe(recipe)) {
+        auto result=plan_for(recipe=="oe46-ancestor-music-south-door"?"oe45-grid-south-door":"oe45-grid-watch-near");
+        const unsigned other=recipe.starts_with("oe46-ancestor-music-")?11U:
+            recipe=="oe46-ancestor-acrobat-swap"?13U:recipe=="oe46-ancestor-drama-swap"?15U:0U;
+        const auto site=[&](unsigned key){for(const auto& node:result)if(node.plan_id==key)return node.cell;
+            throw std::logic_error("OE46 paid site swap lost its existing plan node");};
+        const auto shrine=site(17),culture=other?site(other):shrine;
+        for(auto& node:result) {
+            if(other&&node.plan_id==17)node.cell=culture;
+            if(other&&node.plan_id==other)node.cell=shrine;
+            if(recipe=="oe46-ancestor-west"&&node.plan_id==17)node.cell={110,117};
+            if(recipe=="oe46-ancestor-clinic"&&node.plan_id==17)node.cell={110,122};
+            if(recipe=="oe46-ancestor-music-early"&&node.plan_id==17)node.phase=2;
+            if(recipe=="oe46-market-south"&&node.plan_id==125)node.cell={125,140};
+            if((recipe=="oe46-markets-four"||recipe=="oe46-ancestor-music-four-markets")&&
+                (node.plan_id==143||node.plan_id==144))node.extra_market=false;
+        }
+        return result;
+    }
     auto result=base::plan;
     for(auto& node:result) {
         // Swap identical paid2x2 sites; the initially proposed126,140 site
@@ -335,8 +360,12 @@ inline void validate_oe45_reservations(const sim::World& w,const Plan& plan,std:
 }
 inline bool apply(sim::World& w,std::string_view recipe,Json& commands,Json& blocked) {
     q::check(known(recipe)&&w.original_cardinal_water_enabled()&&
-        (w.rule_version()==14||w.original_inspector_coordination_enabled()||w.original_deadline_fire_dispatch_enabled()),"Paid OE44 strategy requires exact Rule14 or explicit Inspector coordination Rule15");
+        (w.rule_version()==14||w.original_inspector_coordination_enabled()||w.original_deadline_fire_dispatch_enabled()||w.original_deadline_service_dispatch_enabled()),"Paid OE44 strategy requires exact Rule14 or explicit Inspector coordination Rule15");
     const auto plan=plan_for(recipe);
+    // Explicit OE46 paid site contrasts reuse the unchanged OE45 controller.
+    // Site changes and extra paid Markets still use production commands,
+    // model prices, complete footprint reservations and ordinary admission.
+    if(oe46_recipe(recipe))recipe="oe45-grid-watch-near";
     validate_oe45_reservations(w,plan,recipe);
     for(const auto cell:base::roads)if(!door_watch_cell(plan,cell,recipe)&&!base::initial_road(w,cell))
         if(!append(w,{C::PlaceRoad,cell},"OE44 original basic paid roads",commands,blocked))return false;
@@ -469,6 +498,7 @@ inline Json adaptive_watch_status(const sim::World& w,const Plan& plan) {
 }
 inline bool maintenance(sim::World& w,std::string_view recipe,Json& commands,Json& blocked) {
     q::check(known(recipe),"Unknown paid strategy maintenance");
+    if(oe46_recipe(recipe))recipe="oe45-grid-watch-near";
     if(recipe=="early-adaptive-watch") {
         const auto plan=plan_for(recipe);const auto id=base::owner(w,planned(plan,132).cell);
         if(id) {
@@ -513,7 +543,8 @@ inline bool maintenance(sim::World& w,std::string_view recipe,Json& commands,Jso
 }
 inline Json status(const sim::World& w,std::string_view recipe) {
     q::check(known(recipe),"Unknown paid strategy status");
-    const auto plan=plan_for(recipe);auto result=base::status(w,"lean-med");
+    const auto selected=recipe;const auto plan=plan_for(recipe);auto result=base::status(w,"lean-med");
+    if(oe46_recipe(recipe))recipe="oe45-grid-watch-near";
     Json pending=Json::array(),positions=Json::array();
     for(const auto& node:plan)if(included(node)) {
         positions.push_back({{"plan_id",node.plan_id},{"cell",{node.cell.x,node.cell.y}},
@@ -523,7 +554,14 @@ inline Json status(const sim::World& w,std::string_view recipe) {
             {"command",static_cast<unsigned>(node.command)},{"cell",{node.cell.x,node.cell.y}},
             {"actual_need_stage_ready",stage_ready(w,node,recipe)}});
     }
-    result["pending_plan_nodes"]=std::move(pending);result["paid_strategy"]=std::string(recipe);
+    result["pending_plan_nodes"]=std::move(pending);result["paid_strategy"]=std::string(selected);
+    if(oe46_recipe(selected))result["oe46_paid_contrast"]={{"base_strategy","oe45-grid-watch-near"},
+        {"ancestor_site_change",selected.starts_with("oe46-ancestor-")},
+        {"ancestor_site_swap",selected.starts_with("oe46-ancestor-music-")||selected=="oe46-ancestor-acrobat-swap"||selected=="oe46-ancestor-drama-swap"},
+        {"earlier_ancestor_purchase",selected=="oe46-ancestor-music-early"},
+        {"south_door_second_watch",selected=="oe46-ancestor-music-south-door"},
+        {"relocated_market",selected=="oe46-market-south"},{"extra_paid_markets",selected=="oe46-markets-four"||selected=="oe46-ancestor-music-four-markets"?2:0},
+        {"ordinary_model_workers_and_prices",true},{"no_house_id_targeting",true},{"no_rule_change",true}};
     result["derived_plan"]=std::move(positions);result["building_reserve"]=building_reserve(w,recipe);
     result["grid_region"]=grid(recipe)?Json{{"x_min",108},{"x_max",136},{"y_min",110},{"y_max",143},
         {"candidate_cell_bound",986},{"production_footprints_reserved",true},{"tick0_only",true}}:Json(nullptr);

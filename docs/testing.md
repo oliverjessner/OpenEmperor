@@ -44,7 +44,16 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
-## Rule16 fire-dispatch experiment
+## Rule16 and Rule17 dispatch experiments
+
+OE46 adds the separately selected Rule17/schema33 service contract. Its focused
+tests are `original-deadline-service-world`, `original-deadline-service-save`,
+`original-deadline-service-menu`, `original-menu-session-flow`,
+`original-menu-successor-flow`, `original-economy-cli` and
+`original-elite-desirability-guards`, alongside all historical Rule16 tests below.
+The [OE46 assessment](original-economy/oe46-citywide-reliability.md) retains the
+actual paid windows, complete independent restore/digest checks, conservation,
+production SandboxView captures and separately labeled human acceptance.
 
 Rule16/Policy3/Schema32 is an explicit authored experiment, selected through
 **D Deadline-aware fire dispatch** or `--original-deadline-fire-dispatch` in the
@@ -62,10 +71,11 @@ With a configured build, the focused contract/save/menu/CLI checks are:
 ```sh
 cmake --build build --parallel 2 --target \
   openemperor openemperor-elite-desirability-acceptance \
+  openemperor-deadline-service-world-tests openemperor-deadline-service-save-tests \
   openemperor-deadline-inspector-world-tests openemperor-deadline-inspector-save-tests \
   openemperor-inspector-coordination-world-tests openemperor-inspector-coordination-save-tests \
   openemperor-original-economy-rule-gate-tests openemperor-original-menu-session-tests
-ctest --test-dir build --output-on-failure -R '^(original-deadline-inspector-world|original-deadline-inspector-save|original-inspector-coordination-world|original-inspector-coordination-save|original-economy-rule-gate|original-menu-session-flow|original-economy-cli)$'
+ctest --test-dir build --output-on-failure -R '^(original-deadline-service-world|original-deadline-service-save|original-deadline-service-menu|original-deadline-inspector-world|original-deadline-inspector-save|original-inspector-coordination-world|original-inspector-coordination-save|original-economy-rule-gate|original-menu-session-flow|original-menu-successor-flow|original-economy-cli|original-elite-desirability-guards)$'
 ```
 
 Repeat the relevant suite in independent Release, Debug and ASan/UBSan builds

@@ -221,6 +221,22 @@ amendment, with the newly linked simulation archive and unchanged public results
 This historical numerical/ABI comparison grants no original-parity or paid
 retention claim to the authored Rule16 dispatcher.
 
+OE46's explicit Rule17 adds service-dispatch factories and capability predicates
+without adding World or mutable saved-state fields or changing the historical probe's
+HouseholdV3/CityV7 calls. A fresh Release comparison compiled both numerical
+probes and linked the pinned fork's actual HousingView probe against the new
+simulation archives. All74 cases, classifications, expected/observed values,
+the18-value HousingView result and real-model digest
+`[1800,477508576,4125568101]` remain identical. Only the reviewed World header and
+comparison-runner fingerprints change in the public report; the fork pins and
+`baseline-lock.json` remain exact. The old private fork mirror was absent, so
+the exact pinned public commit was fetched into a new ignored OE46 directory;
+all11 fixed source hashes were verified before compilation. Actual commands,
+archive hashes and the complete preservation check are retained under
+`.local/original-economy/oe46/run-01/core-parity-release-02/` and
+`core-parity-public-preservation-01.json`. This historical numerical/ABI
+comparison does not establish original service scheduling or paid city stability.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the
@@ -252,6 +268,17 @@ python3 tools/original_rules_parity.py --configuration release \
   --simulation-library .local/original-economy/oe45/run-01/release/libopenemperor-simulation.a \
   --data .local/gog-extracted/app \
   --output .local/original-economy/oe45/reproduction-core-parity-release
+```
+
+The OE46 comparison uses the newly verified private mirror and explicitly selects
+the Rule17 Release archives:
+
+```sh
+python3 tools/original_rules_parity.py --configuration release \
+  --fork .local/original-economy/oe46/run-01/pinned-study-fork-01 \
+  --simulation-library .local/original-economy/oe46/run-01/release/libopenemperor-simulation.a \
+  --data .local/gog-extracted/app \
+  --output .local/original-economy/oe46/reproduction-core-parity-release
 ```
 
 `--configuration debug` and `--configuration sanitizer` select the matching

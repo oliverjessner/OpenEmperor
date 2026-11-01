@@ -472,6 +472,19 @@ std::unique_ptr<SandboxView> SandboxView::create_original_deadline_fire_dispatch
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_original_deadline_service_dispatch(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid original deadline-service-dispatch difficulty");
+    if (session.input_sha256.empty())
+        throw std::invalid_argument("Rule17 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kOriginalDeadlineServiceDispatchRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;
+    result->original_paid_starter_=paid_starter;
+    return result;
+}
+
 SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::RulesProfile rules,
                          std::uint32_t rule_version)
     : SandboxView(std::move(session),demo,rules,rule_version,false) {}
@@ -583,7 +596,8 @@ void SandboxView::load_now() {
          (original_requested_difficulty_ &&
           document.world.original_economy->model_source->difficulty!=*original_requested_difficulty_)))
         throw std::runtime_error("Saved original difficulty differs from this running session");
-    auto replacement=original_deadline_fire_dispatch() ?
+    auto replacement=original_deadline_service_dispatch() ?
+        persistence::restore_original_deadline_service_dispatch(document,data_root_,buildable_mask_) : original_deadline_fire_dispatch() ?
         persistence::restore_original_deadline_fire_dispatch(document,data_root_,buildable_mask_) : original_inspector_coordination() ?
         persistence::restore_original_inspector_coordination(document,data_root_,buildable_mask_) : original_cardinal_water() ?
         persistence::restore_original_cardinal_water(document,data_root_,buildable_mask_) : original_market_logistics() ?
@@ -683,12 +697,14 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
                 initial_save_->map_permissions_policy_version:
                 maps::map_rules_policy_version(rules_,active_version),expected_map_input_sha256_);
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain;
-    if (original_cardinal_water() || original_inspector_coordination() || original_deadline_fire_dispatch())
+    if (original_cardinal_water() || original_inspector_coordination() || original_deadline_fire_dispatch() || original_deadline_service_dispatch())
         terrain=std::make_shared<const simulation::OriginalTerrainFacts>(
             original_map_.terrain_raw.values,expected_map_input_sha256_);
     original_map_={};
     if (initial_save_) {
-        world_=std::make_unique<simulation::World>(original_deadline_fire_dispatch() ?
+        world_=std::make_unique<simulation::World>(original_deadline_service_dispatch() ?
+            persistence::restore_original_deadline_service_dispatch(*initial_save_,data_root_,
+                buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_deadline_fire_dispatch() ?
             persistence::restore_original_deadline_fire_dispatch(*initial_save_,data_root_,
                 buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_inspector_coordination() ?
             persistence::restore_original_inspector_coordination(*initial_save_,data_root_,
@@ -715,6 +731,10 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)"+
             (initial_save_->migrated_from_schema1 ? "; save schema 1 migrated in memory":"");
         initial_save_.reset();
+    } else if (original_deadline_service_dispatch()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_original_deadline_service_dispatch(
+            std::move(permissions),persistence::prepare_original_production_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
     } else if (original_deadline_fire_dispatch()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_deadline_fire_dispatch(
             std::move(permissions),persistence::prepare_original_production_rules_model(data_root_,
@@ -784,7 +804,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(original_deadline_fire_dispatch())title+=" | save schema 32 | authored deadline-aware fire dispatch";
+    if(original_deadline_service_dispatch())title+=" | save schema 33 | authored deadline-aware service dispatch";
+    else if(original_deadline_fire_dispatch())title+=" | save schema 32 | authored deadline-aware fire dispatch";
     else if(original_inspector_coordination())title+=" | save schema 31 | authored Inspector coordination";
     else if(original_cardinal_water())title+=" | save schema 30 | cardinal-water desirability";
     else if(original_market_logistics())title+=" | save schema 29 | authored needs-aware market logistics";
@@ -6109,7 +6130,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(original_deadline_fire_dispatch())overview+=" | Policy 3 | Save 32 | Deadline-aware fire dispatch";
+        if(original_deadline_service_dispatch())overview+=" | Policy 3 | Save 33 | Deadline-aware services";
+        else if(original_deadline_fire_dispatch())overview+=" | Policy 3 | Save 32 | Deadline-aware fire dispatch";
         else if(original_inspector_coordination())overview+=" | Policy 3 | Save 31 | Inspector coordination";
         else if(original_cardinal_water())overview+=" | Policy 3 | Save 30 | Cardinal-water DES";
         else if(original_market_logistics())overview+=" | Policy 3 | Save 29 | Authored market logistics";

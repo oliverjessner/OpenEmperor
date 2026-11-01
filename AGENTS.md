@@ -58,6 +58,16 @@
   authority, passive protection, timer/resource grant, model/cost/limit change or
   automatic migration. Retention and effects on the other homes require the
   separate [OE45 assessment](docs/original-economy/oe45-fire-coverage.md).
+  Authored deadline-aware service selection is a separate explicit rule17/policy3/
+  schema33 experiment with marker `authored-deadline-service-dispatch-v1`, separate
+  create/restore, T menu and CLI selection. It inherits Rule16 fire dispatch and
+  the revision27 economy unchanged. Rank eligible occupied House visits using
+  actual witness-derived expiry, physical outward/return times and the complete
+  canonical House cursor; coalesce only usable actual same-role incoming trips.
+  Only arrival renews the existing timer. No new saved authority, workers, timer,
+  goods, model, cost or limit changes; Rules1–16/schemas1–32 remain exact without
+  migration. Citywide acceptance remains a separate
+  [OE46 assessment](docs/original-economy/oe46-citywide-reliability.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.
