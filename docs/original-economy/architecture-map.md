@@ -19,6 +19,7 @@ parity remains partial; see [the play guide](player-handoff.md) and [Known Issue
 | Rule15 / schema31 / revision27 | Explicit authored Inspector-coordination experiment; inherits Rule14, skips other actual incoming Inspector commitments and unexpired real protection for new dispatches. Elite17 retention remains unproved. |
 | Rule16 / schema32 / revision27 | Separate authored deadline-aware Inspector dispatch; inherits the cardinal-water/market/economy contracts, ranks physical deadlines without building-class preference and coalesces usable incoming trips. Retention assessment is separate. |
 | Rule17 / schema33 / revision27 | Separate authored deadline-aware service selection; inherits Rule16's fire policy and all economy/bounds, ranks actual expiry and physical travel, coalesces real same-role visits and retains a complete canonical House cursor. |
+| Rule18 / schema34 / revision27 | Separate authored deadline-aware Market-to-House Food selection; inherits Rule17's services, fire and economy. Physical stock, real incoming cargo and prepared route timing determine urgency; production, Farm-to-Market selection and all bounds remain unchanged. |
 
 Rules1–14 and schemas1–30 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
@@ -156,6 +157,21 @@ applies the unchanged timer. Food selection, Goods logistics, costs, installed
 upkeep, construction limits and fire timing are separate unchanged contracts.
 The [OE46 assessment](oe46-citywide-reliability.md) separates legal paid controls,
 actual citywide events and finite gameplay acceptance from this authored rule.
+
+Rule18 inherits those service and Inspector dispatchers explicitly, retaining
+their exact historical predicates. Only Market-to-House Food selection changes:
+the first physical depletion deadline precedes earlier actual arrival, complete
+visit/return duration and the complete canonical cursor. The deadline uses actual
+portions and the existing40/397 modulo816 consumption clock. Only real loaded,
+outbound, nonpending Food cargo with usable remaining path/progress can extend
+the bounded forecast; late incoming cannot erase an earlier empty interval.
+Ordinary headroom reserves every actual load even when it cannot be predicted as
+timely coverage. Explicit source pause returns cargo; source fire or staff loss
+does not invalidate already begun movement. No forecast becomes saved authority,
+and only actual arrival books stock/quality. Farm-to-Market selection and all
+production, capacities, costs, timers, movement and consumption remain unchanged.
+The [OE47 assessment](oe47-food-reliability.md) records the finite paid improvement
+and the residual target/Farm-fire and resupply gap separately.
 
 `ModelData` reads the selected installation's `Model/EmperorBuildingModels.txt`
 within its canonical root: regular file, at most 256 KiB, lines at most 4096 bytes,
@@ -342,6 +358,16 @@ mutable saved authority exists. Missing/unknown/duplicate/mistyped markers,
 cross16/17 restores and header-only relabels fail closed. Historical schemas1–32
 retain their exact bytes and generation; F5/F9, normal menu load and Recovery
 select the explicit33 path without migration.
+
+Schema34/Rule18 adds the exact
+`rules.deadline_food_dispatch: "authored-deadline-food-dispatch-v1"` marker and
+inherits schema33's service/fire/market/cardinal identities. Separate
+`create_original_deadline_food_dispatch` and
+`restore_original_deadline_food_dispatch` paths retain source-bound terrain and
+model validation. No queue, forecast, deadline or cache becomes saved authority.
+Historical Rules1–17 and schemas1–33 remain exact, without migration. The
+[OE47 assessment](oe47-food-reliability.md) records causal Food evidence, paid
+controls and the independent gameplay and compatibility gates.
 
 See [testing.md](../testing.md) for build/sanitizer setup. With a configured `build` and your own data:
 

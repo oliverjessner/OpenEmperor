@@ -100,6 +100,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit authored Rule18/schema34; inherited fire behavior, inherited services, new Food selection.
+    static std::unique_ptr<SandboxView> create_original_deadline_food_dispatch(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit authored Rule13/schema29 logistics, separate from Rule12 saves.
     static std::unique_ptr<SandboxView> create_original_market_logistics(
         maps::StoredMapSession session,
@@ -641,6 +646,9 @@ private:
     }
     bool original_deadline_service_dispatch() const {
         return simulation::original_deadline_service_dispatch_enabled(rules_,requested_rule_version_);
+    }
+    bool original_deadline_food_dispatch() const {
+        return simulation::original_deadline_food_dispatch_enabled(rules_,requested_rule_version_);
     }
     bool original_deadline_fire_dispatch() const {
         return simulation::original_deadline_fire_dispatch_enabled(rules_,requested_rule_version_);

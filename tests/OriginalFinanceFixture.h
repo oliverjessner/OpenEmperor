@@ -111,7 +111,7 @@ inline std::uint64_t expected_maintenance(const sim::World& world) {
     for (const auto& body:world.buildings()) if (body.placed) {
         const auto workers=world.workforce_required(body.id);
         f::check(workers>=0,"Negative installed workforce in finance oracle");
-        const auto bills=(world.ticks()-body.placed_tick)/((world.rule_version()==12||world.rule_version()==13||world.rule_version()==14||world.rule_version()==15||world.rule_version()==16||world.rule_version()==17) ? 816U:400U);
+        const auto bills=(world.ticks()-body.placed_tick)/((world.rule_version()==12||world.rule_version()==13||world.rule_version()==14||world.rule_version()==15||world.rule_version()==16||world.rule_version()==17||world.rule_version()==18) ? 816U:400U);
         const auto cost=static_cast<std::uint64_t>(workers)*2;
         f::check(!cost || bills<=(UINT64_MAX-total)/cost,"Finance oracle maintenance overflow");
         total+=bills*cost;
