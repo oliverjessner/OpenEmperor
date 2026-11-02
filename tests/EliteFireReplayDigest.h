@@ -28,7 +28,7 @@ public:
         file_(output/"oe45-state-digests.csv"),context_(EVP_MD_CTX_new(),EVP_MD_CTX_free),
         file_context_(EVP_MD_CTX_new(),EVP_MD_CTX_free),begin_(w.ticks()),last_seen_(w.ticks()),rule_(w.rule_version()) {
         require(w.profile()==sim::RulesProfile::CityV16&&
-            (w.original_inspector_coordination_enabled()||w.original_deadline_fire_dispatch_enabled()||w.original_deadline_service_dispatch_enabled())&&
+            (w.original_inspector_coordination_enabled()||w.original_deadline_fire_dispatch_enabled()||w.original_deadline_service_dispatch_enabled()||w.original_deadline_food_dispatch_enabled())&&
             w.original_production_state()&&w.original_production_state()->fire_protection&&
             w.original_terrain_facts(),"OE45 digest requires exact source-bound Rule15 or16");
         require(!std::filesystem::exists(file_),"Preserve previous OE45 digest trace");
@@ -56,7 +56,7 @@ public:
             {"algorithm","SHA256 of domain tag and two length-framed UTF-8 values: production canonical_state and typed JSON supplement"},
             {"world_copy_or_snapshot",false},{"BFS_or_route_refresh",false},
             {"production_hook",false},{"input_file_reads",false},
-            {"saved_authority_scope",rule_==17?"Complete validated WorldSnapshot authority for exact City-v16 Rule17; no additional saved authority; recursive field audit against World::snapshot and state headers":"Complete validated WorldSnapshot authority for exact City-v16 Rule15/16; recursive field audit against World::snapshot and state headers"},
+            {"saved_authority_scope",rule_==18?"Complete validated WorldSnapshot authority for exact City-v16 Rule18; no additional saved authority; recursive field audit against World::snapshot and state headers":rule_==17?"Complete validated WorldSnapshot authority for exact City-v16 Rule17; no additional saved authority; recursive field audit against World::snapshot and state headers":"Complete validated WorldSnapshot authority for exact City-v16 Rule15/16; recursive field audit against World::snapshot and state headers"},
             {"excluded_saved_authority",Json::array()},
             {"canonical_coverage",Json::array({"scalar counters and balances; complete buildings and couriers",
                 "roads encoded by complete object grid; complete bridge/ramp geometry and next IDs",

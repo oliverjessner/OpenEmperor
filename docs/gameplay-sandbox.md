@@ -73,6 +73,16 @@ identities stay mandatory. Rules1–16 and their saves do not migrate. The
 [OE46 assessment](original-economy/oe46-citywide-reliability.md) records the
 separate citywide diagnosis, paid controls and gameplay acceptance.
 
+**U Deadline-aware food** separately selects authored **Rule18/schema34/Policy3**,
+also available as `--original-deadline-food-dispatch`. It inherits Rule17's paid
+services, fire and economy. Only Market-to-House Food target selection changes;
+physical arrival still owns delivery and quality. Farm-to-Market selection,
+consumption, capacities, movement, prices, installed upkeep and limits stay exact.
+Schema34 requires `authored-deadline-food-dispatch-v1` and all inherited markers.
+Historical Rules1–17 do not migrate. See the
+[OE47 assessment](original-economy/oe47-food-reliability.md) for measured outcomes
+and the remaining limits.
+
 ## Legacy profiles and save compatibility
 
 These profiles remain selectable/readable for compatibility; their milestone
@@ -111,6 +121,7 @@ removal gives no refund; rejected/unchanged commands spend nothing.
 | City-v16 rule 15 | 31 | 12000 | Authored Inspector coordination; exact marker, inherited Rule14 terrain/economy and unchanged bounds | Rule10 goal |
 | City-v16 rule 16 | 32 | 12000 | Authored deadline-aware Inspector dispatch; exact marker, inherited source/terrain/market/economy and unchanged costs/limits/times | Rule10 goal |
 | City-v16 rule 17 | 33 | 12000 | Authored deadline-aware service selection; exact marker, inherited Rule16 fire/economy and unchanged workers, models, costs, bounds and timers | Rule10 goal |
+| City-v16 rule 18 | 34 | 12000 | Authored deadline-aware Market-to-House Food selection; exact marker, inherited Rule17 services/fire/economy and unchanged production, transport, consumption and limits | Rule10 goal |
 
 Schemas 1–9 keep their historical fixed collection/one-cell semantics. City-v7
 has ten building/six courier entries; City-v8/v9 have eleven/seven. City-v6–8

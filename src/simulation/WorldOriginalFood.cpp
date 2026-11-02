@@ -314,6 +314,115 @@ void World::advance_original_food() {
 }
 CourierDispatchDecision World::original_food_dispatch_status(const CourierState& c) const {
     if (!original_food_stock(c.owner)) return {CourierDispatchStatus::NoStock,{}};
+    if (original_deadline_food_dispatch_enabled() && c.role==CourierRole::OriginalFoodToHouse) {
+        const auto add=[](std::uint64_t a,std::uint64_t b) {return b>UINT64_MAX-a ? UINT64_MAX:a+b;};
+        // Actual dispatch precedes this tick's movement and consumption. A
+        // public query sees a completed tick and predicts the next departure.
+        const auto dispatch_tick=tick_staffing_active_ ? ticks_:add(ticks_,1);
+        const auto through=tick_staffing_active_ ? ticks_-1:ticks_;
+        const auto edge=static_cast<std::uint64_t>(active_rules().courier_edge_ticks);
+        const auto consumption_tick=[&](std::uint64_t index) {
+            const auto offset=index%2 ? std::uint64_t{397}:std::uint64_t{40};
+            return index/2>(UINT64_MAX-offset)/816 ? UINT64_MAX:offset+(index/2)*816;
+        };
+        struct Incoming {BuildingId target{};std::uint64_t arrival=0;int amount=0;CourierId actor{};};
+        std::array<Incoming,Rules::city_v11_market_limit> incoming_rows{};std::size_t incoming_count=0;
+        for (const auto& trip:original_production_->food.trips) {
+            if (trip.transfer.courier_id==c.id || trip.phase!=OriginalGoodsTransferPhase::Loaded) continue;
+            const auto actor=std::find_if(couriers_.begin(),couriers_.end(),[&](const auto& other) {return other.id==trip.transfer.courier_id;});
+            if (actor==couriers_.end() || actor->role!=CourierRole::OriginalFoodToHouse || !actor->enabled ||
+                actor->phase!=CourierPhase::ToWarehouse || actor->route_pending || actor->target!=trip.target ||
+                actor->path.empty() || actor->path_vertex+1>=actor->path.size() || !edge ||
+                static_cast<std::uint64_t>(actor->edge_progress)>=edge) continue;
+            const auto edges=static_cast<std::uint64_t>(actor->path.size()-1-actor->path_vertex);
+            if (edges>UINT64_MAX/edge) continue;
+            const auto movement=edges*edge-static_cast<std::uint64_t>(actor->edge_progress);
+            const auto amount=volume(remaining(trip));
+            // Source fire or lost staffing does not stop begun movement.
+            // An explicit pause has already changed the trip to Returning.
+            if (movement && amount>0 && incoming_count<incoming_rows.size())
+                incoming_rows[incoming_count++]={trip.target,add(dispatch_tick,movement-1),amount,actor->id};
+        }
+        std::sort(incoming_rows.begin(),incoming_rows.begin()+incoming_count,[](const auto& a,const auto& b) {
+            return std::pair{a.arrival,a.actor}<std::pair{b.arrival,b.actor};
+        });
+        // Preserve rotation in all paid compatible identities, including a
+        // currently burning/paused destination. Temporary eligibility cannot
+        // erase the saved cursor and restart at the first healthy House.
+        std::array<const BuildingState*,Rules::city_v10_household_limit> canonical{};
+        std::size_t count=0,start=0;
+        for (const auto& b:buildings_) if (b.placed && courier_can_target(c.role,b)) canonical[count++]=&b;
+        for (std::size_t i=0;i<count;++i) if (c.last_dispatched_target==canonical[i]->id) start=(i+1)%count;
+        struct Choice {BuildingId target{};std::uint64_t deadline=0,arrival=0,next_departure=0;};
+        std::optional<Choice> selected;
+        const auto earlier=[](const Choice& a,const Choice& b) {
+            if (a.deadline!=b.deadline) return a.deadline<b.deadline;
+            // Equal empty recipients need the earliest physical rescue, not
+            // the farthest recipient produced by negative-laxity ranking.
+            if (a.arrival!=b.arrival) return a.arrival<b.arrival;
+            if (a.next_departure!=b.next_departure) return a.next_departure<b.next_departure;
+            return false; // Exact ties retain canonical cyclic order.
+        };
+        bool eligible=false,room=false,missing_road=false;
+        for (std::size_t i=0;i<count;++i) {
+            const auto& target=*canonical[(start+i)%count];
+            if (!target.operating_enabled || building_on_fire(target.id) || home(original_economy_->houses,target.id).house.occupants<=0) continue;
+            eligible=true;
+            // Capacity still reserves every real incoming load, including a
+            // road-waiting load that is too uncertain to predict as coverage.
+            if (original_food_headroom(target.id)<=0) continue;
+            room=true;
+            const auto route=std::lower_bound(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),target.id,
+                [](const auto& entry,BuildingId key){return entry.first<key;});
+            if (route==c.dynamic_target_routes.end() || route->first!=target.id || !route->second || route->second->size()<2) {
+                missing_road=true;continue;
+            }
+            const auto edges=static_cast<std::uint64_t>(route->second->size()-1);
+            if (!edge || edges>UINT64_MAX/edge/2) {missing_road=true;continue;}
+            const auto movement=edges*edge,arrival=add(dispatch_tick,movement-1),next_departure=add(dispatch_tick,movement*2);
+            const auto stock=original_food_stock(target.id);
+            // Before the first depletion, only incoming quantities that
+            // physically arrive no later than that consumption can extend
+            // coverage. There are at most eight reserved House portions.
+            const auto deadline_from=[&](int portions,std::uint64_t consumed_through,std::uint64_t incoming_after) {
+                if (!portions) return dispatch_tick;
+                auto deadline=consumption_tick(add(events(consumed_through),static_cast<std::uint64_t>(portions)-1));
+                for (std::size_t n=0;n<incoming_count;++n) {
+                    const auto& load=incoming_rows[n];
+                    if (load.target!=target.id || load.arrival<=incoming_after || load.arrival>deadline) continue;
+                    portions+=load.amount;
+                    deadline=consumption_tick(add(events(consumed_through),static_cast<std::uint64_t>(portions)-1));
+                }
+                return deadline;
+            };
+            auto deadline=deadline_from(stock,through,through);
+            // A real earlier arrival may already restore an unavoidable gap
+            // before this actor could get there. Forecast its actual scalar
+            // portions at our arrival, never a future dispatch or production.
+            int at_arrival=stock;auto consumed=events(through);bool earlier_incoming=false;
+            for (std::size_t n=0;n<incoming_count;++n) {
+                const auto& load=incoming_rows[n];if (load.target!=target.id || load.arrival>arrival) continue;
+                const auto before=events(load.arrival-1),used=before-consumed;
+                at_arrival=used>=static_cast<std::uint64_t>(at_arrival) ? 0:at_arrival-static_cast<int>(used);
+                at_arrival+=load.amount;consumed=before;earlier_incoming=true;
+            }
+            const auto before_arrival=events(arrival-1),used=before_arrival-consumed;
+            at_arrival=used>=static_cast<std::uint64_t>(at_arrival) ? 0:at_arrival-static_cast<int>(used);
+            if (earlier_incoming && at_arrival>0) {
+                deadline=deadline_from(at_arrival,arrival-1,arrival);
+                // Coalesce only enough real incoming quantity to cover our
+                // full physical visit/return opportunity. A single portion
+                // expiring before that boundary still permits a real refill.
+                if (deadline>=next_departure) continue;
+            }
+            const Choice candidate{target.id,deadline,arrival,next_departure};
+            if (!selected || earlier(candidate,*selected)) selected=candidate;
+        }
+        if (selected) return {CourierDispatchStatus::Ready,selected->target};
+        if (!eligible) return {CourierDispatchStatus::NoTarget,{}};
+        if (!room) return {CourierDispatchStatus::TargetFull,{}};
+        return {missing_road ? CourierDispatchStatus::NoRoad:CourierDispatchStatus::NoTarget,{}};
+    }
     std::array<const BuildingState*,Rules::city_v10_household_limit> targets{};std::size_t count=0;
     for (const auto& b:buildings_) if (courier_can_target(c.role,b) && b.operating_enabled && !building_on_fire(b.id)) {
         if (original_house_kind(b.kind) && home(original_economy_->houses,b.id).house.occupants<=0) continue;

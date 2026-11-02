@@ -68,6 +68,14 @@
   goods, model, cost or limit changes; Rules1–16/schemas1–32 remain exact without
   migration. Citywide acceptance remains a separate
   [OE46 assessment](docs/original-economy/oe46-citywide-reliability.md).
+  Authored deadline-aware Food distribution is a separate explicit rule18/policy3/
+  schema34 experiment with marker `authored-deadline-food-dispatch-v1`. It inherits
+  Rule17's services, fire and economy. Only Market-to-House Food target selection
+  changes; Farm-to-Market selection, portions, capacities, movement and consumption
+  remain exact. Use physical stock, usable actual incoming cargo and existing
+  prepared routes; retain the complete canonical House cursor for ties. No new
+  saved authority or migration; Rules1–17/schemas1–33 remain exact. See the
+  [OE47 assessment](docs/original-economy/oe47-food-reliability.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

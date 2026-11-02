@@ -237,6 +237,19 @@ archive hashes and the complete preservation check are retained under
 `core-parity-public-preservation-01.json`. This historical numerical/ABI
 comparison does not establish original service scheduling or paid city stability.
 
+Rule18 adds explicit Food-dispatch factories and capability predicates without
+adding World or saved-state fields or changing the historical probe calls.
+The fresh OE47 Release comparison links an immutable copy of all eight matching
+archives and again preserves all74 cases, classifications, expected/observed
+values, the18-value HousingView observation and real-model digest
+`[1800,477508576,4125568101]`. The public report changes only the reviewed World
+header and runner fingerprints; every other field, fork pin and
+`baseline-lock.json` remains exact. Complete commands, compiled probes and the
+literal preservation check are retained under
+`.local/original-economy/oe47/run-01/core-parity-release-01/` and
+`core-parity-public-preservation-01.json`. This historical numerical/ABI check
+does not certify the authored Rule18 selector or citywide Food reliability.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the
@@ -279,6 +292,17 @@ python3 tools/original_rules_parity.py --configuration release \
   --simulation-library .local/original-economy/oe46/run-01/release/libopenemperor-simulation.a \
   --data .local/gog-extracted/app \
   --output .local/original-economy/oe46/reproduction-core-parity-release
+```
+
+The OE47 comparison uses the same pinned mirror and a sealed copy of the
+matching Rule18 Release archives:
+
+```sh
+python3 tools/original_rules_parity.py --configuration release \
+  --fork .local/original-economy/oe46/run-01/pinned-study-fork-01 \
+  --simulation-library .local/original-economy/oe47/run-01/core-parity-libraries-01/libopenemperor-simulation.a \
+  --data .local/gog-extracted/app \
+  --output .local/original-economy/oe47/reproduction-core-parity-release
 ```
 
 `--configuration debug` and `--configuration sanitizer` select the matching

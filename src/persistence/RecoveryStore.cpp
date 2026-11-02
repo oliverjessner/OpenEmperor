@@ -264,7 +264,8 @@ RecoveryEntry make_entry(const std::string& history,const std::optional<Recovery
 }
 void validate_policy_readback(const SaveDocument& saved,const SaveDocument& source) {
     if (simulation::original_production_enabled(source.world.profile,source.world.rule_version)) {
-        require(saved.source_schema_version==(simulation::original_deadline_service_dispatch_enabled(source.world.profile,source.world.rule_version) ? 33U:
+        require(saved.source_schema_version==(simulation::original_deadline_food_dispatch_enabled(source.world.profile,source.world.rule_version) ? 34U:
+                    simulation::original_deadline_service_dispatch_enabled(source.world.profile,source.world.rule_version) ? 33U:
                     simulation::original_deadline_fire_dispatch_enabled(source.world.profile,source.world.rule_version) ? 32U:
                     simulation::original_inspector_coordination_enabled(source.world.profile,source.world.rule_version) ? 31U:
                     simulation::original_cardinal_water_enabled(source.world.profile,source.world.rule_version) ? 30U:
@@ -296,7 +297,8 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
             simulation::original_production_enabled(document.world.profile,document.world.rule_version),
             "schema23 development saves are unavailable in normal recovery histories");
     require((document.source_schema_version==0 || document.source_schema_version==
-                (simulation::original_deadline_service_dispatch_enabled(document.world.profile,document.world.rule_version) ? 33U:
+                (simulation::original_deadline_food_dispatch_enabled(document.world.profile,document.world.rule_version) ? 34U:
+                 simulation::original_deadline_service_dispatch_enabled(document.world.profile,document.world.rule_version) ? 33U:
                  simulation::original_deadline_fire_dispatch_enabled(document.world.profile,document.world.rule_version) ? 32U:
                  simulation::original_inspector_coordination_enabled(document.world.profile,document.world.rule_version) ? 31U:
                  simulation::original_cardinal_water_enabled(document.world.profile,document.world.rule_version) ? 30U:
@@ -306,7 +308,7 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
             document.world.original_production && document.world.original_production->development_revision==
                 simulation::kOriginalProductionDevelopmentRevision &&
             document.world.original_economy && document.world.original_economy->model_source,
-            "original recovery requires its exact Rule10/11/12/13/14/15/16/17 schema and revision27 model source");
+            "original recovery requires its exact Rule10/11/12/13/14/15/16/17/18 schema and revision27 model source");
     return true;
 }
 using OriginalSourceCheck=std::optional<original::ModelFingerprintResult>;

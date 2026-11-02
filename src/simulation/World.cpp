@@ -442,7 +442,7 @@ bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::ProductionV2) return version==2;
     if (profile==RulesProfile::CityV11) return version>=1 && version<=4;
     if (profile==RulesProfile::CityV16) return (version>=1 && version<=16) ||
-        version==kOriginalDeadlineServiceDispatchRuleVersion;
+        version==kOriginalDeadlineServiceDispatchRuleVersion || version==kOriginalDeadlineFoodDispatchRuleVersion;
     if (fire_profile(profile)) return version==1;
     return version==1;
 }
@@ -484,6 +484,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v15{15,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v16{16,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v17{17,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v18{18,32,64,32,5,800};
+    if (original_deadline_food_dispatch_enabled(profile,version)) return city_v16_v18;
     if (original_deadline_service_dispatch_enabled(profile,version)) return city_v16_v17;
     if (original_deadline_fire_dispatch_enabled(profile,version)) return city_v16_v16;
     if (original_inspector_coordination_enabled(profile,version)) return city_v16_v15;
@@ -2543,7 +2545,7 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
             });
             if (found!=targets.end()) start=(static_cast<std::size_t>(found-targets.begin())+1)%targets.size();
         }
-        if ((original_deadline_fire_dispatch_enabled() || original_deadline_service_dispatch_enabled()) &&
+        if ((original_deadline_fire_dispatch_enabled() || original_deadline_service_dispatch_enabled() || original_deadline_food_dispatch_enabled()) &&
             c.role==CourierRole::FireInspector) {
             struct Incoming { BuildingId target{};std::uint64_t arrival=0; };
             std::array<Incoming,Rules::fire_watch_limit> incoming{};
@@ -4106,7 +4108,9 @@ bool World::navigation_valid() const {
 
 std::string World::canonical_state() const {
     std::ostringstream out;
-    if (original_deadline_service_dispatch_enabled()) out<<original_deadline_service_dispatch_contract<<":17:"
+    if (original_deadline_food_dispatch_enabled()) out<<original_deadline_food_dispatch_contract<<":18:"
+        <<original_terrain_facts_->source_map_sha256()<<'|';
+    else if (original_deadline_service_dispatch_enabled()) out<<original_deadline_service_dispatch_contract<<":17:"
         <<original_terrain_facts_->source_map_sha256()<<'|';
     else if (original_deadline_fire_dispatch_enabled()) out<<original_deadline_fire_dispatch_contract<<":16:"
         <<original_terrain_facts_->source_map_sha256()<<'|';

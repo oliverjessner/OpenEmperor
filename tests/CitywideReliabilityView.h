@@ -33,9 +33,10 @@ template<class ReadText,class Center>
 Json run(oe::SandboxView& view,SDL_Window* window,SDL_Renderer* renderer,
          const oe::persistence::SaveDocument& saved,const std::string& input,
          const std::filesystem::path& save_copy,const std::filesystem::path& output,
-         sim::BuildingId elite,ReadText read_text,Center center) {
+         sim::BuildingId elite,bool food_study,ReadText read_text,Center center) {
     require((view.world().original_deadline_fire_dispatch_enabled()&&saved.source_schema_version==32)||
-            (view.world().original_deadline_service_dispatch_enabled()&&saved.source_schema_version==33),
+            (view.world().original_deadline_service_dispatch_enabled()&&saved.source_schema_version==33)||
+            (view.world().original_deadline_food_dispatch_enabled()&&saved.source_schema_version==34),
         "OE46 citywide capture requires the exact earned Rule16/schema32 or Rule17/schema33 World");
     Json captures=Json::array(),cases=Json::array();std::uint64_t actions=0;
     const auto pure=[&] {
@@ -204,7 +205,19 @@ Json run(oe::SandboxView& view,SDL_Window* window,SDL_Renderer* renderer,
     capture(city_name+"-off","whole-city-all13",{},"whole-city");persistence();
 
     resize(1280,800);if(!view.layout().panel_open)key(SDLK_TAB);render();
-    for(const auto house:std::array{static_cast<sim::BuildingId>(25),static_cast<sim::BuildingId>(24),elite}) {
+    std::vector<sim::BuildingId> problems;
+    if(food_study) {
+        // Bind the baseline problem sites to actual complete paid footprints;
+        // purchase-order IDs may differ between legal city controls.
+        for(const auto cell:std::array<sim::Cell,6>{{{121,128},{113,138},{111,137},{121,132},{113,115},{121,126}}}) {
+            const auto owner=view.world().building_owner_at(cell);
+            require(owner&&std::find(houses.begin(),houses.end(),*owner)!=houses.end(),
+                "OE47 problem site has no actual occupied paid House");
+            problems.push_back(*owner);
+        }
+        problems.push_back(elite);
+    } else problems={static_cast<sim::BuildingId>(25),static_cast<sim::BuildingId>(24),elite};
+    for(const auto house:problems) {
         require(std::find(houses.begin(),houses.end(),house)!=houses.end(),"OE46 problem House is not an actual occupied recipient");
         zoom(1);const auto visual=view.original_house_visual_diagnostic(house);
         center(visual.ground);pure();render();key(SDLK_5);
@@ -246,12 +259,13 @@ Json run(oe::SandboxView& view,SDL_Window* window,SDL_Renderer* renderer,
             }
         }
     }
-    require(cases.size()==36&&captures.size()<=74,"OE46 citywide capture matrix exceeds its fixed bound");
-    return {{"format","openemperor-oe46-citywide-view-v1"},{"status","PASS"},{"rule",view.world().rule_version()},{"schema",saved.source_schema_version},
+    require(cases.size()==problems.size()*12&&captures.size()<=2+problems.size()*24,"OE46 citywide capture matrix exceeds its fixed bound");
+    Json problem_ids=Json::array();for(const auto id:problems)problem_ids.push_back(static_cast<unsigned>(id));
+    return {{"format",food_study?"openemperor-oe47-citywide-view-v1":"openemperor-oe46-citywide-view-v1"},{"status","PASS"},{"rule",view.world().rule_version()},{"schema",saved.source_schema_version},
         {"tick",view.world().ticks()},{"actual_sandbox_renderer",true},{"backend",SDL_GetRendererName(renderer)},
         {"scripted_dummy_software",true},{"all13_whole_city_markers_visible_at1x",true},
         {"all13_whole_city_sprite_bounds_inside_map_at1x",true},
-        {"problem_houses",{25,24,static_cast<unsigned>(elite)}},{"cases",cases},{"captures",captures},{"actions",actions},
+        {"problem_houses",problem_ids},{"cases",cases},{"captures",captures},{"actions",actions},
         {"complete_f5_f9_equality",true},{"complete_world_unchanged",true},{"paused_after_every_action",true},
         {"service_inspection","Actual Needs/Visits tabs and existing Supply overlay; no legacy service timer substituted"},
         {"separate_original_service_overlay","UNAVAILABLE: production original-economy UI has Supply/DES/Risk only; legacy V Service is not an original nine-timer overlay"},

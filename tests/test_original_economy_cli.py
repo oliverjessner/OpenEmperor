@@ -225,7 +225,7 @@ class OriginalEconomyCli(unittest.TestCase):
                 self.assertIn("Usage:", result.stderr)
         for extra in (["--original-fire-protection"], ["--original-sustainable-economy"],
                       ["--original-market-logistics"], ["--original-cardinal-water"],
-                      ["--original-inspector-coordination"], ["--original-deadline-fire-dispatch"], ["--original-deadline-service-dispatch"], ["--sandbox-demo"],
+                      ["--original-inspector-coordination"], ["--original-deadline-fire-dispatch"], ["--original-deadline-service-dispatch"], ["--original-deadline-food-dispatch"], ["--sandbox-demo"],
                       ["--sandbox-bridges"], ["--sandbox-ramps"],
                       ["--sandbox-check", "--report-json"], ["--sandbox-resume-check"],
                       ["--sandbox-routing-check", "--report-json"],
@@ -252,7 +252,7 @@ class OriginalEconomyCli(unittest.TestCase):
                 self.assertIn("Usage:", result.stderr)
         for extra in (["--original-fire-protection"], ["--original-sustainable-economy"],
                       ["--original-market-logistics"], ["--original-cardinal-water"],
-                      ["--original-inspector-coordination"], ["--original-deadline-fire-dispatch"], ["--original-deadline-service-dispatch"], ["--sandbox-demo"],
+                      ["--original-inspector-coordination"], ["--original-deadline-fire-dispatch"], ["--original-deadline-service-dispatch"], ["--original-deadline-food-dispatch"], ["--sandbox-demo"],
                       ["--sandbox-bridges"], ["--sandbox-ramps"],
                       ["--sandbox-check", "--report-json"], ["--sandbox-resume-check"],
                       ["--sandbox-routing-check", "--report-json"],
@@ -279,7 +279,35 @@ class OriginalEconomyCli(unittest.TestCase):
                 self.assertIn("Usage:", result.stderr)
         for extra in (["--original-fire-protection"], ["--original-sustainable-economy"],
                       ["--original-market-logistics"], ["--original-cardinal-water"],
-                      ["--original-inspector-coordination"], ["--original-deadline-fire-dispatch"], ["--original-deadline-service-dispatch"], ["--sandbox-demo"],
+                      ["--original-inspector-coordination"], ["--original-deadline-fire-dispatch"], ["--original-deadline-service-dispatch"], ["--original-deadline-food-dispatch"], ["--sandbox-demo"],
+                      ["--sandbox-bridges"], ["--sandbox-ramps"],
+                      ["--sandbox-check", "--report-json"], ["--sandbox-resume-check"],
+                      ["--sandbox-routing-check", "--report-json"],
+                      ["--sandbox-original-economy-check", "--report-json"],
+                      ["--load-sandbox", "unread.json"], ["--authored-terrain-sides"]):
+            with self.subTest(extra=extra):
+                result = self.run_cli(base + extra)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("Usage:", result.stderr)
+        base[base.index("sandbox-city-v16")] = "sandbox-city-v11"
+        self.assertEqual(self.run_cli(base).returncode, 2)
+
+    def test_deadline_food_dispatch_requires_own_explicit_selection(self):
+        base = ["--data", str(self.root), "--sandbox", "Cities/authored.map",
+                "--sandbox-rules", "sandbox-city-v16", "--original-deadline-food-dispatch"]
+        for flag in ("--data", "--sandbox", "--sandbox-rules"):
+            arguments = base.copy()
+            at = arguments.index(flag)
+            del arguments[at:at + 2]
+            with self.subTest(missing=flag):
+                result = self.run_cli(arguments)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("Usage:", result.stderr)
+        for extra in (["--original-fire-protection"], ["--original-sustainable-economy"],
+                      ["--original-market-logistics"], ["--original-cardinal-water"],
+                      ["--original-inspector-coordination"], ["--original-deadline-fire-dispatch"], ["--original-deadline-service-dispatch"], ["--original-deadline-food-dispatch"], ["--sandbox-demo"],
                       ["--sandbox-bridges"], ["--sandbox-ramps"],
                       ["--sandbox-check", "--report-json"], ["--sandbox-resume-check"],
                       ["--sandbox-routing-check", "--report-json"],

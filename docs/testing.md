@@ -44,7 +44,17 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
-## Rule16 and Rule17 dispatch experiments
+## Rule16, Rule17 and Rule18 dispatch experiments
+
+OE47 adds the separately selected Rule18/schema34 Food contract. Run
+`original-deadline-food-world`, `original-deadline-food-save` and
+`original-deadline-food-menu` alongside the historical dispatch/save/menu/CLI
+tests below. Its actual paid creator/restore/view checks use the same launcher
+with explicit `--rule 18 --diagnosis oe47`, a fresh strict descendant of ignored
+`.local/original-economy/oe47/`, and the exact selected paid strategy. The
+[OE47 assessment](original-economy/oe47-food-reliability.md) records all controls,
+actual deliveries, per-House tradeoffs and the distinct acceptance statuses.
+Historical modes retain their original output boundaries and generation checks.
 
 OE46 adds the separately selected Rule17/schema33 service contract. Its focused
 tests are `original-deadline-service-world`, `original-deadline-service-save`,

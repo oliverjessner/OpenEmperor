@@ -43,6 +43,7 @@ public:
     bool original_sustainable_economy_setup() const { return original_sustainable_economy_new_game_; }
     bool original_cardinal_water_setup() const { return original_cardinal_water_new_game_; }
     bool original_deadline_service_dispatch_setup() const { return original_deadline_service_dispatch_new_game_; }
+    bool original_deadline_food_dispatch_setup() const { return original_deadline_food_dispatch_new_game_; }
     bool original_deadline_fire_dispatch_setup() const { return original_deadline_fire_dispatch_new_game_; }
     bool original_inspector_coordination_setup() const { return original_inspector_coordination_new_game_; }
     bool original_market_logistics_setup() const { return original_market_logistics_new_game_; }
@@ -107,6 +108,7 @@ private:
     bool original_sustainable_economy_new_game_=false; // Explicit Rule12, never persisted as a default.
     bool original_cardinal_water_new_game_=false; // Explicit Rule14, never a saved default.
     bool original_deadline_service_dispatch_new_game_=false; // Explicit Rule17, never a default or migration.
+    bool original_deadline_food_dispatch_new_game_=false; // Explicit Rule18, never a default or migration.
     bool original_deadline_fire_dispatch_new_game_=false; // Explicit Rule16, never a default or migration.
     bool original_inspector_coordination_new_game_=false; // Explicit Rule15, never a default or migration.
     bool original_market_logistics_new_game_=false; // Explicit authored Rule13, never a default.

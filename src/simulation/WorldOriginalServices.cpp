@@ -319,7 +319,7 @@ CourierDispatchDecision World::original_service_dispatch_status(const CourierSta
     if (c.role!=courier_role_for(p.type)) throw std::logic_error("original service dispatch has incompatible paid Provider");
     if (p.type==OriginalServiceProviderType::Confucian219 && !original_academy_paper_available(c.owner))
         return {CourierDispatchStatus::NoStock,{}};
-    if (original_deadline_service_dispatch_enabled()) {
+    if (original_deadline_service_dispatch_enabled() || original_deadline_food_dispatch_enabled()) {
         const auto add=[](std::uint64_t a,std::uint64_t b) {
             return b>UINT64_MAX-a ? UINT64_MAX:a+b;
         };
