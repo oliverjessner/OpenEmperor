@@ -72,6 +72,19 @@ complete original-game compatibility.
   schemas1–32 remain separate. See the
   [OE46 assessment](docs/original-economy/oe46-citywide-reliability.md); native human
   acceptance remains unrun.
+- **Rule18 meets the finite Food intermediate goal, with residual fires.** Explicit
+  Rule18/schema34 changes only authored Market-to-House Food selection. The paid
+  south-Market plan holds Elite17 over4834→25234 with400/400 needs and zero target
+  fire/devolution/vacancy. All13 Houses remain occupied and complete50 actual Food
+  consumptions each: FoodQuality failures93→7, Food misses15→0, service failures
+  2→0 and House devolutions8→0. Operating cashflow is+5292, minimum Funds5348;
+  all-body/House fire starts fall91/14→67/12. House19 worsens0→7 FoodQuality
+  failures after a real fire/refused load; some individual House fire measures
+  also worsen. The city therefore has5193/5200 current needs met, with6850 burning
+  House ticks. This is an intermediate improvement, not full stability or
+  universal starvation freedom. Rules1–17 and schemas1–33 remain exact. See the
+  [OE47 assessment](docs/original-economy/oe47-food-reliability.md); native human
+  acceptance remains unrun.
 - **High-tier progression has a bounded Rule12 blocker.** The
   [paid high-tier check](docs/original-economy/oe38-paid-high-tier-progression.md)
   reaches Common10 through actual purchases and deliveries, but does not hold it

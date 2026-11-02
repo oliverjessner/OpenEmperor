@@ -277,3 +277,184 @@ Food selection only**. They do not justify changing Farm→Market transport,
 production, crop quality, consumption, arrivals, fire, costs or capacity limits.
 Historical Rule17/schema33 and older behavior must remain exact; a proposed
 selector and technical tests alone establish no paid improvement.
+
+
+## Explicit Rule18 Food contract
+
+Rule18 and schema34 were free in the inspected source. The separate Policy3
+experiment uses marker `authored-deadline-food-dispatch-v1`, exact factories and
+restore APIs, **U Deadline-aware food** and `--original-deadline-food-dispatch`.
+Schema34 also requires the inherited service, fire, market and cardinal markers,
+complete model identity and live source-map-bound terrain. The exact Rule16/17
+predicates and restores remain separate; their dispatchers are explicitly
+inherited by18. General defaults remain City-v11 rule3 and City-v16 rule4.
+
+Only `OriginalFoodToHouse` in `original_food_dispatch_status()` uses the new
+branch. It derives the first physical depletion from actual House portions and
+the existing40/397 modulo816 consumption clock, including the dispatch/movement
+boundary. Already empty Houses have the same immediate deadline, so earlier
+physical arrival wins rather than a farther empty target winning merely through
+negative slack. Other ties use actual complete visit/return duration, then the
+normal rotation anchored in the complete paid compatible House identities.
+Fire, pause or temporary ineligibility never removes the saved cursor anchor.
+There is no Elite or body-class priority.
+
+The bounded forecast includes only actual loaded outbound Market cargo with a
+usable remaining path, progress and ETA. Begun Food movement remains valid
+after source fire or staff loss; explicit operation cancellation changes the
+trip into a return and cannot count as incoming supply. Waiting, pending,
+returning and merely planned loads cannot establish coverage. Earlier incoming
+portions extend a physical depletion deadline only at their real predicted
+arrival; a late arrival cannot retroactively cover an earlier gap. Incoming that
+would run out before this actor's full visit/return opportunity does not suppress
+a real refill. All real incoming cargo still reserves ordinary capacity even if
+its uncertain route prevents forecasting it as coverage. These forecasts are
+selection inputs, never stock, FoodQuality or arrival authority.
+
+Farm-to-Market rotation and all production, transfer callbacks, stock/cart limits,
+source/target checks, model quality blend, consumption, wages, installed upkeep,
+prices and movement remain unchanged. The selector uses existing bounded paid
+vectors and prepared routes, with fixed local arrays and saturating time
+arithmetic. No additional BFS, Navigator, transport engine, mutable queue,
+forecast cache or saved field is introduced. Only actual physical arrival books
+the existing ledger and quality witness. Finite gameplay and complete historical
+compatibility remain separate validation gates below.
+
+
+## Paid Rule18 outcomes and explicit tradeoffs
+
+Both initial Rule18 creators retain their complete outcomes under one immutable
+native executable. The unchanged OE46 winning layout reaches Elite17 at6976 and
+runs through27376:2 FoodQuality failures,1 Ancestor failure,0 Food misses and
+0 devolutions, but600 target fire ticks,95 all-body/15 House fire starts,
+8098 burning House ticks and+4681/minimum4764 operating Funds. It fails the
+joint Elite/fire/finance requirements. A selector alone does not certify a city.
+
+The selected paid `oe47-south-door-market-south` layout reaches Elite17 at4834
+and runs through25234. `run-01/rule18-independent-candidates-audit-01.json`
+independently checks all13 occupied physical sites,400 true PRE-evaluation inputs
+each, actual Food/service/Water arrivals, every saved mass and Funds identity,
+installed816-tick invoices, paid receipts, all-body fire intervals and guards.
+Different first-entry ticks remain explicit; this is the required equal-duration
+post-entry comparison, not a claim of an isolated effect at equal calendar time.
+
+| Measure over20400 post-entry ticks | Rule17 OE46 winner | Rule17 Market south | Rule18 Market south |
+| --- | --- | --- | --- |
+| First-entry→end | 5293→25693 | 5905→26305 | 4834→25234 |
+| Elite met / fire / devolution / vacancy | 400/0/0/0 | 400/0/0/0 | 400/0/0/0 |
+| Current / FoodQuality / service failures | 95/93/2 | 47/47/0 | 7/7/0 |
+| Actual Food misses / House devolutions | 15/8 | 5/3 | 0/0 |
+| All-body / House fire starts | 91/14 | 83/17 | 67/12 |
+| Burning House ticks | 7900 | 9541 | 6850 |
+| Operating cashflow / minimum Funds | +5188/5168 | +5174/5287 | +5292/5348 |
+
+The selected18 window has5193/5200 successful current evaluations. It meets the
+Food intermediate thresholds, uninterrupted target requirement and comparative
+aggregate fire/finance guardrails. It does not meet5200/5200 city stability or
+zero House fires. Actual tax22542 minus installed upkeep17250 gives+5292; no
+construction occurs in this window. All costs remain paid from the original
+12000 starting Funds and earned taxes; positive lifetime tax is not profit.
+
+The per-House table below uses baseline physical sites and records
+`FoodQuality failures / actual Food misses / service failures / devolutions`.
+All actual IDs happen to match in this pair, but the independent join still uses
+saved origin and complete body kind rather than assuming ID stability.
+
+| Baseline House site | Rule17 baseline | Selected Rule18 | House fires baseline→18 | Burning ticks baseline→18 |
+| --- | --- | --- | --- | --- |
+| 1 | 0/0/0/0 | 0/0/0/0 | 0→0 | 0→0 |
+| 7 | 0/0/0/0 | 0/0/0/0 | 0→2 | 0→1170 |
+| 8 | 0/0/0/0 | 0/0/0/0 | 0→0 | 0→0 |
+| 9 | 3/0/0/0 | 0/0/0/0 | 0→0 | 0→0 |
+| 10 | 0/0/2/0 | 0/0/0/0 | 1→1 | 520→600 |
+| 19 | 0/0/0/0 | 7/0/0/0 | 1→2 | 580→1160 |
+| 20 | 0/0/0/0 | 0/0/0/0 | 2→1 | 1020→565 |
+| 21 | 0/0/0/0 | 0/0/0/0 | 0→0 | 46→0 |
+| 22 | 14/2/0/1 | 0/0/0/0 | 4→1 | 2204→430 |
+| 23 | 0/0/0/0 | 0/0/0/0 | 1→2 | 600→1160 |
+| 24 | 24/5/0/2 | 0/0/0/0 | 3→2 | 1800→1165 |
+| 25 | 39/6/0/4 | 0/0/0/0 | 2→0 | 1130→0 |
+| 26 | 13/2/0/1 | 0/0/0/0 | 0→1 | 0→600 |
+
+Every House has0 actual Food misses,0 service failures and0 devolutions in the
+selected18 window. The previous Food problem sites9/22/24/25/26 all have0 current
+failures. However House19 at(121,126) changes from0 to7 FoodQuality failures:
+all seven selected residual inputs occur there. This redistribution is an
+explicit tradeoff, not uniformly improved household supply. Its actual arrival
+and finite gap must be assessed separately from global averages. Sites7,10,19,
+23 and26 also have worse individual ignition/burning measures, as shown above;
+aggregate fire improvement does not imply that every House burns less. No finite
+sample establishes universal starvation freedom or unlimited city capacity.
+
+
+## Remaining physical gap and complete economy
+
+`gate-b-supply-01/winning-physical-food-profile-01.json` independently checks
+224101 observed owner/tick Food balances. Over the selected window,745 harvested
+portions minus650 actual consumptions equals95 additional stock/cargo,42→137.
+Every House performs all50 real consumptions and receives actual deliveries;
+there is no window Food miss. Healthy enabled assigned-worker ticks equal the
+full5949146 installed demand, with no Food pause command. The accompanying
+actual-preload audit reproduces all763 real loads from PRE source stocks,
+headroom and actor order without substituting a selector or granting cargo.
+
+The corrected `winning-seven-residual-causes-01.json` traces the entire remaining
+House19 gap. Its last positive arrival at5864 accepts2 portions onto1 already
+owned. Market11's actor6 departs6460 with3 portions over20 actual edges. House19
+ignites6540→7140; actual arrival6559 refuses all3 and the same real cargo returns
+at6659. Farm13 also burns6540→7140, reducing replenishment; the other two Farms
+and both Markets do not burn in the relevant gap. Existing House portions are
+consumed6109/6568/6925. Depletion at6925 resets quality to0. Four failed
+needs evaluations6976/7027/7078/7129 occur during the target fire; three more at
+7180/7231/7282 await physical resupply after it ends. No evaluation causes a
+devolution.
+
+Both Markets have0 actual portions at the first four failed boundaries. At7180,
+actor6 has physically returned but Market11 is still empty; the other Market
+has1 portion while actor16 is genuinely returning until7219. Farm38's actual
+2-portion load departs7160, reaches Market11 at7184, and actor6 loads it at7185.
+The20-edge outward journey accepts2 at House19 at7284, two ticks after the last
+failed evaluation. At7220 the other distributor serves House9 while House19
+already has this actual inbound commitment. The next consumption7384 succeeds.
+This is target-fire refusal plus a real Farm fire, replenishment and return
+latency. It is not evidence for a further cursor fix, a quality timer extension
+or free transport. Fire reliability is a separate follow-up; no additional fire
+mechanic is introduced in OE47.
+
+The complete earned result has12000 initial Funds +23789 actual taxes −19940
+installed upkeep −5209 paid construction =10640 final Funds. The retention
+window itself has5348→10640 Funds,22542 tax,17250 upkeep and0 construction:
++5292 operating cashflow with minimum5348. The initial bootstrap retains32
+lifetime missed consumptions before the selected window; a zero-miss retention
+window does not erase those earlier misses or imply continuous supply since tick0.
+The12 remaining House ignitions and6850 burning ticks, plus seven current
+FoodQuality failures, keep full city stability separate from the achieved
+intermediate result. Missing next-stage goods/services and original-runtime
+progression/parity remain outside this finite current-needs proof.
+
+
+Actual physical supply in the same selected window is listed below. Quantities
+are accepted arrivals, never planned routes or promises. House stock obeys
+`begin + received − consumed = end`; House Food never departs or returns. The
+independent global balance additionally includes Farm/Market stock and cargo.
+Service/Water counts are actual applied arrivals, not radius or dispatch counts.
+
+| House | Food arrivals | Received portions | Consumed | Stock begin→end | Applied service / Water arrivals |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 26 | 54 | 50 | 3→7 | 3908 / 17 |
+| 7 | 24 | 54 | 50 | 3→7 | 51 / 16 |
+| 8 | 23 | 53 | 50 | 4→7 | 49 / 17 |
+| 9 | 30 | 56 | 50 | 2→8 | 51 / 17 |
+| 10 | 25 | 54 | 50 | 3→7 | 48 / 18 |
+| 19 | 26 | 56 | 50 | 2→8 | 52 / 15 |
+| 20 | 26 | 55 | 50 | 3→8 | 50 / 16 |
+| 21 | 23 | 54 | 50 | 3→7 | 53 / 16 |
+| 22 | 25 | 53 | 50 | 4→7 | 51 / 16 |
+| 23 | 23 | 56 | 50 | 1→7 | 52 / 16 |
+| 24 | 27 | 53 | 50 | 4→7 | 53 / 16 |
+| 25 | 28 | 54 | 50 | 3→7 | 53 / 16 |
+| 26 | 23 | 54 | 50 | 2→6 | 52 / 14 |
+
+All616 accepted changed commands retain actual receipts; quoted construction
+sums to5209. Source fire, refusal, physical return and later replenishment stay
+in the retained event history rather than disappearing from aggregate counts.
