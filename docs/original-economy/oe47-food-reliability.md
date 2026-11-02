@@ -458,3 +458,145 @@ Service/Water counts are actual applied arrivals, not radius or dispatch counts.
 All616 accepted changed commands retain actual receipts; quoted construction
 sums to5209. Source fire, refusal, physical return and later replenishment stay
 in the retained event history rather than disappearing from aggregate counts.
+
+
+## Complete saved-authority and presentation gates
+
+`run-01/gate-f-full-creators-independent-audit-01.json` compares the full selected
+Rule18 creator against its fast paid creator: all34 complete core JSON documents,
+the entire event timeline and Inspector CSV are literal matches. All25235 states
+inclusive0–25234 are recorded in1780587 CSV bytes, SHA256
+`3b3332c38d9b7c9c41e213989544d1858041e2048acdafa5aae68cbad4214c99`.
+The post-change historical Rule17 creator independently reproduces all25694
+states0–25693 and the original `9e5da010…` complete CSV. All34 core JSON files and
+full event streams match the fresh GateA and retained OE46 creators;21 complete
+old-restore checkpoint companions also match. These are complete state/document
+comparisons, not selected metric or end-state-only comparisons.
+
+The selected18 creator and restore run in independent native processes from the
+same immutable `rule18-bin-01` executable, SHA256
+`bf6a4299e51d8c59f283e27980ef1391bfe6bdc38f9e8f7ec25ff6f453f4a5a8`.
+`gate-f-rule18-restored-independent-audit-01.json` passes all25235 literal digest
+rows,42 complete checkpoint/roundtrip/snapshot pairs,32 comparable full JSON
+payloads, complete event/Inspector streams and both Recovery payloads. All14
+restored complete saved documents pass independent physical balances. The
+initial531 paid receipts/1792 construction Funds remain inherited;85 actual
+suffix receipts/3417 Funds lead to the exact final616-command sequence and5209
+construction total. No restore grants cargo, timers, source identity or funds.
+All82 completed creator files are separately sealed,1740021811 bytes, in addition
+to the3226 protected original/old-proof files.
+
+`historical-after18-comparison-01.json` independently compiles the unchanged
+pre-change exporter against the current13 Release archives. All123 complete
+schema1–33 JSON files, including three whole case indexes, remain literally equal
+to the independently frozen pre-change corpus. This includes earned active
+Rule17 Food/service/Inspector/tax/upkeep states. Exact marker, generation, source,
+geometry, route, accounting and atomic-publication refusals are checked by the
+new save tests, including reserved Food markers in all historical schemas and
+cross17↔18 restores. No saved queue, forecast or deadline field is introduced.
+
+The compiled core parity rerun uses separately sealed current archives. All74
+existing case objects/classifications/expected/observed values,18 HousingView values,
+1800-real-model tuple and reference pins remain literal. Only the narrowly
+reviewed additive World header and runner source fingerprints change in the
+existing maintained parity documents. This bounded numeric/source evidence does
+not establish original Emperor city-runtime or full progression parity.
+
+Presentation uses a separately frozen current QA executable because the later
+seven-House view matrix is not the earlier simulation executable's helper. At
+actual entry4834 and end25234, production SandboxView completes84 cases each:
+State/Needs/Goods/Visits at1×/2×/4× for the six physical Common problem sites and
+the Elite House. Both whole-city1920×1294 views contain all13 actual House sprite
+bounds and Supply markers. Actual queued window, wheel, click, tab, F5 and F9
+paths retain paused complete World/SaveDocument equality, actual original House
+art and every inspector row's reachability. There are340 actual PNG captures,
+not generated mockups.
+
+The entry and final visual reviews actually open14 labelled contact sheets each
+covering168 House captures, both full-city originals, and16/15 additional
+full-resolution House samples respectively. The samples cover all seven Houses
+and all12 tab/zoom combinations. Every source PNG/report remains SHA/size/mode/
+mtime-identical. Readability, Food stock/arrival witnesses, needs, visit timers,
+tab states and scroll ends show no blocking defect. This is all-capture contact
+sheet review plus representative full-resolution review, not340 individual
+full-resolution inspections. Magnification crops the selected Elite art at2×
+(about31 pixels top/bottom) and4× (148 left/right,284 top/bottom) within the
+976×444 map aperture; all six Common sprites fit at every selected zoom. The
+whole-city1× framing fits every House. The evidence is
+`entry-visual-review-supply-01/visual-review.json` and
+`visual-review-selected-rule18-final-01.json`. Software SDL input/render evidence
+is separate from native macOS delivery, original scene parity and human play;
+**NATIVE_HUMAN remains NOT_RUN**.
+
+
+## Release, Debug and sanitizer regression
+
+The final authored-only regression mirror is under ignored OE47, with658
+compiled/runtime inputs byte-identical to the live checkout and explicit external
+read-only original-data arguments. Some historical tests derive proof paths from
+`__FILE__`; TMPDIR alone cannot contain those writes. Initial actual-checkout-path
+attempts stopped before any CTest execution: Release/sanitizer builds were
+cancelled for containment, while Debug had already rejected the new test's
+private-helper access. The entire Release suite and focused builds were then
+compiled from the contained mirror. Every fixture-relative
+proof destination therefore stays inside OE47. The final new World test was
+rebuilt after its paid test geography was complete; the binding records the exact
+source rather than assuming that an earlier object included later assertions.
+
+| Build / suite | Completed result | Guarded runner elapsed |
+| --- | --- | --- |
+| Release, entire registered inventory | 290/290 passed, zero skips | 190.158s |
+| Debug, focused distinct inventory | 57 distinct cases covered successfully; see retained first attempt and unchanged retries below | 850.840s first batch +263.222s three-case retry |
+| RelWithDebInfo, ASan+UBSan focused inventory | 57/57 passed, zero skips and no sanitizer report | 481.732s |
+
+The first Debug batch passes54 and times out three existing cases while full
+Release/sanitizer compilation is still running: `original-save-adversarial-synthetic`,
+`original-save-adversarial-real` and `original-menu-successor-flow`. Its failed
+JUnit/logs remain preserved. With builds complete, the exact same binaries and
+unchanged240/240/120-second limits pass serially in53.66/106.63/102.90 seconds.
+This is57 distinct passing cases across the initial batch and three-case retry,
+not a claim that the initial57-case batch passed. No timeout, assertion,
+historical case or numeric expected value is weakened. ASan uses
+`detect_leaks=0:abort_on_error=1` on macOS; UBSan uses
+`halt_on_error=1:print_stacktrace=1`. LeakSanitizer is separate from these checks.
+
+The focused coverage includes real source/target fires, actual refusal and cargo
+return, operation/workforce pause, road cut/repair and begun-edge safety, two
+physical distributors and simultaneous loads, exact arrival/consumption ordering,
+a single incoming portion that cannot cover the next real rescue, pure dispatch
+queries and the complete burning-target cursor. All mutations in the new paid
+World cases use productive commands/ticks. Strict malformed marker, stock,
+cargo, path, accounting, witness, source model/terrain, generation and atomic
+publication cases retain rejection without a grant. Actual U-menu key/click,
+restart, narrow/ordinary layout, F5/F9, CLI exclusivity and Recovery checks pass.
+The complete Release inventory additionally covers all historical subsystems.
+
+Early private test preparation failures remain in their logs: an inaccessible
+private helper, unsupported authored border geometry, and a cut road that also
+blocked the intended independent Farm route. Only the new test's independent
+public ledger check and actual paid geometry/purchase order were corrected.
+Neither production behavior nor the tested assertion/timeout was changed to
+obtain a pass. CLI guard invocation/preflight-shape mistakes are likewise retained
+with their corrected19-case run. Historical schemas/trajectories and real paid
+longplays are independent evidence, rather than conclusions from synthetic cases.
+
+## Final acceptance
+
+| Status | Result | Scope |
+| --- | --- | --- |
+| TECHNICAL | PASS | Complete Release, focused Debug/ASan/UBSan, saved bytes, actual paid replay, input guards and production view checks |
+| ELITE17_RETENTION | PASS | Actual4834→25234,400/400, zero target fire/devolution/vacancy |
+| FOOD | PASS | Intermediate7 FoodQuality failures,0 actual missed consumptions; real quantities and conservation |
+| CITYWIDE_IMPROVEMENT | PASS | Intermediate joint aggregate goals; explicit House19 and individual fire tradeoffs above |
+| CITYWIDE_STABILITY | PARTIAL | 5193/5200 current needs;7 FoodQuality failures and residential fire interruptions remain |
+| SERVICES | PASS | 0 current service failures; all13 have actual service/Water arrivals |
+| FIRE | PARTIAL | Target protected and comparative aggregates improve;12 House starts/6850 burning ticks remain |
+| FINANCE | PASS | +5292 operating Funds, minimum5348; complete tax/upkeep/construction equation above |
+| SAVE_COMPATIBILITY | PASS | Exact1–33 corpus, full historical17 trajectory, strict separate34 and full independent restore |
+| ORIGINAL_PARITY | PARTIAL | Bounded existing numeric/model evidence; no original city-runtime or authored-selector parity claim |
+| NATIVE_HUMAN | NOT_RUN | Scripted software SDL and AI screenshot review do not establish native/human acceptance |
+
+The technical outcome does not promote the separate city-stability, original or
+human statuses. Remaining fire reliability is a distinct follow-up. All changes
+and gate commits stay local on `feat/oe47-food-reliability`; no push, merge, tag,
+release, package publication or original-data distribution occurs.
