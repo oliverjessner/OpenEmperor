@@ -19,6 +19,18 @@ using Json=nlohmann::json;
 using C=sim::CommandType;
 using Plan=std::remove_cv_t<decltype(base::plan)>;
 
+inline bool oe48_recipe(std::string_view recipe) {
+    return recipe=="oe48-watch-north"||recipe=="oe48-watch-west"||
+        recipe=="oe48-watch-balanced"||recipe=="oe48-watch-central"||
+        recipe=="oe48-watch-corridor"||recipe=="oe48-watch-early"||
+        recipe=="oe48-watch-phase1"||recipe=="oe48-watch-corridor-early"||
+        recipe=="oe48-grid-wide"||recipe=="oe48-watch-priority"||
+        recipe=="oe48-farm-swap"||recipe=="oe48-market-north"||
+        recipe=="oe48-watch-phase1-early-third-food"||recipe=="oe48-watch-phase1-early-all-food"||
+        recipe=="oe48-watch-phase1-early-market"||recipe=="oe48-watch-phase1-farm-swap"||
+        recipe=="oe48-watch-phase1-third-food-early-market"||
+        recipe=="oe48-watch-phase1-third-food-three-markets"||recipe=="oe48-watch-phase1-third-food-four-markets";
+}
 inline bool oe47_recipe(std::string_view recipe) {
     return recipe=="oe47-south-door-three-markets"||recipe=="oe47-south-door-four-markets"||
         recipe=="oe47-south-door-market-south"||recipe=="oe47-south-door-early-third-food"||
@@ -46,7 +58,7 @@ inline bool known(std::string_view recipe) {
         recipe=="combined-religion"||recipe=="combined-services"||recipe=="combined-paper-usable"||
         recipe=="early-refined"||recipe=="combined-refined"||recipe=="early-stagger-watch"||
         recipe=="early-stagger-medical"||recipe=="early-stagger-all"||recipe=="early-adaptive-watch"||
-        recipe=="early-stagger-medical-four-markets"||oe45_recipe(recipe)||oe46_recipe(recipe)||oe47_recipe(recipe);
+        recipe=="early-stagger-medical-four-markets"||oe45_recipe(recipe)||oe46_recipe(recipe)||oe47_recipe(recipe)||oe48_recipe(recipe);
 }
 inline bool timing_recipe(std::string_view recipe) {
     return recipe=="early-stagger-watch"||recipe=="early-stagger-medical"||
@@ -74,6 +86,35 @@ inline bool finance(std::string_view recipe){return recipe=="finance-staged";}
 
 inline Plan plan_for(std::string_view recipe) {
     q::check(known(recipe),"Unknown explicit paid OE44 player strategy");
+    if(oe48_recipe(recipe)) {
+        auto result=plan_for("oe47-south-door-market-south");
+        for(auto& node:result) {
+            if(recipe=="oe48-watch-north"&&node.plan_id==131)node.cell={120,124};
+            if((recipe=="oe48-watch-west"||recipe=="oe48-watch-balanced")&&node.plan_id==131)node.cell={113,128};
+            if(recipe=="oe48-watch-central"&&node.plan_id==131)node.cell={124,135};
+            if((recipe=="oe48-watch-balanced"||recipe=="oe48-watch-central")&&node.plan_id==132)node.cell={127,127};
+            if((recipe=="oe48-watch-corridor"||recipe=="oe48-watch-corridor-early")&&node.plan_id==132)node.cell={130,132};
+            if((recipe=="oe48-watch-early"||recipe=="oe48-watch-corridor-early")&&node.plan_id==132)node.phase=0;
+            if((recipe=="oe48-watch-phase1"||recipe.starts_with("oe48-watch-phase1-"))&&node.plan_id==132)node.phase=1;
+            if((recipe=="oe48-watch-phase1-early-third-food"||recipe.starts_with("oe48-watch-phase1-third-food-"))&&
+                (node.plan_id==105||node.plan_id==106))node.phase=1;
+            if(recipe=="oe48-watch-phase1-early-all-food"&&node.plan_id>=101&&node.plan_id<=106)node.phase=0;
+            if((recipe=="oe48-watch-phase1-early-market"||recipe=="oe48-watch-phase1-third-food-early-market")&&node.plan_id==125)node.phase=0;
+            if((recipe=="oe48-watch-phase1-third-food-three-markets"||recipe=="oe48-watch-phase1-third-food-four-markets")&&
+                node.plan_id==143)node.extra_market=false;
+            if(recipe=="oe48-watch-phase1-third-food-four-markets"&&node.plan_id==144)node.extra_market=false;
+            // Swap the two complete existing Farm/owned Field sites, while
+            // retaining each node's original phase and exact owner binding.
+            if(recipe=="oe48-farm-swap"||recipe=="oe48-watch-phase1-farm-swap") {
+                if(node.plan_id==101)node.cell={114,131};
+                if(node.plan_id==102)node.cell={117,131};
+                if(node.plan_id==105)node.cell={114,128};
+                if(node.plan_id==106)node.cell={117,128};
+            }
+            if(recipe=="oe48-market-north"&&node.plan_id==125)node.cell={113,120};
+        }
+        return result;
+    }
     if(oe47_recipe(recipe)) {
         auto result=plan_for("oe46-ancestor-music-south-door");
         for(auto& node:result) {
@@ -206,6 +247,23 @@ inline bool grid_roads(sim::World& w,const Plan& plan,Json& commands,Json& block
         // are not replaced by a parallel navigator or admission list.
         if(!w.validate(command).accepted)continue;
         if(!append(w,command,"OE44 paid tick0 grid road outside every future footprint",commands,blocked))return false;
+    }
+    return true;
+}
+inline bool oe48_outer_grid_roads(sim::World& w,const Plan& plan,Json& commands,Json& blocked) {
+    if(w.ticks()!=0)return true;
+    // Only this explicit paid control adds the bounded outer ring. Existing
+    // grid/controller behavior and all production road admission stay exact.
+    constexpr int left=106,right=138,top=108,bottom=145;
+    static_assert((right-left+1)*(bottom-top+1)-986==268);
+    const auto reserved=reserved_footprints(w,plan);
+    for(int y=top;y<=bottom;++y)for(int x=left;x<=right;++x) {
+        if(x>=108&&x<=136&&y>=110&&y<=143)continue;
+        const sim::Cell cell{x,y};
+        if(reserved.contains({x,y})||base::initial_road(w,cell))continue;
+        const sim::Command command{C::PlaceRoad,cell};
+        if(!w.validate(command).accepted)continue;
+        if(!append(w,command,"OE48 actual paid outer grid road outside complete future footprints",commands,blocked))return false;
     }
     return true;
 }
@@ -380,17 +438,18 @@ inline void validate_oe45_reservations(const sim::World& w,const Plan& plan,std:
 inline bool apply(sim::World& w,std::string_view recipe,Json& commands,Json& blocked) {
     q::check(known(recipe)&&w.original_cardinal_water_enabled()&&
         (w.rule_version()==14||w.original_inspector_coordination_enabled()||w.original_deadline_fire_dispatch_enabled()||w.original_deadline_service_dispatch_enabled()||w.original_deadline_food_dispatch_enabled()),"Paid OE44 strategy requires exact Rule14 or explicit Inspector coordination Rule15");
-    const auto plan=plan_for(recipe);
+    const auto selected=recipe;const auto plan=plan_for(recipe);
     // Explicit OE46 paid site contrasts reuse the unchanged OE45 controller.
     // Site changes and extra paid Markets still use production commands,
     // model prices, complete footprint reservations and ordinary admission.
-    if(oe46_recipe(recipe)||oe47_recipe(recipe))recipe="oe45-grid-watch-near";
+    if(oe46_recipe(recipe)||oe47_recipe(recipe)||oe48_recipe(recipe))recipe="oe45-grid-watch-near";
     validate_oe45_reservations(w,plan,recipe);
     for(const auto cell:base::roads)if(!door_watch_cell(plan,cell,recipe)&&!base::initial_road(w,cell))
         if(!append(w,{C::PlaceRoad,cell},"OE44 original basic paid roads",commands,blocked))return false;
     if(early_elite(recipe)&&w.ticks()==0&&!base::elite(w))
         if(!append(w,{C::PlaceOriginalElitePlot,base::elite_cell},"OE44 buy separate Elite plot before every other building",commands,blocked))return false;
     if(grid(recipe)&&!grid_roads(w,plan,commands,blocked))return false;
+    if(selected=="oe48-grid-wide"&&!oe48_outer_grid_roads(w,plan,commands,blocked))return false;
     if(watches(recipe)&&!watch_roads(w,commands,blocked))return false;
     const auto unlocked=base::phase(w);
     for(const auto& node:plan) {
@@ -430,9 +489,13 @@ inline bool apply(sim::World& w,std::string_view recipe,Json& commands,Json& blo
             (stagger_medical(recipe)&&b.operating_enabled&&
              ((b.kind==sim::Object::HealthPost&&active_pair(w,plan,7,8))||
               (b.kind==sim::Object::ServicePost&&active_pair(w,plan,9,10))));
-        if(critical&&b.workforce_priority!=sim::WorkforcePriority::High) {
-            auto command=sim::set_building_workforce_priority(b.id,sim::WorkforcePriority::High);command.cell=b.cell;
-            if(!append(w,command,"OE44 actual critical-source workforce priority",commands,blocked))return false;
+        const auto wanted=selected=="oe48-watch-priority"&&b.kind!=sim::Object::FireWatch ?
+            sim::WorkforcePriority::Normal:sim::WorkforcePriority::High;
+        if(critical&&b.workforce_priority!=wanted) {
+            auto command=sim::set_building_workforce_priority(b.id,wanted);command.cell=b.cell;
+            if(!append(w,command,wanted==sim::WorkforcePriority::Normal ?
+                "OE48 actual non-Watch critical sources retain normal workforce priority":
+                "OE44 actual critical-source workforce priority",commands,blocked))return false;
         }
     }
     return true;
@@ -517,7 +580,7 @@ inline Json adaptive_watch_status(const sim::World& w,const Plan& plan) {
 }
 inline bool maintenance(sim::World& w,std::string_view recipe,Json& commands,Json& blocked) {
     q::check(known(recipe),"Unknown paid strategy maintenance");
-    if(oe46_recipe(recipe)||oe47_recipe(recipe))recipe="oe45-grid-watch-near";
+    if(oe46_recipe(recipe)||oe47_recipe(recipe)||oe48_recipe(recipe))recipe="oe45-grid-watch-near";
     if(recipe=="early-adaptive-watch") {
         const auto plan=plan_for(recipe);const auto id=base::owner(w,planned(plan,132).cell);
         if(id) {
@@ -563,7 +626,7 @@ inline bool maintenance(sim::World& w,std::string_view recipe,Json& commands,Jso
 inline Json status(const sim::World& w,std::string_view recipe) {
     q::check(known(recipe),"Unknown paid strategy status");
     const auto selected=recipe;const auto plan=plan_for(recipe);auto result=base::status(w,"lean-med");
-    if(oe46_recipe(recipe)||oe47_recipe(recipe))recipe="oe45-grid-watch-near";
+    if(oe46_recipe(recipe)||oe47_recipe(recipe)||oe48_recipe(recipe))recipe="oe45-grid-watch-near";
     Json pending=Json::array(),positions=Json::array();
     for(const auto& node:plan)if(included(node)) {
         positions.push_back({{"plan_id",node.plan_id},{"cell",{node.cell.x,node.cell.y}},
@@ -574,6 +637,28 @@ inline Json status(const sim::World& w,std::string_view recipe) {
             {"actual_need_stage_ready",stage_ready(w,node,recipe)}});
     }
     result["pending_plan_nodes"]=std::move(pending);result["paid_strategy"]=std::string(selected);
+    if(oe48_recipe(selected))result["oe48_paid_contrast"]={{"base_strategy","oe47-south-door-market-south"},
+        {"watch1_north",selected=="oe48-watch-north"},{"watch1_west",selected=="oe48-watch-west"||selected=="oe48-watch-balanced"},
+        {"watch1_central",selected=="oe48-watch-central"},
+        {"watch2_original_site",selected=="oe48-watch-balanced"||selected=="oe48-watch-central"},
+        {"watch2_north_door",selected=="oe48-watch-corridor"||selected=="oe48-watch-corridor-early"},
+        {"watch2_phase0",selected=="oe48-watch-early"||selected=="oe48-watch-corridor-early"},
+        {"watch2_phase1",selected=="oe48-watch-phase1"||selected.starts_with("oe48-watch-phase1-")},
+        {"combined_from_phase1_watch_plan",selected.starts_with("oe48-watch-phase1-")},
+        {"earlier_third_food_chain",selected=="oe48-watch-phase1-early-third-food"||selected.starts_with("oe48-watch-phase1-third-food-")},
+        {"all_food_chains_phase0",selected=="oe48-watch-phase1-early-all-food"},
+        {"market125_phase0",selected=="oe48-watch-phase1-early-market"||selected=="oe48-watch-phase1-third-food-early-market"},
+        {"extra_paid_markets",selected=="oe48-watch-phase1-third-food-four-markets" ? 2:
+            selected=="oe48-watch-phase1-third-food-three-markets" ? 1:0},
+        {"only_watches_high_priority",selected=="oe48-watch-priority"},
+        {"farm101_105_complete_site_swap",selected=="oe48-farm-swap"||selected=="oe48-watch-phase1-farm-swap"},
+        {"market125_historical_north_site",selected=="oe48-market-north"},
+        {"outer_paid_grid",selected=="oe48-grid-wide" ? Json{{"x_min",106},{"x_max",138},{"y_min",108},{"y_max",145},
+            {"additional_candidate_cells",268},{"complete_future_footprints_reserved",true},
+            {"only_production_admitted_cells_bought",true}}:Json(nullptr)},
+        {"two_paid_watches_and_all13_house_sites_retained",true},
+        {"ordinary_admission_workers_prices_upkeep_and_transport",true},
+        {"no_house_id_targeting",true},{"no_engine_rule_change",true}};
     if(oe47_recipe(selected))result["oe47_paid_contrast"]={{"base_strategy","oe46-ancestor-music-south-door"},
         {"extra_paid_markets",selected=="oe47-south-door-four-markets"?2:
             selected=="oe47-south-door-three-markets"||selected=="oe47-south-door-early-markets"?1:0},
