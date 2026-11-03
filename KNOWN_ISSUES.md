@@ -3,7 +3,7 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
-- **Original economy is experimental.** Rules10/11/12/13/14/15/16 are opt-in and include authored
+- **Original economy is experimental.** Rules10–18 are opt-in and include authored
   immigration, workforce, recipes, harvesting, school-to-house visits and Rule13
   needs-aware goods selection.
   Original venue/performer chains and illness are missing. Houses and productive
@@ -85,6 +85,21 @@ complete original-game compatibility.
   universal starvation freedom. Rules1–17 and schemas1–33 remain exact. See the
   [OE47 assessment](docs/original-economy/oe47-food-reliability.md); native human
   acceptance remains unrun.
+- **Legal Rule18 planning meets the finite fire intermediate goal.** The
+  [OE48 assessment](docs/original-economy/oe48-citywide-fire-reliability.md)
+  retains the unchanged Rule18/schema34 engine and two Inspectors. Earlier paid
+  Watch/Food construction plus a third paid Market reaches Elite17 at5395 and
+  holds it through25795:400/400 target needs, zero target fire/devolution/vacancy,
+  all13 Houses continuously occupied and5200/5200 current needs met, with zero
+  Food misses, service failures or House devolutions. House fires fall12→5 and
+  burning House ticks6850→2915; operating cashflow is+5180, minimum Funds5391.
+  Five residential interruptions and65 all-body ignitions remain, and two House
+  sites have worse individual fire measures. This is not full city stability,
+  indefinite fairness or a flawless bootstrap:27 Food misses precede the measured
+  window. Plans have different real entry ticks, so their window differences do
+  not isolate the additional Market's effect. Rule19/schema35 is not allocated;
+  all historical generations and application defaults remain exact. Native human
+  acceptance and complete original-runtime parity remain open.
 - **High-tier progression has a bounded Rule12 blocker.** The
   [paid high-tier check](docs/original-economy/oe38-paid-high-tier-progression.md)
   reaches Common10 through actual purchases and deliveries, but does not hold it

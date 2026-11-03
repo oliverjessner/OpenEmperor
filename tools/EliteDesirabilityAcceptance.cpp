@@ -24,9 +24,10 @@ namespace paid_strategy=oe_elite_stability_strategy;
 namespace high=oe_high_tier_metrics;
 namespace trace=oe_market_distribution_metrics;
 namespace orig=oe::original;
-bool city_diagnosis(std::string_view name) {return name=="oe46"||name=="oe47";}
+bool food_diagnosis(std::string_view name) {return name=="oe47"||name=="oe48";}
+bool city_diagnosis(std::string_view name) {return name=="oe46"||food_diagnosis(name);}
 bool fire_diagnosis(std::string_view name) {return name=="oe45"||city_diagnosis(name);}
-constexpr const char* help="elite-desirability-acceptance --mode create|resume|render --data ABS --output NEW_IGNORED_OE40_OR_OE43_DIR [--variant staged|all-paid|lean-med|lean-med-extra-markets] [--rule 14|15|16|17|18 (default14;16 requires diagnosis oe45, oe46 or oe47;17 requires oe46 or oe47;18 requires oe47)] [--search-ticks 40000|60000] [--tick-digests sha256 (explicit OE45 Rule15/16 or OE46 Rule15/16/17 or OE47 Rule15/16/17/18 QA only)] [--input EARNED_EXACT_GENERATION_SAVE] [--expected CREATOR_RESULT_SAVE (resume)] [--resources ABS (render)] [--diagnosis oe44|oe45|oe46|oe47 (fresh matching diagnosis root only; render also requires explicit --rule)] [--paid-strategy road-grid|market-near|medical-near|medical-pair|watch-near|paper-buffer|early-elite|finance-staged|combined|early-religion|combined-religion|combined-services|combined-paper-usable|early-refined|combined-refined|early-stagger-watch|early-stagger-medical|early-stagger-all|early-adaptive-watch|early-stagger-medical-four-markets|oe45-grid|oe45-watch-early|oe45-watch-central|oe45-watch-west-door|oe45-medical-pair|oe45-market-near|oe45-warehouse-swap|oe45-grid-central|oe45-grid-watch-near|oe45-grid-watch-north|oe45-grid-watch-west|oe45-grid-balanced|oe45-grid-south-door|oe46-ancestor-music-swap|oe46-ancestor-acrobat-swap|oe46-ancestor-drama-swap|oe46-market-south|oe46-markets-four|oe46-ancestor-west|oe46-ancestor-clinic|oe46-ancestor-music-early|oe46-ancestor-music-four-markets|oe46-ancestor-music-south-door|oe47-south-door-three-markets|oe47-south-door-four-markets|oe47-south-door-market-south|oe47-south-door-early-third-food|oe47-south-door-early-all-food|oe47-south-door-early-markets (OE47 recipes require diagnosis oe47; OE46 recipes require diagnosis oe46 or oe47; OE45 recipes require diagnosis oe45, oe46 or oe47; all require variant lean-med)]";
+constexpr const char* help="elite-desirability-acceptance --mode create|resume|render --data ABS --output NEW_IGNORED_OE40_OR_OE43_DIR [--variant staged|all-paid|lean-med|lean-med-extra-markets] [--rule 14|15|16|17|18 (default14;16 requires diagnosis oe45, oe46, oe47 or oe48;17 requires oe46, oe47 or oe48;18 requires oe47 or oe48)] [--search-ticks 40000|60000] [--tick-digests sha256 (explicit OE45 Rule15/16 or OE46 Rule15/16/17 or OE47/OE48 Rule15/16/17/18 QA only)] [--input EARNED_EXACT_GENERATION_SAVE] [--expected CREATOR_RESULT_SAVE (resume)] [--resources ABS (render)] [--diagnosis oe44|oe45|oe46|oe47|oe48 (fresh matching diagnosis root only; render also requires explicit --rule)] [--paid-strategy road-grid|market-near|medical-near|medical-pair|watch-near|paper-buffer|early-elite|finance-staged|combined|early-religion|combined-religion|combined-services|combined-paper-usable|early-refined|combined-refined|early-stagger-watch|early-stagger-medical|early-stagger-all|early-adaptive-watch|early-stagger-medical-four-markets|oe45-grid|oe45-watch-early|oe45-watch-central|oe45-watch-west-door|oe45-medical-pair|oe45-market-near|oe45-warehouse-swap|oe45-grid-central|oe45-grid-watch-near|oe45-grid-watch-north|oe45-grid-watch-west|oe45-grid-balanced|oe45-grid-south-door|oe46-ancestor-music-swap|oe46-ancestor-acrobat-swap|oe46-ancestor-drama-swap|oe46-market-south|oe46-markets-four|oe46-ancestor-west|oe46-ancestor-clinic|oe46-ancestor-music-early|oe46-ancestor-music-four-markets|oe46-ancestor-music-south-door|oe47-south-door-three-markets|oe47-south-door-four-markets|oe47-south-door-market-south|oe47-south-door-early-third-food|oe47-south-door-early-all-food|oe47-south-door-early-markets|oe48-watch-north|oe48-watch-west|oe48-watch-balanced|oe48-watch-central|oe48-watch-corridor|oe48-watch-early|oe48-watch-phase1|oe48-watch-corridor-early|oe48-grid-wide|oe48-watch-priority|oe48-farm-swap|oe48-market-north|oe48-watch-phase1-early-third-food|oe48-watch-phase1-early-all-food|oe48-watch-phase1-early-market|oe48-watch-phase1-farm-swap|oe48-watch-phase1-third-food-early-market|oe48-watch-phase1-third-food-three-markets|oe48-watch-phase1-third-food-four-markets (OE48 recipes require diagnosis oe48; OE47 recipes require diagnosis oe47 or oe48; OE46 recipes require diagnosis oe46, oe47 or oe48; OE45 recipes require diagnosis oe45, oe46, oe47 or oe48; all require variant lean-med)]";
 struct Options {std::string mode,variant="staged",diagnosis,paid_strategy;fs::path data,output,input,expected,resources;unsigned rule=14,search=40000;bool tick_digests=false;};
 Options options(int argc,char** argv){
     Options a;std::map<std::string,std::string> values;
@@ -43,10 +44,11 @@ Options options(int argc,char** argv){
     if(values.contains("--diagnosis")){a.diagnosis=values.at("--diagnosis");check((a.diagnosis=="oe44"||fire_diagnosis(a.diagnosis))&&(a.mode!="render"||values.contains("--rule")),help);}
     check(a.rule!=15||(!a.diagnosis.empty()&&values.contains("--rule")),"Rule15 requires explicit --rule 15 and selected diagnosis oe44, oe45 or oe46");
     check(a.rule!=16||(fire_diagnosis(a.diagnosis)&&values.contains("--rule")),"Rule16 requires explicit --rule 16 and --diagnosis oe45 or oe46");
-    check(a.rule!=18||(a.diagnosis=="oe47"&&values.contains("--rule")),"Rule18 requires explicit --rule 18 and --diagnosis oe47");
+    check(a.rule!=18||(food_diagnosis(a.diagnosis)&&values.contains("--rule")),"Rule18 requires explicit --rule 18 and --diagnosis oe47 or oe48");
     check(a.rule!=17||(city_diagnosis(a.diagnosis)&&values.contains("--rule")),"Rule17 requires explicit --rule 17 and --diagnosis oe46 or oe47");
     check(a.diagnosis!="oe46"||a.mode!="render"||a.rule==16||a.rule==17,"OE46 rendering requires explicit Rule16 or Rule17");
     check(a.diagnosis!="oe47"||a.mode!="render"||a.rule==16||a.rule==17||a.rule==18,"OE47 rendering requires explicit Rule16 or Rule17 or Rule18");
+    check(a.diagnosis!="oe48"||a.mode!="render"||a.rule==16||a.rule==17||a.rule==18,"OE48 rendering requires explicit Rule16 or Rule17 or Rule18");
     if(values.contains("--tick-digests")) {
         check(values.at("--tick-digests")=="sha256"&&fire_diagnosis(a.diagnosis)&&a.mode!="render"&&
             (a.rule==15||a.rule==16||a.rule==17||a.rule==18),"Tick digests require explicit OE45 Rule15/16 or OE46 Rule15/16/17 simulation and sha256");
@@ -57,7 +59,8 @@ Options options(int argc,char** argv){
         check(paid_strategy::known(a.paid_strategy)&&!a.diagnosis.empty()&&a.variant=="lean-med"&&a.mode!="render",help);
         check(!a.paid_strategy.starts_with("oe45-")||fire_diagnosis(a.diagnosis),"OE45 player experiments require --diagnosis oe45 or oe46");
         check(!paid_strategy::oe46_recipe(a.paid_strategy)||city_diagnosis(a.diagnosis),"OE46 player experiments require --diagnosis oe46 or oe47");
-        check(!paid_strategy::oe47_recipe(a.paid_strategy)||a.diagnosis=="oe47","OE47 player experiments require --diagnosis oe47");
+        check(!paid_strategy::oe47_recipe(a.paid_strategy)||food_diagnosis(a.diagnosis),"OE47 player experiments require --diagnosis oe47 or oe48");
+        check(!paid_strategy::oe48_recipe(a.paid_strategy)||a.diagnosis=="oe48","OE48 player experiments require --diagnosis oe48");
     }
     for(const auto& [key,path]:{std::pair{"--data",&a.data},{"--output",&a.output},{"--input",&a.input},{"--expected",&a.expected},{"--resources",&a.resources}})
         if(values.contains(key))*path=fs::absolute(values.at(key));
@@ -65,10 +68,11 @@ Options options(int argc,char** argv){
         check(parsed.ec==std::errc{}&&parsed.ptr==text.data()+text.size()&&(a.search==40000||a.search==60000),help);}
     safe(a.data);safe(a.output);check(fs::is_directory(a.data),"Original installation missing");
     const auto diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/
-        (a.diagnosis=="oe47"?".local/original-economy/oe47":a.diagnosis=="oe46"?".local/original-economy/oe46":a.diagnosis=="oe45"?".local/original-economy/oe45":".local/original-economy/oe44");
+        (a.diagnosis=="oe48"?".local/original-economy/oe48":a.diagnosis=="oe47"?".local/original-economy/oe47":a.diagnosis=="oe46"?".local/original-economy/oe46":a.diagnosis=="oe45"?".local/original-economy/oe45":".local/original-economy/oe44");
     const auto prior_diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe44";
     const auto oe45_diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe45";
     const auto oe46_diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe46";
+    const auto oe47_diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe47";
     const bool allowed_output=a.diagnosis.empty()?private_output(a.output):
         a.output!=diagnosis_root&&below(a.output,diagnosis_root);
     check(allowed_output&&!fs::exists(a.output),"Use a fresh ignored output in the selected OE40/OE43 or explicit matching diagnosis root");
@@ -78,7 +82,8 @@ Options options(int argc,char** argv){
             (!a.diagnosis.empty()&&path!=diagnosis_root&&below(path,diagnosis_root))||
             (fire_diagnosis(a.diagnosis)&&path!=prior_diagnosis_root&&below(path,prior_diagnosis_root))||
             (city_diagnosis(a.diagnosis)&&path!=oe45_diagnosis_root&&below(path,oe45_diagnosis_root))||
-            (a.diagnosis=="oe47"&&path!=oe46_diagnosis_root&&below(path,oe46_diagnosis_root));
+            (food_diagnosis(a.diagnosis)&&path!=oe46_diagnosis_root&&below(path,oe46_diagnosis_root))||
+            (a.diagnosis=="oe48"&&path!=oe47_diagnosis_root&&below(path,oe47_diagnosis_root));
         check(allowed_input&&fs::is_regular_file(path)&&fs::file_size(path)<=8U*1024U*1024U&&!below(path,a.output),
             "Use bounded explicit protected OE40 or selected explicit diagnosis saves");
     }
@@ -315,6 +320,15 @@ void simulate(const Options& a){
         }
         if(first&&w.ticks()==*first+10200)checkpoint14(c,a.output,"midpoint",w,manifest);
         else if(w.ticks()%8160==0)checkpoint14(c,a.output,"checkpoint-"+std::to_string(w.ticks()),w,manifest);
+        // Explicit external OE48 observation of the reproduced House19 chain.
+        // These complete documents read the real post-tick World; they neither
+        // change its commands nor introduce a production tick/frame hook.
+        if(a.diagnosis=="oe48"&&a.paid_strategy=="oe47-south-door-market-south") {
+            constexpr std::array<std::uint64_t,13> observations{5920,6060,6371,6460,6540,6559,6659,
+                6925,6976,7140,7184,7282,7284};
+            if(std::find(observations.begin(),observations.end(),w.ticks())!=observations.end())
+                checkpoint14(c,a.output,"oe48-house19-"+std::to_string(w.ticks()),w,manifest);
+        }
         compare_expected();
     }}catch(const std::exception& error){stop_reason=error.what();}
     if(stop_reason.empty()&&!a.paid_strategy.empty()&&!paid_strategy::timing_purchases_complete(w,a.paid_strategy))
@@ -390,8 +404,9 @@ void simulate(const Options& a){
 void render_inspector_matrix(const Options& a,oe::SandboxView& view,Sdl& sdl,
         const std::string& input,const q::save::SaveDocument& saved,const fs::path& copy,
         sim::BuildingId target,const Json& pins) {
-    check((a.rule==15||a.rule==16)&&!a.diagnosis.empty()&&saved.source_schema_version==schema_for_rule(a.rule)&&
-        (view.world().original_inspector_coordination_enabled()||view.world().original_deadline_fire_dispatch_enabled()),
+    check((a.rule==15||a.rule==16||a.rule==17||a.rule==18)&&!a.diagnosis.empty()&&saved.source_schema_version==schema_for_rule(a.rule)&&
+        (view.world().original_inspector_coordination_enabled()||view.world().original_deadline_fire_dispatch_enabled()||
+         view.world().original_deadline_service_dispatch_enabled()||view.world().original_deadline_food_dispatch_enabled()),
         "Exact explicit Inspector generation render required");
     using Point=oe::scene::Point;
     using Rect=oe::sandbox_ui::Rect;
@@ -571,7 +586,7 @@ void render_inspector_matrix(const Options& a,oe::SandboxView& view,Sdl& sdl,
     }
     check(matrix.size()==36&&captures.size()<=72,"Unexpected bounded inspector matrix size");
     check(q::f::read_text(a.input)==input&&source_pins(a.data)==pins,"Inspector render changed protected input or original source pins");
-    Json report{{"format",a.rule==16?"openemperor-oe45-inspector-view-v1":"openemperor-oe44-inspector-view-v1"},{"status","PASS"},
+    Json report{{"format",a.diagnosis=="oe48"?"openemperor-oe48-inspector-view-v1":a.rule==16?"openemperor-oe45-inspector-view-v1":"openemperor-oe44-inspector-view-v1"},{"status","PASS"},
         {"rule",a.rule},{"schema",schema_for_rule(a.rule)},
         {"actual_sandbox_renderer",true},{"backend",SDL_GetRendererName(sdl.renderer)},{"scripted_dummy_software",true},
         {"target",static_cast<unsigned>(target)},{"actual_type",visual.house_type},{"actual_side",visual.actual_side},
@@ -580,8 +595,10 @@ void render_inspector_matrix(const Options& a,oe::SandboxView& view,Sdl& sdl,
         {"sprite_center_authority","production OriginalHouseVisualDiagnostic image_origin/width/height"},
         {"matrix",matrix},{"captures",captures},{"checked_actions",actions},{"world_unchanged",true},{"paused_after_every_action",true},
         {"complete_f5_f9_equality",true},{"source_inputs_unchanged",true},{"captures_visually_inspected",false},{"native_human","NOT_RUN"}};
-    if(a.rule==16)report["deadline_fire_dispatch_contract"]=sim::original_deadline_fire_dispatch_contract;
+    if(a.rule>=16)report["deadline_fire_dispatch_contract"]=sim::original_deadline_fire_dispatch_contract;
     else report["inspector_coordination_contract"]=sim::original_inspector_coordination_contract;
+    if(a.rule>=17)report["deadline_service_dispatch_contract"]=sim::original_deadline_service_dispatch_contract;
+    if(a.rule==18)report["deadline_food_dispatch_contract"]=sim::original_deadline_food_dispatch_contract;
     if(fire_diagnosis(a.diagnosis))report["fire_watch_captures"]=watch_captures;
     write(a.output/"report.json",report);
 }
@@ -589,7 +606,7 @@ void render_citywide_matrix(const Options& a,oe::SandboxView& view,Sdl& sdl,
         const std::string& input,const q::save::SaveDocument& saved,const fs::path& copy,
         sim::BuildingId target,const Json& pins) {
     check(city_diagnosis(a.diagnosis)&&(a.rule==16||a.rule==17||a.rule==18),"Citywide capture is explicit OE46 Rule16/17 or OE47 Rule16/17/18 QA only");
-    auto report=oe_citywide_reliability_view::run(view,sdl.window,sdl.renderer,saved,input,copy,a.output,target,a.diagnosis=="oe47",
+    auto report=oe_citywide_reliability_view::run(view,sdl.window,sdl.renderer,saved,input,copy,a.output,target,food_diagnosis(a.diagnosis),a.diagnosis=="oe48",
         [](const fs::path& path){return q::f::read_text(path);},
         [&](oe::scene::Point point){center(view,point);});
     check(q::f::read_text(a.input)==input&&source_pins(a.data)==pins,
@@ -630,6 +647,12 @@ void render14(const Options& a){
         "Initial OE44 F5 did not complete exactly one actual save");
     if((a.rule==15||a.rule==16||a.rule==17||a.rule==18)&&!a.diagnosis.empty()) {
         if(city_diagnosis(a.diagnosis)) {
+            if(a.diagnosis=="oe48") {
+                auto watches=a;watches.output=a.output/"fire-inspection";
+                check(!fs::exists(watches.output),"Preserve existing OE48 Watch inspection");
+                fs::create_directories(watches.output);
+                render_inspector_matrix(watches,*view,sdl,input,d,copy,*target,pins);
+            }
             render_citywide_matrix(a,*view,sdl,input,d,copy,*target,pins);
             view->shutdown();return;
         }

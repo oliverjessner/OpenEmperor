@@ -46,6 +46,22 @@ scenario does not prove every layout, long-play outcome or original-game parity.
 
 ## Rule16, Rule17 and Rule18 dispatch experiments
 
+OE48 adds legal paid planning controls and fire inspection to this QA launcher,
+without a new engine generation. Select `--rule 18 --diagnosis oe48 --variant
+lean-med --paid-strategy oe48-watch-phase1-third-food-three-markets` for the
+measured plan. Every output must be a fresh strict descendant of ignored
+`.local/original-economy/oe48/`; preserve the original installation and earlier
+proofs read-only. Create and independently resume from the complete seed using
+`--expected` for the creator result and `--tick-digests sha256` in both processes.
+The full creator digest CSV must be available beside the expected result when
+the replay compares its endpoint. Render the earned saves using explicit
+`--mode render --rule 18 --diagnosis oe48 --resources ABS`, then actually inspect
+the PNGs. The [OE48 assessment](original-economy/oe48-citywide-fire-reliability.md)
+separates full-state/byte equality, actual fire/Food events, scripted software
+SDL and native human acceptance. Historical test fixtures with source-relative
+private paths require a contained authored source mirror when preserving an
+earlier proof tree; compile and run there, with an explicit read-only data root.
+
 OE47 adds the separately selected Rule18/schema34 Food contract. Run
 `original-deadline-food-world`, `original-deadline-food-save` and
 `original-deadline-food-menu` alongside the historical dispatch/save/menu/CLI

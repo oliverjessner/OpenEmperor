@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hermetic Elite QA boundaries: no original assets, saved game or SDL display.
 
-Every temporary file stays in the ignored OE47 root. Rejections must happen at
+Every temporary file stays in the ignored OE48 root. Rejections must happen at
 the intended argument/path boundary, before an empty authored data directory can
 reach source loading or create proof output.
 """
@@ -20,7 +20,7 @@ import unittest
 
 EXECUTABLE: Path
 REPOSITORY = Path(__file__).resolve().parents[1]
-PRIVATE_ROOT = REPOSITORY / ".local/original-economy/oe47"
+PRIVATE_ROOT = REPOSITORY / ".local/original-economy/oe48"
 HELP = "elite-desirability-acceptance --mode"
 
 
@@ -51,7 +51,7 @@ class EliteDesirabilityCli(unittest.TestCase):
         return result
 
     def arguments(self, **replacements):
-        values = {"--mode": "create", "--rule": "16", "--diagnosis": "oe47",
+        values = {"--mode": "create", "--rule": "16", "--diagnosis": "oe48",
                   "--variant": "lean-med", "--paid-strategy": "oe45-grid-watch-near",
                   "--data": str(self.data), "--output": str(self.output)}
         for key, value in replacements.items():
@@ -85,6 +85,7 @@ class EliteDesirabilityCli(unittest.TestCase):
         self.assertIn("default14", result.stdout)
         self.assertIn("oe46", result.stdout)
         self.assertIn("oe47", result.stdout)
+        self.assertIn("oe48", result.stdout)
         self.assertIn("17 requires oe46", result.stdout)
         self.assertEqual(result.stderr, "")
         self.assertEqual(self.inventory(), before)
@@ -92,7 +93,20 @@ class EliteDesirabilityCli(unittest.TestCase):
     def test_valid_oe47_preflight_reaches_source_check_without_output(self):
         # Positive boundary control: this exact shape is admitted, then fails on
         # intentionally absent licensed input, rather than silently accepting SDL.
-        self.rejected(self.arguments(), "Bounded regular source file required")
+        requested = REPOSITORY / ".local/original-economy/oe47" / self.root.name
+        self.assertFalse(requested.exists())
+        for rule in ("16", "17", "18"):
+            with self.subTest(rule=rule):
+                self.rejected(self.arguments(**{"--diagnosis": "oe47", "--output": requested,
+                                                "--rule": rule}),
+                              "Bounded regular source file required")
+        self.assertFalse(requested.exists())
+
+    def test_valid_oe48_preflight_reaches_source_check_without_output(self):
+        for rule in ("16", "17", "18"):
+            with self.subTest(rule=rule):
+                self.rejected(self.arguments(**{"--rule": rule}),
+                              "Bounded regular source file required")
         self.assertFalse(self.output.exists())
 
     def test_historical_oe46_preflight_stays_admitted_without_writing_prior_evidence(self):
@@ -145,11 +159,17 @@ class EliteDesirabilityCli(unittest.TestCase):
             with self.subTest(recipe=recipe):
                 self.rejected(self.arguments(**{"--rule": "17", "--paid-strategy": recipe}),
                               "Bounded regular source file required")
+                requested = REPOSITORY / ".local/original-economy/oe47" / self.root.name
+                self.assertFalse(requested.exists())
+                self.rejected(self.arguments(**{"--rule": "17", "--diagnosis": "oe47",
+                                                "--output": requested, "--paid-strategy": recipe}),
+                              "Bounded regular source file required")
+                self.assertFalse(requested.exists())
                 self.rejected(self.arguments(**{"--diagnosis": "oe46", "--paid-strategy": recipe}),
                               "OE47 player experiments require --diagnosis oe47")
 
     def test_city_render_refuses_historical_rule_before_creating_output(self):
-        for diagnosis in ("oe46", "oe47"):
+        for diagnosis in ("oe46", "oe47", "oe48"):
             for rule in ("14", "15"):
                 with self.subTest(rule=rule, diagnosis=diagnosis):
                     self.rejected(self.arguments(**{"--mode": "render", "--rule": rule, "--diagnosis": diagnosis,
@@ -159,6 +179,31 @@ class EliteDesirabilityCli(unittest.TestCase):
                                   diagnosis.upper() + " rendering requires explicit Rule16 or Rule17")
                     self.assertFalse(self.output.exists())
 
+    def test_oe48_paid_controls_require_own_diagnosis_and_keep_source_loading_explicit(self):
+        recipes = ("oe48-watch-north", "oe48-watch-west", "oe48-watch-balanced",
+                   "oe48-watch-central", "oe48-watch-corridor", "oe48-watch-early",
+                   "oe48-watch-phase1", "oe48-watch-corridor-early", "oe48-grid-wide",
+                   "oe48-watch-priority", "oe48-farm-swap", "oe48-market-north",
+                   "oe48-watch-phase1-early-third-food", "oe48-watch-phase1-early-all-food",
+                   "oe48-watch-phase1-early-market", "oe48-watch-phase1-farm-swap",
+                   "oe48-watch-phase1-third-food-early-market",
+                   "oe48-watch-phase1-third-food-three-markets",
+                   "oe48-watch-phase1-third-food-four-markets")
+        for recipe in recipes:
+            with self.subTest(recipe=recipe):
+                self.rejected(self.arguments(**{"--rule": "18", "--paid-strategy": recipe}),
+                              "Bounded regular source file required")
+                for diagnosis in ("oe44", "oe45", "oe46", "oe47"):
+                    self.rejected(self.arguments(**{"--rule": "14", "--diagnosis": diagnosis,
+                                                    "--paid-strategy": recipe}),
+                                  "OE48 player experiments require --diagnosis oe48")
+                self.rejected(self.arguments(**{"--rule": "14", "--diagnosis": None,
+                                                "--paid-strategy": recipe}),
+                              HELP)
+                self.rejected(self.arguments(**{"--paid-strategy": recipe, "--variant": "staged"}), HELP)
+                self.rejected(self.arguments(**{"--mode": "render", "--paid-strategy": recipe,
+                                                "--input": self.seed, "--resources": self.data}), HELP)
+
     def test_recipe_without_diagnosis_is_refused(self):
         self.rejected(self.arguments(**{"--rule": "14", "--diagnosis": None}), HELP)
 
@@ -167,13 +212,35 @@ class EliteDesirabilityCli(unittest.TestCase):
             requested = REPOSITORY / ".local/original-economy" / generation / self.root.name
             self.assertFalse(requested.exists())
             with self.subTest(generation=generation):
-                self.rejected(self.arguments(**{"--output": requested}),
+                self.rejected(self.arguments(**{"--diagnosis": "oe47", "--output": requested}),
                               "fresh ignored output")
+                self.assertFalse(requested.exists())
+        self.rejected(self.arguments(**{"--diagnosis": "oe47",
+                                        "--output": REPOSITORY / ".local/original-economy/oe47"}),
+                      "fresh ignored output")
+
+    def test_oe48_output_cannot_use_a_prior_diagnosis_root(self):
+        for generation in ("oe40", "oe44", "oe45", "oe46", "oe47"):
+            requested = REPOSITORY / ".local/original-economy" / generation / self.root.name
+            self.assertFalse(requested.exists())
+            with self.subTest(generation=generation):
+                self.rejected(self.arguments(**{"--output": requested}), "fresh ignored output")
                 self.assertFalse(requested.exists())
         self.rejected(self.arguments(**{"--output": PRIVATE_ROOT}), "fresh ignored output")
 
     def test_prior_diagnosis_cannot_write_in_oe47(self):
+        requested = REPOSITORY / ".local/original-economy/oe47" / self.root.name
+        self.assertFalse(requested.exists())
         for diagnosis in ("oe44", "oe45", "oe46"):
+            with self.subTest(diagnosis=diagnosis):
+                self.rejected(self.arguments(**{"--rule": "14", "--diagnosis": diagnosis,
+                                                "--output": requested,
+                                                "--paid-strategy": None}),
+                              "fresh ignored output")
+        self.assertFalse(requested.exists())
+
+    def test_prior_diagnosis_cannot_write_in_oe48(self):
+        for diagnosis in ("oe44", "oe45", "oe46", "oe47"):
             with self.subTest(diagnosis=diagnosis):
                 self.rejected(self.arguments(**{"--rule": "14", "--diagnosis": diagnosis,
                                                 "--paid-strategy": None}),

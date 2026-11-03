@@ -173,6 +173,18 @@ production, capacities, costs, timers, movement and consumption remain unchanged
 The [OE47 assessment](oe47-food-reliability.md) records the finite paid improvement
 and the residual target/Farm-fire and resupply gap separately.
 
+The [OE48 assessment](oe48-citywide-fire-reliability.md) changes no production
+dispatcher, saved field, rule or schema. Its explicit QA player plan
+`oe48-watch-phase1-third-food-three-markets` buys the second Watch and third
+Food chain earlier, plus a third paid Market within existing limits. The real
+5395→25795 window retains Elite17 with400/400 needs and no target fire, and all
+thirteen occupied Houses complete5200/5200 current evaluations. Five House fires/
+2915 burning ticks remain, including individual fire regressions. This meets
+the finite intermediate goal, not full city stability or original parity.
+Its naturally later entry also changes the observation calendar;27 pre-window
+Food misses remain recorded. Rule19/schema35 stays unallocated and Rules1–18/
+schemas1–34, all defaults, prices, timers, limits and physical authority stay exact.
+
 `ModelData` reads the selected installation's `Model/EmperorBuildingModels.txt`
 within its canonical root: regular file, at most 256 KiB, lines at most 4096 bytes,
 unique Building IDs and complete 13-field Building/24-field House grammar.

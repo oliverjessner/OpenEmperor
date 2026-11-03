@@ -33,7 +33,7 @@ template<class ReadText,class Center>
 Json run(oe::SandboxView& view,SDL_Window* window,SDL_Renderer* renderer,
          const oe::persistence::SaveDocument& saved,const std::string& input,
          const std::filesystem::path& save_copy,const std::filesystem::path& output,
-         sim::BuildingId elite,bool food_study,ReadText read_text,Center center) {
+         sim::BuildingId elite,bool food_study,bool fire_study,ReadText read_text,Center center) {
     require((view.world().original_deadline_fire_dispatch_enabled()&&saved.source_schema_version==32)||
             (view.world().original_deadline_service_dispatch_enabled()&&saved.source_schema_version==33)||
             (view.world().original_deadline_food_dispatch_enabled()&&saved.source_schema_version==34),
@@ -203,10 +203,19 @@ Json run(oe::SandboxView& view,SDL_Window* window,SDL_Renderer* renderer,
     capture(city_name+"-supply","whole-city-all13",{},"whole-city");persistence();
     overlay(oe::SandboxView::OriginalHouseOverlay::Off);
     capture(city_name+"-off","whole-city-all13",{},"whole-city");persistence();
+    if(fire_study) {
+        overlay(oe::SandboxView::OriginalHouseOverlay::Risk);
+        capture(city_name+"-risk","whole-city-all13",{},"whole-city");persistence();
+    }
 
     resize(1280,800);if(!view.layout().panel_open)key(SDLK_TAB);render();
     std::vector<sim::BuildingId> problems;
-    if(food_study) {
+    if(fire_study) {
+        const auto house=view.world().building_owner_at({121,126});
+        require(house&&std::find(houses.begin(),houses.end(),*house)!=houses.end(),
+            "OE48 House19 site has no actual occupied paid House");
+        problems={*house,elite};
+    } else if(food_study) {
         // Bind the baseline problem sites to actual complete paid footprints;
         // purchase-order IDs may differ between legal city controls.
         for(const auto cell:std::array<sim::Cell,6>{{{121,128},{113,138},{111,137},{121,132},{113,115},{121,126}}}) {
@@ -217,7 +226,11 @@ Json run(oe::SandboxView& view,SDL_Window* window,SDL_Renderer* renderer,
         }
         problems.push_back(elite);
     } else problems={static_cast<sim::BuildingId>(25),static_cast<sim::BuildingId>(24),elite};
-    for(const auto house:problems) {
+    const std::vector<std::array<int,2>> sizes=fire_study ?
+        std::vector<std::array<int,2>>{{1280,800},{1600,900},{1920,1080}}:
+        std::vector<std::array<int,2>>{{1280,800}};
+    for(const auto size:sizes)for(const auto house:problems) {
+        if(fire_study){resize(size[0],size[1]);if(!view.layout().panel_open)key(SDLK_TAB);render();}
         require(std::find(houses.begin(),houses.end(),house)!=houses.end(),"OE46 problem House is not an actual occupied recipient");
         zoom(1);const auto visual=view.original_house_visual_diagnostic(house);
         center(visual.ground);pure();render();key(SDLK_5);
@@ -241,7 +254,7 @@ Json run(oe::SandboxView& view,SDL_Window* window,SDL_Renderer* renderer,
                 const auto content=view.original_house_content_rect();const auto lines=view.original_house_section_lines();
                 require(content.w>0&&content.h>0&&!lines.empty(),"OE46 actual inspector section has no readable document");
                 wheel(middle(content),1000000);render();require(view.original_house_scroll()==0,"OE46 section cannot return to its first row");
-                const auto name="house"+std::to_string(static_cast<unsigned>(house))+"-1280x800-"+std::to_string(z)+"x-"+
+                const auto name="house"+std::to_string(static_cast<unsigned>(house))+"-"+std::to_string(size[0])+"x"+std::to_string(size[1])+"-"+std::to_string(z)+"x-"+
                     std::string(oe::original_house_ui::section_name(section));
                 capture(name+"-top","problem-house",house,"top");std::vector<bool> reached(lines.size());
                 for(unsigned step=0;;++step) {
@@ -254,14 +267,16 @@ Json run(oe::SandboxView& view,SDL_Window* window,SDL_Renderer* renderer,
                 }
                 require(std::all_of(reached.begin(),reached.end(),[](bool v){return v;}),"OE46 inspector contains an unreachable complete text row");
                 if(view.original_house_scroll()>0)capture(name+"-end","problem-house",house,"end");
-                persistence();cases.push_back({{"house",static_cast<unsigned>(house)},{"zoom",z},{"section",index},
-                    {"rows",lines.size()},{"all_rows_reached",true},{"complete_f5_f9_equality",true}});
+                persistence();Json result{{"house",static_cast<unsigned>(house)},{"zoom",z},{"section",index},
+                    {"rows",lines.size()},{"all_rows_reached",true},{"complete_f5_f9_equality",true}};
+                if(fire_study){result["width"]=size[0];result["height"]=size[1];}
+                cases.push_back(std::move(result));
             }
         }
     }
-    require(cases.size()==problems.size()*12&&captures.size()<=2+problems.size()*24,"OE46 citywide capture matrix exceeds its fixed bound");
+    require(cases.size()==problems.size()*sizes.size()*12&&captures.size()<=(fire_study?3U:2U)+problems.size()*sizes.size()*24,"OE46 citywide capture matrix exceeds its fixed bound");
     Json problem_ids=Json::array();for(const auto id:problems)problem_ids.push_back(static_cast<unsigned>(id));
-    return {{"format",food_study?"openemperor-oe47-citywide-view-v1":"openemperor-oe46-citywide-view-v1"},{"status","PASS"},{"rule",view.world().rule_version()},{"schema",saved.source_schema_version},
+    return {{"format",fire_study?"openemperor-oe48-citywide-view-v1":food_study?"openemperor-oe47-citywide-view-v1":"openemperor-oe46-citywide-view-v1"},{"status","PASS"},{"rule",view.world().rule_version()},{"schema",saved.source_schema_version},
         {"tick",view.world().ticks()},{"actual_sandbox_renderer",true},{"backend",SDL_GetRendererName(renderer)},
         {"scripted_dummy_software",true},{"all13_whole_city_markers_visible_at1x",true},
         {"all13_whole_city_sprite_bounds_inside_map_at1x",true},
