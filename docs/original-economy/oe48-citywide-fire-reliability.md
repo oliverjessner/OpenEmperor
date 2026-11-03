@@ -10,8 +10,9 @@ Work began from clean `db2c37f0cf92111dbde994cae5849945da5fecdc`, matching fetch
 `origin/main`, on `feat/oe48-citywide-fire-reliability`. All local and remote
 branches were inventoried. New private outputs, source mirrors, tools, temporary
 files, captures and builds stay under ignored `.local/original-economy/oe48/`.
-Original data and earlier evidence remain read-only. This task authorizes local
-gate commits, with no push, merge, tag or release.
+Original data and earlier evidence remain read-only. The initial task authorized
+local gate commits only. The subsequent explicit user instruction "commit, push,
+merge" authorizes publication through a pull request; no tag or release is requested.
 
 Unless otherwise qualified, private artifact names below are relative to
 `.local/original-economy/oe48/run-01/`. The input manifest seals 30,449 files and
@@ -716,5 +717,6 @@ bootstrap deficits, individual class/site regressions or human/original limits.
 | NATIVE_HUMAN | NOT_RUN | Actual software-SDL captures reviewed within explicit scopes; no human macOS acceptance. |
 
 The delivered change is explicit paid QA planning/observation and maintained
-documentation. Rule19/schema35 remains free. Only local commits are authorized
-for this task; there is no push, merge, tag, release or publication.
+documentation. Rule19/schema35 remains free. Publication through a pull request
+is authorized by the subsequent explicit user instruction; no tag or release is
+requested.
