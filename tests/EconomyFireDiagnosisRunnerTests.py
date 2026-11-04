@@ -155,7 +155,7 @@ if BEHAVIOR == "mutate-original":
     (data/"Cities/Xia.map").write_text("Explicit fake original mutation")
 if BEHAVIOR == "touch-original":
     path = data/"Cities/Xia.map"; stat = path.stat()
-    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns+1))
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns+1000))  # 1 us: NTFS keeps 100 ns steps
 if BEHAVIOR == "mutate-binary":
     with Path(sys.argv[0]).open("a") as stream:
         stream.write("\\n# Explicit fake binary mutation\\n")

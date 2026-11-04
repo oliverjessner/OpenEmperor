@@ -39,6 +39,16 @@ def digest(path):
     return value.hexdigest()
 
 
+
+def launch_argv(argv):
+    """Windows ignores shebangs; run a script "binary" (e.g. a test fake) with Python."""
+    if os.name == "nt":
+        with open(argv[0], "rb") as stream:
+            if stream.read(2) == b"#!":
+                return [sys.executable] + list(argv)
+    return argv
+
+
 def record(path):
     return {"path": str(path), "bytes": path.stat().st_size, "sha256": digest(path)}
 
@@ -281,7 +291,7 @@ def workflow(binary, data, output, ticks, scenario, timeout):
             argv += ["--input", str(input_path)]
         log = output / f"{tag}.log"; started = time.monotonic(); code = None
         with log.open("x") as stream:
-            process = subprocess.Popen(argv, stdout=stream, stderr=subprocess.STDOUT)
+            process = subprocess.Popen(launch_argv(argv), stdout=stream, stderr=subprocess.STDOUT)
             try:
                 code = process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
