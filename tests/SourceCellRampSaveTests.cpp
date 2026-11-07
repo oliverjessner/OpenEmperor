@@ -171,15 +171,23 @@ fs::path private_path(const char* raw,bool input){
     for(auto q=fs::absolute(raw);!q.empty();q=q.parent_path()){check(!fs::is_symlink(q),"No linked proof paths");if(q==q.root_path())break;}
     check(input ? fs::is_regular_file(p) : !fs::exists(p),"Preserve existing private inputs/outputs");return p;
 }
+unsigned continuation_ticks(const char* raw){
+    unsigned ticks=0;const std::string_view value=raw;
+    const auto parsed=std::from_chars(value.data(),value.data()+value.size(),ticks);
+    check(parsed.ec==std::errc{}&&parsed.ptr==value.data()+value.size()&&ticks<=12000,"Invalid bounded continuation");return ticks;
+}
 int process(int argc,char** argv){
     Fixture f;
-    if(argc==3 && std::string_view(argv[1])=="--create"){
-        const auto out=private_path(argv[2],false);auto w=earned(f);save::write_save(out,f.document(w),f.data,f.mask);return 0;
+    if((argc==3||argc==4) && std::string_view(argv[1])=="--create"){
+        const auto out=private_path(argv[2],false);auto w=earned(f);
+        const auto ticks=argc==4?continuation_ticks(argv[3]):0;
+        for(unsigned i=0;i<ticks;++i)w.tick();
+        save::write_save(out,f.document(w),f.data,f.mask);return 0;
     }
-    check((argc==4 || argc==5) && std::string_view(argv[1])=="--restore","Use --create OUTPUT or --restore INPUT OUTPUT [TICKS]");
+    check((argc==4 || argc==5) && std::string_view(argv[1])=="--restore","Use --create OUTPUT [TICKS] or --restore INPUT OUTPUT [TICKS]");
     const auto in=private_path(argv[2],true),out=private_path(argv[3],false);const auto original=bytes(in);
     auto w=f.restore(save::read_save(in));unsigned ticks=0;
-    if(argc==5){const std::string_view value=argv[4];const auto parsed=std::from_chars(value.data(),value.data()+value.size(),ticks);check(parsed.ec==std::errc{} && parsed.ptr==value.data()+value.size() && ticks<=12000,"Invalid bounded continuation");}
+    if(argc==5)ticks=continuation_ticks(argv[4]);
     for(unsigned i=0;i<ticks;++i)w.tick();save::write_save(out,f.document(w),f.data,f.mask);
     check(bytes(in)==original,"Separate restore mutated input");if(!ticks)check(bytes(out)==original,"Separate complete re-encode differs");return 0;
 }
