@@ -251,6 +251,7 @@ add_library(openemperor-simulation STATIC
     src/simulation/World.cpp
     src/simulation/WorldBridge.cpp
     src/simulation/WorldSourceCellRamp.cpp
+    src/simulation/WorldLandTrade.cpp
     src/simulation/WorldRamp.cpp
     src/simulation/WorldFire.cpp
     src/simulation/WorldHealth.cpp
@@ -2180,6 +2181,26 @@ if(BUILD_TESTING)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(openemperor-authored-land-trade-world-tests tests/AuthoredLandTradeWorldTests.cpp)
+    target_link_libraries(openemperor-authored-land-trade-world-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-authored-land-trade-world-tests)
+    add_test(NAME authored-land-trade-world COMMAND openemperor-authored-land-trade-world-tests)
+    set_tests_properties(authored-land-trade-world PROPERTIES TIMEOUT 180)
+    add_executable(openemperor-authored-land-trade-save-tests tests/AuthoredLandTradeSaveTests.cpp)
+    target_link_libraries(openemperor-authored-land-trade-save-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-authored-land-trade-save-tests)
+    add_test(NAME authored-land-trade-save COMMAND openemperor-authored-land-trade-save-tests)
+    set_tests_properties(authored-land-trade-save PROPERTIES TIMEOUT 180)
+    add_executable(openemperor-authored-land-trade-view-tests tests/AuthoredLandTradeViewTests.cpp ${bridge_fixture_sources})
+    target_link_libraries(openemperor-authored-land-trade-view-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-authored-land-trade-view-tests)
+    add_test(NAME authored-land-trade-view COMMAND openemperor-authored-land-trade-view-tests)
+    set_tests_properties(authored-land-trade-view PROPERTIES TIMEOUT 240 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_executable(openemperor-authored-land-trade-menu-tests tests/AuthoredLandTradeMenuTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-authored-land-trade-menu-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
+    openemperor_enable_warnings(openemperor-authored-land-trade-menu-tests)
+    add_test(NAME authored-land-trade-menu COMMAND openemperor-authored-land-trade-menu-tests)
+    set_tests_properties(authored-land-trade-menu PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_executable(openemperor-source-cell-ramp-world-tests tests/SourceCellRampWorldTests.cpp)
     target_link_libraries(openemperor-source-cell-ramp-world-tests PRIVATE openemperor-recovery)
     openemperor_enable_warnings(openemperor-source-cell-ramp-world-tests)

@@ -141,6 +141,7 @@ const char* courier_role_label(simulation::CourierRole role) {
     switch (role) {
     case simulation::CourierRole::Clay: return "Clay";
     case simulation::CourierRole::Pottery: return "Pottery";
+    case simulation::CourierRole::AuthoredLandTrader: return "AuthoredLandTrader";
     case simulation::CourierRole::Household: return "Household";
     case simulation::CourierRole::Food: return "Food";
     case simulation::CourierRole::Service: return "Service";
@@ -511,6 +512,17 @@ std::unique_ptr<SandboxView> SandboxView::create_original_safe_demolition(
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_authored_land_trade(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid authored trade model difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule21 requires a source-bound map session");
+    auto result=std::make_unique<SandboxView>(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kAuthoredLandTradeRuleVersion);
+    result->original_requested_difficulty_=difficulty;
+    return result;
+}
+
 SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::RulesProfile rules,
                          std::uint32_t rule_version)
     : SandboxView(std::move(session),demo,rules,rule_version,false) {}
@@ -581,6 +593,13 @@ void SandboxView::configure_save(std::filesystem::path root,std::filesystem::pat
         simulation::source_cell_ramps_enabled(initial->world.profile,initial->world.rule_version)) &&
         (initial->world.profile!=rules_ || initial->world.rule_version!=requested_rule_version_))
         throw std::invalid_argument("Authored source-cell ramp saves require exact explicit rule20");
+    if(initial && (requested_rule_version_==simulation::kAuthoredLandTradeRuleVersion ||
+        initial->world.rule_version==simulation::kAuthoredLandTradeRuleVersion) &&
+        (initial->world.profile!=rules_ || initial->world.rule_version!=requested_rule_version_))
+        throw std::invalid_argument("Authored land trade saves require exact explicit rule21");
+    if(initial && requested_rule_version_==simulation::kAuthoredLandTradeRuleVersion && original_requested_difficulty_ &&
+        (!initial->world.land_trade || initial->world.land_trade->model_source.difficulty!=*original_requested_difficulty_))
+        throw std::invalid_argument("Requested trade model difficulty differs from saved difficulty");
     if (initial && original_production_fixture() && original_requested_difficulty_ &&
         (!initial->world.original_economy || !initial->world.original_economy->model_source ||
          initial->world.original_economy->model_source->difficulty!=*original_requested_difficulty_))
@@ -624,13 +643,20 @@ void SandboxView::load_now() {
         simulation::source_cell_ramps_enabled(document.world.profile,document.world.rule_version)) &&
         document.world.rule_version!=world_->rule_version())
         throw std::runtime_error("Authored source-cell ramp saves require exact running rule20");
+    if ((world_->authored_land_trade_enabled() || document.world.rule_version==simulation::kAuthoredLandTradeRuleVersion) &&
+        document.world.rule_version!=world_->rule_version())
+        throw std::runtime_error("Authored land trade saves require exact running rule21");
+    if(world_->authored_land_trade_enabled() && (!document.world.land_trade ||
+        document.world.land_trade->model_source!=world_->land_trade_state()->model_source))
+        throw std::runtime_error("Saved trade model identity/difficulty differs from this session");
     if (original_production_fixture() &&
         (!document.world.original_economy || !document.world.original_economy->model_source ||
          document.world.original_economy->model_source->difficulty!=world_->original_rules_model()->difficulty() ||
          (original_requested_difficulty_ &&
           document.world.original_economy->model_source->difficulty!=*original_requested_difficulty_)))
         throw std::runtime_error("Saved original difficulty differs from this running session");
-    auto replacement=world_->source_cell_ramps_supported() ?
+    auto replacement=world_->authored_land_trade_enabled() ?
+        persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
         persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : original_safe_demolition() ?
         persistence::restore_original_safe_demolition(document,data_root_,buildable_mask_) : original_deadline_food_dispatch() ?
         persistence::restore_original_deadline_food_dispatch(document,data_root_,buildable_mask_) : original_deadline_service_dispatch() ?
@@ -740,7 +766,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             original_map_.terrain_raw.values,expected_map_input_sha256_);
     original_map_={};
     if (initial_save_) {
-        world_=std::make_unique<simulation::World>(simulation::source_cell_ramps_enabled(rules_,active_version) ?
+        world_=std::make_unique<simulation::World>(active_version==simulation::kAuthoredLandTradeRuleVersion ?
+            persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
+            simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
                 std::move(permissions)) : original_safe_demolition() ?
             persistence::restore_original_safe_demolition(*initial_save_,data_root_,
@@ -775,6 +803,13 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)"+
             (initial_save_->migrated_from_schema1 ? "; save schema 1 migrated in memory":"");
         initial_save_.reset();
+    } else if (active_version==simulation::kAuthoredLandTradeRuleVersion) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_authored_land_trade(
+            std::move(permissions),persistence::prepare_original_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),
+            persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
+        clock_.pause_and_reset();
+        last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
     } else if (original_safe_demolition()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_safe_demolition(
             std::move(permissions),persistence::prepare_original_production_rules_model(data_root_,
@@ -861,7 +896,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(world_->source_cell_ramps_supported())title+=" | save schema 36 | authored source-cell ramps";
+    if(world_->authored_land_trade_enabled())title+=" | save schema 37 | authored finite land trade";
+    else if(world_->source_cell_ramps_supported())title+=" | save schema 36 | authored source-cell ramps";
     else if(original_safe_demolition())title+=" | save schema 35 | authored safe demolition";
     else if(original_deadline_food_dispatch())title+=" | save schema 34 | authored deadline-aware Food dispatch";
     else if(original_deadline_service_dispatch())title+=" | save schema 33 | authored deadline-aware service dispatch";
@@ -2694,6 +2730,7 @@ void SandboxView::refresh_ramp_visual_topology() {
 void SandboxView::cancel_gesture() {
     pressed_button_.reset();
     pressed_building_.reset();
+    pressed_land_trade_action_.reset();
     pressed_operation_action_.reset();
     pressed_demolition_=false;
     pressed_original_house_section_.reset();
@@ -2727,8 +2764,43 @@ sandbox_ui::InspectorLayout SandboxView::inspector_layout() const {
         simulation::World::operation_controllable(world_->building(*id).kind);
     const bool demolition=id && world_->demolition_supported();
     return sandbox_ui::make_inspector_layout(layout_.panel,layout_.scale,placed_buildings().size(),
-        inspection_lines().size(),demolition ? demolition_hint_lines().size():0,
-        status_first_selected(),operations,demolition,panel_scroll_,inspector_hint_scroll_);
+        inspection_lines().size(),land_trade_selected() ? land_trade_hint_lines().size():demolition ? demolition_hint_lines().size():0,
+        status_first_selected(),operations,demolition || land_trade_selected(),panel_scroll_,inspector_hint_scroll_);
+}
+
+bool SandboxView::land_trade_selected() const {
+    const auto id=selected_building();
+    return world_ && world_->authored_land_trade_enabled() && id &&
+        world_->building(*id).kind==simulation::Object::Warehouse;
+}
+sandbox_ui::Rect SandboxView::land_trade_button_rect(int index) const {
+    if(!land_trade_selected() || index<0 || index>3)return {};
+    const auto row=inspector_layout().demolition;
+    const int gap=4*layout_.scale,w=std::max(0,(row.w-3*gap)/4);
+    return {row.x+index*(w+gap),row.y,w,row.h};
+}
+std::optional<SandboxView::LandTradeAction> SandboxView::land_trade_action_at(double x,double y) const {
+    if(income_open_ || !layout_.panel_open || !input_focused_ || walker_diagnostic_open_ || !land_trade_selected())return {};
+    for(int i=0;i<4;++i)if(land_trade_button_rect(i).contains(x,y))return static_cast<LandTradeAction>(i);
+    return {};
+}
+void SandboxView::perform_land_trade_action(LandTradeAction action) {
+    if(!land_trade_selected() || !input_focused_ || walker_diagnostic_open_)return;
+    cancel_gesture();
+    if(action==LandTradeAction::Demolish) {request_demolition();return;}
+    if(action==LandTradeAction::Bind) {
+        const auto selected=*selected_building();std::optional<simulation::BuildingId> other;
+        for(const auto& body:world_->buildings())if(body.kind==simulation::Object::Warehouse && body.id!=selected) {
+            if(other){last_message_="Bind requires exactly two paid Warehouses; select the city Warehouse.";return;}
+            other=body.id;
+        }
+        if(!other){last_message_="Buy a second paid Warehouse at the source geometry boundary, then connect roads.";return;}
+        (void)request_execute(simulation::configure_land_trade(selected,*other));
+    } else (void)request_execute(action==LandTradeAction::Import ? simulation::import_pottery():simulation::export_pottery());
+}
+std::vector<std::string> SandboxView::land_trade_hint_lines() const {
+    return wrap_panel_lines({"Authored Pottery: 4 units/order; import $24, export $12.",
+        "G binds selected city Warehouse to the other boundary Warehouse ($40). No reassignment/refund."});
 }
 
 sandbox_ui::Rect SandboxView::operation_toggle_rect() const {
@@ -3160,6 +3232,12 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (event.key.key==SDLK_T && simulation::market_profile(rules_)) {
             perform_action(sandbox_ui::Action::ToggleIncome); return;
         }
+        if (world_->authored_land_trade_enabled() && land_trade_selected() && !walker_diagnostic_open_ &&
+            (event.key.key==SDLK_G || event.key.key==SDLK_I || event.key.key==SDLK_E)) {
+            perform_land_trade_action(event.key.key==SDLK_G ? LandTradeAction::Bind:
+                event.key.key==SDLK_I ? LandTradeAction::Import:LandTradeAction::Export);
+            return;
+        }
         if (event.key.key>=SDLK_1 && event.key.key<=
             (simulation::service_profile(rules_) ? SDLK_9 :
              rules_==simulation::RulesProfile::CityV7 ? SDLK_8 :
@@ -3359,7 +3437,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (managed_ && pointer_ && menu_button_rect().contains(pointer_->x,pointer_->y)) { menu_pressed_=true; return; }
         refresh_hover();
         if (!pointer_) return;
-        if (!income_open_ && layout_.panel_open && world_->demolition_supported() && selected_building() &&
+        if(const auto action=land_trade_action_at(pointer_->x,pointer_->y)) {
+            pressed_land_trade_action_=action;ui_pressed_=true;return;
+        }
+        if (!income_open_ && layout_.panel_open && !land_trade_selected() && world_->demolition_supported() && selected_building() &&
             (!original_house_inspector_active() || (input_focused_ && !walker_diagnostic_open_)) &&
             demolition_button_rect().contains(pointer_->x,pointer_->y)) {
             pressed_demolition_=true; ui_pressed_=true; return;
@@ -3436,6 +3517,11 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 if (matching_section) select_original_house_section(*section);
                 else if (matching_overlay) cycle_original_house_overlay();
                 return;
+            }
+            if(pressed_land_trade_action_) {
+                const auto action=*pressed_land_trade_action_;
+                const bool matching=pointer_ && land_trade_action_at(pointer_->x,pointer_->y)==action;
+                cancel_gesture();if(matching)perform_land_trade_action(action);return;
             }
             if (pressed_demolition_) {
                 const bool matching=pointer_ && demolition_button_rect().contains(pointer_->x,pointer_->y);
@@ -3560,7 +3646,10 @@ simulation::CommandResult SandboxView::execute(simulation::Command command) {
             }
         }
     } else if (command.type!=simulation::CommandType::SetBuildingOperation &&
-        command.type!=simulation::CommandType::SetBuildingWorkforcePriority) {
+        command.type!=simulation::CommandType::SetBuildingWorkforcePriority &&
+        command.type!=simulation::CommandType::ConfigureLandTrade &&
+        command.type!=simulation::CommandType::ImportPottery &&
+        command.type!=simulation::CommandType::ExportPottery) {
         if (selected_!=command.cell) { panel_scroll_=0;inspector_hint_scroll_=0;original_house_scroll_=0; }
         clear_visual_selection();
         selected_=command.cell;
@@ -5585,6 +5674,37 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         return lines;
     }
     const auto& b=world_->building(*id);
+    if(world_->authored_land_trade_enabled() && b.kind==simulation::Object::Warehouse) {
+        const auto& state=*world_->land_trade_state();const auto balance=world_->land_trade_balance();
+        lines={"Authored finite land trade (rule21)","Warehouse #"+std::to_string(static_cast<unsigned>(*id)),
+            "Pottery stock "+std::to_string(b.pottery_stock)+" / incoming reserved "+std::to_string(b.reserved_incoming),
+            "Funds $"+std::to_string(world_->treasury()),
+            "Import 4 x $6 = $24 prepaid; export 4 x $3 = $12 at boundary",
+            "External offer: import "+std::to_string(balance.import_offer_remaining)+" / export "+std::to_string(balance.export_offer_remaining),
+            "External buyer budget $"+std::to_string(24-balance.exports_received),
+            "Paid imports $"+std::to_string(balance.imports_paid)+"; received exports $"+std::to_string(balance.exports_received),
+            "Workers "+std::to_string(world_->workers_assigned(*id))+"/"+std::to_string(world_->workforce_required(*id)),
+            std::string("Operation: ")+(b.operating_enabled?"Running":"Paused")};
+        if(!state.binding)lines.push_back("Unbound: select city Warehouse, then G.");
+        else {
+            const auto& bind=*state.binding;
+            lines.push_back("City #"+std::to_string(static_cast<unsigned>(bind.warehouse))+" -> boundary #"+std::to_string(static_cast<unsigned>(bind.gateway)));
+            const auto& actor=world_->courier(bind.courier);
+            lines.push_back(std::string("Caravan: ")+simulation::delivery_phase_name(actor.phase)+
+                " | physical cargo "+std::to_string(actor.cargo)+" | reservation "+std::to_string(actor.reserved));
+            lines.push_back(actor.route_pending?"Road interrupted: waiting; paid repair required.":"Physical route prepared; no instant arrival.");
+            if(!state.orders.empty()) {
+                const auto& order=state.orders.back();
+                lines.push_back("Order #"+std::to_string(static_cast<unsigned>(order.id))+
+                    (order.direction==simulation::LandTradeDirection::Import?" import":" export")+
+                    (order.completed_tick?" complete":order.boundary_tick?" returning":" outbound"));
+                lines.push_back("Import escrow $"+std::to_string(order.direction==simulation::LandTradeDirection::Import && !order.boundary_tick?24:0));
+            }
+        }
+        lines.push_back("No mid-trip cancel/refund. Begun caravan completes.");
+        lines.push_back("No original trader or venue parity claim.");
+        return wrap_panel_lines(lines);
+    }
         if (world_->demolition_supported()) {
             const auto status=world_->demolition_status(*id);
             lines.push_back(status.reason);
@@ -6462,7 +6582,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(world_->source_cell_ramps_supported())overview+=" | Policy 3 | Save 36 | Authored source-cell ramps "+std::to_string(world_->source_cell_ramps().size());
+        if(world_->authored_land_trade_enabled())overview+=" | Policy3 | Save37 | Authored finite Pottery trade";
+        else if(world_->source_cell_ramps_supported())overview+=" | Policy 3 | Save 36 | Authored source-cell ramps "+std::to_string(world_->source_cell_ramps().size());
         else if(original_safe_demolition())overview+=" | Policy 3 | Save 35 | Safe demolition";
         else if(original_deadline_food_dispatch())overview+=" | Policy 3 | Save 34 | Deadline-aware Food";
         else if(original_deadline_service_dispatch())overview+=" | Policy 3 | Save 33 | Deadline-aware services";
@@ -6747,7 +6868,20 @@ bool SandboxView::draw_hud() {
                            layout_.panel.w-20*layout_.scale)) return false;
         }
         const auto controls_id=selected_building();
-        if (!draw_demolition_controls()) return false;
+        if(land_trade_selected()) {
+            constexpr std::array<const char*,4> labels{"G Bind","I Buy","E Sell","Demol."};
+            for(int i=0;i<4;++i) {
+                const auto r=land_trade_button_rect(i);
+                if(r.h>0 && (!fill(r,{38,82,105,255}) || !SDL_SetRenderDrawColor(renderer_,245,247,250,255) ||
+                    !draw_text(r.x+4*layout_.scale,r.y+9*layout_.scale,labels[std::size_t(i)],r.w-8*layout_.scale)))return false;
+            }
+            const auto hints=land_trade_hint_lines();
+            for(std::size_t i=0;i<hints.size();++i) {
+                const auto r=panel.hint_row_rect(i);
+                if(r.h>0 && (!SDL_SetRenderDrawColor(renderer_,205,225,238,255) ||
+                    !draw_text(r.x,r.y,hints[i],r.w)))return false;
+            }
+        } else if (!draw_demolition_controls()) return false;
         if (controls_id) {
             const auto& selected=world_->building(*controls_id);
             const auto toggle=panel.operation_toggle;
@@ -6858,7 +6992,7 @@ bool SandboxView::draw_hud() {
                 debug_row+=14;
             }
             std::size_t logical=0,live_submitted=0,supplier=0,distributor=0,foreign_markers=0;
-            std::array<bool,static_cast<std::size_t>(simulation::CourierRole::OriginalAuxSupplier)+1> logical_roles{};
+            std::array<bool,static_cast<std::size_t>(simulation::CourierRole::AuthoredLandTrader)+1> logical_roles{};
             for (const auto& courier:world_->couriers()) {
                 const auto role=walker_visual_role(courier.role);
                 const auto hit=std::find_if(visual_hits_.begin(),visual_hits_.end(),

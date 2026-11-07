@@ -263,6 +263,16 @@ RecoveryEntry make_entry(const std::string& history,const std::optional<Recovery
     return e;
 }
 void validate_policy_readback(const SaveDocument& saved,const SaveDocument& source) {
+    if (source.world.profile==simulation::RulesProfile::CityV16 &&
+        source.world.rule_version==simulation::kAuthoredLandTradeRuleVersion) {
+        require(saved.source_schema_version==37 && saved.world==source.world &&
+            saved.map_relative==source.map_relative && saved.map_sha256==source.map_sha256 &&
+            saved.buildable_sha256==source.buildable_sha256 &&
+            saved.map_permissions_policy_version==source.map_permissions_policy_version &&
+            saved.map_permissions_sha256==source.map_permissions_sha256 && !saved.migrated_from_schema1,
+            "recovery read-back differs from complete schema37 trade world or source policy");
+        return;
+    }
     if (simulation::original_production_enabled(source.world.profile,source.world.rule_version)) {
         require(saved.source_schema_version==(simulation::original_safe_demolition_enabled(source.world.profile,source.world.rule_version) ? 35U:
                     simulation::original_deadline_food_dispatch_enabled(source.world.profile,source.world.rule_version) ? 34U:
@@ -318,6 +328,10 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
     return true;
 }
 using OriginalSourceCheck=std::optional<original::ModelFingerprintResult>;
+bool land_trade_document(const SaveDocument& document) {
+    return document.world.profile==simulation::RulesProfile::CityV16 &&
+        document.world.rule_version==simulation::kAuthoredLandTradeRuleVersion;
+}
 void validate_original_source(const SaveDocument& document,const fs::path& root,OriginalSourceCheck& checked) {
     if (!checked) checked=original::inspect_model_source(root);
     require(checked->fingerprint.has_value(),"original recovery model source is unavailable");
@@ -327,12 +341,24 @@ void validate_original_source(const SaveDocument& document,const fs::path& root,
             source.sha256==checked->fingerprint->sha256 && source.byte_count==checked->fingerprint->byte_count,
             "original recovery model source identity differs from the current installation");
 }
+void validate_land_trade_source(const SaveDocument& document,const fs::path& root,OriginalSourceCheck& checked) {
+    require(land_trade_document(document) && document.source_schema_version==37 && document.world.land_trade,
+            "land trade recovery requires exact schema37 source identity");
+    if (!checked) checked=original::inspect_model_source(root);
+    require(checked->fingerprint.has_value(),"land trade recovery model source is unavailable");
+    const auto& source=document.world.land_trade->model_source;
+    require(source.format_version==original::model_schema_version &&
+        static_cast<std::size_t>(source.difficulty)<original::difficulty_count &&
+        source.sha256==checked->fingerprint->sha256 && source.byte_count==checked->fingerprint->byte_count,
+        "land trade recovery model source identity differs from the current installation");
+}
 SaveDocument checked_entry(const RecoveryEntry& entry,RecoveryAccess access,const fs::path& root,
                            OriginalSourceCheck& model) {
     std::error_code ec;
     require(!fs::is_symlink(entry.path,ec) && !ec,"unsafe recovery checkpoint symlink");
     auto doc=read_save(entry.path);
     if (validate_recovery_access(doc,access)) validate_original_source(doc,root,model);
+    if (land_trade_document(doc)) validate_land_trade_source(doc,root,model);
     require(doc.world.ticks==entry.tick && doc.map_relative.generic_string()==entry.map &&
             simulation::rules_profile_name(doc.world.profile)==entry.profile &&
             doc.world.rule_version==entry.rule_version && doc.source_schema_version==entry.schema &&
@@ -348,6 +374,11 @@ bool has_original_entry(const Metadata& metadata) {
     return std::any_of(metadata.entries.begin(),metadata.entries.end(),[](const auto& entry) {
         return entry.profile==simulation::city_v16_profile_name &&
             simulation::original_economy_enabled(simulation::RulesProfile::CityV16,entry.rule_version);
+    });
+}
+bool has_land_trade_entry(const Metadata& metadata) {
+    return std::any_of(metadata.entries.begin(),metadata.entries.end(),[](const auto& entry) {
+        return entry.profile==simulation::city_v16_profile_name && entry.rule_version==simulation::kAuthoredLandTradeRuleVersion;
     });
 }
 void validate_original_sequence(const Metadata& metadata) {
@@ -411,6 +442,45 @@ void validate_original_history(const Metadata& metadata,const SaveDocument& docu
     same_original_identity(*state.first,document);
     require(document.world.ticks>=state.last_tick,"original recovery checkpoint moves simulation time backwards");
 }
+void same_land_trade_identity(const SaveDocument& a,const SaveDocument& b) {
+    require(land_trade_document(a) && land_trade_document(b) && a.world.land_trade && b.world.land_trade &&
+        a.world.land_trade->model_source==b.world.land_trade->model_source &&
+        a.map_relative==b.map_relative && a.map_sha256==b.map_sha256 && a.buildable_sha256==b.buildable_sha256 &&
+        a.map_permissions_policy_version==b.map_permissions_policy_version && a.map_permissions_sha256==b.map_permissions_sha256,
+        "land trade recovery history source, model, difficulty or version differs");
+}
+OriginalHistoryState inspect_land_trade_entries(std::vector<RecoveryEntry>& entries,RecoveryAccess access,
+        const fs::path& root,OriginalSourceCheck& model) {
+    std::vector<std::size_t> order(entries.size());
+    for (std::size_t i=0;i<order.size();++i) order[i]=i;
+    std::sort(order.begin(),order.end(),[&](auto a,auto b){return entries[a].sequence<entries[b].sequence;});
+    OriginalHistoryState state;
+    for (const auto index:order) {
+        auto& entry=entries[index];
+        try {
+            auto document=checked_entry(entry,access,root,model);
+            require(land_trade_document(document),"other generation checkpoint is inside land trade recovery history");
+            if (state.first) {
+                same_land_trade_identity(*state.first,document);
+                require(document.world.ticks>=state.last_tick,"land trade recovery checkpoint moves time backwards");
+            }
+            state.last_tick=document.world.ticks;
+            if (!state.first) state.first=std::move(document);
+        } catch (const std::exception& error) {entry.error=error.what();}
+    }
+    return state;
+}
+void validate_land_trade_history(const Metadata& metadata,const SaveDocument& document,RecoveryAccess access,const fs::path& root) {
+    require(land_trade_document(document),"other generations cannot append to land trade recovery history");
+    validate_original_sequence(metadata);
+    require(metadata.next_sequence<std::numeric_limits<std::uint64_t>::max(),"land trade recovery sequence exhausted");
+    OriginalSourceCheck model;auto entries=metadata.entries;
+    const auto state=inspect_land_trade_entries(entries,access,root,model);
+    for (const auto& entry:entries) require(entry.loadable(),entry.error);
+    require(state.first.has_value(),"land trade recovery history has no valid checkpoint");
+    same_land_trade_identity(*state.first,document);
+    require(document.world.ticks>=state.last_tick,"land trade recovery checkpoint moves time backwards");
+}
 }
 
 RecoveryStore::RecoveryStore(fs::path app_root,fs::path data_root,std::uintmax_t budget,RecoveryAccess access)
@@ -430,6 +500,17 @@ std::string RecoveryStore::create_history(const SaveDocument& document,
                                            RecoveryWriteFaults faults) {
     const bool original=validate_recovery_access(document,access_);
     if (parent) require(valid_id(parent->history_id),"invalid recovery parent history ID");
+    if (parent && !land_trade_document(document)) {
+        const auto parent_file=recovery_root_/parent->history_id/"history.json";
+        bool trade_parent=false;
+        // Do not tighten the historical legacy-parent contract. Only an
+        // identified new-generation parent adds this explicit boundary.
+        if (fs::is_regular_file(parent_file) && !fs::is_symlink(parent_file)) {
+            try {trade_parent=has_land_trade_entry(parse_metadata(parent_file));}
+            catch (const std::exception&) {}
+        }
+        require(!trade_parent,"other generations cannot branch from land trade recovery history");
+    }
     if (original && parent) {
         const auto dir=recovery_root_/parent->history_id;
         require(!fs::is_symlink(dir) && fs::is_directory(dir),"original recovery parent history is missing or unsafe");
@@ -446,6 +527,21 @@ std::string RecoveryStore::create_history(const SaveDocument& document,
         const auto source=checked_entry(*selected,access_,data_root_,model);
         same_original_identity(source,document);
         require(source.world==document.world,"original recovery branch differs from its selected checkpoint");
+    }
+    if (land_trade_document(document) && parent) {
+        const auto dir=recovery_root_/parent->history_id;
+        require(!fs::is_symlink(dir) && fs::is_directory(dir),"land trade recovery parent is missing or unsafe");
+        auto metadata=parse_metadata(dir/"history.json");
+        require(metadata.history==parent->history_id,"land trade recovery parent identity differs");
+        validate_original_sequence(metadata);OriginalSourceCheck model;
+        (void)inspect_land_trade_entries(metadata.entries,access_,data_root_,model);
+        const auto selected=std::find_if(metadata.entries.begin(),metadata.entries.end(),[&](const auto& entry){
+            return entry.sequence==parent->sequence;
+        });
+        require(selected!=metadata.entries.end() && selected->loadable(),"land trade recovery parent checkpoint is unavailable");
+        const auto source=checked_entry(*selected,access_,data_root_,model);
+        same_land_trade_identity(source,document);
+        require(source.world==document.world,"land trade recovery branch differs from selected full checkpoint");
     }
     require(storage_usage(recovery_root_)<budget_,"recovery storage budget is full");
     std::string history;
@@ -494,6 +590,7 @@ RecoveryEntry RecoveryStore::write_checkpoint(const std::string& history,
     auto metadata=parse_metadata(dir/"history.json");
     require(metadata.history==history,"recovery history directory and metadata disagree");
     if (original || has_original_entry(metadata)) validate_original_history(metadata,document,access_,data_root_);
+    if (land_trade_document(document) || has_land_trade_entry(metadata)) validate_land_trade_history(metadata,document,access_,data_root_);
     require(storage_usage(recovery_root_)<budget_,"recovery storage budget is full");
     const auto sequence=metadata.next_sequence;
     std::random_device random;
@@ -579,9 +676,11 @@ RecoveryCatalog RecoveryStore::catalog() const {
             auto metadata=parse_metadata(dir/"history.json");
             require(metadata.history==history.history_id,"recovery history directory and metadata disagree");
             const bool original=has_original_entry(metadata);
-            if (original) validate_original_sequence(metadata);
+            const bool land_trade=has_land_trade_entry(metadata);
+            if (original || land_trade) validate_original_sequence(metadata);
             history.parent=metadata.parent; history.entries=std::move(metadata.entries);
             if (original) (void)inspect_original_entries(history.entries,access_,data_root_,original_model);
+            else if (land_trade) (void)inspect_land_trade_entries(history.entries,access_,data_root_,original_model);
             else for (auto& entry:history.entries) validate_entry_document(entry,access_,data_root_,original_model);
             std::sort(history.entries.begin(),history.entries.end(),[](const auto& a,const auto& b) {
                 if (a.start_point!=b.start_point) return !a.start_point;

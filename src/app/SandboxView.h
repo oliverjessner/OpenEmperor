@@ -111,6 +111,10 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit classic Rule21/schema37; never activates Original economy.
+    static std::unique_ptr<SandboxView> create_authored_land_trade(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt);
     // Explicit authored Rule13/schema29 logistics, separate from Rule12 saves.
     static std::unique_ptr<SandboxView> create_original_market_logistics(
         maps::StoredMapSession session,
@@ -168,6 +172,8 @@ public:
         return budget_warning_;
     }
     bool resolve_budget_warning(bool build_anyway);
+    sandbox_ui::Rect diagnostic_budget_build_rect() const { return budget_build_rect(); }
+    sandbox_ui::Rect diagnostic_budget_cancel_rect() const { return budget_cancel_rect(); }
     bool demolition_pending() const { return pending_demolition_.has_value(); }
     bool resolve_demolition(bool confirm);
     const simulation::World& world() const { return *world_; }
@@ -383,6 +389,7 @@ public:
     std::optional<simulation::BuildingId> selected_building() const;
     sandbox_ui::Rect diagnostic_operation_toggle_rect() const { return operation_toggle_rect(); }
     sandbox_ui::InspectorLayout inspector_layout() const;
+    sandbox_ui::Rect diagnostic_land_trade_button_rect(int index) const { return land_trade_button_rect(index); }
     int inspector_scroll() const { return inspector_layout().scroll; }
     int inspector_hint_scroll() const { return inspector_layout().hint_scroll; }
     std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
@@ -446,6 +453,7 @@ private:
     bool draw_original_house_overlay();
     bool draw_original_house_overlay_legend();
     void request_road_connectivity_diagnosis();
+    enum class LandTradeAction { Bind, Import, Export, Demolish };
     enum class OperationAction { Toggle, PriorityHigh, PriorityNormal, PriorityLow };
     struct DrawInstance {
         scene::WorldDrawKey key;
@@ -504,6 +512,11 @@ private:
     bool draw_demolition_overlay();
     sandbox_ui::Rect demolition_button_rect() const;
     void request_demolition();
+    bool land_trade_selected() const;
+    sandbox_ui::Rect land_trade_button_rect(int index) const;
+    std::optional<LandTradeAction> land_trade_action_at(double x,double y) const;
+    void perform_land_trade_action(LandTradeAction action);
+    std::vector<std::string> land_trade_hint_lines() const;
     bool draw_text(double x,double y,const std::string& text,int max_width);
     bool action_enabled(sandbox_ui::Action action) const;
     void perform_action(sandbox_ui::Action action);
@@ -788,6 +801,7 @@ private:
     std::optional<simulation::Command> pending_command_;
     std::optional<sandbox_ui::RoadPlan> pending_road_;
     std::optional<bool> budget_button_pressed_;
+    std::optional<LandTradeAction> pressed_land_trade_action_;
     std::optional<OperationAction> pressed_operation_action_;
     // Reused by draw_world(); its capacity remains bounded by the fixed World grid.
     std::vector<DrawInstance> draw_instances_;

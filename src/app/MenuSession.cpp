@@ -19,7 +19,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     CancelUpgrade, ToggleAutosave, ToggleSaveView, DeleteRecovery, ConfirmDeleteRecovery,
     CancelDeleteRecovery, GreatWallChoice, RecheckMap, BridgesChoice, RampsChoice,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
-    OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice,
+    OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice, AuthoredLandTradeNewGame,
     MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
@@ -222,8 +222,9 @@ void MenuSession::open_dialog(DialogKind kind) {
 }
 std::optional<maps::MapRulesRequest> MenuSession::selected_map_request() const {
     if (map_index_>=catalog_.entries.size() || catalog_.data_root.empty()) return std::nullopt;
-    const auto profile=original_setup() ? simulation::RulesProfile::CityV16:settings_.profile;
+    const auto profile=(original_setup() || authored_land_trade_new_game_) ? simulation::RulesProfile::CityV16:settings_.profile;
     const auto version=original_rule_version_.value_or(
+        authored_land_trade_new_game_ ? simulation::kAuthoredLandTradeRuleVersion:
         source_cell_ramps_new_game_ && settings_.profile==simulation::RulesProfile::CityV16 ? simulation::kAuthoredSourceCellRampRuleVersion:
         ramps_new_game_ && settings_.profile==simulation::RulesProfile::CityV16 ? 6U:
         bridges_new_game_ && settings_.profile==simulation::RulesProfile::CityV16 ? 5U:
@@ -265,7 +266,7 @@ void MenuSession::start_load(const fs::path& path) {
 void MenuSession::finish_loading() {
     if (state_!=State::Loading || !loading_drawn_) return;
     try {
-        fs::path map; simulation::RulesProfile profile=original_setup() ?
+        fs::path map; simulation::RulesProfile profile=(original_setup() || authored_land_trade_new_game_) ?
             simulation::RulesProfile::CityV16:settings_.profile;
         std::optional<persistence::SaveDocument> document;
         fs::path save_path=pending_save_path_;
@@ -277,14 +278,16 @@ void MenuSession::finish_loading() {
             // recovery source. Give it a new manual target so F5 cannot overwrite it.
             if (!recovery_load && (simulation::original_production_enabled(
                     document->world.profile,document->world.rule_version) ||
-                    simulation::source_cell_ramps_enabled(document->world.profile,document->world.rule_version))) {
+                    simulation::source_cell_ramps_enabled(document->world.profile,document->world.rule_version) ||
+                    document->world.rule_version==simulation::kAuthoredLandTradeRuleVersion)) {
                 const auto resolved=fs::canonical(save_path);
                 const auto recovery_root=fs::weakly_canonical(app_root_/"recovery");
                 const auto relative=resolved.lexically_relative(recovery_root);
                 if (!relative.empty() && *relative.begin()!="..") {
                     persistence::RecoveryStore store(app_root_,settings_.data_root,
                         persistence::recovery_storage_budget_bytes,
-                        simulation::source_cell_ramps_enabled(document->world.profile,document->world.rule_version) ?
+                        (simulation::source_cell_ramps_enabled(document->world.profile,document->world.rule_version) ||
+                         document->world.rule_version==simulation::kAuthoredLandTradeRuleVersion) ?
                             persistence::RecoveryAccess::LegacyOnly:persistence::RecoveryAccess::OriginalProduction);
                     const auto catalog=store.catalog();
                     for (const auto& history:catalog.histories) {
@@ -313,11 +316,15 @@ void MenuSession::finish_loading() {
         auto loaded=maps::load_stored_map_session(settings_.data_root,map,
             maps::FootprintPolicy::EdgeByte4x4Preview,maps::StoredGraphicsProfile::Slot8,great_wall_mode_,
             starting_map_check_ && !document ? starting_map_check_->input_sha256:std::string{},
-            simulation::original_cardinal_terrain_enabled(profile,version));
+            version==simulation::kAuthoredLandTradeRuleVersion ||
+                simulation::original_cardinal_terrain_enabled(profile,version));
         if (upgrade_copy_ || recovery_load) {
             save_path=new_save_target(app_root_,settings_.data_root);
         }
-        auto view=simulation::original_safe_demolition_enabled(profile,version) ?
+        auto view=version==simulation::kAuthoredLandTradeRuleVersion ?
+            SandboxView::create_authored_land_trade(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_}) :
+            simulation::original_safe_demolition_enabled(profile,version) ?
             SandboxView::create_original_safe_demolition(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
             simulation::original_deadline_food_dispatch_enabled(profile,version) ?
@@ -491,6 +498,7 @@ void MenuSession::perform(int action) {
             return;
         }
         if (const auto* choice=original_choice(action)) {
+            authored_land_trade_new_game_=false;
             original_rule_version_=choice->rule;
             advanced_visuals_open_=false;
             set_state(State::NewSandbox);
@@ -499,14 +507,19 @@ void MenuSession::perform(int action) {
         }
         switch (action) {
         case ChooseFolder: open_dialog(DialogKind::Folder); break;
+        case AuthoredLandTradeNewGame:
+            authored_land_trade_new_game_=true;original_rule_version_.reset();advanced_visuals_open_=false;
+            set_state(State::NewSandbox);
+            message_="Authored finite Pottery trade; buy two Warehouses, connect roads, select city Warehouse and G bind.";
+            break;
         case NewGame:
-            original_rule_version_.reset();advanced_visuals_open_=false;
+            authored_land_trade_new_game_=false;original_rule_version_.reset();advanced_visuals_open_=false;
             set_state(State::NewSandbox);break;
         case AdvancedModes:
             advanced_modes_open_=!advanced_modes_open_;
             pressed_action_=-1;rebuild_buttons();break;
         case OriginalDifficulty:
-            if (state_==State::NewSandbox && original_setup()) {
+            if (state_==State::NewSandbox && (original_setup() || authored_land_trade_new_game_)) {
                 original_difficulty_=static_cast<original::Difficulty>(
                     (static_cast<std::size_t>(original_difficulty_)+1U)%original::difficulty_count);
                 rebuild_buttons();
@@ -738,11 +751,13 @@ void MenuSession::handle_event(const SDL_Event& event) {
             else if (state_==State::LoadSandbox) activate_button(OpenSave);
             else if (state_==State::ConfirmUpgrade) activate_button(ConfirmUpgradeCopy);
             else if (state_==State::ConfirmDeleteRecovery) activate_button(ConfirmDeleteRecovery);
+        } else if (event.key.key==SDLK_H && state_==State::MainMenu) {
+            activate_button(AuthoredLandTradeNewGame);
         } else if (event.key.key==SDLK_N && state_==State::MainMenu) {
             activate_button(NewGame);
         } else if (const auto* choice=state_==State::MainMenu ? original_key_choice(event.key.key):nullptr) {
             activate_button(choice->action);
-        } else if (event.key.key==SDLK_D && state_==State::NewSandbox && original_setup()) {
+        } else if (event.key.key==SDLK_D && state_==State::NewSandbox && (original_setup() || authored_land_trade_new_game_)) {
             activate_button(OriginalDifficulty);
         } else if (event.key.key==SDLK_P && state_==State::NewSandbox && original_setup()) {
             activate_button(OriginalStarter);
@@ -876,10 +891,20 @@ void MenuSession::rebuild_buttons() {
             const bool left=coordination || food || demolition;
             add(choice.action,choice.label,left ? 40:280,y,left ? 230:280);
         }
+        add(AuthoredLandTradeNewGame,"H Land trade (rule 21)",40,292,230);
         add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",
             280,292,settings_reset_required_?124:280);
         if (settings_reset_required_) add(ResetSettings,"Reset preferences",412,292,148);
     } else if (state_==State::NewSandbox) {
+        if (authored_land_trade_new_game_) {
+            add(MapPrev,"Previous map",40,110);add(MapNext,"Next map",230,110);
+            add(OriginalDifficulty,std::string("D Model difficulty: ")+
+                difficulty_names[static_cast<std::size_t>(original_difficulty_)],40,220,400);
+            add(Start,"Start sandbox",40,310);add(Back,"Back",230,310);
+            buttons_[buttons_.size()-2].enabled=map_rules_can_start();
+            add(RecheckMap,"Check again",430,310,130);
+            return;
+        }
         if (original_setup()) {
             add(MapPrev,"Previous map",40,110);add(MapNext,"Next map",230,110);
             add(OriginalDifficulty,std::string("D Difficulty: ")+
@@ -986,12 +1011,12 @@ bool MenuSession::render() {
     };
     const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?(advanced_modes_open_?"Advanced / Legacy":"OpenEmperor"):state_==State::NewSandbox?
-            (original_setup() ? "New Original economy":"New sandbox"):
+            (authored_land_trade_new_game_ ? "New authored land trade":original_setup() ? "New Original economy":"New sandbox"):
         state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
         state_==State::ConfirmUpgrade?(upgrade_target_version_==4 ? "Enable demolition in a copy":"Enable operation controls in a copy"):
         state_==State::ConfirmDeleteRecovery?"Delete recovery history":"Unsaved progress";
     if (!label(40,40,heading)) return false;
-    if (((state_==State::NewSandbox && !original_setup()) || state_==State::LoadSandbox) &&
+    if (((state_==State::NewSandbox && !original_setup() && !authored_land_trade_new_game_) || state_==State::LoadSandbox) &&
         !label(40,70,"Great Wall choice applies on load; preview is not original restore.")) return false;
     if (state_==State::DataSetup) {
         if (!label(40,56,std::string(version::display)+" | Clean-room reimplementation")) return false;
@@ -1008,6 +1033,19 @@ bool MenuSession::render() {
              !label(40,304,"Original campaigns and Emperor saves unsupported."))) return false;
         if (sandbox_ && !label(40,advanced_modes_open_ ? 79:88,"Retained tick "+std::to_string(sandbox_->world().ticks())+
             (sandbox_->dirty()?" (unsaved)":" (saved)"))) return false;
+    } else if (state_==State::NewSandbox && authored_land_trade_new_game_ && map_index_<catalog_.entries.size()) {
+        const auto& e=catalog_.entries[map_index_];
+        const auto columns=static_cast<std::size_t>(std::max(16,(width-80)/8));
+        const auto bounded=[&](std::string text){return text.size()>columns ? text.substr(0,columns-3)+"...":text;};
+        if (!label(40,62,"Rule21 / policy3 / save37 | Authored finite Pottery trade") ||
+            !label(40,82,bounded("Map: "+e.relative_path.generic_string())) ||
+            !label(40,154,map_rules_can_start() ? "Map rules checked; source boundary checked on Start.":
+                bounded(map_preflight_.result().reason.empty()?"Checking selected map...":map_preflight_.result().reason)) ||
+            !label(40,174,"Empty classic city; buy two Warehouses and connect roads.") ||
+            !label(40,192,"G bind city to boundary Warehouse; I import / E export.") ||
+            !label(40,258,"Pottery: 4/order; import $24; export $12; finite offers.") ||
+            !label(40,280,"License $40; actual caravan arrival; no original trade parity.") ||
+            !label(40,350,"Experimental; no automatic migration. Starts paused.")) return false;
     } else if (state_==State::NewSandbox && original_setup() && map_index_<catalog_.entries.size()) {
         const auto& e=catalog_.entries[map_index_];
         const auto columns=static_cast<std::size_t>(std::max(16,(width-80)/8));

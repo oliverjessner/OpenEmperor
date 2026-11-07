@@ -71,7 +71,7 @@ void print_usage(const char* executable) {
               << " [--multi-tile-preview [--footprint-policy isolated|edge-byte|edge-byte-4x4]]"
               << " --render-check --report-json\n";
     std::cerr << "       " << executable << " --data <directory> --sandbox <relative.map>"
-              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9|sandbox-city-v10|sandbox-city-v11|sandbox-city-v12|sandbox-city-v13|sandbox-city-v14|sandbox-city-v15|sandbox-city-v16] [--sandbox-bridges|--sandbox-ramps|--authored-source-cell-ramps|--original-fire-protection|--original-sustainable-economy|--original-market-logistics|--original-cardinal-water|--original-inspector-coordination|--original-deadline-fire-dispatch|--original-deadline-service-dispatch|--original-deadline-food-dispatch|--original-safe-demolition] [--authored-terrain-sides]"
+              << " [--sandbox-rules sandbox-logistics-v1|sandbox-production-v2|sandbox-household-v3|sandbox-settlement-v4|sandbox-industry-v5|sandbox-city-v6|sandbox-city-v7|sandbox-city-v8|sandbox-city-v9|sandbox-city-v10|sandbox-city-v11|sandbox-city-v12|sandbox-city-v13|sandbox-city-v14|sandbox-city-v15|sandbox-city-v16] [--sandbox-bridges|--sandbox-ramps|--authored-source-cell-ramps|--authored-land-trade|--original-fire-protection|--original-sustainable-economy|--original-market-logistics|--original-cardinal-water|--original-inspector-coordination|--original-deadline-fire-dispatch|--original-deadline-service-dispatch|--original-deadline-food-dispatch|--original-safe-demolition] [--authored-terrain-sides]"
               << " [--sandbox-demo] [--sandbox-visuals <walker-profile.json>]"
               << " [--building-visuals <building-profile.json>]"
               << " [--road-visuals <road-profile.json>]"
@@ -140,6 +140,7 @@ int main(int argc, char* argv[]) {
     bool sandbox_bridges = false;
     bool sandbox_ramps = false;
     bool source_cell_ramps = false;
+    bool authored_land_trade = false;
     bool original_fire_protection = false;
     bool original_sustainable_economy = false;
     bool original_market_logistics = false;
@@ -202,6 +203,8 @@ int main(int argc, char* argv[]) {
             list_maps = true;
         } else if (argument == "--render-check" && !render_check) {
             render_check = true;
+        } else if (argument == "--authored-land-trade" && !authored_land_trade) {
+            authored_land_trade=true;
         } else if (argument == "--authored-source-cell-ramps" && !source_cell_ramps) {
             source_cell_ramps=true;
         } else if (argument == "--sandbox-demo" && !sandbox_demo) {
@@ -463,6 +466,12 @@ int main(int argc, char* argv[]) {
         (original_deadline_service_dispatch && (original_fire_protection || original_sustainable_economy || original_market_logistics || original_cardinal_water || original_inspector_coordination || original_deadline_fire_dispatch)) ||
         (original_deadline_food_dispatch && (original_fire_protection || original_sustainable_economy || original_market_logistics || original_cardinal_water || original_inspector_coordination || original_deadline_fire_dispatch || original_deadline_service_dispatch)) ||
         (original_safe_demolition && (original_fire_protection || original_sustainable_economy || original_market_logistics || original_cardinal_water || original_inspector_coordination || original_deadline_fire_dispatch || original_deadline_service_dispatch || original_deadline_food_dispatch)) ||
+        (authored_land_trade && (!data_supplied || !sandbox_supplied || !sandbox_rules_supplied ||
+            sandbox_rules!=openemperor::simulation::RulesProfile::CityV16 || sandbox_bridges || sandbox_ramps || source_cell_ramps ||
+            original_fire_protection || original_sustainable_economy || original_market_logistics || original_cardinal_water ||
+            original_inspector_coordination || original_deadline_fire_dispatch || original_deadline_service_dispatch ||
+            original_deadline_food_dispatch || original_safe_demolition || authored_terrain_sides || sandbox_demo ||
+            sandbox_check || sandbox_resume_check || sandbox_routing_check || sandbox_original_economy_check || load_sandbox_supplied)) ||
         (source_cell_ramps && (!data_supplied || !sandbox_supplied || !sandbox_rules_supplied ||
             sandbox_rules!=openemperor::simulation::RulesProfile::CityV16 || sandbox_bridges || sandbox_ramps ||
             sandbox_check || sandbox_resume_check || sandbox_routing_check || load_sandbox_supplied)) ||
@@ -602,6 +611,7 @@ int main(int argc, char* argv[]) {
             if (sandbox_save_supplied || load_sandbox_supplied)
                 openemperor::persistence::validate_save_target(sandbox_save_path,data_directory);
             const auto active_rule_version=initial ? initial->world.rule_version:
+                authored_land_trade ? openemperor::simulation::kAuthoredLandTradeRuleVersion:
                 source_cell_ramps ? openemperor::simulation::kAuthoredSourceCellRampRuleVersion:
                 original_safe_demolition ? openemperor::simulation::kOriginalSafeDemolitionRuleVersion:
                 original_deadline_food_dispatch ? openemperor::simulation::kOriginalDeadlineFoodDispatchRuleVersion:
@@ -616,8 +626,11 @@ int main(int argc, char* argv[]) {
             auto session=openemperor::maps::load_stored_map_session(data_directory,sandbox_path,
                 openemperor::maps::FootprintPolicy::EdgeByte4x4Preview,
                 openemperor::maps::StoredGraphicsProfile::Slot8,great_wall_mode,{},
-                openemperor::simulation::original_cardinal_terrain_enabled(sandbox_rules,active_rule_version));
-            if (openemperor::simulation::original_safe_demolition_enabled(sandbox_rules,active_rule_version))
+                active_rule_version==openemperor::simulation::kAuthoredLandTradeRuleVersion ||
+                    openemperor::simulation::original_cardinal_terrain_enabled(sandbox_rules,active_rule_version));
+            if (active_rule_version==openemperor::simulation::kAuthoredLandTradeRuleVersion)
+                sandbox_view=openemperor::SandboxView::create_authored_land_trade(std::move(session));
+            else if (openemperor::simulation::original_safe_demolition_enabled(sandbox_rules,active_rule_version))
                 sandbox_view=openemperor::SandboxView::create_original_safe_demolition(
                     std::move(session),std::nullopt,!initial);
             else if (openemperor::simulation::original_deadline_food_dispatch_enabled(sandbox_rules,active_rule_version))

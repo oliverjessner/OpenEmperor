@@ -310,6 +310,7 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     require(schema==22 || (!j.contains("ramps") && !j.contains("next_ramp_id")),"ramp authority requires schema22");
     require(!j.contains("source_cell_ramps") && !j.contains("next_source_cell_ramp_id"),
             "source-cell ramp authority requires exact schema36");
+    require(!j.contains("land_trade"),"land trade authority requires exact schema37");
     if (schema>=10 && schema<=22) {
         const bool v11=schema>=11;
         const auto building_limit=syntax==SnapshotSyntax::OriginalProduction ? Rules::original_production_building_limit:building_collection_limit(profile);
@@ -1897,6 +1898,106 @@ SaveDocument parse_original_document(const json& j) {
     require(canonical_fields(j,original_document_json(d)),"schema23 contains unknown or noncanonical save fields");
     return d;
 }
+bool land_trade_world(const simulation::WorldSnapshot& world) {
+    return world.profile==simulation::RulesProfile::CityV16 &&
+        world.rule_version==simulation::kAuthoredLandTradeRuleVersion;
+}
+json land_trade_json(const simulation::AuthoredLandTradeState& state) {
+    using namespace simulation;
+    const auto& source=state.model_source;
+    require(source.format_version==original::model_schema_version && valid_hash(source.sha256) &&
+            source.byte_count>0 && source.byte_count<=original::max_model_bytes &&
+            static_cast<std::size_t>(source.difficulty)<original::difficulty_count &&
+            valid_hash(state.source_map_sha256),"invalid schema37 source identity");
+    require(state.orders.size()<=land_trade_order_limit,"schema37 order collection exceeds bound");
+    json binding=nullptr,orders=json::array();
+    if (state.binding) {
+        const auto& b=*state.binding;
+        binding={{"warehouse",static_cast<std::uint32_t>(b.warehouse)},
+            {"gateway",static_cast<std::uint32_t>(b.gateway)},
+            {"courier",static_cast<std::uint32_t>(b.courier)},{"configured_tick",b.configured_tick}};
+    }
+    for (const auto& row:state.orders) orders.push_back({{"id",static_cast<std::uint32_t>(row.id)},
+        {"direction",static_cast<unsigned>(row.direction)},{"ordered_tick",row.ordered_tick},
+        {"boundary_tick",row.boundary_tick ? json(*row.boundary_tick):json(nullptr)},
+        {"completed_tick",row.completed_tick ? json(*row.completed_tick):json(nullptr)}});
+    return {{"model_source",{{"format_version",source.format_version},{"sha256",source.sha256},
+        {"byte_count",source.byte_count},{"difficulty",static_cast<unsigned>(source.difficulty)}}},
+        {"source_map_sha256",state.source_map_sha256},{"binding",binding},{"orders",orders},
+        {"next_order_id",state.next_order_id}};
+}
+simulation::AuthoredLandTradeState parse_land_trade(const json& j) {
+    using namespace simulation;
+    AuthoredLandTradeState state;const auto& source=field(j,"model_source");
+    state.model_source={static_cast<std::uint32_t>(number(field(source,"format_version"),UINT32_MAX)),
+        str(field(source,"sha256")),number(field(source,"byte_count"),original::max_model_bytes),
+        static_cast<original::Difficulty>(number(field(source,"difficulty"),original::difficulty_count-1))};
+    state.source_map_sha256=str(field(j,"source_map_sha256"));
+    state.next_order_id=static_cast<std::uint32_t>(number(field(j,"next_order_id"),UINT32_MAX));
+    const auto& binding=field(j,"binding");
+    if (!binding.is_null()) state.binding=LandTradeBinding{
+        static_cast<BuildingId>(number(field(binding,"warehouse"),UINT32_MAX)),
+        static_cast<BuildingId>(number(field(binding,"gateway"),UINT32_MAX)),
+        static_cast<CourierId>(number(field(binding,"courier"),UINT32_MAX)),number(field(binding,"configured_tick"))};
+    const auto& rows=field(j,"orders");
+    require(rows.is_array() && rows.size()<=land_trade_order_limit,"schema37 order collection exceeds bound");
+    for (const auto& value:rows) {
+        LandTradeOrder row;
+        row.id=static_cast<LandTradeOrderId>(number(field(value,"id"),UINT32_MAX));
+        row.direction=static_cast<LandTradeDirection>(number(field(value,"direction"),1));
+        row.ordered_tick=number(field(value,"ordered_tick"));
+        const auto& boundary=field(value,"boundary_tick");if (!boundary.is_null()) row.boundary_tick=number(boundary);
+        const auto& completed=field(value,"completed_tick");if (!completed.is_null()) row.completed_tick=number(completed);
+        state.orders.push_back(row);
+    }
+    require(canonical_fields(j,land_trade_json(state)),"schema37 contains unknown or noncanonical trade fields");
+    return state;
+}
+json land_trade_document_json(const SaveDocument& d) {
+    using namespace simulation;
+    require(land_trade_world(d.world),"schema37 requires exact City-v16 Rule21");
+    require(d.source_schema_version==0 || d.source_schema_version==37,
+            "Rule21 requires schema37; historical saves are not migrated");
+    require(d.map_permissions_policy_version==kBridgesMapPermissionsPolicyVersion && valid_hash(d.map_permissions_sha256),
+            "schema37 requires complete immutable policy3 map binding");
+    require(!d.world.original_economy && !d.world.original_influence && !d.world.original_goods && !d.world.original_production &&
+            d.world.source_cell_ramps.empty() && d.world.next_source_cell_ramp_id==1,
+            "schema37 cannot carry Original-economy or Rule20 authority");
+    require(d.world.land_trade && d.world.land_trade->source_map_sha256==d.map_sha256,
+            "schema37 requires its complete source-bound trade state");
+    World::validate_authored_land_trade_snapshot(d.world);
+    auto projected=d;projected.source_schema_version=22;projected.world.rule_version=6;
+    projected.world.land_trade.reset();
+    auto result=document_json(projected);
+    result["schema_version"]=37;result["rules"]["version"]=kAuthoredLandTradeRuleVersion;
+    result["rules"]["authored_land_trade"]=authored_land_trade_contract;
+    result["world"]["land_trade"]=land_trade_json(*d.world.land_trade);
+    return result;
+}
+SaveDocument parse_land_trade_document(const json& j) {
+    using namespace simulation;
+    const auto& rules=field(j,"rules");
+    require(number(field(j,"schema_version"))==37 && str(field(j,"format"))=="openemperor-sandbox-save" &&
+        str(field(rules,"id"))==city_v16_profile_name && number(field(rules,"version"))==kAuthoredLandTradeRuleVersion &&
+        str(field(rules,"authored_land_trade"))==authored_land_trade_contract,
+        "schema37 requires its exact Rule21 authored land trade marker");
+    const auto state=parse_land_trade(field(field(j,"world"),"land_trade"));
+    auto projected=j;projected["schema_version"]=22;projected["rules"]["version"]=6;
+    projected["rules"].erase("authored_land_trade");projected["world"].erase("land_trade");
+    // Syntax-only projection: the historical parser never admits role26. The
+    // actual role and complete classic state are validated only by Rule21.
+    for (auto& courier:projected["world"]["couriers"])
+        if (number(field(courier,"role"))==static_cast<unsigned>(CourierRole::AuthoredLandTrader))
+            courier["role"]=static_cast<unsigned>(CourierRole::MarketPotteryInbound);
+    auto d=parse_document(projected);d.source_schema_version=37;d.world.rule_version=kAuthoredLandTradeRuleVersion;
+    d.world.land_trade=state;
+    const auto& original_couriers=field(field(j,"world"),"couriers");
+    for (std::size_t i=0;i<d.world.couriers.size();++i)
+        d.world.couriers[i].role=static_cast<CourierRole>(number(field(original_couriers[i],"role"),
+            static_cast<unsigned>(CourierRole::AuthoredLandTrader)));
+    require(canonical_fields(j,land_trade_document_json(d)),"schema37 contains unknown or noncanonical fields");
+    return d;
+}
 json source_cell_document_json(const SaveDocument& d) {
     using namespace simulation;
     require(source_cell_ramps_enabled(d.world.profile,d.world.rule_version),
@@ -1961,6 +2062,8 @@ SaveDocument parse_source_cell_document(const json& j) {
     return d;
 }
 json document_json(const SaveDocument& d) {
+    if (land_trade_world(d.world)) return land_trade_document_json(d);
+    require(!d.world.land_trade,"land trade authority requires exact Rule21/schema37");
     if (simulation::source_cell_ramps_enabled(d.world.profile,d.world.rule_version)) return source_cell_document_json(d);
     require(d.world.source_cell_ramps.empty() && d.world.next_source_cell_ramp_id==1,
             "source-cell ramp authority requires exact Rule20/schema36");
@@ -2008,6 +2111,12 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j,SnapshotSyntax syntax) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
+    if (schema==37) {
+        require(syntax==SnapshotSyntax::Frozen,"schema37 cannot select Original-production syntax");
+        return parse_land_trade_document(j);
+    }
+    require(!field(j,"rules").contains("authored_land_trade") && !field(j,"world").contains("land_trade"),
+            "authored land trade marker and authority require exact schema37");
     if (schema==36) {
         require(syntax==SnapshotSyntax::Frozen,"schema36 cannot select Original-production syntax");
         return parse_source_cell_document(j);
@@ -2161,6 +2270,18 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
     SaveDocument d;
     d.map_relative=relative;d.map_sha256=hash_file(map);
     d.buildable_sha256=digest(mask.data(),mask.size());d.world=world.snapshot();
+    if (land_trade_world(d.world)) {
+        d.prepared_permissions=world.map_permissions();
+        d.prepared_original_rules_model=world.original_rules_model();
+        d.prepared_land_trade_boundary_facts=prepare_land_trade_boundary_facts(root,relative);
+        require(d.prepared_permissions && d.prepared_original_rules_model,
+                "schema37 requires prepared policy3 permissions and model identity");
+        d.map_permissions_policy_version=d.prepared_permissions->policy_version();
+        d.map_permissions_sha256=map_permissions_fingerprint(*d.prepared_permissions,d.map_sha256);
+        (void)restore_authored_land_trade(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
+            d.prepared_land_trade_boundary_facts);
+        return d;
+    }
     if (simulation::original_production_enabled(d.world.profile,d.world.rule_version)) {
         d.prepared_permissions=world.map_permissions();
         d.prepared_original_rules_model=world.original_rules_model();
@@ -2294,6 +2415,8 @@ SaveDocument read_save(const fs::path& path) {
         require(!duplicate_key,"schema25 duplicate save key");
     if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==36)
         require(!duplicate_key,"schema36 duplicate save key");
+    if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==37)
+        require(!duplicate_key,"schema37 duplicate save key");
     if (j.is_object() && j.contains("schema_version") &&
         (j.at("schema_version")==26 || j.at("schema_version")==27 || j.at("schema_version")==28 || j.at("schema_version")==29 || j.at("schema_version")==30 || j.at("schema_version")==31 || j.at("schema_version")==32 || j.at("schema_version")==33 || j.at("schema_version")==34 || j.at("schema_version")==35))
         require(!duplicate_key,"original production duplicate save key");
@@ -2385,6 +2508,7 @@ std::string map_permissions_fingerprint(const simulation::MapPermissions& permis
 simulation::World restore_save(const SaveDocument& d,const fs::path& root,
                                std::vector<std::uint8_t> mask,
                                std::shared_ptr<const simulation::MapPermissions> permissions) {
+    require(!land_trade_world(d.world),"Rule21 requires explicit schema37 restore with prepared model and boundary facts");
     require(!simulation::original_production_enabled(d.world.profile,d.world.rule_version),
             "City-v16 rule10 requires explicit schema26 development restore");
     require(!simulation::original_goods_enabled(d.world.profile,d.world.rule_version),
@@ -2432,6 +2556,59 @@ simulation::World restore_authored_source_cell_ramps(const SaveDocument& d,const
             "source-cell ramp restore requires exact schema36; no historical migration");
     (void)source_cell_document_json(d);
     return restore_save(d,root,std::move(mask),std::move(permissions));
+}
+std::shared_ptr<const simulation::LandTradeBoundaryFacts> prepare_land_trade_boundary_facts(
+        const fs::path& root,const fs::path& relative) {
+    safe_relative(relative);
+    const auto path=maps::resolve_map_path(root,relative);
+    const auto container=maps::EmperorContainer::open(path);
+    const auto source_hash=maps::map_input_sha256(container);
+    require(!container.multipart() && container.parts().size()==1,
+            "land trade boundary requires one complete standalone source map");
+    const auto map=maps::read_emperor_map(container,0);
+    const maps::MapGeometry geometry(map.declared_map_size);
+    require(geometry.supported && map.stored_width==maps::stored_grid_width && map.stored_height==maps::stored_grid_height &&
+            geometry.candidate.size()==static_cast<std::size_t>(map.stored_width)*map.stored_height,
+            "land trade boundary requires complete supported shared map geometry");
+    require(hash_file(path)==source_hash,"source map changed while preparing land trade boundary facts");
+    return std::make_shared<const simulation::LandTradeBoundaryFacts>(static_cast<int>(map.stored_width),
+        static_cast<int>(map.stored_height),geometry.candidate,source_hash);
+}
+simulation::World restore_authored_land_trade(const SaveDocument& d,const fs::path& root,
+        std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
+        std::shared_ptr<const original::OriginalRulesModel> model,
+        std::shared_ptr<const simulation::LandTradeBoundaryFacts> boundary) {
+    (void)land_trade_document_json(d);
+    const auto& source=d.world.land_trade->model_source;
+    if (!model) model=prepare_original_rules_model(root,source.difficulty);
+    const auto& provenance=model->provenance();
+    require(source.format_version==provenance.format_version && source.sha256==provenance.sha256 &&
+        source.byte_count==provenance.byte_count && source.difficulty==model->difficulty(),
+        "schema37 prepared model identity differs from save");
+    const auto inspected=original::inspect_model_source(root);
+    require(inspected.fingerprint && inspected.fingerprint->sha256==source.sha256 &&
+            inspected.fingerprint->byte_count==source.byte_count,"schema37 live model identity differs from save");
+    safe_relative(d.map_relative);const auto map=maps::resolve_map_path(root,d.map_relative);
+    require(hash_file(map)==d.map_sha256,"source map SHA-256 differs from schema37 save");
+    require(digest(mask.data(),mask.size())==d.buildable_sha256,"sandbox buildable mask SHA-256 differs from schema37 save");
+    if (!permissions) permissions=maps::read_sandbox_map_permissions(root,d.map_relative,mask,
+        simulation::kBridgesMapPermissionsPolicyVersion);
+    require(permissions && permissions->policy_version()==simulation::kBridgesMapPermissionsPolicyVersion &&
+        d.map_permissions_policy_version==simulation::kBridgesMapPermissionsPolicyVersion &&
+        map_permissions_fingerprint(*permissions,d.map_sha256)==d.map_permissions_sha256,
+        "schema37 complete policy3 permission/source fingerprint differs from save");
+    // Source geometry is prepared again from the shared reader. A caller's
+    // claimed hash or independently authored bitset cannot grant a gateway.
+    auto live=prepare_land_trade_boundary_facts(root,d.map_relative);
+    require(live->source_map_sha256()==d.map_sha256,"schema37 live boundary source differs from save");
+    if (boundary) {
+        require(boundary->source_map_sha256()==live->source_map_sha256() && boundary->width()==live->width() &&
+                boundary->height()==live->height(),"schema37 prepared boundary identity differs from live source");
+        for (int y=0;y<live->height();++y) for (int x=0;x<live->width();++x)
+            require(boundary->contains({x,y})==live->contains({x,y}),
+                    "schema37 prepared boundary geometry differs from live source");
+    }
+    return simulation::World::restore_authored_land_trade(d.world,std::move(permissions),std::move(model),std::move(live));
 }
 simulation::World restore_original_economy_development(const SaveDocument& d,const fs::path& root,
         std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
@@ -2739,7 +2916,10 @@ void write_save(const fs::path& path,const SaveDocument& d,const fs::path& root,
     performance::increment(performance::Counter::FileWrites);
     validate_save_target(path,root);
     // Recheck original inputs and all world invariants before writing any bytes.
-    if (simulation::original_production_enabled(d.world.profile,d.world.rule_version))
+    if (land_trade_world(d.world))
+        (void)restore_authored_land_trade(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
+            d.prepared_land_trade_boundary_facts);
+    else if (simulation::original_production_enabled(d.world.profile,d.world.rule_version))
         if (simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version))
             (void)restore_original_safe_demolition(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
                 d.prepared_original_terrain_facts);

@@ -146,6 +146,14 @@ void World::preflight_maintenance_tick() const {
     const auto signed_bill=static_cast<std::int64_t>(bill); // At most 46 * 12.
     if (maintenance_spent_total_>UINT64_MAX-bill || funds<INT64_MIN+signed_bill)
         throw std::overflow_error("City maintenance counter or treasury exhausted");
+    if(authored_land_trade_enabled()&&land_trade_&&land_trade_->binding&&!land_trade_->orders.empty()) {
+        const auto& order=land_trade_->orders.back();const auto& c=courier(land_trade_->binding->courier);
+        const bool sale_due=order.direction==LandTradeDirection::Export&&!order.boundary_tick&&!order.completed_tick&&
+            c.phase==CourierPhase::ToWarehouse&&!c.route_pending&&c.path.size()>=2&&c.path_vertex+2==c.path.size()&&
+            c.edge_progress==active_rules().courier_edge_ticks-1;
+        if(sale_due&&funds-signed_bill>INT64_MAX-land_trade_portion*land_trade_export_price)
+            throw std::overflow_error("Land trade sale would overflow treasury");
+    }
 }
 
 void World::bill_maintenance() {
@@ -164,10 +172,11 @@ bool World::maintenance_economy_valid() const {
     // counter range and INT64_MIN without overflowing intermediate sums or
     // narrowing counters to signed integers.
     const auto debt=treasury_<0 ? static_cast<std::uint64_t>(-(treasury_+1))+1:0;
-    std::array<std::uint64_t,3> credits{static_cast<std::uint64_t>(starting_treasury_for(profile_)),
-        taxes_collected_total_,debt};
-    std::array<std::uint64_t,3> debits{construction_spent_total_,maintenance_spent_total_,
-        treasury_>=0 ? static_cast<std::uint64_t>(treasury_):0};
+    const auto trade=land_trade_?land_trade_balance():LandTradeBalance{};
+    std::array<std::uint64_t,4> credits{static_cast<std::uint64_t>(starting_treasury_for(profile_)),
+        taxes_collected_total_,debt,trade.exports_received};
+    std::array<std::uint64_t,4> debits{construction_spent_total_,maintenance_spent_total_,
+        treasury_>=0 ? static_cast<std::uint64_t>(treasury_):0,trade.imports_paid};
     for (auto& credit:credits) for (auto& debit:debits) {
         const auto amount=std::min(credit,debit);
         credit-=amount;
