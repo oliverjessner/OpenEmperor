@@ -106,6 +106,19 @@
   teleport, automatic migration or original gateway/partner inference. Preserve
   real cargo/escrow/reservations on road cuts and permanent bound Warehouse IDs.
   Model/difficulty bind identity only. See [OE54](docs/original-economy/oe54-trade.md).
+- Authored Music venues are a separate explicit rule22/policy3/schema38 contract
+  with marker `authored-music-venue-v1`. Inherit Rule18, not Rule19 demolition,
+  Rule20 terrain or Rule21 trade. Only Music211 changes from targeted House visits
+  to real one-way Performer34 arrivals at paid4x4 Theatre75. A fixed school-owned
+  movement channel is separate from each monotone PerformerId; idle channels have
+  no visible actor or position. Due training attempts are not successful spawns.
+  Real accepted arrival alone sets the separate Venue32 timer. Phase35 training
+  and unconditional venue countdown are authored clock choices. No House96 grant,
+  Venue Actor36, religion/festival effect, automatic migration or default change.
+  Two schools/two venues remain within the existing82-body/58-channel budgets.
+  Require separately prepared75 model capability and exact source-bound restore.
+  All Rules1–21/schemas1–37 and their School-to-House semantics remain exact. See
+  [OE56 culture](docs/original-economy/oe56-culture-venues.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

@@ -103,6 +103,9 @@ struct FunctionalModelCandidate {
     case Object::OriginalDramaSchool213:
         return {ModelBuilding::DramaSchool, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};
+    case Object::OriginalTheatre75:
+        return {ModelBuilding::TheatrePavilion, EvidenceStatus::AuthoredFallback,
+                EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};
     case Object::OriginalDaoistShrine215:
         return {ModelBuilding::DaoistShrine, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};

@@ -630,6 +630,56 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
             invalid("Rule11 unvisited Inspector must retain its paid initial idle relation");
         }
     }
+    if (simulation::original_music_venues_enabled(s.profile,s.rule_version)) {
+        if (!s.original_production->culture ||
+            s.original_production->culture->schools.size()>original_music_school_limit ||
+            s.original_production->culture->venues.size()>original_culture_venue_limit)
+            invalid("Rule22 fire binding requires its complete bounded culture authority");
+        // Dispatch precedes every movement and this tick's natural fire update.
+        // Arrivals see the same pre-update clock plus actual earlier-ID
+        // Inspector arrivals. Reuse the already validated fire timeline; only
+        // same-tick arrivals can intervene before the selected movement channel.
+        const auto burning_before_event=[&](BuildingId id,std::uint64_t tick,
+                                            std::optional<CourierId> arriving_channel) {
+            const auto& target=by_id(s.buildings,id);
+            if (!tick || tick<=target.placed_tick || tick>s.ticks)
+                invalid("Rule22 culture fire event precedes its paid body or saved clock");
+            const auto fire=replay(target,tick-1);
+            if (arriving_channel) {
+                auto event=std::lower_bound(state.arrivals.begin(),state.arrivals.end(),tick,
+                    [](const OriginalFireArrival& row,std::uint64_t at){return row.tick<at;});
+                for (;event!=state.arrivals.end() && event->tick==tick &&
+                       event->trip.courier_id<*arriving_channel;++event)
+                    if (event->trip.target==id) return false;
+            }
+            // An incident expiring exactly now is no longer active. Natural
+            // ignition at this tick happens later, after every real arrival.
+            return fire.incident>tick;
+        };
+        const auto check_dispatch=[&](BuildingId school,BuildingId venue,std::uint64_t tick) {
+            if (burning_before_event(school,tick,std::nullopt) ||
+                burning_before_event(venue,tick,std::nullopt))
+                invalid("Rule22 performer dispatched from or into an actually burning body");
+        };
+        const auto check_arrival=[&](BuildingId venue,CourierId channel,std::uint64_t tick) {
+            if (burning_before_event(venue,tick,channel))
+                invalid("Rule22 accepted performer arrived during actual pre-movement venue fire");
+        };
+        const auto& culture=*s.original_production->culture;
+        for (const auto& school:culture.schools) if (school.latest_trip) {
+            const auto& trip=*school.latest_trip;
+            check_dispatch(school.building_id,trip.venue_id,trip.dispatched_tick);
+            if (trip.accepted) {
+                if (!trip.arrival_tick) invalid("Rule22 accepted music trip lacks its actual arrival clock");
+                check_arrival(trip.venue_id,school.courier_id,*trip.arrival_tick);
+            }
+        }
+        for (const auto& venue:culture.venues) if (venue.last_arrival) {
+            const auto& arrival=*venue.last_arrival;
+            check_dispatch(arrival.school_id,venue.building_id,arrival.dispatched_tick);
+            check_arrival(venue.building_id,arrival.courier_id,arrival.arrival_tick);
+        }
+    }
     for (const auto& body:s.buildings) if (fire_eligible(body.kind,s.profile,s.rule_version)) {
         const auto fire=replay(body,s.ticks);
         if (body.fire_risk!=fire.risk || body.fire_until_tick!=fire.incident || body.fire_protection_until_tick!=fire.protection)

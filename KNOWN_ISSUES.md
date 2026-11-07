@@ -30,7 +30,12 @@ complete original-game compatibility.
   remain exact. Rules10–19 are opt-in and include authored
   immigration, workforce, recipes, harvesting, school-to-house visits and Rule13
   needs-aware goods selection.
-  Original venue/performer chains and illness are missing. Rules10–18 retain
+  The separate [Rule22 music-venue experiment](docs/original-economy/oe56-culture-venues.md)
+  replaces Music211's direct House visit with a paid one-way performer to
+  Theatre75 and its own duration. It grants no House Music96 effect; Actor36,
+  other venue chains, festivals, Hero/God AI and illness remain unsupported.
+  The bounded chain has automated World, persistence and scripted SDL coverage;
+  native/human acceptance is NOT_RUN. Rules10–18 retain
   their House/production demolition refusal; incompatible development saves are refused.
 - **Original artwork remains bounded.** OE52 adds ten source-registered static
   bases in Original production, sharing the existing Well image. Static source

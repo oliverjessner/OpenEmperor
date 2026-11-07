@@ -19,6 +19,8 @@ bool market_transport(simulation::CourierRole role) {
 }
 }
 bool walker_live_visible(const simulation::CourierState& courier) {
+    if (courier.role==simulation::CourierRole::OriginalMusicPerformer)
+        return courier.enabled && courier.phase!=simulation::CourierPhase::IdleAtWorkshop;
     if (market_transport(courier.role) || courier.role==simulation::CourierRole::Service ||
         courier.role==simulation::CourierRole::HealthWorker || (courier.role==simulation::CourierRole::OriginalAncestor || courier.role==simulation::CourierRole::OriginalWater ||
          courier.role==simulation::CourierRole::OriginalDaoist || courier.role==simulation::CourierRole::OriginalBuddhist ||
@@ -50,6 +52,7 @@ std::optional<assets::WalkerVisualRole> walker_visual_role(simulation::CourierRo
     case simulation::CourierRole::OriginalDaoist:
     case simulation::CourierRole::OriginalBuddhist:
     case simulation::CourierRole::OriginalConfucian:
+    case simulation::CourierRole::OriginalMusicPerformer:
     case simulation::CourierRole::OriginalMusic:
     case simulation::CourierRole::OriginalAcrobat:
     case simulation::CourierRole::OriginalDrama:
@@ -73,7 +76,8 @@ WalkerPose walker_pose(const simulation::CourierState& courier,std::uint64_t wor
         courier.role==simulation::CourierRole::HealthWorker || (courier.role==simulation::CourierRole::OriginalAncestor || courier.role==simulation::CourierRole::OriginalWater ||
          courier.role==simulation::CourierRole::OriginalDaoist || courier.role==simulation::CourierRole::OriginalBuddhist ||
          courier.role==simulation::CourierRole::OriginalConfucian || courier.role==simulation::CourierRole::OriginalMusic ||
-         courier.role==simulation::CourierRole::OriginalAcrobat || courier.role==simulation::CourierRole::OriginalDrama);
+         courier.role==simulation::CourierRole::OriginalAcrobat || courier.role==simulation::CourierRole::OriginalDrama ||
+         courier.role==simulation::CourierRole::OriginalMusicPerformer);
     if (!courier.enabled || courier.phase==simulation::CourierPhase::IdleAtWorkshop ||
         courier.path.size()<2 || courier.path_vertex>=courier.path.size()-1 ||
         (waiting && !faces_wait_edge)) {

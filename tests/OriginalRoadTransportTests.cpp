@@ -82,7 +82,7 @@ void version_contract() {
         sim::rule_version_supported(sim::RulesProfile::CityV16,19) &&
         sim::rule_version_supported(sim::RulesProfile::CityV16,20) &&
         sim::rule_version_supported(sim::RulesProfile::CityV16,21) &&
-        !sim::rule_version_supported(sim::RulesProfile::CityV16,22),
+        !sim::rule_version_supported(sim::RulesProfile::CityV16,23),
           "Unknown City-v16 rule accepted");
     check(sim::original_fire_protection_enabled(sim::RulesProfile::CityV16,11) &&
         sim::original_fire_protection_enabled(sim::RulesProfile::CityV16,12) &&

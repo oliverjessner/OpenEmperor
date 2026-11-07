@@ -4,6 +4,7 @@
 #include "core/Version.h"
 #include "app/ResourceLocator.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -20,7 +21,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     CancelDeleteRecovery, GreatWallChoice, RecheckMap, BridgesChoice, RampsChoice,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
     OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice, AuthoredLandTradeNewGame,
-    MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
+    OriginalMusicVenuesNewGame, MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
     int action;
@@ -30,6 +31,7 @@ struct OriginalChoice {
     const char* detail;
 };
 constexpr OriginalChoice original_choices[]={
+    {OriginalMusicVenuesNewGame,simulation::kOriginalMusicVenuesRuleVersion,SDLK_B,"B Music venues (rule 22)","Paid Music School to Theatre; no House effect"},
     {OriginalNewGame,simulation::kOriginalProductionRuleVersion,SDLK_O,"O Original economy","Original model economy"},
     {OriginalFireProtectionNewGame,simulation::kOriginalFireProtectionRuleVersion,SDLK_F,"F Original fire protection","Paid fire protection"},
     {OriginalSustainableEconomyNewGame,simulation::kOriginalSustainableRuleVersion,SDLK_S,"S Sustainable economy","Three Food chains and upkeep"},
@@ -324,6 +326,9 @@ void MenuSession::finish_loading() {
         auto view=version==simulation::kAuthoredLandTradeRuleVersion ?
             SandboxView::create_authored_land_trade(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_}) :
+            simulation::original_music_venues_enabled(profile,version) ?
+            SandboxView::create_original_music_venues(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
             simulation::original_safe_demolition_enabled(profile,version) ?
             SandboxView::create_original_safe_demolition(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
@@ -881,6 +886,10 @@ void MenuSession::rebuild_buttons() {
         buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,left_y,210);left_y+=34;
         for (const auto& choice:original_choices) {
+            if (choice.action==OriginalMusicVenuesNewGame) {
+                add(choice.action,choice.label,280,4,280,28);
+                continue;
+            }
             const bool coordination=choice.action==OriginalInspectorCoordinationNewGame;
             const bool food=choice.action==OriginalDeadlineFoodDispatchNewGame;
             const bool demolition=choice.action==OriginalSafeDemolitionNewGame;
@@ -892,6 +901,17 @@ void MenuSession::rebuild_buttons() {
             add(choice.action,choice.label,left ? 40:280,y,left ? 230:280);
         }
         add(AuthoredLandTradeNewGame,"H Land trade (rule 21)",40,292,230);
+        if (sandbox_) {
+            // Nine retained-city actions share the bounded left column.
+            // Fresh-menu positions and every action/shortcut remain unchanged.
+            constexpr std::array order{Resume,NewGame,LoadGame,DataFolder,Quit,
+                OriginalInspectorCoordinationNewGame,OriginalSafeDemolitionNewGame,
+                AuthoredLandTradeNewGame,OriginalDeadlineFoodDispatchNewGame};
+            for (std::size_t i=0;i<order.size();++i) {
+                const auto button=std::find_if(buttons_.begin(),buttons_.end(),[&](const auto& value){return value.action==order[i];});
+                if (button!=buttons_.end()) {button->rect.y=88.F+30.F*static_cast<float>(i);button->rect.h=28.F;}
+            }
+        }
         add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",
             280,292,settings_reset_required_?124:280);
         if (settings_reset_required_) add(ResetSettings,"Reset preferences",412,292,148);
@@ -1154,7 +1174,8 @@ bool MenuSession::render() {
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
             if (e.error.empty() && simulation::original_production_enabled(
                     simulation::RulesProfile::CityV16,e.rule_version) &&
-                e.schema==(e.rule_version==simulation::kOriginalSafeDemolitionRuleVersion ? 35U:
+                e.schema==(e.rule_version==simulation::kOriginalMusicVenuesRuleVersion ? 38U:
+                    e.rule_version==simulation::kOriginalSafeDemolitionRuleVersion ? 35U:
                     e.rule_version==simulation::kOriginalDeadlineFoodDispatchRuleVersion ? 34U:
                            e.rule_version==simulation::kOriginalDeadlineServiceDispatchRuleVersion ? 33U:
                     e.rule_version==simulation::kOriginalDeadlineFireDispatchRuleVersion ? 32U:

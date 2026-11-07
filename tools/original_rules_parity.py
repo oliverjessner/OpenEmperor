@@ -40,8 +40,10 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # libraries; the pin is a reviewed ABI boundary, not trade parity evidence.
 # Matching archives are freshly linked; these exact headers do not certify
 # the new rules' gameplay, dispatch or terrain logic.
+# Rule22 culture/model additions preserve legacy calls; these are ABI pins only.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
-    "World.h": "5f5799ef7ff0ad73aa6d0282d1f7552ba9978a80",
+    "OriginalCultureState.h": "7c28dd8b34dc69a916e9d594591bfbdc8dc63ae8",
+    "World.h": "bb40876ef322530fa3aaaff818a1ea6c09111261",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "1a24ed7cb80a0152560b76d9445c04e5b0829ed5",
@@ -520,7 +522,7 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
         raise ValueError("Original-goods API drift: fourth-module adapter needs a reviewed compatibility contract")
     production_dto = ROOT / "src/simulation/OriginalProductionState.h"
     production_blob = hashlib.sha1(b"blob " + str(production_dto.stat().st_size).encode() + b"\0" + production_dto.read_bytes()).hexdigest()
-    if production_blob != "94789c1146c1e1c583e1a90fc767c7fbc3ebb418":
+    if production_blob != "543abfab1f88640bb27cc87107e938fe2a8d8916":
         raise ValueError("Original-production API drift: fourth-module adapter needs a reviewed compatibility contract")
     food_dto = ROOT / "src/simulation/OriginalFoodState.h"
     food_blob = hashlib.sha1(b"blob " + str(food_dto.stat().st_size).encode() + b"\0" + food_dto.read_bytes()).hexdigest()
@@ -559,8 +561,8 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
     if finance_blob != "4c42d35342a89c113b44965562635421efccecd1":
         raise ValueError("Original-finance ABI drift requires reviewed compatibility contract")
     model_header_blobs = {}
-    for name, expected in (("ModelSchema.h", "3b84d23fd86abf6dc50f55dc74709e50862df8e0"),
-                           ("OriginalRulesModel.h", "f6f7bc5a5fdab539409aab69946166b3b64844af")):
+    for name, expected in (("ModelSchema.h", "ea9c84c240d47efe0479b740ec298009c2d12185"),
+                           ("OriginalRulesModel.h", "63e6f7f167dce0d7e1480835759f01bd49d3a4a5")):
         header = ROOT / "src/simulation/original" / name
         actual = hashlib.sha1(b"blob " + str(header.stat().st_size).encode() + b"\0" + header.read_bytes()).hexdigest()
         if actual != expected:

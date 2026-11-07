@@ -132,6 +132,7 @@ std::uint64_t paid_cost(Object kind) {
     case Object::HealthPost:
     case Object::OriginalDaoistShrine215:
     case Object::OriginalBuddhistShrine217:
+    case Object::OriginalTheatre75:
     case Object::OriginalMusicSchool211:
     case Object::OriginalAcrobatSchool212:
     case Object::OriginalDramaSchool213:
@@ -158,6 +159,7 @@ std::optional<original::ModelBuilding> model_priced(Object kind) {
     case Object::OriginalDaoistShrine215:return B::DaoistShrine;
     case Object::OriginalBuddhistShrine217:return B::BuddhistShrine;
     case Object::OriginalConfucianAcademy219:return B::ConfucianAcademy;
+    case Object::OriginalTheatre75:return B::TheatrePavilion;
     case Object::OriginalMusicSchool211:return B::MusicSchool;
     case Object::OriginalAcrobatSchool212:return B::AcrobatSchool;
     case Object::OriginalDramaSchool213:return B::DramaSchool;
@@ -484,6 +486,7 @@ World World::restore_original_production_development(const WorldSnapshot& snapsh
 }
 
 void World::validate_original_production_snapshot(const WorldSnapshot& s) {
+    validate_original_music_venues_snapshot(s);
     if (!simulation::original_production_enabled(s.profile,s.rule_version)) {
         if (s.original_production) invalid("original production requires City-v16 rule10");
         return;
@@ -578,7 +581,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
             const auto role=b.kind==Object::FireWatch ? CourierRole::FireInspector:original_industry_source(b.kind) ? (original_industry_goods::output(b.kind) ? CourierRole::OriginalLuxuryToWarehouse:CourierRole::OriginalAuxToWarehouse):
                 b.kind==Object::OriginalWaterWell72 ? CourierRole::OriginalWater:b.kind==Object::HealthPost ? CourierRole::HealthWorker:
                 b.kind==Object::ServicePost ? CourierRole::Service:
-                b.kind==Object::OriginalMusicSchool211 ? CourierRole::OriginalMusic:
+                b.kind==Object::OriginalMusicSchool211 ? (simulation::original_music_venues_enabled(s.profile,s.rule_version) ? CourierRole::OriginalMusicPerformer:CourierRole::OriginalMusic):
                 b.kind==Object::OriginalAcrobatSchool212 ? CourierRole::OriginalAcrobat:
                 b.kind==Object::OriginalDramaSchool213 ? CourierRole::OriginalDrama:
                 b.kind==Object::OriginalDaoistShrine215 ? CourierRole::OriginalDaoist:
@@ -703,6 +706,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         c.role!=CourierRole::HealthWorker && c.role!=CourierRole::Service && c.role!=CourierRole::OriginalAncestor && c.role!=CourierRole::OriginalWater &&
         c.role!=CourierRole::OriginalDaoist && c.role!=CourierRole::OriginalBuddhist && c.role!=CourierRole::OriginalConfucian && c.role!=CourierRole::OriginalMusic &&
         c.role!=CourierRole::OriginalAcrobat && c.role!=CourierRole::OriginalDrama &&
+        !(simulation::original_music_venues_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalMusicPerformer) &&
         c.role!=CourierRole::OriginalLuxuryToWarehouse && c.role!=CourierRole::OriginalAuxToWarehouse && c.role!=CourierRole::OriginalAuxSupplier &&
         !(simulation::original_fire_protection_enabled(s.profile,s.rule_version) && c.role==CourierRole::FireInspector))
         invalid("unsupported original production courier role");
@@ -871,11 +875,11 @@ void World::tick_original_production() {
     for (auto& c:couriers_) move_v2(c);
     update_fire();admit_original_residents();tick_staffing_active_=false;
     if (dispatch.position.phase==28) evaluate_original_water();
-    if (dispatch.service_countdown) {decay_original_services();decay_original_water();}
+    if (dispatch.service_countdown) {decay_original_services();decay_original_water();decay_original_music_venues();}
     if (dispatch.evolution) evaluate_original_houses();
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
     validate_original_food_state();validate_original_industry_state();
-    validate_original_services_state();validate_original_water_state();validate_original_housing_state();
+    validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();
     const auto balances=original_production_goods_balances();
     if (!population_valid() || !fire_state_valid() || !production_balance_valid() || !navigation_valid() ||
         !city_economy_valid() || !std::all_of(balances.begin(),balances.end(),[](const auto& b){return b.conserved;}))

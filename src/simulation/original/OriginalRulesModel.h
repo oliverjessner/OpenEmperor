@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace openemperor::original {
 
@@ -17,6 +18,10 @@ public:
     // Explicit active-generation capability. The historical seven-row factory
     // does not require, read or validate the additional production records.
     [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_production(
+        ModelData model,Difficulty difficulty);
+    // Separate Rule22 capability: production plus the independently admitted
+    // Theatre Pavilion row. Neither historical factory requires this row.
+    [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_culture(
         ModelData model,Difficulty difficulty);
     OriginalRulesModel(const OriginalRulesModel&)=delete;
     OriginalRulesModel(OriginalRulesModel&&)=delete;
@@ -31,13 +36,14 @@ public:
     [[nodiscard]] bool supports_building(ModelBuilding building) const noexcept;
 
 private:
-    OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production);
+    OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture=false);
     const ModelProvenance provenance_;
     const Difficulty difficulty_;
     const HouseEvolutionRules house_rules_;
     const std::array<BuildingRow,7> building_rows_;
     const bool production_prepared_;
     const std::array<BuildingRow,24> production_rows_;
+    const std::optional<BuildingRow> culture_row_;
 };
 
 } // namespace openemperor::original

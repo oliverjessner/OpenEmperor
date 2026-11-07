@@ -61,6 +61,7 @@ std::string_view model_label(ModelBuilding building) {
     case ModelBuilding::TeaBush: return "Tea Bush";
     case ModelBuilding::LacquerTree: return "Lacquer Tree";
     case ModelBuilding::MulberryTree: return "Mulberry Tree";
+    case ModelBuilding::TheatrePavilion: return "Theatre Pavilion";
     case ModelBuilding::ClayPit: return "Clay Pit";
     case ModelBuilding::Kiln: return "Kiln";
     case ModelBuilding::Warehouse: return "Warehouse";
