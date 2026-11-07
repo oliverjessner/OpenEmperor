@@ -257,6 +257,49 @@ class ProjectLicenseProvenance(unittest.TestCase):
                 package.project_license_report(self.root)
         self.assertEqual(target.read_bytes(), b"protected authored target\n")
 
+    def test_license_provenance_without_posix_nofollow_preserves_binary_bytes(self):
+        payload = b"Independently authored notice\r\nExact bytes\r\n"
+        (self.root / "LICENSE").write_bytes(payload)
+        with mock.patch.object(package.os, "O_NOFOLLOW", 0, create=True):
+            del package.os.O_NOFOLLOW
+            result = package.project_license_report(self.root)
+        self.assertEqual(result["project_license_provenance"]["sha256"],
+                         hashlib.sha256(payload).hexdigest())
+        self.assertEqual(result["project_license_provenance"]["bytes"], len(payload))
+
+    def test_opened_identity_mismatch_is_refused_before_read_without_nofollow(self):
+        path = self.root / "LICENSE"
+        path.write_bytes(b"original authored notice\n")
+        other = self.root / "other"
+        other.write_bytes(b"different authored file\n")
+        original_open = package.os.open
+        original_fdopen = package.os.fdopen
+
+        class NoContentRead:
+            def __init__(self, descriptor, mode):
+                self.stream = original_fdopen(descriptor, mode)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                self.stream.close()
+
+            def fileno(self):
+                return self.stream.fileno()
+
+            def read(self, *_):
+                raise AssertionError("conflicting file content must not be read")
+
+        with mock.patch.object(package.os, "O_NOFOLLOW", 0, create=True), \
+             mock.patch.object(package.os, "open", side_effect=lambda _path, flags: original_open(other, flags)), \
+             mock.patch.object(package.os, "fdopen", side_effect=NoContentRead) as fdopen:
+            del package.os.O_NOFOLLOW
+            with self.assertRaisesRegex(ValueError, "changed during"):
+                package.project_license_report(self.root)
+        self.assertEqual(fdopen.call_count, 1)
+        self.assertEqual(path.read_bytes(), b"original authored notice\n")
+
     def test_nonregular_or_oversized_license_is_refused_before_open(self):
         path = self.root / "LICENSE"
         path.mkdir()

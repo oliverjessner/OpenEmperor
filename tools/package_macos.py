@@ -172,8 +172,11 @@ def project_license_report(root=ROOT):
                 "project_license_provenance": provenance}
     if not stat.S_ISREG(status.st_mode) or status.st_size > PROJECT_LICENSE_LIMIT:
         raise ValueError("project LICENSE must be a bounded regular file")
-    # Refuse a last-component link even if it appears after checked_path.
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    # POSIX refuses a last-component link at open. On platforms without that
+    # flag, the identity check below still precedes every content read. Binary
+    # mode preserves exact notice bytes on Windows as well as POSIX.
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+    descriptor = os.open(path, flags)
     with os.fdopen(descriptor, "rb") as stream:
         opened = os.fstat(stream.fileno())
         if (not stat.S_ISREG(opened.st_mode) or opened.st_size > PROJECT_LICENSE_LIMIT or
