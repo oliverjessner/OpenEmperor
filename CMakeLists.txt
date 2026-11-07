@@ -639,6 +639,8 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-original-menu-session-tests PRIVATE
         openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
     openemperor_enable_warnings(openemperor-original-menu-session-tests)
+    add_test(NAME original-player-mode-menu COMMAND openemperor-original-menu-session-tests --player-mode-menu)
+    set_tests_properties(original-player-mode-menu PROPERTIES TIMEOUT 120)
     add_test(NAME original-menu-session-flow COMMAND openemperor-original-menu-session-tests --core-menu)
     set_tests_properties(original-menu-session-flow PROPERTIES TIMEOUT 120)
     add_test(NAME original-menu-successor-flow COMMAND openemperor-original-menu-session-tests --legacy-successor-menu)
@@ -1192,6 +1194,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME original-player-mode-restart COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_player_mode_restart.py
+            $<TARGET_FILE:openemperor-original-menu-session-tests>)
+        set_tests_properties(original-player-mode-restart PROPERTIES TIMEOUT 120
+            ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME macos-acceptance-harness COMMAND ${Python3_EXECUTABLE} -m unittest discover
             -s ${CMAKE_SOURCE_DIR}/tests -p test_macos_acceptance_harness.py)
         set_tests_properties(macos-acceptance-harness PROPERTIES TIMEOUT 30

@@ -117,7 +117,7 @@ int run_menu_check(int argc, char* argv[]) {
                 require(menu.state()==Menu::State::DataSetup,"fresh menu did not show data setup");
             } else if (controls_load) {
                 require(menu.state()==Menu::State::MainMenu,"control-load menu did not initialize");
-                click(menu,90,310); click(menu,90,560); frame(menu);
+                key(menu,SDLK_L); click(menu,90,560); frame(menu);
                 require(menu.state()==Menu::State::Playing && menu.sandbox() && menu.sandbox()->paused(),
                         "saved City-v11 control state did not load after process restart");
                 const auto& world=menu.sandbox()->world();
@@ -138,7 +138,7 @@ int run_menu_check(int argc, char* argv[]) {
                     {"loaded",loaded},{"resumed_progress",world.building(farm).progress}}.dump()<<'\n';
             } else {
                 require(menu.state()==Menu::State::MainMenu,"data menu did not initialize");
-                click(menu,90,220); click(menu,90,650); frame(menu);
+                key(menu,SDLK_N); click(menu,90,650); frame(menu);
                 require(menu.state()==Menu::State::Playing && menu.sandbox(),"sandbox did not open");
                 if (city) {
                     const auto& world=menu.sandbox()->world();
