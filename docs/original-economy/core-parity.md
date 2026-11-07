@@ -300,6 +300,16 @@ source/archive/input preservation check are under
 and ABI compatibility evidence; it does not establish original traders,
 trade prices/offers, boundary admission or Rule21 paid gameplay parity.
 
+Rule22 preserves these historical calls and enum values. Its explicitly optional
+culture DTO and separately prepared Theatre75 model capability change the
+World, production and model ABI; `OriginalCultureState.h` therefore has its own
+exact reviewed pin. Historical seven/24-row model preparation remains separate.
+Fresh matching probes retain the same74 vectors, eighteen HousingView values
+and real-model digest; only nine reviewed current-source fingerprints change.
+This checks the historical numerical/ABI boundary. Performer admission,
+training, movement, venue durations and paid gameplay have separate acceptance;
+these vectors establish no Original entertainment or religion parity.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the
