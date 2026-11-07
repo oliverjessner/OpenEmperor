@@ -1,5 +1,10 @@
 # Human input checklist
 
+The current end-to-end human handoff is the
+[OE50 checklist](qa/oe50-human-checklist.md), including direct CMake/app launch,
+isolated save copies, paid Rule18 play and restart. Its human rows remain
+**NOT_RUN**. The checks below retain the focused historical input contract.
+
 Build the current source and launch an isolated test session:
 
 ```sh

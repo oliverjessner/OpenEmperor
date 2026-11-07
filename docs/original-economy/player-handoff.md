@@ -4,6 +4,10 @@ Die optionale Originalwirtschaft bietet bezahlte Gebäude, Produktion, echte
 Kurierlieferungen und Hausentwicklung. Sie ist ein spielbarer Entwicklungsstand;
 vollständige Originalspiel- und Grafikparität fehlen noch.
 
+Die [OE50-Checkliste](../qa/oe50-human-checklist.md) führt durch eine isolierte
+menschliche Spielsitzung mit echtem Ausbau, Lieferankünften und vollständigem
+Neustart. Alle menschlichen Abnahmepunkte bleiben bis zur Beobachtung NOT_RUN.
+
 ## Start und Ausbau
 
 Nach dem [Build](../../README.md) mit der eigenen Emperor-Installation starten:
