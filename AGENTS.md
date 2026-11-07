@@ -87,6 +87,14 @@
   historical neutral Well72 path remains exact. Recommended play remains Rule18;
   Rule19 requires its own menu/CLI/create/restore path. Rules1–18/schemas1–34
   do not migrate. See [OE51 demolition](docs/gameplay/oe51-demolition.md).
+- Authored source-cell ramps are a separate explicit rule20/policy3/schema36
+  contract with marker `authored-source-cell-ramps-v1`. Inherit classic Rule6
+  economy and five-tick edges, not Original Rules7–19. Preserve old RampLinks
+  and combine both ramp collections under64. World owns three exclusive axial
+  claims, paid40 construction, shared flat/slope/flat surface, begun-edge safety
+  and exact source-bound restore. Native raw ramps remain refused; original
+  sprites233–244 stay isolated. No removal/refund, automatic migration or new
+  source-admission exemption. See [OE53](docs/rendering/oe53-terrain-integration.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

@@ -22,6 +22,11 @@ parity remains partial; see [the play guide](player-handoff.md) and [Known Issue
 | Rule18 / schema34 / revision27 | Separate authored deadline-aware Market-to-House Food selection; inherits Rule17's services, fire and economy. Physical stock, real incoming cargo and prepared route timing determine urgency; production, Farm-to-Market selection and all bounds remain unchanged. |
 | Rule19 / schema35 / revision27 | Explicit authored safe demolition of never-occupied Common2x2 Houses and paused, physically settled Clay Sources. Inherits Rule18; bounded retirement provenance retains paid identities, extraction, latest completed Clay trip and closed installed upkeep. No refund, migration or budget increase. |
 
+The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
+uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy
+state or revision27 inheritance. It retains unchanged policy3, old RampLinks
+and BridgeSpans, while native raw ramp admission remains refused.
+
 Rules1–14 and schemas1–30 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
 saves into Original economy. Bridge/Ramp infrastructure retains its existing contracts.
@@ -183,8 +188,10 @@ thirteen occupied Houses complete5200/5200 current evaluations. Five House fires
 2915 burning ticks remain, including individual fire regressions. This meets
 the finite intermediate goal, not full city stability or original parity.
 Its naturally later entry also changes the observation calendar;27 pre-window
-Food misses remain recorded. Rule19/schema35 stays unallocated and Rules1–18/
-schemas1–34, all defaults, prices, timers, limits and physical authority stay exact.
+Food misses remain recorded. Rule19/schema35 was unallocated during that OE48
+assessment; it is now the separate demolition contract above. The OE48 player
+plan itself preserves Rules1–18/schemas1–34, defaults, prices, timers, limits
+and physical authority.
 
 `ModelData` reads the selected installation's `Model/EmperorBuildingModels.txt`
 within its canonical root: regular file, at most 256 KiB, lines at most 4096 bytes,

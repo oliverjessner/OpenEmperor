@@ -1,5 +1,9 @@
 # Original ramp sprites: playable source-cell prototype
 
+The separate [OE53 authored source-cell experiment](oe53-terrain-integration.md)
+uses explicit Rule20/policy3/schema36. It retains historical RampLink/Bridge
+contracts and keeps native233–244 prototype art and raw-ramp permissions separate.
+
 This isolated SDL experiment draws original Elevation records **233–244**
 directly. It has its own small terrain, roads, editing tools and walking figure.
 It does not use the procedural RampRenderer or start a production city. The

@@ -1,5 +1,18 @@
 # Original height transitions and authored Ramp V1
 
+[OE53](../rendering/oe53-terrain-integration.md) adds a separate authored
+Rule20/policy3/schema36 source-cell surface. A fresh unchanged four-map census
+(Anyi, Banpo, Badaling, Xia) prepares all four and finds zero permitted
+differing-height normal-land pairs. The21 ordinary earth plus three separate
+Badaling stair references remain refused. Original native ramp admission,
+Rule6/schema22 and the historical167-map census below are unchanged.
+
+A fresh bounded read of pinned EXE table rows67–70 confirms that the opposite
+cardinal is pattern3 (wildcard under the existing selector decoding contract);
+laterals are0, high cardinal1, high-facing diagonals4. Equal opposite height is
+an extra authored/prototype low-join restriction, not an EXE requirement.
+No new normalization or movement phase has been reconstructed.
+
 The later [original ramp asset audit](../rendering/original-ramp-asset-audit.md)
 verifies the original Elevation233–236 ramp family and road-dependent237–244
 selectors. It does not add legal normal-land pairs, original traversal or a new

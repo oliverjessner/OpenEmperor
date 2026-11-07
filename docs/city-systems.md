@@ -158,6 +158,11 @@ and other production/service kinds remain refused. The ordinary resident-removal
 and reference-clearing rules above do not apply to this new original-economy
 slice. See [OE51 demolition](gameplay/oe51-demolition.md).
 
+The separate authored Rule20/schema36 terrain experiment inherits classic
+Rule6 city systems and its historical demolition contract. It has no Original
+economy or Rule19 retirement journal; new permanent source-cell ramp claims
+remain protected even after a road cut. See [OE53](rendering/oe53-terrain-integration.md).
+
 ## Fire
 
 From City-v12, eligible unprotected non-burning buildings gain one risk every

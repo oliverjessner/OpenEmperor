@@ -105,6 +105,13 @@ Occupied/previously admitted Houses, Elite bodies and other production/service
 classes remain refused. Recommended play stays Rule18, and old saves never
 migrate. See the [OE51 contract](gameplay/oe51-demolition.md).
 
+The separate **Source-cell ramps (rule20)** City-v16 setup uses schema36,
+unchanged policy3 and marker `authored-source-cell-ramps-v1`. It inherits classic
+Rule6 economy and five-tick edges, not Original Rules7–19. A paid40 source-cell
+surface owns three axial roads and shares the existing World navigator; the
+combined ramp limit stays64. Native raw ramps remain refused. See the
+[OE53 authored contract](rendering/oe53-terrain-integration.md).
+
 ## Legacy profiles and save compatibility
 
 These profiles remain selectable/readable for compatibility; their milestone
@@ -145,6 +152,7 @@ removal gives no refund; rejected/unchanged commands spend nothing.
 | City-v16 rule 17 | 33 | 12000 | Authored deadline-aware service selection; exact marker, inherited Rule16 fire/economy and unchanged workers, models, costs, bounds and timers | Rule10 goal |
 | City-v16 rule 18 | 34 | 12000 | Authored deadline-aware Market-to-House Food selection; exact marker, inherited Rule17 services/fire/economy and unchanged production, transport, consumption and limits | Rule10 goal |
 | City-v16 rule 19 | 35 | 12000 | Authored bounded retirement of never-occupied Common2x2 Houses and physically drained paused Clay Sources; Rule18 economy, no refund, fresh paid rebuild identity | Rule10 goal |
+| City-v16 rule 20 | 36 | 1300 | Authored source-cell ramps40; classic Rule6 economy/Bridge/Ramp behavior, unchanged policy3 | City-v13 goal |
 
 Schemas 1–9 keep their historical fixed collection/one-cell semantics. City-v7
 has ten building/six courier entries; City-v8/v9 have eleven/seven. City-v6–8

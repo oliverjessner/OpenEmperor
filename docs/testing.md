@@ -44,6 +44,19 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Authored source-cell ramps (OE53)
+
+Run `source-cell-ramp-world`, `source-cell-ramp-save`, `source-cell-ramp-menu`,
+`source-cell-ramp-rendering` and `source-cell-ramp-view` beside the full suite.
+The World/Save tests use paid authored inputs; the actual SandboxView test
+prepares four signed/oriented original-format authored maps and reserves a new
+private `.local/oe53/view-*` directory. It writes36 software PNGs through an
+owned RGBA target before Present. Open those captures; synthetic pixel checks
+and SDL events do not establish native or human acceptance. The Save test
+provides separate `--create OUTPUT [TICKS]` and `--restore INPUT OUTPUT [TICKS]` modes
+under fresh `.local/oe53/` paths for full-document continuation comparisons.
+See the [OE53 contract](rendering/oe53-terrain-integration.md).
+
 ## Original building visuals (OE52)
 
 `original-building-visual-profile` checks authored inputs, atomic source/metadata

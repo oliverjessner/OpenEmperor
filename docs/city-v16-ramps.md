@@ -1,5 +1,9 @@
 # City-v16 Ramps V1
 
+The separate [OE53 authored source-cell experiment](rendering/oe53-terrain-integration.md)
+uses explicit Rule20/policy3/schema36. It retains historical RampLink/Bridge
+contracts and keeps native233–244 prototype art and raw-ramp permissions separate.
+
 Explicit **rule 6 / unchanged MapPermissions policy 3 / schema 22**, starting from
 clean `bd0a8e856b21f4229acea011d3805c1d95a67206`. New City-v16 defaults remain rule4;
 Bridge saves remain rule5/schema21, without migration. Rule6 inherits every existing
