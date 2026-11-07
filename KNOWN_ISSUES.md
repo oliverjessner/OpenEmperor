@@ -144,10 +144,15 @@ complete original-game compatibility.
   Automatic visual profiles recognise only the pinned GOG-derived asset revision.
 - **Manual acceptance remains open.** Native pointer/focus/resize behavior,
   external displays, original-map visuals and sustained human play still need
-  acceptance. Automated checks do not establish these results.
+  acceptance. The [OE50 assessment](docs/qa/oe50-native-playtest.md) keeps
+  **HUMAN_NOT_RUN** as a release blocker; automated checks do not establish these
+  results.
 - **macOS distribution is local development only.** The app is ad-hoc signed,
   without Developer ID signing or notarization. Independent clean-Mac and
-  Finder/Gatekeeper acceptance remain unverified.
+  Finder/Gatekeeper acceptance remain unverified. The current OE50 dependencies
+  require explicitly selecting `--min-os 27.0`; the packaging default remains
+  `26.0`, and verification still refuses dependencies newer than the selected
+  minimum.
 
 The [original-economy player guide](docs/original-economy/player-handoff.md)
 explains the current starter. [Documentation](docs/README.md) links to the
