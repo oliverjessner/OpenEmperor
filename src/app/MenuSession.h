@@ -44,6 +44,7 @@ public:
     bool original_cardinal_water_setup() const { return original_rule_version_==simulation::kOriginalCardinalWaterRuleVersion; }
     bool original_deadline_service_dispatch_setup() const { return original_rule_version_==simulation::kOriginalDeadlineServiceDispatchRuleVersion; }
     bool original_deadline_food_dispatch_setup() const { return original_rule_version_==simulation::kOriginalDeadlineFoodDispatchRuleVersion; }
+    bool original_safe_demolition_setup() const { return original_rule_version_==simulation::kOriginalSafeDemolitionRuleVersion; }
     bool original_deadline_fire_dispatch_setup() const { return original_rule_version_==simulation::kOriginalDeadlineFireDispatchRuleVersion; }
     bool original_inspector_coordination_setup() const { return original_rule_version_==simulation::kOriginalInspectorCoordinationRuleVersion; }
     bool original_market_logistics_setup() const { return original_rule_version_==simulation::kOriginalMarketLogisticsRuleVersion; }

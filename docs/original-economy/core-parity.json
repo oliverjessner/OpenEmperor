@@ -3656,11 +3656,12 @@
       "src/simulation/OriginalHousingState.h": "58e03de45c6bf574d3cd0cdba1e838af48957f2cf32df798117624e744a84af2",
       "src/simulation/OriginalIndustryState.h": "282b7154633b2426ca8fd36387692d148d8699a44b08fa3a5c11c0ac5e8f6db1",
       "src/simulation/OriginalInfluenceState.h": "f39b5d4f20ce2132497482b66c2b918e8535d1a12314f14fdca48406cbf1a3b3",
-      "src/simulation/OriginalProductionState.h": "501984abe04bbb19a6b2b27ecb94a75dd2b477f61a2cb40a682eb3b4413590da",
+      "src/simulation/OriginalProductionState.h": "edc5cab00c5c4e738b1f91e35d3df4617c2c0f400376ac936014ea33512e6978",
+      "src/simulation/OriginalSafeDemolitionState.h": "a3b7013ce02f43417cbca4b618a8dc525c965223fc3a8232edc206b9f926e10d",
       "src/simulation/OriginalServicesState.h": "6ac069b45c1a2b88d521e5fc890ba780bbbc804f82699d8f218fa3b38f64d836",
       "src/simulation/OriginalTerrainFacts.h": "c559df20475eaf01a4e518806c4d66dbf084c2ec5a082fe52b2d5f96cb08fb07",
       "src/simulation/OriginalWaterState.h": "10f3b78644b432087fc4700c570e8b90ac82a7e3e2668fd52ea9d16ee152e914",
-      "src/simulation/World.h": "c37e949ed97620b79d85f8d40244dc8f102e2f71f8fc0af1237fa7fb30054321",
+      "src/simulation/World.h": "6dec2dfe8c188a03e22a2dcb9d26e7df85e0f1eee0a8f35c2bcc675372d7dfd5",
       "src/simulation/original/Desirability.cpp": "129b12fd5f009e3eeec33a1ab8ea80e5c79c0124c4fa8c7cf82cfa85d454e3fb",
       "src/simulation/original/Desirability.h": "781bd661e12bf14f6cfc49d1c9089654a2f517e4cf85044ddc10b120135f9eb7",
       "src/simulation/original/GoodsRules.cpp": "e937e825796dd921fa804779fc543c9c4a9fb88c43a5f2d37ba5cd01d0111f63",
@@ -3679,7 +3680,7 @@
       "src/simulation/original/ServiceRules.h": "4152e969bb95d5ba28f2400beef4032f8a3026ca225aed364deb0f7da805d944",
       "tools/original-rules-parity/HousingViewProbe.cpp": "d3efec7c21c7b361f96aa245c0a4929e48f3bebd0b51e02bed6be838ddc69d80",
       "tools/original-rules-parity/RuleProbe.cpp": "70f8e715f7be03d6c2ae4ec04afc5b69f13e90b05ba82174066ac208e8c8caa2",
-      "tools/original_rules_parity.py": "2b515452a62dc46f83957f3b81d53c833f6e4ba6428b7204017c458e73303646"
+      "tools/original_rules_parity.py": "35cdaab038b808569199fae93c0f7fc3a859b7fcb5c22e1db9443d31a441c505"
     }
   },
   "fork": {

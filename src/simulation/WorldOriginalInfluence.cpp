@@ -194,7 +194,9 @@ CommandResult World::validate_original_influence_command(Command command) const 
         if (!source_type_valid(command.source_type)) return reject("Unsupported original influence source type");
         if (original_influence_->sources.size()>=original_influence_source_limit)
             return reject("Original influence source limit reached");
-        if (original_production_enabled() && buildings_.size()>=Rules::original_production_building_limit)
+        const auto retired=original_safe_demolition_enabled() && original_production_ &&
+            original_production_->safe_demolition ? original_production_->safe_demolition->retired.size():0;
+        if (original_production_enabled() && buildings_.size()+retired>=Rules::original_production_building_limit)
             return reject("Original production building collection limit reached");
         if (treasury_<original_influence_source_cost) return reject("Not enough money");
         if (original_production_enabled() && construction_spent_total_>UINT64_MAX-static_cast<std::uint64_t>(original_influence_source_cost))

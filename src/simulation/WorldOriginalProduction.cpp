@@ -15,6 +15,93 @@ namespace {
 constexpr auto ceramics=static_cast<std::size_t>(original::Goods::Ceramics);
 [[noreturn]] void invalid(const char* message) {throw std::invalid_argument(message);}
 using GoodsContext=original_industry_goods::Context;
+std::uint64_t retired_spending(const OriginalProductionState& state) {
+    std::uint64_t result=0;
+    if (state.safe_demolition) for (const auto& entry:state.safe_demolition->retired)
+        result+=static_cast<std::uint64_t>(entry.kind==OriginalRetiredKind::ClaySource ?
+            Rules::clay_source_cost:Rules::household_cost);
+    return result;
+}
+// Called only for Rule19 after complete purchase, bounds and Housing witness
+// validation. Historical roads have no per-cell placement clock; they are not
+// guessed here. New retirement rows must agree with every retained purchase.
+void validate_retired_purchase_lifetimes(const WorldSnapshot& s) {
+    const auto& production=*s.original_production;
+    const auto& retired=production.safe_demolition->retired;
+    if (s.bridges.size()>bridge_max_spans || s.ramps.size()>ramp_max_links)
+        invalid("Rule19 retired geometry exceeds existing infrastructure bounds");
+    const auto overlaps=[](Cell a,BuildingFootprint as,Cell b,BuildingFootprint bs) {
+        const auto ax=static_cast<std::int64_t>(a.x),ay=static_cast<std::int64_t>(a.y);
+        const auto bx=static_cast<std::int64_t>(b.x),by=static_cast<std::int64_t>(b.y);
+        return ax<bx+bs.width && bx<ax+as.width && ay<by+bs.height && by<ay+as.height;
+    };
+    const auto chronological=[](BuildingId a,std::uint64_t placed_a,BuildingId b,std::uint64_t placed_b) {
+        if (a<b ? placed_a>placed_b:placed_b>placed_a)
+            invalid("Rule19 retired purchase contradicts monotone paid placement order");
+    };
+    const BuildingFootprint closed{2,2};
+    for (std::size_t i=0;i<retired.size();++i) {
+        const auto& entry=retired[i];const Cell origin{entry.origin_x,entry.origin_y};
+        for (std::size_t j=0;j<i;++j) {
+            const auto& earlier=retired[j];
+            chronological(earlier.building_id,earlier.placed_tick,entry.building_id,entry.placed_tick);
+            if (overlaps(origin,closed,{earlier.origin_x,earlier.origin_y},closed) && earlier.removed_tick>entry.placed_tick)
+                invalid("Rule19 retired purchase footprints overlap during their paid lifetimes");
+        }
+        for (const auto& body:s.buildings) {
+            chronological(entry.building_id,entry.placed_tick,body.id,body.placed_tick);
+            const auto current=building_footprint(s.profile,s.rule_version,body.kind);
+            const auto initial=body.kind==Object::OriginalEliteHouse ?
+                building_footprint(s.profile,s.rule_version,Object::OriginalElitePlot):current;
+            if (overlaps(origin,closed,body.cell,initial) &&
+                (body.id<entry.building_id || entry.removed_tick>body.placed_tick))
+                invalid("Rule19 retired purchase overlaps a live paid purchase lifetime");
+            if (body.kind!=Object::OriginalEliteHouse || !overlaps(origin,closed,body.cell,current)) continue;
+            const auto& houses=production.housing.houses;
+            const auto house=std::lower_bound(houses.begin(),houses.end(),body.id,
+                [](const auto& row,BuildingId id){return row.building_id<id;});
+            if (house==houses.end() || house->building_id!=body.id || !house->first_admission_tick)
+                invalid("Rule19 retired geometry requires the actual Elite materialization witness");
+            // The plot owned its initial2x2 from purchase, but only acquired
+            // the extension during first admission. Commands at that tick run
+            // after materialization, so removal must be strictly earlier.
+            for (int y=0;y<current.height;++y) for (int x=0;x<current.width;++x) {
+                if (x<initial.width && y<initial.height) continue;
+                const Cell cell{body.cell.x+x,body.cell.y+y};
+                if (overlaps(origin,closed,cell,{1,1}) && entry.removed_tick>=*house->first_admission_tick)
+                    invalid("Rule19 retirement overlaps an already materialized Elite extension");
+            }
+        }
+        for (const auto& source:s.original_influence->removed_sources) {
+            chronological(entry.building_id,entry.placed_tick,source.building_id,source.placed_tick);
+            const auto& origins=production.housing.neutral_source_origins;
+            const auto source_origin=std::lower_bound(origins.begin(),origins.end(),source.building_id,
+                [](const auto& row,BuildingId id){return row.building_id<id;});
+            if (source_origin==origins.end() || source_origin->building_id!=source.building_id)
+                invalid("Rule19 retired geometry requires the retained neutral source origin");
+            const bool separated=entry.building_id<source.building_id ?
+                entry.removed_tick<=source.placed_tick:source.removed_tick<=entry.placed_tick;
+            if (overlaps(origin,closed,source_origin->origin,closed) && !separated)
+                invalid("Rule19 retired purchase overlaps a closed neutral source lifetime");
+        }
+        // Bridge banks/decks and Ramp endpoints remain reserved after purchase
+        // even if a land road is later disconnected. Their independent IDs do
+        // not order Building commands within a tick; equality permits a real
+        // removal followed by paid infrastructure construction that same tick.
+        for (const auto& bridge:s.bridges) {
+            if (bridge.water_cells.size()>bridge_max_water_cells)
+                invalid("Rule19 retired geometry exceeds the existing Bridge span bound");
+            bool touching=overlaps(origin,closed,bridge.bank_a,{1,1}) || overlaps(origin,closed,bridge.bank_b,{1,1});
+            for (const auto cell:bridge.water_cells) touching|=overlaps(origin,closed,cell,{1,1});
+            if (touching && entry.removed_tick>bridge.placed_tick)
+                invalid("Rule19 retired purchase overlaps a permanent Bridge lifetime");
+        }
+        for (const auto& ramp:s.ramps)
+            if ((overlaps(origin,closed,ramp.endpoint_a,{1,1}) || overlaps(origin,closed,ramp.endpoint_b,{1,1})) &&
+                entry.removed_tick>ramp.placed_tick)
+                invalid("Rule19 retired purchase overlaps a permanent Ramp lifetime");
+    }
+}
 std::uint64_t paid_cost(Object kind) {
     switch (kind) {
     case Object::Household:
@@ -305,6 +392,38 @@ World World::restore_original_deadline_food_dispatch(const WorldSnapshot& snapsh
     world.validate_original_services_model();world.validate_original_water_model();world.validate_original_housing_model();world.validate_original_industry_model();
     world.validate_original_finance_model();return world;
 }
+World World::create_original_safe_demolition(std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,
+    std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    auto world=create_original_deadline_food_dispatch(std::move(permissions),std::move(model),std::move(terrain));
+    world.rule_version_=kOriginalSafeDemolitionRuleVersion;
+    world.original_production_->safe_demolition.emplace();
+    return world;
+}
+World World::restore_original_safe_demolition(const WorldSnapshot& snapshot,
+    std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,
+    std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    if (!simulation::original_safe_demolition_enabled(snapshot.profile,snapshot.rule_version) ||
+        !permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain)
+        invalid("original safe demolition restore requires exact rule19, policy3, model and terrain facts");
+    const auto capacity=model->house_rules().row_capacity(original::ModelHouse::Shelter);
+    if (capacity<=0 || capacity>INT16_MAX) invalid("invalid original safe demolition Shelter capacity");
+    validate_original_production_snapshot(snapshot);
+    for (const auto& entry:snapshot.original_production->safe_demolition->retired) {
+        const auto kind=entry.kind==OriginalRetiredKind::ClaySource ? Object::ClaySource:Object::Household;
+        if (original_house_kind(kind) && !terrain->supports_cardinal_footprint(
+            {entry.origin_x,entry.origin_y},building_footprint(snapshot.profile,snapshot.rule_version,kind).width))
+            invalid("retired original House cardinal perimeter exceeds its bound original terrain");
+        for (const auto cell:building_footprint_cells(snapshot.profile,snapshot.rule_version,kind,{entry.origin_x,entry.origin_y}))
+            if (!permissions->building_allowed(cell) || permissions->protected_original(cell))
+                invalid("retired original purchase lacks source-bound building permission");
+    }
+    auto world=restore_impl(snapshot,{},std::move(permissions),true,std::move(model),std::move(terrain));
+    world.validate_original_hemp_model();world.validate_original_food_model();world.validate_original_consumption_model();
+    world.validate_original_services_model();world.validate_original_water_model();world.validate_original_housing_model();world.validate_original_industry_model();
+    world.validate_original_finance_model();return world;
+}
 World World::restore_original_fire_protection(const WorldSnapshot& snapshot,
     std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model) {
@@ -373,6 +492,14 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         !s.original_economy || !s.original_economy->model_source || !s.original_influence || !s.original_goods ||
         s.width<1 || s.height<1 || s.width>228 || s.height>228)
         invalid("invalid original production development revision or required authority");
+    const bool safe=simulation::original_safe_demolition_enabled(s.profile,s.rule_version);
+    if (static_cast<bool>(s.original_production->safe_demolition)!=safe)
+        invalid("safe demolition journal requires exact Rule19 and is mandatory there");
+    const auto* retired=safe ? &s.original_production->safe_demolition->retired:nullptr;
+    const auto retired_count=retired ? retired->size():0;
+    if (retired_count>original_safe_demolition_retired_limit ||
+        (safe && s.buildings.size()+retired_count>Rules::original_production_building_limit))
+        invalid("safe demolition exceeds its bounded lifetime purchase authority");
     const auto& source=*s.original_economy->model_source;
     if (source.format_version!=1 || source.sha256.size()!=64 || !source.byte_count ||
         source.byte_count>original::max_model_bytes || static_cast<std::size_t>(source.difficulty)>=original::difficulty_count ||
@@ -396,10 +523,41 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
             invalid("original production purchase identities must be disjoint and contiguous");
         seen[value]=true;
     };
+    std::size_t retired_couriers=0;
+    if (retired) for (std::size_t i=0;i<retired->size();++i) {
+        const auto& entry=(*retired)[i];mark(entry.building_id);
+        if ((i && !((*retired)[i-1].building_id<entry.building_id)) ||
+            (entry.kind!=OriginalRetiredKind::EmptyHouse && entry.kind!=OriginalRetiredKind::ClaySource) ||
+            entry.placed_tick>entry.removed_tick || entry.removed_tick>s.ticks)
+            invalid("invalid sorted retired purchase identity or lifetime");
+        const auto kind=entry.kind==OriginalRetiredKind::ClaySource ? Object::ClaySource:Object::Household;
+        const auto size=building_footprint(s.profile,s.rule_version,kind);
+        if (entry.origin_x<0 || entry.origin_y<0 || entry.origin_x>s.width-size.width || entry.origin_y>s.height-size.height)
+            invalid("retired purchase footprint outside saved grid");
+        if (entry.kind==OriginalRetiredKind::EmptyHouse) {
+            if (entry.courier_id || entry.clay_trip || entry.clay_extracted)
+                invalid("retired empty House contains unsupported production authority");
+        } else {
+            if (!entry.courier_id || entry.clay_extracted>(entry.removed_tick-entry.placed_tick)/32 ||
+                static_cast<bool>(entry.clay_trip)!=(entry.clay_extracted!=0))
+                invalid("retired Clay source lacks its bounded settled production history");
+            const auto active_before=std::count_if(s.couriers.begin(),s.couriers.end(),[&](const auto& actor){
+                return actor.owner<entry.building_id;
+            });
+            if (static_cast<std::uint32_t>(*entry.courier_id)!=static_cast<std::uint32_t>(active_before)+retired_couriers+1)
+                invalid("retired Clay courier differs from paid purchase order");
+            ++retired_couriers;
+        }
+    }
+    if (safe && s.couriers.size()+retired_couriers>Rules::original_production_courier_limit)
+        invalid("safe demolition exceeds the existing lifetime courier budget");
     std::size_t house_index=0,warehouse_index=0,influence_index=0,courier_index=0;
     std::uint64_t residents=0;
     for (std::size_t i=0;i<s.buildings.size();++i) {
         const auto& b=s.buildings[i];mark(b.id);
+        const auto retired_before=retired ? static_cast<std::size_t>(std::count_if(retired->begin(),retired->end(),[&](const auto& entry){
+            return entry.kind==OriginalRetiredKind::ClaySource && entry.building_id<b.id;
+        })):0;
         if ((i && !(s.buildings[i-1].id<b.id)) || b.placed_tick>s.ticks)
             invalid("original production buildings must be sorted with valid placement time");
         if (b.kind==Object::FireWatch && !simulation::original_fire_protection_enabled(s.profile,s.rule_version))
@@ -432,20 +590,20 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
                 b.kind==Object::ClaySource ? CourierRole::Clay:
                 b.kind==Object::Pottery ? CourierRole::Pottery:b.kind==Object::Market ?
                 CourierRole::MarketPotteryDistribution:CourierRole::MarketPotteryInbound;
-            if (static_cast<std::uint32_t>(c.id)!=courier_index+1 || c.owner!=b.id || c.role!=role)
+            if (static_cast<std::uint32_t>(c.id)!=courier_index+retired_before+1 || c.owner!=b.id || c.role!=role)
                 invalid("original production courier IDs must follow purchased owners");
             ++courier_index;
             if (b.kind==Object::Warehouse) {
                 if (courier_index>=s.couriers.size()) invalid("missing paid Warehouse Aux supplier");
                 const auto& supplier=s.couriers[courier_index];
-                if (static_cast<std::uint32_t>(supplier.id)!=courier_index+1 || supplier.owner!=b.id || supplier.role!=CourierRole::OriginalAuxSupplier)
+                if (static_cast<std::uint32_t>(supplier.id)!=courier_index+retired_before+1 || supplier.owner!=b.id || supplier.role!=CourierRole::OriginalAuxSupplier)
                     invalid("Warehouse Aux supplier must follow the paid Goods courier");
                 ++courier_index;
             }
             if (b.kind==Object::Market) {
                 if (courier_index>=s.couriers.size()) invalid("missing purchased Food Distributor");
                 const auto& food=s.couriers[courier_index];
-                if (static_cast<std::uint32_t>(food.id)!=courier_index+1 || food.owner!=b.id || food.role!=CourierRole::OriginalFoodToHouse)
+                if (static_cast<std::uint32_t>(food.id)!=courier_index+retired_before+1 || food.owner!=b.id || food.role!=CourierRole::OriginalFoodToHouse)
                     invalid("Food Distributor IDs must follow their paid Market");
                 ++courier_index;
             }
@@ -486,7 +644,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
     }
     if (house_index!=s.original_economy->houses.size() || warehouse_index!=s.original_goods->stocks.size() ||
         influence_index!=s.original_influence->sources.size() || residents!=s.original_production->residents_admitted ||
-        courier_index!=s.couriers.size() || s.next_courier_id!=courier_index+1)
+        courier_index!=s.couriers.size() || s.next_courier_id!=courier_index+retired_couriers+1)
         invalid("orphan original production house, stock, source or resident history");
     const auto& removed=s.original_influence->removed_sources;
     for (std::size_t i=0;i<removed.size();++i) {
@@ -495,10 +653,10 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
             entry.placed_tick>entry.removed_tick || entry.removed_tick>s.ticks)
             invalid("invalid original production source removal history");
     }
-    if (s.next_building_id!=s.buildings.size()+removed.size()+1)
+    if (s.next_building_id!=s.buildings.size()+removed.size()+retired_count+1)
         invalid("invalid original production next building identity");
     for (std::uint32_t id=1;id<s.next_building_id;++id) if (!seen[id]) invalid("missing paid original production purchase");
-    const auto spent=spending(s.buildings,s.bridges,s.ramps.size(),s.roads_placed_total,removed.size());
+    const auto spent=spending(s.buildings,s.bridges,s.ramps.size(),s.roads_placed_total,removed.size())+retired_spending(*s.original_production);
     const auto model_priced_count=std::count_if(s.buildings.begin(),s.buildings.end(),[](const auto& body){return model_priced(body.kind).has_value();});
     const auto materialized=static_cast<std::uint64_t>(std::count_if(s.buildings.begin(),s.buildings.end(),
         [](const auto& b){return b.kind==Object::OriginalEliteHouse;}));
@@ -506,13 +664,14 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         (!model_priced_count && spent!=s.construction_spent_total) ||
         !original_finance_accounting_valid(s.treasury,s.taxes_collected_total,s.construction_spent_total,s.maintenance_spent_total) ||
         s.roads_removed_total>s.roads_placed_total || s.roads_placed_total-s.roads_removed_total!=s.roads.size() ||
-        s.road_revision!=s.roads_placed_total+s.roads_removed_total+s.buildings.size()+2*removed.size()+s.bridges.size()+s.ramps.size()+materialized)
+        s.road_revision!=s.roads_placed_total+s.roads_removed_total+s.buildings.size()+2*removed.size()+2*retired_count+s.bridges.size()+s.ramps.size()+materialized)
         invalid("original production finances or placement revision mismatch");
     validate_original_hemp_snapshot(s);
     validate_original_food_snapshot(s);
     validate_original_services_snapshot(s);
     validate_original_water_snapshot(s);
     validate_original_housing_snapshot(s);
+    if (safe) validate_retired_purchase_lifetimes(s);
     validate_original_fire_protection_snapshot(s);
     validate_original_finance_snapshot(s);
     validate_original_industry_snapshot(s);
@@ -553,7 +712,7 @@ bool World::original_production_finance_valid() const {
     if (!original_production_ || !original_influence_ || !original_economy_ || !original_goods_ ||
         !original_rules_model_ || demolition_history_!=DemolitionHistory{}) return false;
     try {
-        const auto spent=spending(buildings_,bridges_,ramps_.size(),roads_placed_total_,original_influence_->removed_sources.size(),original_rules_model_.get());
+        const auto spent=spending(buildings_,bridges_,ramps_.size(),roads_placed_total_,original_influence_->removed_sources.size(),original_rules_model_.get())+retired_spending(*original_production_);
         return construction_spent_total_==spent && original_finance_history_valid();
     } catch (const std::invalid_argument&) {return false;}
 }

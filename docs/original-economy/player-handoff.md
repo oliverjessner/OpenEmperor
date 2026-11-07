@@ -39,7 +39,9 @@ Start/Ladevorgang ersetzt keine bestehende Stadt.
 
 Unter **Advanced / Legacy** bleiben die bisherigen Experimente und Profile
 einzeln wählbar. **O/F/S/M/W/I/D/T/U** und **N** funktionieren weiterhin als
-Hauptmenü-Tastenkürzel. **N New Sandbox** behält den City-v11-Rule3-Standard und
+Hauptmenü-Tastenkürzel. **V Safe demolition economy** ist eine zusätzliche,
+separate Rule19-Auswahl für den unten beschriebenen begrenzten Abriss.
+**N New Sandbox** behält den City-v11-Rule3-Standard und
 die gespeicherte Profilwahl; gewöhnlicher City-v16 bleibt Rule4. Bridge-Rule5
 und Ramp-Rule6 werden dort weiterhin ausdrücklich gewählt. Die Empfehlung
 ändert keine gespeicherten Einstellungen oder alten Spielstände.
@@ -187,12 +189,43 @@ erst beim Spielen. Eine gebaute Quelle erfüllt allein keinen Hausbedarf.
 Der Bauplan braucht eine legale ebene **24×13-Fläche**. Scheitert die Suche,
 eine andere Karte oder **Empty** wählen. Für das Wohnziel sind mindestens
 sechs Häuser nötig; zusätzliche Häuser und Versorgung regulär kaufen.
-Auch pausierte Gebäude kosten Unterhalt. Häuser und Produktionsgebäude sind
-noch nicht abreißbar; Abriss gilt nur für neutrale Well72-Einflussquellen.
+Auch pausierte Gebäude kosten Unterhalt. Häuser und Produktionsgebäude bleiben
+in Rules10–18 nicht abreißbar; dort gilt Abriss nur für die bestehenden neutralen
+Well72-Einflussquellen.
 
 Der [geprüfte Ausbauplan](paid-progression.md) ergänzt zwei Häuser, vier Straßen
 sowie je eine Food-/Hemp-Farm mit Feld für 266 Funds. Er belegt das Wohnziel und
 ein begrenztes Versorgungsfenster; Brände und laufende Verluste bleiben offen.
+
+## Begrenzter Abriss und Wiederaufbau
+
+Für eine **neue** Stadt unter **Advanced / Legacy → V Safe demolition economy**
+ausdrücklich **Rule19 / Schema35 / Policy3** wählen. Der empfohlene Einstieg
+bleibt Rule18; Laden oder F5/F9 wandelt keine ältere Stadt um. Direktstart:
+
+```sh
+./build/openemperor --data /pfad/zur/Emperor-Installation --sandbox Cities/Xia.map --sandbox-rules sandbox-city-v16 --original-safe-demolition
+```
+
+Mit **5 Select** das regulär gekaufte Gebäude wählen. Der Inspector zeigt
+**Demolish** und den tatsächlichen Freigabe- oder Ablehnungsgrund. V1 erlaubt
+nur ein nie bewohntes, vollständig leeres **Common2×2-Haus** sowie eine
+**pausierte ClaySource** ohne Teilproduktion, Vorrat, Reservierung oder laufende
+Fahrt. Bereits gelieferter Clay bleibt am echten Ziel; der eigene Kurier muss
+vollständig heimgekehrt sein. Zusätzliche historische Verweise können den
+Abriss weiterhin verhindern. Ein lediglich pausiertes oder nahe einem anderen
+Gebäude stehendes Objekt ist nicht automatisch leer.
+
+**Demolish → Demolish (Enter)** bestätigt einmalig. **Cancel / Esc**, Fokusverlust
+oder eine Größenänderung brechen ab. Es gibt **keine Rückerstattung**. Auf den
+freigewordenen zulässigen Zellen mit dem normalen Bauwerkzeug neu bauen:
+regulärer Kaufpreis, neue ID, keine geerbten Bewohner oder Waren.
+Bewohnte oder früher bewohnte Häuser, Elite-Plots/4×4-Elites, Lager, Märkte,
+Farmen/Felder und andere Produktion/Dienste bleiben gesperrt. Der gespeicherte
+Abrissnachweis fasst höchstens acht neue Entfernungen; vorhandene Gebäude- und
+Kurierbudgets gelten weiter. Neutrale Well72-Entfernung behält ihren bisherigen
+separaten Vertrag. Details und Abnahmegrenzen:
+[OE51-Abrissvertrag](../gameplay/oe51-demolition.md).
 
 ## Bedienung und Versorgung prüfen
 

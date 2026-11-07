@@ -337,6 +337,15 @@ bool World::original_finance_history_valid() const {
             maintenance=add(maintenance,multiply((ticks_-b.placed_tick)/original_worker_upkeep_interval(),
                 static_cast<std::uint64_t>(original_worker_upkeep(b.id))));
         }
+        if (original_safe_demolition_enabled()) {
+            if (!original_production_->safe_demolition) return false;
+            for (const auto& entry:original_production_->safe_demolition->retired) {
+                if (entry.placed_tick>entry.removed_tick || entry.removed_tick>ticks_) return false;
+                const auto workers=entry.kind==OriginalRetiredKind::ClaySource ? Rules::clay_source_workers:0;
+                maintenance=add(maintenance,multiply((entry.removed_tick-entry.placed_tick)/original_worker_upkeep_interval(),
+                    static_cast<std::uint64_t>(workers)*static_cast<std::uint64_t>(original_worker_upkeep_funds)));
+            }
+        }
         return taxes==taxes_collected_total_ && maintenance==maintenance_spent_total_ &&
             original_finance_accounting_valid(treasury_,taxes_collected_total_,construction_spent_total_,maintenance_spent_total_);
     } catch (const std::invalid_argument&) {return false;}
@@ -471,6 +480,21 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
     if (state.trips.size()>2 || state.arrivals.size()>original_fire_arrival_limit || state.taxes.size()>original_fire_tax_limit)
         invalid("Rule11 fire journal collection bound exceeded");
     if (state.travelled_cells!=fire_path_cells(state)) invalid("Rule11 travelled path counter does not reconcile");
+    const bool safe=simulation::original_safe_demolition_enabled(s.profile,s.rule_version);
+    if (safe) {
+        if (!s.original_production->safe_demolition) invalid("Rule19 fire validation requires its retirement journal");
+        for (const auto& entry:s.original_production->safe_demolition->retired) {
+            if (entry.placed_tick>entry.removed_tick || entry.removed_tick>s.ticks)
+                invalid("Rule19 retired fire clock has an impossible lifetime");
+            // Retired IDs cannot retain an Inspector arrival or trip: every
+            // such endpoint below must still resolve to a live paid body.
+            // Their exact removal-time clock is therefore the natural one.
+            ReplayedFire closed{0,0,0,entry.placed_tick};
+            advance_fire(closed,entry.placed_tick,entry.removed_tick);
+            if (closed.incident>entry.removed_tick)
+                invalid("Rule19 purchase was retired during its actual natural fire");
+        }
+    }
     // Prepare each body's visit timeline once. Queries use a binary search
     // and one arithmetic natural-clock advance, never replay elapsed ticks or
     // scan the whole journal for every tax/dispatch witness.
@@ -498,10 +522,16 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
         auto result=*std::prev(after);advance_fire(result,body.placed_tick,through);return result;
     };
     std::array<const OriginalFireArrival*,Rules::original_production_courier_limit+1> previous{};
+    const auto actor_by_id=[&](CourierId id) -> const CourierSnapshot& {
+        const auto found=std::lower_bound(s.couriers.begin(),s.couriers.end(),id,
+            [](const auto& actor,CourierId key){return actor.id<key;});
+        if (found==s.couriers.end() || found->id!=id) invalid("Rule19 fire witness has an absent live Courier ID");
+        return *found;
+    };
     const auto validate_trip=[&](const OriginalFireTrip& trip,std::uint64_t through,bool complete) {
         const auto actor=static_cast<std::uint32_t>(trip.courier_id);
-        if (!actor || actor>s.couriers.size() || actor>=previous.size()) invalid("Rule11 fire trip has unknown actor");
-        const auto& courier=s.couriers[actor-1];
+        if (!actor || (!safe && actor>s.couriers.size()) || actor>=previous.size()) invalid("Rule11 fire trip has unknown actor");
+        const auto& courier=safe ? actor_by_id(trip.courier_id):s.couriers[actor-1];
         const auto& owner=by_id(s.buildings,trip.owner);const auto& target=by_id(s.buildings,trip.target);
         if (courier.id!=trip.courier_id || courier.role!=CourierRole::FireInspector || courier.owner!=trip.owner ||
             owner.kind!=Object::FireWatch || trip.owner==trip.target || !fire_eligible(target.kind,s.profile,s.rule_version) ||
@@ -551,7 +581,7 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
     }
     for (const auto& trip:state.trips) {
         validate_trip(trip,s.ticks,false);
-        const auto& actor=s.couriers[static_cast<std::uint32_t>(trip.courier_id)-1];
+        const auto& actor=safe ? actor_by_id(trip.courier_id):s.couriers[static_cast<std::uint32_t>(trip.courier_id)-1];
         if (actor.phase!=CourierPhase::ToWarehouse || actor.target!=trip.target || actor.path.empty() ||
             actor.path_vertex>=actor.path.size() || actor.path[actor.path_vertex]!=trip.travelled.back())
             invalid("Rule11 active Inspector witness differs from authoritative path/progress");

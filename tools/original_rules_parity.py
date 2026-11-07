@@ -26,15 +26,17 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
                                    "original-goods-ledger", "original-goods-rules",
                                    "original-service-rules",
                                    "original-house-evolution", "original-model")
-# Reviewed additive Rules13-18 API: the actual fourth-module probe retains its
-# historical HouseholdV3/CityV7 calls. Rule18 adds explicit factories and
-# constexpr predicates, without World/DTO fields or legacy-default changes.
+# Reviewed Rules13-19 API: the actual fourth-module probe retains its
+# historical HouseholdV3/CityV7 calls. Rule19 adds explicit retirement factories,
+# predicates, blockers and an optional production-state journal, mandatory only
+# in that new generation. Historical defaults and probe behavior stay exact.
 # Matching archives are freshly linked; these exact headers do not certify
 # the new rules' gameplay, dispatch or terrain logic.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
-    "World.h": "6a87103cdd211cd0bd16d0e2b6996cd9731a08be",
+    "World.h": "638c9dbc876124d8431a1ef9858814ecb0c72490",
     "OriginalTerrainFacts.h": "1a24ed7cb80a0152560b76d9445c04e5b0829ed5",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",
+    "OriginalSafeDemolitionState.h": "a4f27b05d422d004cc4bfcae49ccc5f67a6c6121",
 }
 # OE-00's independently retrieved, pinned file identities. A mutable local
 # manifest is not trusted as the source of the expected hashes.
@@ -508,7 +510,7 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
         raise ValueError("Original-goods API drift: fourth-module adapter needs a reviewed compatibility contract")
     production_dto = ROOT / "src/simulation/OriginalProductionState.h"
     production_blob = hashlib.sha1(b"blob " + str(production_dto.stat().st_size).encode() + b"\0" + production_dto.read_bytes()).hexdigest()
-    if production_blob != "146b4b79eb65307e0e81d1a39c82a7ed07852cf3":
+    if production_blob != "94789c1146c1e1c583e1a90fc767c7fbc3ebb418":
         raise ValueError("Original-production API drift: fourth-module adapter needs a reviewed compatibility contract")
     food_dto = ROOT / "src/simulation/OriginalFoodState.h"
     food_blob = hashlib.sha1(b"blob " + str(food_dto.stat().st_size).encode() + b"\0" + food_dto.read_bytes()).hexdigest()

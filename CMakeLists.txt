@@ -256,6 +256,7 @@ add_library(openemperor-simulation STATIC
     src/simulation/WorldOriginalInfluence.cpp
     src/simulation/WorldOriginalGoods.cpp
     src/simulation/WorldOriginalProduction.cpp
+    src/simulation/WorldOriginalDemolition.cpp
     src/simulation/WorldOriginalFinance.cpp
     src/simulation/WorldOriginalMarket.cpp
     src/simulation/OriginalMarketPolicy.cpp
@@ -625,6 +626,13 @@ if(BUILD_TESTING)
     list(REMOVE_ITEM original_menu_test_sources tests/MenuSessionTests.cpp)
     add_executable(openemperor-original-menu-session-tests
         tests/OriginalMenuSessionTests.cpp ${original_menu_test_sources})
+    add_executable(openemperor-original-safe-demolition-menu-tests
+        tests/OriginalSafeDemolitionMenuTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-original-safe-demolition-menu-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
+    openemperor_enable_warnings(openemperor-original-safe-demolition-menu-tests)
+    add_test(NAME original-safe-demolition-menu COMMAND openemperor-original-safe-demolition-menu-tests)
+    set_tests_properties(original-safe-demolition-menu PROPERTIES TIMEOUT 120)
     add_executable(openemperor-original-starter-menu-acceptance EXCLUDE_FROM_ALL
         tools/OriginalStarterMenuAcceptance.cpp ${original_menu_test_sources})
     target_link_libraries(openemperor-original-starter-menu-acceptance PRIVATE
@@ -1913,6 +1921,16 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-deadline-food-save-tests)
     add_test(NAME original-deadline-food-save COMMAND openemperor-deadline-food-save-tests)
     set_tests_properties(original-deadline-food-save PROPERTIES TIMEOUT 300)
+    add_executable(openemperor-original-safe-demolition-world-tests tests/OriginalSafeDemolitionWorldTests.cpp)
+    target_link_libraries(openemperor-original-safe-demolition-world-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-original-safe-demolition-world-tests)
+    add_test(NAME original-safe-demolition-world COMMAND openemperor-original-safe-demolition-world-tests)
+    set_tests_properties(original-safe-demolition-world PROPERTIES TIMEOUT 240)
+    add_executable(openemperor-original-safe-demolition-save-tests tests/SafeDemolitionSaveTests.cpp)
+    target_link_libraries(openemperor-original-safe-demolition-save-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-original-safe-demolition-save-tests)
+    add_test(NAME original-safe-demolition-save COMMAND openemperor-original-safe-demolition-save-tests)
+    set_tests_properties(original-safe-demolition-save PROPERTIES TIMEOUT 300)
     add_executable(openemperor-cardinal-water-core-tests tests/CardinalWaterCoreTests.cpp)
     target_link_libraries(openemperor-cardinal-water-core-tests PRIVATE openemperor-simulation)
     openemperor_enable_warnings(openemperor-cardinal-water-core-tests)
@@ -2049,6 +2067,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-house-inspector-view-tests)
     add_test(NAME original-house-inspector-view COMMAND openemperor-original-house-inspector-view-tests)
     set_tests_properties(original-house-inspector-view PROPERTIES TIMEOUT 120)
+    add_executable(openemperor-original-safe-demolition-view-tests tests/OriginalSafeDemolitionViewTests.cpp ${bridge_fixture_sources})
+    target_compile_definitions(openemperor-original-safe-demolition-view-tests PRIVATE OPENEMPEROR_ORIGINAL_ECONOMY_SAVE_FIXTURE=1)
+    target_link_libraries(openemperor-original-safe-demolition-view-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-original-safe-demolition-view-tests)
+    add_test(NAME original-safe-demolition-view COMMAND openemperor-original-safe-demolition-view-tests)
+    set_tests_properties(original-safe-demolition-view PROPERTIES TIMEOUT 120)
 
     add_executable(openemperor-original-house-visual-view-tests tests/OriginalHouseVisualViewTests.cpp ${bridge_fixture_sources})
     target_compile_definitions(openemperor-original-house-visual-view-tests PRIVATE OPENEMPEROR_ORIGINAL_ECONOMY_SAVE_FIXTURE=1)

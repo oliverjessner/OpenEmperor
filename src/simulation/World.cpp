@@ -442,7 +442,8 @@ bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::ProductionV2) return version==2;
     if (profile==RulesProfile::CityV11) return version>=1 && version<=4;
     if (profile==RulesProfile::CityV16) return (version>=1 && version<=16) ||
-        version==kOriginalDeadlineServiceDispatchRuleVersion || version==kOriginalDeadlineFoodDispatchRuleVersion;
+        version==kOriginalDeadlineServiceDispatchRuleVersion || version==kOriginalDeadlineFoodDispatchRuleVersion ||
+        version==kOriginalSafeDemolitionRuleVersion;
     if (fire_profile(profile)) return version==1;
     return version==1;
 }
@@ -485,6 +486,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v16{16,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v17{17,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v18{18,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v19{19,32,64,32,5,800};
+    if (original_safe_demolition_enabled(profile,version)) return city_v16_v19;
     if (original_deadline_food_dispatch_enabled(profile,version)) return city_v16_v18;
     if (original_deadline_service_dispatch_enabled(profile,version)) return city_v16_v17;
     if (original_deadline_fire_dispatch_enabled(profile,version)) return city_v16_v16;
@@ -1308,6 +1311,7 @@ bool World::city_economy_valid() const {
     return true;
 }
 DemolitionStatus World::demolition_status(BuildingId id) const {
+    if (original_safe_demolition_enabled()) return original_safe_demolition_status(id);
     DemolitionStatus status;
     if (original_influence_enabled()) {
         const auto checked=validate_original_influence_command(demolish_building(id));
@@ -1401,6 +1405,11 @@ CommandResult World::validate(Command command) const {
     }
     if (command.type==CommandType::PlaceOriginalHempFarm || command.type==CommandType::PlaceOriginalHempField) {
         const auto checked=validate_original_hemp_command(command);if (!checked.accepted) return checked;
+    }
+    if (original_safe_demolition_enabled() && command.type==CommandType::DemolishBuilding) {
+        const auto status=original_safe_demolition_status(command.building_id);
+        return {status.allowed,status.allowed,status.reason,
+            status.allowed ? command_sequence_+1:command_sequence_,ticks_};
     }
     if (original_influence_enabled() && command_sequence_>=UINT64_MAX-1)
         return {false,false,"Original influence command counter exhausted",command_sequence_,ticks_};
@@ -1686,12 +1695,23 @@ CommandResult World::validate(Command command) const {
         command.type==CommandType::PlaceOriginalAcrobatSchool || command.type==CommandType::PlaceOriginalDramaSchool ||
         (construction && original_industry_source(*construction));
     if (original_production_enabled()) {
-        if (command.type!=CommandType::PlaceRoad && buildings_.size()>=Rules::original_production_building_limit) {
+        std::size_t retired_buildings=0,retired_couriers=0;
+        if (original_safe_demolition_enabled()) {
+            if (!original_production_ || !original_production_->safe_demolition) {
+                result.reason="Missing safe demolition authority";return result;
+            }
+            const auto& retired=original_production_->safe_demolition->retired;
+            retired_buildings=retired.size();
+            retired_couriers=static_cast<std::size_t>(std::count_if(retired.begin(),retired.end(),
+                [](const auto& row){return row.courier_id.has_value();}));
+        }
+        if (command.type!=CommandType::PlaceRoad && buildings_.size()+retired_buildings>=Rules::original_production_building_limit) {
             result.reason="Original production building capacity reached";return result;
         }
         const std::size_t needed=(command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceWarehouse) ? 2U:creates_courier ? 1U:0U;
         const auto capacity=Rules::original_production_courier_limit;
-        if (needed>capacity || couriers_.size()>capacity-needed) {
+        if (needed>capacity || couriers_.size()+retired_couriers>capacity-needed ||
+            (original_safe_demolition_enabled() && (!next_courier_id_ || next_courier_id_-1>capacity-needed))) {
             result.reason="Original production courier capacity reached";return result;
         }
     }
@@ -1812,6 +1832,8 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         if (result.accepted && result.changed) *this=std::move(candidate);
         return result;
     }
+    if (original_safe_demolition_enabled() && command.type==CommandType::DemolishBuilding)
+        return execute_original_safe_demolition(command,refresh_after);
     if (command.type==CommandType::PlaceOriginalInfluenceSource ||
         (original_influence_enabled() && command.type==CommandType::DemolishBuilding))
         return execute_original_influence_command(command,refresh_after);
@@ -3475,6 +3497,14 @@ bool World::industry_balance_valid() const {
         };
         std::uint64_t clay=0,pottery=0,food=0;
         auto extracted=demolition_history_.clay_extracted;
+        if (original_safe_demolition_enabled()) {
+            if (!original_production_ || !original_production_->safe_demolition) return false;
+            const auto& retired=original_production_->safe_demolition->retired;
+            if (retired.size()>original_safe_demolition_retired_limit ||
+                retired.size()>building_cap-buildings_.size()) return false;
+            for (const auto& row:retired)
+                if (!add(extracted,row.clay_extracted)) return false;
+        }
         auto recipes=demolition_history_.pottery_completed;
         auto produced_food=demolition_history_.food_produced;
         auto consumed=demolition_history_.pottery_consumed;
@@ -4108,7 +4138,9 @@ bool World::navigation_valid() const {
 
 std::string World::canonical_state() const {
     std::ostringstream out;
-    if (original_deadline_food_dispatch_enabled()) out<<original_deadline_food_dispatch_contract<<":18:"
+    if (original_safe_demolition_enabled()) out<<original_safe_demolition_contract<<":19:"
+        <<original_terrain_facts_->source_map_sha256()<<'|';
+    else if (original_deadline_food_dispatch_enabled()) out<<original_deadline_food_dispatch_contract<<":18:"
         <<original_terrain_facts_->source_map_sha256()<<'|';
     else if (original_deadline_service_dispatch_enabled()) out<<original_deadline_service_dispatch_contract<<":17:"
         <<original_terrain_facts_->source_map_sha256()<<'|';
@@ -4380,6 +4412,23 @@ std::string World::canonical_state() const {
                <<static_cast<std::uint32_t>(row.source)<<','<<static_cast<std::uint32_t>(row.target)<<','
                <<row.loaded<<','<<row.delivered<<','<<row.dispatched_tick<<','
                <<bool(row.arrival_tick)<<','<<row.arrival_tick.value_or(0);
+        if (original_production_->safe_demolition) {
+            out<<"|safe-demolition:"<<original_production_->safe_demolition->retired.size();
+            for (const auto& row:original_production_->safe_demolition->retired) {
+                out<<"|retired-purchase:"<<static_cast<std::uint32_t>(row.building_id)<<','
+                   <<static_cast<unsigned>(row.kind)<<','<<row.origin_x<<','<<row.origin_y<<','
+                   <<row.placed_tick<<','<<row.removed_tick<<','<<row.clay_extracted<<','
+                   <<bool(row.courier_id)<<','<<static_cast<std::uint32_t>(row.courier_id.value_or(static_cast<CourierId>(0)))<<','
+                   <<bool(row.clay_trip);
+                if (row.clay_trip) {
+                    const auto& trip=*row.clay_trip;
+                    out<<','<<static_cast<std::uint32_t>(trip.transfer.courier_id)<<','<<trip.transfer.sequence<<','
+                       <<static_cast<std::uint32_t>(trip.source)<<','<<static_cast<std::uint32_t>(trip.target)<<','
+                       <<trip.loaded<<','<<trip.delivered<<','<<trip.dispatched_tick<<','
+                       <<bool(trip.arrival_tick)<<','<<trip.arrival_tick.value_or(0);
+                }
+            }
+        }
     }
     return out.str();
 }
@@ -4714,17 +4763,19 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                   c.route_pending);
             w.couriers_.push_back(std::move(out));
         }
-        if (s.demolition_history.buildings>=UINT32_MAX ||
+        const auto retired_count=w.original_safe_demolition_enabled() && s.original_production &&
+            s.original_production->safe_demolition ? s.original_production->safe_demolition->retired.size():0;
+        if (retired_count>original_safe_demolition_retired_limit || s.demolition_history.buildings>=UINT32_MAX ||
             s.roads_placed_total<s.roads_removed_total ||
             s.roads_placed_total-s.roads_removed_total!=s.roads.size() ||
             s.road_revision<s.roads_placed_total ||
             s.road_revision-s.roads_placed_total<s.roads_removed_total ||
             s.road_revision-s.roads_placed_total-s.roads_removed_total!=
                 s.buildings.size()+2*s.demolition_history.buildings+s.bridges.size()+s.ramps.size()+
-                    (w.original_influence_enabled() ? 2*s.original_influence->removed_sources.size():0)+materialized ||
+                    (w.original_influence_enabled() ? 2*s.original_influence->removed_sources.size():0)+materialized+2*retired_count ||
             (w.demolition_supported() && (s.demolition_history.buildings>=UINT32_MAX ||
                 s.buildings.size()+s.demolition_history.buildings+1+
-                    (w.original_influence_enabled() ? s.original_influence->removed_sources.size():0)!=s.next_building_id)))
+                    (w.original_influence_enabled() ? s.original_influence->removed_sources.size():0)+retired_count!=s.next_building_id)))
             fail("City-v10 placement revision mismatch");
         w.clay_extracted_total_=s.clay_extracted_total;
         w.pottery_completed_total_=s.pottery_completed_total;

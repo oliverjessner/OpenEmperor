@@ -76,6 +76,17 @@
   prepared routes; retain the complete canonical House cursor for ties. No new
   saved authority or migration; Rules1–17/schemas1–33 remain exact. See the
   [OE47 assessment](docs/original-economy/oe47-food-reliability.md).
+- Authored safe demolition is a separate explicit rule19/policy3/schema35
+  contract with marker `authored-safe-demolition-v1`. It inherits Rule18 and
+  admits only never-occupied Common2x2 Houses with no retained needs/history,
+  and paused, physically drained Clay Sources after their real return. Retire
+  paid purchase and courier identities in the bounded eight-row journal;
+  preserve extracted Clay, completed trips, construction and closed installed
+  upkeep. No refund, ID reuse, resident reset, stock discard or budget increase.
+  Other production/service/Elite classes remain refused with reasons. The
+  historical neutral Well72 path remains exact. Recommended play remains Rule18;
+  Rule19 requires its own menu/CLI/create/restore path. Rules1–18/schemas1–34
+  do not migrate. See [OE51 demolition](docs/gameplay/oe51-demolition.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.
