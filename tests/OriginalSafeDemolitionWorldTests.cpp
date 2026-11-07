@@ -86,6 +86,18 @@ void rejected(sim::World& world,sim::BuildingId id,sim::DemolitionBlocker expect
     check(world.snapshot()==before && world.canonical_state()==canonical && world.route_refresh_count()==revision,
         "Rejected Rule19 demolition changed authority, IDs, money or route caches");
 }
+void refused_command(sim::World& world,sim::Command command,
+                     std::optional<sim::BuildBlocker> blocker=std::nullopt) {
+    const auto before=world.snapshot();const auto canonical=world.canonical_state();
+    const auto refreshes=world.route_refresh_count();
+    const auto checked=world.validate(command);const auto result=world.execute(command);
+    check(!checked.accepted && !checked.changed && !result.accepted && !result.changed &&
+        !checked.reason.empty() && result.reason==checked.reason &&
+        (!blocker || (checked.diagnostic.blocker==*blocker && result.diagnostic.blocker==*blocker)),
+        "Expected bounded Rule19 command refusal: "+result.reason);
+    check(world.snapshot()==before && world.canonical_state()==canonical && world.route_refresh_count()==refreshes,
+        "Refused Rule19 placement/infrastructure command changed complete authority or route caches");
+}
 sim::OriginalRetiredPurchase remove(sim::World& world,sim::BuildingId id) {
     const auto body=world.building(id);const auto before=world.snapshot();
     const auto refresh=world.route_refresh_count();const auto population=world.total_population();
@@ -466,11 +478,109 @@ void paid_lifetime_building_budget_includes_retired_and_neutral_sources() {
             world.object_at(empty)==sim::Object::Empty,"A paid neutral or ordinary purchase bypassed the82 lifetime-body budget");
     }
 }
+void paid_low_funds_cannot_rebuild_a_retired_empty_house() {
+    Fixture fixture;auto cells=fixture.policy->cells();
+    // Existing authored Bridge authority provides a bounded paid expenditure:
+    //58 spans remain below64, each has exactly8 eligible water cells. No time,
+    // stock, population, treasury or historical state is assigned by this test.
+    for (int n=0;n<58;++n) for (int x=21;x<=28;++x) {
+        auto& cell=cells[static_cast<std::size_t>((20+3*n)*228+x)];
+        cell.road_allowed=cell.building_allowed=false;
+        cell.road_blocker=cell.building_blocker=sim::BuildBlocker::UnsupportedBridgeWater;
+        cell.bridge_water=true;
+    }
+    fixture.policy=std::make_shared<const sim::MapPermissions>(228,228,3,std::move(cells),
+        std::vector<sim::FixedGatePassage>{});
+    auto world=fixture.world();const sim::Cell site{180,180};
+    const auto house=buy(world,sim::CommandType::PlaceHousehold,site);
+    for (int n=0;n<58;++n) {
+        const int y=20+3*n;road(world,20,y);road(world,29,y);
+        f::buy(world,sim::place_bridge({20,y},{29,y}));
+    }
+    for (int x=160;x<167;++x) road(world,x,160);
+    check(world.ticks()==0 && world.total_population()==0 && world.bridges().size()==58 &&
+        world.snapshot().roads.size()==123 && world.treasury()==74 && world.construction_spent_total()==11926 &&
+        world.maintenance_spent_total()==0 && world.taxes_collected_total()==0,
+        "Low-Funds rebuild fixture did not pay its real80+58*200+123*2 construction");
+    const auto retired=remove(world,house);
+    check(retired.kind==sim::OriginalRetiredKind::EmptyHouse && world.treasury()==74 &&
+        world.next_building_id()==2 && world.buildings().empty(),
+        "Low-Funds removal granted a refund, reused an ID or retained the empty House");
+    refused_command(world,{sim::CommandType::PlaceHousehold,site},sim::BuildBlocker::InsufficientFunds);
+    for (int y=0;y<2;++y) for (int x=0;x<2;++x)
+        check(!world.building_owner_at({site.x+x,site.y+y}) && world.object_at({site.x+x,site.y+y})==sim::Object::Empty,
+            "Unaffordable rebuild acquired a paid footprint");
+    check(fixture.restore(world.snapshot()).snapshot()==world.snapshot(),
+        "Low-Funds post-removal complete Rule19 restore changed the actual paid ledger");invariant(world);
+}
+void protected_map_and_paid_infrastructure_removal_stay_closed() {
+    Fixture fixture;auto cells=fixture.policy->cells();
+    const auto at=[&](int x,int y)->sim::MapCellPermission& {
+        return cells[static_cast<std::size_t>(y*228+x)];
+    };
+    // These are independently authored immutable policy facts prepared before
+    // the World, not an original map-name or source-ID admission exception.
+    for (int y=60;y<62;++y) for (int x=60;x<62;++x)
+        at(x,y)={false,false,true,0,sim::BuildBlocker::OriginalStructure,sim::BuildBlocker::OriginalStructure};
+    at(80,60)={true,false,false,0,sim::BuildBlocker::None,sim::BuildBlocker::ProtectedOriginalRoad,
+        true,sim::OriginalRoadClassification::GroundRoad};
+    sim::FixedGatePassage gate;gate.id={1};
+    for (int y=60;y<63;++y) for (int x=90;x<95;++x) {
+        gate.protected_footprint.push_back({x,y});
+        at(x,y)={false,false,true,0,sim::BuildBlocker::GateSolidPart,sim::BuildBlocker::GateSolidPart,
+            false,sim::OriginalRoadClassification::FixedGateFootprint};
+    }
+    for (int y=60;y<63;++y) {
+        gate.corridor.push_back({92,y});at(92,y).road_allowed=true;at(92,y).road_blocker=sim::BuildBlocker::None;
+    }
+    gate.openings={sim::Cell{92,59},sim::Cell{92,63}};
+    for (int x=21;x<=28;++x) {
+        auto& cell=at(x,20);cell.road_allowed=cell.building_allowed=false;
+        cell.road_blocker=cell.building_blocker=sim::BuildBlocker::UnsupportedBridgeWater;cell.bridge_water=true;
+    }
+    at(41,20).height=1;
+    fixture.policy=std::make_shared<const sim::MapPermissions>(228,228,3,std::move(cells),
+        std::vector<sim::FixedGatePassage>{gate});
+    const auto immutable=fixture.policy->canonical_state();auto world=fixture.world();
+    check(world.original_safe_demolition_enabled() && world.original_road({80,60}) &&
+        world.fixed_passage({92,61}) && world.map_permissions()->protected_original({60,60}) &&
+        !world.building_owner_at({60,60}),"Rule19 protected fixture lacks its exact immutable authority");
+    refused_command(world,{sim::CommandType::PlaceHousehold,{60,60}},sim::BuildBlocker::OriginalStructure);
+    refused_command(world,{sim::CommandType::PlaceRoad,{60,60}},sim::BuildBlocker::OriginalStructure);
+    refused_command(world,{sim::CommandType::PlaceHousehold,{80,60}},sim::BuildBlocker::ProtectedOriginalRoad);
+    refused_command(world,{sim::CommandType::RemoveRoad,{80,60}},sim::BuildBlocker::ProtectedOriginalRoad);
+    refused_command(world,{sim::CommandType::RemoveRoad,{92,61}},sim::BuildBlocker::ProtectedGatePassage);
+    refused_command(world,{sim::CommandType::PlaceHousehold,{92,60}},sim::BuildBlocker::GateSolidPart);
+    for (const auto cell:{sim::Cell{60,60},sim::Cell{80,60},sim::Cell{92,61}}) {
+        auto command=sim::demolish_building(static_cast<sim::BuildingId>(1));command.cell=cell;
+        refused_command(world,command);
+    }
+    for (const auto cell:{sim::Cell{20,20},sim::Cell{29,20},sim::Cell{40,20},sim::Cell{41,20}})
+        road(world,cell.x,cell.y);
+    f::buy(world,sim::place_bridge({20,20},{29,20}));f::buy(world,sim::place_ramp({40,20},{41,20}));
+    check(world.bridges().size()==1 && world.ramps().size()==1 && world.buildings().empty() &&
+        world.transport_edge_allowed({20,20},{21,20}) && world.transport_edge_allowed({40,20},{41,20}),
+        "Infrastructure refusals lack actual paid traversable Bridge and Ramp authority");
+    refused_command(world,{sim::CommandType::RemoveRoad,{24,20}},sim::BuildBlocker::ProtectedBridge);
+    refused_command(world,{sim::CommandType::RemoveBridge,{24,20}});
+    refused_command(world,{sim::CommandType::RemoveRamp,{40,20}});
+    refused_command(world,{sim::CommandType::PlaceHousehold,{19,19}},sim::BuildBlocker::ProtectedBridge);
+    refused_command(world,{sim::CommandType::PlaceHousehold,{39,19}},sim::BuildBlocker::SandboxOccupied);
+    for (const auto cell:{sim::Cell{24,20},sim::Cell{40,20}}) {
+        auto command=sim::demolish_building(static_cast<sim::BuildingId>(1));command.cell=cell;
+        refused_command(world,command);
+    }
+    check(world.bridges().size()==1 && world.ramps().size()==1 &&
+        fixture.policy->canonical_state()==immutable && fixture.restore(world.snapshot()).snapshot()==world.snapshot(),
+        "Rule19 infrastructure refusal changed source permissions or complete restorable transport authority");
+    invariant(world);
+}
 }
 int main() {try {
     exact_identity_empty_house_and_neutral_history();paid_clay_drain_retirement_upkeep_rebuild_and_gap_restore();
     paid_road_wait_keeps_cargo_and_allows_only_real_settlement();
     occupied_elite_dependencies_stock_progress_fire_and_history_refuse();bounded_history_and_missing_ids();
     paid_goods_food_and_house_visitors_refuse_atomically();paid_lifetime_building_budget_includes_retired_and_neutral_sources();
+    paid_low_funds_cannot_rebuild_a_retired_empty_house();protected_map_and_paid_infrastructure_removal_stay_closed();
     std::cout<<"Rule19 paid empty-House/earned-Clay demolition, bounded history, rebuild, refusals and restore PASS\n";return 0;
 } catch (const std::exception& error) {std::cerr<<"Rule19 safe demolition World FAIL: "<<error.what()<<'\n';return 1;}}
