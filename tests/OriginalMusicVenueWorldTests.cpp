@@ -34,7 +34,9 @@ void pure_inspection(const sim::World& world,sim::CourierId channel) {
 void contracts_and_complete_paid_footprint() {
     q::Fixture fixture;auto world=fixture.world();
     check(world.rule_version()==22&&world.original_music_venues_enabled()&&
-          !world.original_deadline_food_dispatch_enabled()&&!world.original_safe_demolition_enabled()&&
+          world.original_deadline_food_dispatch_enabled()&&
+          !sim::original_deadline_food_dispatch_enabled(world.profile(),world.rule_version())&&
+          !world.original_safe_demolition_enabled()&&
           world.original_cardinal_water_enabled()&&world.original_sustainable_economy_enabled()&&
           world.original_worker_upkeep_interval()==816&&q::state(world).next_performer_id==1&&
           q::state(world).schools.empty()&&q::state(world).venues.empty()&&
