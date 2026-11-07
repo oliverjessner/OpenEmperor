@@ -362,7 +362,9 @@ int main(int argc,char** argv) {
             custom->world().snapshot()==document.world,"Custom core unexpectedly acquired built-in Original tails or changed World");
         custom->shutdown();custom.reset();
         auto legacy_source=session();const auto border=oe::maps::MapGeometry(legacy_source.map.declared_map_size).border;
-        auto legacy=std::make_unique<oe::SandboxView>(std::move(legacy_source),false,sim::RulesProfile::CityV16,4);configure(*legacy,art);legacy->initialize(window,renderer);
+        auto legacy=std::make_unique<oe::SandboxView>(std::move(legacy_source),false,sim::RulesProfile::CityV16,4);
+        legacy->configure_save(data,document.map_relative,output/"legacy-working.save.json");
+        configure(*legacy,art);legacy->initialize(window,renderer);
         check(!legacy->original_building_display_stats().configured&&!legacy->original_house_display_stats().configured&&legacy->building_texture_count()==12,
             "Ordinary City-v16 acquired Original-only building images");
         std::optional<sim::BuildingId> post;
