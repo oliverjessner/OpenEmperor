@@ -12,6 +12,7 @@
 #include "../tests/EliteFireCoverageMetrics.h"
 #include "../tests/EliteFireReplayDigest.h"
 #include "../tests/CitywideReliabilityView.h"
+#include "OriginalSafeDemolitionQa.h"
 #include <openssl/evp.h>
 #include <fstream>
 #include <iomanip>
@@ -29,6 +30,7 @@ bool city_diagnosis(std::string_view name) {return name=="oe46"||food_diagnosis(
 bool fire_diagnosis(std::string_view name) {return name=="oe45"||city_diagnosis(name);}
 constexpr const char* help="elite-desirability-acceptance --mode create|resume|render --data ABS --output NEW_IGNORED_OE40_OR_OE43_DIR [--variant staged|all-paid|lean-med|lean-med-extra-markets] [--rule 14|15|16|17|18 (default14;16 requires diagnosis oe45, oe46, oe47 or oe48;17 requires oe46, oe47 or oe48;18 requires oe47 or oe48)] [--search-ticks 40000|60000] [--tick-digests sha256 (explicit OE45 Rule15/16 or OE46 Rule15/16/17 or OE47/OE48 Rule15/16/17/18 QA only)] [--input EARNED_EXACT_GENERATION_SAVE] [--expected CREATOR_RESULT_SAVE (resume)] [--resources ABS (render)] [--diagnosis oe44|oe45|oe46|oe47|oe48 (fresh matching diagnosis root only; render also requires explicit --rule)] [--paid-strategy road-grid|market-near|medical-near|medical-pair|watch-near|paper-buffer|early-elite|finance-staged|combined|early-religion|combined-religion|combined-services|combined-paper-usable|early-refined|combined-refined|early-stagger-watch|early-stagger-medical|early-stagger-all|early-adaptive-watch|early-stagger-medical-four-markets|oe45-grid|oe45-watch-early|oe45-watch-central|oe45-watch-west-door|oe45-medical-pair|oe45-market-near|oe45-warehouse-swap|oe45-grid-central|oe45-grid-watch-near|oe45-grid-watch-north|oe45-grid-watch-west|oe45-grid-balanced|oe45-grid-south-door|oe46-ancestor-music-swap|oe46-ancestor-acrobat-swap|oe46-ancestor-drama-swap|oe46-market-south|oe46-markets-four|oe46-ancestor-west|oe46-ancestor-clinic|oe46-ancestor-music-early|oe46-ancestor-music-four-markets|oe46-ancestor-music-south-door|oe47-south-door-three-markets|oe47-south-door-four-markets|oe47-south-door-market-south|oe47-south-door-early-third-food|oe47-south-door-early-all-food|oe47-south-door-early-markets|oe48-watch-north|oe48-watch-west|oe48-watch-balanced|oe48-watch-central|oe48-watch-corridor|oe48-watch-early|oe48-watch-phase1|oe48-watch-corridor-early|oe48-grid-wide|oe48-watch-priority|oe48-farm-swap|oe48-market-north|oe48-watch-phase1-early-third-food|oe48-watch-phase1-early-all-food|oe48-watch-phase1-early-market|oe48-watch-phase1-farm-swap|oe48-watch-phase1-third-food-early-market|oe48-watch-phase1-third-food-three-markets|oe48-watch-phase1-third-food-four-markets (OE48 recipes require diagnosis oe48; OE47 recipes require diagnosis oe47 or oe48; OE46 recipes require diagnosis oe46, oe47 or oe48; OE45 recipes require diagnosis oe45, oe46, oe47 or oe48; all require variant lean-med)]";
 struct Options {std::string mode,variant="staged",diagnosis,paid_strategy;fs::path data,output,input,expected,resources;unsigned rule=14,search=40000;bool tick_digests=false;};
+constexpr const char* oe51_help="\nOE51: --mode create|resume --rule 19 --diagnosis oe51 --variant lean-med --paid-strategy oe48-watch-phase1-third-food-three-markets. Requires a fresh output below .local/original-economy/oe51 and exact Rule19 seed/first-success inputs there. Four real paid retirements/rebuilds precede a separate 20400-tick retention window. Rule19 rendering belongs to the separate View checks; tick digests are not admitted here.";
 Options options(int argc,char** argv){
     Options a;std::map<std::string,std::string> values;
     for(int i=1;i<argc;i+=2){check(i+1<argc,help);const std::string key=argv[i];
@@ -39,9 +41,12 @@ Options options(int argc,char** argv){
     if(values.contains("--variant"))a.variant=values.at("--variant");check(strategy::known(a.variant),help);
     if(values.contains("--rule")) {
         const auto& value=values.at("--rule");const auto result=std::from_chars(value.data(),value.data()+value.size(),a.rule);
-        check(result.ec==std::errc{}&&result.ptr==value.data()+value.size()&&(a.rule==14||a.rule==15||a.rule==16||a.rule==17||a.rule==18),help);
+        check(result.ec==std::errc{}&&result.ptr==value.data()+value.size()&&(a.rule==14||a.rule==15||a.rule==16||a.rule==17||a.rule==18||a.rule==19),help);
     }
-    if(values.contains("--diagnosis")){a.diagnosis=values.at("--diagnosis");check((a.diagnosis=="oe44"||fire_diagnosis(a.diagnosis))&&(a.mode!="render"||values.contains("--rule")),help);}
+    if(values.contains("--diagnosis")){a.diagnosis=values.at("--diagnosis");check((a.diagnosis=="oe44"||fire_diagnosis(a.diagnosis)||a.diagnosis=="oe51")&&(a.mode!="render"||values.contains("--rule")),help);}
+    check((a.rule==19)==(a.diagnosis=="oe51"),"Rule19 requires exact --rule 19 --diagnosis oe51; old generations cannot select OE51");
+    check(a.rule!=19||(values.contains("--rule")&&a.mode!="render"&&a.variant=="lean-med"),
+        "OE51 Rule19 is explicit create/resume QA with --variant lean-med; use the separate demolition View checks for rendering");
     check(a.rule!=15||(!a.diagnosis.empty()&&values.contains("--rule")),"Rule15 requires explicit --rule 15 and selected diagnosis oe44, oe45 or oe46");
     check(a.rule!=16||(fire_diagnosis(a.diagnosis)&&values.contains("--rule")),"Rule16 requires explicit --rule 16 and --diagnosis oe45 or oe46");
     check(a.rule!=18||(food_diagnosis(a.diagnosis)&&values.contains("--rule")),"Rule18 requires explicit --rule 18 and --diagnosis oe47 or oe48");
@@ -60,15 +65,17 @@ Options options(int argc,char** argv){
         check(!a.paid_strategy.starts_with("oe45-")||fire_diagnosis(a.diagnosis),"OE45 player experiments require --diagnosis oe45 or oe46");
         check(!paid_strategy::oe46_recipe(a.paid_strategy)||city_diagnosis(a.diagnosis),"OE46 player experiments require --diagnosis oe46 or oe47");
         check(!paid_strategy::oe47_recipe(a.paid_strategy)||food_diagnosis(a.diagnosis),"OE47 player experiments require --diagnosis oe47 or oe48");
-        check(!paid_strategy::oe48_recipe(a.paid_strategy)||a.diagnosis=="oe48","OE48 player experiments require --diagnosis oe48");
+        check(!paid_strategy::oe48_recipe(a.paid_strategy)||a.diagnosis=="oe48"||a.rule==19,"OE48 player experiments require --diagnosis oe48 or exact OE51 Rule19");
     }
+    check(a.rule!=19||a.paid_strategy=="oe48-watch-phase1-third-food-three-markets",
+        "OE51 Rule19 uses only the explicit paid OE48 thirteen-House strategy");
     for(const auto& [key,path]:{std::pair{"--data",&a.data},{"--output",&a.output},{"--input",&a.input},{"--expected",&a.expected},{"--resources",&a.resources}})
         if(values.contains(key))*path=fs::absolute(values.at(key));
     if(values.contains("--search-ticks")){const auto& text=values.at("--search-ticks");const auto parsed=std::from_chars(text.data(),text.data()+text.size(),a.search);
         check(parsed.ec==std::errc{}&&parsed.ptr==text.data()+text.size()&&(a.search==40000||a.search==60000),help);}
     safe(a.data);safe(a.output);check(fs::is_directory(a.data),"Original installation missing");
     const auto diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/
-        (a.diagnosis=="oe48"?".local/original-economy/oe48":a.diagnosis=="oe47"?".local/original-economy/oe47":a.diagnosis=="oe46"?".local/original-economy/oe46":a.diagnosis=="oe45"?".local/original-economy/oe45":".local/original-economy/oe44");
+        (a.diagnosis=="oe51"?".local/original-economy/oe51":a.diagnosis=="oe48"?".local/original-economy/oe48":a.diagnosis=="oe47"?".local/original-economy/oe47":a.diagnosis=="oe46"?".local/original-economy/oe46":a.diagnosis=="oe45"?".local/original-economy/oe45":".local/original-economy/oe44");
     const auto prior_diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe44";
     const auto oe45_diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe45";
     const auto oe46_diagnosis_root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/original-economy/oe46";
@@ -78,7 +85,7 @@ Options options(int argc,char** argv){
     check(allowed_output&&!fs::exists(a.output),"Use a fresh ignored output in the selected OE40/OE43 or explicit matching diagnosis root");
     check(!below(a.output,a.data)&&!below(a.data,a.output),"Output overlaps original data");
     for(const auto& path:{a.input,a.expected})if(!path.empty()){
-        safe(path);const bool allowed_input=below(path,private_root())||
+        safe(path);const bool allowed_input=a.rule==19 ? path!=diagnosis_root&&below(path,diagnosis_root):below(path,private_root())||
             (!a.diagnosis.empty()&&path!=diagnosis_root&&below(path,diagnosis_root))||
             (fire_diagnosis(a.diagnosis)&&path!=prior_diagnosis_root&&below(path,prior_diagnosis_root))||
             (city_diagnosis(a.diagnosis)&&path!=oe45_diagnosis_root&&below(path,oe45_diagnosis_root))||
@@ -115,10 +122,11 @@ sim::World restore14(const q::Context& c,const q::save::SaveDocument& d){
     return q::save::restore_original_cardinal_water(d,c.data,c.mask,c.policy,c.model);
 }
 unsigned schema_for_rule(unsigned rule) {
-    check(rule==14||rule==15||rule==16||rule==17||rule==18,"Exact QA Rule14 through Rule18 required");return rule==18?34U:rule==17?33U:rule==16?32U:rule==15?31U:30U;
+    check(rule==14||rule==15||rule==16||rule==17||rule==18||rule==19,"Exact QA Rule14 through Rule19 required");return rule==19?35U:rule==18?34U:rule==17?33U:rule==16?32U:rule==15?31U:30U;
 }
 sim::World restore_selected(const q::Context& c,const q::save::SaveDocument& d,unsigned rule) {
     check(d.source_schema_version==schema_for_rule(rule)&&d.world.rule_version==rule,"Exact selected QA rule/schema save required");
+    if(rule==19)return q::save::restore_original_safe_demolition(d,c.data,c.mask,c.policy,c.model);
     if(rule==18)return q::save::restore_original_deadline_food_dispatch(d,c.data,c.mask,c.policy,c.model);
     if(rule==17)return q::save::restore_original_deadline_service_dispatch(d,c.data,c.mask,c.policy,c.model);
     if(rule==16)return q::save::restore_original_deadline_fire_dispatch(d,c.data,c.mask,c.policy,c.model);
@@ -197,7 +205,8 @@ Json provenance(const sim::World& w,sim::BuildingId target){const auto value=w.o
 void simulate(const Options& a){
     const auto pins=source_pins(a.data);const auto c=q::Context::real(a.data);const bool resumed=a.mode=="resume";
     const auto input=resumed?q::f::read_text(a.input):std::string{},expected_bytes=resumed?q::f::read_text(a.expected):std::string{};
-    auto w=resumed?restore_selected(c,q::save::read_save(a.input),a.rule):a.rule==18?
+    auto w=resumed?restore_selected(c,q::save::read_save(a.input),a.rule):a.rule==19?
+        sim::World::create_original_safe_demolition(c.policy,c.model,q::save::prepare_original_terrain_facts(c.data,c.map_relative)):a.rule==18?
         sim::World::create_original_deadline_food_dispatch(c.policy,c.model,q::save::prepare_original_terrain_facts(c.data,c.map_relative)):a.rule==17?
         sim::World::create_original_deadline_service_dispatch(c.policy,c.model,q::save::prepare_original_terrain_facts(c.data,c.map_relative)):a.rule==16?
         sim::World::create_original_deadline_fire_dispatch(c.policy,c.model,q::save::prepare_original_terrain_facts(c.data,c.map_relative)):a.rule==15?
@@ -207,6 +216,7 @@ void simulate(const Options& a){
         (a.rule!=15||w.original_inspector_coordination_enabled())&&
         (a.rule!=16||w.original_deadline_fire_dispatch_enabled())&&
         (a.rule!=18||w.original_deadline_food_dispatch_enabled())&&
+        (a.rule!=19||w.original_safe_demolition_enabled())&&
         (a.rule!=17||w.original_deadline_service_dispatch_enabled())&&w.original_worker_upkeep_interval()==816&&
         w.original_rules_model()->provenance().sha256==strategy::model_sha,"Explicit source-bound selected Rule14/15 with unchanged816 upkeep required");
     fs::create_directories(a.output);Json commands=Json::array(),blocked=nullptr,manifest=Json::array(),comparisons=Json::array();
@@ -235,7 +245,10 @@ void simulate(const Options& a){
         if(a.rule==15)check(creator.at("inspector_coordination_contract")==sim::original_inspector_coordination_contract,"Replay Inspector coordination contract differs");
         if(a.rule==16)check(creator.at("deadline_fire_dispatch_contract")==sim::original_deadline_fire_dispatch_contract,"Replay deadline fire-dispatch contract differs");
         if(a.rule==18)check(creator.at("deadline_food_dispatch_contract")==sim::original_deadline_food_dispatch_contract,"Replay deadline food contract differs");
-        if(a.rule==17||a.rule==18)check(creator.at("deadline_service_dispatch_contract")==sim::original_deadline_service_dispatch_contract&&
+        if(a.rule==19)check(creator.at("safe_demolition_contract")==sim::original_safe_demolition_contract&&
+            creator.at("deadline_food_dispatch_contract")==sim::original_deadline_food_dispatch_contract,
+            "Replay Rule19 demolition or inherited Food contract differs");
+        if(a.rule==17||a.rule==18||a.rule==19)check(creator.at("deadline_service_dispatch_contract")==sim::original_deadline_service_dispatch_contract&&
             creator.at("deadline_fire_dispatch_contract")==sim::original_deadline_fire_dispatch_contract,"Replay deadline service/fire contract differs");
         check(creator.value("paid_strategy",std::string{})==a.paid_strategy,"Replay paid strategy differs from the independently supplied creator");}
     const auto compare_expected=[&]{if(!resumed)return;for(const auto& entry:expected_manifest)if(entry.at("tick").get<std::uint64_t>()==w.ticks()){
@@ -250,12 +263,16 @@ void simulate(const Options& a){
     std::unique_ptr<oe_elite_stability_diagnosis::Observation> diagnosis;
     if(!a.diagnosis.empty())diagnosis=std::make_unique<oe_elite_stability_diagnosis::Observation>(w,a.output);
     std::unique_ptr<oe_elite_fire_coverage_metrics::Observation> fire_observed;
-    if(fire_diagnosis(a.diagnosis))fire_observed=std::make_unique<oe_elite_fire_coverage_metrics::Observation>(w,a.output);
+    if(fire_diagnosis(a.diagnosis)||a.rule==19)fire_observed=std::make_unique<oe_elite_fire_coverage_metrics::Observation>(w,a.output);
     std::unique_ptr<oe_elite_fire_replay_digest::Observation> tick_digests;
     if(a.tick_digests)tick_digests=std::make_unique<oe_elite_fire_replay_digest::Observation>(w,a.output);
     std::unique_ptr<trace::Observation> transported;std::optional<sim::BuildingId> target=strategy::elite(w);
     const auto attach=[&]{if(target&&!observed){observed=std::make_unique<high::Observation>(w,*target,rules);transported=std::make_unique<trace::Observation>(w,*target,rules);}};attach();
     std::optional<std::uint64_t> first;std::uint64_t lost=0,unmet=0,next_unmet=0,evaluations=0;std::int64_t retain_min=w.treasury();Json first_entry=nullptr,evaluation_provenance=Json::array();
+    oe_safe_demolition_qa::Journey demolition;
+    const auto retention_origin=[&]{return a.rule==19&&demolition.finished_tick()?*demolition.finished_tick():first.value_or(begin);};
+    if(a.rule==19)check(w.original_production_state()->safe_demolition->retired.empty(),
+        "OE51 creator/replay must start before the diagnostic retirement journey; use seed or first-success");
     if(target&&entry17(w,*target)){const auto& proof=*entry17(w,*target);first=proof.evaluation.tick;
         first_entry={{"tick",*first},{"input",high::evaluation(proof.evaluation,rules)},{"entry_observed_in_this_process",false}};
         retained=std::make_unique<high::Observation>(w,*target,rules);
@@ -309,7 +326,19 @@ void simulate(const Options& a){
             if(fire_observed)fire_observed->begin_retention(w);
             if(!resumed)requested_end=w.ticks()+20400;
         }
-        if(was_retaining&&target){retain_min=std::min(retain_min,w.treasury());if(!entered17(w,*target))++lost;
+        bool reset_demolition_retention=false;
+        if(a.rule==19&&first&&w.ticks()>*first&&!demolition.complete()) {
+            demolition.after_tick(w,commands,blocked);
+            if(demolition.complete()) {
+                check(target&&w.original_economy_state()->houses.size()==13,"OE51 final paid scene lost its thirteen Houses");
+                checkpoint14(c,a.output,"demolition-complete",w,manifest);
+                retained=std::make_unique<high::Observation>(w,*target,rules);retain_min=w.treasury();
+                lost=0;unmet=0;next_unmet=0;evaluations=0;reset_demolition_retention=true;
+                if(fire_observed)fire_observed->begin_retention(w);
+                if(!resumed)requested_end=w.ticks()+20400;
+            }
+        }
+        if(was_retaining&&target&&(a.rule!=19||demolition.complete())&&!reset_demolition_retention){retain_min=std::min(retain_min,w.treasury());if(!entered17(w,*target))++lost;
             failure_checkpoint("first-fire",w.building_on_fire(*target));
             failure_checkpoint("first-devolution",previous_target_type&&q::house(w,*target).type<*previous_target_type);
             bool current_failed=false;
@@ -318,7 +347,7 @@ void simulate(const Options& a){
             }
             failure_checkpoint("first-current-failure",current_failed);
         }
-        if(first&&w.ticks()==*first+10200)checkpoint14(c,a.output,"midpoint",w,manifest);
+        if(first&&w.ticks()==retention_origin()+10200)checkpoint14(c,a.output,"midpoint",w,manifest);
         else if(w.ticks()%8160==0)checkpoint14(c,a.output,"checkpoint-"+std::to_string(w.ticks()),w,manifest);
         // Explicit external OE48 observation of the reproduced House19 chain.
         // These complete documents read the real post-tick World; they neither
@@ -333,6 +362,8 @@ void simulate(const Options& a){
     }}catch(const std::exception& error){stop_reason=error.what();}
     if(stop_reason.empty()&&!a.paid_strategy.empty()&&!paid_strategy::timing_purchases_complete(w,a.paid_strategy))
         stop_reason="Bounded player strategy ended with unresolved actual-arrival purchase gates; no fallback purchase performed";
+    if(stop_reason.empty()&&a.rule==19&&!demolition.complete())
+        stop_reason="Bounded Rule19 run ended without the complete paid demolition/rebuild journey";
     try{q::authority(w);q::worker_oracle(w);checkpoint14(c,a.output,"result",w,manifest);compare_expected();}
     catch(const std::exception& error){write(a.output/"failed-run.json",{{"technical_status","FAIL"},{"tick",w.ticks()},
         {"tick_or_observer_error",stop_reason.empty()?Json(nullptr):Json(stop_reason)},{"authority_save_or_comparison_error",error.what()},
@@ -344,15 +375,17 @@ void simulate(const Options& a){
     const auto history=recovery.create_history(c.document(w),c.mask);const auto entry=recovery.write_checkpoint(history,c.document(w),c.mask);
     check(entry.loadable()&&entry.schema==schema_for_rule(a.rule)&&entry.rule_version==a.rule,"Recovery lost exact selected rule/schema");auto recovered=restore_selected(c,q::save::read_save(entry.path),a.rule);
     check(recovered.snapshot()==w.snapshot()&&q::f::read_text(entry.path)==q::f::read_text(a.output/"result.save.json"),"Complete Recovery bytes or snapshot differ");
-    const bool retained_pass=first&&w.ticks()==*first+20400&&lost==0&&unmet==0&&evaluations==400;
+    const bool retained_pass=first&&(a.rule!=19||demolition.complete())&&w.ticks()==retention_origin()+20400&&lost==0&&unmet==0&&evaluations==400;
     Json retention=retained?retained->report(w):Json(nullptr);std::int64_t cashflow=0;if(retained)cashflow=retention.at("city").at("summary").at("operating_cashflow");
-    const auto financial_ticks=retained?w.ticks()-std::max(begin,*first):0;
+    const auto financial_ticks=retained?w.ticks()-std::max(begin,retention_origin()):0;
     write(a.output/"city-metrics.json",city.report(w));if(observed)write(a.output/"elite-metrics.json",observed->report(w));
     if(transported)write(a.output/"transport-metrics.json",transported->report(w));if(retained)write(a.output/"retention-metrics.json",retention);
     write(a.output/"commands.json",commands);write(a.output/"checkpoints.json",manifest);write(a.output/"evaluation-provenance.json",evaluation_provenance);
     Json diagnostic_result=diagnosis?diagnosis->finish(w):Json(nullptr);
     if(diagnosis)write(a.output/"oe44-diagnosis.json",diagnostic_result);
     Json fire_result=fire_observed?fire_observed->finish(w):Json(nullptr);
+    if(stop_reason.empty()&&a.rule==19&&(diagnostic_result.at("overflow").get<bool>()||fire_result.at("trace_overflow").get<bool>()))
+        stop_reason="Rule19 diagnostic observation exceeded its unchanged trace budget";
     citywide_routes(a,w,"result");
     if(fire_observed)write(a.output/"oe45-fire-coverage.json",fire_result);
     Json digest_result=tick_digests?tick_digests->finish():Json(nullptr);
@@ -367,7 +400,7 @@ void simulate(const Options& a){
     Json report{{"format","openemperor-paid-elite-desirability-v1"},{"technical_status",stop_reason.empty()?"PASS":"PARTIAL"},
         {"mode",a.mode},{"variant",a.variant},{"rule",w.rule_version()},{"schema",schema_for_rule(w.rule_version())},{"policy",3},{"revision",27},{"snapshot_injection",false},
         {"begin_tick",begin},{"end_tick",w.ticks()},{"paid_elite17",first?"PASS":"PARTIAL"},{"retention",first?(retained_pass?"PASS":"PARTIAL"):"NOT_RUN"},
-        {"first_entry",first_entry},{"retention_observation_begin",retained?Json(std::max(begin,*first)):Json(nullptr)},
+        {"first_entry",first_entry},{"retention_observation_begin",retained?Json(std::max(begin,retention_origin())):Json(nullptr)},
         {"retention_lost_ticks",lost},{"retention_current_unmet",unmet},{"retention_next_unmet",next_unmet},{"retention_evaluations",evaluations},
         {"operating_cashflow",cashflow},{"minimum_retention_funds",retain_min},{"financial_observed_ticks",financial_ticks},
         {"financial_stability",retained?(financial_ticks<20400?"PARTIAL":cashflow>=0&&retain_min>=0?"PASS":"FAIL"):"NOT_RUN"},
@@ -379,9 +412,11 @@ void simulate(const Options& a){
     if(!a.paid_strategy.empty())report["paid_strategy"]=a.paid_strategy;
     if(a.rule==15)report["inspector_coordination_contract"]=sim::original_inspector_coordination_contract;
     if(a.rule==16)report["deadline_fire_dispatch_contract"]=sim::original_deadline_fire_dispatch_contract;
-    if(a.rule==18)report["deadline_food_dispatch_contract"]=sim::original_deadline_food_dispatch_contract;
-    if(a.rule==17||a.rule==18){report["deadline_service_dispatch_contract"]=sim::original_deadline_service_dispatch_contract;
+    if(a.rule==18||a.rule==19)report["deadline_food_dispatch_contract"]=sim::original_deadline_food_dispatch_contract;
+    if(a.rule==17||a.rule==18||a.rule==19){report["deadline_service_dispatch_contract"]=sim::original_deadline_service_dispatch_contract;
         report["deadline_fire_dispatch_contract"]=sim::original_deadline_fire_dispatch_contract;}
+    if(a.rule==19){report["safe_demolition_contract"]=sim::original_safe_demolition_contract;
+        report["safe_demolition"]=demolition.report();write(a.output/"oe51-demolition.json",demolition.report());}
     write(a.output/"report.json",report);
     if(fire_diagnosis(a.diagnosis)) {
         const bool complete=first&&financial_ticks==20400&&evaluations==400;
@@ -684,6 +719,6 @@ void render14(const Options& a){
         {"world_unchanged",true},{"source_inputs_unchanged",true},{"native_human","NOT_RUN"}});
 }
 }
-int main(int argc,char** argv){try{if(argc==2&&std::string_view(argv[1])=="--help"){std::cout<<oe40_cli::help<<'\n';return 0;}
+int main(int argc,char** argv){try{if(argc==2&&std::string_view(argv[1])=="--help"){std::cout<<oe40_cli::help<<oe40_cli::oe51_help<<'\n';return 0;}
     const auto args=oe40_cli::options(argc,argv);if(args.mode=="render")oe40_cli::render14(args);else oe40_cli::simulate(args);return 0;
 }catch(const std::exception& error){std::cerr<<"Elite desirability proof FAIL: "<<error.what()<<'\n';return 1;}}

@@ -321,6 +321,37 @@ class OriginalEconomyCli(unittest.TestCase):
         base[base.index("sandbox-city-v16")] = "sandbox-city-v11"
         self.assertEqual(self.run_cli(base).returncode, 2)
 
+    def test_safe_demolition_requires_separate_explicit_generation(self):
+        base = ["--data", str(self.root), "--sandbox", "Cities/authored.map",
+                "--sandbox-rules", "sandbox-city-v16", "--original-safe-demolition"]
+        invalid = []
+        for flag in ("--data", "--sandbox", "--sandbox-rules"):
+            arguments = base.copy()
+            at = arguments.index(flag)
+            del arguments[at:at + 2]
+            invalid.append(arguments)
+        for flag in ("--original-fire-protection", "--original-sustainable-economy",
+                     "--original-market-logistics", "--original-cardinal-water",
+                     "--original-inspector-coordination", "--original-deadline-fire-dispatch",
+                     "--original-deadline-service-dispatch", "--original-deadline-food-dispatch",
+                     "--original-safe-demolition", "--sandbox-demo", "--sandbox-bridges",
+                     "--sandbox-ramps", "--authored-terrain-sides", "--sandbox-resume-check"):
+            invalid.append(base + [flag])
+        for flags in (["--sandbox-check", "--report-json"],
+                      ["--sandbox-routing-check", "--report-json"],
+                      ["--sandbox-original-economy-check", "--report-json"],
+                      ["--load-sandbox", "unread.json"]):
+            invalid.append(base + flags)
+        wrong_profile = base.copy()
+        wrong_profile[wrong_profile.index("sandbox-city-v16")] = "sandbox-city-v11"
+        invalid.append(wrong_profile)
+        for arguments in invalid:
+            with self.subTest(arguments=arguments):
+                result = self.run_cli(arguments)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("Usage:", result.stderr)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

@@ -144,6 +144,13 @@ simulation::World restore_original_deadline_food_dispatch(
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
     std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema35/Rule19 explicitly adds bounded paid-purchase retirement; no migration.
+simulation::World restore_original_safe_demolition(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
 SaveDocument upgrade_city_v11_v2_to_v3(const SaveDocument& document);
 SaveDocument upgrade_city_v11_v3_to_v4(const SaveDocument& document);
 simulation::World restore_save(const SaveDocument& document,

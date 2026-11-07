@@ -1196,6 +1196,57 @@ template<std::size_t N> std::array<std::uint64_t,N> parse_production_counters(co
     for (std::size_t i=0;i<N;++i) result[i]=number(j[i]);
     return result;
 }
+json production_clay_trip_json(const simulation::OriginalClayTrip& value) {
+    return {{"transfer",production_transfer_json(value.transfer)},
+        {"source",static_cast<std::uint32_t>(value.source)},{"target",static_cast<std::uint32_t>(value.target)},
+        {"loaded",value.loaded},{"delivered",value.delivered},{"dispatched_tick",value.dispatched_tick},
+        {"arrival_tick",value.arrival_tick ? json(*value.arrival_tick):json(nullptr)}};
+}
+simulation::OriginalClayTrip parse_production_clay_trip(const json& value,
+        std::optional<simulation::CourierId> previous=std::nullopt) {
+    simulation::OriginalClayTrip row;row.transfer=parse_production_transfer(field(value,"transfer"));
+    require(!previous || *previous<row.transfer.courier_id,"schema26 native Clay trips require sorted unique actor IDs");
+    row.source=production_id(field(value,"source"));row.target=production_id(field(value,"target"));
+    row.loaded=small(field(value,"loaded"));row.delivered=small(field(value,"delivered"));
+    row.dispatched_tick=number(field(value,"dispatched_tick"));
+    const auto& arrival=field(value,"arrival_tick");if (!arrival.is_null()) row.arrival_tick=number(arrival);
+    return row;
+}
+json production_safe_demolition_json(const simulation::OriginalSafeDemolitionState& state) {
+    require(state.retired.size()<=simulation::original_safe_demolition_retired_limit,"schema35 retired purchase collection exceeds bound");
+    json retired=json::array();
+    for (const auto& entry:state.retired)
+        retired.push_back({{"building_id",static_cast<std::uint32_t>(entry.building_id)},
+            {"kind",static_cast<unsigned>(entry.kind)},{"origin",cell_json({entry.origin_x,entry.origin_y})},
+            {"placed_tick",entry.placed_tick},{"removed_tick",entry.removed_tick},{"clay_extracted",entry.clay_extracted},
+            {"courier_id",entry.courier_id ? json(static_cast<std::uint32_t>(*entry.courier_id)):json(nullptr)},
+            {"clay_trip",entry.clay_trip ? production_clay_trip_json(*entry.clay_trip):json(nullptr)}});
+    return {{"retired",std::move(retired)}};
+}
+simulation::OriginalSafeDemolitionState parse_production_safe_demolition(const json& j) {
+    simulation::OriginalSafeDemolitionState result;
+    const auto& retired=field(j,"retired");
+    require(retired.is_array() && retired.size()<=simulation::original_safe_demolition_retired_limit,
+            "schema35 retired purchase collection exceeds bound");
+    for (const auto& value:retired) {
+        simulation::OriginalRetiredPurchase entry;entry.building_id=production_id(field(value,"building_id"));
+        require(result.retired.empty() || result.retired.back().building_id<entry.building_id,
+                "schema35 retired purchase IDs must be sorted unique");
+        entry.kind=static_cast<simulation::OriginalRetiredKind>(number(field(value,"kind"),1));
+        const auto origin=cell(field(value,"origin"));entry.origin_x=origin.x;entry.origin_y=origin.y;
+        entry.placed_tick=number(field(value,"placed_tick"),original::scheduler_max_tick);
+        entry.removed_tick=number(field(value,"removed_tick"),original::scheduler_max_tick);
+        entry.clay_extracted=number(field(value,"clay_extracted"));
+        const auto& actor=field(value,"courier_id");
+        if (!actor.is_null()) {
+            const auto id=number(actor,UINT32_MAX);require(id>0,"schema35 retired Courier ID must be positive");
+            entry.courier_id=static_cast<simulation::CourierId>(id);
+        }
+        const auto& trip=field(value,"clay_trip");if (!trip.is_null()) entry.clay_trip=parse_production_clay_trip(trip);
+        result.retired.push_back(entry);
+    }
+    return result;
+}
 json production_industry_json(const simulation::OriginalIndustryState& state) {
     require(state.sources.size()<=simulation::original_industry_source_limit &&
             state.managed_ore.size()<=simulation::original_managed_ore_limit &&
@@ -1233,11 +1284,7 @@ json production_industry_json(const simulation::OriginalIndustryState& state) {
             {"loaded",value.loaded},{"delivered",value.delivered},{"returned",value.returned},
             {"dispatched_tick",value.dispatched_tick},
             {"arrival_tick",value.arrival_tick ? json(*value.arrival_tick):json(nullptr)}});
-    for (const auto& value:state.clay_trips)
-        clay_trips.push_back({{"transfer",production_transfer_json(value.transfer)},
-            {"source",static_cast<std::uint32_t>(value.source)},{"target",static_cast<std::uint32_t>(value.target)},
-            {"loaded",value.loaded},{"delivered",value.delivered},{"dispatched_tick",value.dispatched_tick},
-            {"arrival_tick",value.arrival_tick ? json(*value.arrival_tick):json(nullptr)}});
+    for (const auto& value:state.clay_trips) clay_trips.push_back(production_clay_trip_json(value));
     return {{"sources",std::move(sources)},{"managed_ore",std::move(ore)},
         {"auxiliary",std::move(stocks)},{"aux_trips",std::move(aux_trips)},{"clay_trips",std::move(clay_trips)}};
 }
@@ -1299,13 +1346,8 @@ simulation::OriginalIndustryState parse_production_industry(const json& j) {
         result.aux_trips.push_back(row);
     }
     for (const auto& value:collection("clay_trips",simulation::original_clay_trip_limit)) {
-        simulation::OriginalClayTrip row;row.transfer=parse_production_transfer(field(value,"transfer"));
-        require(result.clay_trips.empty() || result.clay_trips.back().transfer.courier_id<row.transfer.courier_id,
-                "schema26 native Clay trips require sorted unique actor IDs");
-        row.source=production_id(field(value,"source"));row.target=production_id(field(value,"target"));
-        row.loaded=small(field(value,"loaded"));row.delivered=small(field(value,"delivered"));
-        row.dispatched_tick=number(field(value,"dispatched_tick"));
-        const auto& arrival=field(value,"arrival_tick");if (!arrival.is_null()) row.arrival_tick=number(arrival);
+        auto row=parse_production_clay_trip(value,result.clay_trips.empty() ? std::nullopt:
+            std::optional<simulation::CourierId>(result.clay_trips.back().transfer.courier_id));
         result.clay_trips.push_back(row);
     }
     return result;
@@ -1576,7 +1618,8 @@ simulation::OriginalFireProtectionState parse_fire_protection(const json& j,int 
 }
 json production_document_json(const SaveDocument& d) {
     const bool fire=simulation::original_fire_protection_enabled(d.world.profile,d.world.rule_version);
-    const auto schema=simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version) ? 34U:
+    const auto schema=simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version) ? 35U:
+        simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version) ? 34U:
         simulation::original_deadline_service_dispatch_enabled(d.world.profile,d.world.rule_version) ? 33U:
         simulation::original_deadline_fire_dispatch_enabled(d.world.profile,d.world.rule_version) ? 32U:
         simulation::original_inspector_coordination_enabled(d.world.profile,d.world.rule_version) ? 31U:
@@ -1588,7 +1631,7 @@ json production_document_json(const SaveDocument& d) {
             d.world.original_economy && d.world.original_influence,
             "schema26 requires separate City-v16 rule10 production authority");
     require(d.source_schema_version==0 || d.source_schema_version==schema,
-            "Rule10/11/12/13/14/15/16/17/18 require their exact schema26/27/28/29/30/31/32/33/34; existing saves are not migrated");
+            "Original production rules require their exact schema; existing saves are not migrated");
     require(d.world.original_production->development_revision==simulation::kOriginalProductionDevelopmentRevision,
             "schema26 development revision differs from this executable");
     require(d.map_permissions_policy_version==simulation::kBridgesMapPermissionsPolicyVersion &&
@@ -1647,12 +1690,13 @@ json production_document_json(const SaveDocument& d) {
     }
     auto result=document_json(projected);
     result["schema_version"]=schema;result["rules"]["version"]=d.world.rule_version;
-    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34) result["rules"]["market_logistics"]=simulation::original_market_logistics_contract;
-    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34) result["rules"]["cardinal_water"]=simulation::original_cardinal_water_contract;
+    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35) result["rules"]["market_logistics"]=simulation::original_market_logistics_contract;
+    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35) result["rules"]["cardinal_water"]=simulation::original_cardinal_water_contract;
     if (schema==31) result["rules"]["inspector_coordination"]=simulation::original_inspector_coordination_contract;
-    if (schema==32 || schema==33 || schema==34) result["rules"]["deadline_fire_dispatch"]=simulation::original_deadline_fire_dispatch_contract;
-    if (schema==33 || schema==34) result["rules"]["deadline_service_dispatch"]=simulation::original_deadline_service_dispatch_contract;
-    if (schema==34) result["rules"]["deadline_food_dispatch"]=simulation::original_deadline_food_dispatch_contract;
+    if (schema==32 || schema==33 || schema==34 || schema==35) result["rules"]["deadline_fire_dispatch"]=simulation::original_deadline_fire_dispatch_contract;
+    if (schema==33 || schema==34 || schema==35) result["rules"]["deadline_service_dispatch"]=simulation::original_deadline_service_dispatch_contract;
+    if (schema==34 || schema==35) result["rules"]["deadline_food_dispatch"]=simulation::original_deadline_food_dispatch_contract;
+    if (schema==35) result["rules"]["safe_demolition"]=simulation::original_safe_demolition_contract;
     for (std::size_t i=0;i<d.world.buildings.size();++i)
         result["world"]["buildings"][i]["kind"]=static_cast<int>(d.world.buildings[i].kind);
     for (std::size_t i=0;i<d.world.couriers.size();++i)
@@ -1678,24 +1722,28 @@ json production_document_json(const SaveDocument& d) {
         {"industry",production_industry_json(production.industry)},
         {"finance",production_finance_json(production.finance)}};
     if (fire) result["world"]["original_production"]["fire_protection"]=fire_protection_json(*production.fire_protection,d.world.width);
+    if (schema==35) result["world"]["original_production"]["safe_demolition"]=production_safe_demolition_json(*production.safe_demolition);
     return result;
 }
 SaveDocument parse_production_document(const json& j) {
     const auto schema=number(field(j,"schema_version"));
-    const bool fire=schema==27 || schema==28 || schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34;
-    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34) require(str(field(field(j,"rules"),"market_logistics"))==simulation::original_market_logistics_contract,
+    const bool fire=schema==27 || schema==28 || schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35;
+    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35) require(str(field(field(j,"rules"),"market_logistics"))==simulation::original_market_logistics_contract,
         "schema29 requires its exact authored market-logistics contract");
-    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34) require(str(field(field(j,"rules"),"cardinal_water"))==simulation::original_cardinal_water_contract,
+    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35) require(str(field(field(j,"rules"),"cardinal_water"))==simulation::original_cardinal_water_contract,
         "schema30 requires its exact verified cardinal-water contract");
     if (schema==31) require(str(field(field(j,"rules"),"inspector_coordination"))==simulation::original_inspector_coordination_contract,
         "schema31 requires its exact authored Inspector-coordination contract");
-    if (schema==32 || schema==33 || schema==34) require(str(field(field(j,"rules"),"deadline_fire_dispatch"))==simulation::original_deadline_fire_dispatch_contract,
+    if (schema==32 || schema==33 || schema==34 || schema==35) require(str(field(field(j,"rules"),"deadline_fire_dispatch"))==simulation::original_deadline_fire_dispatch_contract,
         "schema32 requires its exact authored deadline-fire-dispatch contract");
-    if (schema==33 || schema==34) require(str(field(field(j,"rules"),"deadline_service_dispatch"))==simulation::original_deadline_service_dispatch_contract,
+    if (schema==33 || schema==34 || schema==35) require(str(field(field(j,"rules"),"deadline_service_dispatch"))==simulation::original_deadline_service_dispatch_contract,
         "schema33 requires its exact authored deadline-service-dispatch contract");
-    if (schema==34) require(str(field(field(j,"rules"),"deadline_food_dispatch"))==simulation::original_deadline_food_dispatch_contract,
+    if (schema==34 || schema==35) require(str(field(field(j,"rules"),"deadline_food_dispatch"))==simulation::original_deadline_food_dispatch_contract,
         "schema34 requires its exact authored deadline-food-dispatch contract");
-    const auto rule_version=schema==34 ? simulation::kOriginalDeadlineFoodDispatchRuleVersion:
+    if (schema==35) require(str(field(field(j,"rules"),"safe_demolition"))==simulation::original_safe_demolition_contract,
+        "schema35 requires its exact authored safe-demolition contract");
+    const auto rule_version=schema==35 ? simulation::kOriginalSafeDemolitionRuleVersion:
+        schema==34 ? simulation::kOriginalDeadlineFoodDispatchRuleVersion:
         schema==33 ? simulation::kOriginalDeadlineServiceDispatchRuleVersion:
         schema==32 ? simulation::kOriginalDeadlineFireDispatchRuleVersion:
         schema==31 ? simulation::kOriginalInspectorCoordinationRuleVersion:
@@ -1750,6 +1798,7 @@ SaveDocument parse_production_document(const json& j) {
     state.water=parse_production_water(field(production,"water"));
     state.housing=parse_production_housing(field(production,"housing"));
     state.industry=parse_production_industry(field(production,"industry"));
+    if (schema==35) state.safe_demolition=parse_production_safe_demolition(field(production,"safe_demolition"));
     auto projected=j;
     projected["schema_version"]=22;projected["rules"]["version"]=6;
     for (const char* key:{"original_economy","original_influence","original_goods","original_production"})
@@ -1895,16 +1944,18 @@ SaveDocument parse_document(const json& j,SnapshotSyntax syntax) {
     require(syntax==SnapshotSyntax::OriginalProduction || schema==31 ||
             !field(j,"rules").contains("inspector_coordination"),
             "Inspector coordination marker requires exact schema31");
-    require(syntax==SnapshotSyntax::OriginalProduction || schema==32 || schema==33 || schema==34 ||
+    require(syntax==SnapshotSyntax::OriginalProduction || schema==32 || schema==33 || schema==34 || schema==35 ||
             !field(j,"rules").contains("deadline_fire_dispatch"),
             "Deadline fire-dispatch marker requires exact schema32,33 or34");
-    require(syntax==SnapshotSyntax::OriginalProduction || schema==33 || schema==34 ||
+    require(syntax==SnapshotSyntax::OriginalProduction || schema==33 || schema==34 || schema==35 ||
             !field(j,"rules").contains("deadline_service_dispatch"),
             "Deadline service-dispatch marker requires exact schema33 or34");
-    require(syntax==SnapshotSyntax::OriginalProduction || schema==34 ||
+    require(syntax==SnapshotSyntax::OriginalProduction || schema==34 || schema==35 ||
             !field(j,"rules").contains("deadline_food_dispatch"),
             "Deadline Food-dispatch marker requires exact schema34");
-    if (schema==26 || schema==27 || schema==28 || schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34) return parse_production_document(j);
+    require(syntax==SnapshotSyntax::OriginalProduction || schema==35 ||
+            !field(j,"rules").contains("safe_demolition"),"Safe-demolition marker requires exact schema35");
+    if (schema==26 || schema==27 || schema==28 || schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35) return parse_production_document(j);
     if (schema==25) return parse_goods_document(j);
     if (schema==24) return parse_influence_document(j);
     if (schema==23) return parse_original_document(j);
@@ -2045,13 +2096,16 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
                 "schema26 requires complete immutable policy3 map permissions");
         d.map_permissions_policy_version=d.prepared_permissions->policy_version();
         d.map_permissions_sha256=map_permissions_fingerprint(*d.prepared_permissions,d.map_sha256);
-        if (simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version) ||
+        if (simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version) ||
+            simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version) ||
             simulation::original_deadline_service_dispatch_enabled(d.world.profile,d.world.rule_version) ||
             simulation::original_deadline_fire_dispatch_enabled(d.world.profile,d.world.rule_version) ||
             simulation::original_inspector_coordination_enabled(d.world.profile,d.world.rule_version) ||
             simulation::original_cardinal_water_enabled(d.world.profile,d.world.rule_version)) {
             d.prepared_original_terrain_facts=world.original_terrain_facts();
             require(d.prepared_original_terrain_facts && d.prepared_original_terrain_facts->source_map_sha256()==d.map_sha256,
+                simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version) ?
+                    "schema35 World terrain context differs from complete source-map SHA-256":
                 simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version) ?
                     "schema34 World terrain context differs from complete source-map SHA-256":
                 simulation::original_deadline_service_dispatch_enabled(d.world.profile,d.world.rule_version) ?
@@ -2061,7 +2115,10 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
                 simulation::original_inspector_coordination_enabled(d.world.profile,d.world.rule_version) ?
                     "schema31 World terrain context differs from complete source-map SHA-256":
                     "schema30 World terrain context differs from complete source-map SHA-256");
-            if (simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version))
+            if (simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version))
+                (void)restore_original_safe_demolition(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
+                    d.prepared_original_terrain_facts);
+            else if (simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version))
                 (void)restore_original_deadline_food_dispatch(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
                     d.prepared_original_terrain_facts);
             else if (simulation::original_deadline_service_dispatch_enabled(d.world.profile,d.world.rule_version))
@@ -2162,7 +2219,7 @@ SaveDocument read_save(const fs::path& path) {
     if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==25)
         require(!duplicate_key,"schema25 duplicate save key");
     if (j.is_object() && j.contains("schema_version") &&
-        (j.at("schema_version")==26 || j.at("schema_version")==27 || j.at("schema_version")==28 || j.at("schema_version")==29 || j.at("schema_version")==30 || j.at("schema_version")==31 || j.at("schema_version")==32 || j.at("schema_version")==33 || j.at("schema_version")==34))
+        (j.at("schema_version")==26 || j.at("schema_version")==27 || j.at("schema_version")==28 || j.at("schema_version")==29 || j.at("schema_version")==30 || j.at("schema_version")==31 || j.at("schema_version")==32 || j.at("schema_version")==33 || j.at("schema_version")==34 || j.at("schema_version")==35))
         require(!duplicate_key,"original production duplicate save key");
     return parse_document(j);
 }
@@ -2433,6 +2490,7 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
         std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
         std::shared_ptr<const original::OriginalRulesModel> model,std::uint32_t rule_version,
         std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr) {
+    const bool safe=rule_version==simulation::kOriginalSafeDemolitionRuleVersion;
     const bool food=rule_version==simulation::kOriginalDeadlineFoodDispatchRuleVersion;
     const bool service=rule_version==simulation::kOriginalDeadlineServiceDispatchRuleVersion;
     const bool deadline=rule_version==simulation::kOriginalDeadlineFireDispatchRuleVersion;
@@ -2440,7 +2498,7 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
     const bool cardinal=rule_version==simulation::kOriginalCardinalWaterRuleVersion;
     const bool logistics=rule_version==simulation::kOriginalMarketLogisticsRuleVersion;
     const bool sustainable=rule_version==simulation::kOriginalSustainableRuleVersion;
-    const auto schema=food ? 34U:service ? 33U:deadline ? 32U:coordination ? 31U:cardinal ? 30U:logistics ? 29U:sustainable ? 28U:27U;
+    const auto schema=safe ? 35U:food ? 34U:service ? 33U:deadline ? 32U:coordination ? 31U:cardinal ? 30U:logistics ? 29U:sustainable ? 28U:27U;
     require(d.world.profile==simulation::RulesProfile::CityV16 && d.world.rule_version==rule_version,
             "original fire restore requires its exact explicit City-v16 rule generation");
     require(d.source_schema_version==0 || d.source_schema_version==schema,
@@ -2470,27 +2528,32 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
             "schema27 requires matching immutable policy3 map permissions");
     require(map_permissions_fingerprint(*permissions,d.map_sha256)==d.map_permissions_sha256,
             "map-permissions SHA-256 differs from save (permissions or topology changed)");
-    if (cardinal || coordination || deadline || service || food) {
+    if (cardinal || coordination || deadline || service || food || safe) {
         // Re-read source facts even when a session dependency was provided.
         // Claimed source hashes or JSON-derived bitsets never become authority.
         auto live=prepare_original_terrain_facts(root,d.map_relative);
         require(live->source_map_sha256()==d.map_sha256,
+                safe ? "schema35 live terrain source SHA-256 differs from save":
                 food ? "schema34 live terrain source SHA-256 differs from save":
                 service ? "schema33 live terrain source SHA-256 differs from save":
                 deadline ? "schema32 live terrain source SHA-256 differs from save":
                 coordination ? "schema31 live terrain source SHA-256 differs from save":
                     "schema30 live terrain source SHA-256 differs from save");
-        if (terrain) require(*terrain==*live,food ? "schema34 prepared terrain facts differ from live original source":
+        if (terrain) require(*terrain==*live,safe ? "schema35 prepared terrain facts differ from live original source":
+            food ? "schema34 prepared terrain facts differ from live original source":
             service ? "schema33 prepared terrain facts differ from live original source":
             deadline ? "schema32 prepared terrain facts differ from live original source":
             coordination ? "schema31 prepared terrain facts differ from live original source":
             "schema30 prepared terrain facts differ from live original source");
         if (d.prepared_original_terrain_facts)
-            require(*d.prepared_original_terrain_facts==*live,food ? "schema34 document terrain facts differ from live original source":
+            require(*d.prepared_original_terrain_facts==*live,safe ? "schema35 document terrain facts differ from live original source":
+                food ? "schema34 document terrain facts differ from live original source":
                 service ? "schema33 document terrain facts differ from live original source":
                 deadline ? "schema32 document terrain facts differ from live original source":
                 coordination ? "schema31 document terrain facts differ from live original source":
                 "schema30 document terrain facts differ from live original source");
+        if (safe)
+            return simulation::World::restore_original_safe_demolition(d.world,std::move(permissions),std::move(model),std::move(live));
         if (food)
             return simulation::World::restore_original_deadline_food_dispatch(d.world,std::move(permissions),std::move(model),std::move(live));
         if (service)
@@ -2559,6 +2622,13 @@ simulation::World restore_original_deadline_food_dispatch(const SaveDocument& d,
     return restore_original_fire_generation(d,root,std::move(mask),std::move(permissions),std::move(model),
         simulation::kOriginalDeadlineFoodDispatchRuleVersion,std::move(terrain));
 }
+simulation::World restore_original_safe_demolition(const SaveDocument& d,const fs::path& root,
+        std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
+        std::shared_ptr<const original::OriginalRulesModel> model,
+        std::shared_ptr<const simulation::OriginalTerrainFacts> terrain) {
+    return restore_original_fire_generation(d,root,std::move(mask),std::move(permissions),std::move(model),
+        simulation::kOriginalSafeDemolitionRuleVersion,std::move(terrain));
+}
 void validate_save_target(const fs::path& path,const fs::path& root) {
     require(!path.empty(),"save path is empty");
     const auto absolute=fs::absolute(path).lexically_normal();
@@ -2583,7 +2653,10 @@ void write_save(const fs::path& path,const SaveDocument& d,const fs::path& root,
     validate_save_target(path,root);
     // Recheck original inputs and all world invariants before writing any bytes.
     if (simulation::original_production_enabled(d.world.profile,d.world.rule_version))
-        if (simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version))
+        if (simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version))
+            (void)restore_original_safe_demolition(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
+                d.prepared_original_terrain_facts);
+        else if (simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version))
             (void)restore_original_deadline_food_dispatch(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
                 d.prepared_original_terrain_facts);
         else if (simulation::original_deadline_service_dispatch_enabled(d.world.profile,d.world.rule_version))

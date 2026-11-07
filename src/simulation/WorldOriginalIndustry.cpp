@@ -112,6 +112,37 @@ template<class Building,class Courier> std::uint64_t moved(const Building& start
     return static_cast<std::uint64_t>(gap(start.cell.x,size.width,at.x)+gap(start.cell.y,size.height,at.y))*static_cast<std::uint64_t>(edge)+
         static_cast<std::uint64_t>(actor.edge_progress);
 }
+template<class Buildings,class Couriers>
+void validate_retired_clay(const OriginalSafeDemolitionState& history,const Buildings& buildings,
+    const Couriers& couriers,std::uint64_t tick) {
+    for (const auto& entry:history.retired) {
+        if (entry.kind!=OriginalRetiredKind::ClaySource) continue;
+        if (!entry.courier_id || entry.removed_tick>tick ||
+            static_cast<bool>(entry.clay_trip)!=(entry.clay_extracted!=0) ||
+            std::any_of(couriers.begin(),couriers.end(),[&](const auto& actor){return actor.id==*entry.courier_id;}))
+            invalid("retired Clay source lost its exclusive closed actor history");
+        if (!entry.clay_trip) continue;
+        const auto& trip=*entry.clay_trip;
+        const auto& target=body(buildings,trip.target);
+        auto source=target;source.id=entry.building_id;source.kind=Object::ClaySource;
+        source.cell={entry.origin_x,entry.origin_y};
+        if (target.kind!=Object::Pottery || trip.source!=entry.building_id ||
+            trip.transfer.courier_id!=*entry.courier_id || !trip.transfer.sequence ||
+            trip.transfer.sequence>trip.dispatched_tick || trip.dispatched_tick<=entry.placed_tick ||
+            trip.dispatched_tick<target.placed_tick || !trip.arrival_tick ||
+            *trip.arrival_tick<=trip.dispatched_tick || *trip.arrival_tick>entry.removed_tick ||
+            trip.loaded<=0 || trip.loaded>Rules::courier_capacity || trip.delivered!=trip.loaded ||
+            static_cast<std::uint64_t>(trip.loaded)>entry.clay_extracted)
+            invalid("retired Clay trip is not a completely settled ordinary Pottery delivery");
+        const auto earlier=trip.transfer.sequence-1;
+        const auto previous_units=entry.clay_extracted-static_cast<std::uint64_t>(trip.loaded);
+        if (earlier>previous_units || previous_units/Rules::courier_capacity+
+            (previous_units%Rules::courier_capacity!=0)>earlier ||
+            *trip.arrival_tick-trip.dispatched_tick<travel(source,target)-1 ||
+            entry.removed_tick-*trip.arrival_tick<travel(target,source))
+            invalid("retired Clay sequence, extraction or physical return history differs");
+    }
+}
 template<class Building> void bounded_body(const Building& b,int width,int height) {
     const auto size=building_footprint(RulesProfile::CityV16,kOriginalProductionRuleVersion,b.kind);
     if (!b.placed || b.cell.x<0 || b.cell.y<0 || std::int64_t(b.cell.x)+size.width>width ||
@@ -404,9 +435,17 @@ CommandResult World::validate_original_industry_command(Command command) const {
 void World::validate_original_industry_snapshot(const WorldSnapshot& s) {
     if (!s.original_production || !s.original_goods) invalid("industry requires active sole production/goods authority");
     validate_industry(s.original_production->industry,s.buildings,s.couriers,*s.original_goods,s.original_production->services,s.width,s.height,s.ticks);
+    if (simulation::original_safe_demolition_enabled(s.profile,s.rule_version)) {
+        if (!s.original_production->safe_demolition) invalid("Rule19 industry requires its retired purchase journal");
+        validate_retired_clay(*s.original_production->safe_demolition,s.buildings,s.couriers,s.ticks);
+    }
 }
 void World::validate_original_industry_state() const {
     validate_industry(original_production_->industry,buildings_,couriers_,*original_goods_,original_production_->services,width_,height_,ticks_);
+    if (original_safe_demolition_enabled()) {
+        if (!original_production_->safe_demolition) invalid("Rule19 industry requires its retired purchase journal");
+        validate_retired_clay(*original_production_->safe_demolition,buildings_,couriers_,ticks_);
+    }
 }
 OriginalAuxBalance World::original_auxiliary_balance(OriginalAuxMaterial material) const {
     const auto g=column(material);OriginalAuxBalance result;

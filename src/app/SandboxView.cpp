@@ -498,6 +498,19 @@ std::unique_ptr<SandboxView> SandboxView::create_original_deadline_food_dispatch
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_original_safe_demolition(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid original safe-demolition difficulty");
+    if (session.input_sha256.empty())
+        throw std::invalid_argument("Rule19 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kOriginalSafeDemolitionRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;
+    result->original_paid_starter_=paid_starter;
+    return result;
+}
+
 SandboxView::SandboxView(maps::StoredMapSession session,bool demo,simulation::RulesProfile rules,
                          std::uint32_t rule_version)
     : SandboxView(std::move(session),demo,rules,rule_version,false) {}
@@ -609,7 +622,8 @@ void SandboxView::load_now() {
          (original_requested_difficulty_ &&
           document.world.original_economy->model_source->difficulty!=*original_requested_difficulty_)))
         throw std::runtime_error("Saved original difficulty differs from this running session");
-    auto replacement=original_deadline_food_dispatch() ?
+    auto replacement=original_safe_demolition() ?
+        persistence::restore_original_safe_demolition(document,data_root_,buildable_mask_) : original_deadline_food_dispatch() ?
         persistence::restore_original_deadline_food_dispatch(document,data_root_,buildable_mask_) : original_deadline_service_dispatch() ?
         persistence::restore_original_deadline_service_dispatch(document,data_root_,buildable_mask_) : original_deadline_fire_dispatch() ?
         persistence::restore_original_deadline_fire_dispatch(document,data_root_,buildable_mask_) : original_inspector_coordination() ?
@@ -711,12 +725,14 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
                 initial_save_->map_permissions_policy_version:
                 maps::map_rules_policy_version(rules_,active_version),expected_map_input_sha256_);
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain;
-    if (original_cardinal_water() || original_inspector_coordination() || original_deadline_fire_dispatch() || original_deadline_service_dispatch() || original_deadline_food_dispatch())
+    if (original_cardinal_water() || original_inspector_coordination() || original_deadline_fire_dispatch() || original_deadline_service_dispatch() || original_deadline_food_dispatch() || original_safe_demolition())
         terrain=std::make_shared<const simulation::OriginalTerrainFacts>(
             original_map_.terrain_raw.values,expected_map_input_sha256_);
     original_map_={};
     if (initial_save_) {
-        world_=std::make_unique<simulation::World>(original_deadline_food_dispatch() ?
+        world_=std::make_unique<simulation::World>(original_safe_demolition() ?
+            persistence::restore_original_safe_demolition(*initial_save_,data_root_,
+                buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_deadline_food_dispatch() ?
             persistence::restore_original_deadline_food_dispatch(*initial_save_,data_root_,
                 buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_deadline_service_dispatch() ?
             persistence::restore_original_deadline_service_dispatch(*initial_save_,data_root_,
@@ -747,6 +763,10 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         last_message_="Loaded tick "+std::to_string(world_->ticks())+" (paused)"+
             (initial_save_->migrated_from_schema1 ? "; save schema 1 migrated in memory":"");
         initial_save_.reset();
+    } else if (original_safe_demolition()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_original_safe_demolition(
+            std::move(permissions),persistence::prepare_original_production_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
     } else if (original_deadline_food_dispatch()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_deadline_food_dispatch(
             std::move(permissions),persistence::prepare_original_production_rules_model(data_root_,
@@ -824,7 +844,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(original_deadline_food_dispatch())title+=" | save schema 34 | authored deadline-aware Food dispatch";
+    if(original_safe_demolition())title+=" | save schema 35 | authored safe demolition";
+    else if(original_deadline_food_dispatch())title+=" | save schema 34 | authored deadline-aware Food dispatch";
     else if(original_deadline_service_dispatch())title+=" | save schema 33 | authored deadline-aware service dispatch";
     else if(original_deadline_fire_dispatch())title+=" | save schema 32 | authored deadline-aware fire dispatch";
     else if(original_inspector_coordination())title+=" | save schema 31 | authored Inspector coordination";
@@ -2518,7 +2539,13 @@ void SandboxView::cancel_gesture() {
 }
 
 sandbox_ui::InspectorLayout SandboxView::inspector_layout() const {
-    if (!layout_.panel_open || income_open_ || !world_ || original_house_inspector_active()) return {};
+    if (!layout_.panel_open || income_open_ || !world_) return {};
+    if (original_house_inspector_active()) {
+        if (!original_safe_demolition()) return {};
+        // Keep House tabs and its document; share the existing fixed footer.
+        return sandbox_ui::make_inspector_layout(layout_.panel,layout_.scale,0,0,
+            demolition_hint_lines().size(),false,false,true,0,inspector_hint_scroll_);
+    }
     const auto id=selected_building();
     const bool operations=id && world_->operation_controls_supported() &&
         simulation::World::operation_controllable(world_->building(*id).kind);
@@ -3101,8 +3128,14 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 if (original_house_inspector_active()) {
                     cancel_gesture();
                     if (input_focused_ && !walker_diagnostic_open_) {
-                        const double next=original_house_scroll_-std::trunc(double(event.wheel.y))*24*layout_.scale;
-                        original_house_scroll_=static_cast<int>(std::clamp(next,0.0,double(original_house_scroll_limit())));
+                        const auto footer=inspector_layout();
+                        if (original_safe_demolition() && footer.hints.contains(point->x,point->y)) {
+                            const double next=footer.hint_scroll-std::trunc(double(event.wheel.y))*24*layout_.scale;
+                            inspector_hint_scroll_=static_cast<int>(std::clamp(next,0.0,double(footer.hint_scroll_limit)));
+                        } else if (!original_safe_demolition() || original_house_content_rect().contains(point->x,point->y)) {
+                            const double next=original_house_scroll_-std::trunc(double(event.wheel.y))*24*layout_.scale;
+                            original_house_scroll_=static_cast<int>(std::clamp(next,0.0,double(original_house_scroll_limit())));
+                        }
                     }
                     refresh_hover();
                     return;
@@ -3148,6 +3181,11 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (managed_ && pointer_ && menu_button_rect().contains(pointer_->x,pointer_->y)) { menu_pressed_=true; return; }
         refresh_hover();
         if (!pointer_) return;
+        if (!income_open_ && layout_.panel_open && world_->demolition_supported() && selected_building() &&
+            (!original_house_inspector_active() || (input_focused_ && !walker_diagnostic_open_)) &&
+            demolition_button_rect().contains(pointer_->x,pointer_->y)) {
+            pressed_demolition_=true; ui_pressed_=true; return;
+        }
         if (original_house_inspector_active() && layout_.panel.contains(pointer_->x,pointer_->y)) {
             original_house_panel_pressed_=true;ui_pressed_=true;
             if (input_focused_ && !walker_diagnostic_open_) {
@@ -3159,10 +3197,6 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                 pressed_original_house_overlay_=original_house_overlay_rect().contains(pointer_->x,pointer_->y);
             }
             return;
-        }
-        if (!income_open_ && layout_.panel_open && world_->demolition_supported() && selected_building() &&
-            demolition_button_rect().contains(pointer_->x,pointer_->y)) {
-            pressed_demolition_=true; ui_pressed_=true; return;
         }
         if (const auto action=operation_action_at(pointer_->x,pointer_->y)) {
             pressed_operation_action_=action; ui_pressed_=true; return;
@@ -3339,7 +3373,12 @@ simulation::CommandResult SandboxView::execute(simulation::Command command) {
     }
     last_message_=result.reason;
     if (command.type==simulation::CommandType::DemolishBuilding) {
-        if (result.changed) { clear_visual_selection(); selected_.reset(); cancel_gesture(); refresh_hover(true); }
+        if (result.changed) {
+            clear_visual_selection(); selected_.reset(); cancel_gesture(); refresh_hover(true);
+            if (original_safe_demolition()) {
+                panel_scroll_=0;inspector_hint_scroll_=0;original_house_scroll_=0;
+            }
+        }
     } else if (command.type!=simulation::CommandType::SetBuildingOperation &&
         command.type!=simulation::CommandType::SetBuildingWorkforcePriority) {
         if (selected_!=command.cell) { panel_scroll_=0;inspector_hint_scroll_=0;original_house_scroll_=0; }
@@ -4679,8 +4718,12 @@ sandbox_ui::Rect SandboxView::original_house_content_rect() const {
     if (!original_house_inspector_active()) return {};
     const int scale=layout_.scale,rows=layout_.panel.w<280*scale ? 2:1;
     const int top=std::min(layout_.panel.y+layout_.panel.h,layout_.panel.y+(74+rows*28)*scale);
+    const auto footer=original_safe_demolition() ? inspector_layout():sandbox_ui::InspectorLayout{};
+    const int bottom=original_safe_demolition() ?
+        std::min(layout_.panel.y+layout_.panel.h-8*scale,footer.content.y+footer.content.h):
+        layout_.panel.y+layout_.panel.h-8*scale;
     return {layout_.panel.x+10*scale,top,std::max(0,layout_.panel.w-20*scale),
-        std::max(0,layout_.panel.y+layout_.panel.h-8*scale-top)};
+        std::max(0,bottom-top)};
 }
 int SandboxView::original_house_scroll_limit() const {
     const auto rect=original_house_content_rect();
@@ -5863,6 +5906,41 @@ bool SandboxView::draw_text(double x,double y,const std::string& value,int max_w
                                         static_cast<float>(y/scale),text.c_str());
     return SDL_SetRenderScale(renderer_,1,1) && okay;
 }
+bool SandboxView::draw_demolition_controls() {
+    const auto id=selected_building();
+    if (!id) return true;
+    const auto panel=inspector_layout();
+    const auto fill=[&](sandbox_ui::Rect rect,SDL_Color color) {
+        const SDL_FRect area{static_cast<float>(rect.x),static_cast<float>(rect.y),
+            static_cast<float>(rect.w),static_cast<float>(rect.h)};
+        return SDL_SetRenderDrawColor(renderer_,color.r,color.g,color.b,color.a) &&
+            SDL_RenderFillRect(renderer_,&area);
+    };
+    if (panel.demolition.h>0) {
+        const auto status=world_->demolition_status(*id);
+        const auto rect=panel.demolition;
+        if (!fill(rect,status.allowed ? SDL_Color{117,65,45,255}:SDL_Color{55,55,61,255}) ||
+            !SDL_SetRenderDrawColor(renderer_,245,247,250,255) ||
+            !draw_text(rect.x+6*layout_.scale,rect.y+9*layout_.scale,"Demolish",rect.w-12*layout_.scale)) return false;
+    }
+    if (panel.hints.h>0) {
+        if (!SDL_SetRenderDrawColor(renderer_,245,247,250,255)) return false;
+        const auto hints=demolition_hint_lines();
+        for (std::size_t i=0;i<hints.size();++i) {
+            const auto row=panel.hint_row_rect(i);
+            if (row.h>0 && !draw_text(row.x,row.y,hints[i],row.w)) return false;
+        }
+        if (original_house_inspector_active() && panel.hint_scroll_limit>0) {
+            const int width=3*layout_.scale;
+            const int thumb=std::min(panel.hints.h,std::max(12*layout_.scale,
+                static_cast<int>(double(panel.hints.h)*panel.hints.h/(panel.hints.h+double(panel.hint_scroll_limit)))));
+            const int y=panel.hints.y+static_cast<int>(double(panel.hint_scroll)*(panel.hints.h-thumb)/panel.hint_scroll_limit);
+            if (!fill({layout_.panel.x+layout_.panel.w-6*layout_.scale,panel.hints.y,width,panel.hints.h},{38,58,77,255}) ||
+                !fill({layout_.panel.x+layout_.panel.w-6*layout_.scale,y,width,thumb},{140,181,200,255})) return false;
+        }
+    }
+    return true;
+}
 bool SandboxView::draw_original_house_panel() {
     if (!original_house_inspector_active()) return true;
     const int scale=layout_.scale;
@@ -5904,7 +5982,7 @@ bool SandboxView::draw_original_house_panel() {
             static_cast<float>(thumb_height)};
         if (!SDL_SetRenderDrawColor(renderer_,119,150,165,255) || !SDL_RenderFillRect(renderer_,&thumb)) return false;
     }
-    return true;
+    return draw_demolition_controls();
 }
 bool SandboxView::draw_original_house_overlay() {
     original_house_overlay_stats_={};
@@ -6151,7 +6229,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(original_deadline_food_dispatch())overview+=" | Policy 3 | Save 34 | Deadline-aware Food";
+        if(original_safe_demolition())overview+=" | Policy 3 | Save 35 | Safe demolition";
+        else if(original_deadline_food_dispatch())overview+=" | Policy 3 | Save 34 | Deadline-aware Food";
         else if(original_deadline_service_dispatch())overview+=" | Policy 3 | Save 33 | Deadline-aware services";
         else if(original_deadline_fire_dispatch())overview+=" | Policy 3 | Save 32 | Deadline-aware fire dispatch";
         else if(original_inspector_coordination())overview+=" | Policy 3 | Save 31 | Inspector coordination";
@@ -6434,21 +6513,7 @@ bool SandboxView::draw_hud() {
                            layout_.panel.w-20*layout_.scale)) return false;
         }
         const auto controls_id=selected_building();
-        if (controls_id && panel.demolition.h>0) {
-            const auto demolition=world_->demolition_status(*controls_id);
-            const auto rect=panel.demolition;
-            if (!fill(rect,demolition.allowed ? SDL_Color{117,65,45,255}:SDL_Color{55,55,61,255}) ||
-                !SDL_SetRenderDrawColor(renderer_,245,247,250,255) ||
-                !draw_text(rect.x+6*layout_.scale,rect.y+9*layout_.scale,"Demolish",rect.w-12*layout_.scale)) return false;
-        }
-        if (controls_id && panel.hints.h>0) {
-            if (!SDL_SetRenderDrawColor(renderer_,245,247,250,255)) return false;
-            const auto hints=demolition_hint_lines();
-            for (std::size_t i=0;i<hints.size();++i) {
-                const auto row=panel.hint_row_rect(i);
-                if (row.h>0 && !draw_text(row.x,row.y,hints[i],row.w)) return false;
-            }
-        }
+        if (!draw_demolition_controls()) return false;
         if (controls_id) {
             const auto& selected=world_->building(*controls_id);
             const auto toggle=panel.operation_toggle;
@@ -6953,7 +7018,8 @@ bool SandboxView::draw_demolition_overlay() {
         !draw_text(x+14*scale,y+24*scale,"Demolish "+std::string(object_name(b.kind))+" #"+
             std::to_string(static_cast<std::uint32_t>(b.id))+"?",width-28*scale) ||
         !draw_text(x+14*scale,y+60*scale,"No refund. This cannot be undone.",width-28*scale) ||
-        !draw_text(x+14*scale,y+88*scale,b.kind==simulation::Object::Household ?
+        !draw_text(x+14*scale,y+88*scale,original_safe_demolition() && simulation::original_house_kind(b.kind) ?
+            "Empty House only: 0 residents. No refund.":b.kind==simulation::Object::Household ?
             "Residents leave immediately.":"Only an empty building can be removed.",width-28*scale)) return false;
     for (const bool confirm:{true,false}) {
         const auto rect=confirm ? budget_build_rect():budget_cancel_rect();

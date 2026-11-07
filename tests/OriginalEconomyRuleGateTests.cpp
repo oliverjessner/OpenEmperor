@@ -69,30 +69,33 @@ void version_matrix() {
             profile==sim::RulesProfile::CityV11 ? 3U:
             profile==sim::RulesProfile::CityV16 ? 4U:1U;
         check(sim::current_rule_version(profile)==current,"Legacy default rule changed");
-        for (std::uint32_t version=0;version<=19;++version) {
+        for (std::uint32_t version=0;version<=20;++version) {
             const bool expected=profile==sim::RulesProfile::ProductionV2 ? version==2:
                 profile==sim::RulesProfile::CityV11 ? version>=1 && version<=4:
-                profile==sim::RulesProfile::CityV16 ? (version>=1 && version<=15) || version==16 || version==17 || version==18:version==1;
+                profile==sim::RulesProfile::CityV16 ? (version>=1 && version<=15) || version==16 || version==17 || version==18 || version==19:version==1;
             check(sim::rule_version_supported(profile,version)==expected,
                 "Explicit profile/rule support matrix changed");
             check(sim::original_economy_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && (version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19)),
                 "Original-economy gate escaped its exact profile/version");
             check(sim::original_influence_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && (version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19)),
                 "Original-influence gate escaped its exact profile/version");
             check(sim::original_goods_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && (version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19)),
                 "Original-goods gate escaped its exact profile/version");
             check(sim::original_production_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && (version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19)),
                 "Original-production gate escaped its exact profile/version");
             check(sim::original_fire_protection_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && (version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19)),
                 "Original-fire-protection gate escaped its explicit Rule11/12/13/14/15 opt-ins");
             check(sim::original_sustainable_economy_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && (version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19)),
                 "Sustainable economy escaped its explicit Rule12/13/14/15 opt-ins");
+            check(sim::original_safe_demolition_enabled(profile,version)==
+                (profile==sim::RulesProfile::CityV16 && version==19),
+                "Safe demolition escaped its exact Rule19 opt-in");
             check(sim::original_deadline_food_dispatch_enabled(profile,version)==
                 (profile==sim::RulesProfile::CityV16 && version==18),
                 "Deadline-aware Food dispatch escaped its exact Rule18 opt-in");
@@ -109,13 +112,13 @@ void version_matrix() {
                 (profile==sim::RulesProfile::CityV16 && version==14),
                 "Historical exact Rule14 identity changed");
             check(sim::original_cardinal_terrain_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==14 || version==15 || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && (version==14 || version==15 || version==16 || version==17 || version==18 || version==19)),
                 "Cardinal terrain capability escaped its explicit Rule14/15 opt-ins");
             check(sim::bridges_rule_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && ((version>=5 && version<=15) || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && ((version>=5 && version<=15) || version==16 || version==17 || version==18 || version==19)),
                 "Bridge gate inherited an unknown profile/version");
             check(sim::ramps_rule_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && ((version>=6 && version<=15) || version==16 || version==17 || version==18)),
+                (profile==sim::RulesProfile::CityV16 && ((version>=6 && version<=15) || version==16 || version==17 || version==18 || version==19)),
                 "Ramp gate inherited an unknown profile/version");
             if (!expected) {
                 rejects([&] { (void)sim::profile_rules(profile,version); },"unsupported");
@@ -135,6 +138,7 @@ void version_matrix() {
             !sim::original_deadline_fire_dispatch_enabled(profile,UINT32_MAX) &&
             !sim::original_deadline_service_dispatch_enabled(profile,UINT32_MAX) &&
             !sim::original_deadline_food_dispatch_enabled(profile,UINT32_MAX) &&
+            !sim::original_safe_demolition_enabled(profile,UINT32_MAX) &&
             !sim::bridges_rule_enabled(profile,UINT32_MAX) &&
             !sim::ramps_rule_enabled(profile,UINT32_MAX),
             "Maximum unknown rule version activated a reserved gate");
@@ -219,13 +223,15 @@ void add_infrastructure(sim::World& world) {
 
 void development_gate() {
     const auto p3=policy(3);
-    for (const auto profile:profiles) for (const auto version:{7U,8U,9U,10U,11U,12U,13U,14U,15U,16U,17U,18U}) {
+    for (const auto profile:profiles) for (const auto version:{7U,8U,9U,10U,11U,12U,13U,14U,15U,16U,17U,18U,19U}) {
         const auto reason=profile==sim::RulesProfile::CityV16 ?
             "runtime is not ready":"unsupported";
         rejects([&] { sim::World denied(p3,profile,version); },reason);
         rejects([&] { sim::World denied(width,height,p3->building_mask(),profile,version); },reason);
     }
-    rejects([&] { sim::World denied(p3,sim::RulesProfile::CityV16,19); },"unsupported");
+    rejects([&] { sim::World denied(p3,sim::RulesProfile::CityV16,20); },"unsupported");
+    rejects([&] { (void)sim::World::create_original_safe_demolition(p3,nullptr,nullptr); },
+        "prepared model and immutable terrain facts");
     rejects([&] { (void)sim::World::create_original_economy_development(nullptr); },"complete policy-3");
     for (const std::uint32_t version:{1U,2U})
         rejects([&] { (void)sim::World::create_original_economy_development(policy(version)); },"complete policy-3");
@@ -260,11 +266,13 @@ void development_gate() {
         "Rule17 map preflight bypasses complete policy3");
     check(maps::map_rules_policy_version(sim::RulesProfile::CityV16,18)==3,
         "Rule18 map preflight bypasses complete policy3");
+    check(maps::map_rules_policy_version(sim::RulesProfile::CityV16,19)==3,
+        "Rule19 lost the explicit immutable policy3 requirement");
     check(maps::map_rules_policy_version(sim::RulesProfile::CityV16,15)==3,
         "Rule15 map preflight bypasses complete policy3");
     check(maps::map_rules_policy_version(sim::RulesProfile::CityV16,16)==3,
         "Rule16 lost the explicit immutable policy3 requirement");
-    check(maps::map_rules_policy_version(sim::RulesProfile::CityV16,19)==0 &&
+    check(maps::map_rules_policy_version(sim::RulesProfile::CityV16,20)==0 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV11,7)==0 &&
         !sim::original_economy_enabled(static_cast<sim::RulesProfile>(255),7),
         "Unknown profile/version inherited rule7 preflight or economy gate");

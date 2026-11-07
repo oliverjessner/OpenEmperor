@@ -107,6 +107,28 @@ inline const sim::OriginalFinanceHouse& finance(const sim::World& world,sim::Bui
 // Independent fixed-contract oracle. It does not call the production finance
 // calculator or use its saved historical ledger to predict the next payment.
 inline std::uint64_t expected_maintenance(const sim::World& world) {
+    if (world.rule_version()==19) {
+        f::check(world.original_safe_demolition_enabled() && world.original_production_state()->safe_demolition.has_value(),
+            "Rule19 finance oracle requires its exact retirement history");
+        std::uint64_t closed=0;
+        const auto charge=[&](std::uint64_t age,std::uint64_t workers) {
+            const auto bills=age/816;
+            f::check(workers<=UINT64_MAX/2,"Rule19 oracle worker invoice overflow");
+            const auto rate=workers*2;
+            f::check(!rate || bills<=(UINT64_MAX-closed)/rate,"Rule19 oracle closed upkeep overflow");
+            closed+=bills*rate;
+        };
+        for (const auto& body:world.buildings()) if (body.placed) {
+            f::check(body.placed_tick<=world.ticks() && world.workforce_required(body.id)>=0,"Invalid current installation age/workers");
+            charge(world.ticks()-body.placed_tick,static_cast<std::uint64_t>(world.workforce_required(body.id)));
+        }
+        for (const auto& row:world.original_production_state()->safe_demolition->retired) {
+            f::check(row.placed_tick<=row.removed_tick && row.removed_tick<=world.ticks(),"Invalid retired installation lifetime");
+            if (row.kind==sim::OriginalRetiredKind::ClaySource) charge(row.removed_tick-row.placed_tick,sim::Rules::clay_source_workers);
+            else f::check(row.kind==sim::OriginalRetiredKind::EmptyHouse,"Unsupported retired installation kind");
+        }
+        return closed;
+    }
     std::uint64_t total=0;
     for (const auto& body:world.buildings()) if (body.placed) {
         const auto workers=world.workforce_required(body.id);

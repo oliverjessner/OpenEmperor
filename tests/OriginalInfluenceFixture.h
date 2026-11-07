@@ -47,14 +47,33 @@ inline std::shared_ptr<const sim::MapPermissions> permissions() {
         std::vector<sim::FixedGatePassage>{});
 }
 struct Root {
-    fs::path path=fs::canonical(fs::temp_directory_path())/("openemperor-influence-"+
-        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    static fs::path reserve_path() {
+        const auto parent=fs::canonical(fs::temp_directory_path());
+        const auto stamp=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+        for (unsigned attempt=0;attempt<64;++attempt) {
+            const auto candidate=parent/("openemperor-influence-"+stamp+"-"+std::to_string(attempt));
+            std::error_code error;
+            // Claim ownership atomically: parallel fixtures must never share or
+            // remove another fixture's authored model, even on a coarse clock.
+            if (fs::create_directory(candidate,error)) return candidate;
+            if (error && error!=std::errc::file_exists)
+                throw fs::filesystem_error("Cannot reserve authored influence fixture",candidate,error);
+        }
+        throw std::runtime_error("Cannot reserve a unique authored influence fixture");
+    }
+    fs::path path=reserve_path();
     fs::path data=path/"data";
     Root() {
-        fs::create_directories(data/"Cities");
-        write_text(data/map_relative,"Authored24x20 policy3 influence acceptance geography; not an original map.\n");
-        write_model(data);
+        try {
+            fs::create_directories(data/"Cities");
+            write_text(data/map_relative,"Authored24x20 policy3 influence acceptance geography; not an original map.\n");
+            write_model(data);
+        } catch (...) {
+            std::error_code ignored;fs::remove_all(path,ignored);throw;
+        }
     }
+    Root(const Root&)=delete;
+    Root& operator=(const Root&)=delete;
     ~Root() { std::error_code ignored;fs::remove_all(path,ignored); }
 };
 inline void buy(sim::World& world,sim::Command command) {

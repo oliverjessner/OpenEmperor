@@ -105,6 +105,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit authored Rule19/schema35; never changes historical demolition rights.
+    static std::unique_ptr<SandboxView> create_original_safe_demolition(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit authored Rule13/schema29 logistics, separate from Rule12 saves.
     static std::unique_ptr<SandboxView> create_original_market_logistics(
         maps::StoredMapSession session,
@@ -415,6 +420,7 @@ private:
     void cycle_original_house_overlay();
     int original_house_scroll_limit() const;
     bool draw_original_house_panel();
+    bool draw_demolition_controls();
     bool draw_original_house_overlay();
     bool draw_original_house_overlay_legend();
     void request_road_connectivity_diagnosis();
@@ -649,6 +655,9 @@ private:
     }
     bool original_deadline_food_dispatch() const {
         return simulation::original_deadline_food_dispatch_enabled(rules_,requested_rule_version_);
+    }
+    bool original_safe_demolition() const {
+        return simulation::original_safe_demolition_enabled(rules_,requested_rule_version_);
     }
     bool original_deadline_fire_dispatch() const {
         return simulation::original_deadline_fire_dispatch_enabled(rules_,requested_rule_version_);

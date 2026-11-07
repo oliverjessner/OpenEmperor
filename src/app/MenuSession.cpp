@@ -19,7 +19,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     CancelUpgrade, ToggleAutosave, ToggleSaveView, DeleteRecovery, ConfirmDeleteRecovery,
     CancelDeleteRecovery, GreatWallChoice, RecheckMap, BridgesChoice, RampsChoice,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
-    OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, RecommendedOriginalNewGame, AdvancedModes,
+    OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes,
     MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
@@ -39,6 +39,7 @@ constexpr OriginalChoice original_choices[]={
     {OriginalDeadlineFireDispatchNewGame,simulation::kOriginalDeadlineFireDispatchRuleVersion,SDLK_D,"D Deadline-aware fire dispatch","Deadline-aware fire dispatch"},
     {OriginalDeadlineServiceDispatchNewGame,simulation::kOriginalDeadlineServiceDispatchRuleVersion,SDLK_T,"T Deadline-aware services","Deadline-aware services"},
     {OriginalDeadlineFoodDispatchNewGame,simulation::kOriginalDeadlineFoodDispatchRuleVersion,SDLK_U,"U Deadline-aware food","Recommended experimental economy"},
+    {OriginalSafeDemolitionNewGame,simulation::kOriginalSafeDemolitionRuleVersion,SDLK_V,"V Safe demolition economy","Empty House and drained ClaySource demolition"},
 };
 const OriginalChoice* original_choice(int action) {
     if (action==RecommendedOriginalNewGame) action=OriginalDeadlineFoodDispatchNewGame;
@@ -312,7 +313,10 @@ void MenuSession::finish_loading() {
         if (upgrade_copy_ || recovery_load) {
             save_path=new_save_target(app_root_,settings_.data_root);
         }
-        auto view=simulation::original_deadline_food_dispatch_enabled(profile,version) ?
+        auto view=simulation::original_safe_demolition_enabled(profile,version) ?
+            SandboxView::create_original_safe_demolition(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
+            simulation::original_deadline_food_dispatch_enabled(profile,version) ?
             SandboxView::create_original_deadline_food_dispatch(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_):
             simulation::original_deadline_service_dispatch_enabled(profile,version) ?
@@ -842,20 +846,23 @@ void MenuSession::rebuild_buttons() {
             return;
         }
         add(AdvancedModes,"Back to main menu",280,40,280);
-        if (sandbox_) add(Resume,"Enter Continue",40,100,210);
-        add(NewGame,"N New Sandbox",40,sandbox_?136:100,210);
-        add(LoadGame,"L Load Save",40,sandbox_?172:136,210);
-        add(DataFolder,"Data folder",40,sandbox_?208:172,210);
+        int left_y=88;
+        if (sandbox_) { add(Resume,"Enter Continue",40,left_y,210);left_y+=34; }
+        add(NewGame,"N New Sandbox",40,left_y,210);left_y+=34;
+        add(LoadGame,"L Load Save",40,left_y,210);left_y+=34;
+        add(DataFolder,"Data folder",40,left_y,210);left_y+=34;
         buttons_.back().label="Original Data Folder";
-        add(Quit,"Quit",40,sandbox_?244:208,210);
+        add(Quit,"Quit",40,left_y,210);left_y+=34;
         for (const auto& choice:original_choices) {
             const bool coordination=choice.action==OriginalInspectorCoordinationNewGame;
             const bool food=choice.action==OriginalDeadlineFoodDispatchNewGame;
-            const int y=coordination ? (sandbox_?280:244):food ? 326:
+            const bool demolition=choice.action==OriginalSafeDemolitionNewGame;
+            const int y=coordination ? left_y:demolition ? left_y+34:food ? 326:
                 choice.action==OriginalDeadlineFireDispatchNewGame ? 88:
                 choice.action==OriginalDeadlineServiceDispatchNewGame ? 326:
                 122+34*static_cast<int>(choice.rule-simulation::kOriginalProductionRuleVersion);
-            add(choice.action,choice.label,coordination||food ? 40:280,y,coordination||food ? 230:280);
+            const bool left=coordination || food || demolition;
+            add(choice.action,choice.label,left ? 40:280,y,left ? 230:280);
         }
         add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",
             280,292,settings_reset_required_?124:280);
@@ -986,7 +993,7 @@ bool MenuSession::render() {
         if (!advanced_modes_open_ &&
             (!label(40,286,"Recommended, experimental | new paid city or empty start") ||
              !label(40,304,"Original campaigns and Emperor saves unsupported."))) return false;
-        if (sandbox_ && !label(40,88,"Retained tick "+std::to_string(sandbox_->world().ticks())+
+        if (sandbox_ && !label(40,advanced_modes_open_ ? 79:88,"Retained tick "+std::to_string(sandbox_->world().ticks())+
             (sandbox_->dirty()?" (unsaved)":" (saved)"))) return false;
     } else if (state_==State::NewSandbox && original_setup() && map_index_<catalog_.entries.size()) {
         const auto& e=catalog_.entries[map_index_];
@@ -1096,7 +1103,8 @@ bool MenuSession::render() {
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
             if (e.error.empty() && simulation::original_production_enabled(
                     simulation::RulesProfile::CityV16,e.rule_version) &&
-                e.schema==(e.rule_version==simulation::kOriginalDeadlineFoodDispatchRuleVersion ? 34U:
+                e.schema==(e.rule_version==simulation::kOriginalSafeDemolitionRuleVersion ? 35U:
+                    e.rule_version==simulation::kOriginalDeadlineFoodDispatchRuleVersion ? 34U:
                            e.rule_version==simulation::kOriginalDeadlineServiceDispatchRuleVersion ? 33U:
                     e.rule_version==simulation::kOriginalDeadlineFireDispatchRuleVersion ? 32U:
                     e.rule_version==simulation::kOriginalInspectorCoordinationRuleVersion ? 31U:
@@ -1140,7 +1148,7 @@ bool MenuSession::render() {
         (version::dirty?" dirty":"")+" | "+std::string(version::build_type);
     if (!label(40,std::max(12,height-18),footer.substr(0,static_cast<std::size_t>(std::max(0,width/8-12))))) return false;
     if (!SDL_SetRenderScale(renderer_,1,1)) return false;
-    const bool okay=SDL_RenderPresent(renderer_);
+    const bool okay=SDL_GetRenderTarget(renderer_) || SDL_RenderPresent(renderer_);
     if (okay && state_==State::Loading) loading_drawn_=true;
     return okay;
 }
