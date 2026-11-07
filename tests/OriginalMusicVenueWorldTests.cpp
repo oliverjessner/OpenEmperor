@@ -221,13 +221,20 @@ void original_fire_does_not_create_arrivals() {
         for(int x=110;x<=123;++x)f::buy(world,{sim::CommandType::PlaceRoad,{x,114}});
         const auto early=q::buy(world,source_fire?sim::CommandType::PlaceOriginalMusicSchool:sim::CommandType::PlaceOriginalTheatre,
             source_fire?q::source_cell:q::venue_cell);
-        q::through(world,1600);
+        q::through(world,1640);
         for(int x:{110,113,116})(void)q::buy(world,sim::CommandType::PlaceHousehold,{x,112});
         const auto late=q::buy(world,source_fire?sim::CommandType::PlaceOriginalTheatre:sim::CommandType::PlaceOriginalMusicSchool,
             source_fire?q::venue_cell:q::source_cell);
         const auto source=source_fire?early:late,target=source_fire?late:early;
+        // Both purchase orders give the actual8-worker School priority over
+        // the7-worker Venue. Immigration earns12 residents at1800 and18 at1840;
+        // training therefore uses1821/1872/1923/1974 in either variant.
+        f::buy(world,sim::set_building_workforce_priority(source,sim::WorkforcePriority::High));
         q::until(world,[&]{return q::active(world,source);},"Naturally staffed late fire control never spawned");
-        check(world.ticks()==1974,"Fire control did not earn the four real phase35 spawn evaluations");
+        check(world.ticks()==1974,"Fire control did not earn the four real phase35 spawn evaluations: tick="+
+              std::to_string(world.ticks())+" population="+std::to_string(world.total_population())+
+              " SchoolWorkers="+std::to_string(world.workers_assigned(source))+" VenueWorkers="+
+              std::to_string(world.workers_assigned(target)));
         const auto channel=q::school(world,source).courier_id;
         q::until(world,[&]{return q::school(world,source).latest_trip->arrival_tick.has_value();},"Fire control lost actual physical arrival");
         check(world.building_on_fire(early)&&!world.building_on_fire(late)&&
@@ -260,7 +267,9 @@ void exact_arrival_before_same_tick_natural_ignition() {
     for(int x=110;x<=148;++x)f::buy(world,{sim::CommandType::PlaceRoad,{x,114}});
     const auto source=q::buy(world,sim::CommandType::PlaceOriginalMusicSchool,q::source_cell);
     const auto target=q::buy(world,sim::CommandType::PlaceOriginalTheatre,{145,115});
-    q::through(world,1440);
+    // First admission1600 gives6 residents, then1640 gives12. The School can
+    // train only from1668, so its fourth real callback is1821.
+    q::through(world,1480);
     for(int x:{110,113,116})(void)q::buy(world,sim::CommandType::PlaceHousehold,{x,112});
     const auto channel=q::school(world,source).courier_id;
     q::until(world,[&]{return q::active(world,source);},"Ignition-boundary School never earned actual creation");
