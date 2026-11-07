@@ -244,9 +244,12 @@ ein eigener Fallback. **Dieser Modus versorgt keine Häuser mit Musik**: Weder
 Versand noch Venue-Ankunft setzt den Music96-Haustimer. Damit können
 musikabhängige Hausbedürfnisse unerfüllt bleiben. Die bisherigen direkten
 School→House-Besuche in Rule18 bleiben unverändert. Actor36, weitere Venue-Arten,
-Festivals und neue Religionsaktionen sind nicht freigeschaltet. Die technische
-Abnahme der neuen Kette steht noch aus; ihre native und menschliche Abnahme
-bleibt NOT_RUN. Vertrag und Prüfpfad stehen im
+Festivals und neue Religionsaktionen sind nicht freigeschaltet. Die Musikschule
+behält ihren bisherigen physischen DES-Beitrag aus dem vorbereiteten Modell;
+dieser ist vom Music96-Haustimer getrennt. Das Theatre erhält keinen neuen
+DES-Beitrag. Die begrenzte Kette ist automatisiert im World-, Speicher- und
+geskripteten SDL-Pfad geprüft; ihre native und menschliche Abnahme bleibt
+NOT_RUN. Vertrag und Prüfpfad stehen im
 [Musik-/Venue-Leitfaden](oe56-culture-venues.md).
 
 ## Bedienung und Versorgung prüfen

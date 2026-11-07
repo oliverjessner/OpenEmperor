@@ -21,7 +21,7 @@ parity remains partial; see [the play guide](player-handoff.md) and [Known Issue
 | Rule17 / schema33 / revision27 | Separate authored deadline-aware service selection; inherits Rule16's fire policy and all economy/bounds, ranks actual expiry and physical travel, coalesces real same-role visits and retains a complete canonical House cursor. |
 | Rule18 / schema34 / revision27 | Separate authored deadline-aware Market-to-House Food selection; inherits Rule17's services, fire and economy. Physical stock, real incoming cargo and prepared route timing determine urgency; production, Farm-to-Market selection and all bounds remain unchanged. |
 | Rule19 / schema35 / revision27 | Explicit authored safe demolition of never-occupied Common2x2 Houses and paused, physically settled Clay Sources. Inherits Rule18; bounded retirement provenance retains paid identities, extraction, latest completed Clay trip and closed installed upkeep. No refund, migration or budget increase. |
-| Rule22 / schema38 / revision27 | Explicit paid Music211→Performer34→Theatre75 slice. Inherits Rule18 and replaces only Music's direct House-service adapter. Actual one-way arrival owns a separate venue32 timer; no House96, Actor36 or Rule19 retirement authority. Validation pending. |
+| Rule22 / schema38 / revision27 | Explicit paid Music211→Performer34→Theatre75 slice. Inherits Rule18 and replaces only Music's direct House-service adapter. Actual one-way arrival owns a separate venue32 timer; no House96, Actor36 or Rule19 retirement authority. Automated World/save/scripted SDL coverage; native/human NOT_RUN. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy
@@ -333,6 +333,12 @@ tick's countdown. At most two Music Schools and two venues fit inside the unchan
 effect or automatic migration. Old School→House and religious services remain
 exact in their own generations. Schema38 requires its own marker and culture
 authority plus all inherited Rule18 source/terrain/model/policy contracts.
+
+The Music School remains an inherited physical model-DES source even though its
+Rule22 lifecycle is stored in `culture.schools`. Runtime influence caches and
+complete-save validation must see that same source. The Theatre is not added to
+the influence mapper. This preserves School desirability without introducing a
+House Music96 visit, free venue aura or a new Original75 source observation.
 
 ## Houses, geometry, finance and presentation
 

@@ -7,7 +7,8 @@ School→House service in this generation. A real Theatre arrival supplies the
 venue's own Music duration; it grants **no House Music96 effect**. Actor36,
 other venue types and complete Original entertainment behavior remain unsupported.
 
-Implementation is awaiting its World, persistence and scripted SDL acceptance.
+The bounded chain has automated World, complete-save and scripted SDL coverage,
+including paid construction, real movement, arrival, expiry and restoration.
 Native delivery and human acceptance of this new chain are **NOT_RUN**. Existing
 Rule18 remains the recommended player mode. Earlier rules and saves retain their
 own contracts without migration; this mode does not inherit Rule19 demolition,
@@ -37,6 +38,13 @@ accepted arrival. Construction, dispatch, proximity and an intended visit grant
 no duration. A stocked venue is not a promise of House service: Music-dependent
 House needs can remain unmet in this experiment. Choose Rule18 for the existing
 direct Music-to-House adapter.
+
+Music School211 retains its inherited physical desirability contribution from
+the prepared model. That contribution is separate from the House Music96 visit
+timer. Runtime evaluation and complete-save restoration must see the same paid
+School influence source even though its lifecycle is stored in the culture
+state. Theatre75 has no newly admitted desirability source; performer dispatch
+and venue arrival grant no House Music96 effect.
 
 Theatre and its performer use explicitly authored fallback graphics. A static
 school image is separate from performer animation or Original scene parity.
@@ -132,6 +140,19 @@ consumption-counter calls. Neither path grants religion from proximity.
 
 ## Reusable validation
 
+The following bounded acceptance record separates paid gameplay from startup,
+historical numeric parity and unrun native/human checks.
+
+| Scope | Observed acceptance and limit |
+|---|---|
+| Tested source and build | OE55 baseline `90753671748acb3b0c3b83f50ee8901f94e506c4`; tested source `29f9b241471850f9c7ce1b39cd6d37b6236b56e8`, including the physical-School-DES correction `e2ebf8d89e3e0a2677e426979958e62f5fcb079b`. AppleClang 21.0.0, SDL 3.4.14, macOS 27 arm64, deployment target 27.0. The configured Release footer reports `bca1a8076bb3`; runtime/source bindings identify the tested source separately. |
+| Supplied Xia / Normal paid chain | Five normally paid Houses and connected Music School/Theatre; 21 ordinary construction commands debit 583. Performer 1 is moving on a begun edge at seed tick 291; the School is then paused. Actual accepted arrival at 345 assigns venue Music32, with exact expiry at 1974. No House Music96 timer is granted. |
+| Finite continuation and finance | From paused-source seed 291, +103 ticks reaches tick 394 / Music31; +20400 reaches tick 20691 / Music0. The one actual spawn retires and the next Performer ID is 2. Funds follow `12000 − 583 construction − 750 installed upkeep + 0 taxes = 10667`. This proves one paid arrival and finite expiry, not recurring dispatch, sustainability or profit. |
+| Independent persistence | Six Creator/Restore processes compare 12 complete SaveDocuments and 18 Recovery payloads through 28 literal full-byte comparisons at 0 / +103 / +20400 ticks. No migration or partial-field comparison substitutes for complete equality. |
+| Actual CLI startup | Twenty invalid arguments reject before loading. Explicit Rule22 startup produces 99 rendered/presented frames and exits 0 after one SIGTERM, with no forced kill, 0 simulated ticks and no save output. This is scripted dummy/software SDL startup, not gameplay or native delivery. |
+| Regression and parity | Release 314/314, Debug 33/33 and ASan/UBSan 33/33 pass, with no failures, skips or disabled tests. Sanitizers use `detect_leaks=0`; external SDL is not instrumented. The historical 132-file corpus and independent schema35–37 documents match their protected historical baselines; current schema38 Creator/Restore documents are independently full-byte equal, without a historical schema38 master. The full 99-file Rule18 comparison passes: 97 complete literal comparisons (93 top-level files + 4 Recovery payloads) and 2 documented Recovery-metadata checks. Fresh 74-case historical parity, 18 Housing observations and the 1800-value actual-model digest preserve the complete public canonical report; this is not Rule22 performer/venue gameplay parity. |
+| Remaining acceptance | Native delivery and human acceptance **NOT_RUN**. Theatre/performer presentation is authored fallback. Actor36, Venue→House, complete Original clock/selector/animation parity, other venue types and new religion mechanics remain unsupported or UNKNOWN as described above. |
+
 Run the complete Release suite and the four focused tests alongside the affected
 historical culture, services, housing and model checks:
 
@@ -160,6 +181,17 @@ venue, unstaffed/paused/burning source or venue, illegal 4×4 interior, insuffic
 funds, road cut/wait/repair, impossible saved counters, checked model arithmetic
 and hostile source/reference/save refusals. Rejected operations preserve complete
 state and prior saved bytes.
+
+Include nonzero signed School desirability fields in complete-save restoration
+checks, so a zero-influence fixture cannot conceal a missing physical source.
+Keep the inherited static School influence distinct from the performer's
+venue-only Music duration. With supplied data, prepare the actual culture model
+and legal map context through the shared readers, buy the complete scene with
+ordinary commands and earn staffing and a begun performer edge before saving.
+Compare independent Creator/Restore documents and Recovery payloads immediately
+and after continued ticks. A paused source with one earned arrival tests
+retirement and expiry; it does not establish recurring dispatch or citywide
+sustainability.
 
 Open the generated MenuSession/SandboxView captures at all tested window sizes
 and 1×/2×/4×. Inspect the actual visible performer foot/direction, full physical

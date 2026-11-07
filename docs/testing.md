@@ -73,6 +73,9 @@ attempt versus actual spawn, unique Performer IDs, one-way movement/retirement,
 actual venue arrival and 32-duration expiry, conservation of money, and the
 absence of a House Music96 effect. Keep historical Rule18 Golden City and
 schemas 1–37 exact; new markers or culture state must not enter older saves.
+Include nonzero signed Music School model-DES fields in complete restoration
+checks. The School's inherited physical influence must survive culture
+ownership; Theatre75 is not a new DES source or a House Music visit.
 
 The Save target supports independent `--create OUTPUT [TICKS]` and
 `--restore INPUT OUTPUT [TICKS]` processes with fresh `.local/oe56/` paths.

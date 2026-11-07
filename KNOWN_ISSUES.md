@@ -34,7 +34,8 @@ complete original-game compatibility.
   replaces Music211's direct House visit with a paid one-way performer to
   Theatre75 and its own duration. It grants no House Music96 effect; Actor36,
   other venue chains, festivals, Hero/God AI and illness remain unsupported.
-  New-chain validation is pending; native/human acceptance is NOT_RUN. Rules10–18 retain
+  The bounded chain has automated World, persistence and scripted SDL coverage;
+  native/human acceptance is NOT_RUN. Rules10–18 retain
   their House/production demolition refusal; incompatible development saves are refused.
 - **Original artwork remains bounded.** OE52 adds ten source-registered static
   bases in Original production, sharing the existing Well image. Static source
