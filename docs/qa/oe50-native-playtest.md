@@ -21,7 +21,7 @@ human play and public distribution acceptance remain open.
 | PERSISTENCE | **PASS within recorded scope** — scripted full-document/Recovery checks and native manual-save, independent restart and earned continuation pass; native Recovery remains NOT_RUN |
 | RELEASE_READINESS | **PARTIAL** — strict local relocated/unzipped ad-hoc package PASS; human, independent clean-Mac, Finder/Gatekeeper and public readiness remain open |
 | ORIGINAL_PARITY | **PARTIAL**, existing bounded contracts only; no new parity result |
-| GIT_PR_MERGED | **PENDING** |
+| GIT_PR_MERGED | [PR #30](https://github.com/oliverjessner/OpenEmperor/pull/30) created; merge verification recorded in its post-merge metadata |
 | Baseline / branch | `1ae2f21be399a93eadf5e1d41ddd385c47f1627a` / `test/oe50-native-playtest` |
 | Packaged/native candidate source commit | `58969c095501d0bb41e15b21e4a1fd0c02c0460a`; later Python-helper review correction does not change the C++/bundle bits |
 | Final tested helper/source commit | `67ba4b999a77a35f9516c3c020f87bd6a3a0a033`; complete Release suite re-executed after the Python-only correction |
@@ -424,10 +424,12 @@ The final supplement `final-gates-after-portability.json`, SHA256
 `fddcf6b569c8ac3f29b9100170926784119d0c3517a4f809411dd1415a72e39a`,
 binds the final-source results without overwriting earlier evidence. The report
 is ready for independent review on `test/oe50-native-playtest`.
-The separate GitHub PR and its actual URL are **PENDING** publication. The
-post-merge PR metadata will record the actual merge SHA and verified new
-`origin/main`; no future hash or merge success is invented in this pre-merge
-source document. No tag, app release or public deployment is part of OE50.
+The separate [GitHub PR #30](https://github.com/oliverjessner/OpenEmperor/pull/30)
+was created from the initial push `92edf442a295c0c44a64870c81faa8d75fcca197`.
+Its post-merge metadata records the actual merge SHA and verified new
+`origin/main` after those actions succeed; this source document is committed
+before merge and does not invent a future SHA. No tag, app release or public
+deployment is part of OE50.
 
 ## Evidence and reproduction rules
 
