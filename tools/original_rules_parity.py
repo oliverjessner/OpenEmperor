@@ -26,14 +26,18 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
                                    "original-goods-ledger", "original-goods-rules",
                                    "original-service-rules",
                                    "original-house-evolution", "original-model")
-# Reviewed Rules13-19 API: the actual fourth-module probe retains its
+# Reviewed Rules13-20 API: the actual fourth-module probe retains its
 # historical HouseholdV3/CityV7 calls. Rule19 adds explicit retirement factories,
 # predicates, blockers and an optional production-state journal, mandatory only
 # in that new generation. Historical defaults and probe behavior stay exact.
+# Rule20 appends its source-cell command, explicit APIs and default-empty World/
+# snapshot members. Its directly included SourceCellRamp DTO is pinned separately;
+# fresh matching libraries retain the unchanged HouseholdV3/CityV7 observations.
 # Matching archives are freshly linked; these exact headers do not certify
 # the new rules' gameplay, dispatch or terrain logic.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
-    "World.h": "638c9dbc876124d8431a1ef9858814ecb0c72490",
+    "World.h": "c23b92b591db7ade3b87f91d467beb96638f9456",
+    "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "1a24ed7cb80a0152560b76d9445c04e5b0829ed5",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",
     "OriginalSafeDemolitionState.h": "a4f27b05d422d004cc4bfcae49ccc5f67a6c6121",

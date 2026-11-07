@@ -265,6 +265,21 @@ artifacts are under `.local/original-economy/oe51/core-parity-release-01/`.
 This checks historical numerical/ABI compatibility. It grants no original
 demolition parity or paid-city acceptance to the authored Rule19 behavior.
 
+Rule20 adds explicit source-cell ramp APIs, an appended command and default-empty
+World/snapshot collections with next-ID1. Historical HouseholdV3/CityV7 probe
+calls and the Original-generation predicates remain unchanged. The directly
+included `SourceCellRamp.h` DTO now has its own exact reviewed API pin alongside
+`World.h`; changed, missing or symlinked headers still fail closed. Fresh Release
+fork/current probes and the actual pinned HousingView module retain all74 cases,
+classifications, expected/observed values, the eighteen-value HousingView result
+and real-model digest `[1800,477508576,4125568101]`. Every public report field
+outside the three changed source fingerprints is identical; fork pins and
+`baseline-lock.json` remain exact. The fresh run and complete preservation check
+are under `.local/oe53/core-parity-release-01/` and
+`.local/oe53/core-parity-public-preservation.json`. This bounded historical ABI
+check does not establish original source-cell ramp behavior or Rule20 gameplay
+acceptance.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the
