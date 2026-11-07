@@ -199,6 +199,80 @@ void World::validate_original_music_venues_model() const {
         original_rules_model_->building_value(original::ModelBuilding::TheatrePavilion,original::BuildingField::Employees)<=0 ||
         original_rules_model_->building_value(original::ModelBuilding::TheatrePavilion,original::BuildingField::Employees)>INT16_MAX)
         invalid("Paid Theatre75 requires positive checked model price and Employees");
+    // Restore-only necessary workforce bounds. These optimistic ceilings use
+    // actual first admissions and the authored maximum two residents per40
+    // ticks; they do not reconstruct historical priorities, pauses or routes.
+    const auto school_workers=static_cast<std::uint64_t>(original_rules_model_->building_value(
+        original::ModelBuilding::MusicSchool,original::BuildingField::Employees));
+    const auto venue_workers=static_cast<std::uint64_t>(original_rules_model_->building_value(
+        original::ModelBuilding::TheatrePavilion,original::BuildingField::Employees));
+    std::uint64_t maximum_capacity=0;
+    for (std::size_t i=0;i<original::house_row_count;++i) {
+        const auto cap=original_rules_model_->house_rules().row_capacity(static_cast<original::ModelHouse>(i));
+        if (cap<0 || cap>INT16_MAX) invalid("Music workforce requires checked resident capacities");
+        maximum_capacity=std::max(maximum_capacity,static_cast<std::uint64_t>(cap));
+    }
+    if (!school_workers || school_workers>INT16_MAX || !maximum_capacity)
+        invalid("Music workforce requires bounded positive model Employees and capacity");
+    const auto enough_pool=[&](std::uint64_t at,std::uint64_t required) {
+        for (const auto& house:original_production_->housing.houses) {
+            if (!house.first_admission_tick || at<*house.first_admission_tick) continue;
+            const auto intervals=(at-*house.first_admission_tick)/40;
+            // Saturate before multiplication; even UINT64_MAX cannot overflow.
+            const auto possible=intervals>=(maximum_capacity+1)/2-1 ? maximum_capacity:2*(1+intervals);
+            if (possible>=required) return true;
+            required-=possible;
+        }
+        return required==0;
+    };
+    std::optional<std::uint64_t> first_possible_staff;
+    if (enough_pool(ticks_,school_workers)) {
+        std::uint64_t low=0,high=ticks_;
+        while (low<high) {
+            const auto middle=low+(high-low)/2;
+            if (enough_pool(middle,school_workers)) high=middle;else low=middle+1;
+        }
+        first_possible_staff=low;
+    }
+    const auto eligible=[&](std::uint64_t at,BuildingId source) {
+        if (!first_possible_staff) return std::uint64_t{0};
+        const auto floor=std::max(building(source).placed_tick,*first_possible_staff);
+        return at<=floor ? std::uint64_t{0}:countdowns(at)-countdowns(floor);
+    };
+    const auto& state=*original_production_->culture;
+    for (const auto& school:state.schools) {
+        const auto cycles=eligible(ticks_,school.building_id);
+        if (school.spawn_counter>cycles || school.attempts>(cycles-school.spawn_counter)/4 ||
+            (school.latest_trip && school.spawned>eligible(school.latest_trip->dispatched_tick,school.building_id)/4))
+            invalid("Music training predates possible complete model staffing");
+    }
+    struct StaffTrip {PerformerId id;BuildingId school,venue;std::uint64_t dispatch;};
+    std::array<StaffTrip,original_music_school_limit+original_culture_venue_limit> trips{};
+    std::size_t count=0;
+    const auto retain=[&](StaffTrip trip) {
+        for (std::size_t i=0;i<count;++i) if (trips[i].id==trip.id) return;
+        trips[count++]=trip;
+    };
+    for (const auto& school:state.schools) if (school.latest_trip) {
+        const auto& trip=*school.latest_trip;retain({trip.performer_id,school.building_id,trip.venue_id,trip.dispatched_tick});
+    }
+    for (const auto& venue:state.venues) if (venue.last_arrival) {
+        const auto& w=*venue.last_arrival;retain({w.performer_id,w.school_id,venue.building_id,w.dispatched_tick});
+    }
+    for (std::size_t i=0;i<count;++i) {
+        if (eligible(trips[i].dispatch,trips[i].school)<4)
+            invalid("Venue arrival predates possible complete School training");
+        std::uint64_t required=0;
+        for (std::size_t j=0;j<count;++j) if (trips[j].dispatch==trips[i].dispatch) {
+            for (std::size_t k=0;k<j;++k) if (trips[k].dispatch==trips[j].dispatch &&
+                (trips[k].school==trips[j].school || trips[k].venue==trips[j].venue))
+                invalid("Simultaneous performers cannot share a School or Venue admission");
+            required+=school_workers+venue_workers;
+        }
+        // Staffing is captured before this tick's immigration and movement.
+        if (!enough_pool(trips[i].dispatch-1,required))
+            invalid("Actual performer spawn exceeds possible simultaneous paid workforce");
+    }
 }
 void World::validate_original_music_venues_snapshot(const WorldSnapshot& s) {
     const bool enabled=simulation::original_music_venues_enabled(s.profile,s.rule_version);

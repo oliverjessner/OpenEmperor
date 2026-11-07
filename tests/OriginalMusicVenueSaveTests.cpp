@@ -83,6 +83,8 @@ void canonical_active_arrived_expired_and_recovery() {
 }
 void hostile_world_and_atomic_publication() {
     q::Fixture fixture;auto world=earned(fixture);const auto baseline=world.snapshot();
+    check(world.ticks()==342&&q::state(world).schools.front().latest_trip->dispatched_tick==342,
+          "Three paid Homes did not earn their actual fourth staffed School callback342");
     const auto file=fixture.root.path/"preserved38.json";save::write_save(file,fixture.document(world),fixture.root.data,fixture.mask());
     const auto bytes=f::read_text(file);const auto original=save::read_save(file);
     const auto reject=[&](auto mutate) {
@@ -111,6 +113,9 @@ void hostile_world_and_atomic_publication() {
     reject([](auto& s){s.original_production->culture->schools.front().latest_trip->dispatched_tick=s.ticks+1;});
     reject([](auto& s){s.original_production->culture->schools.front().latest_trip->dispatched_tick=36;});
     reject([](auto& s){s.original_production->culture->schools.front().latest_trip->dispatched_tick=189;});
+    // First admissions120 supply only6 residents at138. That phase cannot
+    // train the8-worker School, so291 has only three possible staffed calls.
+    reject([](auto& s){s.original_production->culture->schools.front().latest_trip->dispatched_tick=291;});
     reject([](auto& s){s.original_production->culture->schools.front().latest_trip->accepted=true;});
     reject([](auto& s){s.original_production->culture->schools.front().latest_trip->arrival_tick=s.ticks;});
     reject([](auto& s){s.original_production->culture->venues.front().music_timer=32;});
@@ -159,6 +164,99 @@ void unused_channel_and_actual_population_clock() {
     q::through(world,119);auto no_people=world.snapshot();
     no_people.original_production->culture->schools.front().spawn_counter=1;
     q::refuses([&]{(void)fixture.restore(no_people);},"Prepopulation cycles trained a performer without any admitted residents");
+    q::through(world,138);
+    check(world.total_population()==6&&!world.workers_assigned(s.source)&&
+          q::school(world,s.source).spawn_counter==0,"Six actual residents staffed an8-worker School");
+    const auto file=fixture.root.path/"pre-staff38.json";const auto baseline=world.snapshot();
+    save::write_save(file,fixture.document(world),fixture.root.data,fixture.mask());const auto bytes=f::read_text(file);
+    auto bad=save::read_save(file);bad.world.original_production->culture->schools.front().spawn_counter=1;
+    q::refuses([&]{(void)fixture.restore(bad);},"Residents below actual model Employees trained a performer");
+    q::refuses([&]{save::write_save(file,bad,fixture.root.data,fixture.mask());},
+        "Pre-staff training reached atomic publication");
+    check(world.snapshot()==baseline&&f::read_text(file)==bytes,
+          "Rejected pre-staff training changed the live World or prior complete bytes");
+}
+void model_staffing_ceilings_use_actual_model_and_residents() {
+    for(const bool fourth_home:{true,false}) {
+        auto text=q::authored_model();
+        if(!fourth_home) {
+            const std::string from="211,Music  School,{,50,0,0,0,0,8,",to="211,Music  School,{,50,0,0,0,0,4,";
+            const auto at=text.find(from);check(at!=std::string::npos,"Authored School Employees input missing");
+            text.replace(at,from.size(),to);
+        }
+        q::Fixture fixture(text);auto world=fixture.world();const auto s=q::scene(world);
+        if(fourth_home)(void)q::buy(world,sim::CommandType::PlaceHousehold,{119,112});
+        q::until(world,[&]{return q::active(world,s.source)&&world.courier(s.channel).edge_progress>0;},
+            "Normally earned additional residents or authored4-worker School did not create an actual performer");
+        check(world.ticks()==291&&q::school(world,s.source).latest_trip->dispatched_tick==291&&
+              world.workforce_required(s.source)==(fourth_home?8:4)&&q::school(world,s.source).spawned==1,
+              "Prepared Employees or a fourth paid House was replaced by a hardcoded staffing clock");
+        f::buy(world,sim::set_building_operation(s.source,false));
+        const auto file=fixture.root.path/"actual-staff38.json";
+        save::write_save(file,fixture.document(world),fixture.root.data,fixture.mask());const auto bytes=f::read_text(file);
+        auto restored=fixture.restore(save::read_save(file));check(restored.snapshot()==world.snapshot(),
+            "Legitimate model-aware early performer did not survive full restore");
+        save::write_save(file,fixture.document(restored),fixture.root.data,fixture.mask());
+        check(f::read_text(file)==bytes,"Legitimate early performer changed complete canonical bytes");
+    }
+    q::Fixture fixture;auto world=fixture.world();
+    for(int x=110;x<=123;++x)f::buy(world,{sim::CommandType::PlaceRoad,{x,114}});
+    const auto source=q::buy(world,sim::CommandType::PlaceOriginalMusicSchool,q::source_cell);
+    const auto target=q::buy(world,sim::CommandType::PlaceOriginalTheatre,q::venue_cell);
+    q::through(world,50);(void)q::buy(world,sim::CommandType::PlaceHousehold,{110,112});
+    q::through(world,444);
+    check(world.total_population()==14&&world.workers_assigned(source)==8&&!world.workers_assigned(target)&&
+          q::school(world,source).attempts==1&&!q::school(world,source).spawned&&
+          !q::school(world,source).latest_trip&&q::state(world).next_performer_id==1,
+          "Four source callbacks created an actor without simultaneous actual Venue staffing");
+    while(world.ticks()<1200&&!q::active(world,source))world.tick();q::invariants(world);
+    check(q::active(world,source)&&world.ticks()==648&&q::school(world,source).attempts==2&&q::school(world,source).spawned==1&&
+          q::school(world,source).latest_trip->dispatched_tick==648,
+          "Single paid House did not earn its actual later successful spawn648");
+    f::buy(world,sim::set_building_operation(source,false));const auto snapshot=world.snapshot();
+    const auto file=fixture.root.path/"simultaneous-staff38.json";
+    save::write_save(file,fixture.document(world),fixture.root.data,fixture.mask());const auto bytes=f::read_text(file);
+    check(fixture.restore(save::read_save(file)).snapshot()==snapshot,"Actual later fully staffed spawn failed restore");
+    auto bad=save::read_save(file);bad.world.original_production->culture->schools.front().latest_trip->dispatched_tick=444;
+    q::refuses([&]{(void)fixture.restore(bad);},"Source-only training admitted a Venue without simultaneous workers");
+    q::refuses([&]{save::write_save(file,bad,fixture.root.data,fixture.mask());},
+        "Impossible simultaneous staffing reached atomic publication");
+    check(world.snapshot()==snapshot&&f::read_text(file)==bytes,
+          "Rejected simultaneous-staff forgery changed live authority or complete save bytes");
+}
+void aggregate_spawns_require_simultaneous_model_workforce() {
+    q::Fixture fixture;auto world=fixture.world();
+    for(int x=110;x<=129;++x)f::buy(world,{sim::CommandType::PlaceRoad,{x,114}});
+    const auto first=q::buy(world,sim::CommandType::PlaceOriginalMusicSchool,q::source_cell);
+    const auto second=q::buy(world,sim::CommandType::PlaceOriginalMusicSchool,{114,115});
+    f::buy(world,sim::set_building_operation(first,false));
+    f::buy(world,sim::set_building_operation(second,false));
+    (void)q::buy(world,sim::CommandType::PlaceOriginalTheatre,q::venue_cell);
+    (void)q::buy(world,sim::CommandType::PlaceOriginalTheatre,{126,115});
+    q::through(world,50);(void)q::buy(world,sim::CommandType::PlaceHousehold,{110,112});
+    while(world.ticks()<1200&&world.workforce_supply()<30)world.tick();q::invariants(world);
+    check(world.ticks()==730&&world.workforce_supply()==30&&world.workforce_required()==30&&
+          !q::school(world,first).attempts&&!q::school(world,second).attempts&&q::state(world).next_performer_id==1,
+          "Paused paid pair did not earn its actual30-worker population730");
+    f::buy(world,sim::set_building_operation(first,true));
+    f::buy(world,sim::set_building_operation(second,true));
+    while(world.ticks()<1200&&!(q::active(world,first)&&q::active(world,second)))world.tick();q::invariants(world);
+    check(world.ticks()==903&&q::active(world,first)&&q::active(world,second)&&
+          q::school(world,first).latest_trip->dispatched_tick==903&&
+          q::school(world,second).latest_trip->dispatched_tick==903&&world.workforce_used()==30,
+          "Four actual fully staffed callbacks did not create two independent performers903");
+    const auto snapshot=world.snapshot();const auto file=fixture.root.path/"aggregate-staff38.json";
+    save::write_save(file,fixture.document(world),fixture.root.data,fixture.mask());const auto bytes=f::read_text(file);
+    check(fixture.restore(save::read_save(file)).snapshot()==snapshot,"Actual30-worker pair failed full restore");
+    auto bad=save::read_save(file);
+    // At494 this one House can have at most18 residents: enough for either
+    // individual8+7 trip, but not both distinct Schools and Venues at once.
+    for(auto& school:bad.world.original_production->culture->schools)school.latest_trip->dispatched_tick=495;
+    q::refuses([&]{(void)fixture.restore(bad);},"Separate per-trip worker ceilings hid an impossible aggregate spawn");
+    q::refuses([&]{save::write_save(file,bad,fixture.root.data,fixture.mask());},
+        "Aggregate worker forgery reached atomic publication");
+    check(world.snapshot()==snapshot&&f::read_text(file)==bytes,
+          "Rejected aggregate staffing changed live authority or prior complete bytes");
 }
 void duplicate_actual_incoming_and_source_ownership() {
     q::Fixture fixture;auto world=fixture.world();const auto s=q::scene(world);
@@ -316,7 +414,9 @@ int process(int argc,char** argv) {
 int main(int argc,char** argv){try{
     if(argc>1)return process(argc,argv);
     checked_model_capability();canonical_active_arrived_expired_and_recovery();hostile_world_and_atomic_publication();
-    unused_channel_and_actual_population_clock();duplicate_actual_incoming_and_source_ownership();
+    unused_channel_and_actual_population_clock();model_staffing_ceilings_use_actual_model_and_residents();
+    aggregate_spawns_require_simultaneous_model_workforce();
+    duplicate_actual_incoming_and_source_ownership();
     accepted_arrival_cannot_be_moved_into_a_natural_fire_interval();
     one_retired_performer_cannot_witness_two_venues();
     strict_json_source_and_generation_isolation();

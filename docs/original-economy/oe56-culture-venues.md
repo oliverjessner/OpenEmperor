@@ -95,6 +95,13 @@ and source reference must bind the actual paid bodies, complete footprints,
 chronological placement/spawn/arrival and physical route/progress. No return
 history or visit to a House is invented to satisfy an old service validator.
 
+Model-bound restore also rejects training before the maximum possible paid
+admissions could supply the School's prepared Employees. Retained simultaneous
+spawns must fit the possible pre-tick workforce for all their distinct Schools
+and venues. These conservative bounds use the authored admission ceiling and
+checked model capacities; they do not reconstruct every past pause, priority or
+staff allocation. They run at create/restore, outside normal tick/frame work.
+
 F5, F9, ordinary load and Recovery use explicit generation-aware validation
 before publishing a replacement. Unknown, missing, duplicate, mistyped,
 cross-generation, orphaned or impossible state must be refused without changing
