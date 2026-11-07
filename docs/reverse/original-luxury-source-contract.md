@@ -73,3 +73,19 @@ The original [needs predicate](original-house-needs-contract.md) accepts Bronzew
 Managed Forestry and managed internal Ore,80 productive ticks per chosen unit,1 of every recipe input, separately bought adjacent Orchardplants, stock buffers8, Warehouse32 per material and Paper1 per successful Academy dispatch are versioned authored rules. They preserve the evidenced material identities and distinct paid bodies without claiming reconstructed resource-byte255/search-tag ecology, raw100/400 scaling, full calendar, venue/Elite behavior or original production balance.
 
 The six House stocks remain the sole household goods authority. Wood/Bronze/RawSilk/Lacquer/Paper have their own five-material authority; Clay retains native physical stock/cargo, and PaperMaker Hemp remains in the six-goods ledger. Recipe inputs commit together with output, real couriers deliver to actual endpoints, and counters bind actual consumption. No source count, model name or default market price grants material or workers. Current gameplay/save/process/SDL results must be reported separately after execution; this document asserts only the bounded source findings above.
+
+## Additional-chain evidence boundary
+
+All nine producer identities in this contract already have paid authored World
+adapters. Reusing their existing recipe or adding another instance is not an
+additional production chain. Logging's physical resource-byte harvest and the
+Smelter's internal extraction selector remain incomplete source contracts;
+their managed World substitutes do not prove a new original mine or forestry
+lifecycle. Likewise the observed Orchard return path does not establish other
+crops, their planting costs, yields or seasons.
+
+The [production candidate register](../original-economy/oe55-production.md)
+keeps further raw model labels separate from this evidence. No additional
+factory, recipe selector, productive clock, legal source/field attachment or
+end-to-end material path is established by those labels. This boundary adds no
+World behavior or save authority.

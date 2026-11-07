@@ -1206,6 +1206,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME original-model-inspector-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_model_inspector_cli.py
+            --executable $<TARGET_FILE:openemperor-model-inspect>)
+        set_tests_properties(original-model-inspector-cli PROPERTIES
+            TIMEOUT 30 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
         add_test(NAME original-player-mode-restart COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_player_mode_restart.py
             $<TARGET_FILE:openemperor-original-menu-session-tests>)

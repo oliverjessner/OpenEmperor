@@ -263,9 +263,10 @@ existing `authored fallback` contract throughout this evidence task.
 
 ## Implemented named schema v1 and checks
 
-`ModelSchema.h` defines `model_schema_version=1`, seven named `ModelBuilding`
-IDs and15 named `ModelHouse` rows. The37 field enum values and five Difficulty
-indices are explicit. `model_id`, `model_row` and label lookup reject undefined
+`ModelSchema.h` retains `model_schema_version=1`, explicit named Building IDs
+and15 named `ModelHouse` rows. Immutable model preparation distinguishes the
+historical seven-row capability from24 additional production rows. The37 field
+enum values and five Difficulty indices are explicit. `model_id`, `model_row` and label lookup reject undefined
 enum values; raw named getters additionally compare the actual parsed source
 label. The generic reader preserves labels and arbitrary syntactically valid
 raw values without assigning these identities to a changed label. A matching
@@ -282,12 +283,12 @@ returns no distinct named row for Vacant2 or non-House source types; out-of-read
 bounds IDs are errors. The observed initializer's lower-row alias is documented
 in the reverse contract and is not a sixteenth table record.
 
-`OriginalModelMapping.h` is a separate pure candidate lookup over the13 current
-`simulation::Object` enumerators. Seven return an inferred functional candidate,
-six return no candidate, and invalid enum values throw. Mechanics identity stays
-unknown. Well/Herbalist presentation evidence describes the existing recovered
-registration, not whichever visual or custom profile happens to be selected.
-It supplies no capability, footprint or permission and is not called by World.
+`OriginalModelMapping.h` is a separate pure candidate lookup. Core functional
+analogies remain inferred; explicit paid production mappings are classified as
+authored. Unsupported kinds receive no candidate, and invalid enum values throw.
+Well/Herbalist presentation evidence describes the recovered registration, not
+whichever visual or custom profile happens to be selected. The lookup supplies
+no capability, footprint or permission and is not called by World.
 
 `original-model-schema-synthetic` tests named IDs, literal field order, all five
 difficulties, source-label failures, checked arithmetic and every Object case.
@@ -297,3 +298,13 @@ transform queries across the real source fields. Missing optional dependencies
 produce explicit SKIP77; an existing malformed or different golden revision
 fails. These augment the always-on raw-reader tests, not replace them. See
 [testing.md](../testing.md) for current build and test instructions.
+
+## Additional production candidates
+
+Current active preparation keeps the historical seven-row factory separate from
+its explicit production extension. The wider raw reader and model inspector can
+observe other rows without adding them to either prepared capability set or
+granting World construction. The [production candidate register](oe55-production.md)
+separates existing paid adapters from unsupported labels and records the missing
+footprint, material, clock, route and sink evidence. Raw `Resource` remains an
+unresolved column; it does not select an output or recipe by itself.

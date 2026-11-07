@@ -33,6 +33,12 @@ inventories remain sole authority; finite external offers and paid orders have
 their own source/model/difficulty-bound journal. No Original goods, finance,
 merchant, partner or gateway contract is expanded.
 
+The [production candidate register](oe55-production.md) is research-only.
+Raw model rows do not extend the prepared capability list, World object kinds,
+two-crop Food state, six House goods or five auxiliary materials. No additional
+crop, recipe, rule or schema is activated. The existing Rule18 economy and the
+separate classic Rule21 trade contract retain their own authority and saves.
+
 Rules1–14 and schemas1–30 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
 saves into Original economy. Bridge/Ramp infrastructure retains its existing contracts.

@@ -133,3 +133,46 @@ GateHouse passages retain their existing source contracts. None grants an
 original external trade endpoint. The [OE54 contract](../original-economy/oe54-trade.md)
 uses a separately purchased, source-geometry-bound authored Warehouse gateway;
 original partners, empire routes, sea trade and merchant runtime remain unsupported.
+
+## Additional agriculture and industry candidates
+
+The same source model contains 269 Building records. A bounded census through
+the production `ModelData` reader retains each present ID, parsed label and raw
+Cost, Employees and Resource columns. The complete census stays private. The
+[production evidence guide](../original-economy/oe55-production.md) lists the
+selected farm, field, extraction, processing and supporting candidates together
+with their current World status and unresolved requirements.
+
+The additional labels include Orchard Shed (29), Fishing Quay (31), Hunter's
+Tent (33), Stoneworks (36), Salt Mine (37), Iron Smelter (40), Steel Furnace
+(41), Jade Carver's Studio (46), Shu Mint (48), Money Printer (49), Sculpture
+Studio (51), Carpenters' Guild (52), Mill (53), Rice Paddy (197), Cabbage Field
+(198), Soybean Field (199), Irrigation Ditch (202), Irrigation Pump (203) and
+Weaponsmith (226). These are research candidates, not construction or recipe
+mappings. The unused row 32 also has positive Cost 50 and Employees 10; positive
+values or adjacent IDs do not identify a producer.
+
+Across all 269 records, raw Resource is 0 except Herbalist's Stall (207), where
+it is 8. Its meaning remains unresolved. Zero does not establish an input-free
+producer, and neither value selects a commodity, quantity, harvest period or
+recipe. No additional footprint, parent/field attachment, fertility, hunting,
+fishing, seasonal clock, storage or downstream demand follows from these raw
+columns. Terrain/resource-marker labels likewise grant no paid extraction or
+source-admission authority.
+
+Repeated read-only queries reuse the shared reader and preserve source
+provenance. For example:
+
+```sh
+cmake --build build --target openemperor-model-inspect
+./build/openemperor-model-inspect /path/to/emperor \
+  --building 31 --building 197 --building 198 --building 199
+```
+
+Generic sparse-ID queries do not expand the named `OriginalRulesModel`
+capability set. All nine factory/material mappings documented in the
+[luxury-source contract](original-luxury-source-contract.md) already have paid
+World adapters; their authored unit recipes and periods remain distinct from
+original evidence. The consulted model observations establish no additional
+complete original production chain and activate no new World rule or save
+schema. No original executable was run for this census.

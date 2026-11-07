@@ -44,6 +44,25 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Production evidence queries (OE55)
+
+The existing read-only model inspector accepts repeated sparse Building IDs:
+
+```sh
+./build/openemperor-model-inspect /path/to/emperor --building 193 --building 195
+ctest --test-dir build --output-on-failure -R '^original-model-inspector-cli$'
+```
+
+Queries report raw labels and Cost/Employees/Resource columns with the complete
+source fingerprint. They do not infer commodity codes, recipes, footprints,
+field ownership, periods or World admission. Missing rows reject the entire
+query; invalid/duplicate IDs fail before loading, and unrepresentable UTF-8
+observations fail without partial JSON. With no query, the provenance report is
+unchanged. The CLI test uses independently authored sparse input only. The
+[production gap register](original-economy/oe55-production.md) separates current
+paid adapters from unsupported additional chains; research is not paid gameplay
+acceptance. Run the complete suite and relevant Debug/sanitizer cases as well.
+
 ## Authored finite land trade (OE54)
 
 Run `authored-land-trade-world`, `authored-land-trade-save`,

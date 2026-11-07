@@ -167,3 +167,14 @@ the original scheduler's calendar remain outside this kernel. There is no
 World, save, UI, renderer or default-rules integration. Synthetic numerical
 checks and static instruction evidence remain separate from original runtime
 parity and human gameplay acceptance.
+
+## Crop admission boundary
+
+The observed House quality blend and six independent goods debits do not identify
+a crop's farm, harvest period, yield, food score or season. The current World's
+Wheat/Millet scores and productive clocks are explicit authored adapters, not
+parameters recovered by this kernel. Further raw Field or Farm model rows
+cannot inherit them by analogy. The
+[production candidate register](../original-economy/oe55-production.md) records
+that research boundary without adding Food stocks, consumption events or a
+new World generation.
