@@ -4,7 +4,8 @@ Baseline is the verified OE51 merge/main
 `cc53e7037dac4ebd4da6b68d382a6e898890716b`. Work is on
 `feat/oe52-original-visuals`, in an isolated worktree; the user's original
 checkout and its uncommitted changes are preserved. Delivery and the actual
-merge/main SHA are recorded in the linked GitHub PR after those actions occur.
+merge/main SHA are recorded in [PR32](https://github.com/oliverjessner/OpenEmperor/pull/32)
+after those actions occur.
 No tags or releases are created.
 
 ## Scope and evidence
