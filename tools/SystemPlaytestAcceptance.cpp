@@ -1,4 +1,4 @@
-// OE41/OE42 QA only. Reuse the shipped event/dialog harness; all gameplay enters
+// OE41/OE42/OE50 QA only. Reuse the shipped event/dialog harness; all gameplay enters
 // MenuSession and SandboxView through ordinary SDL events.
 #define main oe41_reused_original_menu_acceptance_main
 #include "OriginalStarterMenuAcceptance.cpp"
@@ -9,11 +9,12 @@
 
 namespace oe41 {
 using A=oe::sandbox_ui::Action;
-constexpr const char* help="openemperor-system-playtest-acceptance --inventory|--create|--resume|--map|--inspect-paid|--inspector-layout DATA RESOURCES FRESH_APP_ROOT FRESH_OUTPUT [SAVE_OR_MAP]";
+constexpr const char* help="openemperor-system-playtest-acceptance --check-paths|--inventory|--create|--resume|--map|--inspect-paid|--inspector-layout DATA RESOURCES FRESH_APP_ROOT FRESH_OUTPUT [SAVE_OR_MAP]";
 const fs::path repo=fs::absolute(__FILE__).parent_path().parent_path();
 const fs::path private_root=repo/".local/oe41";
 const fs::path layout_root=repo/".local/oe42";
 const fs::path playtest_root=repo/".local/oe43";
+const fs::path current_playtest_root=repo/".local/oe50";
 Json menu_rows=Json::array(),toolbar_rows=Json::array(),events=Json::array(),scenario_results=Json::array();
 std::map<int,std::string> action_names;
 
@@ -21,11 +22,35 @@ void paths(const fs::path& data,const fs::path& resources,const fs::path& app,co
     for(const auto& target:{app,out}) {
         no_symlinks(target);const auto p=fs::weakly_canonical(target);
         require(((contains(private_root,p)&&p!=private_root)||(contains(layout_root,p)&&p!=layout_root)||
-            (contains(playtest_root,p)&&p!=playtest_root))&&!fs::exists(p),"Use fresh ignored OE41/OE42/OE43 app/output directories");
+            (contains(playtest_root,p)&&p!=playtest_root)||(contains(current_playtest_root,p)&&p!=current_playtest_root))&&!fs::exists(p),
+            "Use fresh ignored OE41/OE42/OE43/OE50 app/output directories");
         for(const auto& source:{fs::canonical(data),fs::canonical(resources)})
             require(!contains(p,source)&&!contains(source,p),"OE41 outputs overlap read-only inputs");
     }
     require(!contains(app,out)&&!contains(out,app),"App root and evidence output must be disjoint");
+}
+std::optional<std::uint64_t> current_earned_tick(const fs::path& resolved) {
+    // Exact supplied earned checkpoints, not a broad original-economy directory
+    // admission. MenuSession still validates every saved/source identity.
+    const auto root=repo/".local/original-economy/oe48/oe49-final-create-01";
+    for(const auto& [name,tick]:std::array<std::pair<const char*,std::uint64_t>,3>{{
+            {"seed.save.json",0},{"first-success.save.json",5395},{"result.save.json",25795}}})
+        if(resolved==fs::weakly_canonical(root/name))return tick;
+    return std::nullopt;
+}
+bool current_playtest_input(const fs::path& resolved) {
+    return (contains(current_playtest_root,resolved)&&resolved!=current_playtest_root)||
+        current_earned_tick(resolved).has_value();
+}
+void current_checkpoint_identity(const fs::path& resolved,const oe::persistence::SaveDocument& document) {
+    if(!current_playtest_input(resolved))return;
+    require(document.world.profile==sim::RulesProfile::CityV16&&
+        document.world.rule_version==sim::kOriginalDeadlineFoodDispatchRuleVersion&&
+        document.source_schema_version==34&&document.map_permissions_policy_version==3&&
+        document.map_relative==fs::path("Cities/Xia.map"),
+        "OE50 checkpoint must retain its earned Rule18/schema34/policy3 Xia identity");
+    if(const auto tick=current_earned_tick(resolved))
+        require(document.world.ticks==*tick,"OE50 earned checkpoint tick differs from its supplied identity");
 }
 void names() {
     const auto source=bytes(repo/"src/app/SandboxUiLayout.h");
@@ -138,8 +163,8 @@ struct Journey:Harness {
             // Exercise every construction selector without granting a command.
             const bool selector=button.action<=A::Market||button.action==A::FireWatch||button.action==A::Well||button.action==A::HealthPost||button.action==A::Bridge||button.action==A::Ramp||
                 (button.action>=A::OriginalHempFarm&&button.action!=A::ToggleIndustryPage);
-            if(exercise&&selector){ui(A::Select);const auto before=view().world().snapshot();const auto old=view().tool();
-                ui(button.action);require(view().world().snapshot()==before,"Tool selection mutated World");
+            if(exercise&&selector){ui(A::Select);const auto before=view().capture_save_document();const auto old=view().tool();
+                ui(button.action);same_document(before,view().capture_save_document());
                 row["executed"]=true;row["tool_before"]=old;row["tool_after"]=view().tool();row["message"]=view().last_message();
                 row["enabled"]=view().tool()!=old||button.action==A::Select;row["result"]="PASS";row["scope"]="selector event only; purchase separately reported";}
             toolbar_rows.push_back(row);
@@ -148,10 +173,23 @@ struct Journey:Harness {
     void zoom_images(const std::string& prefix) {
         const auto map=view().layout().map;Point anchor{map.x+map.w*.5,map.y+map.h*.5};
         for(const auto& b:view().world().buildings())if(b.placed&&sim::original_house_kind(b.kind))if(const auto p=ground(b.cell)){anchor=*p;break;}
-        for(int z:{1,2,4}){zoom(z,anchor);const auto before=view().world().snapshot();
+        for(int z:{1,2,4}){zoom(z,anchor);const auto before=view().capture_save_document();
             for(int i=0;i<3;++i){SDL_Event e{};e.type=SDL_EVENT_MOUSE_MOTION;const auto raw=window_point(anchor);e.motion.x=float(raw.x);e.motion.y=float(raw.y);event(e);menu->update(0);require(menu->render(),"Purity frame failed");}
-            require(view().world().snapshot()==before,"Hover/render changed World");capture(prefix+"-"+std::to_string(z)+"x");}
-        zoom(1,anchor);note("B03.B17.purity","Actual hover/update(0)/render at 1/2/4x retained complete World snapshot");
+            same_document(before,view().capture_save_document());capture(prefix+"-"+std::to_string(z)+"x");}
+        zoom(1,anchor);note("B03.B17.purity","Actual hover/update(0)/render at 1/2/4x retained complete SaveDocument authority");
+    }
+    void window_zoom_images(const std::string& prefix) {
+        const auto before=view().capture_save_document();
+        for(const auto size:std::array<std::array<int,2>,3>{{{1280,800},{1600,900},{1920,1080}}}) {
+            require(SDL_SetWindowSize(window,size[0],size[1]),SDL_GetError());SDL_Event e{};
+            e.type=SDL_EVENT_WINDOW_RESIZED;e.window.data1=size[0];e.window.data2=size[1];event(e);focus();
+            require(menu->render(),"Actual resized playtest render failed");
+            int width=0,height=0;
+            require(SDL_GetRenderOutputSize(renderer,&width,&height)&&width==size[0]&&height==size[1],
+                "Actual playtest resize output differs from requested aperture");
+            zoom_images(prefix+"-"+std::to_string(width)+"x"+std::to_string(height));
+            same_document(before,view().capture_save_document());
+        }
     }
     void center_world(Point world) {
         const auto map=view().layout().map;const Point middle{map.x+map.w*.5,map.y+map.h*.5};zoom(1,middle);
@@ -175,12 +213,18 @@ struct Journey:Harness {
     }
     void operations() {
         for(const auto& body:view().world().buildings())if(body.placed&&body.kind==sim::Object::Market&&select_body(body.id)) {
-            const auto rect=view().diagnostic_operation_toggle_rect();const auto before=view().world().snapshot();
+            const auto layout=view().inspector_layout();const auto rect=layout.operation_toggle;
+            const auto before=view().world().snapshot();const auto required=view().world().workforce_required(body.id);
             click({rect.x+rect.w*.5,rect.y+rect.h*.5});require(!view().world().building(body.id).operating_enabled,"Actual operation pause failed");
-            require(view().world().maintenance_spent_total()==before.maintenance_spent_total&&view().world().workforce_required(body.id)==sim::Rules::market_workers,"Pause waived installed workforce/upkeep authority");
+            require(view().world().maintenance_spent_total()==before.maintenance_spent_total&&view().world().workforce_required(body.id)==required,"Pause waived installed workforce/upkeep authority");
             click({rect.x+rect.w*.5,rect.y+rect.h*.5});require(view().world().building(body.id).operating_enabled,"Actual operation resume failed");
-            const auto panel=view().layout().panel;const int scale=view().layout().scale;const int width=(rect.w-8*scale)/3;
-            for(int index:{0,2,1})click({panel.x+10*scale+index*(width+4*scale)+width*.5,double(rect.y+44*scale+14*scale)});
+            for(int index:{0,2,1}) {
+                const auto priority=layout.operation_priorities[std::size_t(index)];
+                require(priority.w>0&&priority.h>0,"Actual priority control is clipped");
+                click({priority.x+priority.w*.5,priority.y+priority.h*.5});
+                require(view().world().building(body.id).workforce_priority==static_cast<sim::WorkforcePriority>(index),
+                    "Actual priority click did not select its displayed priority");
+            }
             require(view().world().building(body.id).workforce_priority==sim::WorkforcePriority::Normal,"Actual priority controls failed");
             events.push_back({{"id","B08.operation"},{"status","PASS"},{"owner",static_cast<unsigned>(body.id)},{"scope","actual inspector pause/resume and High/Low/Normal; installed worker requirement retained"},{"state",state()}});return;
         }
@@ -210,16 +254,67 @@ struct Journey:Harness {
         }
         ui(A::Select);events.push_back({{"id",id},{"status","NOT_RUN"},{"reason","No visible affordable legal cell; no placement bypass"},{"state",state()}});return false;
     }
+    void road_cancellations() {
+        paused(true);if(view().debug_diagnostics())key(SDLK_F1);ui(A::Road);
+        std::optional<std::pair<Point,Point>> endpoints;
+        const auto& world=view().world();
+        for(int y=0;y<world.height()&&!endpoints;++y)for(int x=0;x<world.width()&&!endpoints;++x) {
+            const sim::Cell cell{x,y};const auto first=world.validate({sim::CommandType::PlaceRoad,cell});
+            if(!first.accepted||!first.changed)continue;const auto from=ground(cell);if(!from)continue;
+            for(const sim::Cell delta:std::array<sim::Cell,2>{{{1,0},{0,1}}}) {
+                const sim::Cell next{x+delta.x,y+delta.y};const auto last=world.validate({sim::CommandType::PlaceRoad,next});
+                if(!last.accepted||!last.changed)continue;
+                if(const auto to=ground(next)){endpoints=std::pair{*from,*to};break;}
+            }
+        }
+        require(endpoints.has_value(),"No actual visible legal two-cell drag for cancellation checks");
+        const auto initial=view().capture_save_document();
+        const auto mouse=[&](Uint32 type,Point point,Uint8 button=SDL_BUTTON_LEFT) {
+            const auto raw=window_point(point);SDL_Event event{};event.type=type;
+            if(type==SDL_EVENT_MOUSE_MOTION){event.motion.x=float(raw.x);event.motion.y=float(raw.y);}
+            else {event.button.button=button;event.button.x=float(raw.x);event.button.y=float(raw.y);}
+            this->event(event);
+        };
+        for(const auto* cancellation:{"escape","right-click","focus-loss","resize","ui-release"}) {
+            focus();ui(A::Road);mouse(SDL_EVENT_MOUSE_MOTION,endpoints->first);
+            mouse(SDL_EVENT_MOUSE_BUTTON_DOWN,endpoints->first);mouse(SDL_EVENT_MOUSE_MOTION,endpoints->second);
+            require(view().input_diagnostic_state().road_drag,"Actual press/motion did not begin its road gesture");
+            Point release=endpoints->second;
+            if(std::string_view(cancellation)=="escape")key(SDLK_ESCAPE);
+            else if(std::string_view(cancellation)=="right-click") {
+                mouse(SDL_EVENT_MOUSE_BUTTON_DOWN,release,SDL_BUTTON_RIGHT);mouse(SDL_EVENT_MOUSE_BUTTON_UP,release,SDL_BUTTON_RIGHT);
+            } else if(std::string_view(cancellation)=="focus-loss") {
+                SDL_Event event{};event.type=SDL_EVENT_WINDOW_FOCUS_LOST;this->event(event);focus();
+            } else if(std::string_view(cancellation)=="resize") {
+                require(SDL_SetWindowSize(window,1600,900),SDL_GetError());SDL_Event event{};
+                event.type=SDL_EVENT_WINDOW_RESIZED;event.window.data1=1600;event.window.data2=900;this->event(event);
+            } else {
+                const auto toolbar=view().layout().toolbar;
+                release={toolbar.x+toolbar.w*.5,toolbar.y+toolbar.h*.5};
+            }
+            mouse(SDL_EVENT_MOUSE_BUTTON_UP,release);menu->advance();
+            require(menu->state()==Menu::State::Playing&&!view().input_diagnostic_state().road_drag,
+                "Cancellation left a road gesture or exited its city");
+            same_document(initial,view().capture_save_document());
+            if(std::string_view(cancellation)=="resize") {
+                require(SDL_SetWindowSize(window,1280,800),SDL_GetError());SDL_Event event{};
+                event.type=SDL_EVENT_WINDOW_RESIZED;event.window.data1=1280;event.window.data2=800;this->event(event);
+                require(menu->render(),"Render after actual cancellation resize failed");
+            }
+            note(std::string("B04.road-cancel.")+cancellation,"Actual SDL press/motion/cancel/release retained complete SaveDocument; no road or charge");
+        }
+        ui(A::Select);
+    }
     void controls() {
         paused(true);const auto before=view().world().ticks();ui(A::Step);require(view().world().ticks()==before+1,"Actual Step did not advance once");
         ui(A::Speed2);ui(A::Speed4);ui(A::Speed1);note("B03.clock","Clicked Step, Speed2, Speed4, Speed1 through the real toolbar");
-        const auto state_before=view().world().snapshot();
+        const auto state_before=view().capture_save_document();
         for(const auto keycode:{SDLK_F1,SDLK_G,SDLK_F4,SDLK_F6,SDLK_F7,SDLK_F8,SDLK_F10}){key(keycode);require(menu->render(),"Debug/overlay render failed");
-            require(view().world().snapshot()==state_before,"Debug/overlay key changed World");note("B17.key."+std::to_string(keycode),"Actual diagnostic/overlay key routed; authority unchanged");}
+            same_document(state_before,view().capture_save_document());note("B17.key."+std::to_string(keycode),"Actual diagnostic/overlay key routed; authority unchanged");}
         key(SDLK_F1);key(SDLK_H);capture("help");key(SDLK_ESCAPE);ui(A::ToggleIncome);require(menu->render(),"Income render failed");ui(A::ToggleIncome);
-        ui(A::TogglePanel);ui(A::TogglePanel);require(view().world().snapshot()==state_before,"Help/income/panel changed World");
+        ui(A::TogglePanel);ui(A::TogglePanel);same_document(state_before,view().capture_save_document());
         SDL_Event e{};e.type=SDL_EVENT_WINDOW_FOCUS_LOST;event(e);e.type=SDL_EVENT_WINDOW_FOCUS_GAINED;event(e);
-        require(view().world().snapshot()==state_before,"Focus boundary changed World");note("B03.focus","Actual focus loss/gain retained full authority");
+        same_document(state_before,view().capture_save_document());note("B03.focus","Actual focus loss/gain retained full authority");
     }
     void save_checkpoint(const std::string& label) {
         key(SDLK_F5);require(!menu->settings().last_save.empty(),"Actual F5 did not publish manual save");
@@ -241,11 +336,13 @@ void inventory(Journey& h) {
         if(h.start()){h.toolbar("profile-"+std::to_string(p),true);if(p==10){h.key(SDLK_F5);fs::copy_file(h.menu->settings().last_save,h.out/"city11.save.json");}h.back();h.menu_click("N New Sandbox");}
         if(p<15)h.menu_click("Next rules");}
     h.menu_click("Advanced...");h.menu_inventory("advanced-visuals");h.key(SDLK_ESCAPE);
-    const std::array<const char*,5> entries{"O Original economy","F Original fire protection","S Sustainable economy","M Needs-aware logistics","W Cardinal-water economy"};
+    const std::array<const char*,10> entries{"Play Original economy","O Original economy","F Original fire protection","S Sustainable economy","M Needs-aware logistics","W Cardinal-water economy",
+        "I Inspector coordination","D Deadline-aware fire dispatch","T Deadline-aware services","U Deadline-aware food"};
     for(const auto* label:entries){h.menu_click(label);h.choose_map("Xia");
         for(int d=0;d<5;++d){h.menu_inventory(std::string(label)+"-difficulty-"+std::to_string(d));h.key(SDLK_D);}
         h.key(SDLK_P);h.menu_inventory(std::string(label)+"-empty");h.key(SDLK_P);
-        if(h.start()){h.toolbar(label,true);h.ui(A::ToggleIndustryPage);h.toolbar(std::string(label)+"-industry",true);h.ui(A::ToggleIndustryPage);h.capture("rule-"+std::to_string(h.view().world().rule_version()));h.key(SDLK_F5);}
+        if(h.start()){h.toolbar(label,true);h.ui(A::ToggleIndustryPage);h.toolbar(std::string(label)+"-industry",true);h.ui(A::ToggleIndustryPage);
+            h.capture(std::string_view(label)=="Play Original economy" ? "recommended-rule18":"rule-"+std::to_string(h.view().world().rule_version()));h.key(SDLK_F5);}
         h.back();}
     h.menu_click("L Load Save");h.menu_inventory("manual-load");h.menu_click("Show recovery history");h.menu_inventory("recovery-load");
     if(h.menu->diagnostic_button_rect("Delete history...")){h.menu_click("Delete history...");h.menu_inventory("confirm-delete");h.menu_click("Cancel");}
@@ -256,7 +353,7 @@ void inventory(Journey& h) {
     for(const auto& entry:saves.entries){if(entry.path==upgrade){found=true;break;}h.menu_click("Next");}
     require(found,"Actual paid City11 save missing from manual list");h.menu_inventory("upgrade-eligible");
     h.menu_click("Enable demolition in a copy");h.menu_inventory("confirm-upgrade");h.menu_click("Cancel");h.key(SDLK_ESCAPE);
-    h.note("B02.inventory","All16 ordinary profile choices, five original generations/difficulties, both original tool pages, manual/recovery and confirmation controls visited");
+    h.note("B02.inventory","All16 ordinary profile choices, recommended entry and nine original generations/difficulties, both original tool pages, manual/recovery and confirmation controls visited");
     const auto bad=h.app/"invalid-preferences";fs::create_directories(bad);{std::ofstream file(bad/"settings.json");file<<"{invalid";}
     h.reset_menu({},bad);h.menu_inventory("invalid-preferences-data-setup");h.menu_click("Reset preferences");
 }
@@ -265,12 +362,16 @@ void create(Journey& h) {
     h.menu_click("Choose Game Data Folder");h.dialog->select(h.out/"invalid-data");h.menu->advance();
     require(h.menu->state()==Menu::State::DataSetup,"Invalid data root accepted");h.capture("data-refused");
     h.menu_click("Choose Game Data Folder");h.dialog->select(h.data);h.menu->advance();require(h.menu->state()==Menu::State::MainMenu,"Supplied original data rejected");h.note("B01","Invalid root refused then explicit read-only supplied root selected");
-    h.menu_click("W Cardinal-water economy");h.choose_map("Xia");require(h.start(),"Rule14 paid start refused");
+    h.menu_click("Play Original economy");h.choose_map("Xia");require(h.start(),"Recommended Rule18 paid start refused");
+    const auto initial=h.view().capture_save_document();
+    require(initial.world.rule_version==sim::kOriginalDeadlineFoodDispatchRuleVersion&&initial.map_permissions_policy_version==3&&
+        h.view().world().original_rules_model()->difficulty()==oe::original::Difficulty::Normal,
+        "Recommended menu did not select the existing Normal Rule18/policy3 contract");
     require(h.view().world().ticks()==0&&h.view().world().construction_spent_total()>0,"Paid menu starter did not begin normally");
-    h.toolbar("rule14-main",true);h.ui(A::ToggleIndustryPage);h.toolbar("rule14-industry",true);h.ui(A::ToggleIndustryPage);
-    h.controls();h.buy(A::Road,sim::CommandType::PlaceRoad,"B04.road");h.buy(A::Household,sim::CommandType::PlaceHousehold,"B04.house");h.operations();
+    h.toolbar("rule18-main",true);h.ui(A::ToggleIndustryPage);h.toolbar("rule18-industry",true);h.ui(A::ToggleIndustryPage);
+    h.controls();h.road_cancellations();h.buy(A::Road,sim::CommandType::PlaceRoad,"B04.road");h.buy(A::Household,sim::CommandType::PlaceHousehold,"B04.house");h.operations();
     h.ticks(900);h.note("B08.staffing","900 real TickDriver ticks after paid starter and extra charged UI placements");
-    h.zoom_images("paid-city");h.save_checkpoint("journey");
+    h.window_zoom_images("paid-city");h.save_checkpoint("journey");
     const auto saved=h.view().world().snapshot();h.back();h.menu_inventory("main-with-session");h.menu_click("Autosave: ON");h.menu_click("Autosave: OFF");
     h.menu_click("L Load Save");h.menu_click("Show recovery history");h.menu_inventory("paid-recovery");h.menu_click("Open selected");
     if(h.menu->state()==Menu::State::ConfirmLeave)h.menu_click("Discard Changes");
@@ -280,17 +381,20 @@ void create(Journey& h) {
     h.back();h.menu_click("N New Sandbox");h.choose_map("Handan");if(h.start()){
         const auto document=h.view().capture_save_document();require(h.view().world().profile()==sim::RulesProfile::CityV11&&h.view().world().rule_version()==3&&
             document.map_relative==fs::path("Cities/Handan.map")&&document.map_sha256!=previous_map,"Second menu session leaked old profile/map authority");
-        h.note("B20.second-session","Second actual ordinary City11/rule3 Handan replaced Rule14 Xia through menu, with a distinct map SHA");h.capture("second-session");
+        h.note("B20.second-session","Second actual ordinary City11/rule3 Handan replaced Rule18 Xia through menu, with a distinct map SHA");h.capture("second-session");
     }else scenario_results.push_back({{"id","B20.second-session"},{"status","BLOCKED"},{"reason",h.menu->map_rules_result().reason}});
 }
 void resume(Journey& h,const fs::path& input) {
-    no_symlinks(input);require(contains(private_root,fs::weakly_canonical(input))||contains(playtest_root,fs::weakly_canonical(input)),"Only explicit OE41/OE43 earned save accepted");const auto original=bytes(input);const auto document=oe::persistence::read_save(input);
+    no_symlinks(input);const auto resolved=fs::canonical(input);
+    require(contains(private_root,resolved)||contains(playtest_root,resolved)||current_playtest_input(resolved),
+        "Only explicit OE41/OE43/OE50 earned save accepted");
+    const auto original=bytes(input);const auto document=oe::persistence::read_save(input);current_checkpoint_identity(resolved,document);
     const auto working=h.out/"working-input.save.json";fs::copy_file(input,working);
     h.menu_click("L Load Save");h.menu_click("Open save file...");h.dialog->select(working);h.menu->advance();
     require(h.menu->state()==Menu::State::Loading,"Independent actual menu load not deferred");require(h.menu->render(),"Independent loading render failed");h.menu->advance();h.focus();
-    require(h.view().paused()&&h.view().world().snapshot()==document.world,"Independent actual menu load differs from complete saved World");
+    require(h.view().paused(),"Independent actual menu load is not paused");same_document(document,h.view().capture_save_document());
     h.key(SDLK_F5);require(bytes(h.menu->settings().last_save)==original,"Independent full canonical document bytes differ");h.note("B18.new-process","Independent process actual Menu load and F5 retain complete original document bytes");
-    h.ticks(160);h.save_checkpoint("continued");require(bytes(input)==original,"Independent continuation altered protected input");h.zoom_images("resumed-city");
+    h.ticks(160);h.save_checkpoint("continued");require(bytes(input)==original,"Independent continuation altered protected input");h.window_zoom_images("resumed-city");
 }
 void map_journey(Journey& h,const std::string& map) {
     h.menu_click("N New Sandbox");while(h.menu->settings().profile!=sim::RulesProfile::CityV16)h.menu_click("Next rules");
@@ -303,8 +407,9 @@ void map_journey(Journey& h,const std::string& map) {
 }
 void inspect_paid(Journey& h,const fs::path& input) {
     no_symlinks(input);const auto resolved=fs::canonical(input);
-    require(contains(repo/".local/original-economy/oe40",resolved)||contains(repo/".local/original-economy/oe39",resolved)||contains(private_root,resolved),"Only explicit earned task save accepted");
-    const auto original=bytes(input);const auto document=oe::persistence::read_save(input);
+    require(contains(repo/".local/original-economy/oe40",resolved)||contains(repo/".local/original-economy/oe39",resolved)||contains(private_root,resolved)||
+        current_playtest_input(resolved),"Only explicit earned task save accepted");
+    const auto original=bytes(input);const auto document=oe::persistence::read_save(input);current_checkpoint_identity(resolved,document);
     const auto working=h.out/"working-input.save.json";fs::copy_file(input,working);
     h.menu_click("L Load Save");h.menu_click("Open save file...");h.dialog->select(working);h.menu->advance();
     require(h.menu->state()==Menu::State::Loading,"Paid inspection load did not defer");require(h.menu->render(),"Paid Loading render failed");h.menu->advance();h.focus();
@@ -316,7 +421,7 @@ void inspect_paid(Journey& h,const fs::path& input) {
             for(unsigned n=0;n<4;++n){const auto section=static_cast<oe::SandboxView::OriginalHouseSection>(n);const auto r=h.view().original_house_section_rect(section);h.click({r.x+r.w*.5,r.y+r.h*.5});
                 require(h.view().original_house_section()==section,"Actual House tab did not select");tabs.push_back({{"house",static_cast<unsigned>(body.id)},{"section",n},{"lines",h.view().original_house_section_lines()},{"status","PASS"}});}
             const auto r=h.view().original_house_overlay_rect();for(int n=0;n<4;++n)h.click({r.x+r.w*.5,r.y+r.h*.5});}
-        require(h.view().world().snapshot()==snapshot,"Building/inspector selection changed World");}
+        same_document(document,h.view().capture_save_document());}
     h.ui(A::Select);if(!h.view().debug_diagnostics())h.key(SDLK_F1);require(h.menu->render(),"Actor frame render failed");
     for(const auto& courier:h.view().world().couriers()){
         auto diagnostics=h.view().walker_diagnostics();const auto first=std::find_if(diagnostics.begin(),diagnostics.end(),[&](const auto& d){return d.id==courier.id;});
@@ -328,8 +433,8 @@ void inspect_paid(Journey& h,const fs::path& input) {
                 h.click(point);selected=h.view().input_diagnostic_state().selected_walker==static_cast<std::uint32_t>(courier.id);}}
         actors.push_back({{"id",static_cast<unsigned>(courier.id)},{"owner",static_cast<unsigned>(courier.owner)},{"role",static_cast<unsigned>(courier.role)},
             {"phase",static_cast<unsigned>(courier.phase)},{"live_visible",live},{"selected",selected},{"status",selected?"PASS":"NOT_RUN"},{"reason",selected?"actual alpha-hit selection":live?"No selectable visible pixel found":"idle/non-live actor has no pickable frame"}});
-        require(h.view().world().snapshot()==snapshot,"Actor picking changed World");}
-    h.key(SDLK_F1);h.zoom_images("earned-city");h.key(SDLK_F5);require(bytes(h.menu->settings().last_save)==original,"Paid inspection F5 full bytes differ");h.key(SDLK_F9);
+        same_document(document,h.view().capture_save_document());}
+    h.key(SDLK_F1);h.window_zoom_images("earned-city");h.key(SDLK_F5);require(bytes(h.menu->settings().last_save)==original,"Paid inspection F5 full bytes differ");h.key(SDLK_F9);
     require(h.view().world().snapshot()==snapshot&&bytes(input)==original,"Paid inspection F9 or protected source changed");
     json_file(h.out/"inspection.json",{{"bodies",bodies},{"actors",actors},{"house_tabs",tabs},{"complete_world_unchanged",true},{"complete_f5_f9_bytes_equal",true}});
     h.note("B17.paid-inspection","Actual earned-city building, actor, House tab/overlay selection; individual inaccessible rows remain NOT_RUN");
@@ -340,11 +445,13 @@ void inspect_paid(Journey& h,const fs::path& input) {
 void inspector_layout(Journey& h,const fs::path& input) {
     no_symlinks(input);
     const auto resolved=fs::canonical(input);
-    const bool paid901=resolved==fs::canonical(private_root/"run-01/journey-create-02/journey.save.json");
+    const bool paid901=resolved==fs::weakly_canonical(private_root/"run-01/journey-create-02/journey.save.json");
     const auto earned=repo/".local/original-economy/oe40/run-01/gate-c-release-lean-med-02/first-success.save.json";
-    require(paid901||resolved==fs::canonical(earned),"OE42 requires the explicit OE41 Tick901 or OE40 Tick7333 paid checkpoint");
+    const bool current=current_playtest_input(resolved);
+    require(paid901||resolved==fs::weakly_canonical(earned)||current,"Inspector layout requires an explicit OE41/OE40/OE50 earned checkpoint");
     const auto original=bytes(input);const auto document=oe::persistence::read_save(input);
-    require(document.world.ticks==(paid901?901:7333)&&document.world.rule_version==14&&document.map_relative==fs::path("Cities/Xia.map"),
+    if(current)current_checkpoint_identity(resolved,document);
+    else require(document.world.ticks==(paid901?901:7333)&&document.world.rule_version==14&&document.map_relative==fs::path("Cities/Xia.map"),
         "OE42 checkpoint identity is not the supplied Rule14/Xia paid generation");
     const auto working=h.out/"working-input.save.json";fs::copy_file(input,working);
     h.menu_click("L Load Save");h.menu_click("Open save file...");h.dialog->select(working);h.menu->advance();
@@ -352,7 +459,7 @@ void inspector_layout(Journey& h,const fs::path& input) {
     require(h.menu->render(),"OE42 loading render failed");h.menu->advance();h.focus();
     require(h.view().paused()&&h.view().world().snapshot()==document.world,"OE42 menu restore changed complete World");
     const auto initial=h.view().world().snapshot();Json checks=Json::array();
-    const auto pure=[&] {require(h.view().world().snapshot()==initial,"Inspector input/render changed complete World");};
+    const auto pure=[&] {same_document(document,h.view().capture_save_document());};
     const auto middle=[](oe::sandbox_ui::Rect r) {return Point{r.x+r.w*.5,r.y+r.h*.5};};
     const auto wheel=[&](Point point,float amount) {
         const auto raw=h.window_point(point);SDL_Event e{};e.type=SDL_EVENT_MOUSE_WHEEL;
@@ -436,11 +543,11 @@ void inspector_layout(Journey& h,const fs::path& input) {
         if(sim::original_house_kind(body.kind)&&static_cast<unsigned>(owners[3])==0)owners[3]=body.id;
     }
     require(static_cast<unsigned>(owners[0])>0&&static_cast<unsigned>(owners[1])>0&&static_cast<unsigned>(owners[3])>0&&
-        (paid901||static_cast<unsigned>(owners[2])>0),"Paid checkpoint lacks its required Market, Warehouse, FireWatch or House");
+        (paid901||(current&&document.world.ticks==0)||static_cast<unsigned>(owners[2])>0),"Paid checkpoint lacks its required Market, Warehouse, FireWatch or House");
     const std::array<std::string,4> names{"market"+std::to_string(static_cast<unsigned>(owners[0])),"warehouse","firewatch","house"};
-    if(paid901&&static_cast<unsigned>(owners[2])==0)
-        scenario_results.push_back({{"id","OE42.FireWatch"},{"checkpoint_tick",901},{"status","NOT_RUN"},
-            {"reason","The actual paid Tick901 city has no FireWatch; the explicit Tick7333 earned checkpoint covers it separately"}});
+    if(static_cast<unsigned>(owners[2])==0)
+        scenario_results.push_back({{"id","inspector.FireWatch"},{"checkpoint_tick",document.world.ticks},{"status","NOT_RUN"},
+            {"reason","This earned checkpoint has no FireWatch; no building is granted for inspection"}});
     for(const auto size:std::array<std::array<int,2>,3>{{{1280,800},{1600,900},{1920,1080}}}) {
         require(SDL_SetWindowSize(h.window,size[0],size[1]),SDL_GetError());SDL_Event resized{};
         resized.type=SDL_EVENT_WINDOW_RESIZED;resized.window.data1=size[0];resized.window.data2=size[1];h.event(resized);h.focus();render();
@@ -471,7 +578,7 @@ void inspector_layout(Journey& h,const fs::path& input) {
                     checks.push_back({{"size",dimensions},{"owner",static_cast<unsigned>(owners[kind])},{"zoom",zoom},{"house_sections",4},{"status","PASS"}});
                 } else {
                     const auto layout=geometry();wheel(middle(layout.content),1000000);if(layout.hints.h>0)wheel(middle(layout.hints),1000000);render();
-                    const bool capture=kind==0&&(zoom==1||width==1280);
+                    const bool capture=kind==0;
                     if(capture||(zoom==1&&kind>0))h.capture(prefix+"-top");
                     const auto rows=scroll_document(zoom==1 ? prefix:std::string{});inert_edges();
                     if(capture||(zoom==1&&kind>0))h.capture(prefix+"-end");
@@ -554,11 +661,13 @@ int main(int argc,char** argv) {
     try {
         if(argc==2&&std::string_view(argv[1])=="--help"){std::cout<<oe41::help<<'\n';return 0;}
         require(argc==6||argc==7,oe41::help);const std::string mode=argv[1];
-        require(mode=="--inventory"||mode=="--create"||mode=="--resume"||mode=="--map"||mode=="--inspect-paid"||mode=="--inspector-layout",oe41::help);
+        require(mode=="--check-paths"||mode=="--inventory"||mode=="--create"||mode=="--resume"||mode=="--map"||mode=="--inspect-paid"||mode=="--inspector-layout",oe41::help);
         require((mode=="--resume"||mode=="--map"||mode=="--inspect-paid"||mode=="--inspector-layout")==bool(argc==7),oe41::help);
         const fs::path data=fs::canonical(argv[2]),resources=fs::canonical(argv[3]);
         const auto app=fs::absolute(argv[4]).lexically_normal(),out=fs::absolute(argv[5]).lexically_normal();
-        oe41::paths(data,resources,app,out);oe41::names();oe41::Journey h(data,resources,app,out);
+        oe41::paths(data,resources,app,out);
+        if(mode=="--check-paths") {std::cout<<"System playtest path guards PASS; no output created\n";return 0;}
+        oe41::names();oe41::Journey h(data,resources,app,out);
         if(mode=="--inventory")oe41::inventory(h);else if(mode=="--create")oe41::create(h);
         else if(mode=="--resume")oe41::resume(h,fs::absolute(argv[6]).lexically_normal());else if(mode=="--inspect-paid")oe41::inspect_paid(h,fs::absolute(argv[6]).lexically_normal());
         else if(mode=="--inspector-layout")oe41::inspector_layout(h,fs::absolute(argv[6]).lexically_normal());else oe41::map_journey(h,argv[6]);
