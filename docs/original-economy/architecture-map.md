@@ -20,6 +20,7 @@ parity remains partial; see [the play guide](player-handoff.md) and [Known Issue
 | Rule16 / schema32 / revision27 | Separate authored deadline-aware Inspector dispatch; inherits the cardinal-water/market/economy contracts, ranks physical deadlines without building-class preference and coalesces usable incoming trips. Retention assessment is separate. |
 | Rule17 / schema33 / revision27 | Separate authored deadline-aware service selection; inherits Rule16's fire policy and all economy/bounds, ranks actual expiry and physical travel, coalesces real same-role visits and retains a complete canonical House cursor. |
 | Rule18 / schema34 / revision27 | Separate authored deadline-aware Market-to-House Food selection; inherits Rule17's services, fire and economy. Physical stock, real incoming cargo and prepared route timing determine urgency; production, Farm-to-Market selection and all bounds remain unchanged. |
+| Rule19 / schema35 / revision27 | Explicit authored safe demolition of never-occupied Common2x2 Houses and paused, physically settled Clay Sources. Inherits Rule18; bounded retirement provenance retains paid identities, extraction, latest completed Clay trip and closed installed upkeep. No refund, migration or budget increase. |
 
 Rules1–14 and schemas1–30 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
@@ -380,6 +381,16 @@ model validation. No queue, forecast, deadline or cache becomes saved authority.
 Historical Rules1–17 and schemas1–33 remain exact, without migration. The
 [OE47 assessment](oe47-food-reliability.md) records causal Food evidence, paid
 controls and the independent gameplay and compatibility gates.
+
+Schema35/Rule19 requires the exact
+`rules.safe_demolition: "authored-safe-demolition-v1"` marker, all Rule18 markers
+and a mandatory `original_production.safe_demolition` journal. Separate factories
+and restore paths validate active plus retired purchase/courier order, source-bound
+footprints, closed upkeep and extraction/trip conservation. At most eight retired
+purchases fit within the existing lifetime collection limits. Retired rows own no
+cells, inventory, residents, workers or future transport. Other kinds and any
+unsettled or retained references are refused. Historical Rules1–18/schemas1–34
+remain exact. See the [OE51 contract](../gameplay/oe51-demolition.md).
 
 See [testing.md](../testing.md) for build/sanitizer setup. With a configured `build` and your own data:
 

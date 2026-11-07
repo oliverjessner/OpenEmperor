@@ -96,6 +96,15 @@ Historical Rules1–17 do not migrate. See the
 [OE47 assessment](original-economy/oe47-food-reliability.md) for measured outcomes
 and the remaining limits.
 
+**V Safe demolition economy** in Advanced / Legacy separately selects authored
+**Rule19/schema35/Policy3**, also available as `--original-safe-demolition`.
+It inherits Rule18 and adds only conservative empty-House and settled-Clay
+retirement with no refund, fresh paid rebuild IDs and a bounded saved journal.
+The exact `safe_demolition` marker is `authored-safe-demolition-v1`.
+Occupied/previously admitted Houses, Elite bodies and other production/service
+classes remain refused. Recommended play stays Rule18, and old saves never
+migrate. See the [OE51 contract](gameplay/oe51-demolition.md).
+
 ## Legacy profiles and save compatibility
 
 These profiles remain selectable/readable for compatibility; their milestone
@@ -135,6 +144,7 @@ removal gives no refund; rejected/unchanged commands spend nothing.
 | City-v16 rule 16 | 32 | 12000 | Authored deadline-aware Inspector dispatch; exact marker, inherited source/terrain/market/economy and unchanged costs/limits/times | Rule10 goal |
 | City-v16 rule 17 | 33 | 12000 | Authored deadline-aware service selection; exact marker, inherited Rule16 fire/economy and unchanged workers, models, costs, bounds and timers | Rule10 goal |
 | City-v16 rule 18 | 34 | 12000 | Authored deadline-aware Market-to-House Food selection; exact marker, inherited Rule17 services/fire/economy and unchanged production, transport, consumption and limits | Rule10 goal |
+| City-v16 rule 19 | 35 | 12000 | Authored bounded retirement of never-occupied Common2x2 Houses and physically drained paused Clay Sources; Rule18 economy, no refund, fresh paid rebuild identity | Rule10 goal |
 
 Schemas 1–9 keep their historical fixed collection/one-cell semantics. City-v7
 has ten building/six courier entries; City-v8/v9 have eleven/seven. City-v6–8

@@ -44,6 +44,24 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Rule19 safe demolition
+
+The explicit Rule19/schema35 slice has focused tests
+`original-safe-demolition-world`, `original-safe-demolition-save`,
+`original-safe-demolition-menu` and `original-safe-demolition-view`. Run them
+alongside the complete historical suite; Rule18 saves remain schema34 and never
+acquire a retirement journal. The view test accepts `--capture NEW_DIR` for
+actual scripted SDL PNGs at 1×/2×/4×; open the generated images. Scripted event
+delivery does not establish native or human acceptance.
+
+`openemperor-original-safe-demolition-save-tests --create
+.local/oe51/NEW/creator.json` earns a paid, drained Clay removal and an empty
+House removal. In separate processes use `--restore INPUT NEW_OUTPUT [TICKS]`
+to check complete canonical bytes at zero ticks and independent continuation.
+Inputs and outputs must be explicit private paths; existing outputs are refused.
+See the [OE51 contract and measured evidence](gameplay/oe51-demolition.md) for
+the bounded type matrix, refusal cases and required long-window comparison.
+
 ## Rule16, Rule17 and Rule18 dispatch experiments
 
 OE48 adds legal paid planning controls and fire inspection to this QA launcher,

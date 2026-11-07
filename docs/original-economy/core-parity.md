@@ -250,6 +250,21 @@ literal preservation check are retained under
 `core-parity-public-preservation-01.json`. This historical numerical/ABI check
 does not certify the authored Rule18 selector or citywide Food reliability.
 
+Rule19 adds explicit safe-demolition factories, capability predicates, appended
+blockers and a generation-only optional production journal. The reviewed ABI
+pins now include `OriginalSafeDemolitionState.h`; old generations forbid that
+journal, and the historical HouseholdV3/CityV7 probe calls retain their behavior.
+Fresh Release probes linked against the matching Rule19 simulation archives pass
+the same74 canonical cases and retain the exact classifications, expected and
+observed values, eighteen-value HousingView observation, real-model digest
+`[1800,477508576,4125568101]`, fork pins and limitations. Only four current-source
+fingerprints change: World, production DTO, new retirement DTO and comparison
+runner. The complete public-payload preservation check is
+`.local/oe51/core-parity-public-preservation.json`; private fresh comparison
+artifacts are under `.local/original-economy/oe51/core-parity-release-01/`.
+This checks historical numerical/ABI compatibility. It grants no original
+demolition parity or paid-city acceptance to the authored Rule19 behavior.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the

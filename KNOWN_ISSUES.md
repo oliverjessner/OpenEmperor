@@ -7,11 +7,20 @@ complete original-game compatibility.
   selects the existing recommended Rule18/schema34 for a new city. It adds no
   World rule, save schema or migration; **Advanced / Legacy** retains all earlier
   choices and shortcuts. City-v11 rule3 and ordinary City-v16 rule4 defaults
-  remain exact. Rules10–18 are opt-in and include authored
+  remain exact. Rules10–19 are opt-in and include authored
   immigration, workforce, recipes, harvesting, school-to-house visits and Rule13
   needs-aware goods selection.
-  Original venue/performer chains and illness are missing. Houses and productive
-  buildings cannot yet be demolished; incompatible development saves are refused.
+  Original venue/performer chains and illness are missing. Rules10–18 retain
+  their House/production demolition refusal; incompatible development saves are refused.
+- **Rule19 demolition is deliberately limited.** The separate **V Safe demolition
+  economy** opt-in uses schema35 and permits only never-admitted, empty Common2×2
+  Houses and paused Clay Sources whose physical production, delivery and return
+  have fully settled. Occupied/previously admitted Houses, Elite bodies,
+  Warehouse/Market, Farm/Field and other production/service kinds remain refused.
+  Retained history can also prevent removal; no goods or people are discarded.
+  There is no refund, original demolition-parity claim or migration. Its journal
+  has eight retirement slots and preserves the existing lifetime entity budgets.
+  See the [OE51 contract and validation scope](docs/gameplay/oe51-demolition.md).
 - **Rule10 has no purchasable fire protection.** Natural fires temporarily remove
   occupied Houses from the live goal while `PlaceFireWatch` is refused. The
   [paid progression check](docs/original-economy/paid-progression.md) reaches the goal
