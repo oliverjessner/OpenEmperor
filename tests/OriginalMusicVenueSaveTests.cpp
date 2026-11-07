@@ -121,19 +121,27 @@ void nonzero_paid_school_desire_survives_save_and_recovery() {
     check(f::read_text(rewrite)==bytes,"F5/F9 persistence boundary changed complete nonzero-School bytes");
     save::RecoveryStore recovery(fixture.root.path/"school-recovery",fixture.root.data,
         save::recovery_storage_budget_bytes,save::RecoveryAccess::OriginalProduction);
-    const auto history=recovery.create_history(parsed,fixture.mask());
-    const auto first=recovery.write_checkpoint(history,parsed,fixture.mask());
+    const auto history=recovery.create_history(fixture.document(world),fixture.mask());
+    const auto first=recovery.write_checkpoint(history,fixture.document(world),fixture.mask());
     check(first.loadable()&&f::read_text(first.path)==bytes&&
           fixture.restore(save::read_save(first.path)).snapshot()==baseline,
           "Recovery lost complete nonzero-School phase39 history");
-    auto hostile=parsed;
+    auto hostile=fixture.document(world);
     --hostile.world.original_economy->houses.front().house.desirability;
     auto& tampered=hostile.world.original_production->housing.houses.front();
     --tampered.last_evaluation->input.desirability;
     for(auto& entry:tampered.first_transitions)
         if(entry&&entry->evaluation.tick==142)--entry->evaluation.input.desirability;
-    q::refuses([&]{(void)fixture.restore(hostile);},"Forged paid-source desire reached restore");
-    q::refuses([&]{save::write_save(canonical,hostile,fixture.root.data,fixture.mask());},
+    const auto refuses_paid_desire=[&](auto action,const std::string& message) {
+        try{action();}catch(const std::exception& error) {
+            check(std::string(error.what()).find("Housing historical desire differs from actual paid sources")!=
+                  std::string::npos,"Desire forgery refused for a different reason: "+std::string(error.what()));
+            return;
+        }
+        throw std::runtime_error(message);
+    };
+    refuses_paid_desire([&]{(void)fixture.restore(hostile);},"Forged paid-source desire reached restore");
+    refuses_paid_desire([&]{save::write_save(canonical,hostile,fixture.root.data,fixture.mask());},
         "Forged paid-source desire reached atomic publication");
     check(world.snapshot()==baseline&&f::read_text(canonical)==bytes,
           "Rejected desire forgery changed live authority or prior canonical bytes");
