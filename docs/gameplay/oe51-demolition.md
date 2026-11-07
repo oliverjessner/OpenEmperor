@@ -143,6 +143,11 @@ SDL3.4.14. Release reuses the explicit27.0 build at
 `.local/oe49/debug` and `sanitize` builds. This is local validation, not a new
 signed/notarized distribution or a Windows test. The final Acceptance executable
 SHA256 is `cb4f65bed9957b806bbaccd2683581ec950a4bcceca2f9a69dafd53077ce7461`.
+The actual Xia map SHA256 is
+`871266c415d7500ff3cf3fe70fc6b36caecc4d4cbf09d4d737849e4060906433`;
+the34218-byte original model SHA256 is
+`7e51df8cd49ab39fea7397b7c1a9e7edefdc98a8f09b5e2139987346b4b972e6`
+at Normal difficulty. Full map/model identities remain in every save.
 
 Final Release is **296/296 PASS in191.71s**, with no failures, skips or disabled
 tests (`.local/oe51/ctest-release-lifetimes-final.log` and
@@ -299,7 +304,7 @@ retain their complete pre/post identity through this capture and visual review.
 | NATIVE_GUI / HUMAN | NOT_RUN for OE51 |
 | ORIGINAL_PARITY | No new parity claim; authored safe subset only |
 | RELEASE | NOT_RUN; no tag, release or distribution authorization added |
-| GIT_DELIVERY | PENDING — actual commit/push/PR/merge/main verification will be recorded after those actions |
+| GIT_DELIVERY | Actual branch, pushed commits, GitHub merge and fetched-main verification are recorded in [PR31](https://github.com/oliverjessner/OpenEmperor/pull/31) after each action |
 
 The focused test sources are `OriginalSafeDemolitionMenuTests.cpp` and
 `OriginalSafeDemolitionViewTests.cpp`; World and save tests cover the authority
