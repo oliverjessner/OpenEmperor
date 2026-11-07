@@ -183,9 +183,9 @@ void accepted_arrival_cannot_be_moved_into_a_natural_fire_interval() {
     q::until(world,[&]{return q::school(world,source).latest_trip->arrival_tick.has_value();},"Fire-provenance fixture lacks actual accepted arrival");
     check(q::school(world,source).latest_trip->accepted,"Fire-provenance baseline was not actually accepted");
     q::through(world,2600);auto bad=fixture.document(world);
-    auto& culture=*bad.world.original_production->culture;culture.schools.front().latest_trip->arrival_tick=2000;
-    culture.venues.front().last_arrival->arrival_tick=2000;
-    culture.venues.front().music_timer=q::expected_timer(world.ticks(),2000);
+    auto& culture=*bad.world.original_production->culture;culture.schools.front().latest_trip->arrival_tick=2001;
+    culture.venues.front().last_arrival->arrival_tick=2001;
+    culture.venues.front().music_timer=q::expected_timer(world.ticks(),2001);
     q::refuses([&]{(void)fixture.restore(bad);},"Accepted Venue arrival was forged into its natural burning interval");
     const auto file=fixture.root.path/"fire-provenance38.json";
     save::write_save(file,fixture.document(world),fixture.root.data,fixture.mask());const auto bytes=f::read_text(file);

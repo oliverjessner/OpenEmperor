@@ -244,11 +244,32 @@ void exact_arrival_before_same_tick_countdown() {
     check(world.ticks()>=36&&(world.ticks()-36)%51==0&&q::venue(world,target).music_timer==31,
           "Same-tick physical arrival did not precede one authored phase35 countdown");
 }
+void exact_arrival_before_same_tick_natural_ignition() {
+    q::Fixture fixture;auto world=fixture.world();
+    for(int x=110;x<=148;++x)f::buy(world,{sim::CommandType::PlaceRoad,{x,114}});
+    const auto source=q::buy(world,sim::CommandType::PlaceOriginalMusicSchool,q::source_cell);
+    const auto target=q::buy(world,sim::CommandType::PlaceOriginalTheatre,{145,115});
+    q::through(world,1440);
+    for(int x:{110,113,116})(void)q::buy(world,sim::CommandType::PlaceHousehold,{x,112});
+    const auto channel=q::school(world,source).courier_id;
+    q::until(world,[&]{return q::active(world,source);},"Ignition-boundary School never earned actual creation");
+    check(world.ticks()==1821&&world.courier(channel).path.size()==37,
+          "Ignition-boundary paid geometry/training did not earn its thirty-six-edge trip");
+    f::buy(world,sim::set_building_operation(source,false));
+    q::through(world,1999);check(q::active(world,source)&&!q::venue(world,target).music_timer,
+        "Ignition-boundary performer arrived before its actual physical time");
+    world.tick();q::invariants(world);
+    check(world.ticks()==2000&&q::school(world,source).latest_trip->accepted&&
+          q::venue(world,target).last_arrival->arrival_tick==2000&&q::venue(world,target).music_timer==32&&
+          world.building_on_fire(target),"Actual arrival at ignition tick was refused or granted a House effect");
+    check(fixture.restore(world.snapshot()).snapshot()==world.snapshot(),"Valid ignition-tick arrival failed full restore");
+}
 }
 int main(){try{
     contracts_and_complete_paid_footprint();attempt_requires_actual_admission();
     paid_one_way_arrival_expiry_and_fresh_identity();full_target_and_monotone_successful_spawns();
     road_cut_wait_and_paid_repair();arrival_requires_operating_staffed_unburnt_venue();
     original_fire_does_not_create_arrivals();exact_arrival_before_same_tick_countdown();
+    exact_arrival_before_same_tick_natural_ignition();
     std::cout<<"Rule22 paid School/Performer/Venue, real spawn/retirement/arrival32/expiry, no House grant, fire/roads/refusals PASS\n";return 0;
 }catch(const std::exception& error){perf::set_enabled(false);std::cerr<<"Music Venue World FAIL: "<<error.what()<<'\n';return 1;}}
