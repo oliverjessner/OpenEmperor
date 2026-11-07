@@ -12,11 +12,36 @@ Nach dem [Build](../../README.md) mit der eigenen Emperor-Installation starten:
 ./build/openemperor --data /pfad/zur/Emperor-Installation
 ```
 
-Im Hauptmenü **O Original economy → Cities/Xia.map → Normal →
-Paid four-house starter → Start sandbox** wählen. Die Stadt beginnt pausiert.
+Im Hauptmenü **Play Original economy** wählen. Das ist der empfohlene,
+experimentelle Einstieg für eine **neue** Stadt mit der bestehenden
+**Rule18 / Schema34 / Policy3**; es wird keine neue Regelgeneration angelegt.
+Datenordner, **Cities/Xia.map**, **Normal** und **Paid four-house starter**
+prüfen, dann **Start sandbox** wählen. Alternativ beginnt **Empty city** ohne
+Starterbauten. Die Stadt beginnt pausiert.
 **Space** startet die Simulation; **1x / 2x / 4x** unten ändern ihr Tempo.
 
-Für den separat versionierten Brandschutz im Hauptmenü **F Original fire
+Der [OE48-Bauplan](oe48-citywide-fire-reliability.md) erreicht mit unveränderter
+Rule18 eine bezahlte Stadt mit 13 bewohnten Häusern und 5200/5200 erfüllten
+aktuellen Bedürfnissen im geprüften 20400-Tick-Fenster. **Fünf Hausbrände bleiben
+real**; weder unbegrenzte Stabilität noch vollständige Originalparität oder
+menschliche Abnahme folgen daraus. Der Vier-Haus-Starter allein ist dieser
+ausgebaute Bauplan nicht.
+
+**L Load Save** lädt stattdessen einen bestehenden OpenEmperor-Spielstand;
+**Enter Continue** erscheint nur für eine bereits im Speicher gehaltene Stadt.
+Beides behält deren Regelgeneration. Fehlende Originaldaten oder eine nicht
+zugelassene Karte verhindern den Start mit Diagnose. Ein fehlgeschlagener
+Start/Ladevorgang ersetzt keine bestehende Stadt.
+
+Unter **Advanced / Legacy** bleiben die bisherigen Experimente und Profile
+einzeln wählbar. **O/F/S/M/W/I/D/T/U** und **N** funktionieren weiterhin als
+Hauptmenü-Tastenkürzel. **N New Sandbox** behält den City-v11-Rule3-Standard und
+die gespeicherte Profilwahl; gewöhnlicher City-v16 bleibt Rule4. Bridge-Rule5
+und Ramp-Rule6 werden dort weiterhin ausdrücklich gewählt. Die Empfehlung
+ändert keine gespeicherten Einstellungen oder alten Spielstände.
+
+**O Original economy** wählt weiter die historische **Rule10 / Schema26**.
+Für den separat versionierten Brandschutz **F Original fire
 protection** wählen. Das startet **Rule11 / Schema27 / Policy3** mit derselben
 bezahlten Stadt. **O Original economy** bleibt Rule10; bestehende Saves werden
 nicht umgewandelt. Über **F FireWatch $80 +2 workers** bis zu zwei Wachen
@@ -127,6 +152,21 @@ Leerstand. Der operative Überschuss beträgt4951Funds, der niedrigste Kontostan
 Versorgungsdefizite, Rückstufungen und Brände in der Stadt. Unbegrenzte
 Stabilität und menschliche native Abnahme bleiben offen.
 
+**T Deadline-aware services** wählt **Rule17 / Schema33 / Policy3** mit
+fristabhängiger Auswahl tatsächlicher Dienstbesuche. **U Deadline-aware food**
+wählt **Rule18 / Schema34 / Policy3**, also denselben Modus wie der empfohlene
+Einstieg. Nur die Auswahl von Market→House-Food-Lieferzielen kommt gegenüber
+Rule17 hinzu; Farm→Market, Mengen, Kapazitäten, Bewegung, Verbrauch und Unterhalt
+bleiben erhalten. Tatsächliche Ankunft erfüllt Versorgung beziehungsweise
+erneuert bestehende Besuchstimer. Die
+[OE46-](oe46-citywide-reliability.md) und
+[OE47-Auswertungen](oe47-food-reliability.md) halten Grenzen der jeweiligen
+Generation getrennt. Direkter Rule18-Start:
+
+```sh
+./build/openemperor --data /pfad/zur/Emperor-Installation --sandbox Cities/Xia.map --sandbox-rules sandbox-city-v16 --original-deadline-food-dispatch
+```
+
 Der [bezahlte High-Tier-Ausbau](oe38-paid-high-tier-progression.md) erreicht
 Common10 (Luxurious Apartment). In den geprüften20400 Folgeticks entstehen
 Hemp-/Ceramics-Lücken und Rückentwicklungen trotz positivem Betriebssaldo;
@@ -171,7 +211,9 @@ ein begrenztes Versorgungsfenster; Brände und laufende Verluste bleiben offen.
 pausiert. Nach einem Neustart **L Load Save → Open selected** wählen.
 Difficulty, Modell- und Kartenquelle müssen passen. Alte Entwicklungsrevisionen
 werden mit Diagnose verweigert; ein fehlgeschlagener Ladevorgang erhält die Stadt.
-Rule10/11/12/13/14/15 laden jeweils ihren eigenen Stand mit Schema26/27/28/29/30/31.
+Die Ladeansicht zeigt Profil, Rule und Schema zur Diagnose. Rules10–18 laden
+jeweils ihren eigenen Stand mit Schema26–34 und den exakten Vertragsmarkern.
+Es gibt keine Upgrade-Funktion für Originalwirtschafts-Saves.
 F5/F9 und Recovery ändern dabei keine Regelgeneration.
 
 **Autosave: ON** im Hauptmenü aktiviert Recovery: ein geschützter Startpunkt
@@ -182,8 +224,11 @@ F9 beginnt ebenfalls eine neue Historie; manuelle Saves bleiben separat.
 
 ## Grenzen und technische Einordnung
 
-Originalwirtschaft bleibt ausdrücklich optional: **City-v16 Rule10 / Schema26 /
-Policy3 / Entwicklungsrevision27**. Frühere Regeln und Saves behalten ihre
+Originalwirtschaft bleibt ausdrücklich optional und experimentell. Der
+empfohlene Einstieg verwendet die bestehende **City-v16 Rule18 / Schema34 /
+Policy3** mit Wirtschaftsrevision27. **O** behält den historischen
+**Rule10 / Schema26 / Policy3 / Entwicklungsrevision27**-Vertrag.
+Frühere Regeln und Saves behalten ihre
 Verträge. Modelldaten werden beim Start vorbereitet; Originaldateien bleiben
 unverändert. [Modellherkunft](model-provenance.md) und
 [Kernvergleich](core-parity.md) dokumentieren die belegten Regeln.

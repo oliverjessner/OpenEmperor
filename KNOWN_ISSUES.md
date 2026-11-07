@@ -3,7 +3,11 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
-- **Original economy is experimental.** Rules10–18 are opt-in and include authored
+- **Original economy is experimental.** **Play Original economy** explicitly
+  selects the existing recommended Rule18/schema34 for a new city. It adds no
+  World rule, save schema or migration; **Advanced / Legacy** retains all earlier
+  choices and shortcuts. City-v11 rule3 and ordinary City-v16 rule4 defaults
+  remain exact. Rules10–18 are opt-in and include authored
   immigration, workforce, recipes, harvesting, school-to-house visits and Rule13
   needs-aware goods selection.
   Original venue/performer chains and illness are missing. Houses and productive
