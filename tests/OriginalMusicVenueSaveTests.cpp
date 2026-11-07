@@ -162,11 +162,37 @@ void unused_channel_and_actual_population_clock() {
 }
 void duplicate_actual_incoming_and_source_ownership() {
     q::Fixture fixture;auto world=fixture.world();const auto s=q::scene(world);
+    f::buy(world,sim::set_building_operation(s.source,false));
     const auto second=q::buy(world,sim::CommandType::PlaceOriginalMusicSchool,{114,115});
+    f::buy(world,sim::set_building_operation(second,false));
     for(int x=124;x<=129;++x)f::buy(world,{sim::CommandType::PlaceRoad,{x,114}});
     (void)q::buy(world,sim::CommandType::PlaceOriginalTheatre,{126,115});
-    q::until(world,[&]{return q::active(world,s.source)&&q::active(world,second);},
-        "Two paid Schools never earned simultaneous distinct physical performers");
+    // Gradual immigration otherwise staffs the first School one or more
+    // callbacks before the second, so its short trip can finish first. Both
+    // real sources remain paused until normal residents can staff all30 jobs.
+    q::until(world,[&]{return world.workforce_supply()>=world.workforce_required();},
+        "Two paid Schools and Venues never earned their full workforce");
+    check(world.workforce_required()==30&&q::school(world,s.source).spawn_counter==0&&
+          q::school(world,second).spawn_counter==0&&!q::school(world,s.source).attempts&&
+          !q::school(world,second).attempts&&q::state(world).next_performer_id==1,
+          "Paused Schools acquired training, attempts or actor identities");
+    f::buy(world,sim::set_building_operation(s.source,true));
+    f::buy(world,sim::set_building_operation(second,true));
+    check(world.workforce_used()==30&&world.building_staffed(s.source)&&world.building_staffed(second),
+          "Actual30-worker population could not staff both Schools and Venues");
+    while(world.ticks()<1200&&!(q::active(world,s.source)&&q::active(world,second)))world.tick();
+    const auto describe=[&](sim::BuildingId id){const auto& row=q::school(world,id);
+        return " School"+std::to_string(static_cast<unsigned>(id))+" assigned="+
+            std::to_string(world.workers_assigned(id))+" counter="+std::to_string(row.spawn_counter)+
+            " attempts="+std::to_string(row.attempts)+" spawned="+std::to_string(row.spawned)+
+            " active="+std::to_string(q::active(world,id));};
+    check(q::active(world,s.source)&&q::active(world,second),
+          "Two paid Schools never earned simultaneous distinct physical performers: tick="+
+          std::to_string(world.ticks())+" supply="+std::to_string(world.workforce_supply())+
+          describe(s.source)+describe(second));
+    q::invariants(world);
+    check(fixture.restore(world.snapshot()).snapshot()==world.snapshot(),
+          "Two actually admitted performers did not survive complete restore");
     auto hostile=world.snapshot();auto& schools=hostile.original_production->culture->schools;
     check(schools.size()==2&&schools[0].latest_trip->venue_id!=schools[1].latest_trip->venue_id,
           "Two actual incoming performers were not independently admitted");

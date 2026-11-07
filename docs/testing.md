@@ -63,6 +63,32 @@ unchanged. The CLI test uses independently authored sparse input only. The
 paid adapters from unsupported additional chains; research is not paid gameplay
 acceptance. Run the complete suite and relevant Debug/sanitizer cases as well.
 
+## Music performers and Theatre venues (OE56)
+
+Run `original-music-venue-world`, `original-music-venue-save`,
+`original-music-venue-menu` and `original-music-venue-view` beside the complete
+Release suite and relevant historical culture, service, housing and model tests.
+The new tests use authored source inputs and real paid World commands. Check
+attempt versus actual spawn, unique Performer IDs, one-way movement/retirement,
+actual venue arrival and 32-duration expiry, conservation of money, and the
+absence of a House Music96 effect. Keep historical Rule18 Golden City and
+schemas 1–37 exact; new markers or culture state must not enter older saves.
+
+The Save target supports independent `--create OUTPUT [TICKS]` and
+`--restore INPUT OUTPUT [TICKS]` processes with fresh `.local/oe56/` paths.
+Compare the entire canonical documents at zero and 103 continuation ticks.
+The registered Save test separately covers active, arrived and expired state,
+source binding and Recovery.
+The [culture/venue contract](original-economy/oe56-culture-venues.md#reusable-validation)
+gives commands and refusal expectations. Open the MenuSession/SandboxView PNGs:
+inspect the actual actor foot/direction and selected identity, complete 4×4
+claims, aperture/Inspector clipping and authored fallback labels at the tested
+window sizes and 1×/2×/4×. An owned RGBA target is read before Present. Confirm
+pure frames keep all twelve preparation/authority counters at zero. Scripted
+SDL, native delivery, human acceptance and complete Original parity remain
+separate gates; the new native/human checks are NOT_RUN. Repeat focused Debug
+and ASan/UBSan checks without changing old timeouts or tolerances.
+
 ## Authored finite land trade (OE54)
 
 Run `authored-land-trade-world`, `authored-land-trade-save`,

@@ -227,6 +227,28 @@ Kurierbudgets gelten weiter. Neutrale Well72-Entfernung behält ihren bisherigen
 separaten Vertrag. Details und Abnahmegrenzen:
 [OE51-Abrissvertrag](../gameplay/oe51-demolition.md).
 
+## Musikschule und Veranstaltungsstätte
+
+Unter **Advanced / Legacy → B Music venues (rule 22)** lässt sich ausdrücklich
+eine neue **Rule22 / Schema38 / Policy3**-Stadt starten. Der empfohlene Einstieg
+bleibt Rule18. **E Music** kauft die Musikschule, **G Theatre75** das separat
+bezahlte 4×4-Theatre; Toolbar und Tastatur wählen dieselben Bauwerkzeuge.
+Beide Gebäude benötigen legale Straßen und ihre tatsächlich zugeteilten
+Mitarbeiter. Erst ein wirklich gespawnter Performer mit eigener ID läuft von
+der Schule zum Theatre. Eine erfolgreiche Ankunft setzt dessen eigenen
+Musik-Zustand auf 32; der Performer endet dort ohne sichtbare Rückfahrt.
+
+Der Inspector trennt Spawnversuche, aktive Performer, tatsächliche Ankünfte und
+den verbleibenden Venue-Timer. Die Darstellung des Theatre und Performers ist
+ein eigener Fallback. **Dieser Modus versorgt keine Häuser mit Musik**: Weder
+Versand noch Venue-Ankunft setzt den Music96-Haustimer. Damit können
+musikabhängige Hausbedürfnisse unerfüllt bleiben. Die bisherigen direkten
+School→House-Besuche in Rule18 bleiben unverändert. Actor36, weitere Venue-Arten,
+Festivals und neue Religionsaktionen sind nicht freigeschaltet. Die technische
+Abnahme der neuen Kette steht noch aus; ihre native und menschliche Abnahme
+bleibt NOT_RUN. Vertrag und Prüfpfad stehen im
+[Musik-/Venue-Leitfaden](oe56-culture-venues.md).
+
 ## Bedienung und Versorgung prüfen
 
 - **Pfeiltasten** verschieben, Mausrad oder **Z** zoomen; **H / Help** erklärt
@@ -252,6 +274,8 @@ Die Ladeansicht zeigt Profil, Rule und Schema zur Diagnose. Rules10–18 laden
 jeweils ihren eigenen Stand mit Schema26–34 und den exakten Vertragsmarkern.
 Es gibt keine Upgrade-Funktion für Originalwirtschafts-Saves.
 F5/F9 und Recovery ändern dabei keine Regelgeneration.
+Der Musik-/Venue-Modus lädt ausschließlich seinen eigenen Rule22-/Schema38-Stand
+mit dem Marker `authored-music-venue-v1`; alte Städte werden nicht umgewandelt.
 
 **Autosave: ON** im Hauptmenü aktiviert Recovery: ein geschützter Startpunkt
 und bis zu fünf Checkpoints im Abstand von **60 simulierten Sekunden**.
@@ -287,8 +311,10 @@ Zusätzliche Modellnamen für Landwirtschaft und Industrie sind keine neuen
 Bauwerkzeuge. Die [OE55-Quellenprüfung](oe55-production.md) bleibt Forschung;
 sie schaltet keine weitere Produktionskette frei. Auch Saison, Jagd und Fischerei
 sind damit nicht als Originalverhalten umgesetzt.
-Originale Veranstaltungs-/Performer-Abläufe und Krankheit fehlen. Mehrere
-Gebäude und Walker nutzen Fallbackbilder; passende Hausbilder decken Typen3–17
+Rule22 ergänzt nur die begrenzte School→Performer→Theatre-Kette; Venue→House,
+weitere originale Veranstaltungsabläufe, Festivals, Hero-/Götter-AI und Krankheit
+fehlen weiterhin. Mehrere Gebäude und Walker nutzen Fallbackbilder; passende
+Hausbilder decken Typen3–17
 ab. Common10 und separat in Rule14 auch Elite17 wurden bezahlt erreicht.
 Der beschriebene DES79-Blocker bleibt für Rule12/13 unverändert; Rule14s
 Elite17-Versorgung und Finanzierung sind noch nicht dauerhaft nachgewiesen.

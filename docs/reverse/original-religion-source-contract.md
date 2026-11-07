@@ -5,7 +5,7 @@ This OE-22 investigation extends the bounded
 [spawn-counter](original-service-spawn-contract.md) evidence. It establishes a
 concrete initial producer of the previously opaque religion condition. It does
 not establish every archive, reset or session transition. The
-[The runtime integration](../original-economy/architecture-map.md#paid-sources-inventories-and-actual-arrivals) deliberately
+[runtime integration](../original-economy/architecture-map.md#paid-sources-inventories-and-actual-arrivals) deliberately
 uses authored behavior at the two Confucian boundaries described below.
 
 The read-only executable is `Emperor.exe`, SHA-256
@@ -141,6 +141,29 @@ The approved staffing-only adapter is explicitly limited. Later physical
 upstream and elite work must resolve both prerequisites before full actual
 Academy behavior can be accepted; the numbered luxury/elite tasks do not by
 themselves create a Wood/Paper contract.
+
+## Historical adapter and current integration
+
+The static results above record the historical investigation; the current
+integration described here does not imply a fresh run of its private checker.
+The staffing-only and `elite_only=false` adapter descriptions refer to
+historical development revision22. Current revision27 instead prepares the
+Confucian elite-only condition and requires actual Paper delivered through the
+paid Hemp→Paper production and auxiliary transport chain. A successfully
+published Academy tour consumes exactly one Paper; the owned inventory ledger
+binds that sink to real tour sequences. The current World additionally requires
+positive occupants for all religious targets, so even Confucian's paid visits do
+not reproduce the pure Original predicate's empty-Elite allowance.
+
+These are separate evidence boundaries. The current physical Paper supply is
+not an implementation of the observed Original27/10 resource choice or the
+100-raw-stock debit after 100 eligible consumption-counter calls. Their complete
+units, selector and cadence remain unresolved. Ancestor214, Daoist215,
+Buddhist217 and Confucian219 retain distinct actual-arrival House40 timers;
+Temple216/Pagoda218, offerings, festivals, Hero/God AI and happiness are not
+admitted as new paid mechanics. The [culture/venue guide](../original-economy/oe56-culture-venues.md#religion-remains-a-separate-service-contract)
+records the current implementation gaps; the Rule22 Music experiment changes
+none of these religious contracts.
 
 ## Original art selectors for later visual integration
 

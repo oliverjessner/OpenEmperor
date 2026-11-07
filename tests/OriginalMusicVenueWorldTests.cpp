@@ -193,15 +193,24 @@ void arrival_requires_operating_staffed_unburnt_venue() {
         q::until(world,[&]{return q::active(world,s.source)&&world.courier(s.channel).edge_progress>0;},"Refused-arrival performer never departed");
         if(pause)f::buy(world,sim::set_building_operation(s.target,false));
         else {
-            const auto farm=q::buy(world,sim::CommandType::PlaceOriginalHempFarm,{106,120});
-            const auto smelter=q::buy(world,sim::CommandType::PlaceOriginalBronzeSmelter,{110,120});
-            f::buy(world,sim::set_building_workforce_priority(farm,sim::WorkforcePriority::High));
-            f::buy(world,sim::set_building_workforce_priority(smelter,sim::WorkforcePriority::High));
+            // Two paid18-worker installations fit the36 real residents at
+            // departure. An18+19 pair instead skips the second whole building
+            // and leaves enough workers for the7-worker Venue.
+            const auto first=q::buy(world,sim::CommandType::PlaceOriginalHempFarm,{106,120});
+            const auto second=q::buy(world,sim::CommandType::PlaceOriginalHempFarm,{110,120});
+            f::buy(world,sim::set_building_workforce_priority(first,sim::WorkforcePriority::High));
+            f::buy(world,sim::set_building_workforce_priority(second,sim::WorkforcePriority::High));
             f::buy(world,sim::set_building_workforce_priority(s.target,sim::WorkforcePriority::Low));
-            check(!world.building_staffed(s.target),"Paid competing installations did not create real Venue worker shortage");
+            check(world.workers_assigned(first)==18&&world.workers_assigned(second)==18&&
+                  !world.building_staffed(s.target),
+                  "Paid competing installations did not create real Venue worker shortage: supply="+
+                  std::to_string(world.workforce_supply())+" first="+std::to_string(world.workers_assigned(first))+
+                  " second="+std::to_string(world.workers_assigned(second))+" Venue="+
+                  std::to_string(world.workers_assigned(s.target)));
         }
         q::until(world,[&]{return q::school(world,s.source).latest_trip->arrival_tick.has_value();},"Unavailable-target performer never finished its physical trip");
-        check(!q::school(world,s.source).latest_trip->accepted&&!q::venue(world,s.target).music_timer&&
+        check((pause?!world.building(s.target).operating_enabled:!world.building_staffed(s.target))&&
+              !q::school(world,s.source).latest_trip->accepted&&!q::venue(world,s.target).music_timer&&
               !q::venue(world,s.target).last_arrival&&world.courier(s.channel).phase==sim::CourierPhase::IdleAtWorkshop,
               "Paused/unstaffed Venue received an arrival grant or retained a ghost performer");
     }
