@@ -3,6 +3,13 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
+- **Further production chains remain research-only.** The existing Wheat/Millet,
+  Hemp, Clay/Ceramics, Tea, Silk, Bronzeware, Lacquerware and Paper paths include
+  authored harvest periods, recipes or resource management. Additional model
+  labels and their raw Cost/Employees/Resource columns do not establish complete
+  crop, mining, fishing or seasonal behavior. OE55 adds no new crop, World rule,
+  save schema or playable production chain. See the
+  [production evidence boundary](docs/original-economy/oe55-production.md).
 - **Land trade is authored, finite and opt-in.** Rule21/schema37 uses classic
   Rule6 and two paid Warehouses, one explicitly bound boundary gateway and one
   real caravan. Only four-unit Pottery imports/exports at authored unit prices 6/3 are

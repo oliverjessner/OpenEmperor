@@ -283,6 +283,10 @@ Rule13 übernimmt diese Grenzen. Seine bedarfsabhängige Warenauswahl erhöht we
 Hauslager noch Kurierzahl, Transportmenge, Geschwindigkeit oder Brandschutz.
 
 Rezepte, Ernte, Zuzug/Worker und Schule→Haus-Besuche enthalten eigene Regeln.
+Zusätzliche Modellnamen für Landwirtschaft und Industrie sind keine neuen
+Bauwerkzeuge. Die [OE55-Quellenprüfung](oe55-production.md) bleibt Forschung;
+sie schaltet keine weitere Produktionskette frei. Auch Saison, Jagd und Fischerei
+sind damit nicht als Originalverhalten umgesetzt.
 Originale Veranstaltungs-/Performer-Abläufe und Krankheit fehlen. Mehrere
 Gebäude und Walker nutzen Fallbackbilder; passende Hausbilder decken Typen3–17
 ab. Common10 und separat in Rule14 auch Elite17 wurden bezahlt erreicht.
