@@ -3,10 +3,14 @@
 Run `tools/package_macos.sh` on an Apple Silicon Mac with Xcode Command Line
 Tools, CMake, Homebrew SDL3, OpenSSL and nlohmann/json installed. It configures
 `build-macos-app/` in Release with `OPENEMPEROR_BUILD_MACOS_APP=ON` and explicit
-arm64/macOS 26.0 deployment settings. The ordinary `build/` CLI configuration
-is untouched. The current 26.0 minimum follows the embedded Homebrew SDL3 and
-libcrypto builds; it is checked against every embedded Mach-O. The tested OS
-version is recorded separately in `dist/package-report.json`.
+arm64/macOS 26.0 deployment settings by default. The ordinary `build/` CLI
+configuration is untouched. Every embedded Mach-O must support the selected
+minimum. When an installed dependency requires a newer OS, select that target
+explicitly with `--min-os major.minor[.patch]`; values below 26.0 are refused.
+For example, a libcrypto built for macOS 27.0 requires `--min-os 27.0` and a
+host that supports it. This does not change the default or weaken verification.
+The selected minimum and tested host OS are recorded separately in
+`dist/package-report.json`.
 
 Build and distribution destinations must be new paths; existing evidence is
 preserved. For an isolated local candidate with real-data checks:
@@ -71,9 +75,10 @@ that desktop observation is recorded separately from its dummy-rendered tests.
 This is a local developer preview, signed only ad hoc. It has no Developer ID
 signature or Apple notarization, and download/Gatekeeper acceptance on another
 Mac is unproved. A clean Mac without developer tools is an additional test,
-not simulated by restricting PATH. The project currently has no explicit own
-LICENSE file; choosing one is a prerequisite for public distribution, outside
-this packaging milestone.
+not simulated by restricting PATH. The project's `LICENSE` declares
+GPL-3.0-only for OpenEmperor source. Completeness of the license text, notices
+and resource rights still requires a separate distribution review; the notice
+does not establish public-release readiness.
 # Alpha acceptance
 
 Use new build, report and package paths for a complete isolated run:

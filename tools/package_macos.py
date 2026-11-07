@@ -7,6 +7,7 @@ import os
 import plistlib
 import re
 import shutil
+import stat
 import struct
 import subprocess
 import sys
@@ -20,6 +21,28 @@ ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build-macos-app"
 DIST = ROOT / "dist"
 MIN_OS = "26.0"
+PROJECT_LICENSE_LIMIT = 1024 * 1024
+
+
+def validated_min_os(value):
+    """Keep the historical floor; higher dependency targets require explicit choice."""
+    if (not isinstance(value, str) or len(value) > 32 or
+            not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?", value)):
+        raise ValueError("--min-os must be a numeric major.minor[.patch] version")
+    parts = tuple(int(part) for part in value.split("."))
+    minimum = tuple(int(part) for part in MIN_OS.split("."))
+    if parts + (0,) * (3 - len(parts)) < minimum + (0,) * (3 - len(minimum)):
+        raise ValueError("--min-os cannot be lower than the existing " + MIN_OS + " minimum")
+    return value
+
+
+def validate_build_info(build_info, min_os):
+    required = {"display_version", "project_version", "revision", "dirty",
+                "architecture", "build_type", "deployment_target"}
+    if (not isinstance(build_info, dict) or not required.issubset(build_info) or
+            build_info["architecture"] != "arm64" or build_info["build_type"] != "Release" or
+            build_info["deployment_target"] != validated_min_os(min_os)):
+        raise RuntimeError("CMake generated incomplete or conflicting package provenance")
 
 
 def checked_path(path):
@@ -65,7 +88,11 @@ def parse_args(argv=None):
     parser.add_argument("--data", type=Path,
                         help="read-only original installation for real-data tests")
     parser.add_argument("--jobs", type=int, default=6)
+    parser.add_argument("--min-os", default=MIN_OS, metavar="VERSION",
+                        help="explicit deployment target, at least " + MIN_OS +
+                             "; must support every actual linked dependency")
     args = parser.parse_args(argv)
+    args.min_os = validated_min_os(args.min_os)
     if args.jobs < 1:
         raise ValueError("--jobs must be positive")
     if args.data is not None:
@@ -131,6 +158,34 @@ def sha256(path):
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def project_license_report(root=ROOT):
+    """Report source-file presence, never legal completeness or bundle inclusion."""
+    path = checked_path(Path(root) / "LICENSE")
+    provenance = {"path": "LICENSE", "exists": False, "regular_file": False,
+                  "bytes": None, "sha256": None, "distribution_review": "NOT_RUN"}
+    try:
+        status = path.lstat()
+    except FileNotFoundError:
+        return {"project_license": "missing; publication blocker",
+                "project_license_provenance": provenance}
+    if not stat.S_ISREG(status.st_mode) or status.st_size > PROJECT_LICENSE_LIMIT:
+        raise ValueError("project LICENSE must be a bounded regular file")
+    # Refuse a last-component link even if it appears after checked_path.
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    with os.fdopen(descriptor, "rb") as stream:
+        opened = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(opened.st_mode) or opened.st_size > PROJECT_LICENSE_LIMIT or
+                (opened.st_dev, opened.st_ino) != (status.st_dev, status.st_ino)):
+            raise ValueError("project LICENSE changed during provenance inspection")
+        payload = stream.read(PROJECT_LICENSE_LIMIT + 1)
+    if len(payload) > PROJECT_LICENSE_LIMIT:
+        raise ValueError("project LICENSE exceeds its provenance read limit")
+    provenance.update(exists=True, regular_file=True, bytes=len(payload),
+                      sha256=hashlib.sha256(payload).hexdigest())
+    return {"project_license": "present; distribution review NOT_RUN",
+            "project_license_provenance": provenance}
 
 
 def run_industry_check(executable, data, workdir, environment):
@@ -329,20 +384,14 @@ def main(argv=None):
         if not shutil.which(tool):
             raise RuntimeError("required build tool missing: " + tool)
     cmake_args = ("cmake", "-S", str(ROOT), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release",
-                  "-DCMAKE_OSX_ARCHITECTURES=arm64", f"-DCMAKE_OSX_DEPLOYMENT_TARGET={MIN_OS}",
+                  "-DCMAKE_OSX_ARCHITECTURES=arm64", f"-DCMAKE_OSX_DEPLOYMENT_TARGET={args.min_os}",
                   "-DOPENEMPEROR_BUILD_MACOS_APP=ON", "-DOPENEMPEROR_USE_SYSTEM_SDL3=ON")
     if args.data is not None:
         cmake_args += ("-DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT=" + str(args.data),)
     print(call(*cmake_args), flush=True)
     print(call("cmake", "--build", str(build), "--parallel", str(args.jobs)), flush=True)
     build_info = json.loads((build / "generated/BuildInfo.json").read_text())
-    required_build_info = {"display_version", "project_version", "revision", "dirty",
-                           "architecture", "build_type", "deployment_target"}
-    if (not required_build_info.issubset(build_info) or
-            build_info["architecture"] != "arm64" or
-            build_info["build_type"] != "Release" or
-            build_info["deployment_target"] != MIN_OS):
-        raise RuntimeError("CMake generated incomplete package provenance")
+    validate_build_info(build_info, args.min_os)
     display_version = build_info["display_version"]
     revision = build_info["revision"]
     dirty = build_info["dirty"]
@@ -490,7 +539,8 @@ def main(argv=None):
                                  "unzipped_menu": zip_result, "negative": negative},
                       "signature": "ad-hoc; Developer ID absent; not notarized",
                       "desktop_launch": "not_checked", "independent_clean_mac": "not_checked",
-                      "project_license": "missing; publication blocker"}
+                      "requested_minimum_macos": args.min_os}
+            report.update(project_license_report())
             report["zip"] = {"filename": zip_name, "bytes": archive.stat().st_size,
                              "sha256": sha256(archive)}
             (stage / "package-report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
