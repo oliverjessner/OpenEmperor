@@ -28,6 +28,23 @@ inline scene::WorldDrawKey world_key(const SandboxVisualKey& key) {
 inline bool operator<(const SandboxVisualKey& a,const SandboxVisualKey& b) {
     return world_key(a)<world_key(b);
 }
+// Presentation identity only; caller must require active Original production.
+inline std::optional<assets::OriginalBuildingVisualRole> original_building_visual_role(simulation::Object object) {
+    using O=simulation::Object;using R=assets::OriginalBuildingVisualRole;
+    switch(object) {
+    case O::OriginalWaterWell72:return R::WaterWell;
+    case O::ServicePost:return R::Acupuncture;
+    case O::OriginalMusicSchool211:return R::MusicSchool;
+    case O::OriginalAcrobatSchool212:return R::AcrobatSchool;
+    case O::OriginalDramaSchool213:return R::DramaSchool;
+    case O::OriginalDaoistShrine215:return R::DaoistShrine;
+    case O::OriginalBuddhistShrine217:return R::BuddhistShrine;
+    case O::OriginalConfucianAcademy219:return R::ConfucianAcademy;
+    case O::OriginalPaperMaker45:return R::PaperMaker;
+    case O::OriginalWeaver47:return R::Weaver;
+    default:return std::nullopt;
+    }
+}
 inline std::optional<assets::BuildingVisualRole> building_visual_role(simulation::Object object) {
     using O=simulation::Object;
     using R=assets::BuildingVisualRole;

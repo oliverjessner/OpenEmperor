@@ -1,5 +1,32 @@
 # Curated core building previews
 
+## Original-production static bases (OE52)
+
+An independent optional metadata supplement supplies ten source-registered static
+bases only in active Original production: Well72, Acupuncture208, Music211,
+Acrobat212, Drama213, Daoist215, Buddhist217, Confucian219, Paper45 and Weaver47.
+The [OE52 assessment](rendering/oe52-original-visuals.md) records validation and
+remaining gaps; the [source contract](reverse/original-presentation-correction.md#original-production-static-building-bases)
+records group/physical/geometry evidence. These do not extend the historical
+13-role schema1 or change any World footprint, price, operation or save.
+
+`optional_original_buildings` is independent of the existing core and House
+supplements. Both General files must match their complete SHA-256 fingerprints;
+all ten rows must agree with the shared General-slot2 registration resolver,
+model/group/side table, native unmirrored Type30 geometry and full decoded image.
+Missing, mismatched, unsafe or malformed metadata leaves the historical display
+available. An explicit custom core profile suppresses automatic supplements.
+
+Preparation uses the same physical image pool and existing combined64MiB RGBA
+budget, including core, House and new bases. The existing Well1559 is shared.
+There is no file, parsing, decoding or upload work in frame/hover selection. The
+shared production entry selector supplies drawing, full-image alpha picking,
+preview, roof attachment and diagnostics, with the existing front-cell painter
+key and authored geometric anchor `[width/2,height-20]`. F4 retains the historical
+fallback comparison. Source animation fields do not authorize an animation;
+these are static representatives, with no recovered original pivot/timing or
+whole-scene compositor parity claim.
+
 ## City-v16 rule 2: original Well and Herbalist
 
 The exact six-file compatibility pack now supplies `well` **1559 (158×132, anchor [79,112])** and `health_post` **1580 (158×136, anchor [79,116])**, both in `China_Safety.bmp` group 8. Named original Model entries 72/207, traced EXE registrations, complete 2×2 Safety audit, visual motifs and original manual corroborate base Well / Herbalist identities with high confidence. HealthPost remains the simplified authored road service; no original medicine or Well-evolution mechanics are imported. [Audit and candidate table](reverse/original-presentation-correction.md).

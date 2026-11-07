@@ -149,3 +149,89 @@ A separate production `SandboxView` readback over Xia reproduces the prior grass
 The paid six-House Xia scene includes House stages 0/1/2 and all requested existing roles at tick 4200. Final-bundle actual keyboard F1, zoom-preset and F6 input verified normal 1× continuity and the independent fallback toggle; 2×/4× are secondary. On the local QWERTZ layout the automation's physical Y key generates the application's Z shortcut. Scripted scene construction/readbacks and native input are reported separately. Well/Herbalist IDs, geometry, anchors and source images remain unchanged. Road adjacency to Houses, Market, Farm, Well, Herbalist, ServicePost and FireWatch was reviewed without inventing entrance paths. No additional entrance-spur graphic was established in this bounded basic-road path; this does not prove none exists elsewhere in Emperor. `EntranceMask` stays diagnostic.
 
 The exact pack's optional complete-ground flag applies only to configured singleton roads and valid drag cells. Alpha preview preserves its existing terrain as an early backdrop; opaque roads replace the old cell image. Other stored objects keep their painter keys and images. No original bytes, World terrain mutations, new save/rule fields, costs, BFS, buildings, goods or service mechanics were introduced.
+
+## Original-production static building bases
+
+The OE52 source audit starts from `cc53e7037dac4ebd4da6b68d382a6e898890716b`.
+The EXE, Model file and General archive pair have the exact SHA-256 values
+recorded above. Their bytes, sizes, modes and modification times were checked
+before and after the read-only audit. No original executable was run. Raw
+inspection reports, source-field checks, the small shared-API resolver, decoded
+images and review artifacts remain ignored under `.local/oe52/source-audit-01/`.
+
+The following ten static selections have separate identity and geometry
+evidence. Well72 and Acupuncturist208 reuse the generic graphic-reader evidence
+above. The [culture source contract](original-culture-source-contract.md) binds
+211–213 to their concrete constructors, initial sides and registrations; the
+[religion source contract](original-religion-source-contract.md) does the same
+for 215, 217 and 219. The [industry source contract](original-luxury-source-contract.md)
+binds the maker bodywriter `0x5f1ee0` through selector `0x4f13f0` to each actual
+model registration. Fresh bounded reads of the pinned EXE confirm the initial
+side byte at `0x823598 + 24*model` and group word at `0x8235a0 + 24*model`,
+including Paper45/key`0x44a` and Weaver47/key`0x446`.
+
+Every group was independently resolved through the production
+`RuntimeArchiveLayout` with `TerrainElevationAndGeneral2` and
+`ResourceGroupLookup`; there is no second SG3 parser or physical-index
+translation. All ten complete images decoded through the existing
+`Sg3ImageLoader` via the asset inspector and were actually opened and inspected.
+The native bases, roof/body details and transparent rectangular padding are
+coherent. Names and visible motifs corroborate these selected frames; they do
+not independently establish a runtime selector or animation.
+
+| Model / source identity | General group key | Physical record | Native size | Initial side | Geometric front-cell anchor |
+|---|---:|---:|---:|---:|---|
+|72 Well|`0x482`|1559|158×132|2|`[79,112]`|
+|208 Acupuncturist's Clinic|`0x485`|1593|158×137|2|`[79,117]`|
+|211 Music School|`0x412`|589|158×137|2|`[79,117]`|
+|212 Acrobat School|`0x410`|460|238×162|3|`[119,142]`|
+|213 Drama School|`0x411`|501|238×176|3|`[119,156]`|
+|215 Daoist Shrine|`0x49b`|2245|158×134|2|`[79,114]`|
+|217 Buddhist Shrine|`0x49c`|2258|158×142|2|`[79,122]`|
+|219 Confucian Academy|`0x49f`|2309|238×201|3|`[119,181]`|
+|45 Paper Maker|`0x44a`|2811|158×102|2|`[79,82]`|
+|47 Weaver|`0x446`|2768|158×119|2|`[79,99]`|
+
+All are internal, unmirrored Type30 records with no separate alpha payload and
+in-bounds color payloads. Their exact base lengths are 12,800 bytes for side2
+and 28,800 for side3; native width is `80*side−2`. The selected geometric anchor
+is `[40*side−1,height−20]` relative to the existing authoritative front cell.
+For these ten selections this is an **authored geometric placement convention**,
+not a recovered per-model original runtime pivot. Source heights, projection,
+footprints and whole-image painter rules are separate and remain unchanged.
+
+| Physical record | Animation sprites | Raw animation offset | Raw speed ID |
+|---:|---:|---|---:|
+|1559|20|`(50,69)`|5|
+|1593|24|`(8,42)`|4|
+|589|12|`(38,34)`|4|
+|460|40|`(49,41)`|4|
+|501|87|`(95,56)`|5|
+|2245|12|`(5,28)`|5|
+|2258|12|`(34,21)`|5|
+|2309|0|`(0,0)`|0|
+|2811|20|`(2,0)`|4|
+|2768|19|`(2,5)`|5|
+
+These raw fields do **not** establish associated overlay frames, state
+selection, a World-tick duration or original cadence. Only the complete static
+base is selected. There is no inferred building animation, loaded/empty variant,
+religious effect, culture performer or production-state graphic. The ten images
+contain 1,083,824 logical RGBA bytes. Excluding the existing Well1559 physical
+image leaves nine additional images totaling 1,000,400 bytes. The final combined
+pool must retain the unchanged 64 MiB budget and shared physical deduplication.
+
+The metadata-only `original-buildings.json` keeps these ten typed selections
+separate from the thirteen legacy role entries and the original House-stage
+table. In original production, `ServicePost` corresponds to the paid
+Acupuncturist208 source; the historical one-cell notice-sign preview remains a
+different contract. Model59's generic registration word is zero and does not
+justify a new Market graphic. Ancestor214, Farmhouse193 and HempFarm192 remain
+inventory candidates outside this selected set. Their uncompleted selector and
+visual evidence must not be filled by nearby records or model names.
+
+This source audit establishes the ten selected static frames, source bindings
+and geometric compatibility. Final application, capture, fallback, resource and
+historical-save validation are separate from source research. It does not claim
+original animation, profession, full scene, native interaction or human play
+acceptance, and introduces no World, rule or save authority.

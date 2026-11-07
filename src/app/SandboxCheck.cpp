@@ -58,6 +58,8 @@ int run_sandbox_check(const std::filesystem::path& data_root,
             visuals.health_walker_fallback_reason);
         view.set_original_house_visuals(visuals.original_house,visuals.original_house_source,
             visuals.original_house_fallback_reason);
+        view.set_original_building_visuals(visuals.original_building,visuals.original_building_source,
+            visuals.original_building_fallback_reason);
         view.initialize(window,renderer);
         const auto initial_ticks=view.world().ticks();
         const auto initial_treasury=view.world().treasury();

@@ -663,6 +663,8 @@ int main(int argc, char* argv[]) {
                 visuals.health_walker_fallback_reason);
             sandbox_view->set_original_house_visuals(visuals.original_house,visuals.original_house_source,
                 visuals.original_house_fallback_reason);
+            sandbox_view->set_original_building_visuals(visuals.original_building,visuals.original_building_source,
+                visuals.original_building_fallback_reason);
             std::cout << "Sandbox: " << sandbox_path.generic_string()
                       << " | graphics=" << openemperor::maps::stored_graphics_slot8_profile
                       << " | footprint=edge-byte-4x4 | buildable=sandbox_buildable_v1"

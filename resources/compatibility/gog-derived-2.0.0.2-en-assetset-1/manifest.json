@@ -40,6 +40,13 @@
       "DATA/China_General.555"
     ]
   },
+  "optional_original_buildings": {
+    "profile": "original-buildings.json",
+    "core_files": [
+      "DATA/China_General.sg3",
+      "DATA/China_General.555"
+    ]
+  },
   "optional_fire": {
     "profile": "fire.json",
     "files": [

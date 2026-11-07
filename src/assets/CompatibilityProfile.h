@@ -45,6 +45,8 @@ struct CompatibilityProfile {
     std::string health_walker_metadata_error;
     std::filesystem::path original_house_profile;
     std::string original_house_metadata_error;
+    std::filesystem::path original_building_profile;
+    std::string original_building_metadata_error;
 };
 
 struct CompatibilityResult {
@@ -93,6 +95,12 @@ struct CompatibilityResult {
     bool original_house_compatible() const {
         return compatible() && original_house_status==CompatibilityStatus::Compatible &&
             !profile->original_house_profile.empty();
+    }
+    CompatibilityStatus original_building_status = CompatibilityStatus::Unknown;
+    std::string original_building_detail = "optional Original building bases are not declared";
+    bool original_building_compatible() const {
+        return compatible() && original_building_status==CompatibilityStatus::Compatible &&
+            !profile->original_building_profile.empty();
     }
 };
 
