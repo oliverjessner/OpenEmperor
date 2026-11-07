@@ -321,7 +321,12 @@ void functional_mapping_checks() {
               source.mechanics_identity==Status::Unknown && source.presentation_identity==Status::Unknown,
               "authored source/Elite geometry does not invent a Building-model or sprite identity");
     }
-    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalEliteHouse) + 1U);
+    const auto theatre=original::functional_model_candidate(Object::OriginalTheatre75);
+    check(theatre.candidate==ModelBuilding::TheatrePavilion &&
+          theatre.functional==Status::AuthoredFallback && theatre.mechanics_identity==Status::AuthoredFallback &&
+          theatre.presentation_identity==Status::Unknown,
+          "explicit Theatre model mapping does not claim original runtime or visual parity");
+    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalTheatre75) + 1U);
     for (const auto bad : {first_invalid, static_cast<Object>(255)})
         expect_exception<std::out_of_range>([&] { (void)original::functional_model_candidate(bad); }, "invalid Object is not merely unmapped");
 }

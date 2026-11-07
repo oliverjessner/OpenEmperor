@@ -15,7 +15,8 @@ bool fire_eligible(Object kind) {
 }
 
 bool fire_eligible(Object kind,RulesProfile profile,std::uint32_t rule_version) {
-    return fire_eligible(kind) || (kind==Object::FireWatch &&
+    return (kind==Object::OriginalTheatre75 && original_music_venues_enabled(profile,rule_version)) ||
+        fire_eligible(kind) || (kind==Object::FireWatch &&
         original_fire_protection_enabled(profile,rule_version));
 }
 

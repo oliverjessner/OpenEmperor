@@ -47,7 +47,8 @@ enum class ModelBuilding : std::uint16_t {
     SilkwormShed = 239,
     TeaBush = 26,
     LacquerTree = 27,
-    MulberryTree = 28
+    MulberryTree = 28,
+    TheatrePavilion = 75
 };
 
 // Ordered ALL HOUSES records. Vacant House has no separate house-table row.

@@ -94,6 +94,12 @@ const IndustryTool* industry_kind(simulation::Object kind) {
     return nullptr;
 }
 constexpr std::array<const char*,5> aux_names{"Wood","Bronze","RawSilk","Lacquer","Paper"};
+// Eager constant template shared by authored Theatre drawing and picking.
+constexpr std::array<simulation::Cell,16> theatre_ground_offsets=[] {
+    std::array<simulation::Cell,16> cells{};
+    for(int y=0;y<4;++y)for(int x=0;x<4;++x)cells[static_cast<std::size_t>(y*4+x)]={x,y};
+    return cells;
+}();
 const char* original_difficulty_name(original::Difficulty difficulty) {
     constexpr std::array names{"Very easy","Easy","Normal","Hard","Very hard"};
     return names.at(static_cast<std::size_t>(difficulty));
@@ -160,6 +166,7 @@ const char* courier_role_label(simulation::CourierRole role) {
     case simulation::CourierRole::OriginalBuddhist: return "Buddhist";
     case simulation::CourierRole::OriginalConfucian: return "Confucian";
     case simulation::CourierRole::OriginalMusic: return "Music";
+    case simulation::CourierRole::OriginalMusicPerformer: return "Music performer34";
     case simulation::CourierRole::OriginalAcrobat: return "Acrobat";
     case simulation::CourierRole::OriginalDrama: return "Drama";
     case simulation::CourierRole::OriginalLuxuryToWarehouse: return "LuxuryToWarehouse";
@@ -272,6 +279,7 @@ const char* tool_name(simulation::RulesProfile rules,int tool) {
         case 27: return "Acrobat School: experimental direct school-to-House visits";
         case 28: return "Drama School: experimental direct school-to-House visits";
         case 41: return "Elite plot: paid2x2; free4x4 growth area needed for first residents";
+        case 42: return "Theatre75: paid4x4; actual Music arrival; no House effect";
 
         default: return "Select";
         }
@@ -314,6 +322,7 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::OriginalMusicSchool211: return "Music School";
     case simulation::Object::OriginalAcrobatSchool212: return "Acrobat School";
     case simulation::Object::OriginalDramaSchool213: return "Drama School";
+    case simulation::Object::OriginalTheatre75: return "Theatre Pavilion75 (4x4)";
     case simulation::Object::OriginalLoggingShed38:
     case simulation::Object::OriginalBronzeSmelter39:
     case simulation::Object::OriginalBronzewareMaker42:
@@ -363,6 +372,7 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool,boo
         case 27: return simulation::CommandType::PlaceOriginalAcrobatSchool;
         case 28: return simulation::CommandType::PlaceOriginalDramaSchool;
         case 41: return simulation::CommandType::PlaceOriginalElitePlot;
+        case 42: return simulation::CommandType::PlaceOriginalTheatre;
 
         default: return simulation::CommandType::PlaceHousehold;
         }
@@ -494,6 +504,19 @@ std::unique_ptr<SandboxView> SandboxView::create_original_deadline_food_dispatch
         throw std::invalid_argument("Rule18 requires a source-bound map session");
     auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
         simulation::RulesProfile::CityV16,simulation::kOriginalDeadlineFoodDispatchRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;
+    result->original_paid_starter_=paid_starter;
+    return result;
+}
+
+std::unique_ptr<SandboxView> SandboxView::create_original_music_venues(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid original music-venue difficulty");
+    if (session.input_sha256.empty())
+        throw std::invalid_argument("Rule22 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kOriginalMusicVenuesRuleVersion,true));
     result->original_requested_difficulty_=difficulty;
     result->original_paid_starter_=paid_starter;
     return result;
@@ -657,7 +680,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : original_safe_demolition() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : original_music_venues() ?
+        persistence::restore_original_music_venues(document,data_root_,buildable_mask_) : original_safe_demolition() ?
         persistence::restore_original_safe_demolition(document,data_root_,buildable_mask_) : original_deadline_food_dispatch() ?
         persistence::restore_original_deadline_food_dispatch(document,data_root_,buildable_mask_) : original_deadline_service_dispatch() ?
         persistence::restore_original_deadline_service_dispatch(document,data_root_,buildable_mask_) : original_deadline_fire_dispatch() ?
@@ -761,7 +785,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
                 initial_save_->map_permissions_policy_version:
                 maps::map_rules_policy_version(rules_,active_version),expected_map_input_sha256_);
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain;
-    if (original_cardinal_water() || original_inspector_coordination() || original_deadline_fire_dispatch() || original_deadline_service_dispatch() || original_deadline_food_dispatch() || original_safe_demolition())
+    if (original_cardinal_water() || original_inspector_coordination() || original_deadline_fire_dispatch() || original_deadline_service_dispatch() || original_deadline_food_dispatch() || original_safe_demolition() || original_music_venues())
         terrain=std::make_shared<const simulation::OriginalTerrainFacts>(
             original_map_.terrain_raw.values,expected_map_input_sha256_);
     original_map_={};
@@ -770,7 +794,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : original_safe_demolition() ?
+                std::move(permissions)) : original_music_venues() ?
+            persistence::restore_original_music_venues(*initial_save_,data_root_,
+                buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_safe_demolition() ?
             persistence::restore_original_safe_demolition(*initial_save_,data_root_,
                 buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_deadline_food_dispatch() ?
             persistence::restore_original_deadline_food_dispatch(*initial_save_,data_root_,
@@ -810,6 +836,10 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (original_music_venues()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_original_music_venues(
+            std::move(permissions),persistence::prepare_original_culture_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
     } else if (original_safe_demolition()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_safe_demolition(
             std::move(permissions),persistence::prepare_original_production_rules_model(data_root_,
@@ -896,7 +926,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(world_->authored_land_trade_enabled())title+=" | save schema 37 | authored finite land trade";
+    if(original_music_venues())title+=" | save schema 38 | paid Music performer to Theatre";
+    else if(world_->authored_land_trade_enabled())title+=" | save schema 37 | authored finite land trade";
     else if(world_->source_cell_ramps_supported())title+=" | save schema 36 | authored source-cell ramps";
     else if(original_safe_demolition())title+=" | save schema 35 | authored safe demolition";
     else if(original_deadline_food_dispatch())title+=" | save schema 34 | authored deadline-aware Food dispatch";
@@ -2060,7 +2091,7 @@ void SandboxView::update_layout(bool preserve_center) {
         simulation::market_profile(rules_),simulation::service_profile(rules_),
         world_ ? world_->bridges_supported():simulation::bridges_rule_enabled(rules_,requested_rule_version_),
         world_ ? world_->ramps_supported():simulation::ramps_rule_enabled(rules_,requested_rule_version_),
-        original_production_fixture(),industry_page_,original_fire_protection());
+        original_production_fixture(),industry_page_,original_fire_protection(),original_music_venues());
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) {layout_=next;return;}
     // Panel toggles and resize change the clipped viewport before another
@@ -2483,12 +2514,21 @@ void SandboxView::set_tool(int tool) {
     case 27: action=sandbox_ui::Action::OriginalAcrobatSchool; break;
     case 28: action=sandbox_ui::Action::OriginalDramaSchool; break;
     case 41: action=sandbox_ui::Action::OriginalElitePlot; break;
+    case 42: action=sandbox_ui::Action::OriginalTheatre; break;
 
     default: return;
     }
     if (action_enabled(action)) perform_action(action);
 }
 bool SandboxView::action_enabled(sandbox_ui::Action action) const {
+    if (action==sandbox_ui::Action::OriginalTheatre) {
+        if (!original_music_venues() || walker_diagnostic_open_) return false;
+        const auto count=std::count_if(world_->buildings().begin(),world_->buildings().end(),[](const auto& b){
+            return b.kind==simulation::Object::OriginalTheatre75;
+        });
+        return count<static_cast<std::ptrdiff_t>(simulation::original_culture_venue_limit) &&
+            world_->treasury()>=world_->construction_cost(simulation::CommandType::PlaceOriginalTheatre);
+    }
     if (original_production_fixture() && (action==sandbox_ui::Action::OriginalElitePlot ||
         action==sandbox_ui::Action::Household))
         return world_ && world_->original_economy_state()->houses.size()<simulation::Rules::city_v10_household_limit &&
@@ -2910,6 +2950,7 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         else if (action==A::OriginalMusicSchool) command=simulation::CommandType::PlaceOriginalMusicSchool;
         else if (action==A::OriginalAcrobatSchool) command=simulation::CommandType::PlaceOriginalAcrobatSchool;
         else if (action==A::OriginalDramaSchool) command=simulation::CommandType::PlaceOriginalDramaSchool;
+        else if (action==A::OriginalTheatre) command=simulation::CommandType::PlaceOriginalTheatre;
         else if (const auto* industry=industry_action(action)) command=industry->command;
 
         else if (action==A::ServicePost) command=simulation::CommandType::PlaceServicePost;
@@ -2928,6 +2969,11 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     if (action==A::ToggleIndustryPage) {
         cancel_gesture();industry_page_=!industry_page_;tool_=5;update_layout(true);
         last_message_=industry_page_ ? "Industry: authored80-tick recipes; original art pending":"Construction tools";
+        refresh_hover();return;
+    }
+    if (action==A::OriginalTheatre) {
+        cancel_gesture();tool_=42;
+        last_message_="Theatre75: paid4x4; actual Music performer arrival only; no House effect";
         refresh_hover();return;
     }
     if (action==A::OriginalElitePlot) {
@@ -2954,7 +3000,8 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
             action==A::RemoveRoad ? 6:action==A::Household ? 7:action==A::Farm ? 8:
             action==A::ServicePost ? 9:action==A::FireWatch ? 11:action==A::Well ? 12:action==A::HealthPost ? 13:action==A::Bridge ? 14:action==A::Ramp ? 15:action==A::OriginalHempFarm ? 16:action==A::OriginalHempField ? 17:
             action==A::OriginalFoodFarm ? 18:action==A::OriginalWheatField ? 19:action==A::OriginalMilletField ? 20:action==A::OriginalAncestorShrine ? 21:action==A::OriginalWaterWell ? 22:action==A::OriginalDaoistShrine ? 23:action==A::OriginalBuddhistShrine ? 24:action==A::OriginalConfucianAcademy ? 25:action==A::OriginalMusicSchool ? 26:action==A::OriginalAcrobatSchool ? 27:action==A::OriginalDramaSchool ? 28:0;
-        last_message_=original_influence_fixture() && tool_==12 ? "Well72 influence source: 2x2, $60, no water":
+        last_message_=original_music_venues() && tool_==26 ? "Music School: paid2x2; real performer to Theatre75; no House effect":
+            original_influence_fixture() && tool_==12 ? "Well72 influence source: 2x2, $60, no water":
             tool_==15 ? "Ramp: neighboring roads, one signed level, $40":tool_==14 ? "Bridge: drag from one land road to the opposite bank; 1..8 water cells":tool_name(rules_,tool_);
     } else if (action==A::ServiceOverlay) {
         cancel_gesture();
@@ -3258,6 +3305,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         else if (event.key.key==SDLK_U && original_production_fixture() && !walker_diagnostic_open_) set_tool(23);
         else if (event.key.key==SDLK_K && original_production_fixture() && !walker_diagnostic_open_) set_tool(24);
         else if (event.key.key==SDLK_V && original_production_fixture() && !walker_diagnostic_open_) set_tool(25);
+        else if (event.key.key==SDLK_G && original_music_venues() && !walker_diagnostic_open_) set_tool(42);
         else if (event.key.key==SDLK_E && original_production_fixture() && !walker_diagnostic_open_) set_tool(26);
         else if (event.key.key==SDLK_C && original_production_fixture() && !walker_diagnostic_open_) set_tool(27);
         else if (event.key.key==SDLK_A && original_production_fixture() && !walker_diagnostic_open_) set_tool(28);
@@ -3757,6 +3805,7 @@ scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
     return world_for({static_cast<double>(front.x),static_cast<double>(front.y)});
 }
 int SandboxView::walker_marker_shift(simulation::Position position,simulation::CourierId id) const {
+    if (world_->courier(id).role==simulation::CourierRole::OriginalMusicPerformer) return 0;
     const simulation::Cell cell{int(std::floor(position.x)),int(std::floor(position.y))};
     if(world_->bridge_at(cell)||world_->bridge_bank_at(cell)||world_->ramp_surface_height(position)||world_->source_cell_ramp_surface_height(position))return 0;
     const auto value=static_cast<unsigned>(id);
@@ -3846,6 +3895,16 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         const auto& entry=*selected;const auto& image=building_profile_->unique_images[entry.image_index];
         hit.image=entry.image_index;hit.origin={ground.x-entry.ground_x,ground.y-entry.ground_y};
         hit.width=image.width;hit.height=image.height;append(hit);return;
+    }
+    if (instance.object==simulation::Object::OriginalTheatre75) {
+        // The authored fallback draws these exact sixteen cell diamonds.
+        // Cache their matching hit geometry in the ordinary submitted frame.
+        for (const auto offset:theatre_ground_offsets) {
+            const auto point=world_for({double(instance.cell.x+offset.x),double(instance.cell.y+offset.y)});
+            hit.origin={point.x-40,point.y-20};hit.width=80;hit.height=40;hit.diamond=true;
+            append(hit);
+        }
+        return;
     }
     if (instance.object==simulation::Object::OriginalEliteHouse) {
         hit.mesh=instance.object;hit.mesh_ground=ground;hit.footprint_side=4;
@@ -4222,6 +4281,19 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             }
             if (role && !placement_preview) ++building_placeholder_fallbacks_[assets::role_index(*role)];
             const auto side=simulation::building_footprint(rules_,world_->rule_version(),object).width;
+            if (object==simulation::Object::OriginalTheatre75) {
+                // Authored ground-stage fallback; no original Theatre sprite is claimed.
+                for (const auto offset:theatre_ground_offsets) {
+                    const auto point=world_for({double(cell.x+offset.x),double(cell.y+offset.y)});
+                    if (!draw_diamond({point.x,point.y-20},placement_preview ? 85:146,
+                            placement_preview ? 165:111,placement_preview ? 205:168,true,placement_preview ? .45F:1.F)) return false;
+                }
+                const auto middle=camera_.world_to_screen(world_for({double(x)+1.5,double(y)+1.5}));
+                if (!SDL_SetRenderDrawColor(renderer_,255,255,255,255) ||
+                    !SDL_RenderDebugText(renderer_,static_cast<float>(middle.x)-28,
+                        static_cast<float>(middle.y)-4,"Theatre75")) return false;
+                return draw_fire_overlay(cell,center,placement_preview);
+            }
             if (object==simulation::Object::OriginalEliteHouse)
                 return draw_original_elite_house_fallback(renderer_,center,camera_.zoom) &&
                     draw_fire_overlay(cell,center,placement_preview) && draw_sickness(cell,center,placement_preview);
@@ -4435,6 +4507,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==26 ? simulation::Object::OriginalMusicSchool211:
             tool_==27 ? simulation::Object::OriginalAcrobatSchool212:
             tool_==28 ? simulation::Object::OriginalDramaSchool213:
+            tool_==42 ? simulation::Object::OriginalTheatre75:
             tool_==41 ? simulation::Object::OriginalElitePlot:
             industry_tool(tool_) ? industry_tool(tool_)->kind:
 
@@ -4771,6 +4844,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==26 ? simulation::Object::OriginalMusicSchool211:
             tool_==27 ? simulation::Object::OriginalAcrobatSchool212:
             tool_==28 ? simulation::Object::OriginalDramaSchool213:
+            tool_==42 ? simulation::Object::OriginalTheatre75:
             tool_==41 ? simulation::Object::OriginalElitePlot:
             industry_tool(tool_) ? industry_tool(tool_)->kind:
 
@@ -5180,6 +5254,14 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 std::string("Goods: ")+displayed_courier_good(*world_,*found)};
             if (original_production_fixture()) walker_lines.push_back("Incoming reserved: "+
                 std::to_string(displayed_courier_reservation(*world_,*found)));
+            if (found->role==simulation::CourierRole::OriginalMusicPerformer && original_music_venues()) {
+                for (const auto& school:world_->original_production_state()->culture->schools)
+                    if (school.courier_id==found->id && school.latest_trip) {
+                        walker_lines.push_back("Performer #"+std::to_string(static_cast<std::uint64_t>(school.latest_trip->performer_id)));
+                        walker_lines.push_back("One-way to Theatre75; no House effect");
+                        break;
+                    }
+            }
             const auto role=walker_visual_role(found->role);
             const bool configured=role && walker_profile_ && walker_profile_->find(*role);
             const auto source=walker_source_==VisualProfileSource::Custom ? walker_source_:
@@ -5494,6 +5576,56 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             "Developer empty container; scheduler only",
             "No active residents, goods, services or economy operations",
             "Original housing art is not selected"});
+    if (original_music_venues() && house_id &&
+        (world_->building(*house_id).kind==simulation::Object::OriginalMusicSchool211 ||
+         world_->building(*house_id).kind==simulation::Object::OriginalTheatre75)) {
+        const auto id=*house_id;const auto& body=world_->building(id);
+        const auto& culture=*world_->original_production_state()->culture;
+        const bool theatre=body.kind==simulation::Object::OriginalTheatre75;
+        lines.push_back(std::string(theatre ? "Theatre75 #":"Music211 #")+
+            std::to_string(static_cast<std::uint32_t>(id)));
+        lines.push_back(theatre ? "Paid4x4; authored stage art":"Paid2x2; actual Actor34 route");
+        lines.push_back("Workers assigned "+std::to_string(world_->workers_assigned(id))+"/"+
+            std::to_string(world_->workforce_required(id)));
+        lines.push_back(std::string("Operation: ")+(body.operating_enabled ? "Running":"Paused"));
+        if (theatre) {
+            const auto row=std::find_if(culture.venues.begin(),culture.venues.end(),[&](const auto& value){return value.building_id==id;});
+            if (row!=culture.venues.end()) {
+                lines.push_back("Music duration: "+std::to_string(row->music_timer)+"/32");
+                lines.push_back("Authored phase35 countdown");
+                if (row->last_arrival) {
+                    const auto& visit=*row->last_arrival;
+                    lines.push_back("Actual arrival: "+std::to_string(visit.arrival_tick));
+                    lines.push_back("Performer #"+std::to_string(static_cast<std::uint64_t>(visit.performer_id))+
+                        " from School #"+std::to_string(static_cast<std::uint32_t>(visit.school_id)));
+                } else lines.push_back("No actual Music arrival");
+                for (const auto& source:culture.schools) if (source.latest_trip &&
+                    source.latest_trip->venue_id==id && !source.latest_trip->arrival_tick)
+                    lines.push_back("Incoming performer #"+std::to_string(static_cast<std::uint64_t>(source.latest_trip->performer_id))+
+                        " from School #"+std::to_string(static_cast<std::uint32_t>(source.building_id)));
+            }
+        } else {
+            const auto row=std::find_if(culture.schools.begin(),culture.schools.end(),[&](const auto& value){return value.building_id==id;});
+            if (row!=culture.schools.end()) {
+                lines.push_back("Spawn counter: "+std::to_string(row->spawn_counter));
+                lines.push_back("Due attempts: "+std::to_string(row->attempts)+" | spawned: "+std::to_string(row->spawned));
+                const auto& channel=world_->courier(row->courier_id);
+                lines.push_back("Route: "+std::string(simulation::courier_dispatch_status_name(world_->courier_dispatch_status(channel.id).status)));
+                if (row->latest_trip) {
+                    const auto& trip=*row->latest_trip;
+                    lines.push_back(std::string(trip.arrival_tick ? "Retired performer #":"Active performer #")+
+                        std::to_string(static_cast<std::uint64_t>(trip.performer_id)));
+                    lines.push_back("Venue #"+std::to_string(static_cast<std::uint32_t>(trip.venue_id))+
+                        " | departed "+std::to_string(trip.dispatched_tick));
+                    if (trip.arrival_tick) lines.push_back("Arrival "+std::to_string(*trip.arrival_tick)+
+                        (trip.accepted ? "; Music accepted":"; admission refused"));
+                } else lines.push_back("No performer spawned");
+            }
+        }
+        lines.push_back("House effect UNSUPPORTED");
+        lines.push_back("No Actor36; no free coverage");
+        add_fire_status(id);add_connectivity();return wrap_panel_lines(lines);
+    }
     if (original_production_fixture() && house_id &&
         (world_->building(*house_id).kind==simulation::Object::HealthPost ||
          world_->building(*house_id).kind==simulation::Object::ServicePost ||
@@ -6582,7 +6714,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(world_->authored_land_trade_enabled())overview+=" | Policy3 | Save37 | Authored finite Pottery trade";
+        if(original_music_venues())overview+=" | Policy3 | Save38 | Music to Theatre; no House effect";
+        else if(world_->authored_land_trade_enabled())overview+=" | Policy3 | Save37 | Authored finite Pottery trade";
         else if(world_->source_cell_ramps_supported())overview+=" | Policy 3 | Save 36 | Authored source-cell ramps "+std::to_string(world_->source_cell_ramps().size());
         else if(original_safe_demolition())overview+=" | Policy 3 | Save 35 | Safe demolition";
         else if(original_deadline_food_dispatch())overview+=" | Policy 3 | Save 34 | Deadline-aware Food";
@@ -6676,6 +6809,9 @@ bool SandboxView::draw_hud() {
         case A::OriginalConfucianAcademy: return "V Confucian "+
             std::to_string(count(simulation::Object::OriginalConfucianAcademy219))+"/2 $"+
             std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalConfucianAcademy));
+        case A::OriginalTheatre: return "G Theatre75 "+
+            std::to_string(count(simulation::Object::OriginalTheatre75))+"/2 $"+
+            std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalTheatre));
         case A::OriginalMusicSchool: return "E Music "+
             std::to_string(count(simulation::Object::OriginalMusicSchool211))+"/2 $"+
             std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalMusicSchool));
@@ -6753,6 +6889,7 @@ bool SandboxView::draw_hud() {
         case A::OriginalDaoistShrine: active=tool_==23; break;
         case A::OriginalBuddhistShrine: active=tool_==24; break;
         case A::OriginalConfucianAcademy: active=tool_==25; break;
+        case A::OriginalTheatre: active=tool_==42; break;
         case A::OriginalMusicSchool: active=tool_==26; break;
         case A::OriginalAcrobatSchool: active=tool_==27; break;
         case A::OriginalDramaSchool: active=tool_==28; break;
@@ -6992,7 +7129,7 @@ bool SandboxView::draw_hud() {
                 debug_row+=14;
             }
             std::size_t logical=0,live_submitted=0,supplier=0,distributor=0,foreign_markers=0;
-            std::array<bool,static_cast<std::size_t>(simulation::CourierRole::AuthoredLandTrader)+1> logical_roles{};
+            std::array<bool,static_cast<std::size_t>(simulation::CourierRole::OriginalMusicPerformer)+1> logical_roles{};
             for (const auto& courier:world_->couriers()) {
                 const auto role=walker_visual_role(courier.role);
                 const auto hit=std::find_if(visual_hits_.begin(),visual_hits_.end(),
@@ -7265,14 +7402,14 @@ bool SandboxView::draw_help_overlay() {
         const std::array<const char*,17> help{
             "ORIGINAL ECONOMY - H closes", "Q Water Well | Y Ancestor Shrine",
             "U Daoist | K Buddhist | V Confucian",
-            "E Music | C Acrobat | A Drama",
+            original_music_venues() ? "E Music -> G Theatre75 (4x4)":"E Music | C Acrobat | A Drama",
             "O Food Farm | W Wheat | L Millet", "N Hemp Farm | M Hemp Field",
             "J Herbalist | 9 Acupuncture", "0 Market | 5 Select | 1 Road",
             "F5 Save | F9 Load | Space Pause", "Panel wheel scrolls; sources need workers",
             original_fire_protection() ? "F Watch: $80; 2 workers (2W)":"Actual arrivals supply Houses",
             original_fire_protection() ? "Inspector arrival:2400 ticks protection":"Water is evaluated on phase28",
             "PageUp/Down: sections | F10: overlays", "Plain needs Water/Food/Ancestor",
-            "Schools: experimental direct visits", world_->original_worker_upkeep_interval()==816 ?
+            original_music_venues() ? "Music arrival: Venue32; no House effect":"Schools: experimental direct visits", world_->original_worker_upkeep_interval()==816 ?
                 "T:816t tax;2/worker/816t upkeep":"T:816t tax;2/worker/400t upkeep",
             building_profile_ && building_profile_->original_house_prepared ?
                 "House art: State; other art pending":"Original graphics follow separately"};

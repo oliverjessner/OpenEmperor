@@ -106,6 +106,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule22/schema38: paid Music performer to Theatre, no House effect.
+    static std::unique_ptr<SandboxView> create_original_music_venues(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit authored Rule19/schema35; never changes historical demolition rights.
     static std::unique_ptr<SandboxView> create_original_safe_demolition(
         maps::StoredMapSession session,
@@ -702,6 +707,9 @@ private:
     }
     bool original_deadline_food_dispatch() const {
         return simulation::original_deadline_food_dispatch_enabled(rules_,requested_rule_version_);
+    }
+    bool original_music_venues() const {
+        return simulation::original_music_venues_enabled(rules_,requested_rule_version_);
     }
     bool original_safe_demolition() const {
         return simulation::original_safe_demolition_enabled(rules_,requested_rule_version_);
