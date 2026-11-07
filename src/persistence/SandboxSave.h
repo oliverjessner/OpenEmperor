@@ -30,6 +30,8 @@ struct SaveDocument {
     std::shared_ptr<const original::OriginalRulesModel> prepared_original_rules_model;
     // Rule14–17 immutable source-map dependency only; never serialized authority.
     std::shared_ptr<const simulation::OriginalTerrainFacts> prepared_original_terrain_facts;
+    // Rule21 source-bound geometry only; never serialized or inferred from roads.
+    std::shared_ptr<const simulation::LandTradeBoundaryFacts> prepared_land_trade_boundary_facts;
 };
 
 // Fault injection is used only by tests; production always uses None.
@@ -55,6 +57,8 @@ std::shared_ptr<const original::OriginalRulesModel> prepare_original_production_
 // Complete supported original map, shared reader and full-file SHA binding.
 // Raw bit4 facts never substitute for MapPermissions or bridge eligibility.
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_terrain_facts(
+    const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
+std::shared_ptr<const simulation::LandTradeBoundaryFacts> prepare_land_trade_boundary_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
 // Schema 23 remains an explicit development boundary while normal Rule-7
 // sessions, ticking and restore_save are unavailable.
@@ -157,6 +161,14 @@ simulation::World restore_authored_source_cell_ramps(
     const SaveDocument& document,const std::filesystem::path& data_root,
     std::vector<std::uint8_t> buildable,
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr);
+// Schema37/Rule21 binds finite authored trade to classic Rule6 infrastructure;
+// the prepared model supplies identity only and activates no Original economy.
+simulation::World restore_authored_land_trade(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::LandTradeBoundaryFacts> boundary=nullptr);
 SaveDocument upgrade_city_v11_v2_to_v3(const SaveDocument& document);
 SaveDocument upgrade_city_v11_v3_to_v4(const SaveDocument& document);
 simulation::World restore_save(const SaveDocument& document,

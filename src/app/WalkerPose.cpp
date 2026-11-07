@@ -32,6 +32,9 @@ std::optional<assets::WalkerVisualRole> walker_visual_role(simulation::CourierRo
     switch (role) {
     case simulation::CourierRole::Clay: return assets::WalkerVisualRole::Clay;
     case simulation::CourierRole::Pottery: return assets::WalkerVisualRole::Pottery;
+    // Authored caravan presentation reuses the curated Pottery cart; this is
+    // neither an original Trader identity nor a new sprite/profile admission.
+    case simulation::CourierRole::AuthoredLandTrader: return assets::WalkerVisualRole::Pottery;
     case simulation::CourierRole::Household: return assets::WalkerVisualRole::Household;
     case simulation::CourierRole::FireInspector: return assets::WalkerVisualRole::FireInspector;
     case simulation::CourierRole::Food:

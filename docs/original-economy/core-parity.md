@@ -280,6 +280,26 @@ are under `.local/oe53/core-parity-release-01/` and
 check does not establish original source-cell ramp behavior or Rule20 gameplay
 acceptance.
 
+Rule21 appends three explicit finite-trade commands, courier role26 and
+initially empty trade state, plus immutable boundary/model context and separate
+factories. The historical Original predicates and the actual fourth-module
+HouseholdV3/CityV7 probe calls remain unchanged. The reviewed API pins now include
+the directly included `AuthoredLandTrade.h` alongside `World.h`; the existing
+`SourceCellRamp.h` and all older pins remain exact. Because World layout changed,
+the fresh OE54 comparison compiled the two numerical probes and linked the
+actual pinned HousingView module against the matching current Release archives.
+All 74 cases and classifications (46 parity, 18 corrected bugs, 6 unverified,
+4 unsupported), expected/observed values, eighteen HousingView values and the
+real-model digest `[1800,477508576,4125568101]` remain identical. Only three
+current-source fingerprints change: World, the new trade DTO and the comparison
+runner. Every other public report field, the eleven fork-source pins and
+`baseline-lock.json` remain exact. Fresh probe artifacts and the complete
+source/archive/input preservation check are under
+`.local/oe54/core-parity-release-01/` and
+`.local/oe54/core-parity-public-preservation.json`. This is historical numerical
+and ABI compatibility evidence; it does not establish original traders,
+trade prices/offers, boundary admission or Rule21 paid gameplay parity.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the

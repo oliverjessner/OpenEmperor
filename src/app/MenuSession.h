@@ -38,6 +38,7 @@ public:
     VisualSelection visual_selection() const;
     const maps::MapRulesResult& map_rules_result() const { return map_preflight_.result(); }
     bool map_rules_can_start() const;
+    bool authored_land_trade_setup() const { return authored_land_trade_new_game_; }
     bool original_setup() const { return original_rule_version_.has_value(); }
     bool original_fire_protection_setup() const { return original_rule_version_==simulation::kOriginalFireProtectionRuleVersion; }
     bool original_sustainable_economy_setup() const { return original_rule_version_==simulation::kOriginalSustainableRuleVersion; }
@@ -102,6 +103,7 @@ private:
     State confirm_return_state_=State::MainMenu;
     AfterConfirm after_confirm_=AfterConfirm::None;
     Settings settings_;
+    bool authored_land_trade_new_game_=false; // Explicit rule21; never a saved default.
     bool source_cell_ramps_new_game_=false; // Explicit rule20; never a default or migration.
     bool ramps_new_game_=false; // Explicit rule6 setup, never a saved default or migration.
     bool bridges_new_game_=false; // Explicit setup choice, never a default/save upgrade.

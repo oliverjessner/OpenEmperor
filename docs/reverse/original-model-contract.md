@@ -107,3 +107,29 @@ The per-field facts, precise text-line references, five bounded raw golden
 values, typed IDs and functional-mapping limits are in
 [model-provenance.md](../original-economy/model-provenance.md). Unknown risk,
 tax, resource-code, physical-quantity and time units stay unknown.
+
+## OE54 trade metadata boundary
+
+A fresh read-only check uses the same building-model SHA above and the common
+bounded model inspector (269 Building rows,15 House rows). Raw named candidates
+are Warehouse54 (Cost component40, Employees6), Trading Quay56 (140,10),
+Trading Station58 (140,9) and City Gate130 (70,9). Normal Building modifiers are
+100%. These columns do not establish complete purchase cost, footprint,
+constructibility, a foreign partner, gateway permission or merchant behavior.
+
+`Model/Trade.txt` is400 bytes, SHA-256
+`904a7da8ef334b963941b39ca17faeb8136810179a4b52ae14ede2afba0237ed`.
+Its named raw values include Clay25, Ceramics75, Land frequency34/capacity800
+and Sea frequency4/capacity1200. Currency/quantity normalization, buy/sell
+asymmetry, difficulty application and the clock behind those values remain
+**UNKNOWN**. OE54's prices6/3, portions4 and finite offers are **AUTHORED**.
+Figure labels20 (cart),45 (Traders) and47 (Trader Crew) likewise establish no
+actor factory, cargo unit or route. No original trader sprite is admitted from
+these labels; the authored caravan reuses an existing curated Pottery-cart
+presentation. No original executable was run.
+
+The protected Industrial175 exit-coordinate marker,177/178 river markers and
+GateHouse passages retain their existing source contracts. None grants an
+original external trade endpoint. The [OE54 contract](../original-economy/oe54-trade.md)
+uses a separately purchased, source-geometry-bound authored Warehouse gateway;
+original partners, empire routes, sea trade and merchant runtime remain unsupported.

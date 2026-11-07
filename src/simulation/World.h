@@ -3,6 +3,7 @@
 #include "simulation/Bridge.h"
 #include "simulation/Ramp.h"
 #include "simulation/SourceCellRamp.h"
+#include "simulation/AuthoredLandTrade.h"
 #include "simulation/OriginalEconomyState.h"
 #include "simulation/OriginalInfluenceState.h"
 #include "simulation/OriginalTerrainFacts.h"
@@ -318,10 +319,10 @@ constexpr bool original_economy_enabled(RulesProfile profile,std::uint32_t versi
          version==kOriginalGoodsRuleVersion || version==kOriginalProductionRuleVersion || version==kOriginalFireProtectionRuleVersion || version==kOriginalSustainableRuleVersion || version==kOriginalMarketLogisticsRuleVersion || version==kOriginalCardinalWaterRuleVersion || version==kOriginalInspectorCoordinationRuleVersion || version==kOriginalDeadlineFireDispatchRuleVersion || version==kOriginalDeadlineServiceDispatchRuleVersion || version==kOriginalDeadlineFoodDispatchRuleVersion || version==kOriginalSafeDemolitionRuleVersion);
 }
 constexpr bool bridges_rule_enabled(RulesProfile profile,std::uint32_t version) {
-    return source_cell_ramps_enabled(profile,version) || (profile==RulesProfile::CityV16 && (version==5 || version==6 || version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==kOriginalSafeDemolitionRuleVersion));
+    return source_cell_ramps_enabled(profile,version) || (profile==RulesProfile::CityV16&&version==kAuthoredLandTradeRuleVersion) || (profile==RulesProfile::CityV16 && (version==5 || version==6 || version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==kOriginalSafeDemolitionRuleVersion));
 }
 constexpr bool ramps_rule_enabled(RulesProfile profile,std::uint32_t version) {
-    return source_cell_ramps_enabled(profile,version) || (profile==RulesProfile::CityV16 && (version==6 || version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==kOriginalSafeDemolitionRuleVersion));
+    return source_cell_ramps_enabled(profile,version) || (profile==RulesProfile::CityV16&&version==kAuthoredLandTradeRuleVersion) || (profile==RulesProfile::CityV16 && (version==6 || version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==kOriginalSafeDemolitionRuleVersion));
 }
 
 constexpr std::int64_t starting_treasury_for(RulesProfile profile) {
@@ -425,7 +426,7 @@ enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySour
                          PlaceOriginalFoodFarm, PlaceOriginalWheatField, PlaceOriginalMilletField, PlaceOriginalAncestorShrine, PlaceOriginalWaterWell,
                          PlaceOriginalDaoistShrine, PlaceOriginalBuddhistShrine, PlaceOriginalConfucianAcademy,
                          PlaceOriginalMusicSchool, PlaceOriginalAcrobatSchool, PlaceOriginalDramaSchool,
-                         PlaceOriginalLoggingShed, PlaceOriginalBronzeSmelter, PlaceOriginalBronzewareMaker, PlaceOriginalLacquerwareMaker, PlaceOriginalPaperMaker, PlaceOriginalWeaver, PlaceOriginalTeaCuringShed, PlaceOriginalLacquerRefinery, PlaceOriginalSilkwormShed, PlaceOriginalTeaBush, PlaceOriginalLacquerTree, PlaceOriginalMulberryTree, PlaceOriginalElitePlot, PlaceSourceCellRamp };
+                         PlaceOriginalLoggingShed, PlaceOriginalBronzeSmelter, PlaceOriginalBronzewareMaker, PlaceOriginalLacquerwareMaker, PlaceOriginalPaperMaker, PlaceOriginalWeaver, PlaceOriginalTeaCuringShed, PlaceOriginalLacquerRefinery, PlaceOriginalSilkwormShed, PlaceOriginalTeaBush, PlaceOriginalLacquerTree, PlaceOriginalMulberryTree, PlaceOriginalElitePlot, PlaceSourceCellRamp, ConfigureLandTrade, ImportPottery, ExportPottery };
 // Pure construction-command identity shared by validation and presentation.
 std::optional<Object> placed_object(CommandType type);
 // Fixed identities of active paid industry bodies; no file/model lookup here.
@@ -443,10 +444,14 @@ struct Command {
     Cell ramp_end{};
     RampId ramp_id{};
     OriginalInfluenceSourceType source_type=OriginalInfluenceSourceType::Well72;
+    BuildingId trade_gateway=static_cast<BuildingId>(0);
 };
 Command place_bridge(Cell bank_a,Cell bank_b);
 Command place_ramp(Cell endpoint_a,Cell endpoint_b);
 Command place_source_cell_ramp(Cell source_cell,Cell high_neighbor);
+Command configure_land_trade(BuildingId warehouse,BuildingId gateway);
+Command import_pottery();
+Command export_pottery();
 Command demolish_building(BuildingId id);
 Command set_building_operation(BuildingId id,bool enabled);
 Command set_building_workforce_priority(BuildingId id,WorkforcePriority priority);
@@ -482,7 +487,7 @@ enum class CourierRole : std::uint8_t {
     OriginalHempToWarehouse=12, OriginalFoodToMarket=13, OriginalFoodToHouse=14, OriginalAncestor=15, OriginalWater=16,
     OriginalDaoist=17, OriginalBuddhist=18, OriginalConfucian=19,
     OriginalMusic=20, OriginalAcrobat=21, OriginalDrama=22,
-    OriginalLuxuryToWarehouse=23, OriginalAuxToWarehouse=24, OriginalAuxSupplier=25
+    OriginalLuxuryToWarehouse=23, OriginalAuxToWarehouse=24, OriginalAuxSupplier=25, AuthoredLandTrader=26
 };
 enum class CourierDispatchStatus : std::uint8_t {
     Ready,
@@ -684,6 +689,7 @@ struct WorldSnapshot {
     std::optional<OriginalInfluenceState> original_influence;
     std::optional<OriginalGoodsState> original_goods;
     std::optional<OriginalProductionState> original_production;
+    std::optional<AuthoredLandTradeState> land_trade;
     bool operator==(const WorldSnapshot&) const = default;
 };
 struct ResourceInventory {
@@ -698,6 +704,14 @@ const char* delivery_phase_name(CourierPhase phase);
 
 class World {
 public:
+    bool authored_land_trade_enabled() const {return profile_==RulesProfile::CityV16 && rule_version_==kAuthoredLandTradeRuleVersion;}
+    const std::optional<AuthoredLandTradeState>& land_trade_state() const {return land_trade_;}
+    LandTradeBalance land_trade_balance() const;
+    static World create_authored_land_trade(std::shared_ptr<const MapPermissions>,
+        std::shared_ptr<const original::OriginalRulesModel>,std::shared_ptr<const LandTradeBoundaryFacts>);
+    static World restore_authored_land_trade(const WorldSnapshot&,std::shared_ptr<const MapPermissions>,
+        std::shared_ptr<const original::OriginalRulesModel>,std::shared_ptr<const LandTradeBoundaryFacts>);
+    static void validate_authored_land_trade_snapshot(const WorldSnapshot&);
     bool original_economy_enabled() const { return simulation::original_economy_enabled(profile_,rule_version_); }
     bool original_influence_enabled() const { return simulation::original_influence_enabled(profile_,rule_version_); }
     bool original_goods_enabled() const { return simulation::original_goods_enabled(profile_,rule_version_); }
@@ -1016,7 +1030,8 @@ private:
           RulesProfile profile,std::uint32_t rule_version,
           std::shared_ptr<const MapPermissions> permissions,bool original_development=false,
           std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
-          std::shared_ptr<const OriginalTerrainFacts> terrain=nullptr);
+          std::shared_ptr<const OriginalTerrainFacts> terrain=nullptr,
+          std::shared_ptr<const LandTradeBoundaryFacts> trade_boundary=nullptr);
     void update_health();
     void update_fire();
     CommandResult execute_impl(Command command,bool refresh_after,bool influence_prepared=false);
@@ -1039,7 +1054,8 @@ private:
                               std::shared_ptr<const MapPermissions> permissions,
                               bool original_development=false,
                               std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
-                              std::shared_ptr<const OriginalTerrainFacts> terrain=nullptr);
+                              std::shared_ptr<const OriginalTerrainFacts> terrain=nullptr,
+          std::shared_ptr<const LandTradeBoundaryFacts> trade_boundary=nullptr);
     std::optional<std::vector<Cell>> find_road_route(Cell start,Cell goal) const;
     std::optional<std::vector<Cell>> find_route_to_building(Cell start,BuildingId target) const;
     const std::vector<Cell>* route_for_revision();
@@ -1142,6 +1158,12 @@ private:
     std::vector<bool> workforce_allocation() const;
     bool building_staffed_for_tick(BuildingId id) const;
     bool industry_balance_valid() const;
+    CommandResult validate_land_trade_command(Command) const;
+    CommandResult execute_land_trade_command(Command);
+    bool land_trade_state_valid() const;
+    void arrive_land_trader(CourierState&);
+    bool land_trade_protected_building(BuildingId) const;
+
     void dispatch_v2(CourierState& courier);
     void move_v2(CourierState& courier);
     bool valid_return_path(const CourierState& courier) const;
@@ -1162,6 +1184,8 @@ private:
     std::optional<OriginalInfluenceState> original_influence_;
     std::optional<OriginalGoodsState> original_goods_;
     std::optional<OriginalProductionState> original_production_;
+    std::optional<AuthoredLandTradeState> land_trade_;
+    std::shared_ptr<const LandTradeBoundaryFacts> land_trade_boundary_;
     std::shared_ptr<const OriginalInfluenceCache> original_influence_cache_;
     std::uint64_t original_influence_cache_build_count_=0;
     std::shared_ptr<const original::OriginalRulesModel> original_rules_model_;

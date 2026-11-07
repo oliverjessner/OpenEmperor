@@ -267,7 +267,11 @@ std::optional<StarterBudgetWarning> starter_budget_warning(
         (world.profile()==RulesProfile::CityV11 && world.rule_version()<2) ||
         world.taxes_collected_total()>0) return std::nullopt;
     const auto snapshot=world.snapshot();
-    auto hypothetical=world.map_permissions() ?
+    // Exact21 carries immutable source/model/geometry context that generic
+    // historical restore intentionally cannot admit. This event-only candidate
+    // retains that context and runs the same paid commands; old profiles keep
+    // their exact existing restore/preflight path and optional reserve warning.
+    auto hypothetical=world.authored_land_trade_enabled() ? World(world):world.map_permissions() ?
         World::restore(snapshot,world.map_permissions()):
         World::restore(snapshot,copy_buildable_mask(world));
     for (const auto command:commands) {

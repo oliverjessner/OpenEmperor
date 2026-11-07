@@ -27,6 +27,12 @@ uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy
 state or revision27 inheritance. It retains unchanged policy3, old RampLinks
 and BridgeSpans, while native raw ramp admission remains refused.
 
+The separate [OE54 land-trade experiment](oe54-trade.md) is Rule21/schema37
+and likewise inherits classic Rule6. Existing native Pottery/Warehouse/Courier
+inventories remain sole authority; finite external offers and paid orders have
+their own source/model/difficulty-bound journal. No Original goods, finance,
+merchant, partner or gateway contract is expanded.
+
 Rules1–14 and schemas1–30 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
 saves into Original economy. Bridge/Ramp infrastructure retains its existing contracts.

@@ -291,6 +291,7 @@ bool courier_can_target(CourierRole role,const BuildingState& target) {
 
 bool courier_can_target(CourierRole role,const BuildingState& target,
                         RulesProfile profile,std::uint32_t rule_version) {
+    if(role==CourierRole::AuthoredLandTrader)return profile==RulesProfile::CityV16&&rule_version==kAuthoredLandTradeRuleVersion&&target.placed&&target.kind==Object::Warehouse;
     if (role==CourierRole::FireInspector)
         return target.placed && fire_eligible(target.kind,profile,rule_version);
     return courier_can_target(role,target);
@@ -439,7 +440,7 @@ std::uint32_t current_rule_version(RulesProfile profile) {
 }
 
 bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
-    if(source_cell_ramps_enabled(profile,version))return true;
+    if(source_cell_ramps_enabled(profile,version)||(profile==RulesProfile::CityV16&&version==kAuthoredLandTradeRuleVersion))return true;
     if (profile==RulesProfile::ProductionV2) return version==2;
     if (profile==RulesProfile::CityV11) return version>=1 && version<=4;
     if (profile==RulesProfile::CityV16) return (version>=1 && version<=16) ||
@@ -472,6 +473,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::CityV16 && version==6) return city_v16_v6;
     static constexpr ProfileRules city_v16_v20{20,32,64,32,5,800};
     if(source_cell_ramps_enabled(profile,version))return city_v16_v20;
+    static constexpr ProfileRules city_v16_v21{21,32,64,32,5,800};
+    if(profile==RulesProfile::CityV16&&version==kAuthoredLandTradeRuleVersion)return city_v16_v21;
     static constexpr ProfileRules city_v16_v7{7,32,64,32,5,800};
     if (profile==RulesProfile::CityV16 && version==7) return city_v16_v7;
     static constexpr ProfileRules city_v16_v8{8,32,64,32,5,800};
@@ -511,11 +514,12 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
 World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfile profile,
              std::uint32_t rule_version,std::shared_ptr<const MapPermissions> permissions,
              bool original_development,std::shared_ptr<const original::OriginalRulesModel> model,
-             std::shared_ptr<const OriginalTerrainFacts> terrain)
+             std::shared_ptr<const OriginalTerrainFacts> terrain,std::shared_ptr<const LandTradeBoundaryFacts> trade_boundary)
     : width_(width),height_(height),profile_(profile),
       rule_version_(rule_version==0 ? current_rule_version(profile):rule_version),
       buildable_(std::move(buildable)),permissions_(std::move(permissions)),
       original_rules_model_(std::move(model)),original_terrain_facts_(std::move(terrain)) {
+    land_trade_boundary_=std::move(trade_boundary);
     if (width<=0 || height<=0 || width>512 || height>512 ||
         buildable_.size()!=static_cast<std::size_t>(width)*static_cast<std::size_t>(height))
         throw std::invalid_argument("invalid bounded sandbox grid");
@@ -531,7 +535,9 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     (void)profile_rules(profile_,rule_version_);
     if (original_economy_enabled() && !original_development)
         throw std::invalid_argument("City-v16 rule 7 runtime is not ready; use the explicit infrastructure-only development factory");
-    if (!original_economy_enabled() && original_rules_model_)
+    if(authored_land_trade_enabled() ? (!land_trade_boundary_||!original_rules_model_||land_trade_boundary_->width()!=width||land_trade_boundary_->height()!=height):bool(land_trade_boundary_))
+        throw std::invalid_argument("land trade requires its explicit model/source-bound factory");
+    if (!original_economy_enabled() && !authored_land_trade_enabled() && original_rules_model_)
         throw std::invalid_argument("original rules model requires City-v16 rule 7");
     if (original_cardinal_water_enabled() ? (!original_terrain_facts_ || width!=OriginalTerrainFacts::width ||
             height!=OriginalTerrainFacts::height):bool(original_terrain_facts_))
@@ -560,6 +566,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     if (original_influence_enabled()) original_influence_.emplace();
     if (original_goods_enabled()) original_goods_.emplace();
     if (original_production_enabled()) original_production_.emplace();
+    if(authored_land_trade_enabled()) {land_trade_.emplace();land_trade_->model_source=original_model_source(*original_rules_model_);land_trade_->source_map_sha256=land_trade_boundary_->source_map_sha256();}
     treasury_=city_profile(profile) ? starting_treasury_for(profile,rule_version_):0;
     objects_.assign(buildable_.size(),Object::Empty);
     owners_.assign(buildable_.size(),0);
@@ -857,7 +864,10 @@ std::int64_t World::construction_cost(CommandType type) const {
     case CommandType::PlaceWorkshop:
     case CommandType::RemoveRoad:
     case CommandType::SetBuildingOperation:
-    case CommandType::SetBuildingWorkforcePriority:
+    case CommandType::SetBuildingWorkforcePriority: return 0;
+    case CommandType::ConfigureLandTrade: return authored_land_trade_enabled()?land_trade_license_cost:0;
+    case CommandType::ImportPottery:
+    case CommandType::ExportPottery:
     case CommandType::DemolishBuilding: return 0;
     }
     return 0;
@@ -1306,7 +1316,9 @@ bool World::city_economy_valid() const {
             value.kind==Object::HealthPost && health_profile(profile_) ? Rules::health_post_cost:0;
         if (cost<=0 || !add_cost(1,static_cast<std::uint64_t>(cost))) return false;
     }
+    if(land_trade_&&land_trade_->binding&&!add_cost(1,std::uint64_t(land_trade_license_cost)))return false;
     if (construction_spent_total_!=expected_spending) return false;
+    if(!land_trade_state_valid())return false;
     if (maintenance_profile(profile_)) {
         if (!maintenance_economy_valid()) return false;
     } else {
@@ -1319,6 +1331,7 @@ bool World::city_economy_valid() const {
     return true;
 }
 DemolitionStatus World::demolition_status(BuildingId id) const {
+    if(land_trade_protected_building(id))return {false,DemolitionBlocker::HistoricalReference,"Bound trade Warehouses are permanent in this contract; no refund",{},0,0};
     if (original_safe_demolition_enabled()) return original_safe_demolition_status(id);
     DemolitionStatus status;
     if (original_influence_enabled()) {
@@ -1390,10 +1403,13 @@ DemolitionStatus World::demolition_status(BuildingId id) const {
 }
 
 CommandResult World::validate(Command command) const {
+    if(command.type==CommandType::ConfigureLandTrade||command.type==CommandType::ImportPottery||command.type==CommandType::ExportPottery)return validate_land_trade_command(command);
     if(command.type==CommandType::PlaceSourceCellRamp) {
         const auto checked=validate_source_cell_ramp(command.cell,command.ramp_end);
         return {checked.accepted,checked.accepted,checked.reason,command_sequence_,ticks_,checked.diagnostic};
     }
+    if(command.type==CommandType::DemolishBuilding&&land_trade_protected_building(command.building_id))
+        return {false,false,"Bound trade Warehouses cannot be demolished",command_sequence_,ticks_};
     const auto construction=placed_object(command.type);
     const bool industry_construction=construction && original_industry_model(*construction);
     if (command.type==CommandType::PlaceOriginalElitePlot && !original_production_enabled())
@@ -1836,6 +1852,7 @@ CommandResult World::execute(Command command) {
 }
 
 CommandResult World::execute_impl(Command command,bool refresh_after,bool influence_prepared) {
+    if(command.type==CommandType::ConfigureLandTrade||command.type==CommandType::ImportPottery||command.type==CommandType::ExportPottery)return execute_land_trade_command(command);
     if(command.type==CommandType::PlaceSourceCellRamp) {
         const auto checked=validate_source_cell_ramp(command.cell,command.ramp_end);
         if(!checked.accepted)return {false,false,checked.reason,command_sequence_,ticks_,checked.diagnostic};
@@ -2248,6 +2265,9 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
     case CommandType::SetBuildingWorkforcePriority:
     case CommandType::DemolishBuilding:
     case CommandType::PlaceRamp:
+    case CommandType::ConfigureLandTrade:
+    case CommandType::ImportPottery:
+    case CommandType::ExportPottery:
     case CommandType::PlaceSourceCellRamp:
     case CommandType::RemoveRamp:
     case CommandType::PlaceBridge:
@@ -2525,6 +2545,7 @@ std::optional<BuildingId> World::next_pottery_candidate(CourierId id) const {
 }
 
 CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
+    if(courier(id).role==CourierRole::AuthoredLandTrader)return {courier(id).phase==CourierPhase::IdleAtWorkshop?CourierDispatchStatus::Disabled:CourierDispatchStatus::AlreadyMoving,{}};
     const auto& c=courier(id);
     if (!c.enabled) return {CourierDispatchStatus::Disabled,std::nullopt};
     if (c.route_pending) return {CourierDispatchStatus::NoRoad,c.target};
@@ -3012,6 +3033,7 @@ void World::advance_clay_pottery_production() {
 }
 
 void World::dispatch_v2(CourierState& courier) {
+    if(courier.role==CourierRole::AuthoredLandTrader)return; // Explicit paid order only, never automatic dispatch.
     if (original_water_courier(courier.role)) {dispatch_original_water(courier);return;}
     if (original_service_courier(courier.role)) {dispatch_original_service(courier);return;}
     if (original_auxiliary_courier(courier.role)) {dispatch_original_auxiliary(courier);return;}
@@ -3253,6 +3275,7 @@ void World::move_v2(CourierState& courier) {
         return;
     }
     if (courier.path_vertex+1<courier.path.size()) return;
+    if(courier.role==CourierRole::AuthoredLandTrader) {arrive_land_trader(courier);return;}
     if (original_auxiliary_courier(courier.role)) {arrive_original_auxiliary(courier);return;}
     if (original_market_courier(courier.role)) {arrive_original_market(courier);return;}
     if (original_food_courier(courier.role)) {arrive_original_food(courier);return;}
@@ -3683,9 +3706,10 @@ bool World::industry_balance_valid() const {
             if (!c.enabled || static_cast<std::uint32_t>(c.id)==0 ||
                 (i && !(couriers_[i-1].id<c.id)) || c.cargo<0 || c.cargo>Rules::courier_capacity ||
                 c.reserved<0 || c.reserved>Rules::courier_capacity ||
-                c.reserved!=(c.phase==CourierPhase::ToWarehouse ? c.cargo:0)) return false;
+                (c.role!=CourierRole::AuthoredLandTrader&&c.reserved!=(c.phase==CourierPhase::ToWarehouse ? c.cargo:0))) return false;
             const auto& owner=building(c.owner);
-            const Object owner_kind=c.role==CourierRole::OriginalAuxSupplier && original_production_enabled() ? Object::Warehouse:
+            const Object owner_kind=c.role==CourierRole::AuthoredLandTrader&&authored_land_trade_enabled()?Object::Warehouse:
+                c.role==CourierRole::OriginalAuxSupplier && original_production_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalLuxuryToWarehouse && original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalAuxToWarehouse && original_production_enabled() && original_industry_source(owner.kind) && !original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalFoodToMarket ? Object::OriginalFoodFarm:
@@ -3710,7 +3734,14 @@ bool World::industry_balance_valid() const {
                 c.role==CourierRole::FireInspector ? Object::FireWatch:
                 c.role==CourierRole::HealthWorker ? Object::HealthPost:Object::Empty;
             if (owner.kind!=owner_kind) return false;
-            if (c.role==CourierRole::Clay) { ++clay_couriers; clay+=static_cast<std::uint64_t>(c.cargo); }
+            if(c.role==CourierRole::AuthoredLandTrader) {
+                if(!authored_land_trade_enabled())return false;
+                pottery+=static_cast<std::uint64_t>(c.cargo);
+                const auto found=std::lower_bound(pottery_reservations.begin(),pottery_reservations.end(),c.owner,[](const auto& value,BuildingId key){return value.first<key;});
+                if(found==pottery_reservations.end()||found->first!=c.owner)return false;
+                found->second+=c.reserved;
+            }
+            else if (c.role==CourierRole::Clay) { ++clay_couriers; clay+=static_cast<std::uint64_t>(c.cargo); }
             else if (c.role==CourierRole::Pottery) { ++pottery_couriers; pottery+=static_cast<std::uint64_t>(c.cargo); }
             else if (c.role==CourierRole::Household) { ++house_couriers; pottery+=static_cast<std::uint64_t>(c.cargo); }
             else if (c.role==CourierRole::Food) { ++food_couriers; food+=static_cast<std::uint64_t>(c.cargo); }
@@ -3735,7 +3766,7 @@ bool World::industry_balance_valid() const {
                       c.role!=CourierRole::OriginalDaoist && c.role!=CourierRole::OriginalBuddhist && c.role!=CourierRole::OriginalConfucian && c.role!=CourierRole::OriginalMusic &&
                       c.role!=CourierRole::OriginalAcrobat && c.role!=CourierRole::OriginalDrama &&
                       c.role!=CourierRole::OriginalLuxuryToWarehouse && c.role!=CourierRole::OriginalAuxToWarehouse && c.role!=CourierRole::OriginalAuxSupplier) || !original_production_enabled()) return false;
-            if (c.phase==CourierPhase::ToWarehouse && !service_role(c.role)) {
+            if (c.phase==CourierPhase::ToWarehouse && !service_role(c.role)&&c.role!=CourierRole::AuthoredLandTrader) {
                 auto& reservations=food_role(c.role) ? food_reservations:pottery_reservations;
                 const auto found=std::lower_bound(reservations.begin(),reservations.end(),c.target,
                     [](const auto& value,BuildingId key) { return value.first<key; });
@@ -3795,10 +3826,12 @@ bool World::industry_balance_valid() const {
         clay+=static_cast<std::uint64_t>(Rules::pottery_recipe_clay)*recipes;
         const auto handed=original_production_enabled() ? original_production_->pottery_handed_off:0;
         if (handed>UINT64_MAX-pottery-consumed) return false;
+        const auto trade=land_trade_?land_trade_balance():LandTradeBalance{};
+        if(trade.exported>UINT64_MAX-pottery-consumed-handed||trade.imported>UINT64_MAX-pottery_completed_total_)return false;
         return extracted==clay_extracted_total_ && recipes==pottery_completed_total_ &&
             produced_food==food_produced_total_ &&
             clay==clay_extracted_total_ &&
-            pottery+consumed+handed==pottery_completed_total_ && food+consumed_food==food_produced_total_;
+            pottery+consumed+handed+trade.exported==pottery_completed_total_+trade.imported && food+consumed_food==food_produced_total_;
     }
     if (next_production_id_<8 || next_production_id_>10 ||
         next_courier_id_<4 || next_courier_id_>6 ||
@@ -4198,6 +4231,11 @@ std::string World::canonical_state() const {
        <<':'<<courier_cargo_<<':'<<warehouse_stock_<<':'<<static_cast<int>(phase_)
        <<':'<<path_vertex_<<':'<<edge_progress_;
     if (maintenance_profile(profile_)) out<<":maintenance:"<<maintenance_spent_total_;
+    if(land_trade_) {
+        const auto& t=*land_trade_;out<<":land-trade:"<<authored_land_trade_contract<<':'<<t.source_map_sha256<<':'<<t.model_source.format_version<<':'<<t.model_source.sha256<<':'<<t.model_source.byte_count<<':'<<int(t.model_source.difficulty)<<':'<<t.next_order_id;
+        if(t.binding)out<<":binding:"<<std::uint32_t(t.binding->warehouse)<<':'<<std::uint32_t(t.binding->gateway)<<':'<<std::uint32_t(t.binding->courier)<<':'<<t.binding->configured_tick;
+        for(const auto& order:t.orders) {out<<":order:"<<std::uint32_t(order.id)<<':'<<int(order.direction)<<':'<<order.ordered_tick<<':';if(order.boundary_tick)out<<*order.boundary_tick;else out<<'-';out<<':';if(order.completed_tick)out<<*order.completed_tick;else out<<'-';}
+    }
     if (demolition_supported()) out<<":v4:"<<demolition_history_.buildings<<':'
         <<demolition_history_.clay_extracted<<':'<<demolition_history_.pottery_completed<<':'
         <<demolition_history_.food_produced<<':'<<demolition_history_.pottery_consumed<<':'
@@ -4522,6 +4560,7 @@ WorldSnapshot World::snapshot() const {
     s.original_influence=original_influence_;
     s.original_goods=original_goods_;
     s.original_production=original_production_;
+    s.land_trade=land_trade_;
     for (int y=0;y<height_;++y) for (int x=0;x<width_;++x)
         if (object_at({x,y})==Object::Road) s.roads.push_back({x,y});
     s.workshop=workshop_; s.warehouse=warehouse_;
@@ -4562,8 +4601,9 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                           std::shared_ptr<const MapPermissions> permissions,
                           bool original_development,
                           std::shared_ptr<const original::OriginalRulesModel> model,
-                          std::shared_ptr<const OriginalTerrainFacts> terrain) {
+                          std::shared_ptr<const OriginalTerrainFacts> terrain,std::shared_ptr<const LandTradeBoundaryFacts> trade_boundary) {
     performance::increment(performance::Counter::WorldRestores);
+    validate_authored_land_trade_snapshot(s);
     if (!rule_version_supported(s.profile,s.rule_version))
         throw std::invalid_argument("unsupported sandbox rule version");
     validate_original_economy_snapshot(s);
@@ -4579,12 +4619,13 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     if (permissions && (permissions->width()!=s.width || permissions->height()!=s.height))
         throw std::invalid_argument("saved map permissions dimensions mismatch");
     World w=permissions ? World(s.width,s.height,permissions->building_mask(),s.profile,
-        s.rule_version,permissions,original_development,std::move(model),std::move(terrain)):
-        World(s.width,s.height,std::move(mask),s.profile,s.rule_version,{},original_development,std::move(model),std::move(terrain));
+        s.rule_version,permissions,original_development,std::move(model),std::move(terrain),std::move(trade_boundary)):
+        World(s.width,s.height,std::move(mask),s.profile,s.rule_version,{},original_development,std::move(model),std::move(terrain),std::move(trade_boundary));
     w.original_economy_=s.original_economy;
     w.original_influence_=s.original_influence;
     w.original_goods_=s.original_goods;
     w.original_production_=s.original_production;
+    w.land_trade_=s.land_trade;
     if (!maintenance_profile(s.profile) && s.maintenance_spent_total)
         throw std::invalid_argument("maintenance authority requires City-v16");
     w.maintenance_spent_total_=s.maintenance_spent_total;
@@ -4738,7 +4779,8 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
             }
             const auto& owner=w.building(c.owner);
             const auto& target=w.building(c.target);
-            const Object expected_owner=c.role==CourierRole::OriginalAuxSupplier && w.original_production_enabled() ? Object::Warehouse:
+            const Object expected_owner=c.role==CourierRole::AuthoredLandTrader&&w.authored_land_trade_enabled()?Object::Warehouse:
+                c.role==CourierRole::OriginalAuxSupplier && w.original_production_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalLuxuryToWarehouse && w.original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalAuxToWarehouse && w.original_production_enabled() && original_industry_source(owner.kind) && !original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalFoodToMarket && w.original_production_enabled() ? Object::OriginalFoodFarm:
@@ -5080,6 +5122,12 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
 }
 
 void World::import_snapshot(const WorldSnapshot& s) {
+    if(authored_land_trade_enabled()||(s.profile==RulesProfile::CityV16&&s.rule_version==kAuthoredLandTradeRuleVersion)) {
+        if(!authored_land_trade_enabled()||s.profile!=profile_||s.rule_version!=rule_version_)
+            throw std::invalid_argument("land trade snapshot import cannot cross generations");
+        auto replacement=restore_authored_land_trade(s,permissions_,original_rules_model_,land_trade_boundary_);
+        *this=std::move(replacement);return;
+    }
     World replacement=permissions_ ? restore(s,permissions_):restore(s,buildable_);
     *this=std::move(replacement);
 }

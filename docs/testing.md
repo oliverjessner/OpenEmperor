@@ -44,6 +44,19 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Authored finite land trade (OE54)
+
+Run `authored-land-trade-world`, `authored-land-trade-save`,
+`authored-land-trade-menu` and `authored-land-trade-view` alongside the complete
+suite. Fixtures buy roads, two Warehouses and production using actual commands;
+they do not inject stocks or grants. The World test audits every transaction
+phase, paid own-production exports, prepaid imports, finite offers, headroom,
+road cuts/repair and hostile restores. Save CLI `--create OUTPUT [TICKS]` and
+`--restore INPUT OUTPUT [TICKS]` use fresh ignored `.local/oe54/` outputs for
+independent complete-document comparisons. Menu/View write owned software
+captures; open them and distinguish scripted SDL from native/human acceptance.
+See the [OE54 contract](original-economy/oe54-trade.md).
+
 ## Authored source-cell ramps (OE53)
 
 Run `source-cell-ramp-world`, `source-cell-ramp-save`, `source-cell-ramp-menu`,

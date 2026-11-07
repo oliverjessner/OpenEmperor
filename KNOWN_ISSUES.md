@@ -3,6 +3,13 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
+- **Land trade is authored, finite and opt-in.** Rule21/schema37 uses classic
+  Rule6 and two paid Warehouses, one explicitly bound boundary gateway and one
+  real caravan. Only four-unit Pottery imports/exports at authored unit prices 6/3 are
+  supported, with 8 units each and a 24-Funds export budget. Original merchant
+  routes, partner lists, pricing units, ships/ports and empire trade remain
+  unsupported; model labels/markers grant no gateway. No mid-trip cancellation,
+  refund, replenishment or bound-Warehouse demolition exists. See [OE54](docs/original-economy/oe54-trade.md).
 - **Source-cell ramps are authored and opt-in.** Rule20/schema36 inherits the
   classic Rule6 economy and adds one bounded one-level source-cell surface.
   It does not activate original raw ramps or native233–244 artwork. All four

@@ -95,6 +95,17 @@
   and exact source-bound restore. Native raw ramps remain refused; original
   sprites233–244 stay isolated. No removal/refund, automatic migration or new
   source-admission exemption. See [OE53](docs/rendering/oe53-terrain-integration.md).
+- Authored finite land trade is a separate explicit rule21/policy3/schema37
+  contract with marker `authored-land-trade-v1`. It inherits classic Rule6,
+  not Original economy or Rule20 terrain. Two paid existing Warehouses bind
+  one 40-Funds source-geometry-bound gateway license and one caravan within
+  existing limits. fixed four-unit Pottery portions, finite 8/8 offers and a 24-Funds export
+  budget: prepaid import reserves owner headroom, loads only at real boundary
+  arrival and credits stock only after return; export loads physical stock and
+  earns money only at actual boundary arrival. No replenishment, cancel/refund,
+  teleport, automatic migration or original gateway/partner inference. Preserve
+  real cargo/escrow/reservations on road cuts and permanent bound Warehouse IDs.
+  Model/difficulty bind identity only. See [OE54](docs/original-economy/oe54-trade.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

@@ -26,17 +26,23 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
                                    "original-goods-ledger", "original-goods-rules",
                                    "original-service-rules",
                                    "original-house-evolution", "original-model")
-# Reviewed Rules13-20 API: the actual fourth-module probe retains its
+# Reviewed Rules13-21 API: the actual fourth-module probe retains its
 # historical HouseholdV3/CityV7 calls. Rule19 adds explicit retirement factories,
 # predicates, blockers and an optional production-state journal, mandatory only
 # in that new generation. Historical defaults and probe behavior stay exact.
 # Rule20 appends its source-cell command, explicit APIs and default-empty World/
 # snapshot members. Its directly included SourceCellRamp DTO is pinned separately;
 # fresh matching libraries retain the unchanged HouseholdV3/CityV7 observations.
+# Rule21 appends finite trade commands/courier identity and default-empty trade
+# state plus immutable boundary/model context. Its new direct AuthoredLandTrade
+# DTO is pinned separately; old Original predicates and the actual historical
+# probe calls remain unchanged. World layout therefore requires matching fresh
+# libraries; the pin is a reviewed ABI boundary, not trade parity evidence.
 # Matching archives are freshly linked; these exact headers do not certify
 # the new rules' gameplay, dispatch or terrain logic.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
-    "World.h": "c23b92b591db7ade3b87f91d467beb96638f9456",
+    "World.h": "5f5799ef7ff0ad73aa6d0282d1f7552ba9978a80",
+    "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "1a24ed7cb80a0152560b76d9445c04e5b0829ed5",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",

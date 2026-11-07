@@ -163,6 +163,13 @@ Rule6 city systems and its historical demolition contract. It has no Original
 economy or Rule19 retirement journal; new permanent source-cell ramp claims
 remain protected even after a road cut. See [OE53](rendering/oe53-terrain-integration.md).
 
+Rule21/schema37 [authored land trade](original-economy/oe54-trade.md) separately
+inherits classic Rule6. Two existing paid Warehouses support one finite
+Pottery caravan, without new workers, storage or global limits. Imports reserve
+real owner headroom before dispatch; only physical boundary/return arrivals
+load goods, earn export receipts or credit stock. Bound Warehouse identities
+remain permanent, while ordinary pause/fire and road-repair contracts apply.
+
 ## Fire
 
 From City-v12, eligible unprotected non-burning buildings gain one risk every
