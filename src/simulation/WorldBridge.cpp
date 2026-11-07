@@ -27,6 +27,16 @@ std::int8_t World::transport_height(Cell cell) const {
 BuildBlocker World::transport_edge_blocker(Cell from,Cell to) const {
     if(!in_bounds(from)||!in_bounds(to))return BuildBlocker::OutsideMap;
     if(std::abs(from.x-to.x)+std::abs(from.y-to.y)!=1)return BuildBlocker::InvalidEdge;
+    const auto* source_from=source_cell_ramp_source_at(from);
+    const auto* source_to=source_cell_ramp_source_at(to);
+    const auto* source_ramp=source_from?source_from:source_to;
+    if(source_ramp) {
+        const Cell other=source_from?to:from;
+        const auto source=source_ramp->source_cell,high=source_ramp->high_neighbor;
+        const Cell low{2*source.x-high.x,2*source.y-high.y};
+        if((other!=low&&other!=high)||building_owner_at(other))
+            return BuildBlocker::UnsupportedHeightTransition;
+    }
     const auto* a=bridge_at(from);const auto* b=bridge_at(to);
     if(a||b) {
         const auto* bridge=a?a:b;
@@ -38,6 +48,7 @@ BuildBlocker World::transport_edge_blocker(Cell from,Cell to) const {
         return BuildBlocker::None;
     }
     const auto base=permissions_?permissions_->transport_edge_blocker(from,to):BuildBlocker::None;
+    if(source_ramp&&base==BuildBlocker::UnsupportedHeightTransition)return BuildBlocker::None;
     if(base==BuildBlocker::UnsupportedHeightTransition&&ramp_between(from,to))return BuildBlocker::None;
     return base;
 }
@@ -60,6 +71,8 @@ BridgeValidation World::validate_bridge(Cell a,Cell b) const {
         if(!permissions_->road_allowed(bank)||permissions_->protected_original(bank)||permissions_->fixed_gate_at(bank)||!road_cell(bank))
             return block(BuildBlocker::BridgeBankRoadRequired,bank);
         if(bridge_bank_at(bank)||bridge_at(bank))return block(BuildBlocker::SandboxOccupied,bank,"Bridge spans cannot overlap or share a bank");
+        if(source_cell_ramp_claim(bank))return block(BuildBlocker::SandboxOccupied,bank,
+            "Bridge bank cannot overlap a source-cell ramp axial claim");
     }
     if(permissions_->cell_height(a)!=permissions_->cell_height(b))
         return block(BuildBlocker::UnsupportedHeightTransition,b,"Bridge banks must have the same signed deck height");

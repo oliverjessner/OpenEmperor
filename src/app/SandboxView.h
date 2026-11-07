@@ -5,6 +5,7 @@
 #include "renderer/StoredGraphicsRenderer.h"
 #include "renderer/AuthoredTerrainSides.h"
 #include "renderer/RampRenderer.h"
+#include "renderer/SourceCellRampRenderer.h"
 #include "renderer/RampTopology.h"
 #include "simulation/World.h"
 #include "simulation/CityStartGuidance.h"
@@ -136,7 +137,7 @@ public:
     unsigned ramp_visual_adjacency(simulation::RampId id,bool committed=false) const {
         return committed?ramp_topology_.committed_mask(id):ramp_topology_.effective_mask(id);
     }
-    std::size_t ramp_geometry_bytes() const { return ramp_presentation_.geometry_bytes(); }
+    std::size_t ramp_geometry_bytes() const { return ramp_presentation_.geometry_bytes()+source_cell_ramp_presentation_.geometry_bytes(); }
     void shutdown();
     void handle_event(const SDL_Event& event, bool& running);
     void update(double frame_seconds);
@@ -459,6 +460,7 @@ private:
         int ramp_half=0;
         bool ramp_front=false;
         unsigned ramp_adjacency=0;
+        const simulation::SourceCellRamp* source_cell_ramp=nullptr;
     };
     // Descriptors of the dynamic pixels actually submitted to the painter.
     // Image pixels remain in the eagerly loaded profiles; no hit mask is copied.
@@ -472,6 +474,7 @@ private:
         int ramp_half=0;
         bool ramp_front=false;
         unsigned ramp_adjacency=0;
+        std::optional<simulation::SourceCellRampId> source_cell_ramp;
         std::optional<std::size_t> image;
         scene::Point origin;
         double width=0,height=0;
@@ -607,6 +610,10 @@ private:
     AuthoredTerrainSides authored_terrain_sides_;
     RampTopology ramp_topology_;
     RampPresentation ramp_presentation_;
+    SourceCellRampPresentation source_cell_ramp_presentation_;
+    simulation::SourceCellRampValidation source_cell_ramp_preview_{};
+    scene::Point source_cell_ramp_ground(const simulation::SourceCellRamp& ramp) const;
+    void prepare_source_cell_ramp_visuals();
     void refresh_ramp_visual_topology();
     std::optional<simulation::Cell> ramp_start_;
     simulation::RampValidation ramp_preview_{};

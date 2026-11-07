@@ -577,6 +577,10 @@ void SandboxView::configure_save(std::filesystem::path root,std::filesystem::pat
             initial->world.rule_version)!=original_save_fixture_ ||
             (original_save_fixture_ && initial->world.rule_version!=requested_rule_version_)))
         throw std::invalid_argument("Original economy saves require the explicit scheduler-only development fixture");
+    if(initial && (simulation::source_cell_ramps_enabled(rules_,requested_rule_version_) ||
+        simulation::source_cell_ramps_enabled(initial->world.profile,initial->world.rule_version)) &&
+        (initial->world.profile!=rules_ || initial->world.rule_version!=requested_rule_version_))
+        throw std::invalid_argument("Authored source-cell ramp saves require exact explicit rule20");
     if (initial && original_production_fixture() && original_requested_difficulty_ &&
         (!initial->world.original_economy || !initial->world.original_economy->model_source ||
          initial->world.original_economy->model_source->difficulty!=*original_requested_difficulty_))
@@ -616,13 +620,18 @@ void SandboxView::load_now() {
             document.world.rule_version)!=original_save_fixture_ ||
             (original_save_fixture_ && document.world.rule_version!=requested_rule_version_))
         throw std::runtime_error("Original economy saves require the explicit scheduler-only development fixture");
+    if((world_->source_cell_ramps_supported() ||
+        simulation::source_cell_ramps_enabled(document.world.profile,document.world.rule_version)) &&
+        document.world.rule_version!=world_->rule_version())
+        throw std::runtime_error("Authored source-cell ramp saves require exact running rule20");
     if (original_production_fixture() &&
         (!document.world.original_economy || !document.world.original_economy->model_source ||
          document.world.original_economy->model_source->difficulty!=world_->original_rules_model()->difficulty() ||
          (original_requested_difficulty_ &&
           document.world.original_economy->model_source->difficulty!=*original_requested_difficulty_)))
         throw std::runtime_error("Saved original difficulty differs from this running session");
-    auto replacement=original_safe_demolition() ?
+    auto replacement=world_->source_cell_ramps_supported() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : original_safe_demolition() ?
         persistence::restore_original_safe_demolition(document,data_root_,buildable_mask_) : original_deadline_food_dispatch() ?
         persistence::restore_original_deadline_food_dispatch(document,data_root_,buildable_mask_) : original_deadline_service_dispatch() ?
         persistence::restore_original_deadline_service_dispatch(document,data_root_,buildable_mask_) : original_deadline_fire_dispatch() ?
@@ -640,6 +649,7 @@ void SandboxView::load_now() {
     auto candidate=std::make_unique<simulation::World>(std::move(replacement));
     background_.set_original_road_ground(candidate->map_permissions());
     world_=std::move(candidate);
+    prepare_source_cell_ramp_visuals();
     refresh_ramp_visual_topology();
     prepare_original_road_visuals();
     road_connectivity_report_.reset();
@@ -730,7 +740,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             original_map_.terrain_raw.values,expected_map_input_sha256_);
     original_map_={};
     if (initial_save_) {
-        world_=std::make_unique<simulation::World>(original_safe_demolition() ?
+        world_=std::make_unique<simulation::World>(simulation::source_cell_ramps_enabled(rules_,active_version) ?
+            persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
+                std::move(permissions)) : original_safe_demolition() ?
             persistence::restore_original_safe_demolition(*initial_save_,data_root_,
                 buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_deadline_food_dispatch() ?
             persistence::restore_original_deadline_food_dispatch(*initial_save_,data_root_,
@@ -812,7 +824,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     } else if (original_save_fixture_) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_economy_development(
             std::move(permissions),persistence::prepare_original_rules_model(data_root_)));
-    } else if (permissions)
+    } else if (simulation::source_cell_ramps_enabled(rules_,active_version))
+        world_=std::make_unique<simulation::World>(simulation::World::create_authored_source_cell_ramps(std::move(permissions)));
+    else if (permissions)
         world_=std::make_unique<simulation::World>(std::move(permissions),rules_,active_version);
     else world_=std::make_unique<simulation::World>(maps::stored_grid_width,maps::stored_grid_height,
         buildable_mask_,rules_,active_version);
@@ -825,6 +839,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         if(!world_->ramps_supported())throw std::invalid_argument("Authored terrain sides require explicit City-v16 rule6");
         authored_terrain_sides_.prepare(background_.plan(),geometry_,*world_->map_permissions());
     }
+    prepare_source_cell_ramp_visuals();
     refresh_ramp_visual_topology();
     background_.set_original_road_ground(world_->map_permissions());
     prepare_original_road_visuals();
@@ -846,7 +861,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(original_safe_demolition())title+=" | save schema 35 | authored safe demolition";
+    if(world_->source_cell_ramps_supported())title+=" | save schema 36 | authored source-cell ramps";
+    else if(original_safe_demolition())title+=" | save schema 35 | authored safe demolition";
     else if(original_deadline_food_dispatch())title+=" | save schema 34 | authored deadline-aware Food dispatch";
     else if(original_deadline_service_dispatch())title+=" | save schema 33 | authored deadline-aware service dispatch";
     else if(original_deadline_fire_dispatch())title+=" | save schema 32 | authored deadline-aware fire dispatch";
@@ -879,6 +895,7 @@ void SandboxView::shutdown() {
     road_sprites_.reset();
     road_profile_.reset();
     ramp_presentation_.clear();
+    source_cell_ramp_presentation_.clear();
     fire_sprites_.reset();
     fire_profile_.reset();
     fire_frames_drawn_.fill(false);
@@ -2352,6 +2369,9 @@ std::optional<simulation::Cell> SandboxView::pick(scene::Point screen) const {
     const auto mode=background_.landscape_mode();
     if(mode==LandscapeDebugMode::Regenerated || mode==LandscapeDebugMode::Snapshot || mode==LandscapeDebugMode::WallsMonuments) {
         const auto point=camera_.screen_to_world(screen);
+        for(auto it=world_->source_cell_ramps().rbegin();it!=world_->source_cell_ramps().rend();++it)
+            if(source_cell_ramp_presentation_.hit_part(point,source_cell_ramp_ground(*it),it->id,true,background_.elevated()) ||
+               source_cell_ramp_presentation_.hit_part(point,source_cell_ramp_ground(*it),it->id,false,background_.elevated()))return it->source_cell;
         for(const auto& bridge:world_->bridges())for(auto it=bridge.water_cells.rbegin();it!=bridge.water_cells.rend();++it)
             if(hit_bridge_cell(point,world_for({double(it->x),double(it->y)}),bridge,*it))return *it;
     }
@@ -2360,7 +2380,9 @@ std::optional<simulation::Cell> SandboxView::pick(scene::Point screen) const {
     return simulation::Cell{static_cast<int>(cell->x),static_cast<int>(cell->y)};
 }
 simulation::CommandResult SandboxView::preview(simulation::Cell cell) const {
-    if(tool_==15)return {false,false,"Ramp: drag between neighboring land roads, exactly one signed height level",world_->command_sequence(),world_->ticks()};
+    if(tool_==15)return {false,false,world_->source_cell_ramps_supported()?
+        "Authored source-cell ramp: drag LOW source road toward its HIGH neighbor; three roads required":
+        "Ramp: drag between neighboring land roads, exactly one signed height level",world_->command_sequence(),world_->ticks()};
     if(tool_==14)return {false,false,"Bridge: drag between existing roads on equal-height banks (1..8 water cells)",world_->command_sequence(),world_->ticks()};
     if (tool_==(simulation::production_profile(rules_) ? 5 : 4))
         return {false,false,"Select tool",world_->command_sequence()+1,world_->ticks()};
@@ -2626,6 +2648,20 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
     }
     return true;
 }
+scene::Point SandboxView::source_cell_ramp_ground(const simulation::SourceCellRamp& ramp) const {
+    const double u=ramp.source_cell.x-double(geometry_.border),v=ramp.source_cell.y-double(geometry_.border);
+    return {(u-v)*40,(u+v)*20+20-(background_.elevated()?double(ramp.low_height)*40:0)};
+}
+void SandboxView::prepare_source_cell_ramp_visuals() {
+    if(world_ && world_->source_cell_ramps_supported()) {
+        source_cell_ramp_presentation_.prepare(*world_);
+        std::size_t bridge_parts=0;for(const auto& bridge:world_->bridges())bridge_parts+=2*(bridge.water_cells.size()+2);
+        const auto hit_bound=3*(world_->buildings().size()+world_->couriers().size()+2)+
+            2*world_->source_cell_ramps().size()+4*world_->ramps().size()+bridge_parts;
+        if(visual_hits_.capacity()<hit_bound)visual_hits_.reserve(hit_bound);
+        if(ramp_geometry_bytes()>8U*1024U*1024U)throw std::runtime_error("Combined ramp geometry exceeds 8 MiB");
+    } else source_cell_ramp_presentation_.clear();
+}
 void SandboxView::refresh_ramp_visual_topology() {
     // Existing World links supply identity; immutable source permissions and
     // current normal endpoint roads only qualify their visual grouping. A
@@ -2669,7 +2705,7 @@ void SandboxView::cancel_gesture() {
     // Only rebuild (and invalidate the submitted frame) when ramp visuals exist to clear;
     // otherwise every click would discard the hit-test frame before the next render.
     const bool had_ramp_state=ramp_start_.has_value()||ramp_topology_.has_preview();
-    ramp_start_.reset();ramp_preview_={};
+    ramp_start_.reset();ramp_preview_={};source_cell_ramp_preview_={};
     if(had_ramp_state)refresh_ramp_visual_topology();
     bridge_start_.reset();bridge_preview_={};
     road_preview_={};
@@ -2946,19 +2982,21 @@ void SandboxView::refresh_hover(bool force_road_plan) {
     if(ramp_start_) {
         if(!hovered_) {
             const bool clear_preview=ramp_topology_.has_preview();
-            ramp_preview_={};
-            if(clear_preview)refresh_ramp_visual_topology();
+            ramp_preview_={};source_cell_ramp_preview_={};
+                    if(clear_preview)refresh_ramp_visual_topology();
             return;
         }
         const bool stale=force_road_plan || planned_start_!=ramp_start_ || planned_end_!=hovered_ ||
             planned_road_revision_!=world_->road_revision() || planned_command_sequence_!=world_->command_sequence() ||
             planned_treasury_!=world_->treasury();
         if(stale) {
-            ramp_preview_=world_->validate_ramp(*ramp_start_,*hovered_);
+            if(world_->source_cell_ramps_supported()) {
+                source_cell_ramp_preview_=world_->validate_source_cell_ramp(*ramp_start_,*hovered_);
+            } else ramp_preview_=world_->validate_ramp(*ramp_start_,*hovered_);
             refresh_ramp_visual_topology();
             planned_start_=ramp_start_;planned_end_=hovered_;planned_road_revision_=world_->road_revision();
             planned_command_sequence_=world_->command_sequence();planned_treasury_=world_->treasury();
-            last_message_=ramp_preview_.reason+" | height "+std::to_string(world_->transport_height(*ramp_start_))+" -> "+
+            last_message_=(world_->source_cell_ramps_supported()?source_cell_ramp_preview_.reason:ramp_preview_.reason)+" | height "+std::to_string(world_->transport_height(*ramp_start_))+" -> "+
                 std::to_string(world_->transport_height(*hovered_))+" | delta "+
                 std::to_string(int(world_->transport_height(*hovered_))-int(world_->transport_height(*ramp_start_)))+" | $40";
         }return;
@@ -3433,7 +3471,8 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             cancel_gesture(); refresh_hover(); return;
         }
         if(cell && ramp_start_ && tool_==15) {
-            (void)execute(simulation::place_ramp(*ramp_start_,*cell));
+            (void)execute(world_->source_cell_ramps_supported() ? simulation::place_source_cell_ramp(*ramp_start_,*cell):
+                simulation::place_ramp(*ramp_start_,*cell));
             clear_visual_selection();selected_=cell;
         } else if(cell && bridge_start_ && tool_==14) {
             (void)execute(simulation::place_bridge(*bridge_start_,*cell));
@@ -3501,7 +3540,8 @@ simulation::CommandResult SandboxView::execute(simulation::Command command) {
     }
     const auto result=world_->execute(command);
     if(result.accepted && result.changed) {
-        if(command.type==simulation::CommandType::PlaceRamp || command.type==simulation::CommandType::PlaceRoad ||
+        if(command.type==simulation::CommandType::PlaceSourceCellRamp)prepare_source_cell_ramp_visuals();
+        if(command.type==simulation::CommandType::PlaceSourceCellRamp || command.type==simulation::CommandType::PlaceRamp || command.type==simulation::CommandType::PlaceRoad ||
            command.type==simulation::CommandType::RemoveRoad)refresh_ramp_visual_topology();
         if(world_->bridges_supported())visual_frame_valid_=false;
         if(command.type!=simulation::CommandType::DemolishBuilding)
@@ -3616,7 +3656,10 @@ scene::Point SandboxView::world_for(simulation::Position cell) const {
         };
         height=(h(x,y)*(1-fx)+h(x+1,y)*fx)*(1-fy)+(h(x,y+1)*(1-fx)+h(x+1,y+1)*fx)*fy;
     }
-    if(background_.elevated())if(const auto ramp_height=world_->ramp_surface_height(cell))height=*ramp_height;
+    if(background_.elevated()) {
+        if(const auto ramp_height=world_->ramp_surface_height(cell))height=*ramp_height;
+        if(const auto source_height=world_->source_cell_ramp_surface_height(cell))height=*source_height;
+    }
     return {(u-v)*40.0,(u+v)*20.0+20.0-height*maps::landscape_height_step};
 }
 scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
@@ -3626,7 +3669,7 @@ scene::Point SandboxView::building_visual_ground(simulation::Cell origin,
 }
 int SandboxView::walker_marker_shift(simulation::Position position,simulation::CourierId id) const {
     const simulation::Cell cell{int(std::floor(position.x)),int(std::floor(position.y))};
-    if(world_->bridge_at(cell)||world_->bridge_bank_at(cell)||world_->ramp_surface_height(position))return 0;
+    if(world_->bridge_at(cell)||world_->bridge_bank_at(cell)||world_->ramp_surface_height(position)||world_->source_cell_ramp_surface_height(position))return 0;
     const auto value=static_cast<unsigned>(id);
     return value==1?-5:value==2?5:value==3?0:value==4?-10:value==5?10:14;
 }
@@ -3649,6 +3692,12 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         visual_hits_.push_back(next);
     };
     VisualHit hit; hit.key=instance.key; hit.cell=instance.cell;
+    if(instance.source_cell_ramp) {
+        hit.source_cell_ramp=instance.source_cell_ramp->id;hit.ramp_front=instance.ramp_front;
+        hit.mesh_ground=source_cell_ramp_ground(*instance.source_cell_ramp);
+        hit.origin={hit.mesh_ground.x-64,hit.mesh_ground.y-96};hit.width=128;hit.height=192;
+        append(hit);return;
+    }
     if(instance.ramp) {
         hit.ramp=instance.ramp->id;hit.ramp_half=instance.ramp_half;hit.ramp_front=instance.ramp_front;
         hit.ramp_adjacency=instance.ramp_adjacency;
@@ -3759,6 +3808,8 @@ bool SandboxView::select_visual(scene::Point screen) {
         const double x=world.x-it->origin.x,y=world.y-it->origin.y;
         if (x<0 || y<0 || x>=it->width || y>=it->height) continue;
         if (it->diamond && std::abs(x-40)/40+std::abs(y-20)/20>1) continue;
+        if(it->source_cell_ramp && !source_cell_ramp_presentation_.hit_part(world,it->mesh_ground,
+                *it->source_cell_ramp,it->ramp_front,background_.elevated()))continue;
         if(it->ramp) {
             const auto links=world_->ramps();
             const auto r=std::find_if(links.begin(),links.end(),[&](const auto& v){return v.id==*it->ramp;});
@@ -3841,6 +3892,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const simulation::Cell cell{x,y};
         const auto object=world_->object_at(cell);
         if (object==simulation::Object::Empty) continue;
+        if(object==simulation::Object::Road && world_->source_cell_ramp_source_at(cell))continue;
         const auto owner=world_->building_owner_at(cell);
         simulation::Cell visual_cell=cell;
         if (object!=simulation::Object::Road && owner) {
@@ -3893,6 +3945,19 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             instances.push_back(instance);
         }
     };
+    const auto append_source_ramp=[&](const simulation::SourceCellRamp& ramp,bool preview) {
+        for(const bool front:{false,true}) {
+            const double depth=(double(ramp.source_cell.x)+ramp.source_cell.y-2.0*geometry_.border)*20+20;
+            DrawInstance instance{{depth+(front?20:-20),(double(ramp.source_cell.x)-ramp.source_cell.y)*40,front?
+                scene::WorldVisualLayer::SandboxBridgeFrontRail:scene::WorldVisualLayer::SandboxBuilding,
+                ramp.id.value},ramp.source_cell};
+            instance.source_cell_ramp=&ramp;instance.ramp_front=front;instance.placement_preview=preview;
+            instances.push_back(instance);
+        }
+    };
+    if(bridges_visible)for(const auto& ramp:world_->source_cell_ramps())append_source_ramp(ramp,false);
+    if(bridges_visible&&ramp_start_&&source_cell_ramp_preview_.geometry_valid)
+        append_source_ramp(source_cell_ramp_preview_.ramp,true);
     if(bridges_visible)for(const auto& r:world_->ramps())append_ramp(r,false);
     if(bridges_visible&&ramp_start_&&ramp_preview_.geometry_valid)append_ramp(ramp_preview_.link,true);
     if(bridges_visible)for(const auto& bridge:world_->bridges())append_bridge(bridge,false);
@@ -4302,7 +4367,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     }
     // Keep the existing logical front-cell order while lifting presentation.
     if (background_.elevated()) for (auto& instance:instances) {
-        if(instance.ramp)continue;
+        if(instance.ramp || instance.source_cell_ramp)continue;
         if(instance.bridge) {instance.key.depth=(double(instance.cell.x)+instance.cell.y-2.0*geometry_.border)*20.0+20.0;continue;}
         auto position=instance.position;
         if (instance.key.layer!=scene::WorldVisualLayer::SandboxWalker) {
@@ -4330,6 +4395,13 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     std::sort(spatial_begin,instances.end(),less);
     const auto draw_instance_body=[&](std::size_t index)->bool {
         const auto& instance=instances[index];
+        if(instance.source_cell_ramp) {
+            const auto tint=instance.placement_preview?(source_cell_ramp_preview_.accepted?BridgeTint::Valid:
+                source_cell_ramp_preview_.diagnostic.blocker==simulation::BuildBlocker::InsufficientFunds?
+                    BridgeTint::Unaffordable:BridgeTint::Blocked):BridgeTint::Normal;
+            return source_cell_ramp_presentation_.draw_part(renderer_,camera_,source_cell_ramp_ground(*instance.source_cell_ramp),
+                *instance.source_cell_ramp,instance.ramp_front,background_.elevated(),tint);
+        }
         if(instance.ramp) {
             const auto tint=instance.placement_preview?(ramp_preview_.accepted?BridgeTint::Valid:
                 ramp_preview_.diagnostic.blocker==simulation::BuildBlocker::InsufficientFunds?BridgeTint::Unaffordable:BridgeTint::Blocked):BridgeTint::Normal;
@@ -4555,7 +4627,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         return true;
     }
-    if(ramp_start_&&hovered_&&!ramp_preview_.geometry_valid) {
+    if(ramp_start_&&hovered_&&!(world_->source_cell_ramps_supported()?source_cell_ramp_preview_.geometry_valid:ramp_preview_.geometry_valid)) {
         const auto a=camera_.world_to_screen(world_for({double(ramp_start_->x),double(ramp_start_->y)}));
         const auto b=camera_.world_to_screen(world_for({double(hovered_->x),double(hovered_->y)}));
         if(!SDL_SetRenderDrawColor(renderer_,218,77,63,255)||!SDL_RenderLine(renderer_,float(a.x),float(a.y),float(b.x),float(b.y)))return false;
@@ -4911,6 +4983,15 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
     if (selected_ && !selected_walker_ && world_->map_permissions()) {
         const auto& permissions=*world_->map_permissions();
+        if(const auto* ramp=world_->source_cell_ramp_claim(*selected_))return wrap_panel_lines({
+            "Authored source-cell ramp #"+std::to_string(ramp->id.value),
+            "Low source: "+std::to_string(ramp->source_cell.x)+","+std::to_string(ramp->source_cell.y),
+            "High road: "+std::to_string(ramp->high_neighbor.x)+","+std::to_string(ramp->high_neighbor.y),
+            "Stored heights: "+std::to_string(int(ramp->low_height))+" -> "+std::to_string(int(ramp->high_height)),
+            "Source-centre surface: "+std::to_string(double(ramp->low_height)+.5),
+            "Paid $40; authored classic economy",
+            "Three axial road claims; no lateral entry",
+            "No ramp removal or refund in V1"});
         if(const auto* r=world_->ramp_endpoint(*selected_))return wrap_panel_lines({
             "OpenEmperor Ramp #"+std::to_string(r->id.value),
             "Endpoint A: "+std::to_string(r->endpoint_a.x)+","+std::to_string(r->endpoint_a.y),
@@ -6381,7 +6462,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(original_safe_demolition())overview+=" | Policy 3 | Save 35 | Safe demolition";
+        if(world_->source_cell_ramps_supported())overview+=" | Policy 3 | Save 36 | Authored source-cell ramps "+std::to_string(world_->source_cell_ramps().size());
+        else if(original_safe_demolition())overview+=" | Policy 3 | Save 35 | Safe demolition";
         else if(original_deadline_food_dispatch())overview+=" | Policy 3 | Save 34 | Deadline-aware Food";
         else if(original_deadline_service_dispatch())overview+=" | Policy 3 | Save 33 | Deadline-aware services";
         else if(original_deadline_fire_dispatch())overview+=" | Policy 3 | Save 32 | Deadline-aware fire dispatch";

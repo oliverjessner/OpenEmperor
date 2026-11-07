@@ -2,6 +2,7 @@
 #include "simulation/MapPermissions.h"
 #include "simulation/Bridge.h"
 #include "simulation/Ramp.h"
+#include "simulation/SourceCellRamp.h"
 #include "simulation/OriginalEconomyState.h"
 #include "simulation/OriginalInfluenceState.h"
 #include "simulation/OriginalTerrainFacts.h"
@@ -238,6 +239,10 @@ inline constexpr std::uint32_t kOriginalDeadlineFireDispatchRuleVersion=16;
 inline constexpr std::uint32_t kOriginalDeadlineServiceDispatchRuleVersion=17;
 inline constexpr std::uint32_t kOriginalDeadlineFoodDispatchRuleVersion=18;
 inline constexpr std::uint32_t kOriginalSafeDemolitionRuleVersion=19;
+inline constexpr std::uint32_t kAuthoredSourceCellRampRuleVersion=20;
+constexpr bool source_cell_ramps_enabled(RulesProfile profile,std::uint32_t version) {
+    return profile==RulesProfile::CityV16 && version==kAuthoredSourceCellRampRuleVersion;
+}
 inline constexpr const char* original_market_logistics_contract="authored-needs-aware-market-v1";
 inline constexpr const char* original_cardinal_water_contract="verified-cardinal-water-desirability-v1";
 inline constexpr const char* original_inspector_coordination_contract="authored-inspector-coordination-v1";
@@ -313,10 +318,10 @@ constexpr bool original_economy_enabled(RulesProfile profile,std::uint32_t versi
          version==kOriginalGoodsRuleVersion || version==kOriginalProductionRuleVersion || version==kOriginalFireProtectionRuleVersion || version==kOriginalSustainableRuleVersion || version==kOriginalMarketLogisticsRuleVersion || version==kOriginalCardinalWaterRuleVersion || version==kOriginalInspectorCoordinationRuleVersion || version==kOriginalDeadlineFireDispatchRuleVersion || version==kOriginalDeadlineServiceDispatchRuleVersion || version==kOriginalDeadlineFoodDispatchRuleVersion || version==kOriginalSafeDemolitionRuleVersion);
 }
 constexpr bool bridges_rule_enabled(RulesProfile profile,std::uint32_t version) {
-    return profile==RulesProfile::CityV16 && (version==5 || version==6 || version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==kOriginalSafeDemolitionRuleVersion);
+    return source_cell_ramps_enabled(profile,version) || (profile==RulesProfile::CityV16 && (version==5 || version==6 || version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==kOriginalSafeDemolitionRuleVersion));
 }
 constexpr bool ramps_rule_enabled(RulesProfile profile,std::uint32_t version) {
-    return profile==RulesProfile::CityV16 && (version==6 || version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==kOriginalSafeDemolitionRuleVersion);
+    return source_cell_ramps_enabled(profile,version) || (profile==RulesProfile::CityV16 && (version==6 || version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==kOriginalSafeDemolitionRuleVersion));
 }
 
 constexpr std::int64_t starting_treasury_for(RulesProfile profile) {
@@ -420,7 +425,7 @@ enum class CommandType { PlaceRoad, PlaceWorkshop, PlaceWarehouse, PlaceClaySour
                          PlaceOriginalFoodFarm, PlaceOriginalWheatField, PlaceOriginalMilletField, PlaceOriginalAncestorShrine, PlaceOriginalWaterWell,
                          PlaceOriginalDaoistShrine, PlaceOriginalBuddhistShrine, PlaceOriginalConfucianAcademy,
                          PlaceOriginalMusicSchool, PlaceOriginalAcrobatSchool, PlaceOriginalDramaSchool,
-                         PlaceOriginalLoggingShed, PlaceOriginalBronzeSmelter, PlaceOriginalBronzewareMaker, PlaceOriginalLacquerwareMaker, PlaceOriginalPaperMaker, PlaceOriginalWeaver, PlaceOriginalTeaCuringShed, PlaceOriginalLacquerRefinery, PlaceOriginalSilkwormShed, PlaceOriginalTeaBush, PlaceOriginalLacquerTree, PlaceOriginalMulberryTree, PlaceOriginalElitePlot };
+                         PlaceOriginalLoggingShed, PlaceOriginalBronzeSmelter, PlaceOriginalBronzewareMaker, PlaceOriginalLacquerwareMaker, PlaceOriginalPaperMaker, PlaceOriginalWeaver, PlaceOriginalTeaCuringShed, PlaceOriginalLacquerRefinery, PlaceOriginalSilkwormShed, PlaceOriginalTeaBush, PlaceOriginalLacquerTree, PlaceOriginalMulberryTree, PlaceOriginalElitePlot, PlaceSourceCellRamp };
 // Pure construction-command identity shared by validation and presentation.
 std::optional<Object> placed_object(CommandType type);
 // Fixed identities of active paid industry bodies; no file/model lookup here.
@@ -441,6 +446,7 @@ struct Command {
 };
 Command place_bridge(Cell bank_a,Cell bank_b);
 Command place_ramp(Cell endpoint_a,Cell endpoint_b);
+Command place_source_cell_ramp(Cell source_cell,Cell high_neighbor);
 Command demolish_building(BuildingId id);
 Command set_building_operation(BuildingId id,bool enabled);
 Command set_building_workforce_priority(BuildingId id,WorkforcePriority priority);
@@ -672,6 +678,8 @@ struct WorldSnapshot {
     std::uint32_t next_bridge_id=1;
     std::vector<RampLink> ramps;
     std::uint32_t next_ramp_id=1;
+    std::vector<SourceCellRamp> source_cell_ramps;
+    std::uint32_t next_source_cell_ramp_id=1;
     std::optional<OriginalEconomyState> original_economy;
     std::optional<OriginalInfluenceState> original_influence;
     std::optional<OriginalGoodsState> original_goods;
@@ -736,6 +744,13 @@ public:
     std::shared_ptr<const original::OriginalRulesModel> original_rules_model() const { return original_rules_model_; }
     bool bridges_supported() const { return bridges_rule_enabled(profile_,rule_version_); }
     bool ramps_supported() const { return ramps_rule_enabled(profile_,rule_version_); }
+    bool source_cell_ramps_supported() const { return source_cell_ramps_enabled(profile_,rule_version_); }
+    static World create_authored_source_cell_ramps(std::shared_ptr<const MapPermissions> permissions);
+    std::span<const SourceCellRamp> source_cell_ramps() const { return source_cell_ramps_; }
+    const SourceCellRamp* source_cell_ramp_source_at(Cell cell) const;
+    const SourceCellRamp* source_cell_ramp_claim(Cell cell) const;
+    SourceCellRampValidation validate_source_cell_ramp(Cell source_cell,Cell high_neighbor) const;
+    std::optional<double> source_cell_ramp_surface_height(Position position) const;
     std::span<const RampLink> ramps() const { return ramps_; }
     const RampLink* ramp_endpoint(Cell cell) const;
     const RampLink* ramp_between(Cell a,Cell b) const;
@@ -1014,6 +1029,9 @@ private:
     bool permission_edge_allowed(Cell from,Cell to) const;
     BuildBlocker ramp_land_blocker(Cell cell) const;
     void restore_ramps(const WorldSnapshot& snapshot);
+    SourceCellRampValidation validate_source_cell_ramp_geometry(Cell source,Cell high,bool require_roads) const;
+    void index_source_cell_ramp(const SourceCellRamp& ramp);
+    void restore_source_cell_ramps(const WorldSnapshot& snapshot);
     void index_ramp(const RampLink& link);
     void restore_bridges(const WorldSnapshot& snapshot);
     void index_bridge(const BridgeSpan& span);
@@ -1157,6 +1175,9 @@ private:
     std::vector<RampLink> ramps_;
     std::uint32_t next_ramp_id_=1;
     std::vector<std::uint8_t> ramp_index_; // Rule6-only derived endpoint lookup, never persisted.
+    std::vector<SourceCellRamp> source_cell_ramps_;
+    std::uint32_t next_source_cell_ramp_id_=1;
+    std::vector<std::uint8_t> source_cell_ramp_index_; // Three bounded axial claims per link; derived only.
     std::vector<std::uint8_t> bridge_index_,bridge_bank_index_; // Rule5-only derived lookups, never persisted.
     std::uint32_t next_household_id_=first_household_id;
     std::uint32_t next_production_id_=8;

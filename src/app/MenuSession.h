@@ -102,6 +102,7 @@ private:
     State confirm_return_state_=State::MainMenu;
     AfterConfirm after_confirm_=AfterConfirm::None;
     Settings settings_;
+    bool source_cell_ramps_new_game_=false; // Explicit rule20; never a default or migration.
     bool ramps_new_game_=false; // Explicit rule6 setup, never a saved default or migration.
     bool bridges_new_game_=false; // Explicit setup choice, never a default/save upgrade.
     // Session-only explicit selection; simulation constants and MapRulesRequest own the contract.

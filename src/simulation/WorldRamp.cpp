@@ -46,6 +46,8 @@ RampValidation World::validate_ramp(Cell a,Cell b) const {
         if(!road_cell(end))return block(BuildBlocker::BridgeBankRoadRequired,end,"Road required at both ends");
         if(ramp_endpoint(end))return block(BuildBlocker::SandboxOccupied,end,
             ramp_between(a,b)?"Ramp already exists":"Ramp endpoints cannot share conflicting links");
+        if(source_cell_ramp_claim(end))return block(BuildBlocker::SandboxOccupied,end,
+            "Ramp endpoint overlaps source-cell ramp axial claim");
     }
     const int ha=permissions_->cell_height(a),hb=permissions_->cell_height(b);
     if(std::abs(ha-hb)!=1)return block(BuildBlocker::UnsupportedHeightTransition,b,
@@ -53,7 +55,7 @@ RampValidation World::validate_ramp(Cell a,Cell b) const {
     if(permissions_->transport_edge_blocker(a,b)!=BuildBlocker::UnsupportedHeightTransition)
         return block(permissions_->transport_edge_blocker(a,b),b,"Ramp cannot bypass a protected edge");
     v.link={{next_ramp_id_},a,b,std::int8_t(ha),std::int8_t(hb),ramp_cost,ticks_};v.geometry_valid=true;
-    if(ramps_.size()>=ramp_max_links||next_ramp_id_==UINT32_MAX||road_revision_==UINT64_MAX||
+    if(ramps_.size()+source_cell_ramps_.size()>=ramp_max_links||next_ramp_id_==UINT32_MAX||road_revision_==UINT64_MAX||
        command_sequence_>=UINT64_MAX-1||construction_spent_total_>UINT64_MAX-std::uint64_t(ramp_cost))
         return block(BuildBlocker::CounterExhausted,a,"Ramp construction counter exhausted");
     if(treasury_<ramp_cost)return block(BuildBlocker::InsufficientFunds,a,"Not enough funds");

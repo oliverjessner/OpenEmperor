@@ -308,6 +308,8 @@ simulation::WorldSnapshot parse_snapshot(const json& j,std::uint64_t schema,
     }
     require(schema==21 || schema==22 || (!j.contains("bridges") && !j.contains("next_bridge_id")),"bridge authority requires schema 21");
     require(schema==22 || (!j.contains("ramps") && !j.contains("next_ramp_id")),"ramp authority requires schema22");
+    require(!j.contains("source_cell_ramps") && !j.contains("next_source_cell_ramp_id"),
+            "source-cell ramp authority requires exact schema36");
     if (schema>=10 && schema<=22) {
         const bool v11=schema>=11;
         const auto building_limit=syntax==SnapshotSyntax::OriginalProduction ? Rules::original_production_building_limit:building_collection_limit(profile);
@@ -1895,7 +1897,73 @@ SaveDocument parse_original_document(const json& j) {
     require(canonical_fields(j,original_document_json(d)),"schema23 contains unknown or noncanonical save fields");
     return d;
 }
+json source_cell_document_json(const SaveDocument& d) {
+    using namespace simulation;
+    require(source_cell_ramps_enabled(d.world.profile,d.world.rule_version),
+            "schema36 requires exact City-v16 rule20");
+    require(d.source_schema_version==0 || d.source_schema_version==36,
+            "rule20 requires schema36; historical saves are not migrated");
+    require(d.map_permissions_policy_version==kBridgesMapPermissionsPolicyVersion && valid_hash(d.map_permissions_sha256),
+            "schema36 requires complete immutable policy3 map binding");
+    require(!d.world.original_economy && !d.world.original_influence && !d.world.original_goods && !d.world.original_production,
+            "schema36 cannot carry Original-economy authority");
+    require(d.world.source_cell_ramps.size()<=source_cell_ramp_max_links &&
+            d.world.ramps.size()<=source_cell_ramp_max_links-d.world.source_cell_ramps.size(),
+            "schema36 combined ramp collection exceeds64");
+    auto projected=d;
+    projected.source_schema_version=22;projected.world.rule_version=6;
+    projected.world.source_cell_ramps.clear();projected.world.next_source_cell_ramp_id=1;
+    auto result=document_json(projected);
+    result["schema_version"]=36;result["rules"]["version"]=d.world.rule_version;
+    result["rules"]["source_cell_ramps"]=authored_source_cell_ramp_contract;
+    result["world"]["next_source_cell_ramp_id"]=d.world.next_source_cell_ramp_id;
+    result["world"]["source_cell_ramps"]=json::array();
+    for (const auto& r:d.world.source_cell_ramps)
+        result["world"]["source_cell_ramps"].push_back({{"id",r.id.value},{"source_cell",cell_json(r.source_cell)},
+            {"high_neighbor",cell_json(r.high_neighbor)},{"low_height",int(r.low_height)},
+            {"high_height",int(r.high_height)},{"paid_cost",r.paid_cost},{"placed_tick",r.placed_tick}});
+    return result;
+}
+SaveDocument parse_source_cell_document(const json& j) {
+    using namespace simulation;
+    require(number(field(j,"schema_version"))==36 && str(field(j,"format"))=="openemperor-sandbox-save",
+            "invalid authored source-cell ramp save identity");
+    const auto& rules=field(j,"rules");
+    require(str(field(rules,"id"))==city_v16_profile_name && number(field(rules,"version"))==kAuthoredSourceCellRampRuleVersion &&
+            str(field(rules,"source_cell_ramps"))==authored_source_cell_ramp_contract,
+            "schema36 requires its exact Rule20 authored source-cell ramp marker");
+    auto projected=j;projected["schema_version"]=22;projected["rules"]["version"]=6;
+    projected["rules"].erase("source_cell_ramps");
+    projected["world"].erase("source_cell_ramps");projected["world"].erase("next_source_cell_ramp_id");
+    auto d=parse_document(projected);
+    d.source_schema_version=36;d.world.rule_version=kAuthoredSourceCellRampRuleVersion;
+    const auto& world=field(j,"world");
+    d.world.next_source_cell_ramp_id=static_cast<std::uint32_t>(number(field(world,"next_source_cell_ramp_id"),UINT32_MAX));
+    const auto& rows=field(world,"source_cell_ramps");
+    require(rows.is_array() && rows.size()<=source_cell_ramp_max_links &&
+            d.world.ramps.size()<=source_cell_ramp_max_links-rows.size(),"schema36 combined ramp collection exceeds64");
+    std::uint32_t previous=0;
+    for (const auto& row:rows) {
+        require(row.is_object() && row.size()==7,"source-cell ramp requires exactly seven canonical fields");
+        SourceCellRamp r;r.id={static_cast<std::uint32_t>(number(field(row,"id"),UINT32_MAX))};
+        require(r.id.value>previous,"source-cell ramp IDs must be positive, unique and sorted");previous=r.id.value;
+        r.source_cell=cell(field(row,"source_cell"));r.high_neighbor=cell(field(row,"high_neighbor"));
+        const auto low=signed_number(field(row,"low_height")),high=signed_number(field(row,"high_height"));
+        require(low>=-128 && low<=127 && high>=-128 && high<=127,"source-cell ramp height exceeds signed byte");
+        require(high==low+1,"source-cell ramp requires an exact positive one-level rise");
+        r.low_height=static_cast<std::int8_t>(low);r.high_height=static_cast<std::int8_t>(high);
+        r.paid_cost=signed_number(field(row,"paid_cost"));r.placed_tick=number(field(row,"placed_tick"));
+        require(r.paid_cost==source_cell_ramp_cost && r.placed_tick<=d.world.ticks,
+                "source-cell ramp cost or placement tick invalid");
+        d.world.source_cell_ramps.push_back(r);
+    }
+    require(canonical_fields(j,source_cell_document_json(d)),"schema36 contains unknown or noncanonical fields");
+    return d;
+}
 json document_json(const SaveDocument& d) {
+    if (simulation::source_cell_ramps_enabled(d.world.profile,d.world.rule_version)) return source_cell_document_json(d);
+    require(d.world.source_cell_ramps.empty() && d.world.next_source_cell_ramp_id==1,
+            "source-cell ramp authority requires exact Rule20/schema36");
     if (simulation::original_production_enabled(d.world.profile,d.world.rule_version))
         return production_document_json(d);
     require(!d.world.original_production,"original production authority requires City-v16 rule10/schema26");
@@ -1940,6 +2008,11 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j,SnapshotSyntax syntax) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
+    if (schema==36) {
+        require(syntax==SnapshotSyntax::Frozen,"schema36 cannot select Original-production syntax");
+        return parse_source_cell_document(j);
+    }
+    require(!field(j,"rules").contains("source_cell_ramps"),"source-cell ramp marker requires exact schema36");
     require(syntax==SnapshotSyntax::Frozen || schema==22,"active syntax is restricted to the local schema22 projection");
     require(syntax==SnapshotSyntax::OriginalProduction || schema==31 ||
             !field(j,"rules").contains("inspector_coordination"),
@@ -2176,7 +2249,8 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
     }
     // Validate the snapshot against the actual mask before publishing it.
     if (d.world.profile==simulation::RulesProfile::CityV16 &&
-        (d.world.rule_version>=3 && d.world.rule_version<=6)) {
+        ((d.world.rule_version>=3 && d.world.rule_version<=6) ||
+         simulation::source_cell_ramps_enabled(d.world.profile,d.world.rule_version))) {
         d.prepared_permissions=world.map_permissions();
         require(static_cast<bool>(d.prepared_permissions),"City-v16 map-integrated rules require prepared map permissions");
         d.map_permissions_policy_version=d.prepared_permissions->policy_version();
@@ -2218,6 +2292,8 @@ SaveDocument read_save(const fs::path& path) {
         require(!duplicate_key,"schema24 duplicate save key");
     if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==25)
         require(!duplicate_key,"schema25 duplicate save key");
+    if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==36)
+        require(!duplicate_key,"schema36 duplicate save key");
     if (j.is_object() && j.contains("schema_version") &&
         (j.at("schema_version")==26 || j.at("schema_version")==27 || j.at("schema_version")==28 || j.at("schema_version")==29 || j.at("schema_version")==30 || j.at("schema_version")==31 || j.at("schema_version")==32 || j.at("schema_version")==33 || j.at("schema_version")==34 || j.at("schema_version")==35))
         require(!duplicate_key,"original production duplicate save key");
@@ -2323,8 +2399,10 @@ simulation::World restore_save(const SaveDocument& d,const fs::path& root,
     require(digest(mask.data(),mask.size())==d.buildable_sha256,
             "sandbox buildable mask SHA-256 differs from save");
     if (d.world.profile==simulation::RulesProfile::CityV16 &&
-        (d.world.rule_version>=3 && d.world.rule_version<=6)) {
-        const auto expected_schema=d.world.rule_version==3 ? 19U:d.world.rule_version==4 ? 20U:d.world.rule_version==5 ? 21U:22U;
+        ((d.world.rule_version>=3 && d.world.rule_version<=6) ||
+         simulation::source_cell_ramps_enabled(d.world.profile,d.world.rule_version))) {
+        const auto expected_schema=simulation::source_cell_ramps_enabled(d.world.profile,d.world.rule_version) ? 36U:
+            d.world.rule_version==3 ? 19U:d.world.rule_version==4 ? 20U:d.world.rule_version==5 ? 21U:22U;
         const auto expected_policy=d.world.rule_version==3 ? simulation::kMapPermissionsPolicyVersion:
             d.world.rule_version==4 ? simulation::kOriginalRoadsMapPermissionsPolicyVersion:simulation::kBridgesMapPermissionsPolicyVersion;
         require(d.source_schema_version==0 || d.source_schema_version==expected_schema,
@@ -2345,6 +2423,15 @@ simulation::World restore_save(const SaveDocument& d,const fs::path& root,
     require(d.map_permissions_policy_version==0 && d.map_permissions_sha256.empty(),
             "saved map-permissions policy requires matching City-v16 map-integrated rules");
     return simulation::World::restore(d.world,std::move(mask));
+}
+simulation::World restore_authored_source_cell_ramps(const SaveDocument& d,const fs::path& root,
+        std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions) {
+    require(simulation::source_cell_ramps_enabled(d.world.profile,d.world.rule_version),
+            "source-cell ramp restore requires exact City-v16 Rule20");
+    require(d.source_schema_version==0 || d.source_schema_version==36,
+            "source-cell ramp restore requires exact schema36; no historical migration");
+    (void)source_cell_document_json(d);
+    return restore_save(d,root,std::move(mask),std::move(permissions));
 }
 simulation::World restore_original_economy_development(const SaveDocument& d,const fs::path& root,
         std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
