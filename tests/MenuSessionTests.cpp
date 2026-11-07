@@ -118,6 +118,24 @@ void key(Menu& menu,SDL_Keycode keycode) {
     SDL_Event e{}; e.type=SDL_EVENT_KEY_DOWN; e.key.key=keycode;
     menu.handle_event(e); menu.advance();
 }
+void click_label(Menu& menu,SDL_Window* window,SDL_Renderer* renderer,const std::string& label) {
+    check(menu.render(),"render actual labeled menu control");
+    const auto rect=menu.diagnostic_button_rect(label);
+    if (!rect) throw std::runtime_error("missing actual menu control: "+label);
+    const auto scale=1.5F*std::max(1.0F,SDL_GetWindowPixelDensity(window));
+    float x=0,y=0;
+    check(SDL_RenderCoordinatesToWindow(renderer,(rect->x+rect->w/2)*scale,
+        (rect->y+rect->h/2)*scale,&x,&y),"map actual labeled menu control");
+    const auto hit=menu.diagnostic_button_hit(x,y);
+    check(hit && hit->enabled,"labeled menu control is not enabled at its rendered position");
+    menu.handle_event(mouse(SDL_EVENT_MOUSE_BUTTON_DOWN,x,y));
+    menu.handle_event(mouse(SDL_EVENT_MOUSE_BUTTON_UP,x,y));menu.advance();
+}
+void click_classic(Menu& menu,SDL_Window* window,SDL_Renderer* renderer) {
+    if (!menu.diagnostic_button_rect("N New Sandbox"))
+        click_label(menu,window,renderer,"Advanced / Legacy");
+    click_label(menu,window,renderer,"N New Sandbox");
+}
 void finish_load(Menu& menu) {
     static int load_number=0; ++load_number;
     if (menu.state()!=Menu::State::Loading)
@@ -149,16 +167,16 @@ int main(int argc,char* argv[]) {
                   local.settings().profile==openemperor::simulation::RulesProfile::IndustryV5 &&
                   !local.settings().prepared_starter,
                   "existing explicit profile or starter preference was not preserved");
-            click(local,90,220); click(local,90,650); finish_load(local);
+            click_classic(local,window,renderer); click(local,90,650); finish_load(local);
             if (local.state()!=Menu::State::Playing) throw std::runtime_error("local Xia load: "+local.message());
             local.sandbox()->tick_once(); key(local,SDLK_F5);
             check(fs::exists(local.sandbox()->save_path()),"local save not written");
             const auto expected=local.sandbox()->world().snapshot();
-            key(local,SDLK_ESCAPE); click(local,90,310); click(local,480,250);
+            key(local,SDLK_ESCAPE); click_classic(local,window,renderer); click(local,480,250);
             click(local,90,650); finish_load(local);
             if (local.state()!=Menu::State::Playing) throw std::runtime_error("second local map load: "+local.message());
             check(local.settings().last_map!="Cities/Xia.map","local map selection did not change");
-            key(local,SDLK_ESCAPE); click(local,90,400); click(local,90,560); finish_load(local);
+            key(local,SDLK_ESCAPE); click_label(local,window,renderer,"L Load Save"); click(local,90,560); finish_load(local);
             check(local.state()==Menu::State::Playing && local.sandbox()->paused() &&
                   local.sandbox()->world().snapshot()==expected,"local saved Xia world not restored");
             local.shutdown();
@@ -200,7 +218,7 @@ int main(int argc,char* argv[]) {
             Menu maintenance_menu({},root,std::make_unique<FakeDialog>());
             maintenance_menu.initialize(window,renderer);
             check(maintenance_menu.settings().profile==openemperor::simulation::RulesProfile::CityV16,"stored City-v16 reset");
-            click(maintenance_menu,90,220);check(maintenance_menu.render(),"City-v16 description render");
+            click_classic(maintenance_menu,window,renderer);check(maintenance_menu.render(),"City-v16 description render");
             click(maintenance_menu,90,650);finish_load(maintenance_menu);
             check(maintenance_menu.state()==Menu::State::Playing && maintenance_menu.sandbox() &&
                 maintenance_menu.sandbox()->world().profile()==openemperor::simulation::RulesProfile::CityV16 &&
@@ -225,7 +243,7 @@ int main(int argc,char* argv[]) {
             fire_menu.initialize(window,renderer);
             check(fire_menu.settings().profile==openemperor::simulation::RulesProfile::CityV12,
                 "explicit stored City-v12 profile was reset");
-            click(fire_menu,90,220);click(fire_menu,90,650);finish_load(fire_menu);
+            click_classic(fire_menu,window,renderer);click(fire_menu,90,650);finish_load(fire_menu);
             check(fire_menu.state()==Menu::State::Playing && fire_menu.sandbox() &&
                 fire_menu.sandbox()->world().profile()==openemperor::simulation::RulesProfile::CityV12 &&
                 fire_menu.sandbox()->world().rule_version()==1 &&
@@ -237,7 +255,7 @@ int main(int argc,char* argv[]) {
             check(entries.entries.size()==1 && entries.entries[0].schema==14 &&
                 entries.entries[0].rule_version==1 && entries.entries[0].profile==
                     openemperor::simulation::city_v12_profile_name,"City-v12 ordinary save list identity");
-            key(fire_menu,SDLK_ESCAPE);click(fire_menu,90,400);click(fire_menu,90,560);finish_load(fire_menu);
+            key(fire_menu,SDLK_ESCAPE);click_label(fire_menu,window,renderer,"L Load Save");click(fire_menu,90,560);finish_load(fire_menu);
             check(fire_menu.state()==Menu::State::Playing && fire_menu.sandbox()->paused() &&
                 fire_menu.sandbox()->world().snapshot()==state,"City-v12 menu restore changed World");
             fire_menu.shutdown();
@@ -253,7 +271,7 @@ int main(int argc,char* argv[]) {
             quality_menu.initialize(window,renderer);
             check(quality_menu.settings().profile==openemperor::simulation::RulesProfile::CityV13,
                 "explicit stored City-v13 profile was reset");
-            click(quality_menu,90,220);click(quality_menu,90,650);finish_load(quality_menu);
+            click_classic(quality_menu,window,renderer);click(quality_menu,90,650);finish_load(quality_menu);
             check(quality_menu.state()==Menu::State::Playing && quality_menu.sandbox() &&
                 quality_menu.sandbox()->world().profile()==openemperor::simulation::RulesProfile::CityV13 &&
                 quality_menu.sandbox()->world().rule_version()==1 &&
@@ -265,7 +283,7 @@ int main(int argc,char* argv[]) {
             check(entries.entries.size()==1 && entries.entries[0].schema==15 &&
                 entries.entries[0].rule_version==1 && entries.entries[0].profile==
                     openemperor::simulation::city_v13_profile_name,"City-v13 ordinary save list identity");
-            key(quality_menu,SDLK_ESCAPE);click(quality_menu,90,400);click(quality_menu,90,560);finish_load(quality_menu);
+            key(quality_menu,SDLK_ESCAPE);click_label(quality_menu,window,renderer,"L Load Save");click(quality_menu,90,560);finish_load(quality_menu);
             check(quality_menu.state()==Menu::State::Playing && quality_menu.sandbox()->paused() &&
                 quality_menu.sandbox()->world().snapshot()==state,"City-v13 menu restore changed World");
             quality_menu.shutdown();
@@ -313,7 +331,7 @@ int main(int argc,char* argv[]) {
             check(openemperor::assets::compatibility_detection_count()==detection_count,
                   "compatibility files were hashed in the frame loop");
             check(fs::exists(t.root/"app/settings.json"),"settings not stored");
-            click(menu,90,220); // New sandbox
+            click_classic(menu,window,renderer); // New sandbox
             check(menu.state()==Menu::State::NewSandbox,"new sandbox menu");
             check(menu.render(),"City-v11 recommended profile description did not render");
             click(menu,900,750); // Open Advanced visual previews.
@@ -396,7 +414,7 @@ int main(int argc,char* argv[]) {
             key(menu,SDLK_ESCAPE);
             check(menu.state()==Menu::State::MainMenu,"escape did not open menu");
             menu.update(10.0); check(menu.sandbox()->world().ticks()==tick,"menu advanced world");
-            click(menu,90,220); // Continue
+            click_label(menu,window,renderer,"Enter Continue"); // Continue
             check(menu.state()==Menu::State::Playing && menu.sandbox()->world().ticks()==tick,
                   "resume changed world");
             key(menu,SDLK_F5);
@@ -450,7 +468,7 @@ int main(int argc,char* argv[]) {
                 openemperor::menu::write_settings(upgrade_root,upgrade_settings);
                 v2_expected=old_world.snapshot();
             }
-            key(menu,SDLK_ESCAPE); click(menu,90,310); // Main, New
+            key(menu,SDLK_ESCAPE); click_classic(menu,window,renderer); // Main, New
             click(menu,480,250); // Next map, Cities/B.map
             click(menu,90,650); finish_load(menu);
             check(menu.state()==Menu::State::Playing && menu.sandbox()->save_path()!=first_save,
@@ -459,7 +477,7 @@ int main(int argc,char* argv[]) {
             const auto second_save=menu.sandbox()->save_path();
             check(!fs::exists(second_save),"unsaved second session created file");
             menu.update(0.5); const auto second_tick=menu.sandbox()->world().ticks();
-            key(menu,SDLK_ESCAPE); click(menu,90,400); // Main, Load
+            key(menu,SDLK_ESCAPE); click_label(menu,window,renderer,"L Load Save"); // Main, Load
             check(menu.state()==Menu::State::LoadSandbox,"load list not opened");
             click(menu,90,560); finish_load(menu); // Open selected
             check(menu.state()==Menu::State::ConfirmLeave &&
@@ -467,7 +485,7 @@ int main(int argc,char* argv[]) {
             click(menu,90,515); // Cancel
             check(menu.state()==Menu::State::MainMenu && menu.sandbox()->world().ticks()==second_tick,
                   "cancel lost prior session");
-            click(menu,90,400); click(menu,90,560); finish_load(menu);
+            click_label(menu,window,renderer,"L Load Save"); click(menu,90,560); finish_load(menu);
             click(menu,90,425); // Without saving
             if (!(menu.state()==Menu::State::Playing && menu.sandbox() && menu.sandbox()->paused() &&
                   menu.sandbox()->world().snapshot()==saved))
@@ -488,7 +506,7 @@ int main(int argc,char* argv[]) {
             const auto prior_settings=openemperor::menu::read_settings(t.root/"app").value;
             Menu recovered({},t.root/"app",std::make_unique<FakeDialog>());
             recovered.initialize(window,renderer);
-            click(recovered,90,310); // Load Save.
+            click_label(recovered,window,renderer,"L Load Save"); // Load Save.
             click(recovered,90,210); // Switch from Manual saves to Recovery history.
             click(recovered,90,560); finish_load(recovered);
             if (!(recovered.state()==Menu::State::Playing && recovered.sandbox() &&
@@ -513,7 +531,7 @@ int main(int argc,char* argv[]) {
             Menu upgrade({},upgrade_root,std::make_unique<FakeDialog>());
             upgrade.initialize(window,renderer);
             check(upgrade.state()==Menu::State::MainMenu,"upgrade menu did not initialize");
-            click(upgrade,90,310);
+            click_label(upgrade,window,renderer,"L Load Save");
             check(upgrade.state()==Menu::State::LoadSandbox,"upgrade save list did not open");
             click(upgrade,480,650);
             check(upgrade.state()==Menu::State::ConfirmUpgrade &&
@@ -542,7 +560,7 @@ int main(int argc,char* argv[]) {
             std::ifstream source_file(v3_source,std::ios::binary);
             const std::string source_bytes((std::istreambuf_iterator<char>(source_file)),{});
             Menu upgrade({},upgrade_root,std::make_unique<FakeDialog>());
-            upgrade.initialize(window,renderer);click(upgrade,90,310);
+            upgrade.initialize(window,renderer);click_label(upgrade,window,renderer,"L Load Save");
             click(upgrade,900,234); // Select the second (v3 copy) entry, not the historical v2 source.
             click(upgrade,480,650);
             check(upgrade.state()==Menu::State::ConfirmUpgrade,"v3 demolition copy needs confirmation");
@@ -569,7 +587,7 @@ int main(int argc,char* argv[]) {
                   restarted.settings().profile==openemperor::simulation::RulesProfile::CityV11 &&
                   restarted.settings().prepared_starter,
                   "restart did not retain the selected profile and starter choice");
-            click(restarted,90,310);
+            click_label(restarted,window,renderer,"L Load Save");
             click(restarted,90,560); finish_load(restarted);
             check(restarted.state()==Menu::State::Playing && restarted.sandbox()->paused() &&
                   !restarted.sandbox()->walker_visuals_active() &&
@@ -579,7 +597,7 @@ int main(int argc,char* argv[]) {
             const auto baseline=restarted.sandbox()->world().snapshot();
             const auto external=t.root/"external.json";
             fs::copy_file(restarted.sandbox()->save_path(),external);
-            key(restarted,SDLK_ESCAPE); click(restarted,90,400);
+            key(restarted,SDLK_ESCAPE); click_label(restarted,window,renderer,"L Load Save");
             click(restarted,480,555); // Open external save dialog
             check(static_cast<bool>(restart_dialog->callback),"external save dialog missing");
             restart_dialog->answer({openemperor::menu::DialogResult::Kind::Selected,external.string()});
@@ -618,11 +636,11 @@ int main(int argc,char* argv[]) {
                   "malformed save broke save list");
             Menu malformed({},t.root/"app",std::make_unique<FakeDialog>());
             malformed.initialize(window,renderer);
-            click(malformed,90,310); key(malformed,SDLK_DOWN); click(malformed,90,560);
+            click_label(malformed,window,renderer,"L Load Save"); key(malformed,SDLK_DOWN); click(malformed,90,560);
             finish_load(malformed);
             check(malformed.state()==Menu::State::Playing,"valid save could not load beside corrupt one");
             const auto retained=malformed.sandbox()->world().snapshot();
-            key(malformed,SDLK_ESCAPE); click(malformed,90,400); click(malformed,90,560);
+            key(malformed,SDLK_ESCAPE); click_label(malformed,window,renderer,"L Load Save"); click(malformed,90,560);
             finish_load(malformed);
             check(malformed.state()==Menu::State::LoadSandbox && malformed.sandbox() &&
                   malformed.sandbox()->world().snapshot()==retained &&
@@ -641,6 +659,7 @@ int main(int argc,char* argv[]) {
                   openemperor::menu::read_settings(t.root/"app").needs_reset,
                   "unknown settings overwritten at startup");
             check(reset.render(),"render actual preferences-reset control");
+            click_label(reset,window,renderer,"Advanced / Legacy");
             const auto reset_rect=reset.diagnostic_button_rect("Reset preferences");
             const auto sustainable_rect=reset.diagnostic_button_rect("S Sustainable economy");
             const auto logistics_rect=reset.diagnostic_button_rect("M Needs-aware logistics");

@@ -179,6 +179,10 @@ struct Harness {
         if (menu->state()==Menu::State::Playing) last_click.push_back({{"phase","release"},{"input",input(raw)}});
     }
     void menu_click(const std::string& label) {
+        if (menu->state()==Menu::State::MainMenu &&
+            !menu->diagnostic_button_rect(label) &&
+            menu->diagnostic_button_rect("Advanced / Legacy"))
+            menu_click("Advanced / Legacy");
         require(menu->render(),"Cannot render actual menu");
         const auto rect=menu->diagnostic_button_rect(label);
         require(rect.has_value(),"Missing actual menu control: "+label);

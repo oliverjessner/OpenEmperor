@@ -8,7 +8,18 @@ rewrites an older save.
 
 ## Current city play
 
-Select **City-v16** in New Sandbox for the current combined city systems. Its
+**Play Original economy** opens a new-city setup for the recommended existing
+Rule18/schema34/policy3 experiment. Selection is explicit and session-only:
+review the data root, map, difficulty and **Paid four-house starter** or
+**Empty city**, then choose **Start sandbox**. The recommendation changes menu
+presentation, not World rules, save formats or stored preferences. The
+[player guide](original-economy/player-handoff.md) describes this path and the
+[OE49 assessment](qa/oe49-player-mode.md) records its acceptance boundaries.
+Original campaigns and Emperor savegames remain unsupported; the finite OE48
+city still has five House fires and does not establish complete original parity.
+
+**Advanced / Legacy** retains **N New Sandbox** and all historical profile
+choices. Select **City-v16** there for the combined authored city systems. Its
 ordinary default is rule 4; fresh general settings still select City-v11 rule 3.
 Existing preferences and saves retain their choices. See [City systems](city-systems.md)
 for Markets, staffing/operations, demolition, Fire, quality, Water and Health;
@@ -31,7 +42,8 @@ V1. The [cliff/ramp visual starter](rendering/cliff-ramp-integration.md) uses
 explicitly authored terrain, not verified original-map slopes. Bridge/Ramp
 selection, preview and owned links do not migrate older saves or defaults.
 
-**O Original economy** selects the separate optional Rule10/schema26 experiment.
+In **Advanced / Legacy**, **O Original economy** selects the separate optional
+Rule10/schema26 experiment; it retains its existing shortcut from the main menu.
 The [player guide](original-economy/player-handoff.md) covers its paid starter,
 real deliveries, house development and recovery; its current limits differ from
 the authored City systems above. Historical rules7–9 and their schemas remain
@@ -74,6 +86,7 @@ identities stay mandatory. Rules1–16 and their saves do not migrate. The
 separate citywide diagnosis, paid controls and gameplay acceptance.
 
 **U Deadline-aware food** separately selects authored **Rule18/schema34/Policy3**,
+the same existing contract selected by **Play Original economy**,
 also available as `--original-deadline-food-dispatch`. It inherits Rule17's paid
 services, fire and economy. Only Market-to-House Food target selection changes;
 physical arrival still owns delivery and quality. Farm-to-Market selection,
@@ -131,7 +144,7 @@ entities are sorted by stable monotone IDs, core foundations are 2×2 and each
 courier has its own cyclic target cursor. No historical profile acquires a later
 feature on ordinary load.
 
-Original-economy schemas23–29 require their exact explicit rule generation.
+Original-economy schemas23–34 require their exact explicit rule generation.
 Schema29 additionally requires the immutable
 `rules.market_logistics: "authored-needs-aware-market-v1"` identity; it stores no
 new demand authority and does not convert schema28 cities. Manual F5/F9 and
@@ -153,7 +166,23 @@ in City-v8/v9. The legacy goal conditions and fields remain independently checke
 
 ## Start from the menu
 
-`./build/openemperor` opens the normal main menu. Choose a folder containing installed or extracted original Emperor files, then select **New sandbox**, a supported standalone map, and an OpenEmperor rules profile. Fresh settings preselect `sandbox-city-v11` and its paid prepared starter; an existing stored profile and starter choice are preserved. The GOG offline installer file alone is not a usable data folder. `--data <directory>` overrides the remembered folder for this launch without changing direct CLI mode semantics. The old `--sandbox` command below still starts directly with its historical v1 default.
+`./build/openemperor` opens the normal main menu. Choose a folder containing
+installed or extracted original Emperor files. **Play Original economy** creates
+a new city using the recommended experimental Rule18; it never resumes or
+upgrades an existing save. **Advanced / Legacy → N New Sandbox** opens the
+historical profile selector. Its fresh settings still preselect
+`sandbox-city-v11` rule3 and the paid prepared starter; an existing stored profile
+and starter choice are preserved. Ordinary City-v16 remains rule4, with Bridge
+rule5 and Ramp rule6 as explicit options. O/F/S/M/W/I/D/T/U and N remain main-menu
+keyboard shortcuts, including while the advanced list is closed.
+
+The GOG offline installer file alone is not a usable data folder.
+`--data <directory>` overrides the remembered folder for this launch without
+changing direct CLI mode semantics. The old `--sandbox` command below still
+starts directly with its historical v1 default. Missing/unreadable data require
+a valid data folder; unsupported or unchecked maps cannot start the selected
+rules. Start also validates model, graphics and paid placement. A failed start
+keeps the retained city intact.
 
 The menu creates a unique save target for each new session but writes no save until the Save button or F5 is used. Escape first cancels an active road or UI gesture; otherwise Escape or **Menu** retains the session without advancing simulation. **Resume session** continues the same World and camera, with its previous pause/speed state. **Load save** shows bounded, validated OpenEmperor save entries and can open an external OpenEmperor save file. It checks the original map hash and decoded buildability mask before replacing any existing World. Loading starts paused at the saved tick. A changed World prompts Save / Without saving / Cancel before replacement or exit; failed writes keep the session. Window close uses the same prompt. Direct `--sandbox` retains its existing Escape-to-exit behavior.
 

@@ -38,15 +38,15 @@ public:
     VisualSelection visual_selection() const;
     const maps::MapRulesResult& map_rules_result() const { return map_preflight_.result(); }
     bool map_rules_can_start() const;
-    bool original_setup() const { return original_new_game_; }
-    bool original_fire_protection_setup() const { return original_fire_protection_new_game_; }
-    bool original_sustainable_economy_setup() const { return original_sustainable_economy_new_game_; }
-    bool original_cardinal_water_setup() const { return original_cardinal_water_new_game_; }
-    bool original_deadline_service_dispatch_setup() const { return original_deadline_service_dispatch_new_game_; }
-    bool original_deadline_food_dispatch_setup() const { return original_deadline_food_dispatch_new_game_; }
-    bool original_deadline_fire_dispatch_setup() const { return original_deadline_fire_dispatch_new_game_; }
-    bool original_inspector_coordination_setup() const { return original_inspector_coordination_new_game_; }
-    bool original_market_logistics_setup() const { return original_market_logistics_new_game_; }
+    bool original_setup() const { return original_rule_version_.has_value(); }
+    bool original_fire_protection_setup() const { return original_rule_version_==simulation::kOriginalFireProtectionRuleVersion; }
+    bool original_sustainable_economy_setup() const { return original_rule_version_==simulation::kOriginalSustainableRuleVersion; }
+    bool original_cardinal_water_setup() const { return original_rule_version_==simulation::kOriginalCardinalWaterRuleVersion; }
+    bool original_deadline_service_dispatch_setup() const { return original_rule_version_==simulation::kOriginalDeadlineServiceDispatchRuleVersion; }
+    bool original_deadline_food_dispatch_setup() const { return original_rule_version_==simulation::kOriginalDeadlineFoodDispatchRuleVersion; }
+    bool original_deadline_fire_dispatch_setup() const { return original_rule_version_==simulation::kOriginalDeadlineFireDispatchRuleVersion; }
+    bool original_inspector_coordination_setup() const { return original_rule_version_==simulation::kOriginalInspectorCoordinationRuleVersion; }
+    bool original_market_logistics_setup() const { return original_rule_version_==simulation::kOriginalMarketLogisticsRuleVersion; }
     original::Difficulty original_difficulty() const { return original_difficulty_; }
     bool original_paid_starter() const { return original_paid_starter_; }
     std::string recovery_history_id() const { return autosave_ ? autosave_->history_id():std::string{}; }
@@ -103,15 +103,9 @@ private:
     Settings settings_;
     bool ramps_new_game_=false; // Explicit rule6 setup, never a saved default or migration.
     bool bridges_new_game_=false; // Explicit setup choice, never a default/save upgrade.
-    bool original_new_game_=false; // Session-only opt-in; never a RulesProfile/settings default.
-    bool original_fire_protection_new_game_=false; // Explicit Rule11 session choice, never a default.
-    bool original_sustainable_economy_new_game_=false; // Explicit Rule12, never persisted as a default.
-    bool original_cardinal_water_new_game_=false; // Explicit Rule14, never a saved default.
-    bool original_deadline_service_dispatch_new_game_=false; // Explicit Rule17, never a default or migration.
-    bool original_deadline_food_dispatch_new_game_=false; // Explicit Rule18, never a default or migration.
-    bool original_deadline_fire_dispatch_new_game_=false; // Explicit Rule16, never a default or migration.
-    bool original_inspector_coordination_new_game_=false; // Explicit Rule15, never a default or migration.
-    bool original_market_logistics_new_game_=false; // Explicit authored Rule13, never a default.
+    // Session-only explicit selection; simulation constants and MapRulesRequest own the contract.
+    std::optional<std::uint32_t> original_rule_version_;
+    bool advanced_modes_open_=false;
     original::Difficulty original_difficulty_=original::Difficulty::Normal;
     bool original_paid_starter_=true;
     MapRulesPreflight map_preflight_;
