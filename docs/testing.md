@@ -44,6 +44,24 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Original building visuals (OE52)
+
+`original-building-visual-profile` checks authored inputs, atomic source/metadata
+refusal, native Type30 geometry and deduplicated budgets. Its `-real` companion
+uses the explicitly configured `OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT` and the
+actual copied application resources. `original-building-selection-wiring`
+checks automatic/custom/fingerprint precedence without claiming pixel acceptance.
+
+Set `OPENEMPEROR_OE52_PAID_TEST_SAVE` to an explicitly supplied earned
+Rule18/schema34/policy3 Xia save to register
+`original-building-paid-production-view`. The complete66-body/46-courier city is
+required; there are no original-data fixtures in Git. The test reserves a new
+private output below `.local/oe52/` for each invocation, checks full F5/F9 bytes,
+90 size/zoom measurements, alpha picking, F4 and resource/authority guards.
+It captures29 PNGs with owned-target readback before Present. Open the images;
+its `report.json` deliberately leaves visual review and native/human acceptance
+unconfirmed. See the [OE52 assessment](rendering/oe52-original-visuals.md).
+
 ## Rule19 safe demolition
 
 The explicit Rule19/schema35 slice has focused tests

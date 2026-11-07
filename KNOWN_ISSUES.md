@@ -12,6 +12,14 @@ complete original-game compatibility.
   needs-aware goods selection.
   Original venue/performer chains and illness are missing. Rules10–18 retain
   their House/production demolition refusal; incompatible development saves are refused.
+- **Original artwork remains bounded.** OE52 adds ten source-registered static
+  bases in Original production, sharing the existing Well image. Static source
+  pixels and authored front-cell anchors do not establish original animation
+  cadence, runtime pivots or whole-scene composition parity. Food/Hemp farm
+  bodies, unassigned service/culture/religion/luxury walker families and pending
+  Elite plots retain their named historical fallbacks. Existing Market,
+  Warehouse and FireWatch core previews are not newly identified original
+  registrations. See the [OE52 evidence and validation](docs/rendering/oe52-original-visuals.md).
 - **Rule19 demolition is deliberately limited.** The separate **V Safe demolition
   economy** opt-in uses schema35 and permits only never-admitted, empty Common2×2
   Houses and paused Clay Sources whose physical production, delivery and return
@@ -110,7 +118,10 @@ complete original-game compatibility.
   sites have worse individual fire measures. This is not full city stability,
   indefinite fairness or a flawless bootstrap:27 Food misses precede the measured
   window. Plans have different real entry ticks, so their window differences do
-  not isolate the additional Market's effect. Rule19/schema35 is not allocated;
+  not isolate the additional Market's effect. At that OE48 assessment
+  Rule19/schema35 was not allocated; the separately selected
+  [OE51 contract](docs/gameplay/oe51-demolition.md) now allocates it. That assessment
+  did not establish any additional economy generation;
   all historical generations and application defaults remain exact. Native human
   acceptance and complete original-runtime parity remain open.
 - **High-tier progression has a bounded Rule12 blocker.** The
