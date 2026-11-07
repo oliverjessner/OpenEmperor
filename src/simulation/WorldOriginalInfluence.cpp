@@ -282,6 +282,18 @@ void World::rebuild_original_influence_cache() {
             if (!model) invalid("paid Provider lost its own named desirability model");
             sources.push_back({p.building_id,static_cast<OriginalInfluenceSourceType>(*model)});
         }
+        if (original_music_venues_enabled()) {
+            if (!original_production_->culture) invalid("Music influence requires its exact culture state");
+            // Rule22 changes the School's visitor owner, not its existing
+            // physical model influence. The Theatre supplies no new DES source.
+            for (const auto& school:original_production_->culture->schools) {
+                const auto kind=building(school.building_id).kind;
+                const auto model=original_influence_model(kind);
+                if (kind!=Object::OriginalMusicSchool211 || !model)
+                    invalid("paid Music School lost its own named desirability model");
+                sources.push_back({school.building_id,static_cast<OriginalInfluenceSourceType>(*model)});
+            }
+        }
         std::sort(sources.begin(),sources.end(),[](const auto& a,const auto& b){return a.building_id<b.building_id;});
     }
     candidate->sources.reserve(sources.size());candidate->prefixes.reserve(sources.size()+1);

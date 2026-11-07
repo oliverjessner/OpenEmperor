@@ -1,6 +1,7 @@
 #include "OriginalMusicVenueFixture.h"
 #include "persistence/RecoveryStore.h"
 
+#include <array>
 #include <charconv>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -80,6 +81,75 @@ void canonical_active_arrived_expired_and_recovery() {
             "Complete103-tick active/timer continuation diverged");}
         q::invariants(continued);
     }
+}
+void nonzero_paid_school_desire_survives_save_and_recovery() {
+    auto text=q::authored_model();
+    const std::string empty="211,Music  School,{,50,0,0,0,0,8,";
+    const auto at=text.find(empty);check(at!=std::string::npos,"Authored zero-spread School row missing");
+    // Independently authored spread, not the supplied Original model row.
+    // Rings1..3 contribute9, rings4..6 contribute8, and rings7..8 contribute7.
+    text.replace(at,empty.size(),"211,Music  School,{,50,9,3,-1,8,8,");
+    q::Fixture fixture(text);auto world=fixture.world();const auto scene=q::scene(world);
+    // The nearest cells in the three2x2 Homes are at Chebyshev distances2,2,5
+    // from the School's complete2x2 body. Flat authored terrain adds no bonus.
+    constexpr std::array<int,3> expected{9,9,8};
+    const auto check_sources=[&](const sim::World& current) {
+        for(std::size_t i=0;i<scene.homes.size();++i) {
+            const auto proof=current.original_influence_provenance(scene.homes[i]);
+            check(proof.sources.size()==1&&proof.sources.front().building_id==scene.source&&
+                  proof.sources.front().type==sim::OriginalInfluenceSourceType::Music211&&
+                  proof.sources.front().contribution==expected[i]&&proof.raw_value==expected[i]&&
+                  proof.cardinal_water_bonus==0&&proof.value==expected[i]&&
+                  current.original_house_influence_value(scene.homes[i])==expected[i],
+                  "Paid Rule22 School disappeared, duplicated, or granted an extra Theatre desirability source");
+        }
+    };
+    check_sources(world);q::through(world,142);
+    for(std::size_t i=0;i<scene.homes.size();++i) {
+        const auto& row=world.original_production_state()->housing.houses[i];
+        check(row.building_id==scene.homes[i]&&row.last_evaluation&&row.last_evaluation->tick==142&&
+              row.last_evaluation->input.desirability==expected[i],
+              "Actual occupied phase39 did not record the independent paid School contribution");
+    }
+    f::buy(world,sim::set_building_operation(scene.source,false));check_sources(world);
+    const auto baseline=world.snapshot();const auto canonical=fixture.root.path/"school-f5.json";
+    const auto rewrite=fixture.root.path/"school-f9.json";
+    save::write_save(canonical,fixture.document(world),fixture.root.data,fixture.mask());
+    const auto bytes=f::read_text(canonical);const auto parsed=save::read_save(canonical);
+    auto continued=fixture.restore(parsed);check(continued.snapshot()==baseline,"Complete nonzero-School load changed authority");
+    save::write_save(rewrite,fixture.document(continued),fixture.root.data,fixture.mask());
+    check(f::read_text(rewrite)==bytes,"F5/F9 persistence boundary changed complete nonzero-School bytes");
+    save::RecoveryStore recovery(fixture.root.path/"school-recovery",fixture.root.data,
+        save::recovery_storage_budget_bytes,save::RecoveryAccess::OriginalProduction);
+    const auto history=recovery.create_history(parsed,fixture.mask());
+    const auto first=recovery.write_checkpoint(history,parsed,fixture.mask());
+    check(first.loadable()&&f::read_text(first.path)==bytes&&
+          fixture.restore(save::read_save(first.path)).snapshot()==baseline,
+          "Recovery lost complete nonzero-School phase39 history");
+    auto hostile=parsed;
+    --hostile.world.original_economy->houses.front().house.desirability;
+    auto& tampered=hostile.world.original_production->housing.houses.front();
+    --tampered.last_evaluation->input.desirability;
+    for(auto& entry:tampered.first_transitions)
+        if(entry&&entry->evaluation.tick==142)--entry->evaluation.input.desirability;
+    q::refuses([&]{(void)fixture.restore(hostile);},"Forged paid-source desire reached restore");
+    q::refuses([&]{save::write_save(canonical,hostile,fixture.root.data,fixture.mask());},
+        "Forged paid-source desire reached atomic publication");
+    check(world.snapshot()==baseline&&f::read_text(canonical)==bytes,
+          "Rejected desire forgery changed live authority or prior canonical bytes");
+    auto expected_world=world;
+    for(int tick=0;tick<103;++tick) {
+        continued.tick();expected_world.tick();
+        check(continued.snapshot()==expected_world.snapshot(),"Complete nonzero-School103-tick continuation differs");
+    }
+    check_sources(continued);q::invariants(continued);
+    const auto later=fixture.root.path/"school-continued.json",independent=fixture.root.path/"school-expected.json";
+    save::write_save(later,fixture.document(continued),fixture.root.data,fixture.mask());
+    save::write_save(independent,fixture.document(expected_world),fixture.root.data,fixture.mask());
+    const auto last=recovery.write_checkpoint(history,fixture.document(continued),fixture.mask());
+    check(f::read_text(later)==f::read_text(independent)&&f::read_text(last.path)==f::read_text(later)&&
+          fixture.restore(save::read_save(last.path)).snapshot()==continued.snapshot(),
+          "Full103-tick nonzero-School Save/Recovery bytes or restored snapshot differ");
 }
 void hostile_world_and_atomic_publication() {
     q::Fixture fixture;auto world=earned(fixture);const auto baseline=world.snapshot();
@@ -413,7 +483,8 @@ int process(int argc,char** argv) {
 }
 int main(int argc,char** argv){try{
     if(argc>1)return process(argc,argv);
-    checked_model_capability();canonical_active_arrived_expired_and_recovery();hostile_world_and_atomic_publication();
+    checked_model_capability();canonical_active_arrived_expired_and_recovery();
+    nonzero_paid_school_desire_survives_save_and_recovery();hostile_world_and_atomic_publication();
     unused_channel_and_actual_population_clock();model_staffing_ceilings_use_actual_model_and_residents();
     aggregate_spawns_require_simultaneous_model_workforce();
     duplicate_actual_incoming_and_source_ownership();
