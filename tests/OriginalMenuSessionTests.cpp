@@ -478,7 +478,8 @@ void recommended_paid_start(Menu& menu) {
     check(world.rule_version()==18 && world.profile()==sim::RulesProfile::CityV16 &&
         world.original_deadline_food_dispatch_enabled() && world.ticks()==0 &&
         world.total_population()==0 && house_count(world)==4 && world.construction_spent_total()>0 &&
-        world.treasury()+world.construction_spent_total()==12000 &&
+        world.construction_spent_total()<=12000 &&
+        world.treasury()==12000-static_cast<std::int64_t>(world.construction_spent_total()) &&
         world.original_rules_model()->difficulty()==orig::Difficulty::Normal,
         "Recommended start did not buy the actual four-house Rule18 city from its12000-Funds budget");
 }
