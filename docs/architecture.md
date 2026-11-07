@@ -67,6 +67,12 @@ permitted height-transition edge. Source terrain, ordinary blockers and prior ru
 contracts stay intact. Rendering interpolates authoritative path position rather
 than creating another movement clock. See [Bridges](city-v16-bridges.md) and [Ramps](city-v16-ramps.md).
 
+The separate authored Rule20/schema36 source-cell experiment inherits classic
+Rule6 and uses the same World navigator. `WorldSourceCellRamp.cpp` owns paid
+three-cell claims and the shared flat/slope/flat surface; its renderer prepares
+only presentation. Original raw ramp cells remain refused, and Rules1–19 and
+all prior schemas stay separate. See [OE53](rendering/oe53-terrain-integration.md).
+
 The optional Rule10 original economy binds one immutable model prepared from the
 selected installation and Difficulty. Worlds never search for or reread that file.
 Its own House, goods and service authority integrates with the same World/transport

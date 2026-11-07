@@ -19,7 +19,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     CancelUpgrade, ToggleAutosave, ToggleSaveView, DeleteRecovery, ConfirmDeleteRecovery,
     CancelDeleteRecovery, GreatWallChoice, RecheckMap, BridgesChoice, RampsChoice,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
-    OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes,
+    OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice,
     MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
@@ -224,6 +224,7 @@ std::optional<maps::MapRulesRequest> MenuSession::selected_map_request() const {
     if (map_index_>=catalog_.entries.size() || catalog_.data_root.empty()) return std::nullopt;
     const auto profile=original_setup() ? simulation::RulesProfile::CityV16:settings_.profile;
     const auto version=original_rule_version_.value_or(
+        source_cell_ramps_new_game_ && settings_.profile==simulation::RulesProfile::CityV16 ? simulation::kAuthoredSourceCellRampRuleVersion:
         ramps_new_game_ && settings_.profile==simulation::RulesProfile::CityV16 ? 6U:
         bridges_new_game_ && settings_.profile==simulation::RulesProfile::CityV16 ? 5U:
         simulation::current_rule_version(settings_.profile));
@@ -274,14 +275,17 @@ void MenuSession::finish_loading() {
             document=persistence::read_save(save_path);
             // A managed checkpoint selected through the file chooser is still a
             // recovery source. Give it a new manual target so F5 cannot overwrite it.
-            if (!recovery_load && simulation::original_production_enabled(
-                    document->world.profile,document->world.rule_version)) {
+            if (!recovery_load && (simulation::original_production_enabled(
+                    document->world.profile,document->world.rule_version) ||
+                    simulation::source_cell_ramps_enabled(document->world.profile,document->world.rule_version))) {
                 const auto resolved=fs::canonical(save_path);
                 const auto recovery_root=fs::weakly_canonical(app_root_/"recovery");
                 const auto relative=resolved.lexically_relative(recovery_root);
                 if (!relative.empty() && *relative.begin()!="..") {
                     persistence::RecoveryStore store(app_root_,settings_.data_root,
-                        persistence::recovery_storage_budget_bytes,persistence::RecoveryAccess::OriginalProduction);
+                        persistence::recovery_storage_budget_bytes,
+                        simulation::source_cell_ramps_enabled(document->world.profile,document->world.rule_version) ?
+                            persistence::RecoveryAccess::LegacyOnly:persistence::RecoveryAccess::OriginalProduction);
                     const auto catalog=store.catalog();
                     for (const auto& history:catalog.histories) {
                         if (!history.error.empty()) continue;
@@ -555,14 +559,20 @@ void MenuSession::perform(int action) {
             rebuild_buttons(); break;
         }
         case Demo: demo_=!demo_; settings_.prepared_starter=demo_; rebuild_buttons(); break;
+        case SourceCellRampsChoice:
+            if(settings_.profile==simulation::RulesProfile::CityV16) {
+                source_cell_ramps_new_game_=!source_cell_ramps_new_game_;
+                ramps_new_game_=false;bridges_new_game_=false;check_selected_map();rebuild_buttons();
+            }
+            break;
         case RampsChoice:
             if(settings_.profile==simulation::RulesProfile::CityV16) {
-                ramps_new_game_=!ramps_new_game_;check_selected_map();rebuild_buttons();
+                ramps_new_game_=!ramps_new_game_;source_cell_ramps_new_game_=false;check_selected_map();rebuild_buttons();
             }
             break;
         case BridgesChoice:
             if(settings_.profile==simulation::RulesProfile::CityV16) {
-                bridges_new_game_=!bridges_new_game_;check_selected_map();rebuild_buttons();
+                bridges_new_game_=!bridges_new_game_;source_cell_ramps_new_game_=false;check_selected_map();rebuild_buttons();
             }
             break;
         case GreatWallChoice:
@@ -825,9 +835,9 @@ void MenuSession::update(double seconds) {
 }
 void MenuSession::rebuild_buttons() {
     buttons_.clear();
-    auto add=[&](int action,std::string label,int x,int y,int w=180) {
+    auto add=[&](int action,std::string label,int x,int y,int w=180,int h=32) {
         buttons_.push_back({SDL_FRect{static_cast<float>(x),static_cast<float>(y),
-            static_cast<float>(w),32.0f},std::move(label),action});
+            static_cast<float>(w),static_cast<float>(h)},std::move(label),action});
     };
     if (state_==State::DataSetup) {
         add(ChooseFolder,"Choose Game Data Folder",40,135,230);
@@ -885,6 +895,7 @@ void MenuSession::rebuild_buttons() {
         add(ProfilePrev,"Previous rules",40,205); add(ProfileNext,"Next rules",230,205);
         add(Demo,demo_?"Prepared starter settlement":"Empty city",40,270,260);
         if(settings_.profile==simulation::RulesProfile::CityV16) {
+            add(SourceCellRampsChoice,source_cell_ramps_new_game_?"Source-cell ramps ON (rule 20)":"Source-cell ramps (rule 20)",430,285,280,26);
             add(RampsChoice,ramps_new_game_?"Ramps + Bridges ON (rule 6)":"Enable Ramps + Bridges (rule 6)",430,250,280);
             add(BridgesChoice,bridges_new_game_?"Bridges V1 ON (rule 5)":"Enable Bridges V1 (rule 5)",430,205,280);
         }

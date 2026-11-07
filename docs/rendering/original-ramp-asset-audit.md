@@ -94,12 +94,18 @@ N,NE,E,SE,S,SW,W,NW. Pattern3 is a wildcard; pattern4 accepts absolute delta<=1;
 other pattern values compare exactly. The first matching row wins. Camera0
 uses these explicitly ramp-qualified rows:
 
-| Row | Higher neighbor, delta+1 | Opposite and lateral cardinal neighbors | Elevation resource key | Physical record |
+| Row | Higher neighbor, delta+1 | Opposite / lateral cardinal neighbors | Elevation resource key | Physical record |
 |---:|---|---|---|---:|
-| 67 | `(0,+1)` | equal height | `0x204e` | 233 |
-| 68 | `(-1,0)` | equal height | `0x204f` | 234 |
-| 69 | `(0,-1)` | equal height | `0x2050` | 235 |
-| 70 | `(+1,0)` | equal height | `0x2051` | 236 |
+| 67 | `(0,+1)` | wildcard / equal height | `0x204e` | 233 |
+| 68 | `(-1,0)` | wildcard / equal height | `0x204f` | 234 |
+| 69 | `(0,-1)` | wildcard / equal height | `0x2050` | 235 |
+| 70 | `(+1,0)` | wildcard / equal height | `0x2051` | 236 |
+
+OE53 re-read the four bounded table rows through their PE section mapping.
+The opposite cardinal is pattern3 (wildcard); equal opposite/low-join height
+is the prototype and Rule20 authored safety constraint. The earlier table
+incorrectly called both opposite and lateral neighbors equal. See the
+[production authored comparison](oe53-terrain-integration.md).
 
 These rows require raw`0x400`; rows103–106 have looser neighborhoods with the
 same family. The v213 runtime layout independently converts the resource groups

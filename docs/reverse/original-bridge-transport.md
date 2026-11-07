@@ -1,5 +1,10 @@
 # Original bridge transport: evidence and authored V1
 
+The separate [OE53 source-cell experiment](../rendering/oe53-terrain-integration.md)
+uses explicit Rule20/policy3/schema36 and retains the existing paid BridgeSpan
+contract. Its extra land surface grants no original bridge or Ferry authority;
+Rule5/schema21, bank/deck geometry and source admission remain unchanged.
+
 Clean baseline `41af9a171d9ce02e3fe7ebb95e0d70c18ec4c649`; read-only original
 inventory **1464 files /819711091 bytes**, manifest SHA-256
 `dde2382fe1c348da765c8776149a73210b81f6cba7f93a0c6159d79ce3154feb`.

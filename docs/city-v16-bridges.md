@@ -1,5 +1,9 @@
 # City-v16 Bridges V1
 
+The separate [OE53 authored source-cell experiment](rendering/oe53-terrain-integration.md)
+uses explicit Rule20/policy3/schema36. It retains historical RampLink/Bridge
+contracts and keeps native233–244 prototype art and raw-ramp permissions separate.
+
 Baseline: clean HEAD `41af9a171d9ce02e3fe7ebb95e0d70c18ec4c649`.
 The explicit versions are **City-v16 rule 5 / MapPermissions policy 3 / save
 schema 21**. Rule5 inherits rule 4 economics, production, staffing, demand, Service

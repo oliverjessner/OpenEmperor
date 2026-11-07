@@ -3,6 +3,12 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
+- **Source-cell ramps are authored and opt-in.** Rule20/schema36 inherits the
+  classic Rule6 economy and adds one bounded one-level source-cell surface.
+  It does not activate original raw ramps or native233–244 artwork. All four
+  freshly checked original maps retain zero legal differing-height normal-land
+  pairs. Original normalization, actor rounding, compositor, Ferries and complex
+  wall geometry remain unresolved. See the [OE53 scope](docs/rendering/oe53-terrain-integration.md).
 - **Original economy is experimental.** **Play Original economy** explicitly
   selects the existing recommended Rule18/schema34 for a new city. It adds no
   World rule, save schema or migration; **Advanced / Legacy** retains all earlier

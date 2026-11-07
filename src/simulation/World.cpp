@@ -439,6 +439,7 @@ std::uint32_t current_rule_version(RulesProfile profile) {
 }
 
 bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
+    if(source_cell_ramps_enabled(profile,version))return true;
     if (profile==RulesProfile::ProductionV2) return version==2;
     if (profile==RulesProfile::CityV11) return version>=1 && version<=4;
     if (profile==RulesProfile::CityV16) return (version>=1 && version<=16) ||
@@ -469,6 +470,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::CityV16 && version==4) return city_v16_v4;
     static constexpr ProfileRules city_v16_v6{6,32,64,32,5,800};
     if (profile==RulesProfile::CityV16 && version==6) return city_v16_v6;
+    static constexpr ProfileRules city_v16_v20{20,32,64,32,5,800};
+    if(source_cell_ramps_enabled(profile,version))return city_v16_v20;
     static constexpr ProfileRules city_v16_v7{7,32,64,32,5,800};
     if (profile==RulesProfile::CityV16 && version==7) return city_v16_v7;
     static constexpr ProfileRules city_v16_v8{8,32,64,32,5,800};
@@ -548,6 +551,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     } else if (profile_==RulesProfile::CityV16 && rule_version_==3)
         permissions_=authored_simple_permissions(width_,height_,buildable_);
     if(ramps_supported())ramp_index_.assign(buildable_.size(),0);
+    if(source_cell_ramps_supported())source_cell_ramp_index_.assign(buildable_.size(),0);
     if (original_economy_enabled()) {
         original_economy_.emplace();
         if (original_rules_model_)
@@ -810,6 +814,7 @@ std::int64_t World::construction_cost(CommandType type) const {
         return original_production_enabled() ? original_rules_model_->building_value(
             original::ModelBuilding::AncestralShrine,original::BuildingField::Cost):0;
     case CommandType::PlaceRamp:return ramps_supported()?ramp_cost:0;
+    case CommandType::PlaceSourceCellRamp:return source_cell_ramps_supported()?source_cell_ramp_cost:0;
     case CommandType::RemoveRamp:
     case CommandType::PlaceBridge: // Variable span price lives only in validate_bridge().span.paid_cost.
     case CommandType::RemoveBridge:
@@ -1283,6 +1288,9 @@ bool World::city_economy_valid() const {
     if (!add_cost(roads_placed_total_,static_cast<std::uint64_t>(Rules::road_cost))) return false;
     for(const auto& ramp:ramps_)
         if(ramp.paid_cost!=ramp_cost || !add_cost(1,std::uint64_t(ramp.paid_cost)))return false;
+    for(const auto& ramp:source_cell_ramps_)
+        if(!source_cell_ramps_supported()||ramp.paid_cost!=source_cell_ramp_cost ||
+           !add_cost(1,std::uint64_t(ramp.paid_cost)))return false;
     for(const auto& bridge:bridges_)
         if(bridge.paid_cost<=0 || !add_cost(1,std::uint64_t(bridge.paid_cost)))return false;
     for (const auto& value:buildings_) if (value.placed) {
@@ -1382,6 +1390,10 @@ DemolitionStatus World::demolition_status(BuildingId id) const {
 }
 
 CommandResult World::validate(Command command) const {
+    if(command.type==CommandType::PlaceSourceCellRamp) {
+        const auto checked=validate_source_cell_ramp(command.cell,command.ramp_end);
+        return {checked.accepted,checked.accepted,checked.reason,command_sequence_,ticks_,checked.diagnostic};
+    }
     const auto construction=placed_object(command.type);
     const bool industry_construction=construction && original_industry_model(*construction);
     if (command.type==CommandType::PlaceOriginalElitePlot && !original_production_enabled())
@@ -1554,6 +1566,8 @@ CommandResult World::validate(Command command) const {
         if (kind) for (const auto cell:building_footprint_cells(profile_,rule_version_,*kind,command.cell)) {
             if (!in_bounds(cell)) return blocked(BuildBlocker::OutsideMap,cell,"Building footprint outside sandbox grid");
             if(ramp_endpoint(cell))return blocked(BuildBlocker::SandboxOccupied,cell,"Ramp endpoint reserved for a normal road");
+            if(source_cell_ramp_claim(cell))return blocked(BuildBlocker::SandboxOccupied,cell,
+                "Source-cell ramp axial claim reserved for normal roads");
             if(bridge_bank_at(cell))return blocked(BuildBlocker::ProtectedBridge,cell,"Bridge bank is reserved for land-road attachment");
             if (!buildable(cell)) return blocked(permissions_ ? permissions_->building_blocker(cell):
                 BuildBlocker::LegacyBuildabilityRestriction,cell,original_road(cell) ?
@@ -1822,6 +1836,22 @@ CommandResult World::execute(Command command) {
 }
 
 CommandResult World::execute_impl(Command command,bool refresh_after,bool influence_prepared) {
+    if(command.type==CommandType::PlaceSourceCellRamp) {
+        const auto checked=validate_source_cell_ramp(command.cell,command.ramp_end);
+        if(!checked.accepted)return {false,false,checked.reason,command_sequence_,ticks_,checked.diagnostic};
+        // Surface construction can close lateral road edges. Publish only the
+        // complete paid candidate with its derived index and refreshed routes.
+        World candidate=*this;
+        candidate.source_cell_ramps_.push_back(checked.ramp);
+        candidate.index_source_cell_ramp(candidate.source_cell_ramps_.back());
+        ++candidate.next_source_cell_ramp_id_;++candidate.command_sequence_;++candidate.road_revision_;
+        candidate.treasury_-=source_cell_ramp_cost;
+        candidate.construction_spent_total_+=std::uint64_t(source_cell_ramp_cost);
+        candidate.cached_route_.reset();if(refresh_after)candidate.refresh_routes();
+        performance::increment(performance::Counter::WorldExecutes);
+        *this=std::move(candidate);
+        return {true,true,"Authored source-cell ramp built; no upkeep or removal",command_sequence_,ticks_};
+    }
     if (command.type==CommandType::PlaceOriginalElitePlot && !original_production_enabled())
         return validate(command);
     if (original_influence_enabled() && !influence_prepared) {
@@ -2218,6 +2248,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
     case CommandType::SetBuildingWorkforcePriority:
     case CommandType::DemolishBuilding:
     case CommandType::PlaceRamp:
+    case CommandType::PlaceSourceCellRamp:
     case CommandType::RemoveRamp:
     case CommandType::PlaceBridge:
     case CommandType::RemoveBridge:
@@ -4138,6 +4169,7 @@ bool World::navigation_valid() const {
 
 std::string World::canonical_state() const {
     std::ostringstream out;
+    if(source_cell_ramps_supported())out<<authored_source_cell_ramp_contract<<":20|";
     if (original_safe_demolition_enabled()) out<<original_safe_demolition_contract<<":19:"
         <<original_terrain_facts_->source_map_sha256()<<'|';
     else if (original_deadline_food_dispatch_enabled()) out<<original_deadline_food_dispatch_contract<<":18:"
@@ -4217,6 +4249,12 @@ std::string World::canonical_state() const {
         for(const auto& r:ramps_)out<<'|'<<r.id.value<<','<<r.endpoint_a.x<<','<<r.endpoint_a.y
             <<','<<r.endpoint_b.x<<','<<r.endpoint_b.y<<','<<int(r.height_a)<<','<<int(r.height_b)
             <<','<<r.paid_cost<<','<<r.placed_tick;
+    }
+    if(source_cell_ramps_supported()) {
+        out<<"|source-cell-ramps:"<<next_source_cell_ramp_id_;
+        for(const auto& ramp:source_cell_ramps_)out<<'|'<<ramp.id.value<<','<<ramp.source_cell.x<<','<<ramp.source_cell.y
+            <<','<<ramp.high_neighbor.x<<','<<ramp.high_neighbor.y<<','<<int(ramp.low_height)<<','<<int(ramp.high_height)
+            <<','<<ramp.paid_cost<<','<<ramp.placed_tick;
     }
     if(bridges_supported()) {
         out<<"|bridges:"<<next_bridge_id_;
@@ -4479,6 +4517,7 @@ WorldSnapshot World::snapshot() const {
     s.demolition_history=demolition_history_;
     s.bridges=bridges_;s.next_bridge_id=next_bridge_id_;
     s.ramps=ramps_;s.next_ramp_id=next_ramp_id_;
+    s.source_cell_ramps=source_cell_ramps_;s.next_source_cell_ramp_id=next_source_cell_ramp_id_;
     s.original_economy=original_economy_;
     s.original_influence=original_influence_;
     s.original_goods=original_goods_;
@@ -4574,6 +4613,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
         fail("invalid sandbox counters or road count");
     const auto put=[&](Cell cell,Object object,BuildingId owner) {
         if(object!=Object::Road && (w.bridge_at(cell)||w.bridge_bank_at(cell)||w.ramp_endpoint(cell)))fail("saved building overlaps bridge span or bank");
+        if(object!=Object::Road&&w.source_cell_ramp_claim(cell))fail("saved building overlaps source-cell ramp axial claim");
         if (object==Object::Road ? (!w.road_buildable(cell) || w.fixed_passage(cell) || w.original_road(cell)):
             !w.buildable(cell)) fail(w.permissions_ ? "saved object outside permitted map cells":
                 "saved object outside buildable mask");
@@ -4585,6 +4625,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     for (const auto cell:s.roads) put(cell,Object::Road,BuildingId::ClaySource);
     w.restore_bridges(s);
     w.restore_ramps(s);
+    w.restore_source_cell_ramps(s);
     w.ticks_=s.ticks; w.command_sequence_=s.command_sequence; w.road_revision_=s.road_revision;
     w.roads_placed_total_=s.roads_placed_total;
     w.roads_removed_total_=s.roads_removed_total;
@@ -4771,7 +4812,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
             s.road_revision<s.roads_placed_total ||
             s.road_revision-s.roads_placed_total<s.roads_removed_total ||
             s.road_revision-s.roads_placed_total-s.roads_removed_total!=
-                s.buildings.size()+2*s.demolition_history.buildings+s.bridges.size()+s.ramps.size()+
+                s.buildings.size()+2*s.demolition_history.buildings+s.bridges.size()+s.ramps.size()+s.source_cell_ramps.size()+
                     (w.original_influence_enabled() ? 2*s.original_influence->removed_sources.size():0)+materialized+2*retired_count ||
             (w.demolition_supported() && (s.demolition_history.buildings>=UINT32_MAX ||
                 s.buildings.size()+s.demolition_history.buildings+1+
