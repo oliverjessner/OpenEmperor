@@ -42,7 +42,7 @@ template<class Building,class Courier> std::uint64_t movement(const Building& fr
         static_cast<std::uint64_t>(c.edge_progress);
 }
 template<class Buildings,class Couriers>
-void validate(const OriginalCultureState& state,const Buildings& buildings,const Couriers& couriers,std::uint64_t tick,
+void validate_culture(const OriginalCultureState& state,const Buildings& buildings,const Couriers& couriers,std::uint64_t tick,
               const OriginalHousingState& housing) {
     if (!state.next_performer_id || state.schools.size()>original_music_school_limit || state.venues.size()>original_culture_venue_limit)
         invalid("Music venue authority exceeds its fixed bounds");
@@ -211,12 +211,12 @@ void World::validate_original_music_venues_snapshot(const WorldSnapshot& s) {
     }
     if (!s.original_production || !s.original_production->culture || s.original_production->safe_demolition)
         invalid("Rule22 requires its own culture authority and no retirement journal");
-    validate(*s.original_production->culture,s.buildings,s.couriers,s.ticks,s.original_production->housing);
+    validate_culture(*s.original_production->culture,s.buildings,s.couriers,s.ticks,s.original_production->housing);
 }
 void World::validate_original_music_venues_state() const {
     if (!original_music_venues_enabled()) return;
     if (!original_production_ || !original_production_->culture) invalid("Missing actual music venue state");
-    validate(*original_production_->culture,buildings_,couriers_,ticks_,original_production_->housing);
+    validate_culture(*original_production_->culture,buildings_,couriers_,ticks_,original_production_->housing);
 }
 CourierDispatchDecision World::original_music_dispatch_status(const CourierState& c) const {
     if (!original_music_venues_enabled() || !c.enabled) return {CourierDispatchStatus::Disabled,{}};
