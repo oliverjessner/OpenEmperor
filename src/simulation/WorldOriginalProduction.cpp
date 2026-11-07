@@ -22,6 +22,86 @@ std::uint64_t retired_spending(const OriginalProductionState& state) {
             Rules::clay_source_cost:Rules::household_cost);
     return result;
 }
+// Called only for Rule19 after complete purchase, bounds and Housing witness
+// validation. Historical roads have no per-cell placement clock; they are not
+// guessed here. New retirement rows must agree with every retained purchase.
+void validate_retired_purchase_lifetimes(const WorldSnapshot& s) {
+    const auto& production=*s.original_production;
+    const auto& retired=production.safe_demolition->retired;
+    if (s.bridges.size()>bridge_max_spans || s.ramps.size()>ramp_max_links)
+        invalid("Rule19 retired geometry exceeds existing infrastructure bounds");
+    const auto overlaps=[](Cell a,BuildingFootprint as,Cell b,BuildingFootprint bs) {
+        const auto ax=static_cast<std::int64_t>(a.x),ay=static_cast<std::int64_t>(a.y);
+        const auto bx=static_cast<std::int64_t>(b.x),by=static_cast<std::int64_t>(b.y);
+        return ax<bx+bs.width && bx<ax+as.width && ay<by+bs.height && by<ay+as.height;
+    };
+    const auto chronological=[](BuildingId a,std::uint64_t placed_a,BuildingId b,std::uint64_t placed_b) {
+        if (a<b ? placed_a>placed_b:placed_b>placed_a)
+            invalid("Rule19 retired purchase contradicts monotone paid placement order");
+    };
+    const BuildingFootprint closed{2,2};
+    for (std::size_t i=0;i<retired.size();++i) {
+        const auto& entry=retired[i];const Cell origin{entry.origin_x,entry.origin_y};
+        for (std::size_t j=0;j<i;++j) {
+            const auto& earlier=retired[j];
+            chronological(earlier.building_id,earlier.placed_tick,entry.building_id,entry.placed_tick);
+            if (overlaps(origin,closed,{earlier.origin_x,earlier.origin_y},closed) && earlier.removed_tick>entry.placed_tick)
+                invalid("Rule19 retired purchase footprints overlap during their paid lifetimes");
+        }
+        for (const auto& body:s.buildings) {
+            chronological(entry.building_id,entry.placed_tick,body.id,body.placed_tick);
+            const auto current=building_footprint(s.profile,s.rule_version,body.kind);
+            const auto initial=body.kind==Object::OriginalEliteHouse ?
+                building_footprint(s.profile,s.rule_version,Object::OriginalElitePlot):current;
+            if (overlaps(origin,closed,body.cell,initial) &&
+                (body.id<entry.building_id || entry.removed_tick>body.placed_tick))
+                invalid("Rule19 retired purchase overlaps a live paid purchase lifetime");
+            if (body.kind!=Object::OriginalEliteHouse || !overlaps(origin,closed,body.cell,current)) continue;
+            const auto& houses=production.housing.houses;
+            const auto house=std::lower_bound(houses.begin(),houses.end(),body.id,
+                [](const auto& row,BuildingId id){return row.building_id<id;});
+            if (house==houses.end() || house->building_id!=body.id || !house->first_admission_tick)
+                invalid("Rule19 retired geometry requires the actual Elite materialization witness");
+            // The plot owned its initial2x2 from purchase, but only acquired
+            // the extension during first admission. Commands at that tick run
+            // after materialization, so removal must be strictly earlier.
+            for (int y=0;y<current.height;++y) for (int x=0;x<current.width;++x) {
+                if (x<initial.width && y<initial.height) continue;
+                const Cell cell{body.cell.x+x,body.cell.y+y};
+                if (overlaps(origin,closed,cell,{1,1}) && entry.removed_tick>=*house->first_admission_tick)
+                    invalid("Rule19 retirement overlaps an already materialized Elite extension");
+            }
+        }
+        for (const auto& source:s.original_influence->removed_sources) {
+            chronological(entry.building_id,entry.placed_tick,source.building_id,source.placed_tick);
+            const auto& origins=production.housing.neutral_source_origins;
+            const auto source_origin=std::lower_bound(origins.begin(),origins.end(),source.building_id,
+                [](const auto& row,BuildingId id){return row.building_id<id;});
+            if (source_origin==origins.end() || source_origin->building_id!=source.building_id)
+                invalid("Rule19 retired geometry requires the retained neutral source origin");
+            const bool separated=entry.building_id<source.building_id ?
+                entry.removed_tick<=source.placed_tick:source.removed_tick<=entry.placed_tick;
+            if (overlaps(origin,closed,source_origin->origin,closed) && !separated)
+                invalid("Rule19 retired purchase overlaps a closed neutral source lifetime");
+        }
+        // Bridge banks/decks and Ramp endpoints remain reserved after purchase
+        // even if a land road is later disconnected. Their independent IDs do
+        // not order Building commands within a tick; equality permits a real
+        // removal followed by paid infrastructure construction that same tick.
+        for (const auto& bridge:s.bridges) {
+            if (bridge.water_cells.size()>bridge_max_water_cells)
+                invalid("Rule19 retired geometry exceeds the existing Bridge span bound");
+            bool touching=overlaps(origin,closed,bridge.bank_a,{1,1}) || overlaps(origin,closed,bridge.bank_b,{1,1});
+            for (const auto cell:bridge.water_cells) touching|=overlaps(origin,closed,cell,{1,1});
+            if (touching && entry.removed_tick>bridge.placed_tick)
+                invalid("Rule19 retired purchase overlaps a permanent Bridge lifetime");
+        }
+        for (const auto& ramp:s.ramps)
+            if ((overlaps(origin,closed,ramp.endpoint_a,{1,1}) || overlaps(origin,closed,ramp.endpoint_b,{1,1})) &&
+                entry.removed_tick>ramp.placed_tick)
+                invalid("Rule19 retired purchase overlaps a permanent Ramp lifetime");
+    }
+}
 std::uint64_t paid_cost(Object kind) {
     switch (kind) {
     case Object::Household:
@@ -591,6 +671,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
     validate_original_services_snapshot(s);
     validate_original_water_snapshot(s);
     validate_original_housing_snapshot(s);
+    if (safe) validate_retired_purchase_lifetimes(s);
     validate_original_fire_protection_snapshot(s);
     validate_original_finance_snapshot(s);
     validate_original_industry_snapshot(s);

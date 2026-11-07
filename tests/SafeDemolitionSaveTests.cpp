@@ -5,6 +5,7 @@
 #undef main
 
 #include <charconv>
+#include <limits>
 #include <string_view>
 
 namespace oe51_safe_save {
@@ -187,6 +188,146 @@ void retired_fire_clock_refusals() {
     check(f::read_text(file)==original && world.snapshot()==snapshot,
         "Retired fire-clock checks changed protected save bytes or World");
 }
+void reject_retired_lifetime(const Fixture& fixture,const sim::World& world,
+                            save::SaveDocument hostile,std::string_view expected) {
+    const auto file=fixture.root.path/"lifetime35.json";
+    save::write_save(file,fixture.document(world),fixture.root.data,fixture.mask());
+    const auto bytes=f::read_text(file);const auto snapshot=world.snapshot();bool rejected=false;
+    try {sim::World::validate_original_production_snapshot(hostile.world);}
+    catch (const std::invalid_argument& error) {
+        rejected=true;check(std::string_view(error.what()).find(expected)!=std::string_view::npos,
+            "Hostile retirement failed outside its intended lifetime boundary");
+    }
+    check(rejected,"Impossible retired purchase lifetime passed snapshot validation");
+    refuses([&]{(void)restore(fixture,hostile);},"Impossible retired purchase lifetime restored");
+    refuses([&]{save::write_save(file,hostile,fixture.root.data,fixture.mask());},
+        "Impossible retired purchase lifetime reached atomic publication");
+    check(world.snapshot()==snapshot && f::read_text(file)==bytes,
+        "Rejected retired purchase lifetime changed live authority or protected save bytes");
+}
+void retired_purchase_lifetime_refusals() {
+    for (const bool retire_older:{false,true}) {
+        Fixture fixture;auto world=fresh(fixture);
+        const auto a=buy(world,sim::CommandType::PlaceHousehold,{20,22});
+        const auto b=buy(world,sim::CommandType::PlaceHousehold,{25,22});
+        if (retire_older) world.tick();
+        remove(world,retire_older ? a:b);auto hostile=fixture.document(world);
+        auto& row=hostile.world.original_production->safe_demolition->retired.front();
+        row.origin_x=retire_older ? 25:20;row.origin_y=22;
+        reject_retired_lifetime(fixture,world,hostile,"overlaps a live paid purchase lifetime");
+    }
+    {
+        Fixture fixture;auto world=fresh(fixture);
+        const auto a=buy(world,sim::CommandType::PlaceHousehold,{20,22});
+        const auto b=buy(world,sim::CommandType::PlaceHousehold,{25,22});
+        world.tick();remove(world,a);remove(world,b);auto hostile=fixture.document(world);
+        auto& row=hostile.world.original_production->safe_demolition->retired.back();row.origin_x=20;
+        reject_retired_lifetime(fixture,world,hostile,"retired purchase footprints overlap");
+    }
+    for (const bool retire_older:{false,true}) {
+        Fixture fixture;auto world=fresh(fixture);
+        if (!retire_older) for (int n=0;n<10;++n) world.tick();
+        const auto a=buy(world,sim::CommandType::PlaceHousehold,{20,22});
+        if (retire_older) remove(world,a);
+        const auto b=buy(world,sim::CommandType::PlaceHousehold,{25,22});
+        if (!retire_older) remove(world,b);
+        if (retire_older) for (int n=0;n<10;++n) world.tick();
+        auto hostile=fixture.document(world);auto& row=hostile.world.original_production->safe_demolition->retired.front();
+        row.placed_tick=row.removed_tick=retire_older ? 5:0;
+        reject_retired_lifetime(fixture,world,hostile,"monotone paid placement order");
+    }
+    {
+        Fixture fixture;auto world=fresh(fixture);
+        const auto neutral=buy(world,sim::CommandType::PlaceOriginalInfluenceSource,{20,22});
+        const auto house=buy(world,sim::CommandType::PlaceHousehold,{25,22});
+        world.tick();remove(world,neutral);remove(world,house);auto hostile=fixture.document(world);
+        hostile.world.original_production->safe_demolition->retired.front().origin_x=20;
+        reject_retired_lifetime(fixture,world,hostile,"closed neutral source lifetime");
+    }
+    {
+        Fixture fixture;auto world=earned(fixture);auto hostile=fixture.document(world);
+        auto& clay=hostile.world.original_production->safe_demolition->retired.front();
+        check(clay.kind==sim::OriginalRetiredKind::ClaySource,"Missing real drained Clay retirement");
+        clay.origin_x=20;clay.origin_y=22;
+        reject_retired_lifetime(fixture,world,hostile,"overlaps a live paid purchase lifetime");
+    }
+}
+void same_tick_rebuilds_and_later_elite_extension_remain_valid() {
+    {
+        Fixture fixture;auto world=fresh(fixture);const sim::Cell site{20,22};
+        const auto a=buy(world,sim::CommandType::PlaceHousehold,site);remove(world,a);
+        const auto b=buy(world,sim::CommandType::PlaceHousehold,site);remove(world,b);
+        const auto c=buy(world,sim::CommandType::PlaceHousehold,site);
+        const auto neutral=buy(world,sim::CommandType::PlaceOriginalInfluenceSource,{30,22});remove(world,neutral);
+        const auto after_neutral=buy(world,sim::CommandType::PlaceHousehold,{30,22});remove(world,after_neutral);
+        check(a<b && b<c && world.ticks()==0 && world.original_production_state()->safe_demolition->retired.size()==3,
+            "Same-tick reuse did not use distinct actual paid purchase identities");
+        const auto file=fixture.root.path/"same-tick35.json";save::write_save(file,fixture.document(world),fixture.root.data,fixture.mask());
+        const auto bytes=f::read_text(file);auto copy=restore(fixture,save::read_save(file));
+        const auto other=fixture.root.path/"same-tick-copy35.json";save::write_save(other,fixture.document(copy),fixture.root.data,fixture.mask());
+        check(copy.snapshot()==world.snapshot() && f::read_text(other)==bytes,
+            "Legitimate same-tick House/neutral-source reuse lost complete canonical bytes");
+    }
+    {
+        Fixture fixture;auto world=fresh(fixture);
+        const auto elite=buy(world,sim::CommandType::PlaceOriginalElitePlot,{20,20});
+        const auto spare=buy(world,sim::CommandType::PlaceHousehold,{22,20});
+        for (int x=20;x<24;++x) f::buy(world,{sim::CommandType::PlaceRoad,{x,24}});
+        while (world.ticks()<119) world.tick();
+        check(world.building(elite).kind==sim::Object::OriginalElitePlot && world.household_population(spare)==0,
+            "Later-extension fixture did not retain the real blocked2x2 plot and never-admitted spare");
+        remove(world,spare);world.tick();
+        check(world.ticks()==120 && world.building(elite).kind==sim::Object::OriginalEliteHouse &&
+            world.original_production_state()->housing.houses.front().first_admission_tick==120,
+            "Removing the real spare before120 did not permit actual atomic4x4 materialization");
+        const auto document=fixture.document(world);
+        check(restore(fixture,document).snapshot()==world.snapshot(),
+            "Current4x4 footprint falsely rejected an earlier legitimate retired2x2 on its future extension");
+        auto hostile=document;hostile.world.original_production->safe_demolition->retired.front().removed_tick=120;
+        reject_retired_lifetime(fixture,world,hostile,"already materialized Elite extension");
+        // Full current-body bounds are checked by subtraction before the
+        // retirement helper can add any Elite extension-cell offsets.
+        for (const int extreme:{std::numeric_limits<int>::min(),std::numeric_limits<int>::max()})
+            for (const bool x_axis:{false,true}) {
+                auto invalid_origin=document;
+                auto& body=invalid_origin.world.buildings.front();
+                check(body.id==elite && body.kind==sim::Object::OriginalEliteHouse,
+                    "Extreme-origin control lacks the real materialized Elite");
+                if (x_axis) body.cell.x=extreme;else body.cell.y=extreme;
+                reject_retired_lifetime(fixture,world,invalid_origin,"building footprint outside saved grid");
+            }
+    }
+}
+void retired_purchase_and_infrastructure_lifetimes() {
+    Fixture fixture;auto cells=fixture.policy->cells();
+    for (int x=21;x<=28;++x) {
+        auto& cell=cells[static_cast<std::size_t>(20*228+x)];
+        cell.road_allowed=cell.building_allowed=false;cell.bridge_water=true;
+        cell.road_blocker=cell.building_blocker=sim::BuildBlocker::UnsupportedBridgeWater;
+    }
+    cells[20*228+41].height=1;
+    fixture.policy=std::make_shared<const sim::MapPermissions>(228,228,3,std::move(cells),
+        std::vector<sim::FixedGatePassage>{});
+    auto world=fresh(fixture);
+    // Both actual empty Houses precede the independently typed links. The
+    // first2x2 contains bank20,20 without touching any water; the second
+    // contains Ramp endpoint40,20 and stays on its original level.
+    const auto bank_house=buy(world,sim::CommandType::PlaceHousehold,{19,19});remove(world,bank_house);
+    const auto ramp_house=buy(world,sim::CommandType::PlaceHousehold,{39,19});remove(world,ramp_house);
+    for (const auto cell:{sim::Cell{20,20},sim::Cell{29,20},sim::Cell{40,20},sim::Cell{41,20}})
+        f::buy(world,{sim::CommandType::PlaceRoad,cell});
+    f::buy(world,sim::place_bridge({20,20},{29,20}));f::buy(world,sim::place_ramp({40,20},{41,20}));world.tick();
+    check(world.bridges().size()==1 && world.ramps().size()==1 && world.bridges().front().placed_tick==0 &&
+        world.ramps().front().placed_tick==0 && world.ticks()==1,
+        "Infrastructure lifetime fixture lacks actual paid same-tick links after retirement");
+    const auto document=fixture.document(world);
+    check(restore(fixture,document).snapshot()==world.snapshot(),
+        "Legal same-tick retirement before independent Bridge/Ramp purchase was refused");
+    for (std::size_t index=0;index<2;++index) {
+        auto hostile=document;hostile.world.original_production->safe_demolition->retired[index].removed_tick=1;
+        reject_retired_lifetime(fixture,world,hostile,index ? "permanent Ramp lifetime":"permanent Bridge lifetime");
+    }
+}
 fs::path private_path(const char* text,bool input) {
     const auto path=fs::absolute(text).lexically_normal();
     const auto root=fs::canonical(fs::path(__FILE__).parent_path().parent_path())/".local/oe51";
@@ -225,6 +366,9 @@ int main(int argc,char** argv) {
         oe51_safe_save::malformed_documents_and_atomic_refusals();
         oe51_safe_save::historical_generation_isolation();
         oe51_safe_save::retired_fire_clock_refusals();
+        oe51_safe_save::retired_purchase_lifetime_refusals();
+        oe51_safe_save::same_tick_rebuilds_and_later_elite_extension_remain_valid();
+        oe51_safe_save::retired_purchase_and_infrastructure_lifetimes();
         std::cout<<"PASS Rule19/schema35 complete retired-purchase saves, Recovery, refusals and exact historical generations\n";
         return 0;
     } catch (const std::exception& error) {std::cerr<<"Safe demolition save FAIL: "<<error.what()<<'\n';return 1;}
