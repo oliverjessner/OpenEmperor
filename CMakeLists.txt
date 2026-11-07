@@ -136,6 +136,7 @@ set(OPENEMPEROR_COMPATIBILITY_FILES
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/walkers.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-houses.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/roads.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire-inspector.json"
@@ -2083,6 +2084,24 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-safe-demolition-view-tests)
     add_test(NAME original-safe-demolition-view COMMAND openemperor-original-safe-demolition-view-tests)
     set_tests_properties(original-safe-demolition-view PROPERTIES TIMEOUT 120)
+
+    add_executable(openemperor-original-building-visual-view-tests tests/OriginalBuildingVisualViewTests.cpp ${bridge_fixture_sources})
+    target_compile_definitions(openemperor-original-building-visual-view-tests PRIVATE OPENEMPEROR_ORIGINAL_ECONOMY_SAVE_FIXTURE=1)
+    target_link_libraries(openemperor-original-building-visual-view-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-original-building-visual-view-tests)
+    add_dependencies(openemperor-original-building-visual-view-tests openemperor)
+    add_test(NAME original-building-selection-wiring COMMAND openemperor-original-building-visual-view-tests --selection-only)
+    set_tests_properties(original-building-selection-wiring PROPERTIES TIMEOUT 60)
+    set(OPENEMPEROR_OE52_PAID_TEST_SAVE "" CACHE FILEPATH "Explicit earned Rule18/schema34 city for OE52 visual acceptance")
+    if(OPENEMPEROR_OE52_PAID_TEST_SAVE)
+        if(NOT EXISTS "${OPENEMPEROR_OE52_PAID_TEST_SAVE}" OR NOT OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT)
+            message(FATAL_ERROR "OE52 paid View requires an existing explicit save and original data root")
+        endif()
+        add_test(NAME original-building-paid-production-view COMMAND openemperor-original-building-visual-view-tests
+            "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${CMAKE_SOURCE_DIR}" "${OPENEMPEROR_OE52_PAID_TEST_SAVE}"
+            "${CMAKE_SOURCE_DIR}/.local/oe52/ctest-${CMAKE_BUILD_TYPE}")
+        set_tests_properties(original-building-paid-production-view PROPERTIES TIMEOUT 240)
+    endif()
 
     add_executable(openemperor-original-house-visual-view-tests tests/OriginalHouseVisualViewTests.cpp ${bridge_fixture_sources})
     target_compile_definitions(openemperor-original-house-visual-view-tests PRIVATE OPENEMPEROR_ORIGINAL_ECONOMY_SAVE_FIXTURE=1)
