@@ -301,7 +301,13 @@ int main(int argc,char** argv) {
             else if(h.applicable) {row["house_type"]=h.house_type;row["original_house_active"]=h.active;row["fallback_reason"]=h.fallback_reason;
                 if(h.asset)row["asset"]={{"archive",h.asset->archive_relative_path.generic_string()},{"physical_record",h.asset->image_index}};}
             else if(const auto role=oe::building_visual_role(b.kind)) {row["legacy_role"]=assets::building_role_name(*role);row["selection"]="existing curated core";}
-            else {row["selection"]="unassigned authored fallback";row["fallback_reason"]="No configured original or legacy visual role";}
+            else {
+                // This generic lookup is deliberately not a second production
+                // selector. OriginalInfluenceSource, for example, is handled
+                // contextually by SandboxView::visual_role().
+                row["selection"]="No generic kind mapping; production-specific audit required";
+                row["generic_lookup_only"]=true;
+            }
             bodies.push_back(std::move(row));
         }
         check(view->render(),"Render final Walker diagnostic frame");
@@ -385,6 +391,7 @@ int main(int argc,char** argv) {
         write(output/"report.json",Json{{"status","PASS"},{"runtime","SCRIPTED_SDL dummy/software"},{"source_save",input.string()},
             {"rule",18},{"schema",34},{"tick",document.world.ticks},{"complete_world_unchanged",true},{"full_f5_f9_bytes_equal",true},
             {"captures",records},{"matrix",matrix},{"alpha_picking",alpha},{"bodies",bodies},{"actors",actors},{"pure_frame_counters",counters},
+            {"body_export_scope","Generic core lookup; specialized production routing requires a separate source/pixel audit"},
             {"custom_core_suppression",true},{"failed_replacements_atomic",true},{"failed_first_append_uploads",0},
             {"successful_first_append_uploads",appended_uploads},{"legacy_service_post_unchanged",true},
             {"capture_review","NOT_RUN"},{"native","NOT_RUN"},{"human","NOT_RUN"}}.dump(2));
