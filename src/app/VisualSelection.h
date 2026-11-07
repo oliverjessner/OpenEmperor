@@ -35,6 +35,9 @@ struct VisualSelection {
     std::filesystem::path original_house;
     VisualProfileSource original_house_source = VisualProfileSource::Fallback;
     std::string original_house_fallback_reason;
+    std::filesystem::path original_building;
+    VisualProfileSource original_building_source = VisualProfileSource::Fallback;
+    std::string original_building_fallback_reason;
 };
 
 VisualSelection select_visual_profiles(const assets::CompatibilityResult& compatibility,

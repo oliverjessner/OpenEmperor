@@ -237,6 +237,27 @@ public:
     void set_original_house_visuals(const std::filesystem::path& manifest,
                                    VisualProfileSource source=VisualProfileSource::Builtin,
                                    std::string fallback_reason={});
+    void set_original_building_visuals(const std::filesystem::path& manifest,
+        VisualProfileSource source=VisualProfileSource::Builtin,std::string fallback_reason={});
+    struct OriginalBuildingDisplayStats {
+        bool configured=false,active=false;
+        std::string fallback_reason,preparation_error;
+        std::array<bool,assets::original_building_role_count> configured_roles{};
+        std::array<std::uint64_t,assets::original_building_role_count> drawn_instances{},authored_fallbacks{};
+    };
+    OriginalBuildingDisplayStats original_building_display_stats() const;
+    struct OriginalBuildingVisualDiagnostic {
+        bool applicable=false,configured=false,active=false;
+        assets::OriginalBuildingVisualRole role=assets::OriginalBuildingVisualRole::WaterWell;
+        std::uint16_t model_type=0;
+        std::uint8_t actual_side=0;
+        std::optional<assets::AssetId> asset;
+        std::uint16_t image_width=0,image_height=0;
+        double ground_x=0,ground_y=0;
+        scene::Point ground{},image_origin{};
+        std::string selection,evidence,fallback_reason;
+    };
+    OriginalBuildingVisualDiagnostic original_building_visual_diagnostic(simulation::BuildingId id) const;
     struct OriginalHouseDisplayStats {
         bool configured=false,active=false;
         VisualProfileSource source=VisualProfileSource::Fallback;
@@ -513,7 +534,13 @@ private:
     };
     OriginalHouseVisualSelection original_house_visual_selection(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
+    const assets::BuildingVisualEntry* original_building_entry(simulation::Object kind) const;
+    const assets::BuildingVisualEntry* resolved_building_entry(simulation::Cell cell,
+        simulation::Object kind,bool placement_preview=false) const;
     assets::BuildingVisualProfile core_building_visual_profile() const;
+    bool append_requested_original_building_visuals(assets::BuildingVisualProfile& profile,
+        VisualProfileSource core_source,const std::filesystem::path& manifest,
+        VisualProfileSource source,std::string& reason,std::string& error) const;
     bool append_requested_original_house_visuals(assets::BuildingVisualProfile& profile,
         VisualProfileSource core_source,const std::filesystem::path& manifest,
         VisualProfileSource source,std::string& reason,std::string& error) const;
@@ -716,6 +743,11 @@ private:
     std::string original_house_fallback_reason_="No original House profile selected";
     std::string original_house_preparation_error_;
     std::array<std::uint64_t,16> original_house_drawn_instances_{},original_house_authored_fallbacks_{};
+    std::filesystem::path original_building_manifest_;
+    VisualProfileSource original_building_source_=VisualProfileSource::Fallback;
+    std::string original_building_fallback_reason_="No original building profile selected";
+    std::string original_building_preparation_error_;
+    std::array<std::uint64_t,assets::original_building_role_count> original_building_draws_{},original_building_fallbacks_{};
     bool building_enabled_=true;
     std::array<std::uint64_t,assets::building_role_count> building_drawn_instances_{};
     std::array<std::uint64_t,assets::building_role_count> building_placeholder_fallbacks_{};

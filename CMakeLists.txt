@@ -192,6 +192,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/FireVisualProfile.cpp
     src/assets/BuildingVisualProfile.cpp
     src/assets/OriginalHouseVisualProfile.cpp
+    src/assets/OriginalBuildingVisualProfile.cpp
     src/assets/RoadVisualProfile.cpp
     src/assets/CompatibilityProfile.cpp
     src/assets/RgbaPngEncoder.cpp
@@ -1484,6 +1485,15 @@ if(BUILD_TESTING)
     add_test(NAME original-house-visual-profile-real COMMAND openemperor-original-house-visual-profile-tests
         --real "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${OPENEMPEROR_TEST_RESOURCE_ROOT}")
     set_tests_properties(original-house-visual-profile original-house-visual-profile-real PROPERTIES TIMEOUT 60)
+
+    add_executable(openemperor-original-building-visual-profile-tests tests/OriginalBuildingVisualProfileTests.cpp)
+    target_link_libraries(openemperor-original-building-visual-profile-tests PRIVATE openemperor-sg3)
+    openemperor_enable_warnings(openemperor-original-building-visual-profile-tests)
+    add_dependencies(openemperor-original-building-visual-profile-tests openemperor)
+    add_test(NAME original-building-visual-profile COMMAND openemperor-original-building-visual-profile-tests)
+    add_test(NAME original-building-visual-profile-real COMMAND openemperor-original-building-visual-profile-tests
+        --real "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${OPENEMPEROR_TEST_RESOURCE_ROOT}")
+    set_tests_properties(original-building-visual-profile original-building-visual-profile-real PROPERTIES TIMEOUT 60)
 
     add_executable(openemperor-road-topology-tests tests/RoadTopologyTests.cpp
         src/app/RoadTopology.cpp src/app/RoadDrag.cpp)

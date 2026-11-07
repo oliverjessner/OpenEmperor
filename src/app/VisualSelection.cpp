@@ -20,6 +20,9 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
     result.original_house_fallback_reason=compatibility.compatible() ? compatibility.original_house_detail:
         compatibility.detail.empty() ? "unsupported original data revision":
         "unsupported original data: "+compatibility.detail;
+    result.original_building_fallback_reason=compatibility.compatible() ? compatibility.original_building_detail:
+        compatibility.detail.empty() ? "unsupported original data revision":
+        "unsupported original data: "+compatibility.detail;
     result.fire_fallback_reason=compatibility.compatible() ? compatibility.fire_detail:
         compatibility.detail.empty() ? "unsupported original data revision":
         "unsupported original data: "+compatibility.detail;
@@ -71,6 +74,11 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
             result.original_house_source=VisualProfileSource::Builtin;
             result.original_house_fallback_reason.clear();
         }
+        if (compatibility.original_building_compatible()) {
+            result.original_building=compatibility.profile->original_building_profile;
+            result.original_building_source=VisualProfileSource::Builtin;
+            result.original_building_fallback_reason.clear();
+        }
     }
     if (!custom_walker.empty()) {
         result.walker = custom_walker;
@@ -98,6 +106,9 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
         result.original_house.clear();
         result.original_house_source=VisualProfileSource::Custom;
         result.original_house_fallback_reason="Custom building profile selected; no built-in Original House supplement";
+        result.original_building.clear();
+        result.original_building_source=VisualProfileSource::Custom;
+        result.original_building_fallback_reason="Custom building profile selected; no built-in Original building supplement";
     }
     if (!custom_road.empty()) {
         result.road = custom_road;
