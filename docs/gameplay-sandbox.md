@@ -112,6 +112,14 @@ surface owns three axial roads and shares the existing World navigator; the
 combined ramp limit stays64. Native raw ramps remain refused. See the
 [OE53 authored contract](rendering/oe53-terrain-integration.md).
 
+The separate **H Land trade (rule21)** Advanced entry and
+`--authored-land-trade` option select schema37/policy3 with marker
+`authored-land-trade-v1`. It inherits classic Rule6, not Original Rules7–19 or
+Rule20 source-cell ramps. Two ordinary paid Warehouses, one 40-Funds boundary
+license and a real caravan support finite Pottery imports/exports. Select the
+city Warehouse: G binds the other boundary Warehouse, I buys 4 for 24, E sells 4
+for 12 only after physical delivery. See the [OE54 player/accounting contract](original-economy/oe54-trade.md).
+
 ## Legacy profiles and save compatibility
 
 These profiles remain selectable/readable for compatibility; their milestone
@@ -153,6 +161,7 @@ removal gives no refund; rejected/unchanged commands spend nothing.
 | City-v16 rule 18 | 34 | 12000 | Authored deadline-aware Market-to-House Food selection; exact marker, inherited Rule17 services/fire/economy and unchanged production, transport, consumption and limits | Rule10 goal |
 | City-v16 rule 19 | 35 | 12000 | Authored bounded retirement of never-occupied Common2x2 Houses and physically drained paused Clay Sources; Rule18 economy, no refund, fresh paid rebuild identity | Rule10 goal |
 | City-v16 rule 20 | 36 | 1300 | Authored source-cell ramps40; classic Rule6 economy/Bridge/Ramp behavior, unchanged policy3 | City-v13 goal |
+| City-v16 rule 21 | 37 | 1300 | Authored finite Pottery land trade, two paid Warehouses/license40, classic Rule6 economy, unchanged policy3/model identity | City-v13 goal |
 
 Schemas 1–9 keep their historical fixed collection/one-cell semantics. City-v7
 has ten building/six courier entries; City-v8/v9 have eleven/seven. City-v6–8
