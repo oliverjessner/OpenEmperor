@@ -106,14 +106,79 @@ saved authority and do not tick, copy the World or refresh routes per frame.
 
 ## Validation and current acceptance
 
-| Gate | Current scope |
+The supplied **Cities/Xia.map / Normal** proof uses a newly paid compact city:
+five Houses, a Music School, Theatre, Farm with its own Millet field, Market,
+Water Well, Ancestor Shrine and Watch. Its 13 bodies and 24 road cells pass the
+ordinary complete-footprint, permission, cost and prepared-route checks. No
+occupants, workers, goods, Music, money or saved state are injected.
+
+| Normally paid construction | Actual debit |
+|---|---:|
+| 24 road cells | 48 |
+| Five Houses | 400 |
+| Music School211 / Theatre75 | 50 / 105 |
+| Farm / owned Millet field | 50 / 4 |
+| Market / Water Well / Ancestor Shrine | 140 / 25 / 40 |
+| Watch | 80 |
+| **Total: 37 construction commands** | **942** |
+
+One authored sample places Houses at (108,120), (111,120), (114,120), (117,120)
+and (120,120); School at (108,123), Theatre at (118,123), Farm at (114,125),
+its Millet field at (117,125), Market at (114,123), Well at (115,123), Ancestor
+Shrine at (111,123) and Watch at (110,126). Roads occupy x108–121/y122,
+x113/y123–127, x110–112/y125 and x117/y123–124. These are normally revalidated
+sample placements, not a map-name or coordinate admission whitelist.
+
+School, Theatre and Watch are initially paused through ordinary commands while
+Food, Water and Ancestor support establish real residents. Installed workforce
+remains 51 and installed upkeep remains payable; active demand is initially 34.
+At tick 360, actual population/workforce 56 permits ordinary activation of all
+three, with School 8, Theatre 7 and Watch 2 fully staffed. The three pause and
+three activation commands cost nothing and leave construction at 942.
+
+Musician 1 dispatches at 546 and is accepted at 600, assigning venue Music32.
+Musician 2 dispatches at 2433 and is accepted at 2487 with another Music32
+receipt. Both are actual completed School→Theatre cycles with distinct IDs.
+Walker 1 dispatches at 801 and reaches occupied House 1 at 855; the House
+receives Music96 while the Theatre still has Music27 and the real Musician 1
+input. The same Walker subsequently reaches its actual home/idle state before
+the positive seed is accepted. This proves physical return and retirement;
+the report does not retain a separate exact first-return tick.
+
+The positive seed is tick 2487 with five occupied Houses and population 110.
+Both culture sources remain active for the continuation to tick 22887:
+
+| Finite paid observation | Actual result and limit |
 |---|---|
-| Source research | Concrete Actor36 ownership, physical House callback, current Music96 assignment and return are evidenced; Original roaming, complete cadence and binary-save serialization remain UNKNOWN. |
-| Preliminary focused checks | **7/7 PASS**: five new World/save/menu/view/actual-CLI tests plus historical Rule22 World/save tests. Includes paused/expired incoming-visit cases. This is preliminary, not the full regression gate. |
-| Scripted graphics | All 21 preliminary View and 6 Menu captures were opened. Authored fallback, bounded Inspector scrolling and map-aperture clipping remain explicit; final committed-build captures are pending. |
-| Supplied Xia / Normal gameplay | **PENDING**: ordinary paid city, repeated School→Theatre cycles, actual House service and complete venue-walker lifetime, finance and finite ≥20400-tick continuation. |
-| Final technical and persistence gates | **PENDING**: full Release, focused Debug and sanitizers, independent complete-save processes, current historical corpus and Rule18 regressions. Preliminary fixture coverage is not their substitute. |
-| Native and human | **NOT_RUN**. No complete Original entertainment, animation, roaming or religion parity claim. |
+| Continued World ticks | 20400; minimum five occupied Houses and population 110. |
+| Further House visits | 74 additional accepted arrivals; positive Music in all 102000 post-tick occupied-House observations across these five Houses. This finite sample is not a universal coverage guarantee. |
+| Final identities | 12 actual School performer spawns and 83 venue walker spawns; next identities 13 and 84, with the final channels idle/invisible. Attempts are not counted as successful spawns. |
+| Final needs and evolution | Five Plain Cottages/type5, 22 occupants each, Water present, Food quality 80, Ancestor34–38 and Music76–94. All five were already type5 with Music0 at tick 816, before the first Music grant; the Plain stage therefore is not attributed to Music. No advanced Music-gated evolution or full paid progression is claimed. |
+| Finance | Funds 11076→11276; taxes 324→3074 and upkeep 306→2856. The window contributes 2750−2550=200. Complete accounting is 12000−942+3074−2856=11276. This does not establish lifetime profit or indefinite sustainability. |
+| Fire/staff limits | School and Theatre each record 0 burning ticks within this window and finish fully staffed. Watch 13 is burning/unassigned in the observed later state, leaving 49 active versus 51 installed workers. The city is not claimed to have complete fire protection. |
+
+Independent real-Xia validation passes six Creator/Restore processes with 31
+complete literal comparisons, including 18 Recovery payloads, at 0/+103/+20400.
+The ordinary paused-save control is separate from the active gameplay seed;
+it does not substitute a paused city for the finite active continuation.
+
+| Acceptance gate | Observed scope |
+|---|---|
+| Source and build | Baseline `80fb7d33256a419d6281861e79cb78f38b1db867`; tested source `5a41db07dcc58daa2855ffbe8866409f4a5ed77f`, before subsequent documentation-only changes. AppleClang 21.0.0.21000334, SDL 3.4.14, macOS arm64, deployment 27.0; the configured Release footer visibly reports `5a41db07dcc5` without dirty. |
+| Actor36 contract | Concrete ownership, physical House callback, current Music96 assignment and source-directed return are evidenced in the linked source contracts. Deterministic endpoint choice and the World clock remain authored; complete Original behavior remains **PARTIAL**. |
+| World and CLI negatives | The full suite includes actual construction, movement, current-input arrival, return, road cut/paid repair, pause/fire/staff loss and unusable incoming promises. Save checks reject forged identities, Music/first-input clocks, impossible travel/return/training/workforce/history and cross-generation relabels without changing inputs or prior saved state. Actual main-CLI checks cover required context, duplicate and mutually exclusive modes. |
+| Release / Debug / sanitizers | **319/319 Release**, **38/38 Debug** and **38/38 ASan+UBSan PASS**, without failures or skips. Address/Undefined compile and link flags are verified for 29 sanitizer targets, with no sanitizer diagnostics. Leak detection is **NOT_RUN** (`detect_leaks=0`). |
+| Independent schema39 | Four Creator/Restore processes compare four complete documents in two full-byte pairs at relative 0/+103 ticks, actual ticks 597/700. The separate real-Xia six-process proof above also covers +20400 and Recovery. These are current generation comparisons, not a historical schema39 master. |
+| Historical schemas and Rule22 | All six historical stages pass: 132 canonical schema1–34 files, four complete documents per schema35–38 and the Rule18 comparison below. A separate six-process real Rule22 regression performs 40 literal comparisons against the protected OE56 masters. |
+| Rule18 preservation | Seven canonical checkpoints retain their historical labels, including 24480. The 99 logical outputs comprise 93 complete top-level files and four complete Recovery payloads compared literally, plus two documented Recovery-history metadata checks. The actual World retention window is 5395→25795; canonical checkpoint label 24480 is not the final World tick. |
+| Bounded numeric comparison | **74/74 comparator checks PASS**: 46 parity, 18 corrected_bug, 6 unverified and 4 unsupported classifications remain distinct. The actual 1800-value model digest and 18 Housing observations agree. Probes executed on production at `a24d547d70e8`; verified production dependency equivalence and 13 byte-identical linked libraries preserve applicability at 5a41. No new 74-probe execution at 5a41 or full Original-parity PASS is claimed. |
+| Final scripted SDL | All **21 View + 6 Menu images opened**, from the successful final Release. Three sizes×1/2/4, Walker/House Visits/returned state, 100 pure frames with 12 zero work counters and complete F5/F9/Recovery equality are checked. The graphics use a separate authored three-House/423-cost fixture, not the real five-House Xia city. Stage aperture clipping, bounded Inspector scrolling and narrow menu-footer elision remain explicit. No Original Actor36 sprite parity is claimed. |
+| Native delivery / human playtest | **NOT_RUN**. Software SDL and finite paid World/save results do not establish native human acceptance. |
+
+The bounded automated technical and paid gates pass. Original roaming/RNG,
+complete clock and pause/fire-to-status mapping, Original binary saves, other
+venue types and festivals remain unresolved or unsupported. Git delivery is
+reported separately after actual publication and verified merge.
 
 Run the complete suite and affected historical culture/services/Housing checks,
 then the five focused tests:
@@ -122,11 +187,11 @@ then the five focused tests:
 ctest --test-dir build --output-on-failure -R '^original-venue-house-service-(world|save|menu|view|cli)$'
 ```
 
-The Save test also accepts `--create OUTPUT [TICKS]` and
-`--restore INPUT OUTPUT [TICKS]`, with fresh explicit paths under this checkout's
-ignored `.local/oe57/` and continuation 0–20400. Compare complete Creator and
-independently restored SaveDocuments at 0, +103 and +20400 ticks, plus complete
-Recovery payloads. Preserve all inputs and rejected-save bytes. Exercise actual
-arrival, expiry, return, road cut/paid repair, pause/fire/staff loss, hostile
-provenance and exact old-generation refusal. Open captures at each tested size
-and zoom; classify software SDL, native delivery and human acceptance separately.
+The Save test accepts `--create OUTPUT [TICKS]` and
+`--restore INPUT OUTPUT [TICKS]` with fresh explicit paths under ignored
+`.local/oe57/` and continuation 0–20400. Compare complete documents at 0/+103/+20400
+and complete Recovery payloads. Check actual arrival, expiry, return, road cut
+and paid repair, current source pause/fire/staff loss, unusable incoming
+promises, forged identity/Music/training/workforce/history and atomic refusal.
+Preserve source and rejected-save bytes. Open captures at every tested size and
+zoom; keep software scripted, native delivery and human acceptance separate.

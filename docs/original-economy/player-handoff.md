@@ -301,8 +301,15 @@ House-Seite **Visits** zeigt den echten Theatre-/Walker-/Performer-Beleg.
 Theatre und Walker verwenden gekennzeichnete authored Fallbackdarstellung.
 Zielwahl, Hin-/Rückfahrt und World-Zeitbasis sind ausdrücklich authored;
 vollständiges originales Wandern, Festivals und Original-Save-Import fehlen.
+Eine regulär bezahlte Xia/Normal-Probe mit fünf Häusern belegt zwei angenommene
+School→Theatre-Zyklen, einen vollständigen Venue-Walker-Hin-/Rückweg und weitere
+20400 aktive Ticks mit mindestens fünf bewohnten Häusern/110 Einwohnern und
+74 weiteren Music-Ankünften. Das ist eine endliche Probe; die Plain-Stufe
+entstand bereits vor Music, und vollständiger Brandschutz oder höhere
+Music-abhängige Entwicklung sind damit nicht belegt. Native-/Human-Abnahme
+bleibt NOT_RUN.
 Rule18 bleibt empfohlen. Rule22/Schema38 und ältere Städte bleiben exakt in
-ihrer eigenen Generation. Ergebnisse und noch offene Abnahmen stehen im
+ihrer eigenen Generation. Belege und Grenzen stehen im
 [OE57-Leitfaden](oe57-venue-house-service.md).
 
 Der Rule22-Musik-/Venue-Modus lädt ausschließlich seinen eigenen Rule22-/Schema38-Stand

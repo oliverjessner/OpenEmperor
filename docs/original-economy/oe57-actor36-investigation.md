@@ -87,7 +87,7 @@ unresolved roaming choice, with the evidenced effect applied only at arrival.
 **EXE_OBSERVED:** the shared state table includes initial waiting, source-road
 entry, movement and a source-directed return. At its return terminal indication,
 Theatre's subtype36 `+0x23c → 0x48b9b0` permits actor removal. This differs from
-the School34 one-way arrival/retirement path. The venue initializer
+the School211→Performer34 one-way arrival/retirement path. The venue initializer
 `0x48b980 → 0x51d0a0` assigns initial state6 and subtype36 countdown
 `200 + RNG%50`, with RNG result bounded0..32767. The value200..249 is not proved
 to mean seconds or World ticks and is not imported as such.
@@ -115,7 +115,7 @@ a proof of complete Original binary-save serialization. This remains **UNKNOWN**
 OpenEmperor JSON is an independent format and never an Original savegame.
 
 The source evidence admits the narrow authored Rule23 integration: paid
-School34 delivery, current Venue32 input, one actual venue-owned actor,
+School211→Performer34 delivery, current Venue32 input, one actual venue-owned actor,
 physical movement, eligible occupied-House Music96 and a physical return.
 Its clocks, target selection, IDs and strict schema39 provenance are authored.
 Gate B does not admit a claim of Original roaming, complete original save or
