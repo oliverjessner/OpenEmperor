@@ -37,7 +37,7 @@ OriginalEconomyStarterReceipt place_original_economy_starter(World& world) {
         }
         if (legal) {origin=candidate;break;}
     }
-    if (!origin) throw std::runtime_error(
+    if (!origin) throw OriginalStarterPlacementError(
         "No legal empty 24x13 level area for the paid original starter; choose Empty or another map");
 
     OriginalEconomyStarterReceipt receipt;

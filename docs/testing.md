@@ -44,6 +44,30 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Vacant House and paid-starter presentation (OE58)
+
+Keep the [human report](qa/oe58-human-playtest.md) separate from software-SDL
+results. The [Vacant visual contract](rendering/oe58-vacant-house-visual.md)
+retains unresolved native Type2 selection; improved authored pixels do not
+establish original parity. Use the actual production View and menu tests:
+
+```sh
+ctest --test-dir build --output-on-failure -R 'original-(house-visual|house-inspector|starter-availability-menu|player-mode|menu)|native-input|map-rules|map-permissions|save|recovery'
+./build/openemperor-original-menu-session-tests --starter-availability-capture .local/oe58/menu-captures-01
+./build/openemperor-original-menu-session-tests --starter-availability-real /path/to/emperor .local/oe58/menu-real-01
+```
+
+Choose fresh output roots and preserve the original inputs. The authored menu
+case separates map admission from failed layout placement, retains complete
+previous World/files, cancels focus/layout-boundary presses, and verifies that
+Empty cannot bypass failed map rules. Its real-data counterpart checks actual
+Loulan refusal and explicit Empty startup at1280×800/1600×900/1920×1080, full
+F5/F9 equality and the unchanged Xia paid starter. Open every new capture;
+PNG creation alone is not visual acceptance. Native human, external-display,
+clean-Mac and distribution checks retain separate results. Run the full Release
+suite, focused Debug/sanitizers and complete historical save comparisons before
+accepting a presentation change.
+
 ## Production evidence queries (OE55)
 
 The existing read-only model inspector accepts repeated sparse Building IDs:

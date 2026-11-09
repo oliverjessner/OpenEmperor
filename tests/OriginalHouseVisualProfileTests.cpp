@@ -144,6 +144,9 @@ void synthetic() {
     check(profile.original_house_prepared && profile.unique_images.size()==2,"House/legacy physical deduplication failed");
     check(state(profile)["roles"]==legacy,"House supplement changed legacy entries");
     check(!profile.find_original_house(2,2) && !profile.fallback_original_house(2,2).empty(),"Vacant fallback inferred an image");
+    auto vacant_as_shelter=f.valid();vacant_as_shelter["stages"][0]=vacant_as_shelter["stages"][1];
+    vacant_as_shelter["stages"][0]["house_type"]=2;
+    f.rejects(vacant_as_shelter,"Vacant lifecycle ambiguity accepted the otherwise valid Shelter registration");
     check(!profile.find_original_house(11,2) && !profile.fallback_original_house(11,2).empty(),"side4 image stretched onto temporary side2 Elite plot");
     for (unsigned type=3;type<=17;++type) {
         const auto side=static_cast<std::uint8_t>(type<11 ? 2:4);

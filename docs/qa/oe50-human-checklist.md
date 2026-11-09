@@ -174,3 +174,23 @@ als Git-Anhang aufnehmen.
 Nur die tatsächlich beobachteten Fälle mit PASS/FAIL/PARTIAL versehen und den
 Rest NOT_RUN lassen. Eine vorbereitete oder technisch grüne Sitzung ist keine
 menschliche Freigabe.
+
+## Nachtrag vom 2026-11-09 — erste Rückmeldung in OE58
+
+Der [OE58-Bericht](oe58-human-playtest.md) erfasst konkrete
+**USER_REPORTED_PASS**-Ergebnisse: Xia/Normal/Rule18-Starter mit vier Häusern,
+Straßen-/fünfter Hauskauf, Inspector und die Zeltgrafik nach tatsächlichem
+Einzug. Er hält ebenso den schwer erkennbaren Vacant2-Fallback und die
+abgeschnittene Loulan-Startermeldung fest. Eine Screenshotdatei liegt diesem
+Auftrag nicht bei; eine neue eigene **HUMAN_OBSERVED**-Sichtung wird nicht behauptet.
+
+Die obigen **NOT_RUN**-Felder bleiben als historisches OE50-Ergebnis erhalten.
+„Alles andere funktioniert“ ersetzt keine Einzelbeobachtung zu jeder
+Abbruchgeste, allen DPI-/Displayfällen, Recovery, mehrstündigem Spiel,
+Clean-Mac/Gatekeeper oder historischen Generationen. Human-Abnahme der neuen
+OE58-Änderungen bleibt bis zu einem konkreten Bericht **NOT_RUN**.
+
+Die am selben dokumentierten Datum abgeschlossenen bezahlten House-/Menüfälle
+und tatsächlich geöffneten Software-SDL-Bilder sind im
+[OE58-Ergebnisledger](oe58-human-playtest.md#oe58-result-ledger) separat als
+**AUTOMATED_PASS** erfasst. Sie füllen keine menschliche OE50-Zeile aus.

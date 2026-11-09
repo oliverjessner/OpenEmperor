@@ -3,6 +3,7 @@
 #include "persistence/SandboxSave.h"
 #include "core/Version.h"
 #include "app/ResourceLocator.h"
+#include "simulation/OriginalEconomyStarter.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -21,7 +22,8 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     CancelDeleteRecovery, GreatWallChoice, RecheckMap, BridgesChoice, RampsChoice,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
     OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice, AuthoredLandTradeNewGame,
-    OriginalMusicVenuesNewGame, OriginalVenueHouseServiceNewGame, MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
+    OriginalMusicVenuesNewGame, OriginalVenueHouseServiceNewGame, StarterEmptyCity, StarterChooseMap,
+    MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
     int action;
@@ -406,6 +408,11 @@ void MenuSession::finish_loading() {
         if (upgraded) message_=upgrade_target_version_==4 ?
             "Demolition enabled in a new City-v11-v4 copy; original save unchanged.":
             "Operation controls enabled in a new City-v11-v3 copy; original save unchanged.";
+    } catch (const simulation::OriginalStarterPlacementError& e) {
+        candidate_.reset();candidate_autosave_.reset();pending_recovery_parent_.reset();
+        upgrade_copy_=false;
+        message_=e.what();
+        set_state(State::StarterUnavailable);
     } catch (const std::exception& e) {
         candidate_.reset();
         candidate_autosave_.reset(); pending_recovery_parent_.reset();
@@ -537,6 +544,19 @@ void MenuSession::perform(int action) {
         case OriginalStarter:
             if (state_==State::NewSandbox && original_setup()) {
                 original_paid_starter_=!original_paid_starter_;rebuild_buttons();
+            }
+            break;
+        case StarterEmptyCity:
+            if (state_==State::StarterUnavailable) {
+                original_paid_starter_=false;
+                set_state(State::NewSandbox);
+                message_="Empty city selected on the same map. Check map rules, then Start.";
+            }
+            break;
+        case StarterChooseMap:
+            if (state_==State::StarterUnavailable) {
+                set_state(State::NewSandbox);
+                message_="Choose another map with Previous map or Next map, then Start.";
             }
             break;
         case LoadGame:
@@ -751,6 +771,7 @@ void MenuSession::handle_event(const SDL_Event& event) {
             if (state_==State::ConfirmLeave) activate_button(ConfirmCancel);
             else if (state_==State::ConfirmUpgrade) activate_button(CancelUpgrade);
             else if (state_==State::ConfirmDeleteRecovery) activate_button(CancelDeleteRecovery);
+            else if (state_==State::StarterUnavailable) activate_button(StarterChooseMap);
             else if (state_==State::NewSandbox || state_==State::LoadSandbox) activate_button(Back);
             else if (state_==State::MainMenu && advanced_modes_open_) activate_button(AdvancedModes);
             else if (state_!=State::Loading) activate_button(Quit);
@@ -768,6 +789,8 @@ void MenuSession::handle_event(const SDL_Event& event) {
             activate_button(choice->action);
         } else if (event.key.key==SDLK_D && state_==State::NewSandbox && (original_setup() || authored_land_trade_new_game_)) {
             activate_button(OriginalDifficulty);
+        } else if (event.key.key==SDLK_P && state_==State::StarterUnavailable) {
+            activate_button(StarterEmptyCity);
         } else if (event.key.key==SDLK_P && state_==State::NewSandbox && original_setup()) {
             activate_button(OriginalStarter);
         } else if (event.key.key==SDLK_L && state_==State::MainMenu) {
@@ -923,6 +946,9 @@ void MenuSession::rebuild_buttons() {
         add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",
             280,292,settings_reset_required_?124:280);
         if (settings_reset_required_) add(ResetSettings,"Reset preferences",412,292,148);
+    } else if (state_==State::StarterUnavailable) {
+        add(StarterEmptyCity,"P Use Empty city",40,246,360);
+        add(StarterChooseMap,"Choose another map",40,288,360);
     } else if (state_==State::NewSandbox) {
         if (authored_land_trade_new_game_) {
             add(MapPrev,"Previous map",40,110);add(MapNext,"Next map",230,110);
@@ -1041,6 +1067,7 @@ bool MenuSession::render() {
         state_==State::MainMenu?(advanced_modes_open_?"Advanced / Legacy":"OpenEmperor"):state_==State::NewSandbox?
             (authored_land_trade_new_game_ ? "New authored land trade":original_setup() ? "New Original economy":"New sandbox"):
         state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
+        state_==State::StarterUnavailable?"Paid starter unavailable":
         state_==State::ConfirmUpgrade?(upgrade_target_version_==4 ? "Enable demolition in a copy":"Enable operation controls in a copy"):
         state_==State::ConfirmDeleteRecovery?"Delete recovery history":"Unsaved progress";
     if (!label(40,40,heading)) return false;
@@ -1199,6 +1226,28 @@ bool MenuSession::render() {
         if (!label(40,345,compatibility_.compatible() ?
             "Visuals: Compatible preview detected":"Visuals: Diagnostic fallback")) return false;
         if (advanced_visuals_open_ && !label(40,385,"Advanced visual previews (developer overrides)")) return false;
+    } else if (state_==State::StarterUnavailable) {
+        const auto columns=static_cast<std::size_t>(std::max(16,(width-80)/8));
+        auto map_name="Map: "+catalog_.entries.at(map_index_).relative_path.generic_string();
+        if (map_name.size()>columns) map_name=map_name.substr(0,columns-3)+"...";
+        if (!label(40,80,map_name)) return false;
+        std::string detail="Map rules passed. This paid starter needs a separate legal empty 24x13 level area. "
+            "There is no such area on this map.";
+        int y=112;
+        while (!detail.empty()) {
+            auto length=std::min(columns,detail.size());
+            if (length<detail.size()) {
+                const auto space=detail.rfind(' ',length);
+                if (space!=std::string::npos && space>0) length=space;
+            }
+            if (!label(40,y,detail.substr(0,length))) return false;
+            detail.erase(0,length);
+            while (!detail.empty() && detail.front()==' ') detail.erase(0,1);
+            y+=16;
+        }
+        if (!label(40,192,"Use Empty city on this map, or choose another map.") ||
+            !label(40,212,"Empty city still requires a successful map rules check.") ||
+            !label(40,340,"No city was replaced. No construction was charged.")) return false;
     } else if (state_==State::Loading) {
         const auto item=pending_save_path_.empty() && map_index_<catalog_.entries.size()
             ? catalog_.entries[map_index_].relative_path.filename().string()
@@ -1223,7 +1272,8 @@ bool MenuSession::render() {
             !SDL_RenderFillRect(renderer_,&b.rect) ||
             !label(static_cast<int>(b.rect.x)+8,static_cast<int>(b.rect.y)+11,b.label)) return false;
     }
-    if (!message_.empty() && !label(40,std::max(25,height-34),message_.substr(0,static_cast<std::size_t>(std::max(0,width/8-12))))) return false;
+    if (state_!=State::StarterUnavailable && !message_.empty() &&
+        !label(40,std::max(25,height-34),message_.substr(0,static_cast<std::size_t>(std::max(0,width/8-12))))) return false;
     const std::string footer="OpenEmperor "+std::string(version::display)+" | "+std::string(version::target)+
         " | Clean-room reimplementation | rev "+std::string(version::revision)+
         (version::dirty?" dirty":"")+" | "+std::string(version::build_type);

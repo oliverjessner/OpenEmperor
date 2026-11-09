@@ -66,6 +66,22 @@ this ambiguity. Empty Elite11 has a verified side4 original graphic, but the
 adapter's temporary side2 plot must also use a named fallback until actual
 footprint materialization. No sprite is stretched to fit that plot.
 
+OE58 changes only that named **authored** Vacant2 presentation. The existing
+initializer/setter observations above still do not select one native creation
+image; physical1508/1509/1510 are not newly admitted for Type2. A paid Common2x2
+Vacant body instead draws an inset cleared-earth plot, pale foundation ring and
+two short timber planks using ordinary untextured SDL geometry. Its real
+front-cell ground and signed height supply the same projection as native House
+art. The complete logical footprint spans160×80; the authored ground shape is
+inset to144×72 and has no roof or above-footprint parts. Its submitted polygon
+also supplies visible-pixel picking, while ordinary construction/selection still
+uses the complete authoritative footprint. Selection and hover outlines remain
+separate. Real current HouseType alone retires this foundation when immigration
+admits residents and selects the existing Shelter3 sprite. No lifecycle field,
+original variation, population, goods, cost, rule or save schema is added.
+See [the rendering scope](../rendering/oe58-vacant-house-visual.md); original
+Type2 graphics parity remains unresolved.
+
 ## Native anchor derivation
 
 This relation is derived from bounded static code and the native grid, rather

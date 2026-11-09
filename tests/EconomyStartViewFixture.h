@@ -5,6 +5,7 @@
 #include "renderer/StoredGraphicsRenderer.h"
 #include "maps/StoredGraphicsPlan.h"
 #include "maps/OriginalMapEntities.h"
+#include "maps/LandscapeProvenance.h"
 #include "persistence/SandboxSave.h"
 #include <SDL3/SDL.h>
 #include <zlib.h>
@@ -44,7 +45,7 @@ Bytes sg3(bool tile) {
     }
     return b;
 }
-Bytes map_file(bool valid_manager=true) {
+Bytes map_file(bool valid_manager=true,bool starter_space=true) {
     using namespace openemperor::maps;
     Bytes raw(static_cast<std::size_t>(original_entities_logical_offset+6),0);
     // Complete empty authored manager for the rule-3 immutable map policy.
@@ -55,6 +56,9 @@ Bytes map_file(bool valid_manager=true) {
         u32(raw,static_cast<std::size_t>(candidate_word_logical_offset)+4*i,0xc000);
         raw[static_cast<std::size_t>(candidate_byte_logical_offset)+i]=64;
         u32(raw,static_cast<std::size_t>(terrain_logical_offset)+4*i,0x80);
+        if (!starter_space)
+            raw[static_cast<std::size_t>(landscape_height_offset)+i]=
+                static_cast<std::uint8_t>((i/228U+i%228U)%2U);
     }
     u32(raw,static_cast<std::size_t>(terrain_logical_offset)+4*(110U*228U+110U),0xc0);
     Bytes file{0xaa,0xba,0xdc,0xfe};

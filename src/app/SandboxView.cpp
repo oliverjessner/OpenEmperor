@@ -34,6 +34,46 @@
 
 namespace openemperor {
 namespace {
+// Authored ground-only presentation for an actual Common2x2 Vacant House.
+// The front-cell ground is shared with native House sprites. The complete
+// logical footprint spans x +/-80 and y -60..20 around that point; every
+// primitive below stays inset. No source image or lifecycle choice is implied.
+constexpr double vacant_foundation_half_width=72;
+constexpr double vacant_foundation_half_height=36;
+bool draw_vacant_foundation(SDL_Renderer* renderer,scene::Point ground,double zoom,bool preview) {
+    SDL_BlendMode previous=SDL_BLENDMODE_NONE;
+    if(preview && (!SDL_GetRenderDrawBlendMode(renderer,&previous) ||
+        !SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND)))return false;
+    struct RestoreBlend {
+        SDL_Renderer* renderer;SDL_BlendMode previous;bool active;
+        ~RestoreBlend() { if(active)(void)SDL_SetRenderDrawBlendMode(renderer,previous); }
+    } restore{renderer,previous,preview};
+    const float alpha=preview ? .45F:1.F;
+    const auto quad=[&](const std::array<scene::Point,4>& offsets,SDL_Color color) {
+        std::array<SDL_Vertex,4> vertices{};
+        for(std::size_t i=0;i<offsets.size();++i)
+            vertices[i]={{static_cast<float>(ground.x+offsets[i].x*zoom),
+                          static_cast<float>(ground.y+offsets[i].y*zoom)},
+                         {color.r/255.F,color.g/255.F,color.b/255.F,alpha},{}};
+        constexpr int indices[]{0,1,2,0,2,3};
+        return SDL_RenderGeometry(renderer,nullptr,vertices.data(),4,indices,6);
+    };
+    const auto diamond=[&](double width,double height,SDL_Color color) {
+        return quad({scene::Point{0,-20-height},{width,-20},{0,-20+height},{-width,-20}},color);
+    };
+    // Dark edge, cleared earth, pale masonry and an unroofed earthen interior
+    // remain distinguishable on both light and dark grass without selection.
+    if(!diamond(vacant_foundation_half_width,vacant_foundation_half_height,{61,50,37,255}) ||
+       !diamond(68,34,{185,143,91,255}) || !diamond(52,26,{222,212,183,255}) ||
+       !diamond(43,21.5,{113,89,64,255}))return false;
+    // Two short inset timber planks distinguish a prepared plot from a roof.
+    return quad({scene::Point{-27,-23},{-5,-12},{-10,-9.5},{-32,-20.5}},{193,158,108,255}) &&
+        quad({scene::Point{-18,-28},{4,-17},{-1,-14.5},{-23,-25.5}},{222,187,131,255});
+}
+bool hit_vacant_foundation(scene::Point point,scene::Point ground,double zoom) {
+    return zoom>0 && std::abs((point.x-ground.x)/zoom)/vacant_foundation_half_width+
+        std::abs((point.y-ground.y)/zoom+20)/vacant_foundation_half_height<=1;
+}
 const char* original_house_section_name(original_house_ui::Section section) {
     switch (section) {
     case original_house_ui::Section::State:return "State";
@@ -1715,6 +1755,7 @@ SandboxView::OriginalHouseVisualDiagnostic SandboxView::original_house_visual_di
     result.ground=building_visual_ground(found->cell,found->kind);
     result.configured=selected.entry!=nullptr;
     result.active=result.configured && building_visuals_active() && building_sprite_;
+    result.authored_vacant_foundation=selected.applicable && selected.house_type==2 && selected.actual_side==2;
     if (selected.entry) {
         const auto& entry=*selected.entry;const auto& image=building_profile_->unique_images.at(entry.image_index);
         result.asset=entry.id;result.image_width=image.width;result.image_height=image.height;
@@ -3924,6 +3965,13 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         hit.image=entry.image_index;hit.origin={ground.x-entry.ground_x,ground.y-entry.ground_y};
         hit.width=image.width;hit.height=image.height;append(hit);return;
     }
+    const auto house=original_house_visual_selection(instance.cell,instance.object);
+    if(house.applicable && house.house_type==2 && house.actual_side==2) {
+        hit.mesh=simulation::Object::Household;hit.mesh_ground=ground;
+        hit.origin={ground.x-vacant_foundation_half_width,ground.y-20-vacant_foundation_half_height};
+        hit.width=2*vacant_foundation_half_width;hit.height=2*vacant_foundation_half_height;
+        append(hit);return;
+    }
     if (instance.object==simulation::Object::OriginalTheatre75) {
         // The authored fallback draws these exact sixteen cell diamonds.
         // Cache their matching hit geometry in the ordinary submitted frame.
@@ -4002,6 +4050,8 @@ bool SandboxView::select_visual(scene::Point screen) {
             const auto ground=visual_hit_camera_.world_to_screen(it->mesh_ground);
             const bool hit=it->mesh==simulation::Object::OriginalEliteHouse ?
                 hit_original_elite_house_fallback(screen,ground,visual_hit_camera_.zoom):
+                it->mesh==simulation::Object::Household ?
+                hit_vacant_foundation(screen,ground,visual_hit_camera_.zoom):
                 it->mesh==simulation::Object::Well ?
                 hit_well_fallback(screen,ground,visual_hit_camera_.zoom,it->footprint_side):
                 hit_health_post_fallback(screen,ground,visual_hit_camera_.zoom,it->footprint_side);
@@ -4286,6 +4336,9 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             }
             if (original_house.applicable && original_house.house_type>=2 && original_house.house_type<=17 && !placement_preview)
                 ++original_house_authored_fallbacks_[original_house.house_type-2U];
+            if(original_house.applicable && original_house.house_type==2 && original_house.actual_side==2)
+                return draw_vacant_foundation(renderer_,center,camera_.zoom,placement_preview) &&
+                    draw_fire_overlay(cell,center,placement_preview) && draw_sickness(cell,center,placement_preview);
             const auto original_role=original_production_fixture() ? original_building_visual_role(object):std::nullopt;
             if (const auto* entry=original_building_entry(object);entry && building_visuals_active() && building_sprite_) {
                 if (!building_sprite_->draw(center,camera_.zoom,*building_profile_,*entry,placement_preview)) return false;
@@ -4545,7 +4598,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==0 ? simulation::Object::Market:simulation::Object::Empty;
         const auto role=simulation::production_profile(rules_) ?
             visual_role(*hovered_,object,true):std::nullopt;
-        if (result.accepted && (object==simulation::Object::Well || object==simulation::Object::OriginalInfluenceSource || object==simulation::Object::HealthPost ||
+        const bool vacant_foundation=original_production_fixture() && object==simulation::Object::Household;
+        if (result.accepted && (vacant_foundation || object==simulation::Object::Well || object==simulation::Object::OriginalInfluenceSource || object==simulation::Object::HealthPost ||
             (resolved_building_entry(*hovered_,object,true) && building_visuals_active() && building_sprite_) ||
             (role && building_visuals_active() && building_sprite_ &&
              building_profile_ && building_entry(*role)))) {
@@ -4892,7 +4946,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         for (const auto cell:simulation::building_footprint_cells(rules_,world_->rule_version(),object,*hovered_)) {
             const auto top=world_for({static_cast<double>(cell.x),static_cast<double>(cell.y)});
-            const bool outline=result.accepted && (object==simulation::Object::Well || object==simulation::Object::OriginalInfluenceSource || object==simulation::Object::HealthPost ||
+            const bool outline=result.accepted && ((original_production_fixture() && object==simulation::Object::Household) ||
+                object==simulation::Object::Well || object==simulation::Object::OriginalInfluenceSource || object==simulation::Object::HealthPost ||
                 (entry && building_visuals_active() && building_sprite_));
             if (!draw_diamond({top.x,top.y-20},result.accepted?70:255,
                 result.accepted?245:65,result.accepted?100:65,!outline)) return false;
@@ -5089,14 +5144,17 @@ bool SandboxView::original_house_inspector_active() const {
 std::vector<std::string> SandboxView::original_house_section_lines() const {
     if (!original_house_inspector_active()) return {};
     auto lines=original_house_ui::section_lines(*world_,*selected_building(),original_house_section_);
-    if (original_house_section_==OriginalHouseSection::State &&
-        building_profile_ && building_profile_->original_house_prepared) {
+    if (original_house_section_==OriginalHouseSection::State) {
         const auto visual=original_house_visual_diagnostic(*selected_building());
         std::vector<std::string> art;
-        if (visual.active) {
+        if(visual.authored_vacant_foundation) {
+            art.push_back("Art: authored vacant foundation");
+            art.push_back("Original Type2 image lifecycle unresolved");
+        } else if (visual.active) {
             art.push_back(std::string(original_house_source_==VisualProfileSource::Custom ? "Art: custom; ":"Art: original; ")+visual.selection);
             art.push_back("SG3 "+visual.asset->archive_relative_path.filename().string()+" #"+std::to_string(visual.asset->image_index));
-        } else art.push_back("Art: authored fallback | "+visual.fallback_reason);
+        } else if(building_profile_ && building_profile_->original_house_prepared)
+            art.push_back("Art: authored fallback | "+visual.fallback_reason);
         lines.insert(lines.begin()+static_cast<std::ptrdiff_t>(std::min<std::size_t>(3,lines.size())),art.begin(),art.end());
     }
     return wrap_panel_lines(lines);

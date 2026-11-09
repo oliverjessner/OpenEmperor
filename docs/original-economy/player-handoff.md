@@ -6,7 +6,9 @@ vollständige Originalspiel- und Grafikparität fehlen noch.
 
 Die [OE50-Checkliste](../qa/oe50-human-checklist.md) führt durch eine isolierte
 menschliche Spielsitzung mit echtem Ausbau, Lieferankünften und vollständigem
-Neustart. Alle menschlichen Abnahmepunkte bleiben bis zur Beobachtung NOT_RUN.
+Neustart. Der [OE58-Nutzerbericht](../qa/oe58-human-playtest.md) bestätigt
+konkrete Start-, Bau-, Inspector- und Einzugsaktionen. Nicht einzeln berichtete
+Untertests und die menschliche Abnahme der neuen Darstellung bleiben NOT_RUN.
 
 ## Start und Ausbau
 
@@ -23,6 +25,19 @@ Datenordner, **Cities/Xia.map**, **Normal** und **Paid four-house starter**
 prüfen, dann **Start sandbox** wählen. Alternativ beginnt **Empty city** ohne
 Starterbauten. Die Stadt beginnt pausiert.
 **Space** startet die Simulation; **1x / 2x / 4x** unten ändern ihr Tempo.
+
+Ein bestandener **Map Rules Check** prüft die allgemeinen Kartenregeln.
+Der bezahlte Starter braucht zusätzlich eine freie, legale ebene **24×13-Fläche**.
+Fehlt sie, zeigt **Paid starter unavailable** die Ursache vollständig an.
+**P Use Empty city** wählt eine leere Stadt auf derselben Karte; nach der
+erneuten Kartenprüfung mit **Start sandbox** starten. **Choose another map**
+kehrt zur Kartenauswahl zurück. Die Karte wechselt dabei nicht automatisch.
+
+Ein gekauftes, noch unbewohntes Common-Haus ist **Vacant / Type2**. Sein
+authored Baugrundstück zeigt den tatsächlichen 2×2-Footprint; es ist noch kein
+bewohntes Zelt. Erst echter Einzug aktiviert **Shelter / Type3** und dessen
+bereits unterstützte Originalgrafik. Die native Type2-Grafikzuordnung bleibt
+ungeklärt; siehe [Darstellungsvertrag](../reverse/original-house-visuals.md).
 
 Der [OE48-Bauplan](oe48-citywide-fire-reliability.md) erreicht mit unveränderter
 Rule18 eine bezahlte Stadt mit 13 bewohnten Häusern und 5200/5200 erfüllten

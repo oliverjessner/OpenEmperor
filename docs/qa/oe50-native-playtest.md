@@ -505,3 +505,24 @@ paid demolition in original-economy cities. Any new P0/data corruption or failed
 mandatory integrity gate stops unsafe product merging. An honest QA-only
 PARTIAL PR can retain HUMAN_NOT_RUN; it does not authorize an app release,
 tag, notarization or public readiness claim.
+
+## Dated follow-up — 2026-11-09, OE58 user account
+
+The [OE58 human playtest record](oe58-human-playtest.md) adds the first concrete
+user feedback: Rule18/Xia four-House paid startup at tick0/Funds10596, reported
+Road/fifth-House purchases to Funds10494, working inspection and a tent graphic
+after actual resident entry. These are **USER_REPORTED_PASS** within the stated
+scope. The user also reports weak Vacant2 visibility and a clipped paid-starter
+refusal on Loulan. No screenshot file accompanies that account; no fresh
+**HUMAN_OBSERVED** image or session is claimed by the documentation author.
+
+This is a later observation record, not a change to the OE50 candidate, evidence
+matrix or historical **NOT_RUN** rows above. The broad statement that the other
+checklist points work is positive feedback, not individual external-display,
+DPI, Recovery, multi-hour, clean-Mac or historical-generation acceptance.
+OE58's new presentation/menu work needs its own technical and native results.
+
+Later on the same recorded date, OE58's paid House transition, scripted
+Loulan/Xia menu controls and opened software-SDL capture matrices pass within
+the [new result ledger](oe58-human-playtest.md#oe58-result-ledger). These are
+**AUTOMATED_PASS**, not a retroactive human result for this OE50 candidate.
