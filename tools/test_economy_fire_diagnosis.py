@@ -15,7 +15,7 @@ import time
 
 # Reuse the existing private-file and original-model readers. These helpers
 # grant no World, source-admission or save-restore authority.
-from test_paid_progression import (MODEL_SHA, REPO, digest, inventory, load,
+from test_paid_progression import (launch_argv, MODEL_SHA, REPO, digest, inventory, load,
                                    overlaps, record, require, safe)
 from test_original_longplay import prepared
 
@@ -196,7 +196,7 @@ def workflow(binary, data, output, ticks=60000, variant="all", timeout=1800):
             argv += ["--input", str(input_path)]
         log = case / f"{mode}.log"; started = time.monotonic(); timed_out = False
         with log.open("x") as stream:
-            process = subprocess.Popen(argv, stdout=stream, stderr=subprocess.STDOUT)
+            process = subprocess.Popen(launch_argv(argv), stdout=stream, stderr=subprocess.STDOUT)
             try:
                 code = process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
