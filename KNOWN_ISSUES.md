@@ -53,6 +53,24 @@ complete original-game compatibility.
   Elite plots retain their named historical fallbacks. Existing Market,
   Warehouse and FireWatch core previews are not newly identified original
   registrations. See the [OE52 evidence and validation](docs/rendering/oe52-original-visuals.md).
+- **Vacant Common artwork is unresolved.** Type2's generic initial group
+  `0x47a`/physical1508 and ordinary setter group `0x471`/physical1509–1510
+  remain distinct unqualified lifecycle contexts. The user reports a paid2×2
+  Vacant plot with weak fallback visibility and a native tent after real entry
+  to Type3; no screenshot file accompanies the [OE58 account](docs/qa/oe58-human-playtest.md).
+  OE58 now draws a clearer authored foundation, with paid transition, complete
+  F5/F9 and opened software-SDL matrix/before-after evidence. This is
+  presentation, not original Type2 identification, a resident grant or an early
+  Shelter. New native human visual acceptance remains open.
+- **Map admission does not guarantee a paid starter fits.** General selected-rule
+  checks and legal empty24×13 starter placement are separate. The OE58 user
+  reports Loulan passing the former, then refusing the starter with a clipped
+  message. OE58 keeps that refusal and adds a fully readable typed dialog with
+  explicit Empty City/other-map choices. Scripted real Loulan/Xia controls and
+  opened three-size captures pass; placement permissions, selected map,
+  retained session and settings remain authoritative. New human acceptance is
+  still unrun.
+  See the [reported scope and follow-up](docs/qa/oe58-human-playtest.md).
 - **Rule19 demolition is deliberately limited.** The separate **V Safe demolition
   economy** opt-in uses schema35 and permits only never-admitted, empty Common2×2
   Houses and paused Clay Sources whose physical production, delivery and return
@@ -195,11 +213,15 @@ complete original-game compatibility.
   interpenetrating sprites can differ from the original. SG3 mirror references
   are unsupported; sprite shadows are not bit-identical to original RGB555 output.
   Automatic visual profiles recognise only the pinned GOG-derived asset revision.
-- **Manual acceptance remains open.** Native pointer/focus/resize behavior,
-  external displays, original-map visuals and sustained human play still need
-  acceptance. The [OE50 assessment](docs/qa/oe50-native-playtest.md) keeps
-  **HUMAN_NOT_RUN** as a release blocker; automated checks do not establish these
-  results.
+- **Manual acceptance remains partial.** The [OE58 account](docs/qa/oe58-human-playtest.md)
+  supplies concrete **USER_REPORTED_PASS** for paid Xia startup, Road/fifth-House
+  construction, inspection and tent appearance after resident entry. No new
+  user screenshot or direct native observation accompanies this task. The
+  [OE50 assessment](docs/qa/oe50-native-playtest.md) retains its historical
+  **HUMAN_NOT_RUN** results; general favorable feedback does not establish all
+  pointer/focus/resize subcases, external displays/DPI, complete native Recovery,
+  multi-hour play, every historical generation or clean-Mac acceptance. Human
+  acceptance of the new changes remains NOT_RUN until specifically reported.
 - **macOS distribution is local development only.** The app is ad-hoc signed,
   without Developer ID signing or notarization. Independent clean-Mac and
   Finder/Gatekeeper acceptance remain unverified. The current OE50 dependencies
