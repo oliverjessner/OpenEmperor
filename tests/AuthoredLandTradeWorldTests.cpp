@@ -156,7 +156,7 @@ void geometry_identity_and_configuration() {
     rejects([&]{(void)sim::World::create_authored_land_trade({},f.model,f.boundary);},"Missing policy admitted");
     rejects([&]{(void)sim::World::create_authored_land_trade(f.policy,{},f.boundary);},"Missing model admitted");
     rejects([&]{(void)sim::World::create_authored_land_trade(f.policy,f.model,{});},"Missing boundary admitted");
-    check(sim::rule_version_supported(sim::RulesProfile::CityV16,21)&&!sim::rule_version_supported(sim::RulesProfile::CityV16,23)&&
+    check(sim::rule_version_supported(sim::RulesProfile::CityV16,21)&&!sim::rule_version_supported(sim::RulesProfile::CityV16,24)&&
         !sim::original_economy_enabled(sim::RulesProfile::CityV16,21)&&!sim::source_cell_ramps_enabled(sim::RulesProfile::CityV16,21)&&
         sim::current_rule_version(sim::RulesProfile::CityV16)==4&&sim::current_rule_version(sim::RulesProfile::CityV11)==3,
         "New authored trade inherited Original/source-cell authority or changed defaults");
