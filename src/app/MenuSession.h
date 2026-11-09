@@ -14,7 +14,7 @@ namespace openemperor::menu {
 class MenuSession {
 public:
     enum class State { DataSetup, MainMenu, NewSandbox, LoadSandbox, Loading, Playing,
-                       ConfirmLeave, ConfirmUpgrade, ConfirmDeleteRecovery };
+                       ConfirmLeave, ConfirmUpgrade, ConfirmDeleteRecovery, StarterUnavailable };
     MenuSession(std::filesystem::path explicit_data={},std::filesystem::path app_root={},
                 std::unique_ptr<DialogAdapter> dialog=std::make_unique<NativeDialog>(),
                 std::filesystem::path resource_root={},

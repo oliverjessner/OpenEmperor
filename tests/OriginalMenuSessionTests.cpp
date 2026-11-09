@@ -672,6 +672,158 @@ void player_mode_real(const fs::path& data,const fs::path& output,SDL_Window* wi
     std::cout<<"Real recommended Xia/Normal Rule18 paid starter: tick0, Funds10596, construction1404, four Houses; F5/F9 complete equality\n";
     menu.shutdown();
 }
+
+void starter_availability(SDL_Window*& window,SDL_Renderer*& renderer,const fs::path& captures) {
+    oe::testing::economy::Temp source;const auto data=source.root/"data";
+    oe_production_fixture::write_model(data);
+    // A valid authored map with alternating signed source heights, rather than
+    // a name-based exception or an injected placement verdict.
+    fs::remove(data/"Cities/Broken.map");
+    oe::testing::economy::write(data/"Cities/C.map",oe::testing::economy::map_file(true,false));
+    constexpr std::array<std::pair<int,int>,4> sizes{{{900,600},{1280,800},{1600,900},{1920,1080}}};
+    for (const auto& [width,height]:sizes) {
+        SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);renderer=nullptr;window=nullptr;
+        check(SDL_CreateWindowAndRenderer("Starter availability",width,height,SDL_WINDOW_RESIZABLE,&window,&renderer),
+            "Create starter error test aperture");
+        const auto name=std::to_string(width)+"x"+std::to_string(height);
+        const auto app=source.root/("starter-"+name);seed_preferences(app,data);
+        Menu menu({},app,std::make_unique<Dialog>());menu.initialize(window,renderer);
+        enter_recommended(menu,window,renderer);recommended_paid_start(menu);key(menu,SDLK_F5);
+        const auto retained=menu.sandbox()->capture_save_document();
+        key(menu,SDLK_ESCAPE);enter_recommended(menu,window,renderer);
+        click(menu,window,renderer,"Next map");wait_check(menu);
+        click(menu,window,renderer,"Next map");wait_check(menu);
+        check(menu.map_rules_result().request.map_relative==fs::path("Cities/C.map"),
+            "Select the actual no-layout authored map");
+        const auto files=recovery_files(app);
+        key(menu,SDLK_RETURN);finish_load(menu);
+        check(menu.state()==Menu::State::StarterUnavailable && menu.original_paid_starter() &&
+            menu.message().find("24x13")!=std::string::npos,
+            "A passed map without a starter area lacks the distinct placement error");
+        same(retained,menu.sandbox()->capture_save_document());
+        check(recovery_files(app)==files,"Refused starter changed settings, manual save or Recovery files");
+        check_bounds(menu,"P Use Empty city",static_cast<float>(width)/1.5F,static_cast<float>(height)/1.5F);
+        check_bounds(menu,"Choose another map",static_cast<float>(width)/1.5F,static_cast<float>(height)/1.5F);
+        capture(menu,renderer,captures,("starter.unavailable."+name).c_str());
+        // UI press/release boundaries retain the previous city and cannot turn
+        // a canceled error-dialog action into an Empty selection.
+        constexpr std::array<Uint32,3> boundaries{SDL_EVENT_WINDOW_FOCUS_LOST,
+            SDL_EVENT_WINDOW_RESIZED,SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED};
+        for (const auto type:boundaries) {
+            const auto p=button_point(menu,window,renderer,"P Use Empty city");mouse(menu,p,true);
+            SDL_Event event{};event.type=type;route(menu,event);mouse(menu,p,false);menu.advance();
+            check(menu.state()==Menu::State::StarterUnavailable && menu.original_paid_starter(),
+                "Canceled error-dialog click silently selected Empty city");
+        }
+        key(menu,SDLK_RETURN);
+        check(menu.state()==Menu::State::StarterUnavailable,
+            "Enter silently accepted a different construction mode after failed placement");
+        click(menu,window,renderer,"Choose another map");wait_check(menu);
+        check(menu.map_rules_result().request.map_relative==fs::path("Cities/C.map") && menu.original_paid_starter(),
+            "Returning to map selection silently switched the map or starter preference");
+        key(menu,SDLK_RETURN);finish_load(menu);
+        check(menu.state()==Menu::State::StarterUnavailable,"Repeated refusal lost the placement explanation");
+        if (width==1280) key(menu,SDLK_P);
+        else click(menu,window,renderer,"P Use Empty city");
+        wait_check(menu);
+        check(!menu.original_paid_starter() && menu.map_rules_result().request.map_relative==fs::path("Cities/C.map"),
+            "Explicit Empty selection changed the chosen map");
+        same(retained,menu.sandbox()->capture_save_document());
+        key(menu,SDLK_RETURN);finish_load(menu);
+        check(menu.state()==Menu::State::Playing && menu.sandbox()->paused() &&
+            menu.sandbox()->world().ticks()==0 && menu.sandbox()->world().treasury()==12000 &&
+            menu.sandbox()->world().buildings().empty() && menu.sandbox()->world().rule_version()==18,
+            "Explicit Empty start bypassed normal preparation or bought a starter");
+        menu.shutdown();
+    }
+    // Empty is a layout choice only; an unsupported manager must still fail
+    // the ordinary map-rules preflight and cannot enter Loading.
+    oe::testing::economy::write(data/"Cities/C.map",oe::testing::economy::map_file(false));
+    const auto app=source.root/"unsupported";seed_preferences(app,data);
+    auto settings=oe::menu::read_settings(app).value;settings.last_map="Cities/C.map";
+    oe::menu::write_settings(app,settings);
+    Menu menu({},app,std::make_unique<Dialog>());menu.initialize(window,renderer);
+    click(menu,window,renderer,"Play Original economy");key(menu,SDLK_P);
+    const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while (menu.map_rules_result().status==oe::maps::MapRulesStatus::Checking &&
+        std::chrono::steady_clock::now()<deadline) {menu.advance();std::this_thread::yield();}
+    check(menu.map_rules_result().status==oe::maps::MapRulesStatus::UnsupportedForRules ||
+        menu.map_rules_result().status==oe::maps::MapRulesStatus::InputError,
+        "Unsupported Empty control did not finish its actual map rules check");
+    key(menu,SDLK_RETURN);
+    check(!menu.map_rules_can_start() && menu.state()==Menu::State::NewSandbox && !menu.sandbox(),
+        "Empty city bypassed unsupported original map rules");
+    menu.shutdown();
+    std::cout<<"Starter rules/placement separation, complete error dialog, explicit Empty/map choice, "
+        "retained World/files and pointer cancellation PASS\n";
+}
+
+void starter_availability_real(const fs::path& data,const fs::path& output,
+                               SDL_Window*& window,SDL_Renderer*& renderer) {
+    check(!fs::exists(output),"Real starter evidence output must be fresh");
+    const auto source=fs::canonical(data),target=fs::weakly_canonical(output);
+    const auto to_source=target.lexically_relative(source),from_source=source.lexically_relative(target);
+    check(!to_source.empty() && *to_source.begin()==".." &&
+        !from_source.empty() && *from_source.begin()=="..","Real starter output overlaps original files");
+    fs::create_directories(output);
+    nlohmann::json rows=nlohmann::json::array();
+    constexpr std::array<std::pair<int,int>,3> sizes{{{1280,800},{1600,900},{1920,1080}}};
+    for (const auto& [width,height]:sizes) {
+        SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);renderer=nullptr;window=nullptr;
+        check(SDL_CreateWindowAndRenderer("Real starter availability",width,height,SDL_WINDOW_RESIZABLE,&window,&renderer),
+            "Create real starter test aperture");
+        const auto name=std::to_string(width)+"x"+std::to_string(height);
+        const auto app=output/name;seed_preferences(app,source);
+        auto settings=oe::menu::read_settings(app).value;settings.last_map="Cities/ASSR-Loulan.map";
+        oe::menu::write_settings(app,settings);
+        Menu menu({},app,std::make_unique<Dialog>());menu.initialize(window,renderer);
+        enter_recommended(menu,window,renderer);
+        const auto request=menu.map_rules_result().request;
+        check(request.map_relative==fs::path("Cities/ASSR-Loulan.map"),"Real control selected a different map");
+        const auto files=recovery_files(app);
+        key(menu,SDLK_RETURN);finish_load(menu);
+        check(menu.state()==Menu::State::StarterUnavailable && !menu.sandbox() && recovery_files(app)==files,
+            "Real no-layout starter did not refuse without publishing files or a World");
+        capture(menu,renderer,output/"captures",("loulan.unavailable."+name).c_str());
+        const auto reason=menu.message();click(menu,window,renderer,"P Use Empty city");wait_check(menu);
+        check(menu.map_rules_result().request==request && !menu.original_paid_starter(),
+            "Real explicit Empty choice changed the map, rules or source identity");
+        key(menu,SDLK_RETURN);finish_load(menu);
+        check(menu.state()==Menu::State::Playing && menu.sandbox()->paused() &&
+            menu.sandbox()->world().ticks()==0 && menu.sandbox()->world().treasury()==12000 &&
+            menu.sandbox()->world().buildings().empty(),"Real map could not start an ordinary checked Empty city");
+        const auto saved=menu.sandbox()->capture_save_document();key(menu,SDLK_F5);
+        const auto persisted=oe::persistence::read_save(menu.settings().last_save);
+        check(persisted.source_schema_version==34,"Real Empty city changed its historical save schema");
+        for (int i=0;i<20;++i) menu.sandbox()->tick_once();key(menu,SDLK_F9);
+        same(saved,menu.sandbox()->capture_save_document());
+        rows.push_back({{"map",request.map_relative.generic_string()},{"resolution",name},
+            {"map_rules","AUTOMATED_PASS"},{"starter","REFUSED"},{"reason",reason},
+            {"empty_city","AUTOMATED_PASS"},{"f5_f9_full_document","AUTOMATED_PASS"},
+            {"source_sha256",saved.map_sha256},{"rule",saved.world.rule_version},
+            {"schema",persisted.source_schema_version},{"funds",saved.world.treasury}});
+        menu.shutdown();
+    }
+    const auto app=output/"xia";seed_preferences(app,source);
+    auto settings=oe::menu::read_settings(app).value;settings.last_map="Cities/Xia.map";
+    oe::menu::write_settings(app,settings);
+    Menu menu({},app,std::make_unique<Dialog>());menu.initialize(window,renderer);
+    enter_recommended(menu,window,renderer);recommended_paid_start(menu);
+    const auto saved=menu.sandbox()->capture_save_document();
+    check(saved.world.treasury==10596 && saved.world.construction_spent_total==1404,
+        "Real Xia starter changed paid accounting");
+    key(menu,SDLK_F5);const auto persisted=oe::persistence::read_save(menu.settings().last_save);
+    check(persisted.source_schema_version==34,"Real Xia starter changed its historical save schema");
+    rows.push_back({{"map","Cities/Xia.map"},{"map_rules","AUTOMATED_PASS"},{"starter","AUTOMATED_PASS"},
+        {"source_sha256",saved.map_sha256},{"rule",saved.world.rule_version},{"schema",persisted.source_schema_version},
+        {"tick",saved.world.ticks},{"funds",saved.world.treasury},{"houses",house_count(menu.sandbox()->world())}});
+    menu.shutdown();
+    oe_influence_fixture::write_text(output/"report.json",nlohmann::json{
+        {"status","AUTOMATED_PASS"},{"scope","Actual production MenuSession, software SDL; no native human acceptance"},
+        {"cases",rows}}.dump(2));
+    std::cout<<"Real Loulan map-rules PASS/starter refusal/explicit checked Empty, "
+        "three readable menu apertures and unchanged Xia paid starter PASS\n";
+}
 } // namespace
 
 int main(int argc,char** argv) {
@@ -679,7 +831,12 @@ int main(int argc,char** argv) {
     try {
         check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"Initialize dummy SDL");
         check(SDL_CreateWindowAndRenderer("Original menu",900,600,SDL_WINDOW_RESIZABLE,&window,&renderer),"Create minimum-size actual menu");
-        if (argc==4 && std::string_view(argv[1])=="--player-mode-real") {
+        if ((argc==2 && std::string_view(argv[1])=="--starter-availability") ||
+            (argc==3 && std::string_view(argv[1])=="--starter-availability-capture")) {
+            starter_availability(window,renderer,argc==3 ? fs::absolute(argv[2]):fs::path{});
+        } else if (argc==4 && std::string_view(argv[1])=="--starter-availability-real") {
+            starter_availability_real(fs::absolute(argv[2]),fs::absolute(argv[3]),window,renderer);
+        } else if (argc==4 && std::string_view(argv[1])=="--player-mode-real") {
             player_mode_real(fs::absolute(argv[2]),fs::absolute(argv[3]),window,renderer);
         } else if ((argc==2 && std::string_view(argv[1])=="--player-mode-menu") ||
             (argc==3 && std::string_view(argv[1])=="--player-mode-capture")) {
