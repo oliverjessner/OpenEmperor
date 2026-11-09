@@ -287,6 +287,7 @@ public:
     OriginalHouseDisplayStats original_house_display_stats() const;
     struct OriginalHouseVisualDiagnostic {
         bool applicable=false,configured=false,active=false;
+        bool authored_vacant_foundation=false;
         std::uint16_t house_type=0;
         std::uint8_t actual_side=0;
         std::optional<assets::AssetId> asset;
