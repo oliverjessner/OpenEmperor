@@ -119,6 +119,21 @@
   Require separately prepared75 model capability and exact source-bound restore.
   All Rules1–21/schemas1–37 and their School-to-House semantics remain exact. See
   [OE56 culture](docs/original-economy/oe56-culture-venues.md).
+- Authored venue House service is a separate explicit rule23/policy3/schema39
+  contract with marker `authored-venue-house-service-v1`. Inherit Rule22's paid
+  School/Performer/Venue input and unchanged Rule18 economy. Each paid Theatre
+  owns one existing bounded courier channel; each real spawn owns a distinct
+  monotone VenueWalkerId. Full staffing and current Music gate the fourth eligible
+  phase35 attempt. Reuse cached House target selection and real outward/return
+  movement; the Original actor-centred roaming clock is not reconstructed.
+  Only a real eligible occupied-House arrival with current Music and authored
+  source operation/staff/fire checks assigns the existing sole Music96 timer.
+  Preserve immutable first Music receipt, dispatch/grant Music evidence, actual
+  House witnesses, ID/sequence/return/clock bounds and shared workforce/fire
+  histories. No dispatch, stock, proximity, rendering or restore grant; no Theatre
+  DES source, increased limit, automatic migration or default change. Rules1–22
+  and schemas1–38 stay exact; Rule18 remains recommended. See
+  [OE57](docs/original-economy/oe57-venue-house-service.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

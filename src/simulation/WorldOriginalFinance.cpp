@@ -679,6 +679,46 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
             check_dispatch(arrival.school_id,venue.building_id,arrival.dispatched_tick);
             check_arrival(venue.building_id,arrival.courier_id,arrival.arrival_tick);
         }
+        if (simulation::original_venue_house_service_enabled(s.profile,s.rule_version)) {
+            if (!culture.venue_house_service)
+                invalid("Rule23 fire binding requires its complete venue House authority");
+            // Retained inputs can outlive both latest School trips and the
+            // Venue's current arrival. They remain actual historical events,
+            // checked against the same prepared fire timeline as Rule22.
+            const auto input=[&](const OriginalMusicArrival& m,BuildingId venue) {
+                check_dispatch(m.school_id,venue,m.dispatched_tick);
+                check_arrival(venue,m.courier_id,m.arrival_tick);
+            };
+            for (const auto& source:culture.venue_house_service->sources)
+                if (source.first_music) input(*source.first_music,source.building_id);
+            const auto walker=[&](const std::optional<OriginalVenueWalkerEvidence>& evidence,
+                                  BuildingId venue,BuildingId house,CourierId channel,
+                                  std::optional<std::uint64_t> arrival,bool applied) {
+                if (!evidence) return;
+                input(evidence->dispatch_music,venue);
+                if (evidence->arrival_music) input(*evidence->arrival_music,venue);
+                if (burning_before_event(venue,evidence->dispatched_tick,std::nullopt) ||
+                    burning_before_event(house,evidence->dispatched_tick,std::nullopt))
+                    invalid("Rule23 venue walker dispatched from or toward an actually burning body");
+                if (applied && (!arrival || burning_before_event(venue,*arrival,channel) ||
+                    burning_before_event(house,*arrival,channel)))
+                    invalid("Rule23 House Music was applied during actual pre-movement fire");
+            };
+            for (const auto& trip:s.original_production->services.trips) if (trip.venue_walker)
+                walker(trip.venue_walker,actor_by_id(trip.transfer.courier_id).owner,trip.target,
+                    trip.transfer.courier_id,trip.arrival_tick,trip.visit_applied);
+            const auto witness=[&](const OriginalServiceWitness& w) {
+                walker(w.venue_walker,w.provider_id,w.building_id,w.transfer.courier_id,w.arrival_tick,true);
+            };
+            for (const auto& w:s.original_production->services.witnesses) witness(w);
+            for (const auto& h:s.original_production->housing.houses) {
+                const auto evaluation=[&](const OriginalHousingEvaluation& e) {
+                    for (const auto& w:e.service_witnesses) if (w) witness(*w);
+                };
+                if (h.last_evaluation) evaluation(*h.last_evaluation);
+                for (const auto& t:h.first_transitions) if (t) evaluation(t->evaluation);
+            }
+        }
     }
     for (const auto& body:s.buildings) if (fire_eligible(body.kind,s.profile,s.rule_version)) {
         const auto fire=replay(body,s.ticks);

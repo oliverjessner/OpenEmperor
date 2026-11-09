@@ -278,6 +278,10 @@ void World::rebuild_original_influence_cache() {
     if (original_production_enabled()) {
         for (const auto& p:original_production_->water.providers) sources.push_back({p.building_id,OriginalInfluenceSourceType::Well72});
         for (const auto& p:original_production_->services.providers) {
+            // Rule23 adds a physical visitor channel, not a new desirability
+            // source. Preserve Rule22's explicit absence of Theatre DES.
+            if (original_venue_house_service_enabled() && p.type==OriginalServiceProviderType::Theatre75 &&
+                building(p.building_id).kind==Object::OriginalTheatre75) continue;
             const auto model=original_influence_model(building(p.building_id).kind);
             if (!model) invalid("paid Provider lost its own named desirability model");
             sources.push_back({p.building_id,static_cast<OriginalInfluenceSourceType>(*model)});

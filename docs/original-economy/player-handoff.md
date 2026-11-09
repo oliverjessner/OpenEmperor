@@ -277,7 +277,35 @@ Die Ladeansicht zeigt Profil, Rule und Schema zur Diagnose. Rules10–18 laden
 jeweils ihren eigenen Stand mit Schema26–34 und den exakten Vertragsmarkern.
 Es gibt keine Upgrade-Funktion für Originalwirtschafts-Saves.
 F5/F9 und Recovery ändern dabei keine Regelgeneration.
-Der Musik-/Venue-Modus lädt ausschließlich seinen eigenen Rule22-/Schema38-Stand
+Der neue Versuch **Advanced / Legacy → K Venue House music (23)** startet
+getrennt eine **Rule23 / Schema39 / Policy3**-Stadt. Der direkte Start lautet:
+
+```sh
+./build/openemperor --data /path/to/game --sandbox Cities/Xia.map --sandbox-rules sandbox-city-v16 --original-venue-house-service
+```
+
+Die bezahlte Schule liefert weiter einen tatsächlichen Performer an ein
+bezahltes Theatre. Erst vorhandene Music und vier berechtigte, voll besetzte
+Source-Aufrufe können einen eigenen Venue-Walker erzeugen. Dieser läuft über
+eine echte Straße zu einem bewohnten Haus und physisch zurück. Nur eine gültige
+Ankunft mit **dann noch vorhandener** Theatre-Music setzt House-Music auf96;
+Bau, Nähe, angekündigte Route, Zeichnen, F5/F9 und Laden erzeugen keine Versorgung.
+Bei Ablauf, pausierter/unbesetzter/brennender Quelle oder unzulässigem Haus
+bleibt die Gutschrift aus. Straßenunterbrechungen behalten begonnene Kanten und
+das normale Warten; Reparaturen werden regulär bezahlt. Ein zurückgekehrter
+Walker ist beendet, der nächste bekommt eine neue Identität.
+
+Die Schule zeigt Personal, Versuche und tatsächliche Performer. Das Theatre
+zeigt aktuelle Music, Walker-ID, Ziel, Route und tatsächliche Ankunft; die
+House-Seite **Visits** zeigt den echten Theatre-/Walker-/Performer-Beleg.
+Theatre und Walker verwenden gekennzeichnete authored Fallbackdarstellung.
+Zielwahl, Hin-/Rückfahrt und World-Zeitbasis sind ausdrücklich authored;
+vollständiges originales Wandern, Festivals und Original-Save-Import fehlen.
+Rule18 bleibt empfohlen. Rule22/Schema38 und ältere Städte bleiben exakt in
+ihrer eigenen Generation. Ergebnisse und noch offene Abnahmen stehen im
+[OE57-Leitfaden](oe57-venue-house-service.md).
+
+Der Rule22-Musik-/Venue-Modus lädt ausschließlich seinen eigenen Rule22-/Schema38-Stand
 mit dem Marker `authored-music-venue-v1`; alte Städte werden nicht umgewandelt.
 
 **Autosave: ON** im Hauptmenü aktiviert Recovery: ein geschützter Startpunkt
@@ -314,9 +342,10 @@ Zusätzliche Modellnamen für Landwirtschaft und Industrie sind keine neuen
 Bauwerkzeuge. Die [OE55-Quellenprüfung](oe55-production.md) bleibt Forschung;
 sie schaltet keine weitere Produktionskette frei. Auch Saison, Jagd und Fischerei
 sind damit nicht als Originalverhalten umgesetzt.
-Rule22 ergänzt nur die begrenzte School→Performer→Theatre-Kette; Venue→House,
-weitere originale Veranstaltungsabläufe, Festivals, Hero-/Götter-AI und Krankheit
-fehlen weiterhin. Mehrere Gebäude und Walker nutzen Fallbackbilder; passende
+Rule22 ergänzt nur die begrenzte School→Performer→Theatre-Kette. Der separate
+Rule23-Versuch ergänzt echte Theatre→House-Music-Besuche mit authored Zielwahl
+und Rückweg. Vollständige originale Veranstaltungsabläufe, Festivals,
+Hero-/Götter-AI und Krankheit fehlen weiterhin. Mehrere Gebäude und Walker nutzen Fallbackbilder; passende
 Hausbilder decken Typen3–17
 ab. Common10 und separat in Rule14 auch Elite17 wurden bezahlt erreicht.
 Der beschriebene DES79-Blocker bleibt für Rule12/13 unverändert; Rule14s

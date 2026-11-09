@@ -22,6 +22,7 @@ parity remains partial; see [the play guide](player-handoff.md) and [Known Issue
 | Rule18 / schema34 / revision27 | Separate authored deadline-aware Market-to-House Food selection; inherits Rule17's services, fire and economy. Physical stock, real incoming cargo and prepared route timing determine urgency; production, Farm-to-Market selection and all bounds remain unchanged. |
 | Rule19 / schema35 / revision27 | Explicit authored safe demolition of never-occupied Common2x2 Houses and paused, physically settled Clay Sources. Inherits Rule18; bounded retirement provenance retains paid identities, extraction, latest completed Clay trip and closed installed upkeep. No refund, migration or budget increase. |
 | Rule22 / schema38 / revision27 | Explicit paid Music211→Performer34→Theatre75 slice. Inherits Rule18 and replaces only Music's direct House-service adapter. Actual one-way arrival owns a separate venue32 timer; no House96, Actor36 or Rule19 retirement authority. Automated World/save/scripted SDL coverage; native/human NOT_RUN. |
+| Rule23 / schema39 / revision27 | Explicit paid School→Performer→Theatre→VenueWalker→occupied House Music. Inherits Rule22 and the unchanged Rule18 economy. Real current-Music arrival alone assigns the existing House96 timer; cached targeted roundtrip, phase35 clock, typed lifetime IDs and strict JSON are authored. Rules1–22/schemas1–38 stay separate; Original roaming/clock/save parity and native human acceptance remain open. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy
@@ -339,6 +340,29 @@ Rule22 lifecycle is stored in `culture.schools`. Runtime influence caches and
 complete-save validation must see that same source. The Theatre is not added to
 the influence mapper. This preserves School desirability without introducing a
 House Music96 visit, free venue aura or a new Original75 source observation.
+
+The separate [Rule23 venue House contract](oe57-venue-house-service.md) extends
+that exact School/Performer/Venue slice with one paid Theatre-owned movement
+channel per venue, within the existing58 combined channels. Each successful
+spawn allocates a distinct typed monotone VenueWalkerId. No current Music means
+no eligible source callback; the fourth eligible full-staff phase35 call may
+choose one legal cached occupied-House route using the inherited service
+selector. This targeted physical outward/return policy is authored; the
+Original instead distributes near an actual roaming actor.
+
+Only actual accepted House arrival queries CURRENT venue Music and assigns the
+existing sole Music96 timer/witness. Current source operation/staff/fire are
+additional authored arrival gates; expiry, refusal, dispatch, render and restore
+grant nothing. Home arrival retires that lifetime without a visible idle actor.
+Schema39's mandatory new marker, immutable first receipt and per-trip/per-House
+Music provenance retain exact paid source/model/map/terrain identities, global
+and per-source ID/sequence/clock/return bounds and shared workforce/fire history.
+All embedded housing evaluations preserve actual visit provenance. No second
+service simulator, route authority, House timer, Theatre DES source, extra
+worker, limit increase or migration is introduced. Rule22 remains exactly38;
+Rule18 remains recommended, while23 is selected through Advanced/Legacy or its
+separate CLI flag. See the [Actor36 source investigation](oe57-actor36-investigation.md)
+for evidence classifications and unresolved Original semantics.
 
 ## Houses, geometry, finance and presentation
 

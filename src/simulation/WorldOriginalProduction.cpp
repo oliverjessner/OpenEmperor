@@ -574,11 +574,11 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         if (b.kind==Object::FireWatch || b.kind==Object::ClaySource || b.kind==Object::Pottery || b.kind==Object::Warehouse || b.kind==Object::Market || b.kind==Object::OriginalHempFarm || b.kind==Object::OriginalFoodFarm ||
             b.kind==Object::HealthPost || b.kind==Object::ServicePost || b.kind==Object::OriginalAncestorShrine214 || b.kind==Object::OriginalWaterWell72 ||
             b.kind==Object::OriginalDaoistShrine215 || b.kind==Object::OriginalBuddhistShrine217 || b.kind==Object::OriginalConfucianAcademy219 ||
-            b.kind==Object::OriginalMusicSchool211 ||
+            (b.kind==Object::OriginalTheatre75 && simulation::original_venue_house_service_enabled(s.profile,s.rule_version)) || b.kind==Object::OriginalMusicSchool211 ||
             b.kind==Object::OriginalAcrobatSchool212 || b.kind==Object::OriginalDramaSchool213 || original_industry_source(b.kind)) {
             if (courier_index>=s.couriers.size()) invalid("missing purchased original production courier");
             const auto& c=s.couriers[courier_index];
-            const auto role=b.kind==Object::FireWatch ? CourierRole::FireInspector:original_industry_source(b.kind) ? (original_industry_goods::output(b.kind) ? CourierRole::OriginalLuxuryToWarehouse:CourierRole::OriginalAuxToWarehouse):
+            const auto role=b.kind==Object::OriginalTheatre75 ? CourierRole::OriginalVenueMusic:b.kind==Object::FireWatch ? CourierRole::FireInspector:original_industry_source(b.kind) ? (original_industry_goods::output(b.kind) ? CourierRole::OriginalLuxuryToWarehouse:CourierRole::OriginalAuxToWarehouse):
                 b.kind==Object::OriginalWaterWell72 ? CourierRole::OriginalWater:b.kind==Object::HealthPost ? CourierRole::HealthWorker:
                 b.kind==Object::ServicePost ? CourierRole::Service:
                 b.kind==Object::OriginalMusicSchool211 ? (simulation::original_music_venues_enabled(s.profile,s.rule_version) ? CourierRole::OriginalMusicPerformer:CourierRole::OriginalMusic):
@@ -707,6 +707,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         c.role!=CourierRole::OriginalDaoist && c.role!=CourierRole::OriginalBuddhist && c.role!=CourierRole::OriginalConfucian && c.role!=CourierRole::OriginalMusic &&
         c.role!=CourierRole::OriginalAcrobat && c.role!=CourierRole::OriginalDrama &&
         !(simulation::original_music_venues_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalMusicPerformer) &&
+        !(simulation::original_venue_house_service_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalVenueMusic) &&
         c.role!=CourierRole::OriginalLuxuryToWarehouse && c.role!=CourierRole::OriginalAuxToWarehouse && c.role!=CourierRole::OriginalAuxSupplier &&
         !(simulation::original_fire_protection_enabled(s.profile,s.rule_version) && c.role==CourierRole::FireInspector))
         invalid("unsupported original production courier role");
@@ -879,7 +880,7 @@ void World::tick_original_production() {
     if (dispatch.evolution) evaluate_original_houses();
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
     validate_original_food_state();validate_original_industry_state();
-    validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();
+    validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();validate_original_venue_house_service_state();
     const auto balances=original_production_goods_balances();
     if (!population_valid() || !fire_state_valid() || !production_balance_valid() || !navigation_valid() ||
         !city_economy_valid() || !std::all_of(balances.begin(),balances.end(),[](const auto& b){return b.conserved;}))

@@ -12,7 +12,7 @@ namespace {
 bool service_role(CourierRole role) {
     return role==CourierRole::Service || role==CourierRole::HealthWorker || role==CourierRole::OriginalAncestor ||
         role==CourierRole::OriginalDaoist || role==CourierRole::OriginalBuddhist || role==CourierRole::OriginalConfucian ||
-        role==CourierRole::OriginalMusic || role==CourierRole::OriginalAcrobat || role==CourierRole::OriginalDrama;
+        role==CourierRole::OriginalMusic || role==CourierRole::OriginalAcrobat || role==CourierRole::OriginalDrama || role==CourierRole::OriginalVenueMusic;
 }
 bool supported_role(original::ServiceRole role) {
     return role==original::ServiceRole::Herbalist || role==original::ServiceRole::Acupuncture ||
@@ -28,6 +28,7 @@ original::ServiceRole role_for(OriginalServiceProviderType type) {
     case OriginalServiceProviderType::Daoist215:return original::ServiceRole::Daoist;
     case OriginalServiceProviderType::Buddhist217:return original::ServiceRole::Buddhist;
     case OriginalServiceProviderType::Confucian219:return original::ServiceRole::Confucian;
+    case OriginalServiceProviderType::Theatre75:
     case OriginalServiceProviderType::Music211:return original::ServiceRole::Music;
     case OriginalServiceProviderType::Acrobat212:return original::ServiceRole::Acrobat;
     case OriginalServiceProviderType::Drama213:return original::ServiceRole::Drama;
@@ -42,6 +43,7 @@ Object kind_for(OriginalServiceProviderType type) {
     case OriginalServiceProviderType::Daoist215:return Object::OriginalDaoistShrine215;
     case OriginalServiceProviderType::Buddhist217:return Object::OriginalBuddhistShrine217;
     case OriginalServiceProviderType::Confucian219:return Object::OriginalConfucianAcademy219;
+    case OriginalServiceProviderType::Theatre75:return Object::OriginalTheatre75;
     case OriginalServiceProviderType::Music211:return Object::OriginalMusicSchool211;
     case OriginalServiceProviderType::Acrobat212:return Object::OriginalAcrobatSchool212;
     case OriginalServiceProviderType::Drama213:return Object::OriginalDramaSchool213;
@@ -56,6 +58,7 @@ CourierRole courier_role_for(OriginalServiceProviderType type) {
     case OriginalServiceProviderType::Daoist215:return CourierRole::OriginalDaoist;
     case OriginalServiceProviderType::Buddhist217:return CourierRole::OriginalBuddhist;
     case OriginalServiceProviderType::Confucian219:return CourierRole::OriginalConfucian;
+    case OriginalServiceProviderType::Theatre75:return CourierRole::OriginalVenueMusic;
     case OriginalServiceProviderType::Music211:return CourierRole::OriginalMusic;
     case OriginalServiceProviderType::Acrobat212:return CourierRole::OriginalAcrobat;
     case OriginalServiceProviderType::Drama213:return CourierRole::OriginalDrama;
@@ -102,8 +105,8 @@ template<class Building> std::uint64_t minimum_travel_ticks(const Building& sour
     // requires a source-body edge, at least one road cell and a target-body
     // edge. Manhattan distance is only a necessary lower bound; saved routes
     // may have waited or replanned and are not a retained travel chronicle.
-    const auto from=building_footprint(RulesProfile::CityV16,kOriginalProductionRuleVersion,source.kind);
-    const auto to=building_footprint(RulesProfile::CityV16,kOriginalProductionRuleVersion,target.kind);
+    const auto from=building_footprint(RulesProfile::CityV16,source.kind==Object::OriginalTheatre75 ? kOriginalVenueHouseServiceRuleVersion:kOriginalProductionRuleVersion,source.kind);
+    const auto to=building_footprint(RulesProfile::CityV16,target.kind==Object::OriginalTheatre75 ? kOriginalVenueHouseServiceRuleVersion:kOriginalProductionRuleVersion,target.kind);
     const auto gap=[](int a,int a_size,int b,int b_size) {
         const auto first=static_cast<std::int64_t>(a),second=static_cast<std::int64_t>(b);
         return std::max({std::int64_t{0},first-(second+b_size-1),second-(first+a_size-1)});
@@ -118,7 +121,7 @@ template<class Building,class Courier> std::uint64_t minimum_movement_ticks(cons
     if (actor.path_vertex>=actor.path.size() || actor.edge_progress<0 || actor.edge_progress>=edge_ticks)
         invalid("original service movement has no valid current physical vertex/progress");
     const auto current=actor.path[actor.path_vertex];
-    const auto footprint=building_footprint(RulesProfile::CityV16,kOriginalProductionRuleVersion,start.kind);
+    const auto footprint=building_footprint(RulesProfile::CityV16,start.kind==Object::OriginalTheatre75 ? kOriginalVenueHouseServiceRuleVersion:kOriginalProductionRuleVersion,start.kind);
     const auto gap=[](int origin,int size,int coordinate) {
         const auto delta=static_cast<std::int64_t>(coordinate)-static_cast<std::int64_t>(origin);
         return delta<0 ? -delta:std::max<std::int64_t>(0,delta-size+1);
@@ -132,16 +135,16 @@ template<class Building,class Courier> std::uint64_t minimum_movement_ticks(cons
 
 template<class Buildings,class Couriers,class Houses>
 void validate_services(const OriginalServicesState& state,const Buildings& buildings,const Couriers& couriers,const Houses& houses,const OriginalHousingState& housing,
-                       std::uint64_t tick,std::uint64_t decayed_through,bool bind_movement=true,bool music_venues=false) {
+                       std::uint64_t tick,std::uint64_t decayed_through,bool bind_movement=true,bool music_venues=false,bool venue_house=false) {
     if (state.providers.size()>original_service_provider_limit || state.trips.size()>original_service_trip_limit ||
         state.witnesses.size()>original_service_witness_limit || decayed_through>tick)
         invalid("original service bounded authority exceeded");
-    std::array<std::size_t,9> counts{};
+    std::array<std::size_t,10> counts{};
     std::size_t source_count=0,actor_count=0;
     for (const auto& b:buildings) source_count+=b.kind==Object::HealthPost || b.kind==Object::ServicePost ||
         b.kind==Object::OriginalAncestorShrine214 || b.kind==Object::OriginalDaoistShrine215 ||
         b.kind==Object::OriginalBuddhistShrine217 || b.kind==Object::OriginalConfucianAcademy219 ||
-        (!music_venues && b.kind==Object::OriginalMusicSchool211) || b.kind==Object::OriginalAcrobatSchool212 || b.kind==Object::OriginalDramaSchool213;
+        (!music_venues && b.kind==Object::OriginalMusicSchool211) || b.kind==Object::OriginalAcrobatSchool212 || b.kind==Object::OriginalDramaSchool213 || (venue_house && b.kind==Object::OriginalTheatre75);
     for (const auto& c:couriers) actor_count+=service_role(c.role);
     if (source_count!=state.providers.size() || actor_count!=source_count) invalid("paid original service Provider/Courier authority is incomplete");
     for (std::size_t i=0;i<state.providers.size();++i) {
@@ -149,12 +152,14 @@ void validate_services(const OriginalServicesState& state,const Buildings& build
         if ((i && !(state.providers[i-1].building_id<p.building_id)) || b.kind!=kind_for(p.type) || !b.placed || b.placed_tick>tick)
             invalid("original service Providers require unique sorted matching paid bodies");
         if (music_venues && p.type==OriginalServiceProviderType::Music211) invalid("Rule22 MusicSchool cannot acquire historical House-service authority");
+        if (p.type==OriginalServiceProviderType::Theatre75 && !venue_house) invalid("Venue House service requires explicit Rule23");
         if (++counts[static_cast<std::size_t>(p.type)]>2) invalid("original service Provider type limit exceeded");
         const auto matching=std::count_if(couriers.begin(),couriers.end(),[&](const auto& c){return c.owner==b.id && c.role==courier_role_for(p.type);});
         if (matching!=1) invalid("original service Provider requires exactly its own real Courier");
     }
     for (std::size_t i=0;i<state.trips.size();++i) {
         const auto& trip=state.trips[i];
+        if (trip.venue_walker && !venue_house) invalid("Historical trip cannot acquire venue Walker evidence");
         if ((i && !(state.trips[i-1].transfer.courier_id<trip.transfer.courier_id)) || !trip.transfer.sequence ||
             trip.transfer.sequence>trip.dispatched_tick || !trip.dispatched_tick || trip.dispatched_tick>tick)
             invalid("original service trips require bounded latest real dispatch sequences");
@@ -197,6 +202,7 @@ void validate_services(const OriginalServicesState& state,const Buildings& build
     }
     for (std::size_t i=0;i<state.witnesses.size();++i) {
         const auto& witness=state.witnesses[i];
+        if (witness.venue_walker && !venue_house) invalid("Historical witness cannot acquire venue Walker evidence");
         if ((i && !(witness_key(state.witnesses[i-1])<witness_key(witness))) ||
             !supported_role(witness.role))
             invalid("original service Witnesses must be sorted unique House/category pairs");
@@ -284,7 +290,8 @@ OriginalServiceAvailability World::original_service_availability(BuildingId hous
             ++result.travelling_to_target_count;
         if (!source->placed || !source->operating_enabled || building_on_fire(source->id) ||
             !staffing[static_cast<std::size_t>(source-buildings_.begin())] ||
-            (p.type==OriginalServiceProviderType::Confucian219 && !original_academy_paper_available(source->id))) continue;
+            (p.type==OriginalServiceProviderType::Confucian219 && !original_academy_paper_available(source->id)) ||
+            (p.type==OriginalServiceProviderType::Theatre75 && !original_venue_music_available(source->id))) continue;
         ++result.available_source_count;
         if (!result.eligible_target || actor->cached_revision!=road_revision_) continue;
         const auto route=std::lower_bound(actor->dynamic_target_routes.begin(),actor->dynamic_target_routes.end(),house,
@@ -309,15 +316,17 @@ void World::validate_original_services_model() const {
 }
 void World::validate_original_services_snapshot(const WorldSnapshot& snapshot) {
     if (!snapshot.original_production || !snapshot.original_economy) invalid("original services require explicit production authority");
-    validate_services(snapshot.original_production->services,snapshot.buildings,snapshot.couriers,snapshot.original_economy->houses,snapshot.original_production->housing,snapshot.ticks,snapshot.ticks,true,simulation::original_music_venues_enabled(snapshot.profile,snapshot.rule_version));
+    validate_services(snapshot.original_production->services,snapshot.buildings,snapshot.couriers,snapshot.original_economy->houses,snapshot.original_production->housing,snapshot.ticks,snapshot.ticks,true,simulation::original_music_venues_enabled(snapshot.profile,snapshot.rule_version),simulation::original_venue_house_service_enabled(snapshot.profile,snapshot.rule_version));
 }
 void World::validate_original_services_state() const {
-    validate_services(original_production_->services,buildings_,couriers_,original_economy_->houses,original_production_->housing,ticks_,ticks_,true,original_music_venues_enabled());
+    validate_services(original_production_->services,buildings_,couriers_,original_economy_->houses,original_production_->housing,ticks_,ticks_,true,original_music_venues_enabled(),original_venue_house_service_enabled());
 }
 bool World::original_service_courier(CourierRole role) const {return original_production_enabled() && service_role(role);}
 CourierDispatchDecision World::original_service_dispatch_status(const CourierState& c) const {
     const auto& p=provider(original_production_->services,c.owner);
     if (c.role!=courier_role_for(p.type)) throw std::logic_error("original service dispatch has incompatible paid Provider");
+    if (p.type==OriginalServiceProviderType::Theatre75 && !original_venue_music_available(c.owner))
+        return {CourierDispatchStatus::NoStock,{}};
     if (p.type==OriginalServiceProviderType::Confucian219 && !original_academy_paper_available(c.owner))
         return {CourierDispatchStatus::NoStock,{}};
     if (original_deadline_service_dispatch_enabled() || original_deadline_food_dispatch_enabled()) {
@@ -345,8 +354,20 @@ CourierDispatchDecision World::original_service_dispatch_status(const CourierSta
             if (building_on_fire(trip.target) || !eligible(target,visit_for(p.type))) continue;
             const auto remaining=static_cast<std::uint64_t>(actor->path.size()-1-actor->path_vertex)*edge-
                 static_cast<std::uint64_t>(actor->edge_progress);
-            if (incoming_count<incoming.size())
-                incoming[incoming_count++]={trip.target,add(dispatch_tick,remaining-1)};
+            const auto eta=add(dispatch_tick,remaining-1);
+            if (actor->role==CourierRole::OriginalVenueMusic) {
+                // Rule23's stricter actual-arrival admission makes a paused,
+                // burning, unstaffed or expiring source an unusable promise.
+                // Do not coalesce against an unearned future School refill.
+                const auto& source=building(actor->owner);
+                if (!source.operating_enabled || building_on_fire(source.id) || !building_staffed_for_tick(source.id) ||
+                    !original_venue_music_available(source.id)) continue;
+                const auto& venues=original_production_->culture->venues;
+                const auto at=std::lower_bound(venues.begin(),venues.end(),source.id,[](const auto& row,BuildingId id){return row.building_id<id;});
+                if (at==venues.end() || at->building_id!=source.id || !at->last_arrival || !eta ||
+                    countdowns(eta-1)-countdowns(at->last_arrival->arrival_tick-1)>=32) continue;
+            }
+            if (incoming_count<incoming.size()) incoming[incoming_count++]={trip.target,eta};
         }
         // Keep the cursor in the complete canonical paid House list. A last
         // destination that burns stays an anchor, rather than resetting the
@@ -423,20 +444,56 @@ CourierDispatchDecision World::original_service_dispatch_status(const CourierSta
     return {CourierDispatchStatus::NoRoad,{}};
 }
 void World::dispatch_original_service(CourierState& c) {
-    const auto decision=courier_dispatch_status(c.id);if (decision.status!=CourierDispatchStatus::Ready || !decision.selected_target) return;
+    OriginalVenueWalkerSource* venue_source=nullptr;
+    original::ServiceSpawnStep spawn;
+    if (c.role==CourierRole::OriginalVenueMusic) {
+        if (!original_venue_house_service_enabled() || ticks_<36 || (ticks_-36)%51 ||
+            c.phase!=CourierPhase::IdleAtWorkshop || !original_venue_music_available(c.owner)) return;
+        const auto& source=building(c.owner);
+        if (!source.operating_enabled || building_on_fire(c.owner) || !building_staffed_for_tick(c.owner) ||
+            c.cached_revision!=road_revision_ || building_entrances(c.owner).empty()) return;
+        auto& rows=original_production_->culture->venue_house_service->sources;
+        const auto at=std::lower_bound(rows.begin(),rows.end(),c.owner,[](const auto& row,BuildingId id){return row.building_id<id;});
+        if (at==rows.end() || at->building_id!=c.owner) throw std::logic_error("Venue has no paid walker channel");
+        venue_source=&*at;
+        // The observed full-staff Theatre threshold is the same3 as the
+        // existing kernel. No partially staffed Theatre tier is admitted.
+        spawn=original::service_spawn_step(original::SpawnBuilding::MusicSchool,100,venue_source->spawn_counter,true);
+        if (!spawn.attempt_due) {venue_source->spawn_counter=spawn.counter;return;}
+        if (venue_source->attempts==UINT64_MAX) throw std::overflow_error("Venue attempt counter exhausted");
+    }
+    const auto decision=courier_dispatch_status(c.id);
+    if (decision.status!=CourierDispatchStatus::Ready || !decision.selected_target) {
+        if (venue_source) {venue_source->spawn_counter=spawn.counter;++venue_source->attempts;}
+        return;
+    }
     const auto target=*decision.selected_target;const auto route=std::lower_bound(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),target,[](const auto& entry,BuildingId key){return entry.first<key;});
     if (route==c.dynamic_target_routes.end() || !route->second) throw std::logic_error("original service dispatch lost its shared cached route");
     auto candidate=original_production_->services;const auto* previous=latest_trip(candidate.trips,c.id);
     if (previous && previous->transfer.sequence==UINT64_MAX) return;
     OriginalServiceTrip next{{c.id,previous ? previous->transfer.sequence+1:1},target,ticks_};
+    if (venue_source) {
+        const auto& authority=*original_production_->culture->venue_house_service;
+        if (authority.next_walker_id==UINT64_MAX || venue_source->spawned==UINT64_MAX)
+            throw std::overflow_error("Venue walker identity exhausted");
+        const auto& venues=original_production_->culture->venues;
+        const auto at=std::lower_bound(venues.begin(),venues.end(),c.owner,[](const auto& row,BuildingId id){return row.building_id<id;});
+        if (at==venues.end() || at->building_id!=c.owner || !at->last_arrival || !at->music_timer)
+            throw std::logic_error("Venue walker lost its actual received Music");
+        next.venue_walker=OriginalVenueWalkerEvidence{static_cast<VenueWalkerId>(authority.next_walker_id),ticks_,*at->last_arrival};
+    }
     if (auto* current=latest_trip(candidate.trips,c.id)) *current=next;
     else candidate.trips.insert(std::lower_bound(candidate.trips.begin(),candidate.trips.end(),c.id,[](const auto& trip,CourierId key){return trip.transfer.courier_id<key;}),next);
     auto path=*route->second;
     if (!ticks_) throw std::logic_error("original service dispatch has no advanced ordinary World tick");
-    validate_services(candidate,buildings_,couriers_,original_economy_->houses,original_production_->housing,ticks_,ticks_-1,false,original_music_venues_enabled());
+    validate_services(candidate,buildings_,couriers_,original_economy_->houses,original_production_->housing,ticks_,ticks_-1,false,original_music_venues_enabled(),original_venue_house_service_enabled());
     // All route allocations/service candidate checks precede the sole physical
     // input debit. The remaining service/courier publication cannot allocate.
     if (provider(candidate,c.owner).type==OriginalServiceProviderType::Confucian219) consume_original_academy_paper(c.owner);
+    if (venue_source) {
+        venue_source->spawn_counter=spawn.counter;++venue_source->attempts;++venue_source->spawned;
+        ++original_production_->culture->venue_house_service->next_walker_id;
+    }
     original_production_->services=std::move(candidate);c.path=std::move(path);c.target=target;c.last_dispatched_target=target;
     c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::ToWarehouse;
 }
@@ -448,15 +505,26 @@ void World::arrive_original_service(CourierState& c) {
     if (!trip || trip->arrival_tick || trip->target!=c.target) throw std::logic_error("original service arrival lost its actual outbound trip");
     const auto& p=provider(candidate,c.owner);const auto& target=building(c.target);auto& h=house_row(houses,target.id);
     trip->arrival_tick=ticks_;
-    // A dispatched visitor finishes despite later source pause or fire. The
-    // actual destination and original DirectService admission are rechecked.
-    if (!building_on_fire(target.id) && eligible(h,visit_for(p.type))) {
+    // Historical visitors retain their exact arrival policy. Rule23 adds an
+    // authored conservative source check; the observed Theatre callback also
+    // requires CURRENT Music, never the promise retained at dispatch.
+    const bool venue_admitted=p.type!=OriginalServiceProviderType::Theatre75 ||
+        (original_venue_music_available(c.owner) && building(c.owner).operating_enabled &&
+         !building_on_fire(c.owner) && building_staffed_for_tick(c.owner));
+    if (!building_on_fire(target.id) && eligible(h,visit_for(p.type)) && venue_admitted) {
+        if (p.type==OriginalServiceProviderType::Theatre75) {
+            const auto& venues=original_production_->culture->venues;
+            const auto at=std::lower_bound(venues.begin(),venues.end(),c.owner,[](const auto& row,BuildingId id){return row.building_id<id;});
+            if (!trip->venue_walker || at==venues.end() || at->building_id!=c.owner || !at->last_arrival)
+                throw std::logic_error("Venue arrival has no real Actor or current Music witness");
+            trip->venue_walker->arrival_music=*at->last_arrival;
+        }
         h.house=original::apply_service_visit(h.house,context(h),visit_for(p.type));trip->visit_applied=true;
-        OriginalServiceWitness witness{target.id,role_for(p.type),p.building_id,trip->transfer,ticks_};const auto key=witness_key(witness);
+        OriginalServiceWitness witness{target.id,role_for(p.type),p.building_id,trip->transfer,ticks_,trip->venue_walker};const auto key=witness_key(witness);
         const auto at=std::lower_bound(candidate.witnesses.begin(),candidate.witnesses.end(),key,[](const auto& row,const auto& value){return witness_key(row)<value;});
         if (at!=candidate.witnesses.end() && witness_key(*at)==key) *at=witness;else candidate.witnesses.insert(at,witness);
     }
-    validate_services(candidate,buildings_,couriers_,houses,original_production_->housing,ticks_,ticks_-1,false,original_music_venues_enabled());
+    validate_services(candidate,buildings_,couriers_,houses,original_production_->housing,ticks_,ticks_-1,false,original_music_venues_enabled(),original_venue_house_service_enabled());
     original_production_->services=std::move(candidate);original_economy_->houses=std::move(houses);c.phase=CourierPhase::Returning;
     if (valid_return_path(c)) {std::reverse(c.path.begin(),c.path.end());c.path_vertex=0;}
     else {c.path={c.path.back()};c.path_vertex=0;c.route_pending=true;c.route_checked_revision.reset();reroute_v2(c);}
@@ -465,7 +533,7 @@ void World::decay_original_services() {
     if (!ticks_ || countdowns(ticks_)==countdowns(ticks_-1)) throw std::logic_error("original service countdown invoked outside phase35");
     auto houses=original_economy_->houses;
     for (auto& h:houses) h.house=original::decay_house_services(h.house,context(h));
-    validate_services(original_production_->services,buildings_,couriers_,houses,original_production_->housing,ticks_,ticks_,true,original_music_venues_enabled());
+    validate_services(original_production_->services,buildings_,couriers_,houses,original_production_->housing,ticks_,ticks_,true,original_music_venues_enabled(),original_venue_house_service_enabled());
     original_economy_->houses=std::move(houses);
 }
 
