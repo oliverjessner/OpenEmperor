@@ -41,9 +41,14 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # Matching archives are freshly linked; these exact headers do not certify
 # the new rules' gameplay, dispatch or terrain logic.
 # Rule22 culture/model additions preserve legacy calls; these are ABI pins only.
+# Rule23 appends optional venue-walker evidence and explicit APIs. Its provider
+# and courier identities are admitted only by that generation. Older optional
+# values stay empty and legacy probe behavior must remain byte-identical. The
+# matching fresh archives and three strict DTO/API pins prevent stale ABI reuse;
+# these pins do not certify Rule23 gameplay, saves or Original roaming parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
-    "OriginalCultureState.h": "7c28dd8b34dc69a916e9d594591bfbdc8dc63ae8",
-    "World.h": "bb40876ef322530fa3aaaff818a1ea6c09111261",
+    "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
+    "World.h": "7c504432a42cb3a254900b08f04c1b020efae0fd",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "1a24ed7cb80a0152560b76d9445c04e5b0829ed5",
@@ -530,7 +535,7 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
         raise ValueError("Original-food API drift: fourth-module adapter needs a reviewed compatibility contract")
     services_dto = ROOT / "src/simulation/OriginalServicesState.h"
     services_blob = hashlib.sha1(b"blob " + str(services_dto.stat().st_size).encode() + b"\0" + services_dto.read_bytes()).hexdigest()
-    if services_blob != "5cf40486c26d26e02c1259a35f757aa82c0c0d0f":
+    if services_blob != "4f3070f21c7ce4bf5f58226ca910100de1542cfe":
         raise ValueError("Original-services API drift: fourth-module adapter needs a reviewed compatibility contract")
     fire_header = ROOT / "src/simulation/OriginalFireProtectionState.h"
     fire_bytes = fire_header.read_bytes()

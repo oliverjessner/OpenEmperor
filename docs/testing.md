@@ -63,6 +63,42 @@ unchanged. The CLI test uses independently authored sparse input only. The
 paid adapters from unsupported additional chains; research is not paid gameplay
 acceptance. Run the complete suite and relevant Debug/sanitizer cases as well.
 
+## Physical Theatre-to-House Music (OE57)
+
+Run `original-venue-house-service-world`, `original-venue-house-service-save`,
+`original-venue-house-service-menu`, `original-venue-house-service-view` and
+`original-venue-house-service-cli` beside all Rule22 tests, the full Release suite and focused Debug/ASan/UBSan
+service, housing, model, input, persistence and historical tests. The authored
+fixtures earn residents and staffing through paid commands and ordinary ticks.
+Check four eligible full-staff callbacks after real Music input and after real
+return, distinct lifetime/channel identities, actual House96 assignment,
+current-input expiry/refusal, source pause/staff loss/natural fire, complete
+footprints, road cut/begun-edge/wait/paid repair and real return/retirement.
+
+Schema39 negatives include exact generation/markers, first and current Music
+proofs, compacted minimum travel, per-source/global identity/sequence order,
+shared simultaneous model workforce, actual fire timelines, forged arrivals,
+active routes, all embedded House evaluation histories, funds and live model/map
+identity. Refusal preserves the prior World and canonical file bytes. Never
+weaken older schema admission or compare only a digest summary.
+
+The new Save binary supports separate `--create OUTPUT [TICKS]` and
+`--restore INPUT OUTPUT [TICKS]` processes, only under fresh `.local/oe57/` paths.
+Compare whole canonical SaveDocuments at0/103 ticks. The paid Xia integration
+must additionally earn at least five occupied Houses, two School→Theatre inputs,
+a completed physical Theatre→House→Theatre lifecycle and at least20400 actual
+continuation ticks. Preserve independent full Creator/Restore and Recovery/F5/F9
+bytes, Rule22's actual-source regression, schemas1–38 and Rule18 Golden City.
+
+Open every new scripted-SDL capture:1280×800,1600×900,1920×1080 at1×/2×/4×,
+actual outward/returning actor foot and picking, source and House-Visits Inspectors,
+menu controls, scrolling, clipping and explicit authored fallback presentation.
+One hundred pure frames must retain the twelve authority/preparation counters
+at zero. Software SDL is separate from native human acceptance and complete
+Original parity. The [OE57 assessment](original-economy/oe57-venue-house-service.md)
+records actual runs, counts and remaining limits; a finite paid sample is not
+continuous supply, sustainable profit or Original roaming parity.
+
 ## Music performers and Theatre venues (OE56)
 
 Run `original-music-venue-world`, `original-music-venue-save`,

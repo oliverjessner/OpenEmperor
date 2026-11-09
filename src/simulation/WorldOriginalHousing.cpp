@@ -66,7 +66,10 @@ void historical_service(const WorldSnapshot& s,BuildingId id,std::uint64_t first
         const auto actor=std::find_if(s.couriers.begin(),s.couriers.end(),[&](const auto& c){return c.id==w.transfer.courier_id;});
         const auto trip=std::find_if(s.original_production->services.trips.begin(),s.original_production->services.trips.end(),
             [&](const auto& row){return row.transfer.courier_id==w.transfer.courier_id;});
-        const auto kind=service_kinds[index];const auto actor_role=service_actor_roles[index];
+        const bool venue=simulation::original_venue_house_service_enabled(s.profile,s.rule_version) && role==original::ServiceRole::Music;
+        const auto kind=venue ? Object::OriginalTheatre75:service_kinds[index];
+        const auto actor_role=venue ? CourierRole::OriginalVenueMusic:service_actor_roles[index];
+        if(w.venue_walker.has_value()!=venue) invalid("Housing Music history requires its exact generation's real provider evidence");
         const auto from=building_footprint(s.profile,s.rule_version,source.kind),to=building_footprint(s.profile,s.rule_version,target.kind);
         const auto gap=[](int a,int a_size,int b,int b_size) {
             const auto first=static_cast<std::int64_t>(a),second=static_cast<std::int64_t>(b);
@@ -102,8 +105,9 @@ void historical_service(const WorldSnapshot& s,BuildingId id,std::uint64_t first
         if (known.building_id==id && known.role==role) require_known(known);
     for (const auto& trip:s.original_production->services.trips) if (trip.visit_applied && trip.target==id && trip.arrival_tick) {
         const auto actor=std::find_if(s.couriers.begin(),s.couriers.end(),[&](const auto& c){return c.id==trip.transfer.courier_id;});
-        const auto actor_role=service_actor_roles[index];
-        if (actor!=s.couriers.end() && actor->role==actor_role) require_known({id,role,actor->owner,trip.transfer,*trip.arrival_tick});
+        const auto actor_role=simulation::original_venue_house_service_enabled(s.profile,s.rule_version) && role==original::ServiceRole::Music ?
+            CourierRole::OriginalVenueMusic:service_actor_roles[index];
+        if (actor!=s.couriers.end() && actor->role==actor_role) require_known({id,role,actor->owner,trip.transfer,*trip.arrival_tick,trip.venue_walker});
     }
     if (original::service_timer(proof.input,role)!=expected) invalid("Housing input service timer differs from actual visit phase");
 }

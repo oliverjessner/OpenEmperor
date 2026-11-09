@@ -111,6 +111,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule23/schema39: paid Theatre-owned physical Music House visits.
+    static std::unique_ptr<SandboxView> create_original_venue_house_service(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit authored Rule19/schema35; never changes historical demolition rights.
     static std::unique_ptr<SandboxView> create_original_safe_demolition(
         maps::StoredMapSession session,
@@ -710,6 +715,9 @@ private:
     }
     bool original_music_venues() const {
         return simulation::original_music_venues_enabled(rules_,requested_rule_version_);
+    }
+    bool original_venue_house_service() const {
+        return simulation::original_venue_house_service_enabled(rules_,requested_rule_version_);
     }
     bool original_safe_demolition() const {
         return simulation::original_safe_demolition_enabled(rules_,requested_rule_version_);

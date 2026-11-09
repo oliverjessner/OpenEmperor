@@ -32,8 +32,16 @@ complete original-game compatibility.
   needs-aware goods selection.
   The separate [Rule22 music-venue experiment](docs/original-economy/oe56-culture-venues.md)
   replaces Music211's direct House visit with a paid one-way performer to
-  Theatre75 and its own duration. It grants no House Music96 effect; Actor36,
-  other venue chains, festivals, Hero/God AI and illness remain unsupported.
+  Theatre75 and its own duration. It grants no House Music96 effect in Rule22. The separate
+  [Rule23 Theatre-to-House experiment](docs/original-economy/oe57-venue-house-service.md)
+  adds actual current-Music House visits through an explicitly authored targeted
+  roundtrip. Its paid Xia/Normal five-House city completes two School arrivals,
+  a real venue-walker lifetime and 20400 active continuation ticks with at least
+  five occupied Houses/population 110 and 74 further Music visits. Its Plain
+  stage predates Music, the Watch later burns, and finite positive operations
+  do not establish full progression, citywide fire protection or lifetime profit.
+  Original Actor36's roaming/RNG clock and binary-save lifecycle,
+  other venue chains, festivals, Hero/God AI and illness remain unresolved.
   The bounded chain has automated World, persistence and scripted SDL coverage;
   native/human acceptance is NOT_RUN. Rules10–18 retain
   their House/production demolition refusal; incompatible development saves are refused.

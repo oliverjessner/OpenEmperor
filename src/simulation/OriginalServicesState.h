@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simulation/OriginalGoodsState.h"
+#include "simulation/OriginalCultureState.h"
 #include "simulation/original/ServiceRules.h"
 
 #include <cstddef>
@@ -11,7 +12,7 @@
 namespace openemperor::simulation {
 
 // Explicit Rule10 purchase bindings; old generic Posts acquire no identity.
-enum class OriginalServiceProviderType : std::uint8_t { Herbalist207=0, Acupuncture208=1, Ancestor214=2, Daoist215=3, Buddhist217=4, Confucian219=5, Music211=6, Acrobat212=7, Drama213=8 };
+enum class OriginalServiceProviderType : std::uint8_t { Herbalist207=0, Acupuncture208=1, Ancestor214=2, Daoist215=3, Buddhist217=4, Confucian219=5, Music211=6, Acrobat212=7, Drama213=8, Theatre75=9 };
 inline constexpr std::size_t original_service_provider_limit=18;
 inline constexpr std::size_t original_service_trip_limit=18;
 inline constexpr std::size_t original_service_witness_limit=180;
@@ -27,6 +28,7 @@ struct OriginalServiceTrip {
     std::uint64_t dispatched_tick=0;
     std::optional<std::uint64_t> arrival_tick=std::nullopt;
     bool visit_applied=false;
+    std::optional<OriginalVenueWalkerEvidence> venue_walker=std::nullopt;
     bool operator==(const OriginalServiceTrip&) const = default;
 };
 // Last successful visit per House/category. HouseState owns the only timer.
@@ -36,6 +38,7 @@ struct OriginalServiceWitness {
     BuildingId provider_id=static_cast<BuildingId>(0);
     OriginalGoodsTransferKey transfer;
     std::uint64_t arrival_tick=0;
+    std::optional<OriginalVenueWalkerEvidence> venue_walker=std::nullopt;
     bool operator==(const OriginalServiceWitness&) const = default;
 };
 // Derived on-demand inspection only. Never serialized or used to grant visits.

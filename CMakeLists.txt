@@ -305,6 +305,7 @@ target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndust
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
     src/simulation/WorldOriginalServices.cpp
     src/simulation/WorldOriginalCulture.cpp
+    src/simulation/WorldOriginalVenueHouseService.cpp
     src/simulation/WorldOriginalWater.cpp src/simulation/WorldOriginalHousing.cpp)
 target_link_libraries(openemperor-simulation PUBLIC openemperor-original-service-rules)
 # Pure goods transfers/consumption/quality observations; no World/app linkage.
@@ -2187,6 +2188,31 @@ if(BUILD_TESTING)
 endif()
 
 if(BUILD_TESTING)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME original-venue-house-service-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_original_venue_house_service_cli.py --executable $<TARGET_FILE:openemperor>)
+        set_tests_properties(original-venue-house-service-cli PROPERTIES TIMEOUT 60 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+    endif()
+    add_executable(openemperor-original-venue-house-service-world-tests tests/OriginalVenueHouseServiceWorldTests.cpp)
+    target_link_libraries(openemperor-original-venue-house-service-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-original-venue-house-service-world-tests)
+    add_test(NAME original-venue-house-service-world COMMAND openemperor-original-venue-house-service-world-tests)
+    set_tests_properties(original-venue-house-service-world PROPERTIES TIMEOUT 240)
+    add_executable(openemperor-original-venue-house-service-save-tests tests/OriginalVenueHouseServiceSaveTests.cpp)
+    target_link_libraries(openemperor-original-venue-house-service-save-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-original-venue-house-service-save-tests)
+    add_test(NAME original-venue-house-service-save COMMAND openemperor-original-venue-house-service-save-tests)
+    set_tests_properties(original-venue-house-service-save PROPERTIES TIMEOUT 240)
+    add_executable(openemperor-original-venue-house-service-view-tests tests/OriginalVenueHouseServiceViewTests.cpp ${bridge_fixture_sources})
+    target_link_libraries(openemperor-original-venue-house-service-view-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-original-venue-house-service-view-tests)
+    add_test(NAME original-venue-house-service-view COMMAND openemperor-original-venue-house-service-view-tests)
+    set_tests_properties(original-venue-house-service-view PROPERTIES TIMEOUT 300 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_executable(openemperor-original-venue-house-service-menu-tests tests/OriginalVenueHouseServiceMenuTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-original-venue-house-service-menu-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
+    openemperor_enable_warnings(openemperor-original-venue-house-service-menu-tests)
+    add_test(NAME original-venue-house-service-menu COMMAND openemperor-original-venue-house-service-menu-tests)
+    set_tests_properties(original-venue-house-service-menu PROPERTIES TIMEOUT 150 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_executable(openemperor-original-music-venue-world-tests tests/OriginalMusicVenueWorldTests.cpp)
     target_link_libraries(openemperor-original-music-venue-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
     openemperor_enable_warnings(openemperor-original-music-venue-world-tests)

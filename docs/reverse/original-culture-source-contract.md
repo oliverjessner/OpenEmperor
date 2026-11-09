@@ -32,7 +32,7 @@ The observed path checks the actual school road connection, enters movement, and
 
 At arrival48ab93 resolves that destination again;48b540 recognizes physical categories71 Entertainment Area and75 Theatre Pavilion. Target+260→48b710 receives the actual performer. It assigns **venue-own-info** duration32 separately: Acrobat32→+5d, Musician34→+5e, Drama33→+5f. These are not House96 timers. The base venue accepts32/34; Theatre additionally accepts33. Venue effective staffing48b780 is0 while all received performer states are0. A supplied venue can emit its own separate Actor36 through48cde0; its source+24 delegates the ordinary movement callback.
 
-The original entertainment loop therefore contains real venue destinations, performer arrivals, venue durations and another actor. Revision23 does not reconstruct those authorities. It creates no free venue, trainee or32-duration performer credit. The following additional proof establishes a narrow Theatre construction/state boundary; it does not resolve all venues or the Original wandering destination policy.
+The original entertainment loop therefore contains real venue destinations, performer arrivals, venue durations and another actor. Historical development revision23 does not reconstruct those authorities. It creates no free venue, trainee or32-duration performer credit. The following additional proof establishes a narrow Theatre construction/state boundary; it does not resolve all venues or the Original wandering destination policy.
 
 ## Theatre75 construction, retained state and lifetime
 
@@ -56,6 +56,65 @@ The scheduler mapping is authored: at completed ticks36+51n, a fully staffed, op
 
 Movement-channel reuse, deterministic destination selection and independently validated OpenEmperor JSON remain authored contracts. Rule22's MusicSchool does not apply House96; the historical school-to-House adapter and Rule22's Acrobat/Drama adapters remain distinct. Source71 attachment, other venues, Drama's extra venue state and Venue Actor36→House visits remain outside this slice. No historical generation is migrated. New JSON state does not establish original binary-save compatibility, complete culture parity, native or human acceptance. See the [Rule22 contract](../original-economy/oe56-culture-venues.md).
 
+## Actor36: actual Theatre-to-House Music effect (OE57)
+
+The fresh [Actor36 investigation](../original-economy/oe57-actor36-investigation.md)
+separately binds ownership, movement, House effect and lifetime. Its static,
+read-only audits compared38 spawn/lifetime windows and21 House-effect windows
+against the same SHA-pinned Original above with zero printed-byte mismatches.
+Overlapping/exploratory counts are not unique code or semantic coverage. Private
+Original bytes, tables and disassembly remain ignored; the EXE was never run.
+
+**EXE_OBSERVED:** actual Theatre75 `+20→48bfa0→48cde0` submits subtype36 to
+`+234→51cf90`. Effective staffing at48b780 requires at least one positive
+received performer slot (an OR of Acrobat/Music/Drama), then ordinary staffing.
+At full staffing, the5ab330 threshold3 is due on the fourth eligible callback;
+reset/attempt is distinct from actual factory success. SourceWORD2e and actual
+ActorWORD62 bind one matching active source-owned subtype36. Subtype dispatch
+4c7580 uses the concrete36 table entry84ed24→4d5d00, which resolves that owner
+and invokes its `+24→48b7e0→51d0c0` lifecycle.
+
+Actual movement4e6d80/4e7eb0 reaches4eacd0, source `+28→429df0→429e10`, then
+source `+2c→48b7f0`. The distributor considers real Building IDs near the
+actor's actual cell. Theatre's callback requires status1/3, House type2–17,
+nonzero Access and positive occupants, with no empty-Elite exception. The
+ordinary75 branch checks the actual owner's **current** subtype34 Music slot
+through `+25c`; only nonzero Music assigns exactly96 to House-own-info+2c
+(48b910..48b928). The House need and countdown routines separately identify
+that byte. The source71 special branch is not admitted. A true callback result
+can occur without Music96 and is not sufficient grant evidence.
+
+**EXE_OBSERVED:** shared51d0c0 includes a source-directed return; subtype36's
+`+23c→48b9b0` allows removal at the return terminal indication. Its initializer
+48b980 selects state6 and WORD3e=200+(RNG%50). These200..249 eligible-update
+counts are not established World ticks. Owner `+240→416b90` removes the actor
+when source status differs from1; that local gate does not recheck staffing or
+Music. Complete Original pause/fire-to-status mapping, roaming/RNG policy,
+clock conversion and binary-save serialization remain **UNKNOWN**. The generic
+4c8b10 actor copy does not prove original save compatibility.
+
+**AUTHORED:** exact Rule23/policy3/schema39, marker
+`authored-venue-house-service-v1`, inherits Rule22's paid School→Theatre input.
+One fixed paid Theatre movement channel uses a distinct typed monotone walker
+identity for each real spawn. Its fourth full-staff eligible phase35 callback
+may dispatch one legal cached House roundtrip while current Music is positive.
+This deterministic endpoint selection replaces the unresolved Original
+actor-centred roaming scan; it is not roaming parity. Only real arrival with
+current Music, eligible occupied House and conservative authored current-source
+operation/staff/fire checks assigns the existing sole Music96 timer and actual
+service witness. Expiry or refusal grants nothing. Return, road cuts and begun
+edges use the existing physical movement authority; home arrival retires the
+identity. Full staff only is admitted, with no inferred partial-staff venue path.
+
+Schema39 retains immutable first Music receipt and separate dispatch/actual-grant
+Music provenance, exact identities/highwaters, bounded trips and House histories.
+The new JSON does not import Original saves. No Theatre desirability source,
+passive aura, gratis staff, timer refresh on inspection/load, increased budget,
+Acrobat/Drama venue integration or source71 attachment is admitted. Rules1–22
+and schemas1–38 retain their exact separate contracts. Rule18 remains recommended;
+Rule23 is an explicit Advanced/Legacy/CLI experiment. See the [assessment](../original-economy/oe57-venue-house-service.md)
+for independently reported technical, gameplay, graphical and human gates.
+
 ## Individual DirectService effects on Houses
 
 **EXE-OBSERVED:** all three school source+2c slots bind48ad20. The callback checks target status1/3, House type2..17, nonzero Access and **strictly positive signed occupants**; it has no empty-elite exception. It reads actual Actor subtype+12 and assigns exactly one96 byte:
@@ -70,7 +129,7 @@ This callback is connected to actual actor-centered distribution while the real 
 
 The existing [timer contract](original-service-timer-contract.md) separately establishes eligible phase35 countdown and all nine categories. The unchanged pure service kernels handle one visit and one countdown; they do not purchase sources, navigate or choose a Worldtick cadence.
 
-## Explicit revision23 integration boundary
+## Historical development-revision23 integration boundary
 
 **AUTHORED INTEGRATION:** the playable adapter buys the actual211/212/213 model bodies using the session's prepared prices/Employees and the evidenced sizes. Each owns a separate cargo-free Worldcourier using the existing navigator and deterministic House rotation. Only a genuine accepted House arrival applies the corresponding single DirectService96 action. Source operation, full workers, road access and Fire remain normal gates; a previously dispatched visitor can finish after source pause/fire. Targetfire prevents a visit. Dispatch, source proximity and return apply no additional effect.
 

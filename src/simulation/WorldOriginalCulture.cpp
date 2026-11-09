@@ -183,7 +183,7 @@ World World::create_original_music_venues(std::shared_ptr<const MapPermissions> 
 }
 World World::restore_original_music_venues(const WorldSnapshot& state,std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
-    if (!simulation::original_music_venues_enabled(state.profile,state.rule_version) || !permissions ||
+    if (state.profile!=RulesProfile::CityV16 || state.rule_version!=kOriginalMusicVenuesRuleVersion || !permissions ||
         permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain ||
         !model->supports_building(original::ModelBuilding::TheatrePavilion)) invalid("Music venue restore requires exact Rule22, policy3 and prepared model/terrain");
     validate_original_production_snapshot(state);
@@ -286,6 +286,7 @@ void World::validate_original_music_venues_snapshot(const WorldSnapshot& s) {
     if (!s.original_production || !s.original_production->culture || s.original_production->safe_demolition)
         invalid("Rule22 requires its own culture authority and no retirement journal");
     validate_culture(*s.original_production->culture,s.buildings,s.couriers,s.ticks,s.original_production->housing);
+    validate_original_venue_house_service_snapshot(s);
 }
 void World::validate_original_music_venues_state() const {
     if (!original_music_venues_enabled()) return;
@@ -349,6 +350,10 @@ void World::arrive_original_music_performer(CourierState& c) {
     if (!venue.music_timer && target.operating_enabled && !building_on_fire(target.id) && building_staffed_for_tick(target.id)) {
         venue.music_timer=32;trip.accepted=true;
         venue.last_arrival=OriginalMusicArrival{trip.performer_id,c.owner,c.id,trip.dispatched_tick,ticks_};
+        if (original_venue_house_service_enabled()) {
+            auto& source=owned_row(state.venue_house_service->sources,venue.building_id);
+            if (!source.first_music) source.first_music=venue.last_arrival;
+        }
     }
     // The actual one-way Actor ends here. The idle fixed channel has no visible
     // position or performer identity; the next real spawn gets a new ID.

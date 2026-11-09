@@ -358,6 +358,17 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
         detail::line(visits,"  Last actual arrival "+(value.last_arrival_tick ? std::to_string(*value.last_arrival_tick):"never"));
         detail::line(visits,"  Sources "+std::to_string(value.provider_count)+" | available "+std::to_string(value.available_source_count));
         detail::line(visits,"  Cached reach "+std::to_string(value.reachable_source_count)+" | travelling "+std::to_string(value.travelling_to_target_count));
+        if (world.original_venue_house_service_enabled() && detail::roles[r]==original::ServiceRole::Music) {
+            for (const auto& witness:world.original_production_state()->services.witnesses)
+                if (witness.building_id==id && witness.role==original::ServiceRole::Music && witness.venue_walker) {
+                    detail::line(visits,"  Theatre #"+std::to_string(static_cast<std::uint32_t>(witness.provider_id))+
+                        " | venue walker #"+std::to_string(static_cast<std::uint64_t>(witness.venue_walker->walker_id)));
+                    if (witness.venue_walker->arrival_music)
+                        detail::line(visits,"  Actual Music input performer #"+
+                            std::to_string(static_cast<std::uint64_t>(witness.venue_walker->arrival_music->performer_id)));
+                    break;
+                }
+        }
     }
     detail::line(visits,"Cached reach0 may be stale; next arrival unknown");
     }
