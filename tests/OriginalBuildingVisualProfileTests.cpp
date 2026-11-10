@@ -60,7 +60,7 @@ struct Fixture {
     fs::path root=fs::canonical(fs::temp_directory_path())/("openemperor-original-building-profile-"+
         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     fs::path data=root/"data",manifest=root/"buildings.json";
-    Bytes sg3=Bytes(40680U+205U*64U,0),bitmap=Bytes(4U+12800U+28800U,0);
+    Bytes sg3=Bytes(40680U+205U*64U,0),bitmap=Bytes(4U+12800U+28800U+12800U,0);
     a::RgbaImage legacy_image;
     Fixture() {
         u32(sg3,0,static_cast<unsigned>(sg3.size()));u32(sg3,4,213);
@@ -68,10 +68,11 @@ struct Fixture {
         const std::string system="Zeus_system.bmp",normal="synthetic.bmp";
         std::copy(system.begin(),system.end(),sg3.begin()+680);std::copy(normal.begin(),normal.end(),sg3.begin()+880);
         u32(sg3,680+124,200);u32(sg3,680+128,1);u32(sg3,680+132,200);
-        u32(sg3,880+124,3);u32(sg3,880+128,201);u32(sg3,880+132,203);
-        for (unsigned i=0;i<172;++i) u16(sg3,80U+2U*i,201);
+        u32(sg3,880+124,4);u32(sg3,880+128,201);u32(sg3,880+132,204);
+        for (unsigned i=0;i<173;++i) u16(sg3,80U+2U*i,201);
         for (const auto& id:a::original_building_visual_identities)
             if (id.footprint_side==3) u16(sg3,80U+2U*((id.group_key%512U)-1U),202);
+        u16(sg3,80U+2U*((0x4adU%512U)-1U),204);
         const auto record=[&](unsigned index,unsigned side,unsigned height,unsigned offset) {
             const auto at=40680U+64U*index,base=3200U*side*side;
             u32(sg3,at,offset);u32(sg3,at+4,base);u32(sg3,at+8,base);
@@ -81,23 +82,31 @@ struct Fixture {
             // selection must retain their complete base without inventing it.
             u16(sg3,at+30,12);u16(sg3,at+34,8);u16(sg3,at+36,10);sg3[at+58]=4;
         };
-        record(201,2,90,4);record(202,3,130,12804);record(203,2,90,4);
+        record(201,2,90,4);record(202,3,130,12804);record(203,2,90,4);record(204,2,137,41604);
         for (std::size_t at=4;at<bitmap.size();at+=2)u16(bitmap,at,0x03e0);
         save();legacy_image=a::load_sg3_image({data/"DATA/China_General.sg3",201});
     }
     ~Fixture(){std::error_code e;fs::remove_all(root,e);}
     void save() const {write(data/"DATA/China_General.sg3",sg3);write(data/"DATA/China_General.555",bitmap);}
-    Json valid() const {
+    Json valid(unsigned schema=2) const {
         Json rows=Json::array();
         for (const auto& id:a::original_building_visual_identities) {
-            const unsigned side=id.footprint_side,height=side==2 ? 90:130;
+            if (schema==1 && static_cast<std::size_t>(id.role)>=a::original_building_schema1_role_count) break;
+            if (!id.static_base_supported) {
+                rows.push_back({{"model_type",id.model_type},{"original_side",id.footprint_side},{"native",false},
+                    {"fallback","Field state is not reconstructed; explicit authored fallback"},
+                    {"evidence","Known original stateful selector is not represented by World progress"}});
+                continue;
+            }
+            const unsigned side=id.footprint_side,height=id.role==a::OriginalBuildingVisualRole::HempFarm ? 137U:(side==2 ? 90U:130U);
             rows.push_back({{"model_type",id.model_type},{"original_side",side},{"fallback","Explicit synthetic named fallback"},
-                {"archive","DATA/China_General.sg3"},{"image_index",side==2 ? 201U:202U},
+                {"archive","DATA/China_General.sg3"},{"image_index",id.role==a::OriginalBuildingVisualRole::HempFarm ? 204U:(side==2 ? 201U:202U)},
                 {"width",80U*side-2U},{"height",height},{"base_bytes",3200U*side*side},
                 {"ground_anchor",{40U*side-1U,height-20U}},{"group_key",id.group_key},{"variant",0U},
                 {"evidence","Independent authored static native Type30 fixture"}});
+            if(schema==2) rows.back()["native"]=true;
         }
-        return {{"schema_version",1U},{"mode","original_building_bases"},{"selection","canonical_static_base"},
+        return {{"schema_version",schema},{"mode","original_building_bases"},{"selection","canonical_static_base"},
             {"anchor_policy","type30_front_cell"},{"evidence","Synthetic pixels; no original content"},
             {"files",{{{"path","DATA/China_General.sg3"},{"sha256",hash(sg3)}},
                       {{"path","DATA/China_General.555"},{"sha256",hash(bitmap)}}}},{"buildings",rows}};
@@ -117,21 +126,38 @@ struct Fixture {
 void synthetic() {
     Fixture f;write(f.manifest,f.valid());auto p=f.legacy();const auto before=state(p);
     a::append_original_building_visual_profile(f.data,f.manifest,p);
-    check(p.original_building_prepared && p.unique_images.size()==2,"core/new physical dedup failed");
+    check(p.original_building_prepared && p.unique_images.size()==3,"core/new physical dedup failed");
     check(state(p)["core"]==before["core"] && state(p)["houses"]==before["houses"],"legacy selections changed");
     for (const auto& id:a::original_building_visual_identities) {
+        if (!id.static_base_supported) {
+            check(!p.find_original_building(id.role,id.footprint_side) && !p.fallback_original_building(id.role,id.footprint_side).empty(),
+                "unsupported field drew a guessed native state");
+            continue;
+        }
         const auto* e=p.find_original_building(id.role,id.footprint_side);check(e!=nullptr,"missing model/side selection");
         check(!p.find_original_building(id.role,1) && !p.fallback_original_building(id.role,1).empty(),"side mismatch drew original art");
         const auto& image=p.unique_images.at(e->image_index);std::size_t opaque=0;
         for(std::size_t i=3;i<image.pixels.size();i+=4){check(image.pixels[i]==0 || image.pixels[i]==255,"native binary alpha changed");opaque+=image.pixels[i]==255;}
         check(opaque==1600U*id.footprint_side*id.footprint_side && image.pixels[3]==0,"native whole base/transparent corner changed");
     }
+    // The original exact-ten schema keeps its old native rows and physical
+    // pool. Added roles cannot become available implicitly through it.
+    write(f.manifest,f.valid(1));auto historical=f.legacy();
+    a::append_original_building_visual_profile(f.data,f.manifest,historical);
+    check(historical.unique_images.size()==2,"historical schema1 physical pool changed");
+    for(const auto& id:a::original_building_visual_identities) {
+        const auto* entry=historical.find_original_building(id.role,id.footprint_side);
+        check(bool(entry)==(static_cast<std::size_t>(id.role)<a::original_building_schema1_role_count),
+            "schema1 role availability changed");
+        if(!entry)check(!historical.fallback_original_building(id.role,id.footprint_side).empty(),"historical absent role has no fallback");
+    }
+    write(f.manifest,f.valid());
     auto house=f.legacy();house.entries[a::role_index(a::BuildingVisualRole::Well)]->id.image_index=203;
     house.unique_images.push_back(f.legacy_image);house.original_house_prepared=true;
     house.original_house_entries[1]=a::BuildingVisualEntry{{"DATA/China_General.sg3",201},1,79,70,2,"Existing House fixture"};
     const auto old_houses=state(house)["houses"];
     a::append_original_building_visual_profile(f.data,f.manifest,house);
-    check(house.unique_images.size()==3 && state(house)["houses"]==old_houses,"House/new shared physical pool not deduplicated");
+    check(house.unique_images.size()==4 && state(house)["houses"]==old_houses,"House/new shared physical pool not deduplicated");
     perf::set_enabled(true);const auto reads=perf::counter(perf::Counter::FileReads),decodes=perf::counter(perf::Counter::AssetDecodes);
     for(int i=0;i<1000;++i)for(const auto& id:a::original_building_visual_identities){(void)p.find_original_building(id.role,id.footprint_side);(void)p.fallback_original_building(id.role,1);}
     check(perf::counter(perf::Counter::FileReads)==reads && perf::counter(perf::Counter::AssetDecodes)==decodes,"prepared lookup did source/decode work");perf::set_enabled(false);
@@ -147,11 +173,41 @@ void synthetic() {
     bad=f.valid();bad["buildings"][0]["base_bytes"]=3200U;f.reject(bad,"wrong base accepted");
     bad=f.valid();bad["buildings"][0].erase("archive");f.reject(bad,"partial row accepted");
     bad=f.valid();bad["buildings"][0]["unknown"]=true;f.reject(bad,"unknown row key accepted");
+    bad=f.valid();bad["schema_version"]=3U;f.reject(bad,"unknown supplement schema accepted");
+    bad=f.valid(1);bad["buildings"][0]["native"]=true;f.reject(bad,"schema1 gained schema2 row keys");
+    bad=f.valid();bad["schema_version"]=1U;f.reject(bad,"schema1 accepted fifteen rows");
+    bad=f.valid(1);bad["buildings"][9]["model_type"]=192U;f.reject(bad,"schema1 accepted appended role");
+    bad=f.valid();bad["buildings"][10]["group_key"]=0x43aU;f.reject(bad,"HempFarm accepted Farmhouse group");
+    bad=f.valid();bad["buildings"][11]["group_key"]=0x4adU;f.reject(bad,"Farmhouse accepted HempFarm group");
+    bad=f.valid();bad["buildings"][10]["variant"]=1U;f.reject(bad,"Farm animation selected as body");
+    bad=f.valid();bad["buildings"][10]["original_side"]=1U;f.reject(bad,"Farm body used one-cell preview");
+    for(std::size_t i=12;i<15;++i) {
+        bad=f.valid();bad["buildings"][i]["native"]=true;f.reject(bad,"stateful field native selection accepted");
+        for(const auto* key:{"archive","image_index","width","height","base_bytes","ground_anchor","group_key","variant"}) {
+            bad=f.valid();bad["buildings"][i][key]=0;f.reject(bad,"fallback-only field carried native keys");
+        }
+    }
+    bad=f.valid();bad["buildings"][12].erase("native");f.reject(bad,"implicit field state selection accepted");
+    bad=f.valid();bad["buildings"][12]["native"]=0;f.reject(bad,"nonboolean native selection accepted");
+    bad=f.valid();bad["buildings"][12]["original_side"]=2;f.reject(bad,"fallback role side mismatch accepted");
+    bad=f.valid();bad["buildings"][12]["fallback"]="";f.reject(bad,"empty explicit fallback accepted");
+    auto fallback=f.valid();fallback["buildings"][10]={{"model_type",192},{"original_side",2},{"native",false},
+        {"fallback","Explicit unavailable Farm static base; authored fallback"},{"evidence","Synthetic missing optional body"}};
+    write(f.manifest,fallback);auto missing=f.legacy();
+    a::append_original_building_visual_profile(f.data,f.manifest,missing);
+    check(!missing.find_original_building(a::OriginalBuildingVisualRole::HempFarm,2) &&
+        missing.find_original_building(a::OriginalBuildingVisualRole::Farmhouse,3) &&
+        !missing.fallback_original_building(a::OriginalBuildingVisualRole::HempFarm,2).empty(),
+        "explicit native-eligible fallback damaged remaining roles");
     bad=f.valid();bad["unknown"]=true;f.reject(bad,"unknown root key accepted");
     bad=f.valid();bad["files"][0]["sha256"]=std::string(64,'0');f.reject(bad,"wrong SHA accepted");
     bad=f.valid();bad["files"][1]=bad["files"][0];f.reject(bad,"duplicate fingerprint accepted");
     bad=f.valid();bad["buildings"][0]["archive"]="../outside.sg3";f.reject(bad,"unsafe path accepted");
     f.reject(f.valid(),"combined pool budget exceeded",158U*90U*4U+238U*130U*4U-1U);
+    f.reject(f.valid(),"Farm append exceeded remaining combined pool budget",158U*90U*4U+238U*130U*4U+158U*137U*4U-1U);
+    write(f.manifest,f.valid());auto exact=f.legacy();
+    a::append_original_building_visual_profile(f.data,f.manifest,exact,158U*90U*4U+238U*130U*4U+158U*137U*4U);
+    check(exact.unique_images.size()==3,"exact combined Farm budget refused or duplicated physical images");
     const auto valid_sg3=f.sg3;u32(f.sg3,40680U+202U*64U+16U,1U);f.save();f.reject(f.valid(),"mirror accepted");f.sg3=valid_sg3;f.save();
     f.sg3[40680U+202U*64U+52U]=3;f.save();f.reject(f.valid(),"unknown external source accepted");f.sg3=valid_sg3;f.save();
     const auto valid_bitmap=f.bitmap;f.bitmap.pop_back();f.save();f.reject(f.valid(),"decoder accepted truncated native payload");f.bitmap=valid_bitmap;f.save();
@@ -172,6 +228,9 @@ void compatibility() {
         {"optional_original_buildings",{{"profile","original-buildings.json"},{"core_files",{"DATA/China_General.sg3","DATA/China_General.555"}}}}};
     const auto detect=[&]{write(pack/"manifest.json",doc);return a::detect_compatibility(f.data,pack.parent_path());};
     auto result=detect();check(result.compatible() && result.original_building_compatible() && result.files_hashed==3,"optional bases changed core fingerprints or failed selection");
+    write(metadata,f.valid(1));result=detect();check(result.compatible() && result.original_building_compatible(),"historical schema1 optional profile stopped activating");
+    auto unknown=f.valid();unknown["schema_version"]=3;write(metadata,unknown);result=detect();
+    check(result.compatible() && !result.original_building_compatible(),"unknown supplement schema activated");
     auto bad=f.valid();bad["files"][0]["sha256"]=std::string(64,'0');write(metadata,bad);result=detect();
     check(result.compatible() && !result.original_building_compatible(),"optional mismatched metadata damaged core or activated");
     write(metadata,f.valid());const auto saved=doc;doc["optional_original_buildings"]["core_files"][1]="core";result=detect();
@@ -189,10 +248,13 @@ void real(const fs::path& data,const fs::path& resources) {
     a::append_original_house_visual_profile(data,pack/"original-houses.json",p);
     check(p.unique_images.size()==28,"sixteen native House images changed");const auto before=state(p);
     a::append_original_building_visual_profile(data,pack/"original-buildings.json",p);
-    check(p.unique_images.size()==37 && state(p)["core"]==before["core"] && state(p)["houses"]==before["houses"],"real extension changed legacy selections or Well physical dedup");
-    const std::array<unsigned,10> physical{1559,1593,589,460,501,2245,2258,2309,2811,2768};
+    check(p.unique_images.size()==39 && state(p)["core"]==before["core"] && state(p)["houses"]==before["houses"],"real extension changed legacy selections or Well physical dedup");
+    std::uint64_t rgba_bytes=0;for(const auto& image:p.unique_images)rgba_bytes+=image.pixels.size();
+    check(rgba_bytes==4490336,"real eager combined RGBA budget changed");
+    const std::array<unsigned,12> physical{1559,1593,589,460,501,2245,2258,2309,2811,2768,825,793};
     for(std::size_t i=0;i<a::original_building_role_count;++i){
         const auto& id=a::original_building_visual_identities[i];const auto* e=p.find_original_building(id.role,id.footprint_side);
+        if(!id.static_base_supported){check(!e && !p.fallback_original_building(id.role,id.footprint_side).empty(),"real field native state guessed");continue;}
         check(e && e->id.image_index==physical[i],"wrong real static representative");
         const auto decoded=a::load_sg3_image({data/e->id.archive_relative_path,e->id.image_index});const auto& image=p.unique_images.at(e->image_index);
         check(decoded.width==image.width && decoded.height==image.height && decoded.pixels==image.pixels,"whole original RGBA changed");

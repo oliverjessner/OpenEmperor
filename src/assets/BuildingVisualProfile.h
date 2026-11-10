@@ -26,13 +26,17 @@ constexpr std::size_t building_role_count=building_roles.size();
 // values above and House stage table remain unchanged.
 enum class OriginalBuildingVisualRole {
     WaterWell, Acupuncture, MusicSchool, AcrobatSchool, DramaSchool, DaoistShrine,
-    BuddhistShrine, ConfucianAcademy, PaperMaker, Weaver
+    BuddhistShrine, ConfucianAcademy, PaperMaker, Weaver,
+    HempFarm, Farmhouse, HempField, WheatField, MilletField
 };
 struct OriginalBuildingVisualIdentity {
     OriginalBuildingVisualRole role;
     std::uint16_t model_type;
     std::uint32_t group_key;
     std::uint8_t footprint_side;
+    // A known model/group registration alone does not reconstruct a stateful
+    // field selector. Such roles remain explicitly fallback-only.
+    bool static_base_supported=true;
 };
 inline constexpr std::array original_building_visual_identities{
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::WaterWell,72,0x482,2},
@@ -44,7 +48,13 @@ inline constexpr std::array original_building_visual_identities{
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::BuddhistShrine,217,0x49c,2},
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::ConfucianAcademy,219,0x49f,3},
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::PaperMaker,45,0x44a,2},
-    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::Weaver,47,0x446,2}};
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::Weaver,47,0x446,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::HempFarm,192,0x4ad,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::Farmhouse,193,0x43a,3},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::HempField,194,0x431,1,false},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::WheatField,195,0x42e,1,false},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::MilletField,196,0x42c,1,false}};
+inline constexpr std::size_t original_building_schema1_role_count=10;
 inline constexpr std::size_t original_building_role_count=original_building_visual_identities.size();
 constexpr const OriginalBuildingVisualIdentity* original_building_visual_identity(OriginalBuildingVisualRole role) {
     const auto index=static_cast<std::size_t>(role);

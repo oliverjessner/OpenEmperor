@@ -226,12 +226,157 @@ separate from the thirteen legacy role entries and the original House-stage
 table. In original production, `ServicePost` corresponds to the paid
 Acupuncturist208 source; the historical one-cell notice-sign preview remains a
 different contract. Model59's generic registration word is zero and does not
-justify a new Market graphic. Ancestor214, Farmhouse193 and HempFarm192 remain
-inventory candidates outside this selected set. Their uncompleted selector and
-visual evidence must not be filled by nearby records or model names.
+justify a new Market graphic. Ancestor214 remains an inventory candidate outside
+this selected set. The separate [farm and field audit below](#farm-bodies-and-field-state-boundary)
+qualifies Farmhouse193 and HempFarm192; it does not change these ten historical
+selections or infer field states from nearby records or model names.
 
 This source audit establishes the ten selected static frames, source bindings
 and geometric compatibility. Final application, capture, fallback, resource and
 historical-save validation are separate from source research. It does not claim
 original animation, profession, full scene, native interaction or human play
 acceptance, and introduces no World, rule or save authority.
+
+## Farm bodies and field-state boundary
+
+The farm audit uses the same read-only PE32/i386 EXE, image base `0x400000`,
+SHA-256 `6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`.
+The Model SHA-256 remains
+`7e51df8cd49ab39fea7397b7c1a9e7edefdc98a8f09b5e2139987346b4b972e6`;
+General.sg3 is
+`c9ae527102c312098cbfe82932ce1b39c6c96692981c874dc853306835583e46`,
+and General.555 is
+`3cb09cd2c954eb355e2253482845e7117b353c24506575795bcaa1fe45db33f2`.
+Five fresh bounded static batches passed the OE60 guard before and after their
+reads, preserving protected bytes, sizes, modes, modification times and tree
+membership. The original executable was not run; no personal saves were sought.
+Private disassembly, helper programs, raw metadata and decoded candidates stay
+under `.local/oe60/research-construction/` and `research-assets/`.
+
+The evidence classes have separate meanings. **MODEL_OBSERVED** identifies the
+named rows; names do not establish a factory or graphic. **EXE_OBSERVED** below
+means static qualified calls, object callbacks and table reads, not original
+execution. **SOURCE_VERIFIED** describes SG3/555 metadata and ordinary decoder
+output. **AUTHORED** identifies our placement convention and production clock.
+**UNKNOWN** retains an incomplete original lifecycle; **UNSUPPORTED** means it
+does not authorize runtime presentation or gameplay in this integration.
+
+### Concrete bodies and publication
+
+**EXE_OBSERVED:** manager creation `0x42d540` selects the actual object through
+`0x42d360`, then invokes its `+0x94` initializer. Industrial factory
+`0x51c660` first rejects the field predicate `0x4c11b0` for192/193, then accepts
+farm predicate `0x4c2930`. Its exact jump-table entries select:
+
+| Model / MODEL_OBSERVED identity | Concrete constructor | Installed vtable | Initial side | Qualified body group |
+|---|---|---|---:|---|
+|192 Hemp Farm|`0x4c5ca0`|`0x7af6e0`|2|`0x4ad`|
+|193 Farmhouse|`0x4c5b80`|`0x7af1e8`|3|`0x43a`|
+
+Both tables select `+0x94→0x428aa0`. This writes the requested runtime type and
+the initial side byte from `0x823598+24*type`, then invokes
+`+0x90→0x4c30f0`. Both concrete placement callbacks select
+`+0x100→0x4c5bf0→+0x264→0x4c2ac0`.
+The complete checked bodywriter `0x4c2ac0–0x4c2b17` resolves the type's
+registered group with `0x408170`, adds the definition's final graphic offset
+(zero for both types), and passes the registered square side, coordinates and
+object ID to `0x4b72b0`. That publisher writes the selected graphic into the
+per-cell image array at `0xfe9880` and the object IDs into `0xfc3750`.
+The checked bodywriter contains no stock, productive-progress, staffing or
+crop-state branch. This qualifies the static body for construction and later
+calls of this same body callback; it does not reconstruct every original
+refresh path or operational animation.
+
+**SOURCE_VERIFIED:** the existing General2 registration/layout rules applied
+to production-inspector metadata resolve these two group bases to825 and793.
+The shared decoder reads the complete native Type30 images, without cropping
+or stretching. Both are internal, unmirrored records with no separate alpha
+stream. Native foundation padding and Omega detail belong to those images.
+
+| Model / physical | Native dimensions | Base / Omega bytes | Raw animation count / offset / speed | AUTHORED geometric front-cell anchor |
+|---|---|---|---|---|
+|192 /825|158×137|12,800 /13,202|14 /`(15,36)` /4|`[79,117]`|
+|193 /793|238×192|28,800 /19,406|18 /`(56,−2)` /4|`[119,172]`|
+
+The static body offset is0; the animation counts are **not** body variants.
+Associated animation records, activation, original cadence and the complete
+animated scene remain **UNKNOWN**. The anchors use the existing convention
+`[40*side−1,height−20]`; source dimensions and foundations are verified, but
+these anchors are **AUTHORED geometry**, not recovered original per-model
+pivots. Shared signed height, projection, picking and painter rules remain
+separate contracts.
+
+### Fields and actual adjacent registrations
+
+**EXE_OBSERVED:** `0x4c0600` accepts195–199; `0x4c0630` accepts194. Through the
+first Industrial factory branch,195–199 select
+`0x4c0660→0x4c2220`, vtable`0x7aea40`;194 selects
+`0x4c0660→0x4c25e0`, vtable`0x7aecc8`. All six have initial side1, inherited
+initializer `0x428aa0` and field initialization callback `0x4c1860`.
+Field construction has a distinct path: the purchase dispatcher qualifies
+`0x4c11b0` at `0x4b14d8`, and `0x4c1320` creates accepted cells through the
+real manager before calling each field's `+0x260` publisher at `0x4c1495`.
+The generic Farm placement callback is not evidence for a field's initial
+graphic.
+
+The table records group **bases**, not automatically selected live frames.
+Side bytes and group registrations are EXE observations; physical records,
+dimensions and payload sizes are source resource facts. Labels are Model
+observations.202/203 were bounded neighboring candidates, not additional
+supported sources.
+
+| Model / identity | Group base | Physical base | Initial side | Base image dimensions | Base / Omega bytes | Qualified runtime scope |
+|---|---|---:|---:|---|---|---|
+|194 Hemp Field|`0x431`|2458|1|78×41|3,200 /246|State-dependent field callback|
+|195 Wheat Field|`0x42e`|2422|1|78×43|3,200 /396|State-dependent field callback|
+|196 Millet Field|`0x42c`|2410|1|78×43|3,200 /366|State-dependent field callback|
+|197 Rice Paddy|`0x42d`|2506|1|78×42|3,200 /594|Separate rice topology branch; gameplay UNSUPPORTED|
+|198 Cabbage Field|`0x42f`|2434|1|78×40|3,200 /0|State-dependent field callback; gameplay UNSUPPORTED|
+|199 Soybean Field|`0x430`|2446|1|78×41|3,200 /201|State-dependent field callback; gameplay UNSUPPORTED|
+|202 Irrigation Ditch|`0x435`|672|1|78×41|3,200 /139|Generic definition only; factory/lifecycle UNKNOWN|
+|203 Irrigation Pump|`0x439`|761|2|158×110|12,800 /2,994|Generic definition only; factory/lifecycle UNKNOWN|
+
+All listed base records are internal, unmirrored Type30 images without a
+separate alpha stream. The field base records have animation count0. This
+does not make their complete live selection state-independent.
+
+For194, `+0x260→0x4c2650`; for195/196/198/199,
+`+0x260→0x4c2360`. The actual type-to-crop helper `0x4c1050/0x4c1060`
+selects the crop group table at `0x7ae2bc`:194→index5,195→0,196→1,
+197→2,198→3,199→4. Except for197's separate topology branch, publication
+uses a quantity-dependent offset bounded to six choices, plus6 when bit0 of
+the original per-cell byte at `0xf1e780` is set. The quantity callback
+`0x4c1290` reads signed own-info word`+0x04` and calls `0x408ba0` with10000.
+The Food-field and Hemp-field offset arithmetic differ at small positive
+quantities. Thus the twelve neighboring records are not twelve elapsed-time
+stages, random alternatives or a shared progress formula. The semantic meaning
+and complete valid lifecycle of the raw terrain bit are not inferred here.
+
+Separate code at `0x4c1a90/0x4c1a20` compares crop schedule entries at
+`0x7ae19c` with global`0xc82eec`, gated by`0xc82ef0`, and changes own-info
+`+0x6a` flags. Reset `0x4c1720` clears own-info`+0x04` and`+0x6a`;
+work callbacks `0x4c1d20/0x4c1bc0` change retained work/countdown bits.
+These are bounded evidence of distinct crop state and calendar dependencies,
+not a complete reconstructed growth, harvest, fertility or season contract.
+The exact complete frame at every original field purchase or restored field
+state remains **UNKNOWN**.
+
+### Current authority and supported boundary
+
+**AUTHORED:** current World production owns the parent farm's bounded
+progress0–79, actual harvest counter, physical stock and real cargo. A separately
+paid field has an identity, ownership link and placement tick. These do not
+bind the original field's own-info quantity/work state, calendar or raw cell
+bit. Rendering cannot derive those missing states from elapsed ticks,
+progress80, stock, a dispatch or a crop label, and cannot create new authority
+to fill them.
+
+Only the two static farm bodies are qualified for native selection. Native
+194/195/196 field-state rendering remains **UNSUPPORTED** and keeps an explicit
+authored fallback.197/198/199/202/203 gain no gameplay admission. Full original
+animation, original-save restoration, camera rotation and whole-scene parity
+remain outside this proof. The requested combined native Farm-and-Field goal
+is therefore **PARTIAL**, separately from application and regression results
+in [the current rendering assessment](../rendering/oe60-original-farm-visuals.md).
+No World, rule, cost, limit, productive clock, ownership or save schema is
+changed by these source observations.
