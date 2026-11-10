@@ -42,6 +42,11 @@ inline std::optional<assets::OriginalBuildingVisualRole> original_building_visua
     case O::OriginalConfucianAcademy219:return R::ConfucianAcademy;
     case O::OriginalPaperMaker45:return R::PaperMaker;
     case O::OriginalWeaver47:return R::Weaver;
+    case O::OriginalHempFarm:return R::HempFarm;
+    case O::OriginalFoodFarm:return R::Farmhouse;
+    case O::OriginalHempField:return R::HempField;
+    case O::OriginalWheatField:return R::WheatField;
+    case O::OriginalMilletField:return R::MilletField;
     default:return std::nullopt;
     }
 }

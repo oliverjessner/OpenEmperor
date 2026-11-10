@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "mode": "original_building_bases",
   "selection": "canonical_static_base",
   "anchor_policy": "type30_front_cell",
-  "evidence": "Ten Model-to-General registrations from pinned EXE SHA-256 6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e. Shared readers resolved and decoded every complete base; all ten images were opened. Static original pixels only: no inferred animation, state variants, cadence or scene parity. Front-cell anchors are authored geometric placement. No World, rule or save authority. See docs/reverse/original-presentation-correction.md.",
+  "evidence": "Schema2 retains ten historical native registrations, adds source-qualified static bodies for Hemp Farm192/Farmhouse193 and three explicit fallback-only fields. Pinned EXE SHA-256 6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e. Shared readers eagerly resolve/decode complete bases. Raw animation metadata is not a frame selector; front-cell anchors are authored geometry. No World/rule/save authority or inferred field growth. See docs/rendering/oe60-original-farm-visuals.md.",
   "files": [
     {
       "path": "DATA/China_General.sg3",
@@ -30,7 +30,8 @@
       ],
       "group_key": 1154,
       "variant": 0,
-      "evidence": "Pinned Model72 registration at VA0x823c60, group0x482, independently resolved through shared General2 layout; original base Well identity. Original water mechanics and evolution remain outside this static image. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned Model72 registration at VA0x823c60, group0x482, independently resolved through shared General2 layout; original base Well identity. Original water mechanics and evolution remain outside this static image. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 208,
@@ -47,7 +48,8 @@
       ],
       "group_key": 1157,
       "variant": 0,
-      "evidence": "Pinned Model208 registration at VA0x824920, group0x485, independently resolved through shared General2 layout; source identity is Acupuncturist Clinic. Original-production ServicePost mechanics remain authored. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned Model208 registration at VA0x824920, group0x485, independently resolved through shared General2 layout; source identity is Acupuncturist Clinic. Original-production ServicePost mechanics remain authored. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 211,
@@ -64,7 +66,8 @@
       ],
       "group_key": 1042,
       "variant": 0,
-      "evidence": "Pinned culture source211 constructor and static registration at VA0x824968, group0x412; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned culture source211 constructor and static registration at VA0x824968, group0x412; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 212,
@@ -81,7 +84,8 @@
       ],
       "group_key": 1040,
       "variant": 0,
-      "evidence": "Pinned culture source212 constructor and static registration at VA0x824980, group0x410; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned culture source212 constructor and static registration at VA0x824980, group0x410; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 213,
@@ -98,7 +102,8 @@
       ],
       "group_key": 1041,
       "variant": 0,
-      "evidence": "Pinned culture source213 constructor and static registration at VA0x824998, group0x411; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned culture source213 constructor and static registration at VA0x824998, group0x411; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 215,
@@ -115,7 +120,8 @@
       ],
       "group_key": 1179,
       "variant": 0,
-      "evidence": "Pinned religious source215 constructor and static registration at VA0x8249c8, group0x49b; shared General2 resolution. Complete static base only; religion visits and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned religious source215 constructor and static registration at VA0x8249c8, group0x49b; shared General2 resolution. Complete static base only; religion visits and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 217,
@@ -132,7 +138,8 @@
       ],
       "group_key": 1180,
       "variant": 0,
-      "evidence": "Pinned religious source217 constructor and static registration at VA0x8249f8, group0x49c; shared General2 resolution. Complete static base only; religion visits and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned religious source217 constructor and static registration at VA0x8249f8, group0x49c; shared General2 resolution. Complete static base only; religion visits and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 219,
@@ -149,7 +156,8 @@
       ],
       "group_key": 1183,
       "variant": 0,
-      "evidence": "Pinned religious source219 constructor and static registration at VA0x824a28, group0x49f; shared General2 resolution. Complete static base only; Academy material prerequisites remain World-owned. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned religious source219 constructor and static registration at VA0x824a28, group0x49f; shared General2 resolution. Complete static base only; Academy material prerequisites remain World-owned. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 45,
@@ -166,7 +174,8 @@
       ],
       "group_key": 1098,
       "variant": 0,
-      "evidence": "Pinned maker bodywriter VA0x5f1ee0 -> selector0x4f13f0 -> Model45 registration group0x44a; shared General2 resolution. Complete static base only; production and animation state not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned maker bodywriter VA0x5f1ee0 -> selector0x4f13f0 -> Model45 registration group0x44a; shared General2 resolution. Complete static base only; production and animation state not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
     },
     {
       "model_type": 47,
@@ -183,7 +192,65 @@
       ],
       "group_key": 1094,
       "variant": 0,
-      "evidence": "Pinned maker bodywriter VA0x5f1ee0 -> selector0x4f13f0 -> Model47 registration group0x446; shared General2 resolution. Complete static base only; production and animation state not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot."
+      "evidence": "Pinned maker bodywriter VA0x5f1ee0 -> selector0x4f13f0 -> Model47 registration group0x446; shared General2 resolution. Complete static base only; production and animation state not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 192,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Original Hemp Farm static body unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 825,
+      "width": 158,
+      "height": 137,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        117
+      ],
+      "group_key": 1197,
+      "variant": 0,
+      "evidence": "Pinned EXE SHA-256 6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e: Model192 factory/vtable-qualified placement/body callback VA0x4c2ac0 resolves group0x4ad plus definition offset zero. Shared General2 lookup yields physical825; native Type30 base and Omega are decoded whole. Animation metadata is not an active frame selector. Front-cell anchor is authored geometry. No World production-state, clock or authority change."
+    },
+    {
+      "model_type": 193,
+      "original_side": 3,
+      "native": true,
+      "fallback": "Original Farmhouse static body unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 793,
+      "width": 238,
+      "height": 192,
+      "base_bytes": 28800,
+      "ground_anchor": [
+        119,
+        172
+      ],
+      "group_key": 1082,
+      "variant": 0,
+      "evidence": "Pinned EXE SHA-256 6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e: Model193 factory/vtable-qualified placement/body callback VA0x4c2ac0 resolves group0x43a plus definition offset zero. Shared General2 lookup yields physical793; native Type30 base and Omega are decoded whole. Animation metadata is not an active frame selector. Front-cell anchor is authored geometry. No World production-state, clock or authority change."
+    },
+    {
+      "model_type": 194,
+      "original_side": 1,
+      "native": false,
+      "fallback": "Hemp Field: original per-field quantity/terrain state unavailable; authored field fallback",
+      "evidence": "Source-qualified field publishers require original per-field quantity and a source terrain variation. Generic registration, optical similarity and authored Farm progress do not reconstruct that state. No native image or growth phase is selected. See docs/rendering/oe60-original-farm-visuals.md."
+    },
+    {
+      "model_type": 195,
+      "original_side": 1,
+      "native": false,
+      "fallback": "Wheat Field: original per-field quantity/terrain state unavailable; authored field fallback",
+      "evidence": "Source-qualified field publishers require original per-field quantity and a source terrain variation. Generic registration, optical similarity and authored Farm progress do not reconstruct that state. No native image or growth phase is selected. See docs/rendering/oe60-original-farm-visuals.md."
+    },
+    {
+      "model_type": 196,
+      "original_side": 1,
+      "native": false,
+      "fallback": "Millet Field: original per-field quantity/terrain state unavailable; authored field fallback",
+      "evidence": "Source-qualified field publishers require original per-field quantity and a source terrain variation. Generic registration, optical similarity and authored Farm progress do not reconstruct that state. No native image or growth phase is selected. See docs/rendering/oe60-original-farm-visuals.md."
     }
   ]
 }

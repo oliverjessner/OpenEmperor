@@ -2110,7 +2110,7 @@ if(BUILD_TESTING)
         endif()
         add_test(NAME original-building-paid-production-view COMMAND openemperor-original-building-visual-view-tests
             "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${CMAKE_SOURCE_DIR}" "${OPENEMPEROR_OE52_PAID_TEST_SAVE}"
-            "${CMAKE_SOURCE_DIR}/.local/oe52/ctest-${CMAKE_BUILD_TYPE}")
+            "${CMAKE_SOURCE_DIR}/.local/oe60/ctest-${CMAKE_BUILD_TYPE}")
         set_tests_properties(original-building-paid-production-view PROPERTIES TIMEOUT 240)
     endif()
 

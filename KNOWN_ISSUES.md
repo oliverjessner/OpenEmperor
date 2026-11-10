@@ -48,11 +48,16 @@ complete original-game compatibility.
 - **Original artwork remains bounded.** OE52 adds ten source-registered static
   bases in Original production, sharing the existing Well image. Static source
   pixels and authored front-cell anchors do not establish original animation
-  cadence, runtime pivots or whole-scene composition parity. Food/Hemp farm
-  bodies, unassigned service/culture/religion/luxury walker families and pending
+  cadence, runtime pivots or whole-scene composition parity. OE60 adds the
+  source-published static Hemp Farm192 and Farmhouse193 bodies. The three
+  paid fields retain named authored fallbacks: their original crop selection
+  depends on original quantity and terrain state that the World does not
+  reconstruct. Farm-level authored 80-tick progress cannot supply that
+  state. Unassigned service/culture/religion/luxury walker families and pending
   Elite plots retain their named historical fallbacks. Existing Market,
   Warehouse and FireWatch core previews are not newly identified original
-  registrations. See the [OE52 evidence and validation](docs/rendering/oe52-original-visuals.md).
+  registrations. See the [OE52 evidence and validation](docs/rendering/oe52-original-visuals.md)
+  and [OE60 farm/field boundary](docs/rendering/oe60-original-farm-visuals.md).
 - **Fresh Common Type2 artwork has a narrow original binding.** The pinned
   normal purchase path publishes group `0x47a`, variant0, physical1508 before
   resident admission; the ordinary setter's `0x471`/physical1509–1510 is a

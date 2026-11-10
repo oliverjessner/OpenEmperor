@@ -6093,11 +6093,10 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Harvested "+std::to_string(farm.harvested));
             lines.push_back(farm.crop==simulation::OriginalFoodCrop::Wheat ? "Wheat source20 (authored)":"Millet source80 (authored)");
         }
-        lines.push_back("Authored presentation; original Farmhouse193 identity");
     } else if (b.kind==simulation::Object::OriginalWheatField || b.kind==simulation::Object::OriginalMilletField) {
         for (const auto& farm:world_->original_production_state()->food.farms) if (farm.field_id==id)
             lines.push_back("Bound Food Farm #"+std::to_string(static_cast<unsigned>(farm.farm_id)));
-        lines.push_back("Authored presentation; paid original model field");
+        lines.push_back("Authored field ownership and harvest timing");
     } else if (b.kind==simulation::Object::OriginalHempFarm) {
         lines.push_back("Hemp stock "+std::to_string(displayed_original_stock(*world_,*id,original::Goods::Hemp))+"/8");
         lines.push_back("Harvest progress "+std::to_string(b.progress)+"/80 productive ticks (authored)");
