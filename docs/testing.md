@@ -72,9 +72,10 @@ application resources. Choose fresh output roots and preserve the original
 inputs. The House profile checks all16 native House entries, strict Type2/Shelter
 registration separation, exact RGBA/alpha, eager deduplication, named fallbacks
 and unchanged budgets. The complete core/House/Original-building profile now has
-12+16+11=39 physical textures, including the two OE60 farm bodies; the shared
-Well still avoids a duplicate upload. Historical schema1 supplements retain
-their original ten-body selection.
+56 physical textures and4,770,512 RGBA bytes, including the two OE60 farm bodies
+and the OE60.5 field stages; the shared Well and Millet-stage5 image still avoid
+duplicate uploads. Historical schema1/2 supplements retain their original
+ten-/twelve-body selection and field fallbacks.
 The paid View checks the four-house Xia/Normal starter, the actual fifth-House
 purchase and preview, real Space-driven admission to Shelter3, complete F5/F9
 state/byte equality, rejection of a forged formerly occupied Vacant state,
@@ -204,14 +205,19 @@ provides separate `--create OUTPUT [TICKS]` and `--restore INPUT OUTPUT [TICKS]`
 under fresh `.local/oe53/` paths for full-document continuation comparisons.
 See the [OE53 contract](rendering/oe53-terrain-integration.md).
 
-## Original building visuals and farm/field boundaries (OE52/OE60)
+## Original building visuals and farm/field boundaries (OE52/OE60/OE60.5)
 
 `original-building-visual-profile` checks authored inputs, atomic source/metadata
 refusal, native Type30 geometry and deduplicated budgets. Schema1 retains the
 historical ten native roles; schema2 explicitly selects twelve native bodies
-and three fallback-only fields. Check unknown schemas, missing/duplicate roles,
-mixed native/fallback keys, native field refusal, the two farm registrations,
-shared physical-image reuse and the exact combined budget boundary. Its `-real` companion
+and three fallback-only fields. Schema3 adds the exact authored selector
+`authored-farm-progress-six-canonical-0-v1` and six ordered original images per
+field role. Check all stage boundaries, invalid progress, unknown schemas,
+missing/duplicate roles, mixed native/fallback keys, historical native-field
+refusal, wrong crop/offset/geometry, animated payload refusal, incomplete last
+payload, the two farm registrations, shared physical-image reuse and the exact
+combined budget boundary. Static lookup never implicitly selects a field stage.
+Its `-real` companion
 uses the explicitly configured `OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT` and the
 actual copied application resources. `original-building-selection-wiring`
 checks automatic/custom/fingerprint precedence without claiming pixel acceptance.
@@ -220,28 +226,36 @@ Set `OPENEMPEROR_OE52_PAID_TEST_SAVE` to an explicitly supplied earned
 Rule18/schema34/policy3 Xia save to register
 `original-building-paid-production-view`. The complete66-body/46-courier city is
 required; there are no original-data fixtures in Git. The test reserves a new
-private output below `.local/oe60/` for each invocation (explicit historical
-`.local/oe52/` output parents remain accepted), checks full F5/F9 bytes,
+private output below `.local/oe60-5/` for each invocation (explicit historical
+`.local/oe60/` and `.local/oe52/` output parents remain accepted), checks full F5/F9 bytes,
 126 size/zoom cases, alpha picking, F4 and resource/authority guards.
 The matrix covers twelve native bodies and the two field kinds actually bought
-in that immutable city, at1280×800/1600×900/1920×1080 and1×/2×/4×. It captures35
+in that immutable city, at1280×800/1600×900/1920×1080 and1×/2×/4×. It captures37
 PNGs with owned-target readback before Present. Open the images;
 its `report.json` deliberately leaves visual review and native/human acceptance
 unconfirmed. See the historical [OE52 assessment](rendering/oe52-original-visuals.md)
 and the current [OE60 contract](rendering/oe60-original-farm-visuals.md).
 
 ```sh
-ctest --test-dir build --output-on-failure -R '^original-(building-(visual-profile(-real)?|selection-wiring|paid-production-view)|production-(world|view|save)|food-(world|save)|hemp-(world|save)|house-visual-production-view)$'
+ctest --test-dir build --output-on-failure -R '^original-(building-(visual-profile(-real)?|selection-wiring|paid-production-view)|field-paid-growth-view|production-(world|view|save)|food-(world|save)|hemp-(world|save)|house-visual-production-view)$'
 ```
 
-Additionally exercise a fresh paid Xia/Normal Rule18 city: retain its real paid
-starter, buy a separate Food Farmhouse and Wheat field through normal commands,
-and observe actual staffing, productive ticks, harvest, loading and arrival.
-Check all192–196 roles across the nine size/zoom combinations. The farm bodies
-must remain825/793 through pause/resume and natural source fire; all three
-fields must remain named authored fallbacks. The original per-field quantity,
-terrain variation and calendar/work state are not reconstructed by farm-level
-progress. Compare full Funds, IDs, workers, progress, stock, cargo, reservations,
+`original-field-paid-growth-view` needs only the configured original-data root,
+not the earned-city fixture. It retains the normally paid Xia/Normal Rule18
+starter, buys a second Food Farmhouse, Wheat field and worker Houses through
+normal commands, and observes all80 existing parent progress values for all
+three crops. Its162 size/zoom/stage cases use owned-target readback;18 representative
+PNGs show every crop/stage at1280×800/4× with the actual authored-stage Inspector
+details. Check exact source pixels, opaque/transparent picking, F4, ten real
+ticks of a normally paused Wheat Farm, resumption, actual harvest, complete
+F5/F9 equality and all twelve pure-frame counters. Open the images separately.
+The original per-field quantity, variation and calendar/work state remain
+outside this explicitly authored six-stage mapping.
+
+Additionally compare the existing longer paid Farm exercise, including loading,
+arrival and natural source fire. Farm bodies must remain825/793, while fields
+must use only their actual paid parent's progress. Compare full Funds, IDs,
+workers, progress, stock, cargo, reservations,
 conservation and SaveDocument bytes against a freshly built previous engine.
 Use actual F5/F9 and a separately launched restore process. Full Release,
 focused Debug/ASan/UBSan, historical Rules1–23/schemas1–39, Rule18 Golden City

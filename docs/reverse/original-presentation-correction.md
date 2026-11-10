@@ -247,11 +247,11 @@ General.sg3 is
 `c9ae527102c312098cbfe82932ce1b39c6c96692981c874dc853306835583e46`,
 and General.555 is
 `3cb09cd2c954eb355e2253482845e7117b353c24506575795bcaa1fe45db33f2`.
-Five fresh bounded static batches passed the OE60 guard before and after their
+Bounded static batches passed the OE60 and OE60.5 guards before and after their
 reads, preserving protected bytes, sizes, modes, modification times and tree
 membership. The original executable was not run; no personal saves were sought.
 Private disassembly, helper programs, raw metadata and decoded candidates stay
-under `.local/oe60/research-construction/` and `research-assets/`.
+under `.local/oe60/` and `.local/oe60-5/` research directories.
 
 The evidence classes have separate meanings. **MODEL_OBSERVED** identifies the
 named rows; names do not establish a factory or graphic. **EXE_OBSERVED** below
@@ -347,10 +347,24 @@ selects the crop group table at `0x7ae2bc`:194→index5,195→0,196→1,
 uses a quantity-dependent offset bounded to six choices, plus6 when bit0 of
 the original per-cell byte at `0xf1e780` is set. The quantity callback
 `0x4c1290` reads signed own-info word`+0x04` and calls `0x408ba0` with10000.
-The Food-field and Hemp-field offset arithmetic differ at small positive
-quantities. Thus the twelve neighboring records are not twelve elapsed-time
-stages, random alternatives or a shared progress formula. The semantic meaning
-and complete valid lifecycle of the raw terrain bit are not inferred here.
+The complete helper `0x408ba0–0x408bbb` returns0 for a zero denominator;
+otherwise it computes signed integer `trunc(100*numerator/denominator)` toward
+zero, without floating point or a clamp. The field caller sign-extends its
+own-info word and supplies denominator10000, so its result is
+`Q=trunc(own_info_word/100)`. The signed16-bit field input cannot overflow the
+helper's multiplication by100. In the observed nonnegative0–10000 quantity
+range, Hemp selects `min(5,Q/20)`, whereas Food selects0 when `Q<=0`, otherwise
+`min(5,Q/20+1)`, using integer division. The source does not supply a general
+lower-bound clamp for arbitrary invalid Hemp quantities.
+
+Both publishers then add6 when the separate source variation byte's bit0 is
+set, and publish an actual1×1 footprint through `0x4b72b0`. This byte comes from
+the separately retained `0xf1e780` array, not the terrain dword or candidate
+byte. Its general semantic meaning is not established. Thus the twelve
+neighboring records are six quantity choices in two source-selected banks,
+not twelve elapsed-time stages, random alternatives or a shared progress
+formula. These arithmetic observations do not reconstruct the original
+quantity's complete growth, harvest or restore lifecycle.
 
 Separate code at `0x4c1a90/0x4c1a20` compares crop schedule entries at
 `0x7ae19c` with global`0xc82eec`, gated by`0xc82ef0`, and changes own-info
@@ -358,8 +372,11 @@ Separate code at `0x4c1a90/0x4c1a20` compares crop schedule entries at
 work callbacks `0x4c1d20/0x4c1bc0` change retained work/countdown bits.
 These are bounded evidence of distinct crop state and calendar dependencies,
 not a complete reconstructed growth, harvest, fertility or season contract.
-The exact complete frame at every original field purchase or restored field
-state remains **UNKNOWN**.
+The checked initializer `0x4c1860` clears own-info bytes`+0x06..+0x1d` and
+`+0x5c`; it does not directly clear the quantity word`+0x04`. A reset that clears
+that word is therefore not by itself a proof of the complete purchase path's
+initial quantity. The exact complete frame at every original field purchase
+or restored field state remains **UNKNOWN**.
 
 ### Current authority and supported boundary
 
@@ -367,16 +384,65 @@ state remains **UNKNOWN**.
 progress0–79, actual harvest counter, physical stock and real cargo. A separately
 paid field has an identity, ownership link and placement tick. These do not
 bind the original field's own-info quantity/work state, calendar or raw cell
-bit. Rendering cannot derive those missing states from elapsed ticks,
-progress80, stock, a dispatch or a crop label, and cannot create new authority
-to fill them.
+bit. Rendering cannot reconstruct those missing original states from elapsed
+ticks, progress80, stock, a dispatch or a crop label, and cannot create new
+authority to fill them. In particular, already-harvested Farm stock0–8 is not
+the original field's separate quantity word.
 
-Only the two static farm bodies are qualified for native selection. Native
-194/195/196 field-state rendering remains **UNSUPPORTED** and keeps an explicit
-authored fallback.197/198/199/202/203 gain no gameplay admission. Full original
-animation, original-save restoration, camera rotation and whole-scene parity
-remain outside this proof. The requested combined native Farm-and-Field goal
-is therefore **PARTIAL**, separately from application and regression results
-in [the current rendering assessment](../rendering/oe60-original-farm-visuals.md).
+The two static farm bodies have qualified original body callbacks. Historical
+building-profile schema2 retains its explicit field fallbacks; schema1 retains
+its ten-body contract. Schema3 can display the registered field images under
+the deliberately authored policy below. Original194/195/196 growth-state
+reproduction remains **UNSUPPORTED**.197/198/199/202/203 gain no gameplay
+admission. Full original animation, original-save restoration, camera rotation
+and whole-scene parity remain **PARTIAL**, separately from application and
+regression results in
+[the current rendering assessment](../rendering/oe60-original-farm-visuals.md).
 No World, rule, cost, limit, productive clock, ownership or save schema is
 changed by these source observations.
+
+### Canonical field images with authored progress
+
+**EXE_OBSERVED / SOURCE_VERIFIED:** the qualified crop groups and shared resource
+resolver identify these canonical bank0 record families:
+
+| Paid field model | Group | Canonical offsets | Physical General records |
+|---|---|---|---|
+|194 Hemp|`0x431`|0–5|2458–2463|
+|195 Wheat|`0x42e`|0–5|2422–2427|
+|196 Millet|`0x42c`|0–5|2410–2415|
+
+Each prepared image retains its own decoded dimensions and alpha mask and must
+validate as a side1 Type30 record. The shared front-cell anchor
+`[39,height−20]` remains **AUTHORED geometry**, not an original per-frame pivot.
+The six offsets fit the existing bounded resource-group variant path; no
+global variant-limit increase is needed. The second source-selected bank is
+not activated by this policy.
+
+**AUTHORED:** building-profile schema3 explicitly names
+`authored-farm-progress-six-canonical-0-v1`. For a real paid field bound to its
+actual parent Farm, the presentation selects
+`stage=floor(6*parent_farm.progress/80)` only for saved progress0–79:
+
+| Authored productive progress | Source-family offset |
+|---|---:|
+|0–13|0|
+|14–26|1|
+|27–39|2|
+|40–53|3|
+|54–66|4|
+|67–79|5|
+
+Invalid progress or missing/mismatched paid ownership has no admitted sprite
+and retains a diagnostic fallback. This is a pure presentation of existing
+validated World authority. It does not use elapsed wall time, assign field
+quantity, grant a harvest or alter staffing, production, stock, cargo or saves.
+Existing pause, fire and harvest behavior governs the retained progress;
+there is no separate presentation growth clock. Restore recomputes the same
+selection from the saved parent/field identities and progress.
+
+The policy intentionally chooses canonical bank0 and does not reproduce the
+original per-cell variation bit, `Q` formula, calendar or crop-state lifecycle.
+An authored stage0 is not a claim that every original purchase starts in that
+state. Original images are source facts; their assignment to OpenEmperor's
+productive progress is an explicit authored choice, not original-state parity.

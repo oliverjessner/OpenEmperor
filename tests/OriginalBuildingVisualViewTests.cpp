@@ -56,10 +56,11 @@ void no_symlinks(const fs::path& path) {
 }
 fs::path fresh_output(const fs::path& repo,const fs::path& requested) {
     const auto parent=fs::absolute(requested).lexically_normal();no_symlinks(parent);
-    const auto old_allowed=repo/".local/oe52",allowed=repo/".local/oe60";
+    const auto old_allowed=repo/".local/oe52",oe60_allowed=repo/".local/oe60",allowed=repo/".local/oe60-5";
     const auto resolved=fs::weakly_canonical(parent);
     check((parent!=allowed&&contains(allowed,resolved)) ||
-        (parent!=old_allowed&&contains(old_allowed,resolved)),"Use a private OE52/OE60 output parent");
+        (parent!=oe60_allowed&&contains(oe60_allowed,resolved)) ||
+        (parent!=old_allowed&&contains(old_allowed,resolved)),"Use a private OE52/OE60/OE60.5 output parent");
     fs::create_directories(parent);
     const auto stamp=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     for(unsigned attempt=0;attempt<32;++attempt) {
@@ -115,6 +116,9 @@ Json diagnostic(const oe::SandboxView::OriginalBuildingVisualDiagnostic& d) {
         {"world_ground",{d.ground.x,d.ground.y}},{"world_image_origin",{d.image_origin.x,d.image_origin.y}},
         {"selection",d.selection},{"evidence",d.evidence},{"fallback_reason",d.fallback_reason}};
     if(d.asset)result["asset"]={{"archive",d.asset->archive_relative_path.generic_string()},{"physical_record",d.asset->image_index}};
+    if(d.field_stage)result["authored_field_stage"]=*d.field_stage;
+    if(d.field_farm)result["field_farm_id"]=static_cast<unsigned>(*d.field_farm);
+    if(d.field_stage)result["field_farm_progress"]=d.field_farm_progress;
     return result;
 }
 Surface capture(oe::SandboxView& view,SDL_Renderer* renderer,const fs::path& out,const std::string& name,Json& records) {
@@ -240,13 +244,14 @@ int main(int argc,char** argv) {
         view->configure_save(data,document.map_relative,working,document);configure(*view,art);view->initialize(window,renderer);focus(*view);
         check(view->paused()&&view->world().snapshot()==document.world,"Production restore changed complete paid World");
         key(*view,SDLK_F5);check(bytes(working)==original_bytes,"Initial actual F5 changed complete canonical save bytes");
-        const auto texture_count=view->building_texture_count();check(texture_count==39,"Startup must upload exactly39 shared core/House/Original building textures");
+        const auto texture_count=view->building_texture_count();check(texture_count==56,"Startup must upload exactly56 shared core/House/Original building textures");
         const auto initial_stats=view->original_building_display_stats();
-        check(initial_stats.active&&std::count(initial_stats.configured_roles.begin(),initial_stats.configured_roles.end(),true)==12,
-            "Twelve native bodies and three explicit field fallbacks were not atomically prepared");
+        check(initial_stats.active&&std::all_of(initial_stats.configured_roles.begin(),initial_stats.configured_roles.end(),[](bool value){return value;}),
+            "Twelve native bodies and three complete authored field image tables were not atomically prepared");
         Json records=Json::array(),matrix=Json::array(),alpha=Json::array(),bodies=Json::array(),actors=Json::array();
         std::array<sim::BuildingId,expected.size()> owners{};std::array<assets::RgbaImage,expected.size()> images;
         std::array<sim::BuildingId,fields.size()> field_owners{};
+        std::array<assets::RgbaImage,fields.size()> field_images;
         for(std::size_t i=0;i<expected.size();++i) {
             const auto found=std::find_if(view->world().buildings().begin(),view->world().buildings().end(),[&](const auto& b){return b.kind==expected[i].kind;});
             check(found!=view->world().buildings().end(),"Paid reference lacks a selected Original building category");owners[i]=found->id;
@@ -264,8 +269,15 @@ int main(int argc,char** argv) {
             check(found!=view->world().buildings().end(),"Paid reference lacks a crop field category");
             field_owners[i]=found->id;
             const auto d=view->original_building_visual_diagnostic(found->id);
-            check(d.applicable&&d.model_type==fields[i].second&&d.actual_side==1&&!d.configured&&!d.active&&!d.asset&&
-                !d.fallback_reason.empty(),"A field without Original growth authority acquired native crop artwork");
+            const auto base=fields[i].second==194 ? 2458U:2410U;
+            check(d.applicable&&d.model_type==fields[i].second&&d.actual_side==1&&d.configured&&d.active&&d.asset&&
+                d.field_stage&&d.field_farm&&*d.field_stage<6&&d.asset->image_index==base+*d.field_stage&&
+                d.selection.find("authored six-stage Farm progress mapping")!=std::string::npos&&
+                view->world().building(*d.field_farm).progress==d.field_farm_progress,
+                "Paid field lost its explicit authored progress mapping or canonical native frame");
+            field_images[i]=assets::load_sg3_image({data/d.asset->archive_relative_path,d.asset->image_index});
+            check(d.image_width==field_images[i].width&&d.image_height==field_images[i].height&&
+                d.ground_x==39&&d.ground_y==d.image_height-20,"Field image/one-cell anchor mismatch");
         }
         for(const auto dimensions:std::array{std::pair{1280,800},std::pair{1600,900},std::pair{1920,1080}}) {
             check(SDL_SetWindowSize(window,dimensions.first,dimensions.second),"Resize actual production View");
@@ -312,23 +324,50 @@ int main(int argc,char** argv) {
                 }
                 for(std::size_t i=0;i<fields.size();++i) {
                     const auto d=view->original_building_visual_diagnostic(field_owners[i]);
-                    center(*view,{d.ground.x,d.ground.y-20});
-                    const auto name="model"+std::to_string(fields[i].second)+"-authored-field-"+
+                    center(*view,{d.image_origin.x+d.image_width*.5,d.image_origin.y+d.image_height*.5});
+                    const auto name="model"+std::to_string(fields[i].second)+"-authored-field-growth-"+
                         std::to_string(dimensions.first)+"x"+std::to_string(dimensions.second)+"-"+
                         std::to_string(static_cast<int>(z))+"x";
                     const bool save_category=dimensions.first==1920&&z==1;
                     const auto before=view->original_building_display_stats();
-                    capture(*view,renderer,output,save_category?name:std::string{},records);
+                    auto frame=capture(*view,renderer,output,save_category?name:std::string{},records);
                     const auto after=view->original_building_display_stats();const auto slot=static_cast<std::size_t>(d.role);
-                    check(!d.configured&&!d.active&&!d.asset&&!d.fallback_reason.empty()&&
-                        after.authored_fallbacks[slot]>before.authored_fallbacks[slot]&&
-                        after.drawn_instances[slot]==before.drawn_instances[slot],
-                        "Unreconstructable native field state did not retain its explicit authored fallback");
+                    check(d.configured&&d.active&&d.asset&&d.field_stage&&d.field_farm&&
+                        after.drawn_instances[slot]>before.drawn_instances[slot]&&
+                        after.authored_fallbacks[slot]==before.authored_fallbacks[slot],
+                        "Paid authored field stage did not submit its prepared native frame");
                     matrix.push_back({{"building_id",static_cast<unsigned>(field_owners[i])},{"diagnostic",diagnostic(d)},
-                        {"size",{dimensions.first,dimensions.second}},{"zoom",z},{"expected","AUTHORED_FIELD_FALLBACK"},
+                        {"size",{dimensions.first,dimensions.second}},{"zoom",z},{"expected","ORIGINAL_FIELD_IMAGES_AUTHORED_PROGRESS"},
                         {"file",save_category?Json(name+".png"):Json(nullptr)}});
+                    if(save_category) {
+                        const auto origin=view->camera().world_to_screen(d.image_origin);view->set_tool(5);
+                        std::optional<Point> opaque,hole;
+                        for(int y=1;y<field_images[i].height-1&&(!opaque||!hole);++y)
+                            for(int x=1;x<field_images[i].width-1&&(!opaque||!hole);++x) {
+                                const auto color=native(field_images[i],x,y);const Point p{origin.x+x+.5,origin.y+y+.5};
+                                if(!view->layout().map.contains(p.x,p.y))continue;
+                                if(!opaque&&color[3]==255&&pixel(frame.get(),static_cast<int>(p.x),static_cast<int>(p.y))==color) {
+                                    click(*view,renderer,p);if(view->selected_building()==field_owners[i])opaque=p;
+                                }
+                                if(!hole&&color[3]==0&&x>4&&y>4) {
+                                    click(*view,renderer,p);if(view->selected_building()!=field_owners[i])hole=p;
+                                }
+                            }
+                        check(opaque&&hole,"No distinct source-alpha picking witnesses for paid field");
+                        click(*view,renderer,*opaque);
+                        alpha.push_back({{"model",fields[i].second},{"stage",*d.field_stage},
+                            {"opaque",{opaque->x,opaque->y}},{"transparent",{hole->x,hole->y}},{"status","PASS"}});
+                        key(*view,SDLK_F4);const auto off_before=view->original_building_display_stats();
+                        capture(*view,renderer,output,name+"-f4-fallback",records);
+                        const auto off_after=view->original_building_display_stats();
+                        check(!view->original_building_visual_diagnostic(field_owners[i]).active&&
+                            off_after.authored_fallbacks[slot]>off_before.authored_fallbacks[slot]&&
+                            off_after.drawn_instances[slot]==off_before.drawn_instances[slot],
+                            "F4 field comparison did not retain the historical fallback");
+                        key(*view,SDLK_F4);
+                    }
                     check(view->world().snapshot()==document.world&&view->paused()&&view->building_texture_count()==texture_count,
-                        "Field fallback rendering changed paid state or prepared resources");
+                        "Field image rendering changed paid state or prepared resources");
                 }
             }
         }
@@ -395,9 +434,29 @@ int main(int argc,char** argv) {
         }
         perf::set_enabled(true);perf::reset();first_failed->set_original_building_visuals(art.original_building,oe::VisualProfileSource::Builtin);
         const auto appended_uploads=perf::counter(perf::Counter::TextureUploads);perf::set_enabled(false);
-        check(appended_uploads==11&&first_failed->building_texture_count()==39&&first_failed->original_building_display_stats().active&&
+        check(appended_uploads==28&&first_failed->building_texture_count()==56&&first_failed->original_building_display_stats().active&&
             first_failed->original_house_display_stats().configured_types==retained_houses&&first_failed->world().snapshot()==document.world,
-            "Successful first append did not reuse the shared28-image prefix and add exactly11 new textures");
+            "Successful first append did not reuse the shared28-image prefix and add exactly28 new textures");
+        auto historical=Json::parse(bytes(art.original_building));historical["schema_version"]=2;historical.erase("field_selection");
+        for(auto& row:historical.at("buildings"))if(row.at("model_type").get<unsigned>()>=194&&row.at("model_type").get<unsigned>()<=196) {
+            row=Json{{"model_type",row.at("model_type")},{"original_side",row.at("original_side")},
+                {"native",false},{"fallback",row.at("fallback")},{"evidence",row.at("evidence")}};
+        }
+        const auto historical_path=output/"historical-schema2-profile.json";write(historical_path,historical.dump(2)+"\n");
+        first_failed->set_original_building_visuals(historical_path,oe::VisualProfileSource::Builtin);
+        check(first_failed->building_texture_count()==39&&first_failed->world().snapshot()==document.world&&
+            first_failed->original_house_display_stats().configured_types==retained_houses,
+            "Historical schema2 replacement did not retain the old39-image pool and paid authority");
+        for(const auto field:field_owners) {
+            const auto d=first_failed->original_building_visual_diagnostic(field);
+            check(d.applicable&&!d.configured&&!d.active&&!d.asset&&!d.field_stage,
+                "Historical schema2 inherited a stale schema3 field-stage table");
+        }
+        first_failed->set_original_building_visuals(art.original_building,oe::VisualProfileSource::Builtin);
+        check(first_failed->building_texture_count()==56&&first_failed->world().snapshot()==document.world,
+            "Schema3 reactivation did not preserve the shared pool and complete World");
+        for(const auto field:field_owners)check(first_failed->original_building_visual_diagnostic(field).field_stage.has_value(),
+            "Schema3 reactivation did not recover its actual paid field stage");
         first_failed->shutdown();first_failed.reset();
         auto custom=oe::SandboxView::create_original_deadline_food_dispatch(session(),std::nullopt,false);
         custom->configure_save(data,document.map_relative,output/"custom-working.save.json",document);
