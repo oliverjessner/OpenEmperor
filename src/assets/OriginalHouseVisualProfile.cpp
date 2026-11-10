@@ -25,9 +25,10 @@ original_visual_detail::Reader reader{"Original House profile: "};
     throw std::runtime_error("Original House profile: "+message);
 }
 std::optional<std::uint32_t> evidenced_group(std::uint64_t type) {
-    // Pinned House setter518de0, not the generic Building defaults. Keep the
-    // semantic selector guard independent of the metadata's physical records.
-    // Vacant2's constructor/setter ambiguity has no admitted sprite identity.
+    // Pinned fresh Type2 purchase publisher4b28d0 and House setter518de0.
+    // Keep the semantic selector guard independent of the metadata's physical
+    // records. Callers must restrict Type2 to its evidenced fresh Common state.
+    if (type==2) return 0x47aU;
     if (type>=3 && type<=10) return 0x471U+static_cast<std::uint32_t>(type-3);
     switch (type) {
     case 11:return 0x479U;

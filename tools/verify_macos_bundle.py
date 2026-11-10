@@ -100,17 +100,13 @@ def validate_original_house_metadata(manifest, documents):
         if (type(stage.get("original_side")) is not int or stage["original_side"] != side or
                 not isinstance(stage.get("fallback"), str) or not 1 <= len(stage["fallback"]) <= 512):
             raise ValueError("original House family/body/fallback changed")
-        if kind == 2:
-            if set(stage) != {"house_type", "original_side", "fallback"}:
-                raise ValueError("unresolved Vacant2 must remain an explicit fallback")
-            continue
         keys = {"house_type", "original_side", "fallback", "archive", "image_index", "width", "height",
                 "base_bytes", "ground_anchor", "group_key", "variant", "evidence"}
         if (set(stage) != keys or stage.get("archive") != "DATA/China_General.sg3" or
                 any(type(stage.get(k)) is not int for k in
                     ("image_index", "width", "height", "base_bytes", "group_key", "variant"))):
             raise ValueError("original House sprite identity fields are invalid")
-        group = (0x471 + kind - 3 if kind <= 10 else
+        group = (0x47a if kind == 2 else 0x471 + kind - 3 if kind <= 10 else
                  {11: 0x479, 12: 0x47b, 13: 0x47c, 14: 0x4ac}.get(kind, 0x47e + kind - 15))
         if (not 0 < stage["image_index"] <= 0xffffffff or stage["image_index"] in images or
                 stage["group_key"] != group or stage["variant"] != 0 or
@@ -121,6 +117,12 @@ def validate_original_house_metadata(manifest, documents):
                 stage["ground_anchor"] != [40 * side - 1, stage["height"] - 20] or
                 not isinstance(stage["evidence"], str) or not 1 <= len(stage["evidence"]) <= 512):
             raise ValueError("original House static registration or Type30 geometry changed")
+        # The maintained bundle ships the evidenced fresh-Common purchase
+        # image. Runtime fallback-only profiles remain a separate loader path;
+        # they must not silently downgrade this shipped metadata contract.
+        if kind == 2 and (stage["image_index"], stage["width"], stage["height"],
+                          stage["base_bytes"], stage["ground_anchor"]) != (1508, 158, 88, 12800, [79, 68]):
+            raise ValueError("original House fresh Type2 purchase identity changed")
         images.add(stage["image_index"])
 
 

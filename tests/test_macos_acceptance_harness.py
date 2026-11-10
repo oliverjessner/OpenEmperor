@@ -419,7 +419,7 @@ class VisualMetadata(unittest.TestCase):
             lambda d: d["stages"][-1].update(group_key=1),
             lambda d: d["stages"][-1].update(variant=True),
             lambda d: d["stages"][-1].update(base_bytes=1),
-            lambda d: d["stages"][0].update(archive="DATA/China_General.sg3"),
+            lambda d: d["stages"][0].update(group_key=0x471),
             lambda d: d["files"][0].update(sha256="0" * 64),
             lambda d: d.update(selection="invented"),
         ]
@@ -429,6 +429,38 @@ class VisualMetadata(unittest.TestCase):
                 mutate(documents["original-houses.json"])
                 with self.assertRaises(ValueError):
                     bundle.validate_original_house_metadata(self.manifest, documents)
+
+    def test_shipped_type2_requires_the_evidenced_purchase_image(self):
+        mutations = [
+            {"image_index": 1509}, {"image_index": 1510},
+            {"group_key": 0x471}, {"variant": 1}, {"variant": True},
+            {"width": 160}, {"height": 89}, {"base_bytes": 3200},
+            {"ground_anchor": [79, 63]}, {"archive": "DATA/SprMain.sg3"},
+            # A coherent Shelter registration is still not the fresh Type2
+            # purchase, even though its own geometry and anchor are valid.
+            {"image_index": 1509, "group_key": 0x471, "height": 83,
+             "ground_anchor": [79, 63]},
+            # Internally coherent Type30 geometry cannot replace exact88px.
+            {"height": 89, "ground_anchor": [79, 69]},
+        ]
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                documents = copy.deepcopy(self.documents)
+                documents["original-houses.json"]["stages"][0].update(mutation)
+                with self.assertRaises(ValueError):
+                    bundle.validate_original_house_metadata(self.manifest, documents)
+
+    def test_shipped_type2_cannot_downgrade_to_a_runtime_fallback(self):
+        # Historical fallback-only profiles remain valid runtime inputs. The
+        # maintained bundle must ship its complete current native registration.
+        documents = copy.deepcopy(self.documents)
+        documents["original-houses.json"]["stages"][0] = {
+            "house_type": 2, "original_side": 2, "fallback": "Historical authored fallback"}
+        with self.assertRaises(ValueError):
+            bundle.validate_original_house_metadata(self.manifest, documents)
+        documents["original-houses.json"]["stages"][0]["archive"] = "DATA/China_General.sg3"
+        with self.assertRaises(ValueError):
+            bundle.validate_original_house_metadata(self.manifest, documents)
 
     def test_house_supplement_cannot_substitute_source_authority(self):
         changed = copy.deepcopy(self.manifest)

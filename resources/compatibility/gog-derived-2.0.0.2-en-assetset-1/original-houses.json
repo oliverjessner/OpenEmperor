@@ -3,7 +3,7 @@
   "mode": "original_house_stages",
   "selection": "canonical_static_variant_0",
   "anchor_policy": "type30_front_cell",
-  "evidence": "Pinned original House setter518de0 and native marker/body/Type30 chain. Actual types3..17, static variant0 representative; Vacant2 explicitly unresolved. See docs/reverse/original-house-visuals.md. No per-instance variation or whole-scene parity claim.",
+  "evidence": "Pinned fresh Common Type2 purchase publisher4b28d0 and original House setter518de0 with the native marker/body/Type30 chain. Type2 requires the evidenced never-admitted Common purchase state; types3..17 use a static variant0 representative. See docs/reverse/original-house-visuals.md. No general vacant/devolved identity, per-instance variation or whole-scene parity claim.",
   "files": [
     {
       "path": "DATA/China_General.sg3",
@@ -18,7 +18,19 @@
     {
       "house_type": 2,
       "original_side": 2,
-      "fallback": "Vacant2 creation group0x47a and setter group0x471 differ; named authored fallback"
+      "fallback": "Vacant2 fresh Common purchase image unavailable or unsupported lifecycle; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 1508,
+      "width": 158,
+      "height": 88,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        68
+      ],
+      "group_key": 1146,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: normal Type2 purchase4b17ee enters4b2680; explicit group0x47a at4b2899 resolves through408170 and publishes2x2 at4b28d0 without a variant increment. Only the validated never-admitted Common purchase state is evidenced. Shared slot2 lookup selects physical1508; native Type30 front-cell anchor, no animation."
     },
     {
       "house_type": 3,

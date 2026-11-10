@@ -364,8 +364,8 @@ def check_negative(app, scratch):
            lambda d: d["stages"][-1].update(ground_anchor=[0, 0])))
     reject("house-independent-fingerprint", lambda p: house_mutation(p,
            lambda d: d["files"][0].update(sha256="0" * 64)))
-    reject("house-unresolved-vacant-sprite", lambda p: house_mutation(p,
-           lambda d: d["stages"][0].update(archive="DATA/China_General.sg3")))
+    reject("house-type2-wrong-setter-group", lambda p: house_mutation(p,
+           lambda d: d["stages"][0].update(group_key=0x471)))
     reject("invalid-signature", lambda p: (p / "Contents/Resources/BuildInfo.json").write_text("changed"), signed=True)
     occupied = scratch / "write-failure"; occupied.write_bytes(b"occupied")
     try:

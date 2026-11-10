@@ -272,7 +272,7 @@ int main() {
         const auto vacant_authority=view->world().snapshot();
         check(view->original_house_visual_diagnostic(first).authored_vacant_foundation &&
             joined(view->original_house_section_lines()).find("authored vacant foundation")!=std::string::npos &&
-            joined(view->original_house_section_lines()).find("unresolved")!=std::string::npos &&
+            joined(view->original_house_section_lines()).find("Original art unavailable")!=std::string::npos &&
             view->world().snapshot()==vacant_authority,"Empty House inspector concealed its authored Vacant presentation or changed authority");
         for (int i=0;i<120;++i) view->tick_once();
         check(view->world().building(scene.elite).kind==sim::Object::OriginalEliteHouse &&

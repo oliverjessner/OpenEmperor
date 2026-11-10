@@ -187,9 +187,9 @@ void real(const fs::path& data,const fs::path& resources) {
     auto p=a::load_building_visual_profile(data,pack/"buildings.json");
     check(p.unique_images.size()==12 && a::building_role_count==13,"historical core role pool changed");
     a::append_original_house_visual_profile(data,pack/"original-houses.json",p);
-    check(p.unique_images.size()==27,"historical fifteen House images changed");const auto before=state(p);
+    check(p.unique_images.size()==28,"sixteen native House images changed");const auto before=state(p);
     a::append_original_building_visual_profile(data,pack/"original-buildings.json",p);
-    check(p.unique_images.size()==36 && state(p)["core"]==before["core"] && state(p)["houses"]==before["houses"],"real extension changed legacy selections or Well physical dedup");
+    check(p.unique_images.size()==37 && state(p)["core"]==before["core"] && state(p)["houses"]==before["houses"],"real extension changed legacy selections or Well physical dedup");
     const std::array<unsigned,10> physical{1559,1593,589,460,501,2245,2258,2309,2811,2768};
     for(std::size_t i=0;i<a::original_building_role_count;++i){
         const auto& id=a::original_building_visual_identities[i];const auto* e=p.find_original_building(id.role,id.footprint_side);
