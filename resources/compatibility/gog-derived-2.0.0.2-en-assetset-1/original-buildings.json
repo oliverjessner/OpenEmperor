@@ -1,9 +1,9 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "mode": "original_building_bases",
   "selection": "canonical_static_base",
   "anchor_policy": "type30_front_cell",
-  "evidence": "Schema2 retains ten historical native registrations, adds source-qualified static bodies for Hemp Farm192/Farmhouse193 and three explicit fallback-only fields. Pinned EXE SHA-256 6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e. Shared readers eagerly resolve/decode complete bases. Raw animation metadata is not a frame selector; front-cell anchors are authored geometry. No World/rule/save authority or inferred field growth. See docs/rendering/oe60-original-farm-visuals.md.",
+  "evidence": "Schema3 retains twelve source-qualified static bodies and selects eighteen native field images by AUTHORED equal quantization of existing Farm progress0..79. Source crop groups and full Type30 records are verified independently. Canonical source bank0 only; Original per-field quantity, calendar, terrain variation and animation are not reconstructed. No World, rule or save authority. Front-cell anchors are authored geometry. See docs/rendering/oe60-original-farm-visuals.md.",
   "files": [
     {
       "path": "DATA/China_General.sg3",
@@ -234,23 +234,234 @@
     {
       "model_type": 194,
       "original_side": 1,
-      "native": false,
-      "fallback": "Hemp Field: original per-field quantity/terrain state unavailable; authored field fallback",
-      "evidence": "Source-qualified field publishers require original per-field quantity and a source terrain variation. Generic registration, optical similarity and authored Farm progress do not reconstruct that state. No native image or growth phase is selected. See docs/rendering/oe60-original-farm-visuals.md."
+      "native": true,
+      "fallback": "Hemp Field: native authored progress illustrations unavailable; authored field fallback",
+      "evidence": "Source-qualified Model194 field family group0x431. Canonical offsets0..5 select complete static native Type30 images, not an animation. Stage=floor(6*Farm.progress/80) is an AUTHORED visual mapping; it is not Original per-field quantity, growth/calendar timing or actual terrain variation. No World or save state is added. Each anchor is authored front-cell geometry.",
+      "archive": "DATA/China_General.sg3",
+      "group_key": 1073,
+      "stages": [
+        {
+          "stage": 0,
+          "image_index": 2458,
+          "width": 78,
+          "height": 41,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            21
+          ]
+        },
+        {
+          "stage": 1,
+          "image_index": 2459,
+          "width": 78,
+          "height": 46,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            26
+          ]
+        },
+        {
+          "stage": 2,
+          "image_index": 2460,
+          "width": 78,
+          "height": 52,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            32
+          ]
+        },
+        {
+          "stage": 3,
+          "image_index": 2461,
+          "width": 78,
+          "height": 56,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            36
+          ]
+        },
+        {
+          "stage": 4,
+          "image_index": 2462,
+          "width": 78,
+          "height": 60,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            40
+          ]
+        },
+        {
+          "stage": 5,
+          "image_index": 2463,
+          "width": 78,
+          "height": 66,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            46
+          ]
+        }
+      ]
     },
     {
       "model_type": 195,
       "original_side": 1,
-      "native": false,
-      "fallback": "Wheat Field: original per-field quantity/terrain state unavailable; authored field fallback",
-      "evidence": "Source-qualified field publishers require original per-field quantity and a source terrain variation. Generic registration, optical similarity and authored Farm progress do not reconstruct that state. No native image or growth phase is selected. See docs/rendering/oe60-original-farm-visuals.md."
+      "native": true,
+      "fallback": "Wheat Field: native authored progress illustrations unavailable; authored field fallback",
+      "evidence": "Source-qualified Model195 field family group0x42e. Canonical offsets0..5 select complete static native Type30 images, not an animation. Stage=floor(6*Farm.progress/80) is an AUTHORED visual mapping; it is not Original per-field quantity, growth/calendar timing or actual terrain variation. No World or save state is added. Each anchor is authored front-cell geometry.",
+      "archive": "DATA/China_General.sg3",
+      "group_key": 1070,
+      "stages": [
+        {
+          "stage": 0,
+          "image_index": 2422,
+          "width": 78,
+          "height": 43,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            23
+          ]
+        },
+        {
+          "stage": 1,
+          "image_index": 2423,
+          "width": 78,
+          "height": 49,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            29
+          ]
+        },
+        {
+          "stage": 2,
+          "image_index": 2424,
+          "width": 78,
+          "height": 54,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            34
+          ]
+        },
+        {
+          "stage": 3,
+          "image_index": 2425,
+          "width": 78,
+          "height": 58,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            38
+          ]
+        },
+        {
+          "stage": 4,
+          "image_index": 2426,
+          "width": 78,
+          "height": 62,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            42
+          ]
+        },
+        {
+          "stage": 5,
+          "image_index": 2427,
+          "width": 78,
+          "height": 67,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            47
+          ]
+        }
+      ]
     },
     {
       "model_type": 196,
       "original_side": 1,
-      "native": false,
-      "fallback": "Millet Field: original per-field quantity/terrain state unavailable; authored field fallback",
-      "evidence": "Source-qualified field publishers require original per-field quantity and a source terrain variation. Generic registration, optical similarity and authored Farm progress do not reconstruct that state. No native image or growth phase is selected. See docs/rendering/oe60-original-farm-visuals.md."
+      "native": true,
+      "fallback": "Millet Field: native authored progress illustrations unavailable; authored field fallback",
+      "evidence": "Source-qualified Model196 field family group0x42c. Canonical offsets0..5 select complete static native Type30 images, not an animation. Stage=floor(6*Farm.progress/80) is an AUTHORED visual mapping; it is not Original per-field quantity, growth/calendar timing or actual terrain variation. No World or save state is added. Each anchor is authored front-cell geometry.",
+      "archive": "DATA/China_General.sg3",
+      "group_key": 1068,
+      "stages": [
+        {
+          "stage": 0,
+          "image_index": 2410,
+          "width": 78,
+          "height": 43,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            23
+          ]
+        },
+        {
+          "stage": 1,
+          "image_index": 2411,
+          "width": 78,
+          "height": 43,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            23
+          ]
+        },
+        {
+          "stage": 2,
+          "image_index": 2412,
+          "width": 78,
+          "height": 49,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            29
+          ]
+        },
+        {
+          "stage": 3,
+          "image_index": 2413,
+          "width": 78,
+          "height": 53,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            33
+          ]
+        },
+        {
+          "stage": 4,
+          "image_index": 2414,
+          "width": 78,
+          "height": 56,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            36
+          ]
+        },
+        {
+          "stage": 5,
+          "image_index": 2415,
+          "width": 78,
+          "height": 61,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            41
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "field_selection": "authored-farm-progress-six-canonical-0-v1"
 }

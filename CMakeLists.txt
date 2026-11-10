@@ -2110,8 +2110,19 @@ if(BUILD_TESTING)
         endif()
         add_test(NAME original-building-paid-production-view COMMAND openemperor-original-building-visual-view-tests
             "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${CMAKE_SOURCE_DIR}" "${OPENEMPEROR_OE52_PAID_TEST_SAVE}"
-            "${CMAKE_SOURCE_DIR}/.local/oe60/ctest-${CMAKE_BUILD_TYPE}")
+            "${CMAKE_SOURCE_DIR}/.local/oe60-5/ctest-${CMAKE_BUILD_TYPE}")
         set_tests_properties(original-building-paid-production-view PROPERTIES TIMEOUT 240)
+    endif()
+
+    add_executable(openemperor-original-field-visual-view-tests tests/OriginalFieldVisualViewTests.cpp ${bridge_fixture_sources})
+    target_link_libraries(openemperor-original-field-visual-view-tests PRIVATE openemperor-recovery SDL3::SDL3 openemperor-version)
+    openemperor_enable_warnings(openemperor-original-field-visual-view-tests)
+    add_dependencies(openemperor-original-field-visual-view-tests openemperor)
+    if(OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT)
+        add_test(NAME original-field-paid-growth-view COMMAND openemperor-original-field-visual-view-tests
+            "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${CMAKE_SOURCE_DIR}"
+            "${CMAKE_SOURCE_DIR}/.local/oe60-5/field-ctest-${CMAKE_BUILD_TYPE}")
+        set_tests_properties(original-field-paid-growth-view PROPERTIES TIMEOUT 240)
     endif()
 
     add_executable(openemperor-original-house-visual-view-tests tests/OriginalHouseVisualViewTests.cpp ${bridge_fixture_sources})

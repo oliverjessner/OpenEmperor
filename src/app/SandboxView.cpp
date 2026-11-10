@@ -1501,6 +1501,7 @@ assets::BuildingVisualProfile SandboxView::core_building_visual_profile() const 
     result.original_house_fallbacks.fill({});result.original_house_prepared=false;
     result.original_building_entries.fill(std::nullopt);
     result.original_building_fallbacks.fill({});result.original_building_prepared=false;
+    result.original_field_entries={};result.original_field_prepared=false;
     result.unique_images.resize(building_core_image_count_);
     return result;
 }
@@ -1630,6 +1631,7 @@ void SandboxView::set_original_building_visuals(const std::filesystem::path& man
     const bool had_extension=profile.original_building_prepared;
     profile.original_building_entries.fill(std::nullopt);
     profile.original_building_fallbacks.fill({});profile.original_building_prepared=false;
+    profile.original_field_entries={};profile.original_field_prepared=false;
     auto prefix=building_core_image_count_;
     for (const auto& entry:profile.original_house_entries) if (entry)
         prefix=std::max(prefix,entry->image_index+1);
@@ -1665,12 +1667,56 @@ SandboxView::OriginalBuildingDisplayStats SandboxView::original_building_display
     stats.active=stats.configured && building_visuals_active() && building_sprite_;
     stats.fallback_reason=original_building_fallback_reason_;stats.preparation_error=original_building_preparation_error_;
     if (stats.configured) for (std::size_t i=0;i<assets::original_building_role_count;++i)
-        stats.configured_roles[i]=building_profile_->original_building_entries[i].has_value();
+        stats.configured_roles[i]=building_profile_->original_building_entries[i].has_value() ||
+            building_profile_->find_original_field(assets::original_building_visual_identities[i].role,1,0)!=nullptr;
     stats.drawn_instances=original_building_draws_;stats.authored_fallbacks=original_building_fallbacks_;return stats;
 }
-const assets::BuildingVisualEntry* SandboxView::original_building_entry(simulation::Object kind) const {
+SandboxView::OriginalFieldVisualSelection SandboxView::original_field_visual_selection(
+        simulation::Cell cell,simulation::Object kind,bool placement_preview) const {
+    OriginalFieldVisualSelection result;
+    if (!world_ || !original_production_fixture() || !building_profile_) return result;
+    const auto role=original_building_visual_role(kind);
+    if (!role || !assets::original_field_role_index(*role)) return result;
+    if (placement_preview) {
+        // A ghost uses the authored cycle's initial image. It grants no paid
+        // field, Farm association, progress or original construction semantics.
+        result.stage=0;result.entry=building_profile_->find_original_field(*role,1,0);
+        return result;
+    }
+    const auto owner=world_->building_owner_at(cell);
+    if (!owner) return result;
+    const auto& field=world_->building(*owner);
+    if (field.kind!=kind || field.cell!=cell) return result;
+    const auto& production=world_->original_production_state();
+    if (!production) return result;
+    const auto bind=[&](simulation::BuildingId farm_id,simulation::Object expected_kind) {
+        const auto& farm=world_->building(farm_id);
+        if (farm.kind!=expected_kind) return;
+        const auto stage=assets::authored_farm_progress_stage(farm.progress);
+        if (!stage) return;
+        result.farm=farm_id;result.progress=farm.progress;result.stage=stage;
+        result.entry=building_profile_->find_original_field(*role,1,*stage);
+    };
+    // These are the existing bounded ownership records (at most two Hemp and
+    // three Food Farms), never proximity, stock or a reconstructed crop clock.
+    if (kind==simulation::Object::OriginalHempField) {
+        for (const auto& farm:production->hemp_farms) if (farm.field_id==owner) {
+            bind(farm.farm_id,simulation::Object::OriginalHempFarm);break;
+        }
+    } else for (const auto& farm:production->food.farms) if (farm.field_id==owner) {
+        const auto expected=kind==simulation::Object::OriginalWheatField ?
+            simulation::OriginalFoodCrop::Wheat:simulation::OriginalFoodCrop::Millet;
+        if (farm.crop==expected) bind(farm.farm_id,simulation::Object::OriginalFoodFarm);
+        break;
+    }
+    return result;
+}
+const assets::BuildingVisualEntry* SandboxView::original_building_entry(simulation::Cell cell,
+        simulation::Object kind,bool placement_preview) const {
     if (!world_ || !original_production_fixture() || !building_profile_) return nullptr;
     const auto role=original_building_visual_role(kind);
+    if (role && assets::original_field_role_index(*role))
+        return original_field_visual_selection(cell,kind,placement_preview).entry;
     return role ? building_profile_->find_original_building(*role,
         static_cast<std::uint8_t>(simulation::building_footprint(rules_,world_->rule_version(),kind).width)):nullptr;
 }
@@ -1678,7 +1724,7 @@ const assets::BuildingVisualEntry* SandboxView::resolved_building_entry(simulati
         simulation::Object kind,bool placement_preview) const {
     const auto house=original_house_visual_selection(cell,kind,placement_preview);
     if (house.entry) return house.entry;
-    if (const auto* entry=original_building_entry(kind)) return entry;
+    if (const auto* entry=original_building_entry(cell,kind,placement_preview)) return entry;
     const auto role=visual_role(cell,kind,placement_preview);
     return role ? building_entry(*role):nullptr;
 }
@@ -1692,18 +1738,25 @@ SandboxView::OriginalBuildingVisualDiagnostic SandboxView::original_building_vis
     result.applicable=true;result.role=*role;result.model_type=assets::original_building_visual_identity(*role)->model_type;
     result.actual_side=static_cast<std::uint8_t>(simulation::building_footprint(rules_,world_->rule_version(),body->kind).width);
     result.ground=building_visual_ground(body->cell,body->kind);
-    const auto* entry=original_building_entry(body->kind);
+    const auto field=original_field_visual_selection(body->cell,body->kind);
+    const auto* entry=field.entry ? field.entry:original_building_entry(body->cell,body->kind);
     result.configured=entry!=nullptr;result.active=result.configured && building_visuals_active() && building_sprite_;
     if (entry) {
         const auto& image=building_profile_->unique_images.at(entry->image_index);
         result.asset=entry->id;result.image_width=image.width;result.image_height=image.height;
         result.ground_x=entry->ground_x;result.ground_y=entry->ground_y;
         result.image_origin={result.ground.x-entry->ground_x,result.ground.y-entry->ground_y};
-        result.selection="canonical static representative; authored front-cell anchor";result.evidence=entry->evidence;
+        if (field.entry) {
+            result.field_farm=field.farm;result.field_stage=field.stage;result.field_farm_progress=field.progress;
+            result.selection="Original crop images; authored six-stage Farm progress mapping; canonical variation0 and authored anchor";
+        } else result.selection="canonical static representative; authored front-cell anchor";
+        result.evidence=entry->evidence;
         if (!result.active) result.fallback_reason="F4 historical comparison";
     } else {
         if (building_profile_ && building_profile_->original_building_prepared)
             result.fallback_reason=building_profile_->fallback_original_building(*role,result.actual_side);
+        if (building_profile_ && building_profile_->find_original_field(*role,result.actual_side,0))
+            result.fallback_reason="No paid Field/Farm progress binding; authored fallback";
         if (result.fallback_reason.empty()) result.fallback_reason=original_building_fallback_reason_;
     }
     return result;
@@ -4354,7 +4407,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 return draw_vacant_foundation(renderer_,center,camera_.zoom,placement_preview) &&
                     draw_fire_overlay(cell,center,placement_preview) && draw_sickness(cell,center,placement_preview);
             const auto original_role=original_production_fixture() ? original_building_visual_role(object):std::nullopt;
-            if (const auto* entry=original_building_entry(object);entry && building_visuals_active() && building_sprite_) {
+            if (const auto* entry=original_building_entry(cell,object,placement_preview);entry && building_visuals_active() && building_sprite_) {
                 if (!building_sprite_->draw(center,camera_.zoom,*building_profile_,*entry,placement_preview)) return false;
                 if (!placement_preview) ++original_building_draws_[static_cast<std::size_t>(*original_role)];
                 return draw_fire_overlay(cell,center,placement_preview) && draw_sickness(cell,center,placement_preview);
@@ -6222,7 +6275,13 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("SG3 "+art.asset->archive_relative_path.generic_string()+" #"+std::to_string(art.asset->image_index));
             lines.push_back("Image "+std::to_string(art.image_width)+"x"+std::to_string(art.image_height));
             lines.push_back("Anchor "+std::to_string(art.ground_x)+","+std::to_string(art.ground_y));
-            lines.push_back("Evidence: registered static base; authored anchor");
+            if (art.field_stage && art.field_farm) {
+                lines.push_back("Field visual stage "+std::to_string(*art.field_stage+1)+"/6 (authored)");
+                lines.push_back("Farm #"+std::to_string(static_cast<unsigned>(*art.field_farm))+" progress "+
+                    std::to_string(art.field_farm_progress)+"/80");
+                lines.push_back("Original crop images; authored growth and anchor");
+                lines.push_back("Canonical variation0; original calendar not reproduced");
+            } else lines.push_back("Evidence: registered static base; authored anchor");
         }
         if (!art.fallback_reason.empty()) lines.push_back(art.fallback_reason);
     } else if (const auto role=visual_role(b.cell,b.kind)) {

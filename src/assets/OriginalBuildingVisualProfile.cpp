@@ -51,12 +51,15 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
     if (fs::is_symlink(fs::symlink_status(manifest,error)) || error)
         reader.fail("metadata missing or linked");
     const auto json=reader.read_manifest(manifest);
-    reader.keys(json,{"schema_version","mode","selection","anchor_policy","evidence","files","buildings"});
-    const auto schema=reader.number(json,"schema_version",2);
-    if ((schema!=1 && schema!=2) || reader.string(json,"mode")!="original_building_bases" ||
+    const auto schema=reader.number(json,"schema_version",3);
+    if (schema==3) reader.keys(json,{"schema_version","mode","selection","anchor_policy","field_selection","evidence","files","buildings"});
+    else reader.keys(json,{"schema_version","mode","selection","anchor_policy","evidence","files","buildings"});
+    if ((schema!=1 && schema!=2 && schema!=3) || reader.string(json,"mode")!="original_building_bases" ||
         reader.string(json,"selection")!="canonical_static_base" || reader.string(json,"anchor_policy")!="type30_front_cell")
         reader.fail("unsupported schema, selection or anchor policy");
     (void)reader.string(json,"evidence");
+    if (schema==3 && reader.string(json,"field_selection")!=original_field_selection_contract)
+        reader.fail("unsupported authored field selection");
     if (!json.contains("files") || !json.at("files").is_array() || json.at("files").size()!=2)
         reader.fail("exactly two General asset fingerprints required");
     std::map<fs::path,fs::path> verified;
@@ -81,37 +84,15 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
     auto ids=reader.physical_ids(candidate);
     candidate.original_building_entries={};
     candidate.original_building_fallbacks={};
+    candidate.original_field_entries={};
+    candidate.original_field_prepared=false;
     std::array<bool,original_building_role_count> seen{};
-    for (const auto& row:json.at("buildings")) {
-        bool native=true;
-        if (schema==2) {
-            if (!row.contains("native") || !row.at("native").is_boolean()) reader.fail("explicit native/fallback selection required");
-            native=row.at("native").get<bool>();
-            if (native) reader.keys(row,{"model_type","original_side","native","fallback","archive","image_index","width","height","base_bytes","ground_anchor","group_key","variant","evidence"});
-            else reader.keys(row,{"model_type","original_side","native","fallback","evidence"});
-        } else reader.keys(row,{"model_type","original_side","fallback","archive","image_index","width","height","base_bytes","ground_anchor","group_key","variant","evidence"});
-        const auto model=reader.number(row,"model_type",UINT16_MAX);
-        const auto role=original_building_visual_role(static_cast<std::uint16_t>(model));
-        if (!role) reader.fail("unsupported Original model registration");
-        const auto index=static_cast<std::size_t>(*role);
-        if (index>=role_count) reader.fail("Original model is not registered in this schema");
-        if (seen[index]) reader.fail("duplicate Original building model");
-        seen[index]=true;
-        const auto& identity=*original_building_visual_identity(*role);
-        const auto side=reader.number(row,"original_side",3);
-        if (side!=identity.footprint_side) reader.fail("Original model/side mismatch");
-        candidate.original_building_fallbacks[index]=reader.string(row,"fallback");
-        if (!native) {
-            (void)reader.string(row,"evidence");
-            continue;
-        }
-        if (!identity.static_base_supported) reader.fail("Original field state selector is unsupported; explicit fallback required");
-        const auto group=reader.number(row,"group_key",0x7fffffffU);
-        const auto variant=reader.number(row,"variant",1);
-        if (side!=identity.footprint_side || group!=identity.group_key || variant!=0)
-            reader.fail("Original model/group/side/static variant mismatch");
+    // One source/layout/decoder path for historical bodies and explicit field
+    // stages. Field offsets0..5 stay inside the existing group_variant bound.
+    const auto read_entry=[&](const original_visual_detail::Json& row,std::uint64_t side,std::uint64_t group,
+            std::uint32_t offset,const fs::path& archive_path,const std::string& evidence,bool allow_animation) {
         BuildingVisualEntry entry;
-        entry.id.archive_relative_path=reader.relative(reader.string(row,"archive",4096));
+        entry.id.archive_relative_path=archive_path;
         if (entry.id.archive_relative_path!=general_archive) reader.fail("unsupported Original building archive");
         const auto physical=reader.number(row,"image_index",UINT32_MAX);
         if (!physical) reader.fail("physical record zero is not an Original building base");
@@ -128,15 +109,15 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
             anchor[1].get<std::int64_t>()!=static_cast<std::int64_t>(height-20U))
             reader.fail("Original building anchor differs from native front cell");
         entry.ground_x=static_cast<double>(40U*side-1U);entry.ground_y=static_cast<double>(height-20U);
-        entry.footprint_side=static_cast<std::uint8_t>(side);entry.evidence=reader.string(row,"evidence");
+        entry.footprint_side=static_cast<std::uint8_t>(side);entry.evidence=evidence;
         const auto resolution=maps::resolve_resource_group({static_cast<std::uint32_t>(group)},{{2,{&*layout}}});
-        const auto packed=resolution.packed_base ? maps::group_variant(*resolution.packed_base,0):std::nullopt;
+        const auto packed=resolution.packed_base ? maps::group_variant(*resolution.packed_base,offset):std::nullopt;
         const auto resolved=packed ? layout->physical_record_for_local(packed->value & 0x3fffU):std::nullopt;
         if (resolution.status!=maps::GroupLookupStatus::Resolved || !resolved || *resolved!=physical)
-            reader.fail("Original building physical record differs from registered group/static base");
+            reader.fail("Original building physical record differs from registered group/selected offset");
         if (physical>=archive.images.size()) reader.fail("Original building physical record outside SG3 table");
         const auto& record=archive.images[static_cast<std::size_t>(physical)];
-        if (!original_visual_detail::native_type30_matches(record,width,height,side,base,true))
+        if (!original_visual_detail::native_type30_matches(record,width,height,side,base,allow_animation))
             reader.fail("Original building SG3 metadata mismatch");
         const auto bitmap=resolve_sg3_image_bitmap(verified.at(general_archive),archive,record);
         if (bitmap.status!=Sg3BitmapStatus::Resolved) reader.fail("Original building bitmap unavailable or unsafe");
@@ -157,7 +138,58 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
             entry.image_index=candidate.unique_images.size();ids.push_back(entry.id);
             candidate.unique_images.push_back(std::move(image));total+=bytes;
         }
-        candidate.original_building_entries[index]=std::move(entry);
+        return entry;
+    };
+    for (const auto& row:json.at("buildings")) {
+        const auto model=reader.number(row,"model_type",UINT16_MAX);
+        const auto role=original_building_visual_role(static_cast<std::uint16_t>(model));
+        if (!role) reader.fail("unsupported Original model registration");
+        const auto index=static_cast<std::size_t>(*role);
+        if (index>=role_count) reader.fail("Original model is not registered in this schema");
+        if (seen[index]) reader.fail("duplicate Original building model");
+        seen[index]=true;
+        const auto& identity=*original_building_visual_identity(*role);
+        const auto field_index=original_field_role_index(*role);
+        bool native=true;
+        if (schema>=2) {
+            if (!row.contains("native") || !row.at("native").is_boolean()) reader.fail("explicit native/fallback selection required");
+            native=row.at("native").get<bool>();
+            if (!native) reader.keys(row,{"model_type","original_side","native","fallback","evidence"});
+            else if (schema==3 && field_index)
+                reader.keys(row,{"model_type","original_side","native","fallback","archive","group_key","stages","evidence"});
+            else reader.keys(row,{"model_type","original_side","native","fallback","archive","image_index","width","height","base_bytes","ground_anchor","group_key","variant","evidence"});
+        } else reader.keys(row,{"model_type","original_side","fallback","archive","image_index","width","height","base_bytes","ground_anchor","group_key","variant","evidence"});
+        const auto side=reader.number(row,"original_side",3);
+        if (side!=identity.footprint_side) reader.fail("Original model/side mismatch");
+        candidate.original_building_fallbacks[index]=reader.string(row,"fallback");
+        if (!native) {
+            (void)reader.string(row,"evidence");
+            continue;
+        }
+        if (schema==3 && field_index) {
+            const auto group=reader.number(row,"group_key",0x7fffffffU);
+            if (group!=identity.group_key) reader.fail("Original crop/group mismatch");
+            const auto archive_path=reader.relative(reader.string(row,"archive",4096));
+            const auto evidence=reader.string(row,"evidence");
+            if (!row.contains("stages") || !row.at("stages").is_array() || row.at("stages").size()!=original_field_stage_count)
+                reader.fail("exactly six ordered authored field stages required");
+            for (std::size_t stage=0;stage<original_field_stage_count;++stage) {
+                const auto& image=row.at("stages")[stage];
+                reader.keys(image,{"stage","image_index","width","height","base_bytes","ground_anchor"});
+                if (reader.number(image,"stage",original_field_stage_count-1)!=stage)
+                    reader.fail("authored field stages require canonical ordered offsets0..5");
+                candidate.original_field_entries[*field_index][stage]=read_entry(image,side,group,
+                    static_cast<std::uint32_t>(stage),archive_path,evidence,false);
+            }
+            continue;
+        }
+        if (!identity.static_base_supported) reader.fail("Original field state selector is unsupported; explicit fallback required");
+        const auto group=reader.number(row,"group_key",0x7fffffffU);
+        const auto variant=reader.number(row,"variant",1);
+        if (side!=identity.footprint_side || group!=identity.group_key || variant!=0)
+            reader.fail("Original model/group/side/static variant mismatch");
+        candidate.original_building_entries[index]=read_entry(row,side,group,0,
+            reader.relative(reader.string(row,"archive",4096)),reader.string(row,"evidence"),true);
     }
     const auto expected_end=seen.begin()+static_cast<std::ptrdiff_t>(role_count);
     if (std::find(seen.begin(),expected_end,false)!=expected_end)
@@ -166,6 +198,7 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
     for (std::size_t index=role_count;index<original_building_role_count;++index)
         candidate.original_building_fallbacks[index]=std::string(original_building_role_name(original_building_visual_identities[index].role))+
             ": absent from historical schema1; authored fallback";
+    candidate.original_field_prepared=schema==3;
     candidate.original_building_prepared=true;
     profile=std::move(candidate);
 }

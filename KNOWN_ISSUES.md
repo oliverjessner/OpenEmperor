@@ -49,11 +49,13 @@ complete original-game compatibility.
   bases in Original production, sharing the existing Well image. Static source
   pixels and authored front-cell anchors do not establish original animation
   cadence, runtime pivots or whole-scene composition parity. OE60 adds the
-  source-published static Hemp Farm192 and Farmhouse193 bodies. The three
-  paid fields retain named authored fallbacks: their original crop selection
-  depends on original quantity and terrain state that the World does not
-  reconstruct. Farm-level authored 80-tick progress cannot supply that
-  state. Unassigned service/culture/religion/luxury walker families and pending
+  source-published static Hemp Farm192 and Farmhouse193 bodies. OE60.5 adds
+  six original images per Hemp194, Wheat195 and Millet196 field, selected by
+  an explicitly authored mapping of the paid parent Farm's existing 80-tick
+  progress. Original per-field quantity, variation and calendar/work state
+  remain unreconstructed; these images do not establish original growth parity.
+  Missing ownership or incompatible sources retain named authored fallbacks.
+  Unassigned service/culture/religion/luxury walker families and pending
   Elite plots retain their named historical fallbacks. Existing Market,
   Warehouse and FireWatch core previews are not newly identified original
   registrations. See the [OE52 evidence and validation](docs/rendering/oe52-original-visuals.md)

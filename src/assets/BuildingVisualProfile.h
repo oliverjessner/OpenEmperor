@@ -35,7 +35,8 @@ struct OriginalBuildingVisualIdentity {
     std::uint32_t group_key;
     std::uint8_t footprint_side;
     // A known model/group registration alone does not reconstruct a stateful
-    // field selector. Such roles remain explicitly fallback-only.
+    // field selector. Such roles stay outside the historical static-body path;
+    // schema3 requires a separate explicitly authored field-stage policy.
     bool static_base_supported=true;
 };
 inline constexpr std::array original_building_visual_identities{
@@ -56,6 +57,22 @@ inline constexpr std::array original_building_visual_identities{
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::MilletField,196,0x42c,1,false}};
 inline constexpr std::size_t original_building_schema1_role_count=10;
 inline constexpr std::size_t original_building_role_count=original_building_visual_identities.size();
+inline constexpr std::array original_field_roles{OriginalBuildingVisualRole::HempField,
+    OriginalBuildingVisualRole::WheatField,OriginalBuildingVisualRole::MilletField};
+inline constexpr std::size_t original_field_role_count=original_field_roles.size();
+inline constexpr std::size_t original_field_stage_count=6;
+inline constexpr const char* original_field_selection_contract="authored-farm-progress-six-canonical-0-v1";
+constexpr std::optional<std::size_t> original_field_role_index(OriginalBuildingVisualRole role) {
+    for (std::size_t index=0;index<original_field_roles.size();++index)
+        if (original_field_roles[index]==role) return index;
+    return std::nullopt;
+}
+// Presentation quantization of the existing authored80-productive-tick clock.
+// This does not reconstruct Original field quantity, calendar or terrain state.
+constexpr std::optional<std::uint8_t> authored_farm_progress_stage(int progress) {
+    if (progress<0 || progress>=80) return std::nullopt;
+    return static_cast<std::uint8_t>((6U*static_cast<unsigned>(progress))/80U);
+}
 constexpr const OriginalBuildingVisualIdentity* original_building_visual_identity(OriginalBuildingVisualRole role) {
     const auto index=static_cast<std::size_t>(role);
     return index<original_building_role_count ? &original_building_visual_identities[index]:nullptr;
@@ -98,6 +115,17 @@ struct BuildingVisualProfile {
     bool original_building_prepared=false;
     std::array<std::optional<BuildingVisualEntry>,original_building_role_count> original_building_entries;
     std::array<std::string,original_building_role_count> original_building_fallbacks;
+    // Schema3 only; kept distinct from historical static-body selection.
+    bool original_field_prepared=false;
+    std::array<std::array<std::optional<BuildingVisualEntry>,original_field_stage_count>,original_field_role_count> original_field_entries;
+    const BuildingVisualEntry* find_original_field(OriginalBuildingVisualRole role,
+            std::uint8_t actual_side,std::uint8_t stage) const {
+        const auto index=original_field_role_index(role);
+        if (!index || !original_field_prepared || !original_building_prepared || actual_side!=1 || stage>=original_field_stage_count)
+            return nullptr;
+        const auto& entry=original_field_entries[*index][stage];
+        return entry && entry->footprint_side==actual_side ? &*entry:nullptr;
+    }
     const BuildingVisualEntry* find_original_building(OriginalBuildingVisualRole role,std::uint8_t actual_side) const {
         const auto index=static_cast<std::size_t>(role);
         if (index>=original_building_role_count || !original_building_prepared) return nullptr;
@@ -146,7 +174,8 @@ BuildingVisualProfile load_building_visual_profile(const std::filesystem::path& 
 void append_original_house_visual_profile(const std::filesystem::path& data_root,
     const std::filesystem::path& manifest,BuildingVisualProfile& profile,
     std::uint64_t max_final_rgba=building_max_rgba_bytes);
-// Complete static bases only. Animations and gameplay authority are absent.
+// Complete native rasters only. Schema3 field illustrations quantize existing
+// authored progress; Original growth/animation and gameplay authority are absent.
 void append_original_building_visual_profile(const std::filesystem::path& data_root,
     const std::filesystem::path& manifest,BuildingVisualProfile& profile,
     std::uint64_t max_final_rgba=building_max_rgba_bytes);

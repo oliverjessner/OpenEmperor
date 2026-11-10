@@ -272,6 +272,9 @@ public:
         std::uint16_t image_width=0,image_height=0;
         double ground_x=0,ground_y=0;
         scene::Point ground{},image_origin{};
+        std::optional<simulation::BuildingId> field_farm;
+        std::optional<std::uint8_t> field_stage;
+        int field_farm_progress=0;
         std::string selection,evidence,fallback_reason;
     };
     OriginalBuildingVisualDiagnostic original_building_visual_diagnostic(simulation::BuildingId id) const;
@@ -561,7 +564,16 @@ private:
     };
     OriginalHouseVisualSelection original_house_visual_selection(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
-    const assets::BuildingVisualEntry* original_building_entry(simulation::Object kind) const;
+    struct OriginalFieldVisualSelection {
+        std::optional<simulation::BuildingId> farm;
+        std::optional<std::uint8_t> stage;
+        int progress=0;
+        const assets::BuildingVisualEntry* entry=nullptr;
+    };
+    OriginalFieldVisualSelection original_field_visual_selection(simulation::Cell cell,
+        simulation::Object kind,bool placement_preview=false) const;
+    const assets::BuildingVisualEntry* original_building_entry(simulation::Cell cell,
+        simulation::Object kind,bool placement_preview=false) const;
     const assets::BuildingVisualEntry* resolved_building_entry(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
     assets::BuildingVisualProfile core_building_visual_profile() const;
