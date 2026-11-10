@@ -44,21 +44,42 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
-## Vacant House and paid-starter presentation (OE58)
+## House graphics and paid-starter presentation (OE58/OE59)
 
 Keep the [human report](qa/oe58-human-playtest.md) separate from software-SDL
-results. The [Vacant visual contract](rendering/oe58-vacant-house-visual.md)
-retains unresolved native Type2 selection; improved authored pixels do not
-establish original parity. Use the actual production View and menu tests:
+results. The [OE59 contract](rendering/oe59-original-vacant-houses.md) binds the
+pinned fresh Common purchase to group `0x47a`, variant0, physical1508. Its native
+158×88 image uses the existing Type30 base12800 and front-cell anchor79,68.
+Selection requires the actual2×2 Common body, exact empty Vacant2 state and a
+matching Housing row with no first admission; the renderer adds no saved
+authority. The
+[OE58 authored foundation](rendering/oe58-vacant-house-visual.md) remains the
+fallback for unavailable artwork, unsupported lifecycle states and F4.
+Ordinary setter group `0x471` and Shelter3's1509 image are not Type2 substitutes.
+Use the actual production View, lifecycle and menu tests:
 
 ```sh
 ctest --test-dir build --output-on-failure -R 'original-(house-visual|house-inspector|starter-availability-menu|player-mode|menu)|native-input|map-rules|map-permissions|save|recovery'
+ctest --test-dir build --output-on-failure -R '^original-(house-evolution-(synthetic|real)|housing(-stages)?-(world|world-real|save)|house-inspection(-real)?|building-visual-profile(-real)?|building-paid-production-view)$'
+OPENEMPEROR_UI_CAPTURE_DIR="$PWD/.local/oe59/house-captures-01" ctest --test-dir build --output-on-failure -R '^original-house-visual-production-view$'
 ./build/openemperor-original-menu-session-tests --starter-availability-capture .local/oe58/menu-captures-01
 ./build/openemperor-original-menu-session-tests --starter-availability-real /path/to/emperor .local/oe58/menu-real-01
 ```
 
-Choose fresh output roots and preserve the original inputs. The authored menu
-case separates map admission from failed layout placement, retains complete
+Configure the real-data tests with
+`-DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT=/path/to/emperor` and the normal copied
+application resources. Choose fresh output roots and preserve the original
+inputs. The House profile checks all16 native House entries, strict Type2/Shelter
+registration separation, exact RGBA/alpha, eager deduplication, named fallbacks
+and unchanged budgets. The complete core/House/Original-building profile has
+12+16+9=37 physical textures; the shared Well still avoids a duplicate upload.
+The paid View checks the four-house Xia/Normal starter, the actual fifth-House
+purchase and preview, real Space-driven admission to Shelter3, complete F5/F9
+state/byte equality, rejection of a forged formerly occupied Vacant state,
+native alpha picking, foreground/camera clipping and pure render/hover queries.
+Record their actual results for the tested source before claiming acceptance.
+
+The authored menu case separates map admission from failed layout placement, retains complete
 previous World/files, cancels focus/layout-boundary presses, and verifies that
 Empty cannot bypass failed map rules. Its real-data counterpart checks actual
 Loulan refusal and explicit Empty startup at1280×800/1600×900/1920×1080, full
@@ -67,6 +88,9 @@ PNG creation alone is not visual acceptance. Native human, external-display,
 clean-Mac and distribution checks retain separate results. Run the full Release
 suite, focused Debug/sanitizers and complete historical save comparisons before
 accepting a presentation change.
+Original binary-save graphics, original runtime variation and whole-scene
+parity remain separate from this fresh-purchase binding; no original EXE
+execution or native human acceptance follows from the scripted tests.
 
 ## Production evidence queries (OE55)
 

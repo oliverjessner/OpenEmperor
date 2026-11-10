@@ -1,6 +1,11 @@
 # Original house lifecycle: family, admission and geometry boundaries
 
-This source contract records bounded static evidence for OE25. It extends the existing `docs/reverse/original-house-{evolution,needs}-contract.md` and `original-religion-source-contract.md`; it does not change the immutable pure kernels. All addresses below are static VA, image base0x400000.
+This source contract records bounded static evidence for House family, admission,
+construction and empty-state boundaries. It extends the existing
+`original-house-{evolution,needs}-contract.md` and
+`original-religion-source-contract.md`; it does not change the immutable pure
+kernels. All addresses below are static VA, image base0x400000. The original
+OE25 admission seam is retained separately from the later graphics qualification.
 
 Original source identities remain:
 
@@ -14,6 +19,81 @@ A fresh read-only checker `check-primary-evidence.py` under ignored `.local/orig
 The independently checked predicates are Common2..10 at5188f0 and Elite11..17 at5188d0. The original dispatcher gives Common10 no evolution target; Elite11's519870 handler calls next-needs with argument2 and discards the result without changing type or counter.
 
 The complete concrete setter518de0–518ee7 adds a stronger boundary. It remembers the old predicates, installs the requested type and derived row, then checks the new family. A new Common type requires an old Common type; a new Elite type requires an old Elite type. At518e32/518e7c a family mismatch restores both old type and old model row and returnsfalse. Therefore an ordinary Common10→Elite11 setter call is explicitly rejected, not merely absent from one transition table. This does not enumerate all other original creation/replacement mechanisms.
+
+## Fresh Common purchase is not the ordinary empty-House callback
+
+Fresh bounded OE59 research qualifies the normal Type2 purchase caller, rather
+than treating every creation helper as interchangeable. Construction completion
+`405378→4b1250` forwards the selected type. Type2 takes `4b17aa`, then
+`4b17ee→4b2680` with commit flag0. This branch bypasses the generic
+`4b24c9..4b2557` creation/virtual+100 block. The complete special dispatcher
+creates literal Type2 at `4b2853→42d540`, checks the positive owner ID,
+resolves group`0x47a` at `4b28b4→408170`, and publishes 2×2 at
+`4b28d0→4b72b0` without a variant increment. The qualified purchase tail
+does not immediately run the House setter or virtual+100 callback.
+
+House construction installs vtable`7aba38` and OwnInfo vtable`7b5c44` at
+runtime+`c8`. Base initialization clears occupants; OwnInfo initialization clears
+its+`3c`. Shared initializer `428aa0` installs the requested type/side and calls
+House+90→`518b70`. Those complete initializers do not publish a replacement
+picture. The normal purchase therefore retains empty Type2 with physical1508.
+The Type2 evolution handler `519180` returns without a transition when signed
+occupants are nonpositive. This does not reconstruct original immigration timing.
+
+The ordinary setter `518de0` is a distinct context: Common requests2 and3 both
+use group`0x471` plus the cell variation low bit. Generic House virtual+100→
+`519f30` can call `519060` for an empty Common House; `519060` installs type3
+and publishes that tent family. A qualified resident-removal caller at `4adf1d`
+reaches it after clearing occupants at `4adf0a`. Thus a former-occupied empty
+context must not be inferred to have the fresh-purchase image from occupancy0
+alone. This is one proved removal path, not every original eviction, replacement
+or reset mechanism. Resource resolution and exact raster geometry are recorded
+in [Original House graphics](original-house-visuals.md).
+
+The independent Common arrival branch at `4cb1a1` requests literal type2 through
+the ordinary setter before adding actual occupants at `4cb1cd`. Original Type2
+can therefore also be occupied with the setter's tent picture. The availability
+branch clears occupancy at `518aa4` and status at `518ab2` without writing Type2
+or resetting the fresh-purchase picture. Neither Type2 nor occupancy0 alone is
+a universal original fresh-state identity.
+
+The current productive adapter already persists and validates a separate housing
+row with `first_admission_tick`. For a Common House without first admission it
+requires the complete empty Vacant2 state; its first admission and Shelter3 are
+installed together.
+Presentation can therefore restrict fresh1508 to the actual paid Common2×2
+never-admitted state without adding a lifecycle field, changing immigration or
+reconstructing history from appearance. Current World has no supported command
+that evicts a resident back to fresh Vacant2. Forging that state does not make it
+an admissible current JSON restore.
+
+## Original load and refresh remain a bounded open context
+
+The complete House serializer `518910..51895e`, base serializer
+`427430..4289e5` and embedded OwnInfo serializer `517410..5177a4` perform scalar
+archive IO without publishing a House picture. Manager load calls virtual+c0→
+`518a20`; its complete body performs the base callback and active-House
+registration, without changing House type or publishing1508/1509/1510.
+The later `52f030` reconstruction gate uses unsigned `(type-83)<=185`, excluding
+House types2..17; its generic creation callback is not a House-load witness.
+
+The independently documented [map first-draw chain](map-first-draw.md) clears
+saved physical image IDs at `53d100→5355f0`. The inspected subsequent
+`4bc440/4bc3b0` and `5403c0/53ec90/53f240/540330` contexts do not qualify the
+final House publisher after that clear. The complete original load/refresh
+choice for a saved fresh Type2 remains **PARTIAL**; no universal1508 or tent
+claim follows from these negative bounded observations. Original Emperor save
+import remains unsupported. Current validated OpenEmperor JSON F5/F9 derives
+the same presentation from its existing paid state and admission history and
+is a separate compatibility claim.
+
+The private evidence is sealed in ignored
+`.local/oe59/research-construction/construction-findings-09.json` and
+`restore-findings-14.json`, with the complementary serializer/arrival findings
+in `.local/oe59/research-restore/root-serialization-findings-01.json`.
+They retain exact window/helper/source pins and passing
+before/after byte, SHA, mode and mtime guards. This was static examination only:
+no original executable run, original-save search or additional World authority.
 
 ## Original empty-Elite arrival requests13, not12
 

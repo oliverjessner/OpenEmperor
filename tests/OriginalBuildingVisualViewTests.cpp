@@ -232,7 +232,7 @@ int main(int argc,char** argv) {
         view->configure_save(data,document.map_relative,working,document);configure(*view,art);view->initialize(window,renderer);focus(*view);
         check(view->paused()&&view->world().snapshot()==document.world,"Production restore changed complete paid World");
         key(*view,SDLK_F5);check(bytes(working)==original_bytes,"Initial actual F5 changed complete canonical save bytes");
-        const auto texture_count=view->building_texture_count();check(texture_count==36,"Startup must upload exactly36 shared core/House/Original building textures");
+        const auto texture_count=view->building_texture_count();check(texture_count==37,"Startup must upload exactly37 shared core/House/Original building textures");
         const auto initial_stats=view->original_building_display_stats();
         check(initial_stats.active&&std::all_of(initial_stats.configured_roles.begin(),initial_stats.configured_roles.end(),[](bool v){return v;}),"Ten original building roles were not atomically prepared");
         Json records=Json::array(),matrix=Json::array(),alpha=Json::array(),bodies=Json::array(),actors=Json::array();
@@ -344,21 +344,21 @@ int main(int argc,char** argv) {
         first_failed->configure_save(data,document.map_relative,output/"first-append-working.save.json",document);
         auto without_tail=art;without_tail.original_building.clear();without_tail.original_building_source=oe::VisualProfileSource::Fallback;
         configure(*first_failed,without_tail);first_failed->initialize(window,renderer);
-        check(first_failed->building_texture_count()==27&&!first_failed->original_building_display_stats().configured&&
-            first_failed->original_house_display_stats().configured,"No-tail control must retain12 core and15 House textures");
+        check(first_failed->building_texture_count()==28&&!first_failed->original_building_display_stats().configured&&
+            first_failed->original_house_display_stats().configured,"No-tail control must retain12 core and16 House textures");
         const auto retained_houses=first_failed->original_house_display_stats().configured_types;
         for(const auto& path:{output/"missing-first-profile.json",output/"malformed-profile.json"}) {
             perf::set_enabled(true);perf::reset();first_failed->set_original_building_visuals(path,oe::VisualProfileSource::Builtin);
             const auto uploads=perf::counter(perf::Counter::TextureUploads);perf::set_enabled(false);
-            check(uploads==0&&first_failed->building_texture_count()==27&&!first_failed->original_building_display_stats().configured&&
+            check(uploads==0&&first_failed->building_texture_count()==28&&!first_failed->original_building_display_stats().configured&&
                 first_failed->original_house_display_stats().configured_types==retained_houses&&first_failed->world().snapshot()==document.world,
                 "Failed first optional append reuploaded/discarded retained core/House textures or changed World");
         }
         perf::set_enabled(true);perf::reset();first_failed->set_original_building_visuals(art.original_building,oe::VisualProfileSource::Builtin);
         const auto appended_uploads=perf::counter(perf::Counter::TextureUploads);perf::set_enabled(false);
-        check(appended_uploads==9&&first_failed->building_texture_count()==36&&first_failed->original_building_display_stats().active&&
+        check(appended_uploads==9&&first_failed->building_texture_count()==37&&first_failed->original_building_display_stats().active&&
             first_failed->original_house_display_stats().configured_types==retained_houses&&first_failed->world().snapshot()==document.world,
-            "Successful first append did not reuse the shared27-image prefix and add exactly9 new textures");
+            "Successful first append did not reuse the shared28-image prefix and add exactly9 new textures");
         first_failed->shutdown();first_failed.reset();
         auto custom=oe::SandboxView::create_original_deadline_food_dispatch(session(),std::nullopt,false);
         custom->configure_save(data,document.map_relative,output/"custom-working.save.json",document);

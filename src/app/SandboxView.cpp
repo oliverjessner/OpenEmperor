@@ -1739,7 +1739,21 @@ SandboxView::OriginalHouseVisualSelection SandboxView::original_house_visual_sel
     else if (const auto owner=world_->building_owner_at(cell)) {
         const auto& houses=world_->original_economy_state()->houses;
         const auto found=std::find_if(houses.begin(),houses.end(),[&](const auto& house){return house.building_id==*owner;});
-        if (found!=houses.end()) result.house_type=static_cast<std::uint16_t>(found->house.type);
+        if (found!=houses.end()) {
+            result.house_type=static_cast<std::uint16_t>(found->house.type);
+            if (found->house.type==original::HouseType::Vacant) {
+                // The special paid Type2 purchase publishes group0x47a. A
+                // generic setter/previously occupied empty House is a different
+                // original context. Reconstruct this choice from the existing
+                // validated, persisted first-admission history on every query.
+                const auto& history=world_->original_production_state()->housing.houses;
+                const auto row=std::find_if(history.begin(),history.end(),
+                    [&](const auto& h){return h.building_id==*owner;});
+                const original::HouseState empty{.type=original::HouseType::Vacant};
+                if (kind!=simulation::Object::Household || found->house!=empty ||
+                    row==history.end() || row->first_admission_tick) return result;
+            }
+        }
     }
     if (building_profile_) result.entry=building_profile_->find_original_house(result.house_type,result.actual_side);
     return result;
@@ -1755,7 +1769,7 @@ SandboxView::OriginalHouseVisualDiagnostic SandboxView::original_house_visual_di
     result.ground=building_visual_ground(found->cell,found->kind);
     result.configured=selected.entry!=nullptr;
     result.active=result.configured && building_visuals_active() && building_sprite_;
-    result.authored_vacant_foundation=selected.applicable && selected.house_type==2 && selected.actual_side==2;
+    result.authored_vacant_foundation=selected.applicable && selected.house_type==2 && selected.actual_side==2 && !result.active;
     if (selected.entry) {
         const auto& entry=*selected.entry;const auto& image=building_profile_->unique_images.at(entry.image_index);
         result.asset=entry.id;result.image_width=image.width;result.image_height=image.height;
@@ -5149,7 +5163,7 @@ std::vector<std::string> SandboxView::original_house_section_lines() const {
         std::vector<std::string> art;
         if(visual.authored_vacant_foundation) {
             art.push_back("Art: authored vacant foundation");
-            art.push_back("Original Type2 image lifecycle unresolved");
+            art.push_back("Original art unavailable: "+visual.fallback_reason);
         } else if (visual.active) {
             art.push_back(std::string(original_house_source_==VisualProfileSource::Custom ? "Art: custom; ":"Art: original; ")+visual.selection);
             art.push_back("SG3 "+visual.asset->archive_relative_path.filename().string()+" #"+std::to_string(visual.asset->image_index));

@@ -56,7 +56,8 @@ std::uint32_t dword(const Bytes& bytes,std::size_t at) {
 }
 // Source-derived type/group relation; physical record translation remains shared.
 unsigned group(unsigned type) {
-    if (type<=10) return 0x471U+(type<=3 ? 0U:type-3U);
+    if (type==2) return 0x47a;
+    if (type<=10) return 0x471U+type-3U;
     if (type==11) return 0x479;
     if (type==12) return 0x47b;
     if (type==13) return 0x47c;
@@ -82,7 +83,7 @@ struct Fixture {
     fs::path root=fs::temp_directory_path()/("openemperor-original-house-profile-"+
         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     fs::path data=root/"data",manifest=root/"houses.json";
-    Bytes sg3=Bytes(40680U+205U*64U,0),bitmap=Bytes(4U+12800U+51200U,0);
+    Bytes sg3=Bytes(40680U+205U*64U,0),bitmap=Bytes(4U+12800U+51200U+12800U,0);
     a::RgbaImage legacy_image;
     Fixture() {
         u32(sg3,0,static_cast<unsigned>(sg3.size()));u32(sg3,4,213);
@@ -91,9 +92,10 @@ struct Fixture {
         std::copy(system.begin(),system.end(),sg3.begin()+680);
         std::copy(normal.begin(),normal.end(),sg3.begin()+880);
         u32(sg3,680+124,200);u32(sg3,680+128,1);u32(sg3,680+132,200);
-        u32(sg3,880+124,3);u32(sg3,880+128,201);u32(sg3,880+132,203);
+        u32(sg3,880+124,4);u32(sg3,880+128,201);u32(sg3,880+132,204);
         // Independent synthetic groups deliberately share physical images.
         for (unsigned i=0;i<172;++i) u16(sg3,80U+2U*i,201);
+        u16(sg3,80U+2U*((group(2)%512U)-1U),204);
         for (unsigned type=11;type<=17;++type) u16(sg3,80U+2U*((group(type)%512U)-1U),202);
         const auto record=[&](unsigned index,unsigned side,unsigned height,unsigned offset) {
             const auto at=40680U+64U*index;const auto base=3200U*side*side;
@@ -101,19 +103,19 @@ struct Fixture {
             u16(sg3,at+20,80U*side-2U);u16(sg3,at+22,height);u16(sg3,at+50,30);
             sg3[at+55]=static_cast<std::uint8_t>(side);sg3[at+56]=1;
         };
-        record(201,2,90,4);record(202,4,170,12804);record(203,2,90,4);
+        record(201,2,90,4);record(202,4,170,12804);record(203,2,90,4);record(204,2,88,64004);
         for (std::size_t at=4;at<bitmap.size();at+=2) u16(bitmap,at,0x03e0);
         save_sources();
         legacy_image=a::load_sg3_image({data/"DATA/test.sg3",201});
     }
     ~Fixture() { std::error_code error;fs::remove_all(root,error); }
     void save_sources() const { write(data/"DATA/test.sg3",sg3);write(data/"DATA/test.555",bitmap); }
-    Json valid() const {
+    Json valid(bool vacant_native=true) const {
         Json rows=Json::array();
         for (unsigned type=2;type<=17;++type) {
-            const unsigned side=type<11 ? 2U:4U,height=side==2 ? 90U:170U;
+            const unsigned side=type<11 ? 2U:4U,height=type==2 ? 88U:(side==2 ? 90U:170U);
             Json row={{"house_type",type},{"original_side",side},{"fallback","Explicit synthetic fallback"}};
-            if (type!=2) row.update({{"archive","DATA/test.sg3"},{"image_index",side==2 ? 201U:202U},
+            if (type!=2 || vacant_native) row.update({{"archive","DATA/test.sg3"},{"image_index",type==2 ? 204U:(side==2 ? 201U:202U)},
                 {"width",80U*side-2U},{"height",height},{"base_bytes",3200U*side*side},
                 {"ground_anchor",{40U*side-1U,height-20U}},{"group_key",group(type)},
                 {"variant",0U},{"evidence","Independent synthetic Type30 House fixture"}});
@@ -141,14 +143,27 @@ struct Fixture {
 void synthetic() {
     Fixture f;write(f.manifest,f.valid());auto profile=f.legacy();const auto legacy=state(profile)["roles"];
     a::append_original_house_visual_profile(f.data,f.manifest,profile);
-    check(profile.original_house_prepared && profile.unique_images.size()==2,"House/legacy physical deduplication failed");
+    check(profile.original_house_prepared && profile.unique_images.size()==3,"House/legacy physical deduplication failed");
     check(state(profile)["roles"]==legacy,"House supplement changed legacy entries");
-    check(!profile.find_original_house(2,2) && !profile.fallback_original_house(2,2).empty(),"Vacant fallback inferred an image");
+    const auto* vacant=profile.find_original_house(2,2);
+    const auto* shelter=profile.find_original_house(3,2);
+    check(vacant && shelter && vacant->id.image_index==204 && shelter->id.image_index==201 &&
+          vacant->image_index!=shelter->image_index && vacant->ground_x==79 && vacant->ground_y==68 &&
+          profile.unique_images.at(vacant->image_index).height==88,"fresh Type2 aliased Shelter or lost its native anchor");
+    check(!profile.find_original_house(2,4) && !profile.fallback_original_house(2,4).empty(),"Type2 image stretched onto side4");
+    auto fallback=f.legacy();write(f.manifest,f.valid(false));
+    a::append_original_house_visual_profile(f.data,f.manifest,fallback);
+    check(!fallback.find_original_house(2,2) && !fallback.fallback_original_house(2,2).empty(),"explicit Type2 fallback inferred an image");
+    const auto unprepared=f.legacy();
+    check(!unprepared.find_original_house(2,2) && !unprepared.fallback_original_house(2,2).empty(),"absent profile lost Type2 fallback");
     auto vacant_as_shelter=f.valid();vacant_as_shelter["stages"][0]=vacant_as_shelter["stages"][1];
     vacant_as_shelter["stages"][0]["house_type"]=2;
-    f.rejects(vacant_as_shelter,"Vacant lifecycle ambiguity accepted the otherwise valid Shelter registration");
+    f.rejects(vacant_as_shelter,"fresh Type2 accepted the ordinary group0x471 Shelter registration");
+    auto shelter_as_vacant=f.valid();shelter_as_vacant["stages"][1]=shelter_as_vacant["stages"][0];
+    shelter_as_vacant["stages"][1]["house_type"]=3;
+    f.rejects(shelter_as_vacant,"Shelter accepted the fresh Type2 purchase registration");
     check(!profile.find_original_house(11,2) && !profile.fallback_original_house(11,2).empty(),"side4 image stretched onto temporary side2 Elite plot");
-    for (unsigned type=3;type<=17;++type) {
+    for (unsigned type=2;type<=17;++type) {
         const auto side=static_cast<std::uint8_t>(type<11 ? 2:4);
         const auto* entry=profile.find_original_house(static_cast<std::uint16_t>(type),side);
         check(entry && entry->footprint_side==side,"actual type/side image missing");
@@ -175,7 +190,10 @@ void synthetic() {
     bad=f.valid();bad["stages"][1]["house_type"]=2;f.rejects(bad,"duplicate House type accepted");
     bad=f.valid();bad["stages"][1]["house_type"]=18;f.rejects(bad,"unknown House type accepted");
     bad=f.valid();bad["stages"][1]["original_side"]=4;f.rejects(bad,"Common/Elite footprint mismatch accepted");
-    bad=f.valid();bad["stages"][0]["width"]=158;f.rejects(bad,"partial fallback image accepted");
+    bad=f.valid(false);bad["stages"][0]["width"]=158;f.rejects(bad,"partial fallback image accepted");
+    bad=f.valid();bad["stages"][0]["image_index"]=201;f.rejects(bad,"fresh Type2 aliased the Shelter physical record");
+    bad=f.valid();bad["stages"][0]["variant"]=1;f.rejects(bad,"fresh Type2 accepted an unevidenced variation");
+    bad=f.valid();bad["stages"][0]["ground_anchor"]={79,63};f.rejects(bad,"fresh Type2 accepted the Shelter anchor");
     bad=f.valid();bad["stages"][1]["ground_anchor"]={79,69};f.rejects(bad,"optical House pivot accepted");
     bad=f.valid();bad["stages"][1]["width"]=160;f.rejects(bad,"stretched native House width accepted");
     bad=f.valid();bad["stages"][1]["base_bytes"]=3200;f.rejects(bad,"wrong native House base accepted");
@@ -187,7 +205,7 @@ void synthetic() {
     bad=f.valid();bad["files"][0]["sha256"]=std::string(64,'0');f.rejects(bad,"changed original asset fingerprint accepted");
     bad=f.valid();bad["files"].push_back(bad["files"][0]);f.rejects(bad,"duplicate fingerprint accepted");
     bad=f.valid();bad["stages"][1]["unknown"]=true;f.rejects(bad,"unknown stage metadata accepted");
-    const auto full=158U*90U*4U+318U*170U*4U;
+    const auto full=158U*90U*4U+318U*170U*4U+158U*88U*4U;
     f.rejects(f.valid(),"deduplicated combined budget overflow accepted",full-1U);
     for (const auto [offset,value]:std::array<std::pair<std::size_t,unsigned>,4>{{
         {16,1},{30,1},{34,1},{58,1}}}) {
@@ -240,16 +258,26 @@ void real(const fs::path& data,const fs::path& resources) {
     check(images==12 && std::count_if(profile.entries.begin(),profile.entries.end(),[](const auto& e){return e.has_value();})==13,
           "protected legacy13-role/12-image profile changed");
     a::append_original_house_visual_profile(data,manifest,profile);
-    check(state(profile)["roles"]==before["roles"] && profile.unique_images.size()==images+15,
+    check(state(profile)["roles"]==before["roles"] && profile.unique_images.size()==images+16,
           "original House extension changed legacy roles or physical deduplication");
     for (const auto& row:document.at("stages")) {
         const auto type=row.at("house_type").get<unsigned>(),side=exe.byte(0x823598U+24U*type);
         check(side==row.at("original_side"),"House side differs from original initializer");
         const auto table=type<=10 ? 0x8232f8U+4U*(type<=3 ? 0U:type-3U):0x85410cU+4U*type;
-        const auto original_group=exe.u32(table);
+        auto original_group=exe.u32(table);
         if (type==2) {
-            check(!row.contains("archive") && exe.u32(0x8235a0U+24U*type)==0x47a && original_group==0x471,
-                  "Vacant initial/setter ambiguity was silently assigned");continue;
+            // Bounded byte facts corroborate the documented special purchase;
+            // this test does not execute the original or infer a full call graph.
+            check(exe.u32(0x8235a0U+24U*type)==0x47a && original_group==0x471 &&
+                  exe.byte(0x4b284c)==0x6a && exe.byte(0x4b284d)==2 &&
+                  exe.byte(0x4b2899)==0x68 && exe.u32(0x4b289a)==0x47a &&
+                  exe.byte(0x4b28c9)==0x6a && exe.byte(0x4b28ca)==2 &&
+                  exe.byte(0x4b28cb)==0x6a && exe.byte(0x4b28cc)==2,
+                  "fresh Type2 purchase facts changed or ordinary setter was substituted");
+            original_group=exe.u32(0x4b289a);
+            check(row.at("image_index")==1508 && row.at("width")==158 && row.at("height")==88 &&
+                  row.at("base_bytes")==12800 && row.at("ground_anchor")==Json::array({79,68}),
+                  "fresh Type2 source geometry changed");
         }
         check(row.at("group_key")==original_group && row.at("variant")==0,"House type does not match actual original setter table");
         const auto resolution=m::resolve_resource_group({original_group},{{2,{&*layout}}});

@@ -53,15 +53,21 @@ complete original-game compatibility.
   Elite plots retain their named historical fallbacks. Existing Market,
   Warehouse and FireWatch core previews are not newly identified original
   registrations. See the [OE52 evidence and validation](docs/rendering/oe52-original-visuals.md).
-- **Vacant Common artwork is unresolved.** Type2's generic initial group
-  `0x47a`/physical1508 and ordinary setter group `0x471`/physical1509–1510
-  remain distinct unqualified lifecycle contexts. The user reports a paid2×2
-  Vacant plot with weak fallback visibility and a native tent after real entry
-  to Type3; no screenshot file accompanies the [OE58 account](docs/qa/oe58-human-playtest.md).
-  OE58 now draws a clearer authored foundation, with paid transition, complete
-  F5/F9 and opened software-SDL matrix/before-after evidence. This is
-  presentation, not original Type2 identification, a resident grant or an early
-  Shelter. New native human visual acceptance remains open.
+- **Fresh Common Type2 artwork has a narrow original binding.** The pinned
+  normal purchase path publishes group `0x47a`, variant0, physical1508 before
+  resident admission; the ordinary setter's `0x471`/physical1509–1510 is a
+  different lifecycle context. Native1508 is selected only for an actual2×2
+  Common House in Original production with the exact empty Vacant2 state and
+  no recorded first admission. Existing validated Housing history supplies that distinction;
+  there is no new World or save authority. Missing/incompatible source art and
+  F4 retain the authored foundation; unsupported body/lifecycle combinations keep
+  named fallbacks. Forged previously occupied Common-to-Vacant restores remain
+  refused. Original binary-save graphic identity, runtime variation and
+  whole-scene parity are separate limits. The
+  [OE59 contract](docs/rendering/oe59-original-vacant-houses.md) distinguishes
+  these source findings from the [OE58 user account](docs/qa/oe58-human-playtest.md),
+  which has no accompanying screenshot file. New native human visual acceptance
+  remains NOT_RUN.
 - **Map admission does not guarantee a paid starter fits.** General selected-rule
   checks and legal empty24×13 starter placement are separate. The OE58 user
   reports Loulan passing the former, then refusing the starter with a clipped
