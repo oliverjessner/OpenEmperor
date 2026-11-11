@@ -275,6 +275,8 @@ public:
         std::optional<simulation::BuildingId> field_farm;
         std::optional<std::uint8_t> field_stage;
         int field_farm_progress=0;
+        bool field_order_adjusted=false,field_order_ambiguous=false;
+        std::optional<scene::WorldDrawKey> field_painter_key;
         std::string selection,evidence,fallback_reason;
     };
     OriginalBuildingVisualDiagnostic original_building_visual_diagnostic(simulation::BuildingId id) const;
@@ -507,6 +509,7 @@ private:
         int footprint_side=1;
     };
     void record_visual_hit(const DrawInstance& instance);
+    void apply_original_field_order(DrawInstance& instance) const;
     bool select_visual(scene::Point screen);
     void clear_visual_selection();
     void clear_hidden_walker_selection();
@@ -572,6 +575,7 @@ private:
     };
     OriginalFieldVisualSelection original_field_visual_selection(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
+    void prepare_original_field_order(bool force=false);
     const assets::BuildingVisualEntry* original_building_entry(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
     const assets::BuildingVisualEntry* resolved_building_entry(simulation::Cell cell,
@@ -797,6 +801,16 @@ private:
     std::string original_building_fallback_reason_="No original building profile selected";
     std::string original_building_preparation_error_;
     std::array<std::uint64_t,assets::original_building_role_count> original_building_draws_{},original_building_fallbacks_{};
+    // At most two Hemp and three Food fields. Geometry only, prepared at World
+    // publication/layout revision boundaries; no neighbor discovery in render.
+    struct OriginalFieldOrder {
+        simulation::BuildingId id{};
+        scene::WorldDrawKey key{};
+        bool adjusted=false,ambiguous=false;
+    };
+    std::array<OriginalFieldOrder,5> original_field_order_{};
+    std::size_t original_field_order_count_=0;
+    std::uint64_t original_field_order_revision_=UINT64_MAX;
     bool building_enabled_=true;
     std::array<std::uint64_t,assets::building_role_count> building_drawn_instances_{};
     std::array<std::uint64_t,assets::building_role_count> building_placeholder_fallbacks_{};

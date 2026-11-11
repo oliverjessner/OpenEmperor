@@ -228,7 +228,7 @@ Rule18/schema34/policy3 Xia save to register
 required; there are no original-data fixtures in Git. The test reserves a new
 private output below `.local/oe60-5/` for each invocation (explicit historical
 `.local/oe60/` and `.local/oe52/` output parents remain accepted), checks full F5/F9 bytes,
-126 size/zoom cases, alpha picking, F4 and resource/authority guards.
+126 size/zoom cases, ordinary pointer selection, F4 and resource/authority guards.
 The matrix covers twelve native bodies and the two field kinds actually bought
 in that immutable city, at1280×800/1600×900/1920×1080 and1×/2×/4×. It captures37
 PNGs with owned-target readback before Present. Open the images;
@@ -246,11 +246,24 @@ starter, buys a second Food Farmhouse, Wheat field and worker Houses through
 normal commands, and observes all80 existing parent progress values for all
 three crops. Its162 size/zoom/stage cases use owned-target readback;18 representative
 PNGs show every crop/stage at1280×800/4× with the actual authored-stage Inspector
-details. Check exact source pixels, opaque/transparent picking, F4, ten real
+details. Check exact source pixels, ordinary opaque/transparent pointer probes, F4, ten real
 ticks of a normally paused Wheat Farm, resumption, actual harvest, complete
 F5/F9 equality and all twelve pure-frame counters. Open the images separately.
 The original per-field quantity, variation and calendar/work state remain
 outside this explicitly authored six-stage mapping.
+
+Adjacent-field order checks must derive projected positions independently from
+the actual paid Field cell, source height and complete Farm footprint. Require
+real source-alpha overlap witnesses that the old front-cell painter overwrote,
+then verify the Field pixel at1×/2×/4×. Ordinary clicks must retain ground-owner
+selection; explicit F1 diagnostics with a fresh submitted frame must pick the
+visible Field alpha at the same overlap point. Earlier ordinary pointer probes
+alone do not establish that F1 result. Do not derive expected
+positions from `original_building_visual_diagnostic().image_origin` or merely
+search for any still-visible pixel. The synthetic building-depth cases also
+protect front neighbors and preserve historical keys when all four neighbor
+constraints cannot be satisfied. Check that preparation follows placement,
+layout revision and F9 without per-frame neighbor scans or new asset work.
 
 Additionally compare the existing longer paid Farm exercise, including loading,
 arrival and natural source fire. Farm bodies must remain825/793, while fields

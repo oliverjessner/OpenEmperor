@@ -6,6 +6,7 @@
 #include "assets/Sg3ImageLoader.h"
 #include "core/PerformanceDiagnostics.h"
 #include "maps/MapRulesCheck.h"
+#include "scene/IsoProjection.h"
 #include "persistence/SandboxSave.h"
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
@@ -175,6 +176,99 @@ struct Field {
     Field(sim::Object field_kind,unsigned model_type,unsigned first_record)
         :kind(field_kind),model(model_type),base(first_record) {}
 };
+
+// This oracle starts with the paid World cell and the source session's border,
+// not with the rendering diagnostic or building_visual_ground(). A cell's
+// diamond center is halfway between its independently projected corners.
+Point cell_ground(const sim::World& world,sim::Cell cell,std::uint32_t border) {
+    const auto& permissions=world.map_permissions();
+    check(permissions&&permissions->in_bounds(cell),"Ground witness lacks authoritative cell-height facts");
+    const double u=static_cast<double>(cell.x)-border,v=static_cast<double>(cell.y)-border;
+    const auto back=oe::scene::project({u,v}),front=oe::scene::project({u+1,v+1});
+    return {(back.x+front.x)*.5,(back.y+front.y)*.5-40.0*permissions->cell_height(cell)};
+}
+bool same_point(Point a,Point b) {
+    return std::abs(a.x-b.x)<1e-9&&std::abs(a.y-b.y)<1e-9;
+}
+struct PainterWitness {
+    Point field_ground{},farm_ground{},world_pixel{},farm_control_world{},road_control_world{};
+    sim::Cell field_cell{},farm_cell{},road_cell{};
+    std::array<int,2> field_pixel{},farm_pixel{},farm_control_pixel{};
+    Color field_rgba{},farm_rgba{},farm_control_rgba{};
+};
+PainterWitness wheat_painter_witness(const oe::SandboxView& view,const Field& field,
+        const assets::RgbaImage& image,const assets::RgbaImage& farm_image,std::uint32_t border) {
+    const auto& body=view.world().building(field.id);const auto& farm=view.world().building(field.farm);
+    const auto footprint=sim::building_footprint(view.world().profile(),view.world().rule_version(),farm.kind);
+    check(body.kind==sim::Object::OriginalWheatField&&farm.kind==sim::Object::OriginalFoodFarm&&
+        footprint.width==3&&footprint.height==3&&body.cell==sim::Cell{farm.cell.x+3,farm.cell.y},
+        "Painter regression requires the real paid Wheat field beside its 3x3 parent Farm");
+    for(int y=0;y<3;++y)for(int x=0;x<3;++x) {
+        const sim::Cell cell{farm.cell.x+x,farm.cell.y+y};
+        check(cell!=body.cell&&view.world().building_owner_at(cell)==field.farm,
+            "Actual Wheat Farm/Field footprints overlap or lost their permanent owner");
+    }
+    check(view.world().building_owner_at(body.cell)==field.id,
+        "Paid Field lost its exclusive one-cell World footprint");
+    const auto parent=view.original_building_visual_diagnostic(field.farm);
+    check(parent.active&&parent.asset&&parent.asset->archive_relative_path==fs::path("DATA/China_General.sg3")&&
+        parent.asset->image_index==793&&farm_image.width==238&&farm_image.height==192,
+        "Painter counterexample lost its complete original Farm793 source");
+    PainterWitness result;result.field_cell=body.cell;result.farm_cell=farm.cell;
+    result.field_ground=cell_ground(view.world(),body.cell,border);
+    result.farm_ground=cell_ground(view.world(),{farm.cell.x+2,farm.cell.y+2},border);
+    check(result.farm_ground.y>result.field_ground.y,
+        "Regression scene no longer has the old parent-Farm-after-Field painter order");
+    // These anchors are the established source-base contract, independently
+    // applied to the actual paid cells. Never derive witness positions from
+    // d.image_origin or search the framebuffer for a convenient matching pixel.
+    const Point field_origin{result.field_ground.x-39,result.field_ground.y-(image.height-20)};
+    const Point farm_origin{result.farm_ground.x-119,result.farm_ground.y-(farm_image.height-20)};
+    bool found=false;int best_raster_margin=-1;
+    // The ground bases are disjoint. Only the complete crop/Omega raster may
+    // overlap this parent body; do not require overlap inside the Field base.
+    for(int y=0;y<image.height;++y)for(int x=0;x<image.width;++x) {
+        const auto field_color=source(image,x,y);if(field_color[3]!=255)continue;
+        const Point p{field_origin.x+x+.5,field_origin.y+y+.5};
+        const int raster_margin=std::min({x,image.width-1-x,y,image.height-1-y});
+        if(raster_margin<=best_raster_margin)continue;
+        const int fx=static_cast<int>(std::floor(p.x-farm_origin.x));
+        const int fy=static_cast<int>(std::floor(p.y-farm_origin.y));
+        if(fx<0||fy<0||fx>=farm_image.width||fy>=farm_image.height)continue;
+        const auto farm_color=source(farm_image,fx,fy);
+        if(farm_color[3]!=255||farm_color==field_color)continue;
+        result.world_pixel=p;result.field_pixel={x,y};result.farm_pixel={fx,fy};
+        result.field_rgba=field_color;result.farm_rgba=farm_color;
+        best_raster_margin=raster_margin;found=true;
+    }
+    check(found,"No independently projected opaque Farm-over-Field crop counterexample");
+    const auto field_alpha_at=[&](Point p) {
+        const int x=static_cast<int>(std::floor(p.x-field_origin.x));
+        const int y=static_cast<int>(std::floor(p.y-field_origin.y));
+        return x>=0&&y>=0&&x<image.width&&y<image.height ? source(image,x,y)[3]:0;
+    };
+    // A central point of the actual Farm footprint remains a Farm-source pixel.
+    // Unlike a framebuffer search, its position cannot follow a displaced Field.
+    const auto farm_center=cell_ground(view.world(),{farm.cell.x+1,farm.cell.y+1},border);
+    result.farm_control_pixel={static_cast<int>(std::floor(farm_center.x-farm_origin.x)),
+        static_cast<int>(std::floor(farm_center.y-farm_origin.y))};
+    check(result.farm_control_pixel[0]>=0&&result.farm_control_pixel[0]<farm_image.width&&
+        result.farm_control_pixel[1]>=0&&result.farm_control_pixel[1]<farm_image.height,
+        "Independent Farm control escaped its full source raster");
+    result.farm_control_world={farm_origin.x+result.farm_control_pixel[0]+.5,
+        farm_origin.y+result.farm_control_pixel[1]+.5};
+    result.farm_control_rgba=source(farm_image,result.farm_control_pixel[0],result.farm_control_pixel[1]);
+    check(result.farm_control_rgba[3]==255&&field_alpha_at(result.farm_control_world)==0,
+        "Farm control must be opaque source793 outside the complete Field alpha");
+    result.road_cell={body.cell.x,body.cell.y-1};
+    check(view.world().road_cell(result.road_cell),"The paid Wheat neighbor Road control disappeared");
+    const auto road_center=cell_ground(view.world(),result.road_cell,border);
+    result.road_control_world={road_center.x+.5,road_center.y+.5};
+    check(field_alpha_at(result.road_control_world)==0,
+        "Road control must remain outside the complete crop/Omega alpha");
+    return result;
+}
+
 // Independent interval oracle, deliberately not the production quantizer.
 unsigned stage_of(int progress) {
     constexpr std::array lower{0,14,27,40,54,67};
@@ -191,8 +285,12 @@ std::uint64_t harvested(const sim::World& world,const Field& field) {
     }
     throw std::runtime_error("Missing exact saved Field-to-Farm ownership");
 }
-Json diagnostic(const oe::SandboxView& view,const Field& field) {
+Json diagnostic(const oe::SandboxView& view,const Field& field,std::uint32_t border) {
     const auto d=view.original_building_visual_diagnostic(field.id);const auto& farm=view.world().building(field.farm);
+    const auto expected_ground=cell_ground(view.world(),view.world().building(field.id).cell,border);
+    check(same_point(d.ground,expected_ground)&&same_point(d.image_origin,
+        {expected_ground.x-39,expected_ground.y-(field.images[stage_of(farm.progress)].height-20)}),
+        "Field image moved away from its independently projected authoritative cell");
     const auto stage=stage_of(farm.progress);check(d.applicable&&d.configured&&d.active&&d.model_type==field.model&&
         d.actual_side==1&&d.asset&&d.asset->archive_relative_path==fs::path("DATA/China_General.sg3")&&
         d.asset->image_index==field.base+stage&&d.field_farm==field.farm&&
@@ -262,6 +360,9 @@ int main(int argc,char** argv) {
         check(preflight.status==oe::maps::MapRulesStatus::MapRulesChecked&&!preflight.input_sha256.empty(),"Strict source-bound Xia preflight failed");
         auto session=oe::maps::load_stored_map_session(data,"Cities/Xia.map",oe::maps::FootprintPolicy::EdgeByte4x4Preview,
             oe::maps::StoredGraphicsProfile::Slot8,oe::maps::GreatWallPresentationMode::Automatic,preflight.input_sha256,true);
+        const oe::maps::MapGeometry geometry(session.map.declared_map_size);
+        check(geometry.supported,"Independent field geometry requires the actual supported source map");
+        const auto map_border=geometry.border;
         auto view=oe::SandboxView::create_original_deadline_food_dispatch(std::move(session),oe::original::Difficulty::Normal,true);
         // REPO_ROOT owns lowercase source metadata; installed application roots
         // instead use Resources/Compatibility. Do not rely on case folding.
@@ -320,6 +421,9 @@ int main(int argc,char** argv) {
                 check(field.images[stage].width==78&&field.images[stage].height>=40,"Canonical source image lost its one-cell geometry");
             }
         }
+        // Full independent parent payload, used only to select a geometric
+        // counterexample in this test; never as a rendering/color heuristic.
+        const auto wheat_farm_image=assets::load_sg3_image({data/"DATA/China_General.sg3",793});
         auto merged=assets::load_building_visual_profile(data,art.building);
         assets::append_original_house_visual_profile(data,art.original_house,merged);
         assets::append_original_building_visual_profile(data,art.original_building,merged);
@@ -327,6 +431,7 @@ int main(int argc,char** argv) {
         check(merged.unique_images.size()==56&&view->building_texture_count()==56&&rgba_bytes==4770512,
             "Field publication changed the expected deduplicated56-image/4,770,512-byte pool");
         Json checkpoints=Json::array(),matrix=Json::array(),picking=Json::array(),observations=Json::array();
+        Json painter_regressions=Json::array();
         const auto checkpoint=[&](const std::string& label) {
             const auto before=view->world().snapshot();key(*view,SDLK_F5);
             const auto saved=oe::persistence::read_save(working);const auto canonical=bytes(working);
@@ -334,13 +439,16 @@ int main(int argc,char** argv) {
             write(output/(label+".save.json"),canonical);key(*view,SDLK_F9);key(*view,SDLK_F5);
             check(view->world().snapshot()==before&&bytes(working)==canonical&&view->paused(),"Real F9/F5 changed complete saved bytes/World");
             write(output/(label+".roundtrip.json"),bytes(working));Json roles=Json::array();
-            for(const auto& field:fields)roles.push_back(diagnostic(*view,field));
+            for(const auto& field:fields)roles.push_back(diagnostic(*view,field,map_border));
             checkpoints.push_back({{"label",label},{"tick",view->world().ticks()},{"full_F5_F9_bytes_equal",true},{"fields",roles}});
             return canonical;
         };
         const auto stage_matrix=[&](Field& field,unsigned stage) {
             const auto label="model"+std::to_string(field.model)+"-stage"+std::to_string(stage);
             const auto canonical=checkpoint(label);const auto authority=view->world().snapshot();
+            std::optional<PainterWitness> painter;
+            if(field.kind==sim::Object::OriginalWheatField&&(stage==0||stage==2||stage==5))
+                painter=wheat_painter_witness(*view,field,field.images[stage],wheat_farm_image,map_border);
             for(const auto size:std::array<std::array<int,2>,3>{{{1280,800},{1600,900},{1920,1080}}}) {
                 check(SDL_SetWindowSize(window,size[0],size[1]),"Resize real field window");
                 SDL_Event resized{};resized.type=SDL_EVENT_WINDOW_RESIZED;resized.window.data1=size[0];resized.window.data2=size[1];event(*view,resized);view->update(0);
@@ -352,6 +460,79 @@ int main(int argc,char** argv) {
                     const auto slot=static_cast<std::size_t>(d.role);
                     check(after.drawn_instances[slot]>before.drawn_instances[slot]&&after.authored_fallbacks[slot]==before.authored_fallbacks[slot],
                         "Actual Field stage submitted fallback instead of the selected original image");
+                    Json painter_case=nullptr;
+                    if(painter) {
+                        const auto p=view->camera().world_to_screen(painter->world_pixel);
+                        const auto center_screen=view->camera().world_to_screen(painter->field_ground);
+                        const auto center_cell=view->pick(center_screen);
+                        const auto ground_cell=view->pick(p); // Crop height does not change ground ownership.
+                        const auto ground_owner=ground_cell ? view->world().building_owner_at(*ground_cell):std::nullopt;
+                        const auto farm_control=view->camera().world_to_screen(painter->farm_control_world);
+                        const auto id_json=[](std::optional<sim::BuildingId> id){return id ? Json(number(*id)):Json(nullptr);};
+                        painter_case={{"model",field.model},{"stage",stage},{"tick",view->world().ticks()},
+                            {"window",size},{"nominal_zoom",nominal},{"actual_camera",camera(*view)},
+                            {"field_id",number(field.id)},{"farm_id",number(field.farm)},
+                            {"field_cell",{painter->field_cell.x,painter->field_cell.y}},
+                            {"farm_cell",{painter->farm_cell.x,painter->farm_cell.y}},
+                            {"independent_field_ground",{painter->field_ground.x,painter->field_ground.y}},
+                            {"independent_farm_ground",{painter->farm_ground.x,painter->farm_ground.y}},
+                            {"world_pixel_center",{painter->world_pixel.x,painter->world_pixel.y}},
+                            {"screen_pixel_center",{p.x,p.y}},{"field_source_pixel",painter->field_pixel},
+                            {"field_source_RGBA",painter->field_rgba},{"farm793_source_pixel",painter->farm_pixel},
+                            {"old_later_Farm_source_RGBA",painter->farm_rgba},
+                            {"projected_ground_cell",ground_cell ? Json::array({ground_cell->x,ground_cell->y}):Json(nullptr)},
+                            {"normal_expected_ground_owner",id_json(ground_owner)},
+                            {"farm_control_source_pixel",painter->farm_control_pixel},
+                            {"farm_control_source_RGBA",painter->farm_control_rgba},
+                            {"farm_control_screen",{farm_control.x,farm_control.y}},
+                            {"disjoint_paid_ground_footprints",true},{"source_only_geometric_counterexample",true}};
+                        const auto require_painter=[&](bool okay,const std::string& reason,SDL_Surface* failure_frame) {
+                            if(!okay) {
+                                const auto name=label+"-painter-failure-"+std::to_string(size[0])+"x"+
+                                    std::to_string(size[1])+"-"+std::to_string(nominal)+"x";
+                                painter_case["failure"]=reason;
+                                painter_case["selected_building_at_failure"]=id_json(view->selected_building());
+                                painter_case["failure_PNG"]=name+".png";
+                                painter_case["failure_PNG_written"]=!fs::exists(output/(name+".png"))&&
+                                    SDL_SavePNG(failure_frame,(output/(name+".png")).string().c_str());
+                                write(output/(name+".json"),painter_case.dump(2)+"\n");
+                                std::cerr<<"Independent painter failure context "<<painter_case.dump()<<'\n';
+                            }
+                            check(okay,reason);
+                        };
+                        require_painter(view->layout().map.contains(p.x,p.y),
+                            "Independent painter witness escaped the actual aperture",frame.get());
+                        require_painter(center_cell&&*center_cell==painter->field_cell&&
+                            view->world().building_owner_at(*center_cell)==field.id,
+                            "Independent Field center no longer has its exact one-cell World authority",frame.get());
+                        require_painter(view->layout().map.contains(farm_control.x,farm_control.y)&&
+                            pixel(*frame,farm_control)==painter->farm_control_rgba,
+                            "Field painter change overwrote the independent parent-Farm control",frame.get());
+                        const auto actual=pixel(*frame,p);painter_case["actual_normal_mode_RGBA"]=actual;
+                        require_painter(actual==painter->field_rgba,
+                            "Wheat stage"+std::to_string(stage)+" at zoom"+std::to_string(nominal)+
+                            " lost its independent crop/Omega pixel to the later opaque Farm793",frame.get());
+                        // Ordinary selection intentionally follows ground authority.
+                        // Only explicit F1 diagnostics select submitted sprite alpha.
+                        click(*view,renderer,p);painter_case["normal_actual_ground_owner"]=id_json(view->selected_building());
+                        require_painter(view->selected_building()==ground_owner,
+                            "Ordinary crop-overhang click changed the historical ground-owner selection",frame.get());
+                        key(*view,SDLK_F1);Json debug_counts;
+                        auto debug_frame=capture(*view,renderer,{},debug_counts);
+                        click(*view,renderer,p);painter_case["F1_actual_alpha_owner"]=id_json(view->selected_building());
+                        require_painter(view->selected_building()==field.id,
+                            "F1 diagnostic crop-alpha click picked the parent Farm instead of the visible Field",debug_frame.get());
+                        key(*view,SDLK_F1);Json restored_counts;
+                        frame=capture(*view,renderer,{},restored_counts);frame_counts=restored_counts;
+                        painter_case["restored_normal_RGBA"]=pixel(*frame,p);
+                        require_painter(pixel(*frame,p)==painter->field_rgba,
+                            "Returning from F1 changed the normal crop/Omega painter pixel",frame.get());
+                        painter_case["normal_ground_pick_preserved"]=true;
+                        painter_case["F1_exact_Field_alpha_pick"]=true;
+                        painter_case["F1_frame_counters"]=debug_counts;
+                        painter_case["normal_restored_frame_counters"]=restored_counts;
+                        painter_case["Farm_control_unchanged"]=true;
+                    }
                     const auto& image=field.images[stage];std::optional<Point> opaque;std::array<int,2> source_point{};Color opaque_color{};
                     const auto c=view->camera();
                     for(int y=1;y<image.height-1&&!opaque;++y)for(int x=1;x<image.width-1&&!opaque;++x) {
@@ -381,6 +562,15 @@ int main(int argc,char** argv) {
                         key(*view,SDLK_F4);check(!view->original_building_visual_diagnostic(field.id).active,"F4 did not disable field sprites");
                         Json fallback_counts;auto fallback=capture(*view,renderer,{},fallback_counts);
                         check(pixel(*fallback,*opaque)!=opaque_color,"F4 did not change the exact native source pixel");
+                        if(painter) {
+                            const auto road=view->camera().world_to_screen(painter->road_control_world);
+                            check(view->layout().map.contains(road.x,road.y)&&pixel(*frame,road)==pixel(*fallback,road),
+                                "Crop painter promotion changed the adjacent Road outside its complete alpha");
+                            painter_case["Road_control_F4_unchanged"]=true;
+                            painter_case["Road_control_cell"]={painter->road_cell.x,painter->road_cell.y};
+                            painter_case["Road_control_screen"]={road.x,road.y};
+                            painter_case["Road_control_RGBA"]=pixel(*fallback,road);
+                        }
                         key(*view,SDLK_F4);check(view->original_building_visual_diagnostic(field.id).active,"F4 did not restore the same actual Field stage");
                         alpha={{"model",field.model},{"stage",stage},{"opaque",{opaque->x,opaque->y}},
                             {"source_pixel",source_point},{"source_rgba",opaque_color},{"transparent",{hole->x,hole->y}},
@@ -394,9 +584,11 @@ int main(int argc,char** argv) {
                     perf::set_enabled(false);const auto pure_counts=counters();
                     check(view->world().snapshot()==pure&&camera(*view)==stable_camera&&resources(*view)==stable_resources&&
                         view->world().snapshot()==authority,"Pure frames changed complete World/camera/cache/texture ownership");
+                    if(painter)painter_regressions.push_back(painter_case);
                     matrix.push_back({{"model",field.model},{"stage",stage},{"tick",view->world().ticks()},{"window",size},
-                        {"nominal_zoom",nominal},{"camera",camera(*view)},{"visual",diagnostic(*view,field)},
+                        {"nominal_zoom",nominal},{"camera",camera(*view)},{"visual",diagnostic(*view,field,map_border)},
                         {"source_pixel",source_point},{"source_rgba",opaque_color},{"screen_pixel_center",{opaque->x,opaque->y}},
+                        {"independent_Wheat_painter_regression",painter_case},
                         {"owned_RGBA32_before_Present",true},{"render_counters",frame_counts},{"three_hover_frame_counters",pure_counts},
                         {"file",png.empty()?Json(nullptr):Json(png)},{"visible_authored_stage_details",visible},{"alpha_picking",alpha},
                         {"complete_World_camera_resources_unchanged",true}});
@@ -412,7 +604,7 @@ int main(int argc,char** argv) {
                 field.progress_values[static_cast<std::size_t>(progress)]=true;
                 if(progress>0&&!field.started)field.started=view->world().ticks();
                 if(harvested(view->world(),field)>0&&!field.first_harvest)field.first_harvest=view->world().ticks();
-                current.push_back(diagnostic(*view,field));
+                current.push_back(diagnostic(*view,field,map_border));
                 if(!field.stages[stage]){stage_matrix(field,stage);field.stages[stage]=true;}
             }
             observations.push_back({{"tick",view->world().ticks()},{"fields",current}});
@@ -437,6 +629,7 @@ int main(int argc,char** argv) {
             key(*view,SDLK_PERIOD);check(view->paused()&&view->world().ticks()==t+1,"Real Step did not advance exactly one tick");
         }
         check(matrix.size()==162&&picking.size()==18,"The real3-fields/six-stages/nine-aperture matrix is incomplete");
+        check(painter_regressions.size()==27,"Independent Wheat0/2/5 painter checks missed a size/zoom case");
         Json summary=Json::array();
         for(const auto& field:fields) {
             check(std::all_of(field.progress_values.begin(),field.progress_values.end(),[](bool value){return value;}),
@@ -450,6 +643,8 @@ int main(int argc,char** argv) {
         write(output/"report.json",Json{{"status","AUTOMATED_PASS"},{"runtime","SCRIPTED_SDL dummy/software"},
             {"rule",18},{"schema",34},{"map","Cities/Xia.map"},{"difficulty","Normal"},{"end_tick",end_tick},
             {"commands",commands},{"fields",summary},{"observations",observations},{"checkpoints",checkpoints},
+            {"independent_Wheat_painter_cases",painter_regressions.size()},
+            {"independent_Wheat_painter_regressions",painter_regressions},
             {"readback_matrix_cases",matrix.size()},{"representative_pngs",18},{"matrix",matrix},{"alpha_picking",picking},
             {"building_textures",56},{"combined_RGBA_bytes",rgba_bytes},{"complete_F5_F9_bytes_equal",true},
             {"pause_resume_actual_parent_ticks",10},{"stage_mapping","AUTHORED existing80-productive-tick Farm progress -> six canonical Original images"},
