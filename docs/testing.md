@@ -205,7 +205,9 @@ provides separate `--create OUTPUT [TICKS]` and `--restore INPUT OUTPUT [TICKS]`
 under fresh `.local/oe53/` paths for full-document continuation comparisons.
 See the [OE53 contract](rendering/oe53-terrain-integration.md).
 
-## Original building visuals and farm/field boundaries (OE52/OE60/OE60.5)
+<a id="original-building-visuals-and-farmfield-boundaries-oe52oe60oe605"></a>
+
+## Original building visuals and farm/field boundaries (OE52/OE60/OE60.5/OE61)
 
 `original-building-visual-profile` checks authored inputs, atomic source/metadata
 refusal, native Type30 geometry and deduplicated budgets. Schema1 retains the
@@ -217,6 +219,13 @@ missing/duplicate roles, mixed native/fallback keys, historical native-field
 refusal, wrong crop/offset/geometry, animated payload refusal, incomplete last
 payload, the two farm registrations, shared physical-image reuse and the exact
 combined budget boundary. Static lookup never implicitly selects a field stage.
+Schema4 has exactly23 roles: the same15 historical rows plus seven existing
+Industry identities and Ancestor214. It adds no animation or stock/lifecycle
+selector. Check that historical schemas1/2/3 still require exactly10/15/15 rows,
+reject later identities and retain their37/39/56-image pools with the current
+28-image core/House prefix. The current schema4 pool is64 images/5,534,168 RGBA
+bytes. Source registrations, complete pixels, each actual side, atomic failure,
+physical deduplication and the unchanged64MiB boundary are checked independently.
 Its `-real` companion
 uses the explicitly configured `OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT` and the
 actual copied application resources. `original-building-selection-wiring`
@@ -226,18 +235,48 @@ Set `OPENEMPEROR_OE52_PAID_TEST_SAVE` to an explicitly supplied earned
 Rule18/schema34/policy3 Xia save to register
 `original-building-paid-production-view`. The complete66-body/46-courier city is
 required; there are no original-data fixtures in Git. The test reserves a new
-private output below `.local/oe60-5/` for each invocation (explicit historical
-`.local/oe60/` and `.local/oe52/` output parents remain accepted), checks full F5/F9 bytes,
-126 size/zoom cases, ordinary pointer selection, F4 and resource/authority guards.
-The matrix covers twelve native bodies and the two field kinds actually bought
-in that immutable city, at1280×800/1600×900/1920×1080 and1×/2×/4×. It captures37
-PNGs with owned-target readback before Present. Open the images;
+private output for each invocation; set
+`OPENEMPEROR_ORIGINAL_VISUAL_OUTPUT_ROOT` to a fresh parent under `.local/oe61/`
+to preserve closed earlier evidence. Historical OE52/OE60/OE60.5 output parents
+remain supported. The immutable66/46 city now covers18 native bodies and its two
+actually bought field kinds:180 size/zoom cases at1280×800/1600×900/1920×1080
+and1×/2×/4×. Normal ground-owner selection remains distinct from the explicit F1
+full-body/alpha probes. Each newly mapped body must expose an actual visible
+source pixel strictly above the complete projected footprint, select its paid
+BuildingId, click through a transparent point and display the prepared SG3
+record in the Inspector. A fresh submitted F1 frame is required at all nine
+size/zoom combinations. Readback uses an owned RGBA target before Present.
+Open every generated PNG;
 its `report.json` deliberately leaves visual review and native/human acceptance
-unconfirmed. See the historical [OE52 assessment](rendering/oe52-original-visuals.md)
-and the current [OE60 contract](rendering/oe60-original-farm-visuals.md).
+unconfirmed. Complete World, F5/F9 bytes, historical profiles, F4, failed optional
+replacement and all twelve pure-frame counters remain separate assertions.
+
+Set `OPENEMPEROR_OE61_PAID_TEST_SAVE` to an independently preserved, normally
+purchased68-body/48-channel extension that also contains Smelter39 and
+Bronzeware42. It registers `original-building-industry-production-view`; the
+original66/46 fixture is never rewritten. The extended test covers all20 static
+body roles plus its two field kinds,198 size/zoom cases. Direct invocation is:
 
 ```sh
-ctest --test-dir build --output-on-failure -R '^original-(building-(visual-profile(-real)?|selection-wiring|paid-production-view)|field-paid-growth-view|production-(world|view|save)|food-(world|save)|hemp-(world|save)|house-visual-production-view)$'
+build/openemperor-original-building-visual-view-tests \
+  /path/to/emperor "$PWD" /explicit/paid-68.save.json \
+  "$PWD/.local/oe61/manual-view" --extended-paid-city
+```
+
+For an actual before/after comparison, compile this same test TU against the
+frozen baseline headers/runtime and run it with the baseline metadata and
+`--extended-paid-city --baseline`. Preserve the source, binary, libraries and
+complete input SaveDocument fingerprints. The new eight roles must then remain
+historical authored markers. Compare the matching report rows' complete World,
+camera, aperture, selected ID and F1 state before comparing pixels; an F4 or
+no-tail run of the new renderer alone is not a baseline binary. The
+[OE61 contract](rendering/oe61-original-building-visuals.md) records the current
+source/acceptance boundary alongside the historical
+[OE52 assessment](rendering/oe52-original-visuals.md) and
+[OE60 contract](rendering/oe60-original-farm-visuals.md).
+
+```sh
+ctest --test-dir build --output-on-failure -R '^original-(building-(visual-profile(-real)?|selection-wiring|paid-production-view|industry-production-view)|field-paid-growth-view|production-(world|view|save)|industry-(world(-real)?|save)|market-(transport|save)|fire-protection-(world|save|real)|food-(world|save)|hemp-(world|save)|house-visual-production-view)$'
 ```
 
 `original-field-paid-growth-view` needs only the configured original-data root,

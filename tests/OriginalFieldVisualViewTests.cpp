@@ -62,8 +62,9 @@ void no_symlinks(const fs::path& path) {
 }
 fs::path fresh_output(const fs::path& repo,const fs::path& requested) {
     no_symlinks(requested);const auto parent=fs::absolute(requested).lexically_normal();
-    const auto allowed=repo/".local/oe60-5";
-    check(contains(allowed,fs::weakly_canonical(parent)),"Use only the private OE60.5 output root");
+    const auto allowed=repo/".local/oe60-5",oe61=repo/".local/oe61";
+    const auto resolved=fs::weakly_canonical(parent);
+    check(contains(allowed,resolved)||contains(oe61,resolved),"Use only a private OE60.5 or OE61 output root");
     fs::create_directories(parent);
     const auto stamp=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     for(unsigned attempt=0;attempt<32;++attempt) {
@@ -428,8 +429,8 @@ int main(int argc,char** argv) {
         assets::append_original_house_visual_profile(data,art.original_house,merged);
         assets::append_original_building_visual_profile(data,art.original_building,merged);
         std::uint64_t rgba_bytes=0;for(const auto& image:merged.unique_images)rgba_bytes+=image.pixels.size();
-        check(merged.unique_images.size()==56&&view->building_texture_count()==56&&rgba_bytes==4770512,
-            "Field publication changed the expected deduplicated56-image/4,770,512-byte pool");
+        check(merged.unique_images.size()==64&&view->building_texture_count()==64&&rgba_bytes==5534168,
+            "Field publication changed the qualified deduplicated64-image/5,534,168-byte pool");
         Json checkpoints=Json::array(),matrix=Json::array(),picking=Json::array(),observations=Json::array();
         Json painter_regressions=Json::array();
         const auto checkpoint=[&](const std::string& label) {
@@ -646,7 +647,7 @@ int main(int argc,char** argv) {
             {"independent_Wheat_painter_cases",painter_regressions.size()},
             {"independent_Wheat_painter_regressions",painter_regressions},
             {"readback_matrix_cases",matrix.size()},{"representative_pngs",18},{"matrix",matrix},{"alpha_picking",picking},
-            {"building_textures",56},{"combined_RGBA_bytes",rgba_bytes},{"complete_F5_F9_bytes_equal",true},
+            {"building_textures",64},{"combined_RGBA_bytes",rgba_bytes},{"complete_F5_F9_bytes_equal",true},
             {"pause_resume_actual_parent_ticks",10},{"stage_mapping","AUTHORED existing80-productive-tick Farm progress -> six canonical Original images"},
             {"original_quantity_terrain_calendar_reproduction","NOT_CLAIMED"},{"capture_review","NOT_RUN"},
             {"native_desktop","NOT_RUN"},{"human","NOT_RUN"}}.dump(2)+"\n");

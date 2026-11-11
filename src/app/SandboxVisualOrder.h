@@ -121,6 +121,14 @@ inline std::optional<assets::OriginalBuildingVisualRole> original_building_visua
     case O::OriginalHempField:return R::HempField;
     case O::OriginalWheatField:return R::WheatField;
     case O::OriginalMilletField:return R::MilletField;
+    case O::OriginalLoggingShed38:return R::LoggingShed;
+    case O::OriginalBronzeSmelter39:return R::BronzeSmelter;
+    case O::OriginalBronzewareMaker42:return R::BronzewareMaker;
+    case O::OriginalLacquerwareMaker44:return R::LacquerwareMaker;
+    case O::OriginalTeaCuringShed237:return R::TeaCuringShed;
+    case O::OriginalLacquerRefinery238:return R::LacquerRefinery;
+    case O::OriginalSilkwormShed239:return R::SilkwormShed;
+    case O::OriginalAncestorShrine214:return R::AncestorShrine;
     default:return std::nullopt;
     }
 }

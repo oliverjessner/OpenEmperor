@@ -99,8 +99,9 @@ struct Fixture {
         Json rows=Json::array();
         for (const auto& id:a::original_building_visual_identities) {
             if (schema==1 && static_cast<std::size_t>(id.role)>=a::original_building_schema1_role_count) break;
+            if (schema<4 && static_cast<std::size_t>(id.role)>=a::original_building_schema23_role_count) break;
             if (!id.static_base_supported) {
-                if(schema==3) {
+                if(schema>=3) {
                     Json stages=Json::array();const auto index=*a::original_field_role_index(id.role);
                     for(unsigned stage=0;stage<6;++stage)stages.push_back({{"stage",stage},
                         {"image_index",205U+6U*static_cast<unsigned>(index)+stage},{"width",78U},{"height",40U+stage},
@@ -125,7 +126,7 @@ struct Fixture {
             {"anchor_policy","type30_front_cell"},{"evidence","Synthetic pixels; no original content"},
             {"files",{{{"path","DATA/China_General.sg3"},{"sha256",hash(sg3)}},
                       {{"path","DATA/China_General.555"},{"sha256",hash(bitmap)}}}},{"buildings",rows}};
-        if(schema==3)result["field_selection"]=a::original_field_selection_contract;
+        if(schema>=3)result["field_selection"]=a::original_field_selection_contract;
         return result;
     }
     a::BuildingVisualProfile legacy() const {
@@ -146,6 +147,12 @@ void synthetic() {
     check(p.original_building_prepared && p.unique_images.size()==3,"core/new physical dedup failed");
     check(state(p)["core"]==before["core"] && state(p)["houses"]==before["houses"],"legacy selections changed");
     for (const auto& id:a::original_building_visual_identities) {
+        if (static_cast<std::size_t>(id.role)>=a::original_building_schema23_role_count) {
+            check(!p.find_original_building(id.role,id.footprint_side) &&
+                !p.fallback_original_building(id.role,id.footprint_side).empty(),
+                "historical schema2 gained an appended industry identity");
+            continue;
+        }
         if (!id.static_base_supported) {
             check(!p.find_original_building(id.role,id.footprint_side) && !p.fallback_original_building(id.role,id.footprint_side).empty(),
                 "unsupported field drew a guessed native state");
@@ -190,7 +197,7 @@ void synthetic() {
     bad=f.valid();bad["buildings"][0]["base_bytes"]=3200U;f.reject(bad,"wrong base accepted");
     bad=f.valid();bad["buildings"][0].erase("archive");f.reject(bad,"partial row accepted");
     bad=f.valid();bad["buildings"][0]["unknown"]=true;f.reject(bad,"unknown row key accepted");
-    bad=f.valid();bad["schema_version"]=4U;f.reject(bad,"unknown supplement schema accepted");
+    bad=f.valid();bad["schema_version"]=5U;f.reject(bad,"unknown supplement schema accepted");
     bad=f.valid(1);bad["buildings"][0]["native"]=true;f.reject(bad,"schema1 gained schema2 row keys");
     bad=f.valid();bad["schema_version"]=1U;f.reject(bad,"schema1 accepted fifteen rows");
     bad=f.valid(1);bad["buildings"][9]["model_type"]=192U;f.reject(bad,"schema1 accepted appended role");
@@ -247,7 +254,8 @@ void compatibility() {
     auto result=detect();check(result.compatible() && result.original_building_compatible() && result.files_hashed==3,"optional bases changed core fingerprints or failed selection");
     write(metadata,f.valid(1));result=detect();check(result.compatible() && result.original_building_compatible(),"historical schema1 optional profile stopped activating");
     write(metadata,f.valid(3));result=detect();check(result.compatible() && result.original_building_compatible(),"explicit schema3 field supplement stopped activating");
-    auto unknown=f.valid();unknown["schema_version"]=4;write(metadata,unknown);result=detect();
+    write(metadata,f.valid(4));result=detect();check(result.compatible() && result.original_building_compatible(),"explicit schema4 static industry supplement stopped activating");
+    auto unknown=f.valid();unknown["schema_version"]=5;write(metadata,unknown);result=detect();
     check(result.compatible() && !result.original_building_compatible(),"unknown supplement schema activated");
     auto bad=f.valid();bad["files"][0]["sha256"]=std::string(64,'0');write(metadata,bad);result=detect();
     check(result.compatible() && !result.original_building_compatible(),"optional mismatched metadata damaged core or activated");
@@ -343,6 +351,53 @@ void fields() {
     u32(f.sg3,40680U+205U*64U+16U,1);f.save();f.reject(f.valid(3),"mirrored field accepted");f.sg3=original;f.save();
     const auto bitmap=f.bitmap;f.bitmap.pop_back();f.save();f.reject(f.valid(3),"final field stage truncated payload accepted");f.bitmap=bitmap;f.save();
 }
+void appended_static_roles() {
+    Fixture f;write(f.manifest,f.valid(3));auto old=f.legacy();
+    a::append_original_building_visual_profile(f.data,f.manifest,old);
+    const auto historical=state(old);
+    write(f.manifest,f.valid(4));auto current=f.legacy();
+    a::append_original_building_visual_profile(f.data,f.manifest,current);
+    const auto complete=state(current);
+    check(current.unique_images.size()==21 && current.original_field_prepared &&
+        complete["images"]==historical["images"] && complete["core"]==historical["core"] &&
+        complete["houses"]==historical["houses"] && complete["field_stages"]==historical["field_stages"],
+        "schema4 failed shared physical dedup or changed a historical image/field/core/House entry");
+    for(std::size_t index=0;index<a::original_building_schema23_role_count;++index)
+        check(complete["original"][index]==historical["original"][index],"schema4 changed a historical static selection");
+    for(std::size_t index=a::original_building_schema23_role_count;index<a::original_building_role_count;++index) {
+        const auto& identity=a::original_building_visual_identities[index];
+        check(!old.find_original_building(identity.role,identity.footprint_side) &&
+            !old.fallback_original_building(identity.role,identity.footprint_side).empty(),
+            "schema3 implicitly admitted a new static role");
+        const auto* entry=current.find_original_building(identity.role,identity.footprint_side);
+        check(entry && entry->id.image_index==(identity.footprint_side==3 ? 202U:201U),
+            "schema4 did not use the registered complete static image");
+        check(!current.find_original_building(identity.role,1) &&
+            !current.fallback_original_building(identity.role,1).empty(),"industry footprint mismatch drew native artwork");
+        auto bad=f.valid(4);bad["buildings"][index]["model_type"]=124U;
+        f.reject(bad,"unregistered safety identity substituted for a paid industry");
+        bad=f.valid(4);bad["buildings"][index]["group_key"]=0x482U;
+        f.reject(bad,"industry accepted another registered same-size body");
+        bad=f.valid(4);bad["buildings"][index]["variant"]=1U;
+        f.reject(bad,"industry stock or animation variant was guessed");
+        for(const auto schema:{1U,2U,3U}) {
+            bad=f.valid(schema);bad["buildings"].push_back(f.valid(4)["buildings"][index]);
+            f.reject(bad,"historical schema admitted a schema4 registration");
+        }
+    }
+    auto bad=f.valid(4);bad.erase("field_selection");f.reject(bad,"schema4 lost the explicit authored field policy");
+    bad=f.valid(4);bad["buildings"].erase(a::original_building_schema23_role_count);
+    f.reject(bad,"schema4 accepted an implicit missing role");
+    auto fallback=f.valid(4);const auto index=a::original_building_schema23_role_count;
+    const auto& identity=a::original_building_visual_identities[index];
+    fallback["buildings"][index]={{"model_type",identity.model_type},{"original_side",identity.footprint_side},
+        {"native",false},{"fallback","Explicit unsupported source body; authored marker"},
+        {"evidence","No qualified complete native representative"}};
+    write(f.manifest,fallback);auto absent=f.legacy();a::append_original_building_visual_profile(f.data,f.manifest,absent);
+    check(!absent.find_original_building(identity.role,identity.footprint_side) &&
+        absent.find_original_building(a::original_building_visual_identities[index+1].role,3) &&
+        state(absent)["field_stages"]==historical["field_stages"],"explicit industry fallback damaged independent roles");
+}
 void real(const fs::path& data,const fs::path& resources) {
     const auto pack=resources/"Compatibility/gog-derived-2.0.0.2-en-assetset-1";
     auto p=a::load_building_visual_profile(data,pack/"buildings.json");
@@ -350,10 +405,11 @@ void real(const fs::path& data,const fs::path& resources) {
     a::append_original_house_visual_profile(data,pack/"original-houses.json",p);
     check(p.unique_images.size()==28,"sixteen native House images changed");const auto before=state(p);
     a::append_original_building_visual_profile(data,pack/"original-buildings.json",p);
-    check(p.unique_images.size()==56 && p.original_field_prepared && state(p)["core"]==before["core"] && state(p)["houses"]==before["houses"],"real extension changed legacy selections or physical dedup");
+    check(p.unique_images.size()==64 && p.original_field_prepared && state(p)["core"]==before["core"] && state(p)["houses"]==before["houses"],"real extension changed legacy selections or physical dedup");
     std::uint64_t rgba_bytes=0;for(const auto& image:p.unique_images)rgba_bytes+=image.pixels.size();
-    check(rgba_bytes==4770512,"real eager combined RGBA budget changed");
-    const std::array<unsigned,12> physical{1559,1593,589,460,501,2245,2258,2309,2811,2768,825,793};
+    check(rgba_bytes==5534168,"real eager combined RGBA budget differs from the qualified complete images");
+    const std::array<unsigned,23> physical{1559,1593,589,460,501,2245,2258,2309,2811,2768,825,793,
+        0,0,0,2726,2697,2788,2750,840,812,856,2232};
     for(std::size_t i=0;i<a::original_building_role_count;++i){
         const auto& id=a::original_building_visual_identities[i];const auto* e=p.find_original_building(id.role,id.footprint_side);
         if(!id.static_base_supported){check(!e,"static lookup silently picked real field state");continue;}
@@ -370,12 +426,45 @@ void real(const fs::path& data,const fs::path& resources) {
         check(image.width==78 && image.height>=40 && image.width==raw.width && image.height==raw.height && image.pixels==raw.pixels &&
             entry->ground_x==39 && entry->ground_y==image.height-20,"whole real field RGBA or front-cell geometry changed");
     }
+    // Re-load the literal historical prefixes through their original schema
+    // contracts, rather than deriving their expected pool from schema4.
+    const auto metadata=read(pack/"original-buildings.json");
+    const auto complete=state(p);Fixture temporary;
+    for(const auto schema:{1U,2U,3U}) {
+        auto historical=Json::parse(metadata.begin(),metadata.end());historical["schema_version"]=schema;
+        if(schema<3)historical.erase("field_selection");
+        const auto count=schema==1 ? 10U:15U;
+        while(historical["buildings"].size()>count)historical["buildings"].erase(historical["buildings"].size()-1);
+        for(auto& row:historical["buildings"]) {
+            if(schema==1)row.erase("native");
+            else if(schema==2 && row.contains("stages"))
+                row=Json{{"model_type",row.at("model_type")},{"original_side",row.at("original_side")},
+                    {"native",false},{"fallback",row.at("fallback")},{"evidence",row.at("evidence")}};
+        }
+        write(temporary.manifest,historical);
+        auto retained=a::load_building_visual_profile(data,pack/"buildings.json");
+        a::append_original_house_visual_profile(data,pack/"original-houses.json",retained);
+        a::append_original_building_visual_profile(data,temporary.manifest,retained);
+        const auto expected=schema==1 ? 37U:schema==2 ? 39U:56U;
+        check(retained.unique_images.size()==expected && retained.original_field_prepared==(schema==3),
+            "historical real schema1/2/3 physical pool or field capability changed");
+        const auto old=state(retained);
+        for(std::size_t i=0;i<expected;++i)check(old["images"][i]==complete["images"][i],"historical complete image prefix changed");
+        for(std::size_t i=0;i<count;++i)check(old["original"][i]==complete["original"][i],"historical static entry changed");
+        if(schema==3) {
+            std::uint64_t bytes=0;for(const auto& image:retained.unique_images)bytes+=image.pixels.size();
+            check(bytes==4770512 && old["field_stages"]==complete["field_stages"],"schema4 changed the historical56-image crop pool");
+        }
+        for(std::size_t i=count;i<a::original_building_role_count;++i)
+            check(!retained.find_original_building(a::original_building_visual_identities[i].role,
+                a::original_building_visual_identities[i].footprint_side),"historical schema gained a later native body");
+    }
     const auto detected=a::detect_compatibility(data,resources/"Compatibility");check(detected.original_building_compatible(),"committed pack supplement not declared");
 }
 }
 int main(int argc,char** argv) {
     try{check(argc==1 || (argc==4 && std::string_view(argv[1])=="--real"),"Usage: original-building-profile [--real DATA RESOURCES]");
-        synthetic();fields();compatibility();if(argc==4)real(fs::canonical(argv[2]),fs::canonical(argv[3]));
+        synthetic();fields();appended_static_roles();compatibility();if(argc==4)real(fs::canonical(argv[2]),fs::canonical(argv[3]));
         std::cout<<"Original static building identity, atomic guards, native RGBA, shared budget and compatibility PASS\n";return 0;
     }catch(const std::exception& e){perf::set_enabled(false);std::cerr<<"Original building profile FAIL: "<<e.what()<<'\n';return 1;}
 }

@@ -1,9 +1,9 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "mode": "original_building_bases",
   "selection": "canonical_static_base",
   "anchor_policy": "type30_front_cell",
-  "evidence": "Schema3 retains twelve source-qualified static bodies and selects eighteen native field images by AUTHORED equal quantization of existing Farm progress0..79. Source crop groups and full Type30 records are verified independently. Canonical source bank0 only; Original per-field quantity, calendar, terrain variation and animation are not reconstructed. No World, rule or save authority. Front-cell anchors are authored geometry. See docs/rendering/oe60-original-farm-visuals.md.",
+  "evidence": "Schema4 retains the exact twelve static bodies and eighteen field images of schemas1..3, including the AUTHORED Farm-progress selector. Eight further source-bound static bases match existing paid World identities and footprints. Original stock, operation, fire, calendar, variation and animation are not reconstructed. No World, rule or save authority; anchors are authored geometry. See docs/rendering/oe61-original-building-visuals.md.",
   "files": [
     {
       "path": "DATA/China_General.sg3",
@@ -461,6 +461,150 @@
           ]
         }
       ]
+    },
+    {
+      "model_type": 38,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2726,
+      "width": 158,
+      "height": 122,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        102
+      ],
+      "group_key": 1086,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Industrial5f0e20 selects5f5260 ->5f5230 ->vtable7c06fc. Actual body+100 ->5f1ee0 and group+25c ->4f13f0 read the type registration, then408170 ->4b72b0. Shared General-slot2 resolves group43e to physical2726; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 39,
+      "original_side": 3,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2697,
+      "width": 238,
+      "height": 208,
+      "base_bytes": 28800,
+      "ground_anchor": [
+        119,
+        188
+      ],
+      "group_key": 1090,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Industrial5f0e20 enters557340; type39 predicate558570 selects5590a0 ->vtable7b7e24. Actual body+100 ->5f1ee0 and group+25c ->4f13f0 read the type registration, then408170 ->4b72b0. Shared General-slot2 resolves group442 to physical2697; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 42,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2788,
+      "width": 158,
+      "height": 132,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        112
+      ],
+      "group_key": 1095,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Industrial5f0e20 selects5f5170 ->5f5100 ->vtable7bfee0. Actual body+100 ->5f1ee0 and group+25c ->4f13f0 read the type registration, then408170 ->4b72b0. Shared General-slot2 resolves group447 to physical2788; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 44,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2750,
+      "width": 158,
+      "height": 120,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        100
+      ],
+      "group_key": 1093,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Industrial5f0e20 selects5f5060 ->5f5010 ->vtable7bf6c4. Actual body+100 ->5f1ee0 and group+25c ->4f13f0 read the type registration, then408170 ->4b72b0. Shared General-slot2 resolves group445 to physical2750; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 237,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 840,
+      "width": 158,
+      "height": 121,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        101
+      ],
+      "group_key": 1083,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Predicate4c2930 and factory4c2960 select4c29fc ->4c5cc0 ->vtable7af95c. Actual body+100 ->4c5bf0 calls group selector+264 ->4c2ac0, then408170 ->4b72b0 with registered offset0. Shared General-slot2 resolves group43b to physical840; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 238,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 812,
+      "width": 158,
+      "height": 131,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        111
+      ],
+      "group_key": 1085,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Predicate4c2930 and factory4c2960 select4c29fc ->4c5cc0 ->vtable7af95c. Actual body+100 ->4c5bf0 calls group selector+264 ->4c2ac0, then408170 ->4b72b0 with registered offset0. Shared General-slot2 resolves group43d to physical812; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 239,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 856,
+      "width": 158,
+      "height": 120,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        100
+      ],
+      "group_key": 1084,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Predicate4c2930 and factory4c2960 select4c29fc ->4c5cc0 ->vtable7af95c. Actual body+100 ->4c5bf0 calls group selector+264 ->4c2ac0, then408170 ->4b72b0 with registered offset0. Shared General-slot2 resolves group43c to physical856; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 214,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2232,
+      "width": 158,
+      "height": 149,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        129
+      ],
+      "group_key": 1153,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Religion5aae70 type214 branch5aaea0 explicitly supplies group481 to5ab0d0 ->vtable7bc0b4. Actual body+100 ->5abef0 reads the constructor-bound group+158, then408170 ->4b72b0. Shared General-slot2 resolves group481 to physical2232; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
     }
   ],
   "field_selection": "authored-farm-progress-six-canonical-0-v1"

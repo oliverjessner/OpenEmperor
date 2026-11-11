@@ -465,7 +465,8 @@ CompatibilityProfile load_compatibility_profile(const fs::path& manifest) {
                 else if (event==nlohmann::json::parse_event_t::object_end) keys.pop_back();
                 return true;
             });
-            if (!metadata.is_object() || (metadata.value("schema_version",0)!=1 && metadata.value("schema_version",0)!=2 && metadata.value("schema_version",0)!=3) ||
+            if (!metadata.is_object() || (metadata.value("schema_version",0)!=1 && metadata.value("schema_version",0)!=2 &&
+                metadata.value("schema_version",0)!=3 && metadata.value("schema_version",0)!=4) ||
                 metadata.value("mode",std::string{})!="original_building_bases" ||
                 !metadata.contains("files") || !metadata.at("files").is_array() || metadata.at("files").size()!=covered.size())
                 throw std::runtime_error("Original building metadata schema/fingerprints invalid");
