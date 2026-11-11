@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
@@ -77,6 +78,141 @@ std::array<std::uint8_t,4> pixel(SDL_Renderer* renderer,int x,int y) {
     std::array<std::uint8_t,4> value{};
     const bool okay=SDL_ReadSurfacePixel(surface,x,y,&value[0],&value[1],&value[2],&value[3]);
     SDL_DestroySurface(surface);check(okay,"read software pixel");return value;
+}
+void field_neighbor_order_checks() {
+    using namespace openemperor;
+    using Cell=simulation::Cell;
+    using Key=scene::WorldDrawKey;
+    using Layer=scene::WorldVisualLayer;
+    // Independent flat 80x40 cell projection. Front cells below are explicit
+    // fixture facts, not computed with the production footprint/front helper.
+    const auto key=[](Cell cell,std::uint32_t id) {
+        return Key{(double(cell.x)+cell.y)*20+20,(double(cell.x)-cell.y)*40,
+            Layer::SandboxBuilding,id};
+    };
+    const auto equal=[](const Key& a,const Key& b) {
+        return a.depth==b.depth && a.ground_x==b.ground_x &&
+            a.layer==b.layer && a.stable_id==b.stable_id;
+    };
+    const auto slot_order=[&](const Key& a,const Key& field,const Key& b) {
+        std::array<std::pair<Key,int>,3> slots{{{b,2},{field,1},{a,0}}};
+        std::sort(slots.begin(),slots.end(),[](const auto& left,const auto& right) {
+            return left.first<right.first;
+        });
+        check(slots[0].second==0 && slots[1].second==1 && slots[2].second==2,
+            "Field did not occupy the independently required A<Field<B slots");
+    };
+    const auto namespace_id=(std::uint64_t{1}<<32)|21U;
+    const auto original=key({115,130},21);
+    const FieldVisualNeighbor screenshot{{112,130},{3,3},key({114,132},20)};
+    check(original<screenshot.key,"screenshot fixture must reproduce the old wrong order");
+    const auto corrected=authored_field_visual_order({115,130},original,
+        std::span<const FieldVisualNeighbor>{&screenshot,1});
+    check(corrected.adjusted && !corrected.ambiguous &&
+        corrected.key.depth==screenshot.key.depth && corrected.key.ground_x==screenshot.key.ground_x &&
+        corrected.key.layer==Layer::SandboxBuilding && corrected.key.stable_id==namespace_id &&
+        screenshot.key<corrected.key,"east-edge Wheat must follow the complete 3x3 Farm");
+    auto body_at_lower=screenshot.key;body_at_lower.stable_id=UINT32_MAX;
+    auto walker_at_lower=screenshot.key;walker_at_lower.layer=Layer::SandboxWalker;
+    walker_at_lower.stable_id=0;
+    check(body_at_lower<corrected.key && corrected.key<walker_at_lower,
+        "visual-only Field namespace must follow uint32 Building IDs and precede same-ground Walkers");
+
+    const auto south_original=key({112,133},21);
+    const auto south=authored_field_visual_order({112,133},south_original,
+        std::span<const FieldVisualNeighbor>{&screenshot,1});
+    check(south.adjusted && !south.ambiguous && equal(south.key,corrected.key),
+        "south-edge Field must use the same complete-footprint lower bound");
+
+    const FieldVisualNeighbor farm{{0,0},{3,3},key({2,2},20)};
+    const FieldVisualNeighbor foreground{{3,1},{1,1},key({3,1},22)};
+    std::array neighbors{foreground,farm};
+    const auto field_original=key({3,0},21);
+    const auto bounded=authored_field_visual_order({3,0},field_original,neighbors);
+    check(bounded.adjusted && !bounded.ambiguous,"consistent foreground bound refused");
+    slot_order(farm.key,bounded.key,foreground.key);
+    std::swap(neighbors[0],neighbors[1]);
+    check(equal(authored_field_visual_order({3,0},field_original,neighbors).key,bounded.key),
+        "neighbor input order changed the Field slot");
+    // Keeping the Field's own projected X after merely raising depth is wrong.
+    auto depth_only=field_original;depth_only.depth=farm.key.depth;
+    check(foreground.key<depth_only,"foreground fixture failed to reject a depth-only fix");
+
+    // A north Farm and an east Market demand A<F<B, yet their existing keys
+    // order B<A. No Field-only key can repair that complete local constraint.
+    const FieldVisualNeighbor blocking_market{{1,3},{1,1},key({1,3},22)};
+    const std::array impossible{farm,blocking_market};
+    const auto impossible_original=key({0,3},21);
+    const auto refused=authored_field_visual_order({0,3},impossible_original,impossible);
+    check(blocking_market.key<farm.key && refused.ambiguous && !refused.adjusted &&
+        equal(refused.key,impossible_original),"inconsistent A<Field<B interval silently reordered the scene");
+
+    for (const Cell cell:std::array{Cell{2,-1},Cell{-1,2}}) {
+        const auto before=key(cell,21);
+        const auto control=authored_field_visual_order(cell,before,
+            std::span<const FieldVisualNeighbor>{&farm,1});
+        check(!control.adjusted && !control.ambiguous && equal(control.key,before) && before<farm.key,
+            "northern/western Field control was promoted over the Farm");
+    }
+    const std::array ordinary{
+        FieldVisualNeighbor{{4,5},{1,1},key({4,5},20)},
+        FieldVisualNeighbor{{6,5},{1,1},key({6,5},22)}};
+    const auto between=key({5,5},21);
+    const auto unchanged=authored_field_visual_order({5,5},between,ordinary);
+    check(!unchanged.adjusted && !unchanged.ambiguous && equal(unchanged.key,between),
+        "already consistent Field key changed");
+    const auto isolated=authored_field_visual_order({5,5},between,{});
+    check(!isolated.adjusted && !isolated.ambiguous && equal(isolated.key,between),
+        "isolated Field key changed");
+    // Four disjoint 3x3 rectangles form a pinwheel around (3,3). West, not
+    // north, supplies the last predecessor; east is the first successor.
+    const std::array four_sides{
+        FieldVisualNeighbor{{0,3},{3,3},key({2,5},30)},
+        FieldVisualNeighbor{{1,0},{3,3},key({3,2},31)},
+        FieldVisualNeighbor{{4,1},{3,3},key({6,3},32)},
+        FieldVisualNeighbor{{3,4},{3,3},key({5,6},33)}};
+    const auto four=authored_field_visual_order({3,3},key({3,3},21),four_sides);
+    check(four.adjusted && !four.ambiguous && four.key.depth==160 && four.key.ground_x==-120,
+        "complete four-owner constraints chose the wrong predecessor");
+    slot_order(four_sides[0].key,four.key,four_sides[2].key);
+
+    const std::array duplicates{farm,farm};
+    const auto duplicate=authored_field_visual_order({3,0},field_original,duplicates);
+    const auto single=authored_field_visual_order({3,0},field_original,
+        std::span<const FieldVisualNeighbor>{&farm,1});
+    check(duplicate.adjusted && !duplicate.ambiguous && equal(duplicate.key,single.key),
+        "identical duplicate owner was not idempotent");
+    const auto invalid=[&](std::span<const FieldVisualNeighbor> rows,const char* message) {
+        const auto result=authored_field_visual_order({3,0},field_original,rows);
+        check(result.ambiguous && !result.adjusted && equal(result.key,field_original),message);
+    };
+    auto adjacent_field=foreground;adjacent_field.field=true;
+    const std::array field_pair{farm,adjacent_field};
+    invalid(field_pair,"native Field neighbor admitted an unsupported chained correction");
+    auto conflicting=farm;conflicting.key.depth+=1;
+    const std::array conflicts{farm,conflicting};
+    invalid(conflicts,"conflicting duplicate owner changed the Field order");
+    const std::array too_many{farm,farm,farm,farm,farm};
+    invalid(too_many,"more than four neighbor entries were accepted");
+    for (const auto& bad:std::array{
+        FieldVisualNeighbor{{3,0},{1,1},key({3,0},25)}, // Contains the Field.
+        FieldVisualNeighbor{{9,9},{1,1},key({9,9},25)}, // Not an edge neighbor.
+        FieldVisualNeighbor{{2,0},{0,1},key({2,0},25)},
+        FieldVisualNeighbor{{2,0},{1,-1},key({2,0},25)},
+        FieldVisualNeighbor{{std::numeric_limits<int>::max(),0},{2,1},key({2,0},25)}}) {
+        invalid(std::span<const FieldVisualNeighbor>{&bad,1},"invalid neighbor rectangle changed Field order");
+    }
+    for (const auto& malformed:std::array{
+        Key{std::numeric_limits<double>::quiet_NaN(),0,Layer::SandboxBuilding,25},
+        Key{0,std::numeric_limits<double>::infinity(),Layer::SandboxBuilding,25},
+        Key{0,0,Layer::SandboxWalker,25},
+        Key{0,0,Layer::SandboxBuilding,std::uint64_t{1}<<32}}) {
+        auto bad=farm;bad.key=malformed;
+        invalid(std::span<const FieldVisualNeighbor>{&bad,1},"invalid neighbor key changed Field order");
+    }
+    const FieldVisualNeighbor overlapping{{2,-1},{1,3},key({2,1},25)};
+    const std::array overlaps{farm,overlapping};
+    invalid(overlaps,"overlapping complete neighbor footprints were accepted");
 }
 void profile_checks(Fixture& fixture) {
     fixture.save(fixture.valid());
@@ -680,7 +816,7 @@ void pixels_and_depth(Fixture& fixture) {
 }
 }
 int main() {
-    try { Fixture fixture;profile_checks(fixture);pixels_and_depth(fixture);
+    try { field_neighbor_order_checks();Fixture fixture;profile_checks(fixture);pixels_and_depth(fixture);
         std::cout<<"building manifest, anchor and software depth pixels passed\n";return 0;
     } catch (const std::exception& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

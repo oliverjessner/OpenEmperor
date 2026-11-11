@@ -80,6 +80,32 @@ complete base/Omega image, own height and alpha mask. Draw, culling, preview,
 alpha picking, fire attachment and inspection resolve the same prepared entry.
 F4 retains the historical authored comparison.
 
+### Adjacent field ordering
+
+The native field painter qualifies a local correction for a 1×1 field beside
+a larger occupied footprint. A shared scalar front-cell key can otherwise draw
+the complete 3×3 Farm after its eastern field, hiding crop pixels even though
+their paid ground cells are disjoint. Image origins, source anchors and actual
+Field/Farm footprints do not move.
+
+Preparation reads only the four direct neighbor owners and their complete
+footprints. West/north neighbors bound the field from behind; east/south
+neighbors bound it from the front. Where these constraints admit a strictly
+ordered slot, the native field follows the rear building at that building's
+unchanged flat ground key. A separate 64-bit visual tie namespace keeps actual
+32-bit entity IDs intact and retains the existing Building/Walker layer order.
+The same key feeds the sorted shared stream and submitted alpha-picking hits.
+No special comparator, global layer, image offset or second draw pass is added.
+
+This is a bounded authored correction, not a general footprint compositor.
+Conflicting constraints or adjacent field dependencies retain historical order
+and report ambiguity; whole-scene parity remains unresolved. The five-entry
+cache follows the existing layout/road revision after commands and ticks, with
+forced preparation at initial World publication and F9. Neighbor discovery is
+outside render/hover work. Only actual native paid fields in productive unified
+rendering use the correction. Schema1/2 fallbacks, F4, F7, Full Snapshot and
+unpaid placement ghosts retain their previous ordering.
+
 ## Preparation and compatibility
 
 Schema1 retains exactly ten native static roles. Schema2 retains twelve native
@@ -104,7 +130,12 @@ upload, World copy, command, tick, BFS, route refresh or map scan. Selection
 scans only the existing bounded two Hemp/three Food ownership rows. No visual
 state enters a SaveDocument.
 
-## Current verification
+## OE60.5 baseline verification
+
+The complete acceptance results below describe the OE60.5 implementation
+merged as `40903b4ec4b750032a157feb2dc563a688ae4658`, before the adjacent-field
+ordering correction. They remain historical evidence; they are not a rerun of
+the later painter changes. Those changes have separate focused checks below.
 
 Use the isolated original-data launchers and fresh `.local/oe60-5/` output
 paths described in [testing](../testing.md#original-building-visuals-and-farmfield-boundaries-oe52oe60oe605).
@@ -124,7 +155,7 @@ fields over126 view cases. The separate paid-growth test buys Wheat and worker
 Houses through ordinary commands, without rewriting the immutable city. Each
 corrected configuration observes all80 real progress values for all three crops,
 all18 crop/stage combinations and actual harvests. Its162 size/zoom/stage cases
-check source pixels, alpha picking, F4, Inspector text, pause/resume and F5/F9;
+check source pixels, ordinary pointer selection, F4, Inspector text, pause/resume and F5/F9;
 18 representative PNGs per configuration are retained. All701 runtime inputs
 match the tested source mirror; all80 simulation/persistence files remain exact
 against the baseline. Protected original data, old builds and evidence stayed
@@ -163,7 +194,7 @@ footer clipping remain explicit limits. Private receipts and images live under
 `.local/oe60-5/`, including `final-technical-result-02.json`; no original pixels
 or saves are distributed through Git.
 
-## Paired render measurements
+## OE60.5 baseline render measurements
 
 Nine actual camera/aperture/selection pairs use the same immutable paid tick600
 save. Each version records20 warm frames and120 measured render/Present samples
@@ -197,3 +228,42 @@ Native desktop delivery, human acceptance and clean-Mac acceptance remain
 **NOT_RUN**. Original field quantity/variation/calendar, animation, runtime
 pivots, original binary-save graphics and whole-scene parity remain **PARTIAL**
 or unresolved. The visible growth is the explicitly authored policy above.
+
+## Field-order correction verification
+
+The independent synthetic order cases cover the reported eastern Wheat field,
+the mirrored southern edge, front-neighbor protection and contradictory
+constraints. The paid-growth regression derives field and Farm screen geometry
+from World cells and source heights, independently of renderer diagnostics;
+it checks actual overlapping source pixels and picking while preserving the
+existing progress, save and pure-frame assertions. Against the unchanged
+`40903b4` renderer with only the new test translation unit, the first Wheat
+witness (stage 0, 1×) fails with Farm793 RGBA `[231,198,140,255]` instead of the
+independently decoded Field2422 RGBA `[148,123,74,255]`.
+
+The corrected frozen source passes all 321 Release tests and the same 12 focused
+tests in Debug and ASan/UBSan, with no skips. Each completed growth run retains
+all 162 stage/size/zoom cases, all 80 real progress values per crop, actual harvests,
+22 full F5/F9 checkpoints and 27 independent Wheat stage0/2/5 overlap cases.
+All 27 preserve the parent-Farm control; three representative 1280×800/4× cases
+also check the adjacent Road against F4.
+Ordinary clicks retain ground-owner selection; explicit F1 diagnostics with a
+fresh submitted frame select the visible Field alpha at the same overlap point.
+The older reports' ordinary opaque/transparent pointer probes do not establish
+that F1 alpha-selection result. All twelve pure-frame counters remain zero.
+
+All 701 runtime inputs match the tested mirror; all 80 simulation/persistence
+files remain byte/mode-identical to the baseline. The complete input guard
+preserves 80,218 files (33,037,579,734 bytes). The final image inventory covers 369
+paths: 51 actual individual openings, 314 explicit transfers to exact SHA-256
+aliases and 4 authored repository-icon paths, with no unreviewed capture.
+Scene filenames do not prove the selected Inspector; scene/crop review and the
+explicit F1 selection assertions remain separate evidence. Existing high-zoom
+aperture and long menu-footer clipping remain visible limits.
+
+Private component receipts, retained test/harness failures and the final audit
+remain under `.local/oe60-5/field-order-fix/`, including
+`final-technical-audit-02.json`. No production code changed after the source
+freeze. LeakSanitizer (`detect_leaks=0`), native/human acceptance, new timing,
+long paid-gameplay and historical-save replays were not run for this correction;
+the earlier broad results above remain historical.

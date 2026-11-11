@@ -755,6 +755,7 @@ void SandboxView::load_now() {
     auto candidate=std::make_unique<simulation::World>(std::move(replacement));
     background_.set_original_road_ground(candidate->map_permissions());
     world_=std::move(candidate);
+    prepare_original_field_order(true);
     prepare_source_cell_ramp_visuals();
     refresh_ramp_visual_topology();
     prepare_original_road_visuals();
@@ -967,6 +968,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         if(!world_->ramps_supported())throw std::invalid_argument("Authored terrain sides require explicit City-v16 rule6");
         authored_terrain_sides_.prepare(background_.plan(),geometry_,*world_->map_permissions());
     }
+    prepare_original_field_order(true);
     prepare_source_cell_ramp_visuals();
     refresh_ramp_visual_topology();
     background_.set_original_road_ground(world_->map_permissions());
@@ -976,6 +978,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         set_original_building_visuals(original_building_manifest_,original_building_source_,original_building_fallback_reason_);
     reset_camera();
     if (demo_) place_demo();
+    prepare_original_field_order();
     if (initial_save_ == std::nullopt && !demo_ && !(fresh && original_paid_starter_)) {
         saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     }
@@ -1720,6 +1723,57 @@ const assets::BuildingVisualEntry* SandboxView::original_building_entry(simulati
     return role ? building_profile_->find_original_building(*role,
         static_cast<std::uint8_t>(simulation::building_footprint(rules_,world_->rule_version(),kind).width)):nullptr;
 }
+void SandboxView::prepare_original_field_order(bool force) {
+    if (!force && world_ && original_field_order_revision_==world_->road_revision()) return;
+    original_field_order_count_=0;
+    original_field_order_revision_=world_ ? world_->road_revision():UINT64_MAX;
+    if (!world_ || !original_production_fixture() || !world_->original_production_state()) return;
+    const auto flat_key=[&](const simulation::BuildingState& body) {
+        const auto front=simulation::building_front_cell(rules_,world_->rule_version(),body.kind,body.cell);
+        const double u=double(front.x)-geometry_.border,v=double(front.y)-geometry_.border;
+        return scene::WorldDrawKey{(u+v)*20+20,(u-v)*40,scene::WorldVisualLayer::SandboxBuilding,
+            static_cast<unsigned>(body.id)};
+    };
+    const auto append=[&](std::optional<simulation::BuildingId> id) {
+        if (!id || original_field_order_count_==original_field_order_.size()) return;
+        const auto& field=world_->building(*id);
+        const auto role=original_building_visual_role(field.kind);
+        if (!role || !assets::original_field_role_index(*role)) return;
+        std::array<FieldVisualNeighbor,4> neighbors{};std::size_t count=0;
+        constexpr std::array<simulation::Cell,4> directions{{{-1,0},{0,-1},{1,0},{0,1}}};
+        for (const auto offset:directions) {
+            const auto owner=world_->building_owner_at({field.cell.x+offset.x,field.cell.y+offset.y});
+            if (!owner || *owner==field.id) continue;
+            const auto& neighbor=world_->building(*owner);
+            const auto neighbor_role=original_building_visual_role(neighbor.kind);
+            neighbors[count++]={neighbor.cell,
+                simulation::building_footprint(rules_,world_->rule_version(),neighbor.kind),flat_key(neighbor),
+                neighbor_role && assets::original_field_role_index(*neighbor_role).has_value()};
+        }
+        const auto order=authored_field_visual_order(field.cell,flat_key(field),
+            std::span<const FieldVisualNeighbor>{neighbors.data(),count});
+        original_field_order_[original_field_order_count_++]={field.id,order.key,order.adjusted,order.ambiguous};
+    };
+    // The existing ownership rows are the complete bounded field set. Progress,
+    // crops and resources remain authority of World, not of this painter cache.
+    const auto& production=*world_->original_production_state();
+    for (const auto& farm:production.hemp_farms) append(farm.field_id);
+    for (const auto& farm:production.food.farms) append(farm.field_id);
+}
+void SandboxView::apply_original_field_order(DrawInstance& instance) const {
+    if (instance.placement_preview || !unified_depth_ ||
+        background_.landscape_mode()==LandscapeDebugMode::Snapshot ||
+        !building_visuals_active() || !building_sprite_) return;
+    const auto role=original_building_visual_role(instance.object);
+    if (!role || !assets::original_field_role_index(*role) ||
+        !original_building_entry(instance.cell,instance.object)) return;
+    for (std::size_t i=0;i<original_field_order_count_;++i) {
+        const auto& order=original_field_order_[i];
+        if (order.adjusted && instance.key.stable_id==static_cast<unsigned>(order.id)) {
+            instance.key=order.key;break;
+        }
+    }
+}
 const assets::BuildingVisualEntry* SandboxView::resolved_building_entry(simulation::Cell cell,
         simulation::Object kind,bool placement_preview) const {
     const auto house=original_house_visual_selection(cell,kind,placement_preview);
@@ -1749,6 +1803,12 @@ SandboxView::OriginalBuildingVisualDiagnostic SandboxView::original_building_vis
         if (field.entry) {
             result.field_farm=field.farm;result.field_stage=field.stage;result.field_farm_progress=field.progress;
             result.selection="Original crop images; authored six-stage Farm progress mapping; canonical variation0 and authored anchor";
+            if (result.active && unified_depth_ && background_.landscape_mode()!=LandscapeDebugMode::Snapshot)
+                for (std::size_t i=0;i<original_field_order_count_;++i) if (original_field_order_[i].id==id) {
+                    const auto& order=original_field_order_[i];
+                    result.field_order_adjusted=order.adjusted;result.field_order_ambiguous=order.ambiguous;
+                    result.field_painter_key=order.key;break;
+                }
         } else result.selection="canonical static representative; authored front-cell anchor";
         result.evidence=entry->evidence;
         if (!result.active) result.fallback_reason="F4 historical comparison";
@@ -3783,6 +3843,7 @@ void SandboxView::update(double seconds,PanKeyState keys) {
     if (hover_dirty_ || road_start_ || bridge_start_ || ramp_start_) refresh_hover();
     try { clock_.update(seconds,*world_); }
     catch (const std::overflow_error& error) { if (!pause_for_original_fire_limit(error.what())) throw; }
+    prepare_original_field_order();
     clear_hidden_walker_selection();
 }
 bool SandboxView::pause_for_original_fire_limit(const char* reason) {
@@ -3798,6 +3859,7 @@ void SandboxView::tick_once() {
         try { world_->tick(); }
         catch (const std::overflow_error& error) { if (!pause_for_original_fire_limit(error.what())) throw; }
     }
+    prepare_original_field_order();
     clear_hidden_walker_selection();
 }
 simulation::CommandResult SandboxView::execute(simulation::Command command) {
@@ -3809,6 +3871,7 @@ simulation::CommandResult SandboxView::execute(simulation::Command command) {
     }
     const auto result=world_->execute(command);
     if(result.accepted && result.changed) {
+        prepare_original_field_order();
         if(command.type==simulation::CommandType::PlaceSourceCellRamp)prepare_source_cell_ramp_visuals();
         if(command.type==simulation::CommandType::PlaceSourceCellRamp || command.type==simulation::CommandType::PlaceRamp || command.type==simulation::CommandType::PlaceRoad ||
            command.type==simulation::CommandType::RemoveRoad)refresh_ramp_visual_topology();
@@ -4201,6 +4264,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         instances.push_back({{ground.y,ground.x,object==simulation::Object::Road ?
             scene::WorldVisualLayer::SandboxRoad:scene::WorldVisualLayer::SandboxBuilding,id},
             cell,object});
+        if (!background_.elevated()) apply_original_field_order(instances.back());
     }
     for(const auto& road:original_road_visuals_)if(original_road_dynamic(road)) {
         const auto ground=world_for({double(road.cell.x),double(road.cell.y)});
@@ -4689,6 +4753,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         const double flat_y=(position.x+position.y-2*geometry_.border)*20.0+20.0;
         instance.key.depth+=flat_y-world_for(position).y;
+        apply_original_field_order(instance);
     }
     // Sandbox roads are flat surfaces. Retain the historical Snapshot and F7
     // comparison paths, including their old shared road/object ordering.
@@ -6281,6 +6346,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                     std::to_string(art.field_farm_progress)+"/80");
                 lines.push_back("Original crop images; authored growth and anchor");
                 lines.push_back("Canonical variation0; original calendar not reproduced");
+                if (art.field_order_ambiguous)
+                    lines.push_back("Complex adjacent ordering; historical painter retained");
             } else lines.push_back("Evidence: registered static base; authored anchor");
         }
         if (!art.fallback_reason.empty()) lines.push_back(art.fallback_reason);
