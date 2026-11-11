@@ -27,7 +27,9 @@ constexpr std::size_t building_role_count=building_roles.size();
 enum class OriginalBuildingVisualRole {
     WaterWell, Acupuncture, MusicSchool, AcrobatSchool, DramaSchool, DaoistShrine,
     BuddhistShrine, ConfucianAcademy, PaperMaker, Weaver,
-    HempFarm, Farmhouse, HempField, WheatField, MilletField
+    HempFarm, Farmhouse, HempField, WheatField, MilletField,
+    LoggingShed, BronzeSmelter, BronzewareMaker, LacquerwareMaker,
+    TeaCuringShed, LacquerRefinery, SilkwormShed, AncestorShrine
 };
 struct OriginalBuildingVisualIdentity {
     OriginalBuildingVisualRole role;
@@ -54,8 +56,18 @@ inline constexpr std::array original_building_visual_identities{
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::Farmhouse,193,0x43a,3},
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::HempField,194,0x431,1,false},
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::WheatField,195,0x42e,1,false},
-    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::MilletField,196,0x42c,1,false}};
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::MilletField,196,0x42c,1,false},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::LoggingShed,38,0x43e,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::BronzeSmelter,39,0x442,3},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::BronzewareMaker,42,0x447,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::LacquerwareMaker,44,0x445,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::TeaCuringShed,237,0x43b,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::LacquerRefinery,238,0x43d,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::SilkwormShed,239,0x43c,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::AncestorShrine,214,0x481,2}};
 inline constexpr std::size_t original_building_schema1_role_count=10;
+inline constexpr std::size_t original_building_schema23_role_count=15;
+inline constexpr std::size_t original_building_schema4_role_count=23;
 inline constexpr std::size_t original_building_role_count=original_building_visual_identities.size();
 inline constexpr std::array original_field_roles{OriginalBuildingVisualRole::HempField,
     OriginalBuildingVisualRole::WheatField,OriginalBuildingVisualRole::MilletField};
@@ -115,7 +127,7 @@ struct BuildingVisualProfile {
     bool original_building_prepared=false;
     std::array<std::optional<BuildingVisualEntry>,original_building_role_count> original_building_entries;
     std::array<std::string,original_building_role_count> original_building_fallbacks;
-    // Schema3 only; kept distinct from historical static-body selection.
+    // Schema3 and later; distinct from historical static-body selection.
     bool original_field_prepared=false;
     std::array<std::array<std::optional<BuildingVisualEntry>,original_field_stage_count>,original_field_role_count> original_field_entries;
     const BuildingVisualEntry* find_original_field(OriginalBuildingVisualRole role,

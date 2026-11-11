@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -20,6 +21,7 @@
 #include <set>
 #include <stdexcept>
 #include <string_view>
+#include <vector>
 
 namespace {
 namespace oe=openemperor;
@@ -56,11 +58,13 @@ void no_symlinks(const fs::path& path) {
 }
 fs::path fresh_output(const fs::path& repo,const fs::path& requested) {
     const auto parent=fs::absolute(requested).lexically_normal();no_symlinks(parent);
-    const auto old_allowed=repo/".local/oe52",oe60_allowed=repo/".local/oe60",allowed=repo/".local/oe60-5";
+    const auto old_allowed=repo/".local/oe52",oe60_allowed=repo/".local/oe60",allowed=repo/".local/oe60-5",
+        oe61_allowed=repo/".local/oe61";
     const auto resolved=fs::weakly_canonical(parent);
     check((parent!=allowed&&contains(allowed,resolved)) ||
         (parent!=oe60_allowed&&contains(oe60_allowed,resolved)) ||
-        (parent!=old_allowed&&contains(old_allowed,resolved)),"Use a private OE52/OE60/OE60.5 output parent");
+        (parent!=old_allowed&&contains(old_allowed,resolved)) ||
+        (parent!=oe61_allowed&&contains(oe61_allowed,resolved)),"Use a private OE52/OE60/OE60.5/OE61 output parent");
     fs::create_directories(parent);
     const auto stamp=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     for(unsigned attempt=0;attempt<32;++attempt) {
@@ -155,6 +159,11 @@ Surface capture(oe::SandboxView& view,SDL_Renderer* renderer,const fs::path& out
     for(std::size_t i=0;i<assets::walker_visual_role_count;++i)walker_delta.push_back({{"family",assets::walker_role_name(static_cast<assets::WalkerVisualRole>(i))},
         {"draws",drawn_walkers.roles[i].draws-walkers.roles[i].draws}});
     records.push_back({{"file",name.empty()?Json(nullptr):Json(name+".png")},{"output_size",{width,height}},{"zoom",camera.zoom},
+        {"camera",{{"zoom",camera.zoom},{"offset",{camera.offset.x,camera.offset.y}},
+            {"viewport",{camera.viewport_width,camera.viewport_height}}}},
+        {"map_rect",{view.layout().map.x,view.layout().map.y,view.layout().map.w,view.layout().map.h}},
+        {"selected_building",view.selected_building() ? Json(static_cast<unsigned>(*view.selected_building())):Json(nullptr)},
+        {"debug_diagnostics",view.debug_diagnostics()},
         {"tick",view.world().ticks()},{"original_building_deltas",delta},{"house_deltas",house_delta},{"legacy_core_deltas",core_delta},
         {"walker_deltas",walker_delta},{"owned_rgba32_target",true},{"readback_before_present",true},{"world_camera_unchanged",true},
         {"visually_reviewed",false},{"native","NOT_RUN"},{"human","NOT_RUN"}});
@@ -167,6 +176,67 @@ Color pixel(SDL_Surface* image,int x,int y) {
 Color native(const assets::RgbaImage& image,int x,int y) {
     const auto at=(static_cast<std::size_t>(y)*image.width+static_cast<std::size_t>(x))*4;
     return {image.pixels.at(at),image.pixels.at(at+1),image.pixels.at(at+2),image.pixels.at(at+3)};
+}
+std::string compact(std::string text) {
+    text.erase(std::remove_if(text.begin(),text.end(),[](char c){return std::isspace(static_cast<unsigned char>(c))!=0;}),text.end());
+    return text;
+}
+Point paid_ground(const sim::World& world,sim::BuildingId id,std::uint32_t border) {
+    const auto& body=world.building(id);
+    const auto front=sim::building_front_cell(world.profile(),world.rule_version(),body.kind,body.cell);
+    const auto& permissions=world.map_permissions();
+    check(permissions&&permissions->in_bounds(front),"Paid body has no authoritative height context");
+    const double u=static_cast<double>(front.x)-border,v=static_cast<double>(front.y)-border;
+    const auto back=oe::scene::project({u,v}),fore=oe::scene::project({u+1,v+1});
+    return {(back.x+fore.x)*.5,(back.y+fore.y)*.5-40.0*permissions->cell_height(front)};
+}
+void select_paid_ground(oe::SandboxView& view,SDL_Renderer* renderer,sim::BuildingId id,Point ground) {
+    if(view.debug_diagnostics())key(view,SDLK_F1);
+    view.set_tool(5);center(view,ground);
+    click(view,renderer,view.camera().world_to_screen(ground));
+    check(view.selected_building()==id,"Ordinary paid ground selection chose a different BuildingId");
+    key(view,SDLK_F1);check(view.debug_diagnostics(),"Explicit F1 visual-picking mode did not activate");
+}
+Json body_alpha_witnesses(oe::SandboxView& view,SDL_Renderer* renderer,SDL_Surface* frame,
+        const assets::RgbaImage& image,sim::BuildingId id,Point ground,unsigned model) {
+    check(view.debug_diagnostics(),"Full-body alpha checks require explicit F1 mode");
+    const auto& body=view.world().building(id);
+    const auto side=sim::building_footprint(view.world().profile(),view.world().rule_version(),body.kind).width;
+    const Point world_origin{ground.x-(40.0*side-1),ground.y-(image.height-20)};
+    const auto screen_origin=view.camera().world_to_screen(world_origin);const double z=view.camera().zoom;
+    std::optional<Point> opaque,hole;std::array<int,2> source{};Color source_rgba{};
+    // Strictly above the complete projected square footprint, rather than a
+    // convenient ground pixel which would also pass ordinary cell picking.
+    const double footprint_top=ground.y-40.0*(side-1)-20;
+    for(int y=1;y<image.height-1&&(!opaque||!hole);++y)
+        for(int x=1;x<image.width-1&&(!opaque||!hole);++x) {
+            if(world_origin.y+y+.5>=footprint_top)continue;
+            const auto rgba=native(image,x,y);
+            const Point p{screen_origin.x+(x+.5)*z,screen_origin.y+(y+.5)*z};
+            if(!view.layout().map.contains(p.x,p.y))continue;
+            if(!opaque&&rgba[3]==255&&pixel(frame,static_cast<int>(p.x),static_cast<int>(p.y))==rgba) {
+                click(view,renderer,p);
+                if(view.selected_building()==id&&!view.input_diagnostic_state().selected_landscape) {
+                    opaque=p;source={x,y};source_rgba=rgba;
+                }
+            }
+            if(!hole&&rgba[3]==0) {
+                click(view,renderer,p);
+                if(view.selected_building()!=id)hole=p;
+            }
+        }
+    check(opaque&&hole,"No full-body opaque/transparent F1 witnesses outside footprint for model "+std::to_string(model));
+    click(view,renderer,*opaque);check(view.selected_building()==id,"F1 source-alpha point selected a different paid body");
+    std::string text;for(const auto& line:view.inspection_lines())text+=line+'\n';
+    const auto d=view.original_building_visual_diagnostic(id);
+    check(d.active&&d.asset&&compact(text).find(compact("SG3 "+d.asset->archive_relative_path.generic_string()+
+        " #"+std::to_string(d.asset->image_index)))!=std::string::npos,
+        "Selected Industry Inspector omitted its prepared SG3/physical record");
+    check(text.find("Marker art; original pending")==std::string::npos,
+        "Native Industry Inspector retained the stale marker sentence");
+    return {{"model",model},{"building_id",static_cast<unsigned>(id)},{"source_pixel",source},
+        {"source_rgba",source_rgba},{"opaque",{opaque->x,opaque->y}},{"transparent",{hole->x,hole->y}},
+        {"outside_complete_footprint",true},{"explicit_F1",true},{"inspection_lines",view.inspection_lines()},{"status","PASS"}};
 }
 void selection_contract() {
     assets::CompatibilityResult supported;supported.status=assets::CompatibilityStatus::Compatible;
@@ -201,14 +271,25 @@ void configure(oe::SandboxView& view,const oe::VisualSelection& art) {
     view.set_original_house_visuals(art.original_house,art.original_house_source,art.original_house_fallback_reason);
     view.set_original_building_visuals(art.original_building,art.original_building_source,art.original_building_fallback_reason);
 }
-struct Expected {sim::Object kind;std::uint16_t model;std::uint32_t record;};
-constexpr std::array expected{
+struct Expected {sim::Object kind;std::uint16_t model;std::uint32_t record;bool added=false;};
+constexpr std::array historical_expected{
     Expected{sim::Object::OriginalWaterWell72,72,1559},Expected{sim::Object::ServicePost,208,1593},
     Expected{sim::Object::OriginalMusicSchool211,211,589},Expected{sim::Object::OriginalAcrobatSchool212,212,460},
     Expected{sim::Object::OriginalDramaSchool213,213,501},Expected{sim::Object::OriginalDaoistShrine215,215,2245},
     Expected{sim::Object::OriginalBuddhistShrine217,217,2258},Expected{sim::Object::OriginalConfucianAcademy219,219,2309},
     Expected{sim::Object::OriginalPaperMaker45,45,2811},Expected{sim::Object::OriginalWeaver47,47,2768},
     Expected{sim::Object::OriginalHempFarm,192,825},Expected{sim::Object::OriginalFoodFarm,193,793}};
+// Object identities already exist in the historical World/header. No newly
+// added presentation enum is needed by the independent baseline overlay TU.
+constexpr std::array added_expected{
+    Expected{sim::Object::OriginalLoggingShed38,38,2726,true},
+    Expected{sim::Object::OriginalBronzeSmelter39,39,2697,true},
+    Expected{sim::Object::OriginalBronzewareMaker42,42,2788,true},
+    Expected{sim::Object::OriginalLacquerwareMaker44,44,2750,true},
+    Expected{sim::Object::OriginalTeaCuringShed237,237,840,true},
+    Expected{sim::Object::OriginalLacquerRefinery238,238,812,true},
+    Expected{sim::Object::OriginalSilkwormShed239,239,856,true},
+    Expected{sim::Object::OriginalAncestorShrine214,214,2232,true}};
 constexpr std::array fields{
     // This immutable earned city bought Millet only. The independent Rule18
     // farm lifecycle check buys Wheat normally; never rewrite this fixture.
@@ -223,13 +304,29 @@ int main(int argc,char** argv) {
         if(argc==2&&std::string_view(argv[1])=="--selection-only") {
             std::cout<<"Original building selection/custom/fingerprint guards PASS; original-data View NOT_RUN\n";return 0;
         }
-        check(argc==5,"Expected DATA REPO_ROOT PAID_RULE18_SAVE PRIVATE_OUTPUT_PARENT, or --selection-only");
+        check(argc>=5&&argc<=7,"Expected DATA REPO_ROOT PAID_RULE18_SAVE PRIVATE_OUTPUT_PARENT [--extended-paid-city] [--baseline], or --selection-only");
+        bool baseline=false,extended=false;
+        for(int i=5;i<argc;++i) {
+            const std::string_view option(argv[i]);
+            if(option=="--baseline") {check(!baseline,"Duplicate --baseline");baseline=true;}
+            else if(option=="--extended-paid-city") {check(!extended,"Duplicate --extended-paid-city");extended=true;}
+            else throw std::runtime_error("Unknown paid View option: "+std::string(option));
+        }
+        std::vector<Expected> expected(historical_expected.begin(),historical_expected.end());
+        for(const auto& row:added_expected) {
+            // The immutable66/46 city never bought39 or42. Its complete
+            // regression stays distinct from the explicitly paid68/48 extension.
+            if(!extended&&(row.model==39||row.model==42))continue;
+            expected.push_back(row);
+        }
         for(int i=1;i<5;++i)no_symlinks(argv[i]);
         const auto data=fs::canonical(argv[1]),repo=fs::canonical(argv[2]),input=fs::canonical(argv[3]);
         const auto original_bytes=bytes(input);const auto document=oe::persistence::read_save(input);
         check(document.world.profile==sim::RulesProfile::CityV16&&document.world.rule_version==18&&document.source_schema_version==34&&
             document.map_permissions_policy_version==3&&document.map_relative==fs::path("Cities/Xia.map"),"Fixture must be earned Rule18/schema34/policy3 Xia");
-        check(document.world.buildings.size()==66&&document.world.couriers.size()==46,"Use the complete paid66-building/46-courier reference city");
+        const std::size_t body_count=extended?68:66,actor_count=extended?48:46;
+        check(document.world.buildings.size()==body_count&&document.world.couriers.size()==actor_count,
+            "Use the complete paid66/46 reference city, or explicit paid68/48 extension");
         const auto output=fresh_output(repo,argv[4]);check(!contains(data,output)&&!contains(output,data)&&!contains(output,input),"Outputs overlap source inputs");
         const auto compatibility=assets::detect_compatibility(data,repo/"resources/compatibility");
         const auto art=oe::select_visual_profiles(compatibility);
@@ -240,28 +337,38 @@ int main(int argc,char** argv) {
         check(std::string_view(SDL_GetRendererName(renderer))=="software","Unexpected renderer backend");
         const auto session=[&]{return oe::maps::load_stored_map_session(data,document.map_relative,oe::maps::FootprintPolicy::EdgeByte4x4Preview,
             oe::maps::StoredGraphicsProfile::Slot8,oe::maps::GreatWallPresentationMode::Automatic,{},true);};
-        auto view=oe::SandboxView::create_original_deadline_food_dispatch(session(),std::nullopt,false);
+        auto initial_session=session();const oe::maps::MapGeometry geometry(initial_session.map.declared_map_size);
+        auto view=oe::SandboxView::create_original_deadline_food_dispatch(std::move(initial_session),std::nullopt,false);
         view->configure_save(data,document.map_relative,working,document);configure(*view,art);view->initialize(window,renderer);focus(*view);
         check(view->paused()&&view->world().snapshot()==document.world,"Production restore changed complete paid World");
         key(*view,SDLK_F5);check(bytes(working)==original_bytes,"Initial actual F5 changed complete canonical save bytes");
-        const auto texture_count=view->building_texture_count();check(texture_count==56,"Startup must upload exactly56 shared core/House/Original building textures");
+        const std::size_t expected_textures=baseline?56:64;
+        const auto texture_count=view->building_texture_count();check(texture_count==expected_textures,
+            "Startup shared core/House/Original texture pool differs from its selected revision");
         const auto initial_stats=view->original_building_display_stats();
         check(initial_stats.active&&std::all_of(initial_stats.configured_roles.begin(),initial_stats.configured_roles.end(),[](bool value){return value;}),
-            "Twelve native bodies and three complete authored field image tables were not atomically prepared");
+            "Complete selected native bodies and authored field image tables were not atomically prepared");
+        key(*view,SDLK_F1);check(view->debug_diagnostics(),"Explicit F1 diagnostic alpha picking did not activate");
         Json records=Json::array(),matrix=Json::array(),alpha=Json::array(),bodies=Json::array(),actors=Json::array();
-        std::array<sim::BuildingId,expected.size()> owners{};std::array<assets::RgbaImage,expected.size()> images;
+        std::vector<sim::BuildingId> owners(expected.size());std::vector<assets::RgbaImage> images(expected.size());
         std::array<sim::BuildingId,fields.size()> field_owners{};
         std::array<assets::RgbaImage,fields.size()> field_images;
         for(std::size_t i=0;i<expected.size();++i) {
             const auto found=std::find_if(view->world().buildings().begin(),view->world().buildings().end(),[&](const auto& b){return b.kind==expected[i].kind;});
             check(found!=view->world().buildings().end(),"Paid reference lacks a selected Original building category");owners[i]=found->id;
             const auto d=view->original_building_visual_diagnostic(found->id);
-            check(d.applicable&&d.active&&d.asset&&d.model_type==expected[i].model&&d.asset->image_index==expected[i].record,
+            if(baseline&&expected[i].added)
+                check(!d.applicable&&!d.configured&&!d.active&&!d.asset,"Historical runtime acquired a subsequently added Original identity");
+            else check(d.applicable&&d.active&&d.asset&&d.model_type==expected[i].model&&d.asset->image_index==expected[i].record,
                 "Actual paid kind selected a different original model/record");
-            images[i]=assets::load_sg3_image({data/d.asset->archive_relative_path,d.asset->image_index});
-            check(d.actual_side==sim::building_footprint(view->world().profile(),view->world().rule_version(),found->kind).width&&
-                d.image_width==images[i].width&&d.image_height==images[i].height&&d.ground_x==40*d.actual_side-1&&d.ground_y==d.image_height-20,
-                "Native source dimensions/footprint/authored anchor differ from prepared diagnostic");
+            images[i]=assets::load_sg3_image({data/"DATA/China_General.sg3",expected[i].record});
+            if(!baseline||!expected[i].added) {
+                const auto ground=paid_ground(view->world(),owners[i],geometry.border);
+                check(d.actual_side==sim::building_footprint(view->world().profile(),view->world().rule_version(),found->kind).width&&
+                    d.image_width==images[i].width&&d.image_height==images[i].height&&d.ground_x==40*d.actual_side-1&&d.ground_y==d.image_height-20&&
+                    std::abs(d.ground.x-ground.x)<1e-9&&std::abs(d.ground.y-ground.y)<1e-9,
+                    "Native source dimensions/footprint/authored anchor/paid ground differ from independent geometry");
+            }
         }
         for(std::size_t i=0;i<fields.size();++i) {
             const auto found=std::find_if(view->world().buildings().begin(),view->world().buildings().end(),
@@ -284,26 +391,40 @@ int main(int argc,char** argv) {
             SDL_Event resized{};resized.type=SDL_EVENT_WINDOW_RESIZED;resized.window.data1=dimensions.first;resized.window.data2=dimensions.second;event(*view,resized);focus(*view);
             for(const double z:{1.,2.,4.}) {
                 zoom(*view,renderer,z);Point city_center{};
-                for(const auto id:owners){const auto ground=view->original_building_visual_diagnostic(id).ground;
+                for(const auto id:owners){const auto ground=paid_ground(view->world(),id,geometry.border);
                     city_center.x+=ground.x/static_cast<double>(expected.size());city_center.y+=ground.y/static_cast<double>(expected.size());}
                 center(*view,city_center);
                 capture(*view,renderer,output,"overview-"+std::to_string(dimensions.first)+"x"+std::to_string(dimensions.second)+"-"+
                     std::to_string(static_cast<int>(z))+"x",records);
                 for(std::size_t i=0;i<expected.size();++i) {
                 const auto d=view->original_building_visual_diagnostic(owners[i]);
-                center(*view,{d.image_origin.x+d.image_width*.5,d.image_origin.y+d.image_height*.5});
+                const auto ground=paid_ground(view->world(),owners[i],geometry.border);
+                const auto side=sim::building_footprint(view->world().profile(),view->world().rule_version(),expected[i].kind).width;
+                const Point origin{ground.x-(40.0*side-1),ground.y-(images[i].height-20)};
+                if(expected[i].added)select_paid_ground(*view,renderer,owners[i],ground);
+                center(*view,{origin.x+images[i].width*.5,origin.y+images[i].height*.5});
                 const auto name="model"+std::to_string(expected[i].model)+"-"+std::to_string(dimensions.first)+"x"+std::to_string(dimensions.second)+"-"+std::to_string(static_cast<int>(z))+"x";
-                const bool save_category=dimensions.first==1920&&z==1;
+                const bool save_category=expected[i].added||(dimensions.first==1920&&z==1);
                 const auto before=view->original_building_display_stats();auto frame=capture(*view,renderer,output,save_category?name:std::string{},records);
                 const auto after=view->original_building_display_stats();const auto slot=static_cast<std::size_t>(d.role);
-                check(after.drawn_instances[slot]>before.drawn_instances[slot]&&after.authored_fallbacks[slot]==before.authored_fallbacks[slot],"Mapped category submitted fallback instead of original art");
+                if(baseline&&expected[i].added)
+                    check(!view->original_building_visual_diagnostic(owners[i]).applicable,"Baseline marker acquired new native art while rendering");
+                else check(after.drawn_instances[slot]>before.drawn_instances[slot]&&after.authored_fallbacks[slot]==before.authored_fallbacks[slot],"Mapped category submitted fallback instead of original art");
                 matrix.push_back({{"building_id",static_cast<unsigned>(owners[i])},{"diagnostic",diagnostic(d)},{"size",{dimensions.first,dimensions.second}},{"zoom",z},
+                    {"model",expected[i].model},{"expected_record",expected[i].record},{"added_role",expected[i].added},
+                    {"expected",baseline&&expected[i].added ? "HISTORICAL_AUTHORED_MARKER":"SOURCE_REGISTERED_STATIC_BASE"},
+                    {"camera",records.back().at("camera")},{"map_rect",records.back().at("map_rect")},
+                    {"selected_building",records.back().at("selected_building")},{"debug_diagnostics",records.back().at("debug_diagnostics")},
                     {"file",save_category?Json(name+".png"):Json(nullptr)}});
-                if(dimensions.first==1920&&z==1) {
-                    const auto origin=view->camera().world_to_screen(d.image_origin);view->set_tool(5);
+                if(expected[i].added&&!baseline) {
+                    auto witness=body_alpha_witnesses(*view,renderer,frame.get(),images[i],owners[i],ground,expected[i].model);
+                    witness["size"]={dimensions.first,dimensions.second};witness["zoom"]=z;alpha.push_back(std::move(witness));
+                }
+                if(dimensions.first==1920&&z==1&&!(baseline&&expected[i].added)) {
+                    const auto screen_origin=view->camera().world_to_screen(d.image_origin);view->set_tool(5);
                     std::optional<Point> opaque,hole;
                     for(int y=1;y<images[i].height-1&&(!opaque||!hole);y+=2)for(int x=1;x<images[i].width-1&&(!opaque||!hole);x+=2) {
-                        const auto color=native(images[i],x,y);const Point p{origin.x+x+.5,origin.y+y+.5};
+                        const auto color=native(images[i],x,y);const Point p{screen_origin.x+x+.5,screen_origin.y+y+.5};
                         if(!view->layout().map.contains(p.x,p.y))continue;
                         if(!opaque&&color[3]==255&&pixel(frame.get(),static_cast<int>(p.x),static_cast<int>(p.y))==color) {
                             click(*view,renderer,p);if(view->selected_building()==owners[i]&&!view->input_diagnostic_state().selected_landscape)opaque=p;
@@ -397,7 +518,7 @@ int main(int argc,char** argv) {
             if(d.native_asset)row["asset"]={{"archive",d.native_asset->archive_relative_path.generic_string()},{"physical_record",d.native_asset->image_index}};
             actors.push_back(std::move(row));
         }
-        check(bodies.size()==66&&actors.size()==46,"Complete paid body/actor diagnostic matrix is incomplete");
+        check(bodies.size()==body_count&&actors.size()==actor_count,"Complete paid body/actor diagnostic matrix is incomplete");
         const auto pure=view->world().snapshot();perf::set_enabled(true);perf::reset();
         for(int frame=0;frame<100;++frame){view->update(0);check(view->render(),"Render pure prepared frame");}
         Json counters=Json::object();for(std::size_t i=0;i<static_cast<std::size_t>(perf::Counter::Count);++i) {
@@ -434,29 +555,57 @@ int main(int argc,char** argv) {
         }
         perf::set_enabled(true);perf::reset();first_failed->set_original_building_visuals(art.original_building,oe::VisualProfileSource::Builtin);
         const auto appended_uploads=perf::counter(perf::Counter::TextureUploads);perf::set_enabled(false);
-        check(appended_uploads==28&&first_failed->building_texture_count()==56&&first_failed->original_building_display_stats().active&&
+        check(appended_uploads==expected_textures-28&&first_failed->building_texture_count()==expected_textures&&first_failed->original_building_display_stats().active&&
             first_failed->original_house_display_stats().configured_types==retained_houses&&first_failed->world().snapshot()==document.world,
-            "Successful first append did not reuse the shared28-image prefix and add exactly28 new textures");
-        auto historical=Json::parse(bytes(art.original_building));historical["schema_version"]=2;historical.erase("field_selection");
-        for(auto& row:historical.at("buildings"))if(row.at("model_type").get<unsigned>()>=194&&row.at("model_type").get<unsigned>()<=196) {
-            row=Json{{"model_type",row.at("model_type")},{"original_side",row.at("original_side")},
-                {"native",false},{"fallback",row.at("fallback")},{"evidence",row.at("evidence")}};
-        }
-        const auto historical_path=output/"historical-schema2-profile.json";write(historical_path,historical.dump(2)+"\n");
-        first_failed->set_original_building_visuals(historical_path,oe::VisualProfileSource::Builtin);
-        check(first_failed->building_texture_count()==39&&first_failed->world().snapshot()==document.world&&
-            first_failed->original_house_display_stats().configured_types==retained_houses,
-            "Historical schema2 replacement did not retain the old39-image pool and paid authority");
-        for(const auto field:field_owners) {
-            const auto d=first_failed->original_building_visual_diagnostic(field);
-            check(d.applicable&&!d.configured&&!d.active&&!d.asset&&!d.field_stage,
-                "Historical schema2 inherited a stale schema3 field-stage table");
+            "Successful first append did not reuse the shared28-image prefix and add only its selected tail");
+        Json historical_profiles=Json::array();
+        for(const unsigned schema:{1U,2U,3U}) {
+            auto historical=Json::parse(bytes(art.original_building));historical["schema_version"]=schema;
+            if(schema<3)historical.erase("field_selection");
+            Json rows=Json::array();
+            for(auto row:historical.at("buildings")) {
+                const auto model=row.at("model_type").get<unsigned>();
+                const auto end=historical_expected.begin()+static_cast<std::ptrdiff_t>(schema==1?10:12);
+                const bool old_body=std::any_of(historical_expected.begin(),end,
+                    [&](const auto& old){return old.model==model;});
+                const bool field=model>=194&&model<=196;
+                if(!old_body&&!(schema>1&&field))continue;
+                if(schema==1)row.erase("native");
+                if(schema==2&&field)row=Json{{"model_type",row.at("model_type")},{"original_side",row.at("original_side")},
+                    {"native",false},{"fallback",row.at("fallback")},{"evidence",row.at("evidence")}};
+                rows.push_back(std::move(row));
+            }
+            check(rows.size()==(schema==1?10:15),"Historical profile exact role set is incomplete");
+            historical["buildings"]=std::move(rows);
+            const auto path=output/("historical-schema"+std::to_string(schema)+"-profile.json");write(path,historical.dump(2)+"\n");
+            first_failed->set_original_building_visuals(path,oe::VisualProfileSource::Builtin);
+            const std::size_t pool=schema==1?37:schema==2?39:56;
+            check(first_failed->building_texture_count()==pool&&first_failed->original_building_display_stats().preparation_error.empty()&&
+                first_failed->world().snapshot()==document.world&&first_failed->original_house_display_stats().configured_types==retained_houses,
+                "Historical schema replacement changed its exact pool or complete paid authority");
+            for(const auto field:field_owners) {
+                const auto d=first_failed->original_building_visual_diagnostic(field);
+                check(d.applicable&&(schema==3 ? d.configured&&d.active&&d.asset&&d.field_stage:
+                    !d.configured&&!d.active&&!d.asset&&!d.field_stage),
+                    "Historical schema inherited an unavailable field table or lost its own complete table");
+            }
+            if(!baseline)for(std::size_t i=0;i<expected.size();++i)if(expected[i].added) {
+                const auto d=first_failed->original_building_visual_diagnostic(owners[i]);
+                check(d.applicable&&!d.configured&&!d.active&&!d.asset&&!d.fallback_reason.empty(),
+                    "Historical schema inherited a newly added native static-body entry");
+            }
+            key(*first_failed,SDLK_F5);key(*first_failed,SDLK_F9);key(*first_failed,SDLK_F5);
+            check(first_failed->world().snapshot()==document.world&&
+                bytes(output/"first-append-working.save.json")==original_bytes&&bytes(input)==original_bytes,
+                "Historical presentation profile changed complete F5/F9 save or protected input bytes");
+            historical_profiles.push_back({{"schema",schema},{"roles",schema==1?10:15},{"textures",pool},
+                {"full_f5_f9_bytes_equal",true},{"later_native_entries_absent",true},{"status","PASS"}});
         }
         first_failed->set_original_building_visuals(art.original_building,oe::VisualProfileSource::Builtin);
-        check(first_failed->building_texture_count()==56&&first_failed->world().snapshot()==document.world,
-            "Schema3 reactivation did not preserve the shared pool and complete World");
+        check(first_failed->building_texture_count()==expected_textures&&first_failed->world().snapshot()==document.world,
+            "Current profile reactivation did not preserve the shared pool and complete World");
         for(const auto field:field_owners)check(first_failed->original_building_visual_diagnostic(field).field_stage.has_value(),
-            "Schema3 reactivation did not recover its actual paid field stage");
+            "Current profile reactivation did not recover its actual paid field stage");
         first_failed->shutdown();first_failed.reset();
         auto custom=oe::SandboxView::create_original_deadline_food_dispatch(session(),std::nullopt,false);
         custom->configure_save(data,document.map_relative,output/"custom-working.save.json",document);
@@ -487,6 +636,9 @@ int main(int argc,char** argv) {
         legacy->shutdown();legacy.reset();check(oe::BuildingSprite::live_texture_count()==0&&oe::WalkerSpriteSet::live_texture_count()==0,"Owned texture leak after view shutdown");
         check(bytes(input)==original_bytes,"Protected paid input changed");
         write(output/"report.json",Json{{"status","PASS"},{"runtime","SCRIPTED_SDL dummy/software"},{"source_save",input.string()},
+            {"baseline_mode",baseline},{"extended_paid_city",extended},{"building_count",body_count},{"courier_count",actor_count},
+            {"body_categories_tested",expected.size()},{"native_body_categories",baseline?historical_expected.size():expected.size()},
+            {"historical_profiles",historical_profiles},{"texture_pool",expected_textures},
             {"rule",18},{"schema",34},{"tick",document.world.ticks},{"complete_world_unchanged",true},{"full_f5_f9_bytes_equal",true},
             {"captures",records},{"matrix",matrix},{"alpha_picking",alpha},{"bodies",bodies},{"actors",actors},{"pure_frame_counters",counters},
             {"body_export_scope","Generic core lookup; specialized production routing requires a separate source/pixel audit"},

@@ -2104,14 +2104,27 @@ if(BUILD_TESTING)
     add_test(NAME original-building-selection-wiring COMMAND openemperor-original-building-visual-view-tests --selection-only)
     set_tests_properties(original-building-selection-wiring PROPERTIES TIMEOUT 60)
     set(OPENEMPEROR_OE52_PAID_TEST_SAVE "" CACHE FILEPATH "Explicit earned Rule18/schema34 city for OE52 visual acceptance")
+    set(OPENEMPEROR_ORIGINAL_VISUAL_OUTPUT_ROOT "${CMAKE_SOURCE_DIR}/.local/oe60-5" CACHE PATH
+        "Private output parent for isolated Original building and field visual checks")
     if(OPENEMPEROR_OE52_PAID_TEST_SAVE)
         if(NOT EXISTS "${OPENEMPEROR_OE52_PAID_TEST_SAVE}" OR NOT OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT)
             message(FATAL_ERROR "OE52 paid View requires an existing explicit save and original data root")
         endif()
         add_test(NAME original-building-paid-production-view COMMAND openemperor-original-building-visual-view-tests
             "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${CMAKE_SOURCE_DIR}" "${OPENEMPEROR_OE52_PAID_TEST_SAVE}"
-            "${CMAKE_SOURCE_DIR}/.local/oe60-5/ctest-${CMAKE_BUILD_TYPE}")
+            "${OPENEMPEROR_ORIGINAL_VISUAL_OUTPUT_ROOT}/ctest-${CMAKE_BUILD_TYPE}")
         set_tests_properties(original-building-paid-production-view PROPERTIES TIMEOUT 240)
+    endif()
+    set(OPENEMPEROR_OE61_PAID_TEST_SAVE "" CACHE FILEPATH
+        "Explicit normally purchased Rule18 city including all nine existing industry sources")
+    if(OPENEMPEROR_OE61_PAID_TEST_SAVE)
+        if(NOT EXISTS "${OPENEMPEROR_OE61_PAID_TEST_SAVE}" OR NOT OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT)
+            message(FATAL_ERROR "OE61 industry View requires an explicit earned city and original data root")
+        endif()
+        add_test(NAME original-building-industry-production-view COMMAND openemperor-original-building-visual-view-tests
+            "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${CMAKE_SOURCE_DIR}" "${OPENEMPEROR_OE61_PAID_TEST_SAVE}"
+            "${OPENEMPEROR_ORIGINAL_VISUAL_OUTPUT_ROOT}/industry-ctest-${CMAKE_BUILD_TYPE}" --extended-paid-city)
+        set_tests_properties(original-building-industry-production-view PROPERTIES TIMEOUT 360)
     endif()
 
     add_executable(openemperor-original-field-visual-view-tests tests/OriginalFieldVisualViewTests.cpp ${bridge_fixture_sources})
@@ -2121,7 +2134,7 @@ if(BUILD_TESTING)
     if(OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT)
         add_test(NAME original-field-paid-growth-view COMMAND openemperor-original-field-visual-view-tests
             "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${CMAKE_SOURCE_DIR}"
-            "${CMAKE_SOURCE_DIR}/.local/oe60-5/field-ctest-${CMAKE_BUILD_TYPE}")
+            "${OPENEMPEROR_ORIGINAL_VISUAL_OUTPUT_ROOT}/field-ctest-${CMAKE_BUILD_TYPE}")
         set_tests_properties(original-field-paid-growth-view PROPERTIES TIMEOUT 240)
     endif()
 

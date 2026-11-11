@@ -1,5 +1,15 @@
 # OE52: source-registered static Original building bases
 
+The historical ten-body source and verification record below remains scoped to
+OE52. [OE61](oe61-original-building-visuals.md) adds eight separately qualified
+static bodies for the already paid Industry/Ancestor identities. Its schema4
+has exactly23 roles:20 static bodies and the same three explicitly authored
+field tables. Schemas1/2/3 retain exactly10/15/15 roles and their independent
+37/39/56-image pools with the current core/House prefix. The current combined
+schema4 pool has64 images/5,534,168 RGBA bytes within the unchanged64MiB limit.
+The new verification is recorded separately in that maintained contract; it
+does not turn these historical OE52 results into current OE61 test evidence.
+
 Baseline is the verified OE51 merge/main
 `cc53e7037dac4ebd4da6b68d382a6e898890716b`. Work is on
 `feat/oe52-original-visuals`, in an isolated worktree; the user's original

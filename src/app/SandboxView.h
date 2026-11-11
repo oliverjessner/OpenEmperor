@@ -461,6 +461,8 @@ private:
     bool fire_watch_selected() const;
     bool status_first_selected() const;
     std::vector<std::string> wrap_panel_lines(const std::vector<std::string>& lines) const;
+    bool append_original_building_visual_diagnostic(std::vector<std::string>& lines,
+        simulation::BuildingId id) const;
     void select_original_house_section(OriginalHouseSection section);
     void cycle_original_house_overlay();
     int original_house_scroll_limit() const;

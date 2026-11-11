@@ -54,12 +54,20 @@ complete original-game compatibility.
   an explicitly authored mapping of the paid parent Farm's existing 80-tick
   progress. Original per-field quantity, variation and calendar/work state
   remain unreconstructed; these images do not establish original growth parity.
+  OE61 adds static Logging38, Smelter39, Bronzeware42, Lacquerware44,
+  Tea237, Refinery238, Silkworm239 and Ancestor214 bodies matching existing paid
+  identities and footprints. No stock/load, paused, burning or understaffed
+  image variant is inferred; the existing operation and fire overlay remain
+  authoritative. Plants26–28 retain markers without a qualified growth selector.
   Missing ownership or incompatible sources retain named authored fallbacks.
   Unassigned service/culture/religion/luxury walker families and pending
   Elite plots retain their named historical fallbacks. Existing Market,
   Warehouse and FireWatch core previews are not newly identified original
-  registrations. See the [OE52 evidence and validation](docs/rendering/oe52-original-visuals.md)
-  and [OE60 farm/field boundary](docs/rendering/oe60-original-farm-visuals.md).
+  registrations. Clay/Pottery pixels are source-qualified35/43 images, while
+  their generic World identities remain curated previews. See the
+  [OE61 inventory and limits](docs/rendering/oe61-original-building-visuals.md),
+  [OE52 evidence](docs/rendering/oe52-original-visuals.md) and
+  [OE60 farm/field boundary](docs/rendering/oe60-original-farm-visuals.md).
 - **Fresh Common Type2 artwork has a narrow original binding.** The pinned
   normal purchase path publishes group `0x47a`, variant0, physical1508 before
   resident admission; the ordinary setter's `0x471`/physical1509–1510 is a

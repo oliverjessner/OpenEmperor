@@ -733,9 +733,14 @@ int main(int argc,char** argv) {
         const auto paper_details=view->inspection_lines();
         check(view->industry_inspector_selected() && paper_details.size()<=10,
               "Actual sidebar did not select the compact visible Industry inspector");
-        for (const std::string_view expected:{"Authored managed recipes","Hemp -> Paper","80 productive ticks","Hemp input","Marker art; original pending"})
+        for (const std::string_view expected:{"Authored managed recipes","Hemp -> Paper","80 productive ticks","Hemp input","Art: authored fallback"})
             check(std::any_of(paper_details.begin(),paper_details.end(),[&](const auto& line){return line.find(expected)!=std::string::npos;}),
-                  "Paper inspector hid actual input, authored recipe or pending original art");
+                  "Paper inspector hid actual input, authored recipe or the unconfigured-art fallback");
+        const auto paper_art=view->original_building_visual_diagnostic(paper_id);
+        check(paper_art.applicable && !paper_art.configured && !paper_art.active && !paper_art.asset &&
+              std::none_of(paper_details.begin(),paper_details.end(),[](const auto& line){
+                  return line.find("Marker art; original pending")!=std::string::npos;
+              }),"Synthetic Paper fixture invented native art or retained a stale pending-art claim");
         const auto page_saved=view->world().snapshot();key(*view,SDLK_F5);
         if (argc==2) {
             check(view->industry_page() && view->selected_building()==paper_id,"Industry capture lost its actual Paper inspector selection");

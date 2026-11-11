@@ -1821,6 +1821,40 @@ SandboxView::OriginalBuildingVisualDiagnostic SandboxView::original_building_vis
     }
     return result;
 }
+bool SandboxView::append_original_building_visual_diagnostic(std::vector<std::string>& lines,
+        simulation::BuildingId id) const {
+    const auto art=original_building_visual_diagnostic(id);
+    if (!art.applicable) return false;
+    const auto append_field_details=[&] {
+        if (!art.field_stage || !art.field_farm) return;
+        lines.push_back("Field visual stage "+std::to_string(*art.field_stage+1)+"/6 (authored)");
+        lines.push_back("Farm #"+std::to_string(static_cast<unsigned>(*art.field_farm))+" progress "+
+            std::to_string(art.field_farm_progress)+"/80");
+        lines.push_back("Original crop images; authored growth and anchor");
+        lines.push_back("Canonical variation0; original calendar not reproduced");
+        if (art.field_order_ambiguous)
+            lines.push_back("Complex adjacent ordering; historical painter retained");
+    };
+    if (!debug_open_) {
+        lines.push_back(art.active ? art.field_stage ? "Art: original crop image; authored growth":
+            "Art: original static image":"Art: authored fallback");
+        append_field_details();
+        return true;
+    }
+    lines.push_back(std::string("Building visuals ")+(building_enabled_ ? "ON":"OFF"));
+    lines.push_back(std::string("Visual role ")+assets::original_building_role_name(art.role));
+    lines.push_back(std::string("Visual configured ")+(art.configured ? "yes":"no"));
+    if (art.asset) {
+        lines.push_back("SG3 "+art.asset->archive_relative_path.generic_string()+" #"+std::to_string(art.asset->image_index));
+        lines.push_back("Image "+std::to_string(art.image_width)+"x"+std::to_string(art.image_height));
+        lines.push_back("Anchor "+std::to_string(art.ground_x)+","+std::to_string(art.ground_y));
+        if (art.field_stage && art.field_farm) {
+            append_field_details();
+        } else lines.push_back("Evidence: registered static base; authored anchor");
+    }
+    if (!art.fallback_reason.empty()) lines.push_back(art.fallback_reason);
+    return true;
+}
 SandboxView::OriginalHouseDisplayStats SandboxView::original_house_display_stats() const {
     OriginalHouseDisplayStats stats;
     stats.source=original_house_source_;stats.fallback_reason=original_house_fallback_reason_;
@@ -5666,7 +5700,10 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Bound source #"+std::to_string(static_cast<unsigned>(source.building_id)));
         for (const auto& actor:world_->couriers()) if (actor.owner==id)
             lines.push_back(std::string(displayed_courier_good(*world_,actor))+" cargo "+std::to_string(displayed_courier_cargo(*world_,actor)));
-        lines.push_back("Marker art; original pending");
+        if (!append_original_building_visual_diagnostic(lines,id)) {
+            lines.push_back("Art: authored marker");
+            lines.push_back("Original static lifecycle unverified");
+        }
         add_fire_status(id);add_connectivity();return wrap_panel_lines(lines);
     }
     if (original_influence_fixture() && house_id) {
@@ -5930,7 +5967,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
         lines.push_back(water ? "Arrival96; phase28 water":religion ? "Actual visits set this timer to40 cycles":
             culture ? "Actual arrival grants96":"Actual visits set this timer to96 cycles");
-        if (religion) lines.push_back("Diagnostic source and visitor markers");
+        if (religion) lines.push_back("Authored service visits; original lifecycle unverified");
         for (const auto& c:world_->couriers()) if (c.owner==id) {
             lines.push_back(std::string("Visitor: ")+simulation::delivery_phase_name(c.phase));
             lines.push_back("Target: "+(c.phase==simulation::CourierPhase::IdleAtWorkshop ?
@@ -5947,6 +5984,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 lines.push_back("No future visit promised");
             }
         }
+        append_original_building_visual_diagnostic(lines,id);
         add_fire_status(id);add_connectivity();return wrap_panel_lines(lines);
     }
     if (house_id && world_->building(*house_id).kind==simulation::Object::HealthPost) {
@@ -6332,26 +6370,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Last target "+std::to_string(static_cast<unsigned>(
                 *world_->last_dispatched_service_household())));
     }
-    if (const auto art=original_building_visual_diagnostic(*id);art.applicable) {
-        lines.push_back(std::string("Building visuals ")+(building_enabled_ ? "ON":"OFF"));
-        lines.push_back(std::string("Visual role ")+assets::original_building_role_name(art.role));
-        lines.push_back(std::string("Visual configured ")+(art.configured ? "yes":"no"));
-        if (art.asset) {
-            lines.push_back("SG3 "+art.asset->archive_relative_path.generic_string()+" #"+std::to_string(art.asset->image_index));
-            lines.push_back("Image "+std::to_string(art.image_width)+"x"+std::to_string(art.image_height));
-            lines.push_back("Anchor "+std::to_string(art.ground_x)+","+std::to_string(art.ground_y));
-            if (art.field_stage && art.field_farm) {
-                lines.push_back("Field visual stage "+std::to_string(*art.field_stage+1)+"/6 (authored)");
-                lines.push_back("Farm #"+std::to_string(static_cast<unsigned>(*art.field_farm))+" progress "+
-                    std::to_string(art.field_farm_progress)+"/80");
-                lines.push_back("Original crop images; authored growth and anchor");
-                lines.push_back("Canonical variation0; original calendar not reproduced");
-                if (art.field_order_ambiguous)
-                    lines.push_back("Complex adjacent ordering; historical painter retained");
-            } else lines.push_back("Evidence: registered static base; authored anchor");
-        }
-        if (!art.fallback_reason.empty()) lines.push_back(art.fallback_reason);
-    } else if (const auto role=visual_role(b.cell,b.kind)) {
+    if (!append_original_building_visual_diagnostic(lines,*id)) if (const auto role=visual_role(b.cell,b.kind)) {
         lines.push_back(std::string("Building visuals ")+(building_enabled_ ? "ON":"OFF"));
         lines.push_back(std::string("Visual role ")+assets::building_role_name(*role));
         const auto* entry=building_profile_ ? building_entry(*role):nullptr;

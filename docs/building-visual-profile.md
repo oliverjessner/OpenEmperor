@@ -1,5 +1,12 @@
 # Curated core building previews
 
+The current [OE61 inventory](rendering/oe61-original-building-visuals.md)
+distinguishes source-qualified static bodies, generic core previews and named
+authored fallbacks. Its separate schema4 adds the seven already typed industry
+sources and Ancestor214; the core schema1 and all historical supplements retain
+their exact roles and geometry. Animation and stock/lifecycle variants remain
+unreconstructed.
+
 ## Original-production static bases (OE52)
 
 An independent optional metadata supplement supplies ten source-registered static

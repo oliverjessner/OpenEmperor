@@ -446,3 +446,86 @@ original per-cell variation bit, `Q` formula, calendar or crop-state lifecycle.
 An authored stage0 is not a claim that every original purchase starts in that
 state. Original images are source facts; their assignment to OpenEmperor's
 productive progress is an explicit authored choice, not original-state parity.
+
+## Existing industry and Ancestor static bodies (OE61)
+
+**EXE_OBSERVED:** fresh bounded static reads of the same EXE SHA-256
+`6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e`
+qualify eight further complete static bodies. No Original program was executed.
+The actual concrete object, its initializer, square/side callbacks and its body
+publisher were followed separately from the generic model registration:
+
+- Industrial factory `0x5f0e20` selects Logging38 through
+  `0x5f5260→0x5f5230` (vtable `0x7c06fc`), Bronzeware42 through
+  `0x5f5170→0x5f5100` (`0x7bfee0`), and Lacquerware44 through
+  `0x5f5060→0x5f5010` (`0x7bf6c4`). Smelter39 enters `0x557340`, whose
+  `0x558570` type predicate selects `0x5590a0` (`0x7b7e24`). Their actual
+  body slot `+0x100` calls `0x5f1ee0`; the actual `+0x25c` selector is
+  `0x4f13f0`, reading the object's type registration before
+  `0x408170→0x4b72b0` publishes the complete base.
+- Orchard predicate `0x4c2930` and factory `0x4c2960` select the same concrete
+  branch for237–239: `0x4c29fc→0x4c5cc0`, vtable `0x7af95c`. Its actual
+  body `0x4c5bf0` calls `+0x264→0x4c2ac0`, then the shared resource manager
+  and publisher. The three registrations have their own group and offset0.
+- Religion factory `0x5aae70` has a distinct type214 branch `0x5aaea0`,
+  explicitly supplying group `0x481` to `0x5ab0d0` (vtable `0x7bc0b4`).
+  Actual body `0x5abef0` reads that constructor-bound `+0x158` group and
+  publishes through `0x408170→0x4b72b0`.
+
+The shared initializer `0x428aa0` reads initial side through `0x428abc`.
+The actual square predicate `0x413a00` and side getter `0x416ad0` agree with
+the independently checked World footprints. The reviewed **static body
+publishers** do not read stock, productive progress, fire, staffing, calendar
+or terrain variation. This is not a complete transitive refresh/lifecycle proof.
+
+**SOURCE_VERIFIED:** a fresh C++ diagnostic used the existing
+`ResourceGroupLookup`, `RuntimeArchiveLayout` and SG3/555 loader, not a second
+parser. General source hashes remain `c9ae527102c312098cbfe82932ce1b39c6c96692981c874dc853306835583e46`
+and `3cb09cd2c954eb355e2253482845e7117b353c24506575795bcaa1fe45db33f2`.
+Canonical registered offset0 resolves as follows:
+
+| Actual model | Group | Physical record | Side | Whole image | Authored anchor | Raw animation count |
+|---|---|---:|---:|---|---|---:|
+|Logging38|`0x43e`|2726|2|158×122|79,102|14|
+|Bronze Smelter39|`0x442`|2697|3|238×208|119,188|0|
+|Bronzeware42|`0x447`|2788|2|158×132|79,112|0|
+|Lacquerware44|`0x445`|2750|2|158×120|79,100|17|
+|Tea237|`0x43b`|840|2|158×121|79,101|15|
+|Lacquer Refinery238|`0x43d`|812|2|158×131|79,111|12|
+|Silkworm239|`0x43c`|856|2|158×120|79,100|22|
+|Ancestor214|`0x481`|2232|2|158×149|79,129|12|
+
+All eight are unmirrored internal native Type30 records, with base bytes
+`3200×side²`, no separate alpha payload and shadow marker0. Whole decoded
+RGBA retains source transparency; observed alpha is0/255. Each full PNG was
+opened individually. This does not prove the absence of artist-painted shadow
+colors. Positive animation counts do not establish associated overlays,
+cadence, production-state selection or an active animation implementation.
+The front-cell anchors remain **AUTHORED** geometry `[40×side−1,height−20]`.
+
+**UNKNOWN / UNSUPPORTED:** current core ClaySource/Pottery are functional
+authored adapters, rather than established Original35/43 runtime identities.
+Their existing images are now source-qualified: concrete ClayPit35
+(`0x5ac27b→0x5ac3c0→0x5ac3a0`) and Kiln43
+(`0x5f50f0→0x5f50c0`) use the maker publisher and groups `0x448→2789` and
+`0x449→2810`. This qualifies the source pixels without changing their curated
+World preview status or anchors. Warehouse54's actual side callback returns3;
+its raw group `0x424→644` is a **one-cell component**, not a complete3×3 body
+or an admitted replacement for World Warehouse2×2/preview637. Market59's
+generic group is0 and its specialized composite/influence geometry does not
+establish a World1×1 replacement for preview645. Inspector124 and Watchtower127
+are actual2×2 definitions with separate concrete factories; neither establishes
+the identity of authored1×1 FireWatch/preview383. Safety subclass publishers
+and complete lifecycle selectors remain outside this bounded audit. The three
+paid plant kinds26–28 retain authored markers: harvest identity is not a proven
+graphical growth selector. No stock/load/paused/burning/understaffed variant is
+guessed for any of these objects.
+
+Qualified private evidence is `.local/oe61/research-industry/industry-qualified-findings-04.json`,
+SHA-256 `f5b2cb18623f15fcb23a06ddcf66b2913ab31b047f1f1c97cd7094575b2ca8d1`;
+the separately bounded core/safety audit is
+`.local/oe61/research-construction/identity-findings-04.json`, SHA-256
+`9fd1f0629c838892b85b66cdcc3f868fbeba6a15947c0239972fd28fabc343d5`.
+Original files, instruction dumps and decoded images remain private and
+read-only. The [OE61 rendering contract](../rendering/oe61-original-building-visuals.md)
+separates this source proof from actual World, pixel, save and human acceptance.
