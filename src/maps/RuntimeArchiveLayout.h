@@ -9,7 +9,15 @@
 
 namespace openemperor::maps {
 
-// The examined EXE's v213 loader for explicitly evidenced registrations.
+enum class RuntimeLayoutEvidence {
+    TerrainElevation,
+    TerrainElevationAndSlot8,
+    TerrainElevationAndGeneral2,
+    RestoredGreatWall,
+    WalkerSprites38And39
+};
+
+// The examined EXE's loader for explicitly evidenced registrations.
 // Asset catalog IDs remain physical SG3 record positions.
 struct RuntimeGroupEntry {
     std::uint32_t sg3_index_position = 0;
@@ -30,20 +38,16 @@ struct RuntimeArchiveLayout {
     std::uint32_t runtime_image_count = 0;
     std::uint32_t first_physical_record = 0;
     std::vector<RuntimeGroupEntry> groups;
+    RuntimeLayoutEvidence evidence = RuntimeLayoutEvidence::TerrainElevation;
 
     std::optional<std::uint32_t> physical_record_for_local(std::uint32_t local) const;
 };
 
-enum class RuntimeLayoutEvidence {
-    TerrainElevation,
-    TerrainElevationAndSlot8,
-    TerrainElevationAndGeneral2,
-    RestoredGreatWall
-};
-
 // Returns null for unsupported slot/evidence/version or inconsistent metadata. The
 // first SG3 bitmap-group filename, not the outer archive name, selects the
-// studied 200-record branch. Retained index words keep file order.
+// studied 200-record branch. Retained index words keep file order. The explicit
+// WalkerSprites38And39 evidence admits only v214 SprMain/SprMain2 registrations;
+// it does not change the historical v213/map-layout admission paths.
 std::optional<RuntimeArchiveLayout> build_runtime_archive_layout(
     std::uint32_t slot, const assets::Sg3Archive& archive,
     RuntimeLayoutEvidence evidence = RuntimeLayoutEvidence::TerrainElevation);

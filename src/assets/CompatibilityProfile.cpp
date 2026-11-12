@@ -19,6 +19,7 @@ namespace openemperor::assets {
 namespace fs = std::filesystem;
 namespace {
 constexpr std::uintmax_t max_manifest_bytes = 64U * 1024U;
+constexpr std::uintmax_t max_walker_animation_metadata_bytes = 1024U * 1024U;
 constexpr std::size_t max_profiles = 16;
 constexpr std::size_t max_fingerprints = 64;
 constexpr std::size_t max_fire_fingerprints = 4;
@@ -41,10 +42,11 @@ bool contained(const fs::path& path, const fs::path& root) {
     return true;
 }
 
-std::string read_bounded_text(const fs::path& path) {
+std::string read_bounded_text(const fs::path& path,
+                              std::uintmax_t maximum_bytes=max_manifest_bytes) {
     std::error_code error;
     const auto size = fs::file_size(path, error);
-    if (error || size > max_manifest_bytes)
+    if (error || size > maximum_bytes)
         throw std::runtime_error("compatibility manifest is missing or too large");
     std::ifstream stream(path, std::ios::binary);
     if (!stream) throw std::runtime_error("compatibility manifest could not be opened");
@@ -406,6 +408,89 @@ CompatibilityProfile load_compatibility_profile(const fs::path& manifest) {
                 std::string("optional HealthWorker metadata invalid: ")+exception.what();
         }
     }
+    if (document.contains("optional_walker_animations")) {
+        try {
+            const auto& animations=document.at("optional_walker_animations");
+            if (!animations.is_object() || !animations.contains("files") ||
+                !animations.at("files").is_array() ||
+                animations.at("files").size()>max_fire_fingerprints)
+                throw std::runtime_error("invalid complete walker fingerprint list");
+            for (const auto& [key,value]:animations.items()) {
+                (void)value;
+                if (key!="profile" && key!="files" && key!="core_files")
+                    throw std::runtime_error("unknown complete walker metadata field: "+key);
+            }
+            const auto path=checked_file(result.pack_root,required_relative(animations,"profile"));
+            if (!path)
+                throw std::runtime_error("complete walker metadata resource is missing or unsafe");
+            std::set<fs::path> covered;
+            if (animations.contains("core_files")) {
+                const auto& core=animations.at("core_files");
+                if (!core.is_array() || core.size()>max_fire_fingerprints)
+                    throw std::runtime_error("invalid complete walker core-file references");
+                for (const auto& item:core) {
+                    if (!item.is_string())
+                        throw std::runtime_error("complete walker core reference is not a path");
+                    const fs::path reference(item.get<std::string>());
+                    if (!safe_relative(reference) || !covered.insert(reference).second ||
+                        std::none_of(result.files.begin(),result.files.end(),[&](const auto& existing) {
+                            return existing.relative_path==reference;
+                        })) throw std::runtime_error("complete walker core dependency is not independently fingerprinted");
+                }
+            }
+            std::vector<CompatibilityFingerprint> files;
+            for (const auto& entry:animations.at("files")) {
+                if (!entry.is_object())
+                    throw std::runtime_error("complete walker fingerprint is not an object");
+                CompatibilityFingerprint fingerprint;
+                fingerprint.relative_path=required_relative(entry,"path");
+                fingerprint.sha256=required_string(entry,"sha256");
+                if (!sha256_text(fingerprint.sha256) ||
+                    !covered.insert(fingerprint.relative_path).second)
+                    throw std::runtime_error("complete walker fingerprint is invalid or duplicated");
+                files.push_back(std::move(fingerprint));
+            }
+            if (covered.size()!=4)
+                throw std::runtime_error("complete walker metadata requires exactly two archive/payload pairs");
+            const auto metadata=nlohmann::json::parse(
+                read_bounded_text(*path,max_walker_animation_metadata_bytes));
+            if (!metadata.is_object() || metadata.value("schema_version",0U)!=7 ||
+                metadata.value("mode",std::string{})!="curated_walker_preview")
+                throw std::runtime_error("complete walker resource must use schema 7");
+            const auto& roles=metadata.at("roles");
+            constexpr std::array<const char*,12> required_roles{
+                "clay","pottery","household","fire_inspector","supplier","distributor",
+                "service","health_worker","music","acrobat","drama","venue_music"};
+            if (!roles.is_object() || roles.size()!=required_roles.size())
+                throw std::runtime_error("complete walker resource must declare all twelve roles");
+            std::size_t aliases=0;
+            std::set<fs::path> used;
+            for (const auto* role:required_roles) {
+                if (!roles.contains(role))
+                    throw std::runtime_error(std::string("complete walker resource lacks role: ")+role);
+                const auto& frames=roles.at(role).at("frames");
+                if (!frames.is_array() || frames.empty() ||
+                    frames.size()>walker_max_frame_aliases-aliases)
+                    throw std::runtime_error("complete walker resource has invalid frame references");
+                aliases+=frames.size();
+                for (const auto& frame:frames) {
+                    const auto archive=required_relative(frame,"archive");
+                    auto pixels=archive;pixels.replace_extension(".555");
+                    if (archive.extension()!=".sg3" || !covered.contains(archive) ||
+                        !covered.contains(pixels))
+                        throw std::runtime_error("complete walker frame dependency is not independently fingerprinted");
+                    used.insert(archive);used.insert(pixels);
+                }
+            }
+            if (used!=covered)
+                throw std::runtime_error("complete walker dependency list differs from its frame references");
+            result.walker_animation_profile=*path;
+            result.walker_animation_files=std::move(files);
+        } catch (const std::exception& exception) {
+            result.walker_animation_metadata_error=
+                std::string("optional complete walker metadata invalid: ")+exception.what();
+        }
+    }
     if (document.contains("optional_original_houses")) {
         try {
             const auto& houses=document.at("optional_original_houses");
@@ -713,6 +798,38 @@ CompatibilityResult detect_compatibility(const fs::path& data_root,
                 } catch (const std::exception& exception) {
                     result.health_walker_status=CompatibilityStatus::Unknown;
                     result.health_walker_detail=std::string("optional HealthWorker input could not be checked: ")+
+                        exception.what();
+                }
+            }
+            if (!fire.walker_animation_metadata_error.empty()) {
+                result.walker_animation_detail=fire.walker_animation_metadata_error;
+            } else if (!fire.walker_animation_profile.empty()) {
+                result.walker_animation_status=CompatibilityStatus::Compatible;
+                result.walker_animation_detail="independently fingerprinted complete walker animations detected";
+                try {
+                    for (const auto& expected:fire.walker_animation_files) {
+                        const auto candidate=checked_file(root,expected.relative_path);
+                        if (!candidate) {
+                            std::error_code exists_error;
+                            const bool absent=!fs::exists(root/expected.relative_path,exists_error) &&
+                                !exists_error;
+                            result.walker_animation_status=absent ? CompatibilityStatus::MissingFile:
+                                CompatibilityStatus::FingerprintMismatch;
+                            result.walker_animation_detail="optional complete walker file missing or unsafe: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                        ++result.walker_animation_files_hashed;
+                        if (sha256_file(*candidate)!=expected.sha256) {
+                            result.walker_animation_status=CompatibilityStatus::FingerprintMismatch;
+                            result.walker_animation_detail="optional complete walker fingerprint mismatch: "+
+                                expected.relative_path.generic_string();
+                            break;
+                        }
+                    }
+                } catch (const std::exception& exception) {
+                    result.walker_animation_status=CompatibilityStatus::Unknown;
+                    result.walker_animation_detail=std::string("optional complete walker input could not be checked: ")+
                         exception.what();
                 }
             }

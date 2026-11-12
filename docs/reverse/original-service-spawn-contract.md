@@ -138,3 +138,65 @@ economy, frame work, migration or save field. Existing City-v8 and later
 authored Service profiles remain authoritative and unchanged. Tests of the
 isolated functions establish the bounded transitions documented here; they do
 not establish original full-game timing or a playable original supply loop.
+
+## Medical source-owned walking graphics
+
+The OE62 presentation audit freshly follows concrete model207/208 factory
+branches, their actor types, source callbacks and walking group publication in
+the same SHA-pinned, unexecuted Original. This adds graphic evidence; it changes
+none of the spawn thresholds, World service or save authorities above.
+
+| Concrete source | Medical factory branch / constructor | Published vtable | Spawn callback / actual Actor subtype | Source `+244` | Walking key / SprMain physical base |
+|---|---|---|---|---|---|
+|207 Herbalist|`51bf89 → 51bfa5 → 51c0b0`|`7b6114`|`51bcc0` /30|`51bd50`|`4c1e` /1813|
+|208 Acupuncturist|`51bf59 → 51bf75 → 51c0d0`|`7b6374`|`51bd80` /31|`51be10`|`4c03` /109|
+
+**EXE_OBSERVED:** `51c660` tests medical admission at `51c70f → 51be30` and
+enters factory `51bef0` at `51c71c`. The actual207/208 entries in its byte and
+jump tables select the two constructor calls above; these are verified table
+entries, not class names inferred from an adjacent function. The constructors
+publish their respective vtables at `51c0b8` and `51c0d8`. Their `+20` callbacks
+submit distinct Actor30/31 through shared spawn `+234`; both actual source
+`+24` slots bind `51d0c0`.
+
+Actual subtype callback entries30/31 at `84e780 + 40*subtype + 4` bind
+`4d5d00`. It reads Actor WORD`+62`, resolves that actual source through the
+Building manager and calls source`+24`. The common state handler retains the
+real Actor pointer, invokes its source `+244` with argument0 at `51d113`, and
+uses the returned walking key. The normal animation branch resolves that group
+at `51d43f..51d440`, adds current direction and phase times8, and writes the
+result to Actor`+8` at `51d455`. Argument1 selects distinct action groups:
+Herbalist `4c1f` / physical1909 and Acupuncturist `4c04` /205, both12 phases
+with stride1. Those actions are not a walking or idle substitute.
+
+**SOURCE_VERIFIED:** through the explicitly admitted shared slot38/v214
+`RuntimeArchiveLayout` and `ResourceGroupLookup`, `4c1e` selects SG3 index29,
+file offset138, raw physical1813 and runtime local1812; `4c03` selects index2,
+file offset84, raw physical109 and runtime local108. There is no200-record
+system prefix. Both bases declare12 walking phases, stride8 and raw speed ID4.
+Native columns0/2 are `base+8p` and `base+8p+2` for `p=0..11`; opposite6/4
+references have zero payload, offsets−6/−2, equal dimensions/Y and reflected
+metadata X. The references are never decoded as native pixels.
+
+All24 native frames in each family were decoded and prepared with the existing
+production loader and Omega shadow step. Every frame has positive transparent,
+opaque and alpha128 shadow witnesses; all native buffers within a family differ.
+Complete four-direction, twelve-phase sheets were opened and visually checked.
+Acupuncture canvases are29–38 by47–52 and occupy159,108 logical RGBA bytes;
+Herbalist canvases are60–61 by47–61 and occupy312,120 bytes. The herb cart is
+part of its original bitmap, not a new World cargo item or stock grant.
+
+**AUTHORED / integration boundary:** Service's actual Original208 provider and
+HealthWorker's actual Original207 provider have evidenced profession-family
+bindings. Classic authored ServicePost/HealthPost do not thereby become Original
+building identities. The new complete visual profile reuses physical109 for
+both its still-curated Clay figure and source-qualified Acupuncturist, without
+equating their professions. Historical Service1417 and Health2925 profiles
+retain their exact schemas and remain independent fallback presentation.
+Explicit feet use metadata X/Y-minus8, reflected X `width−X`; cached alpha uses
+`width−1−column`. Foot choice, two-World-tick cadence, global cycle origin and
+static waiting pose remain authored. Source speed ID4 supplies no recovered
+World clock. This establishes the narrow original profession/family relation,
+not Original illness, actor timing, roaming, goods, service or whole-scene parity.
+See the [culture graphic path](original-culture-source-contract.md#actual-travelling-culture-graphics-and-shared-resource-resolution)
+and [walker integration](../rendering/oe62-original-walker-animations.md).

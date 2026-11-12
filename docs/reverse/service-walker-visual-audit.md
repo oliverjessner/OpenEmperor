@@ -1,5 +1,13 @@
 # Bounded original Service figure audit
 
+This audit describes the historical, unchanged schema-5 Service1417 supplement.
+OE62's separate complete schema-7 profile uses source-qualified Acupuncture208
+family109 instead. Its actual factory/Actor/source-selector evidence is in the
+[medical graphic contract](original-service-spawn-contract.md#medical-source-owned-walking-graphics).
+The binding applies to actual Original208 providers; classic authored Service
+use remains curated. A failed complete-profile preparation retains this
+historical supplement. Feet and World-tick timing remain authored in both paths.
+
 Baseline: clean `6039912c2dd6e53ac71d74f058b3e32f1e5e9f50`. Scope: the single selected civilian walking family in the existing user's original SprMain data. Original profession, timing and pivots remain unproved; this is curated OpenEmperor presentation. [Activation, normal-app evidence and test starter](../service-walker-visuals.md) are separate from asset research.
 
 ## A — Original pixels

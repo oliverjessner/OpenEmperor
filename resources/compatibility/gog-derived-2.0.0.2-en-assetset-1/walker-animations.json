@@ -1,0 +1,3546 @@
+{
+  "schema_version": 7,
+  "mode": "curated_walker_preview",
+  "roles": {
+    "clay": {
+      "ticks_per_frame": 4,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. AUTHORED OpenEmperor role assignment; Original profession UNKNOWN. No load/cargo/idle-state parity.",
+      "clip_id": "curated-clay-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 109,
+          "foot_anchor": [
+            17,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 117,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 125,
+          "foot_anchor": [
+            10,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 133,
+          "foot_anchor": [
+            12,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 141,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 149,
+          "foot_anchor": [
+            14,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 157,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 165,
+          "foot_anchor": [
+            12,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 173,
+          "foot_anchor": [
+            11,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 181,
+          "foot_anchor": [
+            11,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 189,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 197,
+          "foot_anchor": [
+            15,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 111,
+          "foot_anchor": [
+            18,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 119,
+          "foot_anchor": [
+            17,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 127,
+          "foot_anchor": [
+            15,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 135,
+          "foot_anchor": [
+            13,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 143,
+          "foot_anchor": [
+            15,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 151,
+          "foot_anchor": [
+            17,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 159,
+          "foot_anchor": [
+            18,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 167,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 175,
+          "foot_anchor": [
+            14,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 183,
+          "foot_anchor": [
+            16,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 191,
+          "foot_anchor": [
+            17,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 199,
+          "foot_anchor": [
+            18,
+            46
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "pottery": {
+      "ticks_per_frame": 4,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. AUTHORED OpenEmperor role assignment; Original profession UNKNOWN. No load/cargo/idle-state parity.",
+      "clip_id": "curated-pottery-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 217,
+          "foot_anchor": [
+            18,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 225,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 233,
+          "foot_anchor": [
+            8,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 241,
+          "foot_anchor": [
+            9,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 249,
+          "foot_anchor": [
+            12,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 257,
+          "foot_anchor": [
+            13,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 265,
+          "foot_anchor": [
+            13,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 273,
+          "foot_anchor": [
+            9,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 281,
+          "foot_anchor": [
+            8,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 289,
+          "foot_anchor": [
+            11,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 297,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 305,
+          "foot_anchor": [
+            15,
+            43
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 219,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 227,
+          "foot_anchor": [
+            11,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 235,
+          "foot_anchor": [
+            10,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 243,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 251,
+          "foot_anchor": [
+            15,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 259,
+          "foot_anchor": [
+            17,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 267,
+          "foot_anchor": [
+            18,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 275,
+          "foot_anchor": [
+            12,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 283,
+          "foot_anchor": [
+            10,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 291,
+          "foot_anchor": [
+            10,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 299,
+          "foot_anchor": [
+            11,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 307,
+          "foot_anchor": [
+            11,
+            45
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "household": {
+      "ticks_per_frame": 4,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. AUTHORED OpenEmperor role assignment; Original profession UNKNOWN. No load/cargo/idle-state parity.",
+      "clip_id": "curated-household-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 433,
+          "foot_anchor": [
+            17,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 441,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 449,
+          "foot_anchor": [
+            10,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 457,
+          "foot_anchor": [
+            11,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 465,
+          "foot_anchor": [
+            12,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 473,
+          "foot_anchor": [
+            13,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 481,
+          "foot_anchor": [
+            13,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 489,
+          "foot_anchor": [
+            11,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 497,
+          "foot_anchor": [
+            10,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 505,
+          "foot_anchor": [
+            11,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 513,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 521,
+          "foot_anchor": [
+            15,
+            43
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 435,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 443,
+          "foot_anchor": [
+            12,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 451,
+          "foot_anchor": [
+            11,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 459,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 467,
+          "foot_anchor": [
+            15,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 475,
+          "foot_anchor": [
+            17,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 483,
+          "foot_anchor": [
+            18,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 491,
+          "foot_anchor": [
+            12,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 499,
+          "foot_anchor": [
+            11,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 507,
+          "foot_anchor": [
+            12,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 515,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 523,
+          "foot_anchor": [
+            14,
+            44
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "fire_inspector": {
+      "ticks_per_frame": 2,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. AUTHORED OpenEmperor role assignment; Original profession UNKNOWN. No load/cargo/idle-state parity.",
+      "clip_id": "curated-fire_inspector-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 433,
+          "foot_anchor": [
+            17,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 441,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 449,
+          "foot_anchor": [
+            10,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 457,
+          "foot_anchor": [
+            11,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 465,
+          "foot_anchor": [
+            12,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 473,
+          "foot_anchor": [
+            13,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 481,
+          "foot_anchor": [
+            13,
+            43
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 489,
+          "foot_anchor": [
+            11,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 497,
+          "foot_anchor": [
+            10,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 505,
+          "foot_anchor": [
+            11,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 513,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 521,
+          "foot_anchor": [
+            15,
+            43
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 435,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 443,
+          "foot_anchor": [
+            12,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 451,
+          "foot_anchor": [
+            11,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 459,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 467,
+          "foot_anchor": [
+            15,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 475,
+          "foot_anchor": [
+            17,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 483,
+          "foot_anchor": [
+            18,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 491,
+          "foot_anchor": [
+            12,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 499,
+          "foot_anchor": [
+            11,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 507,
+          "foot_anchor": [
+            12,
+            45
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 515,
+          "foot_anchor": [
+            13,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 523,
+          "foot_anchor": [
+            14,
+            44
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "supplier": {
+      "ticks_per_frame": 2,
+      "evidence": "Curated OpenEmperor transport family. Original native pixels and twelve ordered gait phases verified; opposite facings explicitly display-flipped from native sources. Timing and display foot anchors are authored, not original profession or pivot claims.",
+      "clip_id": "curated-sprmain2-supplier-walk",
+      "frames": [
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3605,
+          "foot_anchor": [
+            34,
+            46
+          ],
+          "alias": "native-3605"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3613,
+          "foot_anchor": [
+            36,
+            46
+          ],
+          "alias": "native-3613"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3621,
+          "foot_anchor": [
+            30,
+            45
+          ],
+          "alias": "native-3621"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3629,
+          "foot_anchor": [
+            28,
+            45
+          ],
+          "alias": "native-3629"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3637,
+          "foot_anchor": [
+            28,
+            45
+          ],
+          "alias": "native-3637"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3645,
+          "foot_anchor": [
+            29,
+            46
+          ],
+          "alias": "native-3645"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3653,
+          "foot_anchor": [
+            31,
+            47
+          ],
+          "alias": "native-3653"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3661,
+          "foot_anchor": [
+            31,
+            46
+          ],
+          "alias": "native-3661"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3669,
+          "foot_anchor": [
+            28,
+            46
+          ],
+          "alias": "native-3669"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3677,
+          "foot_anchor": [
+            28,
+            45
+          ],
+          "alias": "native-3677"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3685,
+          "foot_anchor": [
+            29,
+            45
+          ],
+          "alias": "native-3685"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3693,
+          "foot_anchor": [
+            32,
+            46
+          ],
+          "alias": "native-3693"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3607,
+          "foot_anchor": [
+            30,
+            55
+          ],
+          "alias": "native-3607"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3615,
+          "foot_anchor": [
+            31,
+            54
+          ],
+          "alias": "native-3615"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3623,
+          "foot_anchor": [
+            29,
+            53
+          ],
+          "alias": "native-3623"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3631,
+          "foot_anchor": [
+            29,
+            53
+          ],
+          "alias": "native-3631"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3639,
+          "foot_anchor": [
+            31,
+            54
+          ],
+          "alias": "native-3639"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3647,
+          "foot_anchor": [
+            34,
+            54
+          ],
+          "alias": "native-3647"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3655,
+          "foot_anchor": [
+            35,
+            55
+          ],
+          "alias": "native-3655"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3663,
+          "foot_anchor": [
+            35,
+            54
+          ],
+          "alias": "native-3663"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3671,
+          "foot_anchor": [
+            30,
+            54
+          ],
+          "alias": "native-3671"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3679,
+          "foot_anchor": [
+            29,
+            54
+          ],
+          "alias": "native-3679"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3687,
+          "foot_anchor": [
+            29,
+            54
+          ],
+          "alias": "native-3687"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 3695,
+          "foot_anchor": [
+            29,
+            54
+          ],
+          "alias": "native-3695"
+        }
+      ],
+      "clips": {
+        "neg_x": {
+          "frames": [
+            "native-3605",
+            "native-3613",
+            "native-3621",
+            "native-3629",
+            "native-3637",
+            "native-3645",
+            "native-3653",
+            "native-3661",
+            "native-3669",
+            "native-3677",
+            "native-3685",
+            "native-3693"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-3605",
+            "native-3613",
+            "native-3621",
+            "native-3629",
+            "native-3637",
+            "native-3645",
+            "native-3653",
+            "native-3661",
+            "native-3669",
+            "native-3677",
+            "native-3685",
+            "native-3693"
+          ],
+          "flip_x": false
+        },
+        "pos_x": {
+          "frames": [
+            "native-3607",
+            "native-3615",
+            "native-3623",
+            "native-3631",
+            "native-3639",
+            "native-3647",
+            "native-3655",
+            "native-3663",
+            "native-3671",
+            "native-3679",
+            "native-3687",
+            "native-3695"
+          ],
+          "flip_x": false
+        },
+        "pos_y": {
+          "frames": [
+            "native-3607",
+            "native-3615",
+            "native-3623",
+            "native-3631",
+            "native-3639",
+            "native-3647",
+            "native-3655",
+            "native-3663",
+            "native-3671",
+            "native-3679",
+            "native-3687",
+            "native-3695"
+          ],
+          "flip_x": true
+        }
+      },
+      "idle": "native-3605",
+      "idle_flip_x": false
+    },
+    "distributor": {
+      "ticks_per_frame": 2,
+      "evidence": "Curated OpenEmperor transport family. Original native pixels and twelve ordered gait phases verified; opposite facings explicitly display-flipped from native sources. Timing and display foot anchors are authored, not original profession or pivot claims.",
+      "clip_id": "curated-sprmain2-distributor-walk",
+      "frames": [
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5585,
+          "foot_anchor": [
+            18,
+            47
+          ],
+          "alias": "native-5585"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5593,
+          "foot_anchor": [
+            18,
+            48
+          ],
+          "alias": "native-5593"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5601,
+          "foot_anchor": [
+            18,
+            48
+          ],
+          "alias": "native-5601"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5609,
+          "foot_anchor": [
+            18,
+            48
+          ],
+          "alias": "native-5609"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5617,
+          "foot_anchor": [
+            18,
+            48
+          ],
+          "alias": "native-5617"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5625,
+          "foot_anchor": [
+            18,
+            48
+          ],
+          "alias": "native-5625"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5633,
+          "foot_anchor": [
+            18,
+            48
+          ],
+          "alias": "native-5633"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5641,
+          "foot_anchor": [
+            17,
+            49
+          ],
+          "alias": "native-5641"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5649,
+          "foot_anchor": [
+            17,
+            49
+          ],
+          "alias": "native-5649"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5657,
+          "foot_anchor": [
+            18,
+            48
+          ],
+          "alias": "native-5657"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5665,
+          "foot_anchor": [
+            18,
+            48
+          ],
+          "alias": "native-5665"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5673,
+          "foot_anchor": [
+            18,
+            47
+          ],
+          "alias": "native-5673"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5587,
+          "foot_anchor": [
+            17,
+            49
+          ],
+          "alias": "native-5587"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5595,
+          "foot_anchor": [
+            17,
+            49
+          ],
+          "alias": "native-5595"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5603,
+          "foot_anchor": [
+            17,
+            49
+          ],
+          "alias": "native-5603"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5611,
+          "foot_anchor": [
+            17,
+            49
+          ],
+          "alias": "native-5611"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5619,
+          "foot_anchor": [
+            18,
+            49
+          ],
+          "alias": "native-5619"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5627,
+          "foot_anchor": [
+            17,
+            48
+          ],
+          "alias": "native-5627"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5635,
+          "foot_anchor": [
+            18,
+            49
+          ],
+          "alias": "native-5635"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5643,
+          "foot_anchor": [
+            18,
+            50
+          ],
+          "alias": "native-5643"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5651,
+          "foot_anchor": [
+            18,
+            50
+          ],
+          "alias": "native-5651"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5659,
+          "foot_anchor": [
+            17,
+            50
+          ],
+          "alias": "native-5659"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5667,
+          "foot_anchor": [
+            17,
+            49
+          ],
+          "alias": "native-5667"
+        },
+        {
+          "archive": "DATA/SprMain2.sg3",
+          "image_index": 5675,
+          "foot_anchor": [
+            17,
+            48
+          ],
+          "alias": "native-5675"
+        }
+      ],
+      "clips": {
+        "neg_x": {
+          "frames": [
+            "native-5585",
+            "native-5593",
+            "native-5601",
+            "native-5609",
+            "native-5617",
+            "native-5625",
+            "native-5633",
+            "native-5641",
+            "native-5649",
+            "native-5657",
+            "native-5665",
+            "native-5673"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-5585",
+            "native-5593",
+            "native-5601",
+            "native-5609",
+            "native-5617",
+            "native-5625",
+            "native-5633",
+            "native-5641",
+            "native-5649",
+            "native-5657",
+            "native-5665",
+            "native-5673"
+          ],
+          "flip_x": false
+        },
+        "pos_x": {
+          "frames": [
+            "native-5587",
+            "native-5595",
+            "native-5603",
+            "native-5611",
+            "native-5619",
+            "native-5627",
+            "native-5635",
+            "native-5643",
+            "native-5651",
+            "native-5659",
+            "native-5667",
+            "native-5675"
+          ],
+          "flip_x": false
+        },
+        "pos_y": {
+          "frames": [
+            "native-5587",
+            "native-5595",
+            "native-5603",
+            "native-5611",
+            "native-5619",
+            "native-5627",
+            "native-5635",
+            "native-5643",
+            "native-5651",
+            "native-5659",
+            "native-5667",
+            "native-5675"
+          ],
+          "flip_x": true
+        }
+      },
+      "idle": "native-5585",
+      "idle_flip_x": false
+    },
+    "service": {
+      "ticks_per_frame": 2,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. EXE_OBSERVED source type 208 +244 selector 0x51be10 -> 0x4c03; profession applies only to that Original source. Other World-role use remains curated.",
+      "clip_id": "source-service-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 109,
+          "foot_anchor": [
+            17,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 117,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 125,
+          "foot_anchor": [
+            10,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 133,
+          "foot_anchor": [
+            12,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 141,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 149,
+          "foot_anchor": [
+            14,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 157,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 165,
+          "foot_anchor": [
+            12,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 173,
+          "foot_anchor": [
+            11,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 181,
+          "foot_anchor": [
+            11,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 189,
+          "foot_anchor": [
+            13,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 197,
+          "foot_anchor": [
+            15,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 111,
+          "foot_anchor": [
+            18,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 119,
+          "foot_anchor": [
+            17,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 127,
+          "foot_anchor": [
+            15,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 135,
+          "foot_anchor": [
+            13,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 143,
+          "foot_anchor": [
+            15,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 151,
+          "foot_anchor": [
+            17,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 159,
+          "foot_anchor": [
+            18,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 167,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 175,
+          "foot_anchor": [
+            14,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 183,
+          "foot_anchor": [
+            16,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 191,
+          "foot_anchor": [
+            17,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 199,
+          "foot_anchor": [
+            18,
+            46
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "health_worker": {
+      "ticks_per_frame": 2,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. EXE_OBSERVED source type 207 +244 selector 0x51bd50 -> 0x4c1e; profession applies only to that Original source. Other World-role use remains curated.",
+      "clip_id": "source-health_worker-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1813,
+          "foot_anchor": [
+            36,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1821,
+          "foot_anchor": [
+            36,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1829,
+          "foot_anchor": [
+            36,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1837,
+          "foot_anchor": [
+            36,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1845,
+          "foot_anchor": [
+            36,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1853,
+          "foot_anchor": [
+            36,
+            44
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1861,
+          "foot_anchor": [
+            36,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1869,
+          "foot_anchor": [
+            36,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1877,
+          "foot_anchor": [
+            36,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1885,
+          "foot_anchor": [
+            36,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1893,
+          "foot_anchor": [
+            36,
+            45
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1901,
+          "foot_anchor": [
+            36,
+            44
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1815,
+          "foot_anchor": [
+            37,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1823,
+          "foot_anchor": [
+            37,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1831,
+          "foot_anchor": [
+            37,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1839,
+          "foot_anchor": [
+            37,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1847,
+          "foot_anchor": [
+            37,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1855,
+          "foot_anchor": [
+            37,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1863,
+          "foot_anchor": [
+            37,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1871,
+          "foot_anchor": [
+            37,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1879,
+          "foot_anchor": [
+            37,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1887,
+          "foot_anchor": [
+            37,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1895,
+          "foot_anchor": [
+            37,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 1903,
+          "foot_anchor": [
+            37,
+            45
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "music": {
+      "ticks_per_frame": 2,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. EXE_OBSERVED source type 211 +244 selector 0x48b000 -> 0x4c67; profession applies only to that Original source. Other World-role use remains curated.",
+      "clip_id": "source-music-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7076,
+          "foot_anchor": [
+            32,
+            56
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7084,
+          "foot_anchor": [
+            27,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7092,
+          "foot_anchor": [
+            26,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7100,
+          "foot_anchor": [
+            27,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7108,
+          "foot_anchor": [
+            27,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7116,
+          "foot_anchor": [
+            27,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7124,
+          "foot_anchor": [
+            27,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7132,
+          "foot_anchor": [
+            27,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7140,
+          "foot_anchor": [
+            26,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7148,
+          "foot_anchor": [
+            25,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7156,
+          "foot_anchor": [
+            27,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7164,
+          "foot_anchor": [
+            29,
+            57
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7078,
+          "foot_anchor": [
+            27,
+            55
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7086,
+          "foot_anchor": [
+            23,
+            55
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7094,
+          "foot_anchor": [
+            24,
+            55
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7102,
+          "foot_anchor": [
+            27,
+            56
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7110,
+          "foot_anchor": [
+            29,
+            56
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7118,
+          "foot_anchor": [
+            31,
+            56
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7126,
+          "foot_anchor": [
+            32,
+            55
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7134,
+          "foot_anchor": [
+            26,
+            55
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7142,
+          "foot_anchor": [
+            23,
+            55
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7150,
+          "foot_anchor": [
+            23,
+            55
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7158,
+          "foot_anchor": [
+            24,
+            56
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7166,
+          "foot_anchor": [
+            25,
+            55
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "acrobat": {
+      "ticks_per_frame": 2,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. EXE_OBSERVED source type 212 +244 selector 0x48b1b0 -> 0x4c94; profession applies only to that Original source. Other World-role use remains curated.",
+      "clip_id": "source-acrobat-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8541,
+          "foot_anchor": [
+            16,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8549,
+          "foot_anchor": [
+            13,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8557,
+          "foot_anchor": [
+            13,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8565,
+          "foot_anchor": [
+            14,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8573,
+          "foot_anchor": [
+            14,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8581,
+          "foot_anchor": [
+            14,
+            56
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8589,
+          "foot_anchor": [
+            14,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8597,
+          "foot_anchor": [
+            14,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8605,
+          "foot_anchor": [
+            13,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8613,
+          "foot_anchor": [
+            13,
+            58
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8621,
+          "foot_anchor": [
+            14,
+            57
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8629,
+          "foot_anchor": [
+            15,
+            57
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8543,
+          "foot_anchor": [
+            14,
+            58
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8551,
+          "foot_anchor": [
+            14,
+            58
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8559,
+          "foot_anchor": [
+            14,
+            58
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8567,
+          "foot_anchor": [
+            14,
+            58
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8575,
+          "foot_anchor": [
+            15,
+            57
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8583,
+          "foot_anchor": [
+            17,
+            57
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8591,
+          "foot_anchor": [
+            17,
+            57
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8599,
+          "foot_anchor": [
+            14,
+            58
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8607,
+          "foot_anchor": [
+            14,
+            59
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8615,
+          "foot_anchor": [
+            14,
+            59
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8623,
+          "foot_anchor": [
+            14,
+            58
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 8631,
+          "foot_anchor": [
+            14,
+            58
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "drama": {
+      "ticks_per_frame": 2,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. EXE_OBSERVED source type 213 +244 selector 0x48b360 -> 0x4c6b; profession applies only to that Original source. Other World-role use remains curated.",
+      "clip_id": "source-drama-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7205,
+          "foot_anchor": [
+            16,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7213,
+          "foot_anchor": [
+            12,
+            47
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7221,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7229,
+          "foot_anchor": [
+            13,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7237,
+          "foot_anchor": [
+            14,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7245,
+          "foot_anchor": [
+            14,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7253,
+          "foot_anchor": [
+            14,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7261,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7269,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7277,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7285,
+          "foot_anchor": [
+            12,
+            46
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7293,
+          "foot_anchor": [
+            14,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7207,
+          "foot_anchor": [
+            14,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7215,
+          "foot_anchor": [
+            13,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7223,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7231,
+          "foot_anchor": [
+            13,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7239,
+          "foot_anchor": [
+            14,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7247,
+          "foot_anchor": [
+            16,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7255,
+          "foot_anchor": [
+            16,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7263,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7271,
+          "foot_anchor": [
+            13,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7279,
+          "foot_anchor": [
+            14,
+            47
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7287,
+          "foot_anchor": [
+            14,
+            46
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 7295,
+          "foot_anchor": [
+            14,
+            45
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    },
+    "venue_music": {
+      "ticks_per_frame": 2,
+      "evidence": "SOURCE_VERIFIED native 12-phase/stride-8 walk and mirror columns 6/4. AUTHORED metadata X,Y-minus-eight feet, explicit W-X display reflection, global cadence and static idle. EXE_OBSERVED source type 75 +244 selector 0x48b7c0 -> 0x4ca0; profession applies only to that Original source. Other World-role use remains curated.",
+      "clip_id": "source-venue_music-12",
+      "frames": [
+        {
+          "alias": "native-0-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9339,
+          "foot_anchor": [
+            17,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9347,
+          "foot_anchor": [
+            13,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9355,
+          "foot_anchor": [
+            9,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9363,
+          "foot_anchor": [
+            9,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9371,
+          "foot_anchor": [
+            11,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9379,
+          "foot_anchor": [
+            13,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9387,
+          "foot_anchor": [
+            13,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9395,
+          "foot_anchor": [
+            9,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9403,
+          "foot_anchor": [
+            10,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9411,
+          "foot_anchor": [
+            11,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9419,
+          "foot_anchor": [
+            13,
+            67
+          ]
+        },
+        {
+          "alias": "native-0-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9427,
+          "foot_anchor": [
+            15,
+            68
+          ]
+        },
+        {
+          "alias": "native-2-0",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9341,
+          "foot_anchor": [
+            13,
+            67
+          ]
+        },
+        {
+          "alias": "native-2-1",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9349,
+          "foot_anchor": [
+            9,
+            68
+          ]
+        },
+        {
+          "alias": "native-2-2",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9357,
+          "foot_anchor": [
+            10,
+            68
+          ]
+        },
+        {
+          "alias": "native-2-3",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9365,
+          "foot_anchor": [
+            14,
+            68
+          ]
+        },
+        {
+          "alias": "native-2-4",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9373,
+          "foot_anchor": [
+            15,
+            67
+          ]
+        },
+        {
+          "alias": "native-2-5",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9381,
+          "foot_anchor": [
+            17,
+            67
+          ]
+        },
+        {
+          "alias": "native-2-6",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9389,
+          "foot_anchor": [
+            18,
+            67
+          ]
+        },
+        {
+          "alias": "native-2-7",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9397,
+          "foot_anchor": [
+            12,
+            67
+          ]
+        },
+        {
+          "alias": "native-2-8",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9405,
+          "foot_anchor": [
+            9,
+            68
+          ]
+        },
+        {
+          "alias": "native-2-9",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9413,
+          "foot_anchor": [
+            9,
+            67
+          ]
+        },
+        {
+          "alias": "native-2-10",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9421,
+          "foot_anchor": [
+            9,
+            67
+          ]
+        },
+        {
+          "alias": "native-2-11",
+          "archive": "DATA/SprMain.sg3",
+          "image_index": 9429,
+          "foot_anchor": [
+            11,
+            67
+          ]
+        }
+      ],
+      "clips": {
+        "pos_x": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": false
+        },
+        "neg_x": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": true
+        },
+        "pos_y": {
+          "frames": [
+            "native-2-0",
+            "native-2-1",
+            "native-2-2",
+            "native-2-3",
+            "native-2-4",
+            "native-2-5",
+            "native-2-6",
+            "native-2-7",
+            "native-2-8",
+            "native-2-9",
+            "native-2-10",
+            "native-2-11"
+          ],
+          "flip_x": true
+        },
+        "neg_y": {
+          "frames": [
+            "native-0-0",
+            "native-0-1",
+            "native-0-2",
+            "native-0-3",
+            "native-0-4",
+            "native-0-5",
+            "native-0-6",
+            "native-0-7",
+            "native-0-8",
+            "native-0-9",
+            "native-0-10",
+            "native-0-11"
+          ],
+          "flip_x": false
+        }
+      },
+      "idle": "native-0-0",
+      "idle_flip_x": true
+    }
+  }
+}

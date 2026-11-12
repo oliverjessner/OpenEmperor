@@ -1,5 +1,12 @@
 # Bounded FireInspector figure audit
 
+The columns and asset counts below describe the historical schema-3 supplement,
+which remains exact. The separately fingerprinted OE62 schema-7 complete profile
+corrects live cardinal selection to native columns0/2 and their evidenced
+opposite6/4 display reflections, using24 shared images instead of48. Original
+Inspector profession remains unproved; the older0/1/2/3 table is not current
+cardinal-facing proof. See the [current walker contract](../rendering/oe62-original-walker-animations.md).
+
 The presentation pass starts from **`eba0decf1c4879b349e803600aa544656d50b8ea`**, with a clean worktree. Research is read-only and stops after one complete human walking set. Original files, decoded frames, contact sheets, foot-reference comparisons and machine reports remain ignored under `.local/fire-inspector/`. FireWatch artwork and the original `fire1` animation are not researched or changed by this pass.
 
 ## A — Original human pixels

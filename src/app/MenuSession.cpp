@@ -384,6 +384,8 @@ void MenuSession::finish_loading() {
             visuals.service_walker_fallback_reason);
         view->set_health_walker_visuals(visuals.health_walker,visuals.health_walker_source,
             visuals.health_walker_fallback_reason);
+        view->set_walker_animation_visuals(visuals.walker_animation,visuals.walker_animation_source,
+            visuals.walker_animation_fallback_reason);
         view->set_original_house_visuals(visuals.original_house,visuals.original_house_source,
             visuals.original_house_fallback_reason);
         view->set_original_building_visuals(visuals.original_building,visuals.original_building_source,

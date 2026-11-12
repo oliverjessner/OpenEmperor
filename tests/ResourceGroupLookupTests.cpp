@@ -27,9 +27,10 @@ void u32(std::vector<std::uint8_t>& bytes, std::size_t offset, std::uint32_t val
 }
 assets::Sg3Archive archive(std::uint32_t capacity, std::uint32_t in_use,
                             std::string_view first_group,
-                            const std::vector<std::pair<std::uint32_t,std::uint16_t>>& indices) {
-    std::vector<std::uint8_t> bytes(40680ULL+64ULL*capacity,0);
-    u32(bytes,4,213); u32(bytes,12,capacity); u32(bytes,16,in_use);
+                            const std::vector<std::pair<std::uint32_t,std::uint16_t>>& indices,
+                            std::uint32_t version=213) {
+    std::vector<std::uint8_t> bytes(40680ULL+(version==214 ? 72ULL:64ULL)*capacity,0);
+    u32(bytes,4,version); u32(bytes,12,capacity); u32(bytes,16,in_use);
     if (!first_group.empty()) {
         u32(bytes,20,1);
         check(first_group.size()<65,"synthetic group name too long");
@@ -39,6 +40,53 @@ assets::Sg3Archive archive(std::uint32_t capacity, std::uint32_t in_use,
     for (const auto& [position,value] : indices)
         u16(bytes,80+2*position,value);
     return assets::parse_sg3(bytes,bytes.size());
+}
+void walker_sprite_registrations() {
+    using Evidence=maps::RuntimeLayoutEvidence;
+    for (const auto slot:{38U,39U}) {
+        const auto first=slot==38U ? "Peddler":"alligator";
+        const auto sprite=archive(32,20,first,{{0,1},{1,9},{2,0},{4,4},{6,0x8000},{8,12}},214);
+        check(!maps::build_runtime_archive_layout(slot,sprite),
+            "historical runtime layout does not silently admit walker v214 registrations");
+        const auto layout=maps::build_runtime_archive_layout(slot,sprite,Evidence::WalkerSprites38And39);
+        check(layout && layout->verified_registration && layout->sg3_version==214 &&
+            layout->evidence==Evidence::WalkerSprites38And39 && !layout->system_branch_activated &&
+            layout->system_record_skip==0 && layout->first_physical_record==1 &&
+            layout->runtime_image_count==20 && layout->physical_record_for_local(0)==1 &&
+            layout->physical_record_for_local(19)==20 && !layout->physical_record_for_local(20),
+            "explicit walker evidence retains physical dummy skip without a system prefix");
+        const auto selected=maps::resolve_resource_group({slot*512+3},{{slot,{&*layout}}});
+        check(selected.status==maps::GroupLookupStatus::Resolved && selected.sg3_index_position==4 &&
+            selected.sg3_file_offset==88 && selected.sg3_raw_value==4 && selected.local_base==3 &&
+            selected.packed_base && selected.packed_base->value==slot*0x4000+3 &&
+            layout->physical_record_for_local(*selected.local_base)==4,
+            "v214 walker keys reuse file-order filtering and physical translation exactly once");
+        auto forged=*layout;forged.evidence=Evidence::TerrainElevation;
+        check(maps::resolve_resource_group({slot*512+1},{{slot,{&forged}}}).status==
+            maps::GroupLookupStatus::UnverifiedRegistration,
+            "a bare version-214 declaration is not verified walker registration evidence");
+        forged=*layout;forged.system_record_skip=200;
+        check(maps::resolve_resource_group({slot*512+1},{{slot,{&forged}}}).status==
+            maps::GroupLookupStatus::UnverifiedRegistration,
+            "walker registration cannot acquire terrain system-record semantics");
+        assets::AssetCatalog catalog;catalog.records.resize(32);
+        check(maps::resolve_graphics_id_hypothesis(slot*0x4000,{{slot,{&catalog,&*layout}}}).status==
+            maps::GraphicsIdStatus::UnverifiedRegistration,
+            "the separate historical stored-map graphics diagnostic remains v213 only");
+        auto wrong=sprite;wrong.groups[0].filename=slot==38U ? "alligator":"Peddler";
+        check(!maps::build_runtime_archive_layout(slot,wrong,Evidence::WalkerSprites38And39),
+            "walker slot retains its exact observed first embedded bitmap identity");
+        wrong=sprite;wrong.index[0]=0;
+        check(!maps::build_runtime_archive_layout(slot,wrong,Evidence::WalkerSprites38And39),
+            "walker registration requires the observed initial physical-record-one group");
+        wrong=sprite;wrong.header.version=213;
+        check(!maps::build_runtime_archive_layout(slot,wrong,Evidence::WalkerSprites38And39) &&
+            !maps::build_runtime_archive_layout(3,wrong,Evidence::WalkerSprites38And39),
+            "new walker evidence does not broaden v213 or historical map-slot admission");
+        check(!maps::build_runtime_archive_layout(37,sprite,Evidence::WalkerSprites38And39) &&
+            !maps::build_runtime_archive_layout(40,sprite,Evidence::WalkerSprites38And39),
+            "adjacent sprite archive registrations remain unsupported");
+    }
 }
 void great_wall_group_bounds() {
     for (const auto length:{40U,42U}) for (const bool adjacent:{false,true}) {
@@ -87,6 +135,7 @@ void great_wall_group_bounds() {
 int main() {
     try {
         great_wall_group_bounds();
+        walker_sprite_registrations();
         // Value sorting would yield 12,9,4,4; unique increasing list keys
         // preserve the file order 9,4,12,4, including a duplicate.
         const auto plain=archive(32,20,"Other.bmp",

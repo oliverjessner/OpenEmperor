@@ -112,7 +112,7 @@ struct Fixture {
 void schema_checks(Fixture& f) {
     static_assert(assets::walker_role_index(Role::Clay)==0&&assets::walker_role_index(Role::Pottery)==1&&assets::walker_role_index(Role::Household)==2);
     static_assert(assets::walker_role_index(Role::FireInspector)==3&&assets::walker_role_index(Role::Supplier)==4&&assets::walker_role_index(Role::Distributor)==5&&assets::walker_role_index(Role::Service)==6);
-    static_assert(assets::walker_core_role_count==3&&assets::walker_schema3_role_count==4&&assets::walker_schema4_role_count==6&&assets::walker_schema5_role_count==7&&assets::walker_visual_role_count==8);
+    static_assert(assets::walker_core_role_count==3&&assets::walker_schema3_role_count==4&&assets::walker_schema4_role_count==6&&assets::walker_schema5_role_count==7&&assets::walker_schema6_role_count==8&&assets::walker_visual_role_count==12);
     static_assert(assets::walker_legacy_max_frame_aliases==256&&assets::walker_frame_alias_limit(5)==256&&assets::walker_max_frame_aliases==320&&assets::walker_max_unique_assets==256&&assets::walker_max_rgba_bytes==64U*1024U*1024U);
     const auto good=f.profile();check(good.schema_version==5&&good.find(Role::Service)&&good.unique_images.size()==2&&assets::walker_rgba_bytes(good)==1528,"schema5 Service physical dedupe/bytes changed");
     check(std::string_view(assets::walker_role_name(Role::Service))=="service"&&oe::walker_visual_role(sim::CourierRole::Service)==Role::Service&&oe::walker_visual_role(sim::CourierRole::HealthWorker)==Role::HealthWorker,"append-only Service logical mapping or Health append mapping changed");

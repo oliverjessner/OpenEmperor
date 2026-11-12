@@ -33,8 +33,9 @@ struct GroupResolution {
     std::optional<PackedGraphicId> packed_base;
 };
 
-// Explicit snapshot of the studied v213 resource manager. No archive is selected
-// by filesystem order. The caller owns each built layout.
+// Explicit snapshot of the studied resource manager. Historical v213 and the
+// separately admitted v214 walker registrations share the same lookup. No
+// archive is selected by filesystem order. The caller owns each built layout.
 GroupResolution resolve_resource_group(
     ResourceGroupKey key, const std::map<std::uint32_t, GroupRegistration>& registrations);
 

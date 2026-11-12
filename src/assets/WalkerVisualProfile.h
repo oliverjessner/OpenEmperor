@@ -13,13 +13,15 @@
 namespace openemperor::assets {
 enum class StorageDirection { PosX, NegX, PosY, NegY };
 enum class WalkerVisualRole : std::uint8_t {
-    Clay=0, Pottery=1, Household=2, FireInspector=3, Supplier=4, Distributor=5, Service=6, HealthWorker=7
+    Clay=0, Pottery=1, Household=2, FireInspector=3, Supplier=4, Distributor=5, Service=6, HealthWorker=7,
+    Music=8, Acrobat=9, Drama=10, VenueMusic=11
 };
 inline constexpr std::size_t walker_core_role_count=3;
 inline constexpr std::size_t walker_schema3_role_count=4;
 inline constexpr std::size_t walker_schema4_role_count=6;
 inline constexpr std::size_t walker_schema5_role_count=7;
-inline constexpr std::size_t walker_visual_role_count=8;
+inline constexpr std::size_t walker_schema6_role_count=8;
+inline constexpr std::size_t walker_visual_role_count=12;
 inline constexpr std::size_t walker_legacy_max_frame_aliases=256;
 inline constexpr std::size_t walker_max_frame_aliases=320;
 constexpr std::size_t walker_frame_alias_limit(std::uint32_t schema_version) {
@@ -44,8 +46,24 @@ struct WalkerRoleVisual {
     std::string clip_id; // Required for all roles after the original three.
     std::vector<WalkerFrame> frames;
     std::array<std::vector<std::size_t>,4> clips; // Indices into frames; order is manifest order.
+    // Schema 7 can reuse a native clip for its evidenced opposite direction.
+    // The additional display reflection never changes or duplicates its pixels.
+    std::array<bool,4> clip_flip_x{};
     std::size_t idle_frame=0;
+    bool idle_flip_x=false; // Schema-7 idle may reuse a native opposite-facing alias.
 };
+struct WalkerFrameTransform {
+    double foot_x=0,foot_y=0;
+    bool flip_x=false;
+};
+// Frame anchors already include their legacy per-frame transform. An extra
+// clip reflection acts on that displayed image, including its continuous foot.
+// Picking separately reflects discrete pixel columns as width-1-column.
+inline WalkerFrameTransform walker_frame_transform(const WalkerFrame& frame,
+        std::uint32_t image_width,bool clip_flip_x=false) {
+    return {clip_flip_x ? static_cast<double>(image_width)-frame.foot_x:frame.foot_x,
+            frame.foot_y,frame.flip_x!=clip_flip_x};
+}
 struct WalkerVisualProfile {
     std::uint32_t schema_version=1;
     std::array<std::optional<WalkerRoleVisual>,walker_visual_role_count> roles;

@@ -144,3 +144,93 @@ Confucian219's original material gate and initial elite-only source condition re
 The raw General registrations are211→824968/key412/physical589,212→824980/key410/physical460,213→824998/key411/physical501. They are static Type30 records with the stated initial sides. Source+244 selectors48b000/48b1b0/48b360 return walking groups4c67/4c94/4c6b and argument1 alternatives4c6a/4c98/4c6f. The checked walking SprMain records have12 phases and stride8.
 
 Source+200 additionally distinguishes sourceWORD2e zero/nonzero in its graphic configuration. Those variants must not be relabeled loaded/trainee art without further state proof. Group metadata is not decoded-image, actor-foot, animation, full scene or human acceptance.
+
+## Actual travelling culture graphics and shared resource resolution
+
+The OE62 read-only check freshly verifies the same pinned EXE, source vtables,
+registration, phase selection and actual actor graphic publication. Original
+bytes and disassembly remain private under `.local/oe62/source-research/`; the
+Original was never executed. Whole-source guards retain byte hashes, size, mode
+and mtime. These observations establish the bounded profession-to-walking-family
+path, separately from OpenEmperor movement, clocks and human acceptance.
+
+| Paid source / actual Original subtype | Source vtable | `+244` selector | Walking key | SprMain physical base | Alternate key / physical base |
+|---|---|---|---|---:|---|
+| Music School211 / Musician34 | `7acedc` | `48b000` | `4c67` |7076|`4c6a` /7196|
+| Acrobat School212 / Acrobat32 | `7ad140` | `48b1b0` | `4c94` |8541|`4c98` /8678|
+| Drama School213 / Actor33 | `7ad3a4` | `48b360` | `4c6b` |7205|`4c6f` /7508|
+| Theatre75 / venue Actor36 | `7ad608` | `48b7c0` | `4ca0` |9339|`4ca1` /9435|
+
+**EXE_OBSERVED:** the school association does not rely only on a source graphic
+getter. The actual `48a9a0` actor handler reads Actor subtype `+12` at `48ac99`:
+subtype33 selects `4c6b` at `48acbc`, subtype34 selects `4c67` at `48acb0`, and
+the remaining admitted school performer selects `4c94` at `48aca4`. Outside its
+separate state4 action, `48acf7..48ad13` resolves that walking group, adds the
+actor's actual direction and phase times8, and writes the resulting graphic to
+Actor`+8`. Thus walking and the one-column alternate actions are distinct paths.
+The alternative metadata has respectively9/12/20/12 phases with stride1; it is
+not evidence for another walking direction or a recovered idle animation.
+
+Actor subtype callback entries30/31/32/33/34/36 at `84e780 + 40*subtype + 4`
+all bind `4d5d00`. That callback reads the actual Actor's source WORD`+62`,
+resolves the owner through the Building manager and invokes source`+24`.
+Theatre's `48b7e0` delegates to `51d0c0`; that handler calls the actual owner's
+`+244` with argument0 at `51d113`. Its normal walking branch resolves that
+group at `51d43f..51d440` and publishes direction plus phase times8 to the same
+Actor`+8` at `51d455`. Argument1 selects the separate alternate. This connects
+Theatre75's walking key to its real source-owned Actor36 rather than assigning
+the Musician family to every Music service.
+
+**SOURCE_VERIFIED / shared model:** the initial registration stores `SprMain`
+and `SprMain2` at array positions38/39 (`475d44`/`475d4f`). Their SG3 version214
+loader skips the v213 conversion but retains the same physical-order copy,
+dummy-record exclusion and file-order positive signed index filtering. Their
+first embedded names are `Peddler` and `alligator`; neither takes the200-record
+`Zeus_system.bmp` branch. Explicit
+`RuntimeLayoutEvidence::WalkerSprites38And39` admits only these two v214
+registrations to the existing `RuntimeArchiveLayout` and `ResourceGroupLookup`.
+Historical default/v213 layout admission and the stored-map graphics diagnostic
+remain unchanged. No second private resource resolver selects the new frames.
+
+For example, key`4c67` selects slot38, the103rd retained group, SG3 index102 at
+file offset284, raw physical7076, runtime local7075. The shared layout returns
+physical7076 exactly once. Keys`4c94`, `4c6b`, `4ca0` similarly select index147,
+106,159 and physical8541,7205,9339. The table indices, packed IDs and physical
+AssetIds remain distinct domains.
+
+Each walking family has12 phases and stride8. For phase `p=0..11`, decoded
+native columns0/2 are `base+8p` and `base+8p+2`. Opposite columns6/4 are
+zero-payload mirror references with signed relative offsets−6/−2. All24
+opposite references per family have equal dimensions and metadata Y, with
+mirror X exactly `width−native X`. They remain metadata witnesses, never SG3
+decoder inputs. The four supported storage directions use native0 for `neg_y`,
+native2 for `pos_x`, and the corresponding explicit horizontal display
+reflections for `neg_x`/`pos_y`. Complete four-by-twelve contact sheets were
+actually opened, including phase11-to0 comparisons; these are source/decode
+evidence, not native application or human acceptance.
+
+| Family | Native canvas width / height |24 native RGBA bytes|
+|---|---|---:|
+| Music7076 |48–60 /63–70|328,684|
+| Acrobat8541 |28–32 /56–63|166,816|
+| Drama7205 |26–31 /47–52|132,464|
+| Venue9339 |26–33 /66–73|195,392|
+
+**AUTHORED:** displayed feet are explicit metadata X/Y-minus8, with reflected
+continuous X `width−X`; cached alpha separately uses discrete `width−1−column`.
+Those common feet were checked visually and remain authored anchors. Base
+speed ID4 is a source fact, not a recovered duration in World ticks. OpenEmperor
+retains its tick-based preview cadence, global phase origin and static first
+walking pose for waiting/idle; no original alternate action is inferred.
+All selected native records have the existing flagged, alpha-free Omega
+shadow composition. Exact red markers become black alpha128 during preparation;
+opaque/transparent pixels and adjacent red shades retain the existing decoder
+contract. No per-frame decode or shadow scan is introduced.
+
+The Music and Acrobat original bitmaps contain more than one drawn person.
+One such bitmap still represents one actual World actor and one sprite draw;
+it creates no additional Performer, courier, walker identity or arrival. Source
+art does not establish complete performer animation, roaming, clock, venue
+activity or whole-scene Original parity. The maintained
+[walker guide](../rendering/oe62-original-walker-animations.md) reports production
+activation, replay, finite capture matrices and remaining acceptance separately.
