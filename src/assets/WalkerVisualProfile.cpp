@@ -80,6 +80,19 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
     if (tick_count==0 || tick_count>1000)
         throw std::runtime_error("walker ticks_per_frame outside 1..1000");
     WalkerRoleVisual role;
+    if (state.strict_frame_schema>=7) {
+        for (const auto& [key,value]:json.items()) {
+            (void)value;
+            if (key!="ticks_per_frame" && key!="evidence" && key!="clip_id" &&
+                key!="frames" && key!="clips" && key!="idle" && key!="idle_flip_x")
+                throw std::runtime_error("unknown schema-7 walker role field: "+key);
+        }
+        if (json.contains("idle_flip_x")) {
+            if (!json.at("idle_flip_x").is_boolean())
+                throw std::runtime_error("schema-7 idle_flip_x must be boolean");
+            role.idle_flip_x=json.at("idle_flip_x").get<bool>();
+        }
+    }
     role.ticks_per_frame=static_cast<std::uint32_t>(tick_count);
     role.evidence=bounded_string(json,"evidence",512);
     if (animated) role.clip_id=bounded_string(json,"clip_id",64);
@@ -182,12 +195,25 @@ WalkerRoleVisual parse_role(const nlohmann::json& json,ParseState& state,
     if (!json.contains("clips") || !json.at("clips").is_object())
         throw std::runtime_error("walker clips missing");
     constexpr const char* names[]={"pos_x","neg_x","pos_y","neg_y"};
+    if (state.strict_frame_schema>=7) for (const auto& [name,value]:json.at("clips").items()) {
+        (void)value;
+        if (std::find(std::begin(names),std::end(names),name)==std::end(names))
+            throw std::runtime_error("unknown schema-7 walker direction: "+name);
+    }
     for (std::size_t direction=0;direction<4;++direction) {
         if (!json.at("clips").contains(names[direction])) continue; // Explicitly unmapped.
         const auto& clip=json.at("clips").at(names[direction]);
-        if (!clip.is_array() || clip.empty() || clip.size()>64)
+        const nlohmann::json* sequence=&clip;
+        if (state.strict_frame_schema>=7 && clip.is_object()) {
+            if (clip.size()!=2 || !clip.contains("frames") || !clip.contains("flip_x") ||
+                !clip.at("flip_x").is_boolean())
+                throw std::runtime_error("schema-7 walker clip requires only frames and boolean flip_x");
+            role.clip_flip_x[direction]=clip.at("flip_x").get<bool>();
+            sequence=&clip.at("frames");
+        }
+        if (!sequence->is_array() || sequence->empty() || sequence->size()>64)
             throw std::runtime_error("walker clip must contain 1..64 frames");
-        for (const auto& value:clip) {
+        for (const auto& value:*sequence) {
             if (!value.is_string()) throw std::runtime_error("walker clip alias must be a string");
             const auto found=aliases.find(value.get<std::string>());
             if (found==aliases.end()) throw std::runtime_error("walker clip references missing alias");
@@ -212,6 +238,10 @@ std::optional<WalkerVisualRole> named_role(const std::string& name,std::int64_t 
     if (version>=4 && name=="distributor") return WalkerVisualRole::Distributor;
     if (version>=5 && name=="service") return WalkerVisualRole::Service;
     if (version>=6 && name=="health_worker") return WalkerVisualRole::HealthWorker;
+    if (version>=7 && name=="music") return WalkerVisualRole::Music;
+    if (version>=7 && name=="acrobat") return WalkerVisualRole::Acrobat;
+    if (version>=7 && name=="drama") return WalkerVisualRole::Drama;
+    if (version>=7 && name=="venue_music") return WalkerVisualRole::VenueMusic;
     return std::nullopt;
 }
 fs::path checked_root(const fs::path& data_root) {
@@ -241,8 +271,13 @@ nlohmann::json read_manifest(const fs::path& manifest) {
         json.value("mode",std::string{})!="curated_walker_preview")
         throw std::runtime_error("unsupported walker visual profile schema/mode");
     const auto version=json.at("schema_version").get<std::int64_t>();
-    if (version!=1 && version!=2 && version!=3 && version!=4 && version!=5 && version!=6)
+    if (version<1 || version>7)
         throw std::runtime_error("unsupported walker visual profile schema version");
+    if (version==7) for (const auto& [key,value]:json.items()) {
+        (void)value;
+        if (key!="schema_version" && key!="mode" && key!="roles")
+            throw std::runtime_error("unknown schema-7 walker profile field: "+key);
+    }
     return json;
 }
 void require_animated_role(const WalkerRoleVisual& role,const ParseState& state,
@@ -317,6 +352,10 @@ const char* walker_role_name(WalkerVisualRole role) {
     case WalkerVisualRole::Distributor: return "distributor";
     case WalkerVisualRole::Service: return "service";
     case WalkerVisualRole::HealthWorker: return "health_worker";
+    case WalkerVisualRole::Music: return "music";
+    case WalkerVisualRole::Acrobat: return "acrobat";
+    case WalkerVisualRole::Drama: return "drama";
+    case WalkerVisualRole::VenueMusic: return "venue_music";
     }
     return "unknown";
 }
@@ -357,23 +396,29 @@ WalkerVisualProfile load_walker_visual_profile(const fs::path& data_root,
                 (version==2 ? walker_core_role_count:
                     version==3 ? walker_schema3_role_count:
                     version==4 ? walker_schema4_role_count:
-                    version==5 ? walker_schema5_role_count:walker_visual_role_count))
+                    version==5 ? walker_schema5_role_count:
+                    version==6 ? walker_schema6_role_count:walker_visual_role_count))
             throw std::runtime_error("walker roles exceed this schema's role limit");
         for (const auto& [name,value]:json.at("roles").items()) {
             const auto role=named_role(name,version);
             if (!role) throw std::runtime_error("unknown walker visual role: "+name);
             const bool animated=walker_role_index(*role)>=walker_core_role_count;
-            const char* family=*role==WalkerVisualRole::FireInspector ? "FireInspector":
+            const char* family=version>=7 ? walker_role_name(*role):
+                *role==WalkerVisualRole::FireInspector ? "FireInspector":
                 *role==WalkerVisualRole::Supplier ? "Supplier":
                 *role==WalkerVisualRole::Distributor ? "Distributor":
-                *role==WalkerVisualRole::Service ? "Service":"HealthWorker";
+                *role==WalkerVisualRole::Service ? "Service":
+                *role==WalkerVisualRole::HealthWorker ? "HealthWorker":
+                *role==WalkerVisualRole::Music ? "Music":
+                *role==WalkerVisualRole::Acrobat ? "Acrobat":
+                *role==WalkerVisualRole::Drama ? "Drama":"VenueMusic";
             state.profile.roles[walker_role_index(*role)]=parse_role(value,state,
                 animated,false,family,*role==WalkerVisualRole::Supplier ||
                                      *role==WalkerVisualRole::Distributor ||
                                      *role==WalkerVisualRole::Service ||
                                      *role==WalkerVisualRole::HealthWorker);
-            if (animated) require_animated_role(*state.profile.find(*role),state,
-                *role==WalkerVisualRole::Service || *role==WalkerVisualRole::HealthWorker,family);
+            if (animated || version>=7) require_animated_role(*state.profile.find(*role),state,
+                version>=7 || *role==WalkerVisualRole::Service || *role==WalkerVisualRole::HealthWorker,family);
         }
     }
     return std::move(state.profile);

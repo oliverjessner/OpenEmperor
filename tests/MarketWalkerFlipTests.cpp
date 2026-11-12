@@ -140,11 +140,12 @@ void state() {
     }
 }
 void pure_draw(openemperor::WalkerSpriteSet& sprites,std::size_t selected,Point ground,double zoom,
-        const assets::WalkerRoleVisual& role,const assets::WalkerVisualProfile& prepared,SDL_Rect clip) {
+        const assets::WalkerRoleVisual& role,const assets::WalkerVisualProfile& prepared,SDL_Rect clip,
+        bool clip_flip_x=false) {
     perf::set_enabled(true);perf::reset();
     check(sprites.draw(selected,ground,zoom,role,prepared,
                       {static_cast<double>(clip.x),static_cast<double>(clip.y)},
-                      {static_cast<double>(clip.x+clip.w),static_cast<double>(clip.y+clip.h)}),"production Walker draw");
+                      {static_cast<double>(clip.x+clip.w),static_cast<double>(clip.y+clip.h)},clip_flip_x),"production Walker draw");
     for (std::size_t i=0;i<static_cast<std::size_t>(perf::Counter::Count);++i)
         check(perf::counter(static_cast<perf::Counter>(i))==0,"draw performed asset/World/navigation work");
     perf::set_enabled(false);state();
@@ -263,6 +264,30 @@ void tests(SDL_Renderer* renderer) {
         check(std::abs(rectangle.x+(flip ? source.width-(phase ? 3.75:2.25):(phase ? 3.75:2.25))*2-ground.x)<0.0001,
               "frame size or orientation shifted common ground registration");
     }
+    // Schema-7 direction reflection reuses these same native textures/aliases.
+    // It composes with the historical per-frame reflection; two reflections
+    // return to the native foot and pixels without mutating either source.
+    for (const int phase:{0,1}) for (const bool frame_flip:{false,true})
+        for (const bool clip_flip:{false,true}) for (const double zoom:{1.0,1.5,2.0,4.0}) {
+            const auto& source=prepared.unique_images[static_cast<std::size_t>(phase)];
+            const bool reflected=frame_flip!=clip_flip;
+            const double native_foot=phase ? 3.75:2.25,foot_y=source.height-2.5;
+            const double displayed_foot=reflected ? source.width-native_foot:native_foot;
+            const Point ground{110+displayed_foot*zoom,90+foot_y*zoom};
+            clear(renderer,full);
+            pure_draw(sprites,static_cast<std::size_t>(phase*2+(frame_flip ? 1:0)),
+                ground,zoom,role,prepared,full,clip_flip);
+            check(observer::submissions.size()==1 && observer::submissions.front().flipped==reflected,
+                "Direction and frame reflections did not compose on one native draw");
+            const auto& rectangle=observer::submissions.front().destination;
+            check(std::abs(rectangle.x+displayed_foot*zoom-ground.x)<0.0001 &&
+                std::abs(rectangle.y+foot_y*zoom-ground.y)<0.0001,
+                "Direction reflection lost the continuous foot anchor");
+            const Pixels pixels(renderer);
+            const auto counts=oracle(pixels,source,ground,native_foot,foot_y,zoom,reflected,full);
+            check(counts.opaque>20 && counts.inner_hole>0 && counts.shadow>1 && counts.first>1 && counts.last>1,
+                "Composed reflection lacks independent opaque/hole/shadow/extreme-column witnesses");
+        }
     // Actual renderer clipping, in addition to the owner's coarse viewport cull.
     const SDL_Rect clipped{70,65,160,120};
     for (const double zoom:{1.5,2.0,4.0}) for (const bool flip:{false,true}) {

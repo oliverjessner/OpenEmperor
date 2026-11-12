@@ -38,6 +38,9 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
     result.health_walker_fallback_reason=compatibility.compatible() ? compatibility.health_walker_detail:
         compatibility.detail.empty() ? "unsupported original data revision":
         "unsupported original data: "+compatibility.detail;
+    result.walker_animation_fallback_reason=compatibility.compatible() ? compatibility.walker_animation_detail:
+        compatibility.detail.empty() ? "unsupported original data revision":
+        "unsupported original data: "+compatibility.detail;
     if (compatibility.compatible()) {
         result.walker = compatibility.profile->walker_profile;
         result.building = compatibility.profile->building_profile;
@@ -69,6 +72,11 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
             result.health_walker_source=VisualProfileSource::Builtin;
             result.health_walker_fallback_reason.clear();
         }
+        if (compatibility.walker_animation_compatible()) {
+            result.walker_animation=compatibility.profile->walker_animation_profile;
+            result.walker_animation_source=VisualProfileSource::Builtin;
+            result.walker_animation_fallback_reason.clear();
+        }
         if (compatibility.original_house_compatible()) {
             result.original_house=compatibility.profile->original_house_profile;
             result.original_house_source=VisualProfileSource::Builtin;
@@ -99,6 +107,10 @@ VisualSelection select_visual_profiles(const assets::CompatibilityResult& compat
         result.health_walker_source=VisualProfileSource::Custom;
         result.health_walker_fallback_reason=
             "Custom walker profile selected; no built-in HealthWorker supplement";
+        result.walker_animation.clear();
+        result.walker_animation_source=VisualProfileSource::Custom;
+        result.walker_animation_fallback_reason=
+            "Custom walker profile selected; no built-in complete walker animations";
     }
     if (!custom_building.empty()) {
         result.building = custom_building;

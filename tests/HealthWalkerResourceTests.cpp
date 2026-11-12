@@ -3,6 +3,7 @@
 #include "renderer/FireSpriteSet.h"
 #include "renderer/WalkerSpriteSet.h"
 #include "FireInspectorWalkerFixture.h"
+#include "WalkerAnimationSelectionFixture.h"
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <array>
@@ -15,6 +16,7 @@
 #include <set>
 #include <stdexcept>
 #include <string_view>
+#include <tuple>
 
 // Observe the actual two optional texture owners. All successful operations
 // still call real SDL; injected failures affect only candidate preparation.
@@ -458,6 +460,132 @@ void budget(SDL_Window* window,SDL_Renderer* renderer) {
         pure_render(view);cleanup(view);
     }
 }
+std::pair<fs::path,std::uint64_t> complete_profile(Fixture& fixture,int width,int height) {
+    // Independently authored source-key tables qualify through the real shared
+    // resolver, including every native phase and opposite mirror relation.
+    // Only this fixture's four synthetic files are copied into its other owned
+    // temporary root; no Original installation or retained pixels are involved.
+    openemperor::testing::walker_animation::Fixture qualified(width,height);
+    for (const auto* stem:{"SprMain","SprMain2"}) for (const auto* suffix:{".sg3",".555"})
+        fs::copy_file(qualified.data/"DATA"/(std::string(stem)+suffix),
+            fixture.data/"DATA"/(std::string(stem)+suffix));
+    const auto path=fixture.root/"complete.json";Fixture::save(path,qualified.document());
+    const auto profile=assets::load_walker_visual_profile(fixture.data,path);
+    check(profile.unique_images.size()==240,"Qualified synthetic complete pack lost physical native sharing");
+    return {path,assets::walker_rgba_bytes(profile)};
+}
+void complete_pack_budget(SDL_Window* window,SDL_Renderer* renderer) {
+    constexpr std::uint64_t limit=64U*1024U*1024U;
+    // All240 real native uploads reach the exact session cap with an existing
+    // Fire. Different authored canvas/effect costs exercise the five old prefixes.
+    constexpr std::array cases{std::tuple{2,2,0U,true},std::tuple{2,2,1U,false},
+        std::tuple{3,3,2U,false},std::tuple{4,3,3U,false},std::tuple{4,4,4U,false}};
+    for (const auto& [width,height,prefix,large_effect]:cases) {
+        Fixture fixture;const auto path=paths(fixture);
+        const auto [complete,complete_bytes]=complete_profile(fixture,width,height);
+        const auto tiny=sized_fire(fixture,2,2,"retained-tiny-effect");
+        const auto effect=large_effect ? sized_fire(fixture,20,50,"replacement-effect"):fire_profile(fixture);
+        const std::uint64_t effect_bytes=large_effect ? 8000:1504;
+        View view(session(fixture,limit-complete_bytes-12480-32),false,sim::RulesProfile::CityV15,1);
+        start(view,fixture,window,renderer);view.set_road_visuals(road_profile(fixture));
+        view.set_fire_visuals(tiny);
+        for (std::size_t i=0;i<path.size();++i) select(view,i,path[i]);
+        view.set_walker_animation_visuals(complete);
+        check(view.walker_animations_active() && view.walker_display_stats().schema_version==7 &&
+            view.walker_texture_count()==240 && view.walker_display_stats().logical_rgba_bytes==complete_bytes &&
+            view.fire_display_stats().animated && view.fire_display_stats().logical_bytes==32,
+            "Complete native pack did not reach the exact session cap with existing Fire");
+        for (const auto& role:view.walker_display_stats().roles)
+            check(role.configured,"Complete optional pack published only a subset of its twelve roles");
+        const auto exact=observer::live;const auto before=view.world().snapshot();
+        // A malformed or failed-upload replacement preserves the entire old
+        // schema7 owner and the already valid Fire, rather than publishing core.
+        const auto valid=[&] {std::ifstream in(complete);return Json::parse(in);}();
+        auto malformed=valid;malformed["roles"]["music"]["clips"].erase("pos_x");Fixture::save(complete,malformed);
+        view.set_walker_animation_visuals(complete);
+        check(view.walker_animations_active() && observer::live==exact && view.world().snapshot()==before,
+            "Invalid complete-pack replacement discarded prepared native assets");
+        Fixture::save(complete,valid);observer::fail_upload=observer::uploads+1;
+        view.set_walker_animation_visuals(complete);observer::fail_upload=0;
+        check(view.walker_animations_active() && observer::live==exact && view.fire_display_stats().logical_bytes==32,
+            "Failed complete-pack upload changed the active owner or Fire");
+        const std::size_t legacy_textures=prefix ? prefix*8U:1U;
+        for (const bool create_failure:{false,true}) for (const auto offset:{std::size_t{1},legacy_textures+1}) {
+            if (create_failure) observer::fail_create=observer::creates+offset;
+            else observer::fail_upload=observer::uploads+offset;
+            view.set_fire_visuals(effect);observer::fail_create=observer::fail_upload=0;
+            check(view.walker_animations_active() && observer::live==exact &&
+                view.fire_display_stats().animated && view.fire_display_stats().logical_bytes==32 &&
+                view.world().snapshot()==before,
+                "Failed staged legacy/Fire owner changed the previous complete pack or valid Fire");
+        }
+        const auto no_upload=observer::uploads,no_create=observer::creates;
+        view.set_fire_visuals(sized_fire(fixture,128,128,"unfit-complete-effect"));
+        check(view.walker_animations_active() && observer::live==exact && observer::creates==no_create &&
+            observer::uploads==no_upload && view.fire_display_stats().logical_bytes==32,
+            "Unfit Fire candidate raised the budget or changed existing owners");
+        fs::rename(fixture.data/"DATA/walker.sg3",fixture.data/"DATA/walker-unavailable.sg3");
+        view.set_fire_visuals(effect);
+        check(view.walker_animations_active() && observer::live==exact && view.fire_display_stats().logical_bytes==32,
+            "Unavailable essential legacy core partially published a Fire replacement");
+        fs::rename(fixture.data/"DATA/walker-unavailable.sg3",fixture.data/"DATA/walker.sg3");
+        pure_render(view);view.set_fire_visuals(effect);
+        check(!view.walker_animations_active() && view.fire_display_stats().animated &&
+            view.fire_display_stats().logical_bytes==effect_bytes && view.walker_texture_count()==legacy_textures &&
+            view.world().snapshot()==before,"Genuine Fire pressure did not atomically restore the historical prefix");
+        for (std::size_t i=0;i<4;++i) check(configured(view,i)==(i<prefix),
+            "Complete-pack fallback changed Health, Service, Market, Inspector Fire priority");
+        const auto stats=view.walker_display_stats();
+        for (std::size_t i=assets::walker_schema6_role_count;i<assets::walker_visual_role_count;++i)
+            check(!stats.roles[i].configured,"Whole-pack fallback retained a partial culture sprite authority");
+        check(!view.walker_animation_fallback_reason().empty(),"Whole-pack budget fallback lacks a reason");
+        const auto retained=observer::live;
+        const auto retained_uploads=observer::uploads,retained_creates=observer::creates;
+        Fixture::save(complete,malformed);view.set_walker_animation_visuals(complete);
+        check(observer::live==retained && observer::uploads==retained_uploads &&
+            observer::creates==retained_creates && view.world().snapshot()==before,
+            "Invalid optional replacement rebuilt the retained historical core or its independent tails");
+        Fixture::save(complete,valid);view.set_walker_animation_visuals(complete);
+        check(observer::live==retained && observer::uploads==retained_uploads &&
+            observer::creates==retained_creates && !view.walker_animations_active() &&
+            view.walker_texture_count()==legacy_textures && view.world().snapshot()==before,
+            "Unfit optional replacement discarded or reuploaded the retained historical prefix");
+        for (std::size_t i=0;i<4;++i) check(configured(view,i)==(i<prefix),
+            "Failed optional replacement lost historical supplement ownership");
+        pure_render(view);cleanup(view);
+    }
+}
+void complete_pack_existing_fire_budget(SDL_Window* window,SDL_Renderer* renderer) {
+    constexpr std::uint64_t limit=64U*1024U*1024U;
+    Fixture fixture;const auto path=paths(fixture);const auto [complete,complete_bytes]=complete_profile(fixture,4,4);
+    const auto tiny=sized_fire(fixture,2,2,"retained-existing-effect");
+    View view(session(fixture,limit-complete_bytes-12480-32),false,sim::RulesProfile::CityV15,1);
+    start(view,fixture,window,renderer);const auto roads=road_profile(fixture);view.set_road_visuals(roads);
+    const auto before_fire=observer::live;view.set_fire_visuals(tiny);const auto flames=difference(observer::live,before_fire);
+    check(flames.size()==2,"Existing Fire owner fixture");
+    for (std::size_t i=0;i<path.size();++i) select(view,i,path[i]);
+    view.set_walker_animation_visuals(complete);
+    check(view.walker_animations_active() && view.walker_texture_count()==240,
+        "Existing Fire pressure fixture lacks its complete native pack");
+    for (const auto* suffix:{".sg3",".555"}) {
+        std::ifstream input(fixture.data/"DATA"/(std::string("ground")+suffix),std::ios::binary);
+        const Bytes bytes{std::istreambuf_iterator<char>(input),{}};
+        write(fixture.data/"DATA"/(std::string("ground-extra")+suffix),bytes);
+    }
+    Json wider;{std::ifstream input(roads);wider=Json::parse(input);}
+    wider["tiles"]["0x1"]=wider["tiles"]["0x0"];
+    wider["tiles"]["0x1"]["archive"]="DATA/ground-extra.sg3";
+    const auto wider_path=fixture.root/"wider-roads.json";Fixture::save(wider_path,wider);
+    const auto before=view.world().snapshot();const auto uploads=observer::uploads;
+    view.set_road_visuals(wider_path);
+    check(!view.walker_animations_active() && view.walker_texture_count()==16 &&
+        configured(view,0) && configured(view,1) && !configured(view,2) && !configured(view,3) &&
+        view.fire_display_stats().animated && view.fire_display_stats().logical_bytes==32 &&
+        observer::uploads==uploads+16 && view.world().snapshot()==before,
+        "Existing Fire enforcement did not restore the bounded historical prefix without Fire upload");
+    retained(flames,"Complete-pack budget enforcement recreated or removed existing Fire textures");
+    pure_render(view);cleanup(view);
+}
 }
 int main(int argc,char**argv) {
     SDL_Window*window=nullptr;SDL_Renderer*renderer=nullptr;
@@ -465,7 +593,7 @@ int main(int argc,char**argv) {
         const bool metal=argc==2&&std::string_view(argv[1])=="metal";check(argc==1||metal,"Usage: Health resource tests [metal]");
         if(!metal)SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy");check(SDL_Init(SDL_INIT_VIDEO),"SDL initialization");
         window=SDL_CreateWindow("Independent Health resource tests",1280,720,SDL_WINDOW_HIDDEN);check(window!=nullptr,"SDL hidden window");renderer=SDL_CreateRenderer(window,metal?"metal":"software");check(renderer!=nullptr,"actual renderer");check(std::string_view(SDL_GetRendererName(renderer))==(metal?"metal":"software"),"actual backend mismatch");
-        lifecycle(window,renderer);shared_and_aliases(window,renderer);physical_assets(window,renderer);removal_schema_capacity(window,renderer);budget(window,renderer);
+        lifecycle(window,renderer);shared_and_aliases(window,renderer);physical_assets(window,renderer);removal_schema_capacity(window,renderer);budget(window,renderer);complete_pack_budget(window,renderer);complete_pack_existing_fire_budget(window,renderer);
         SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();std::cout<<"PASS Health atomic resources:24 append/removal permutations, shared IDs,320/321 aliases,256/257 physical assets,64MiB,Health-first Fire pressure and shutdown\n";return 0;
     }catch(const std::exception&error){std::cerr<<error.what()<<'\n';if(renderer)SDL_DestroyRenderer(renderer);if(window)SDL_DestroyWindow(window);SDL_Quit();return 1;}
 }

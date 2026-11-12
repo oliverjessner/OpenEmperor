@@ -51,14 +51,14 @@ std::optional<assets::WalkerVisualRole> walker_visual_role(simulation::CourierRo
     case simulation::CourierRole::MarketFoodDistribution: return assets::WalkerVisualRole::Distributor;
     case simulation::CourierRole::Service: return assets::WalkerVisualRole::Service;
     case simulation::CourierRole::HealthWorker: return assets::WalkerVisualRole::HealthWorker;
+    case simulation::CourierRole::OriginalMusicPerformer:
+    case simulation::CourierRole::OriginalMusic: return assets::WalkerVisualRole::Music;
+    case simulation::CourierRole::OriginalAcrobat: return assets::WalkerVisualRole::Acrobat;
+    case simulation::CourierRole::OriginalDrama: return assets::WalkerVisualRole::Drama;
+    case simulation::CourierRole::OriginalVenueMusic: return assets::WalkerVisualRole::VenueMusic;
     case simulation::CourierRole::OriginalDaoist:
     case simulation::CourierRole::OriginalBuddhist:
     case simulation::CourierRole::OriginalConfucian:
-    case simulation::CourierRole::OriginalMusicPerformer:
-    case simulation::CourierRole::OriginalVenueMusic:
-    case simulation::CourierRole::OriginalMusic:
-    case simulation::CourierRole::OriginalAcrobat:
-    case simulation::CourierRole::OriginalDrama:
     case simulation::CourierRole::OriginalAncestor:
     case simulation::CourierRole::OriginalWater: return std::nullopt;
     case simulation::CourierRole::OriginalLuxuryToWarehouse:
@@ -86,6 +86,7 @@ WalkerPose walker_pose(const simulation::CourierState& courier,std::uint64_t wor
         courier.path.size()<2 || courier.path_vertex>=courier.path.size()-1 ||
         (waiting && !faces_wait_edge)) {
         pose.frame=role_visual.idle_frame;
+        pose.clip_flip_x=role_visual.idle_flip_x;
         return pose;
     }
     const auto& from=courier.path[courier.path_vertex];
@@ -100,6 +101,7 @@ WalkerPose walker_pose(const simulation::CourierState& courier,std::uint64_t wor
     pose.moving=!waiting;
     const auto& clip=role_visual.clips[assets::direction_index(*pose.direction)];
     if (clip.empty()) { pose.fallback=WalkerFallback::UnmappedDirection; return pose; }
+    pose.clip_flip_x=role_visual.clip_flip_x[assets::direction_index(*pose.direction)];
     // A waiting Inspector, Food/Market, Service or Health courier faces its actual next
     // edge without walking in place. No-edge waiting uses the static idle.
     // The original three visual roles retain their legacy waiting pose.

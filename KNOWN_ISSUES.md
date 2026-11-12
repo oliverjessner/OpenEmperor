@@ -60,7 +60,7 @@ complete original-game compatibility.
   image variant is inferred; the existing operation and fire overlay remain
   authoritative. Plants26–28 retain markers without a qualified growth selector.
   Missing ownership or incompatible sources retain named authored fallbacks.
-  Unassigned service/culture/religion/luxury walker families and pending
+  Unassigned service/religion/luxury walker families and pending
   Elite plots retain their named historical fallbacks. Existing Market,
   Warehouse and FireWatch core previews are not newly identified original
   registrations. Clay/Pottery pixels are source-qualified35/43 images, while
@@ -68,6 +68,17 @@ complete original-game compatibility.
   [OE61 inventory and limits](docs/rendering/oe61-original-building-visuals.md),
   [OE52 evidence](docs/rendering/oe52-original-visuals.md) and
   [OE60 farm/field boundary](docs/rendering/oe60-original-farm-visuals.md).
+- **Walker parity remains bounded.** The separately fingerprinted OE62 profile
+  supplies twelve-phase native walks for twelve visual roles, including the
+  actual Acupuncture208, Herbalist207, Musician34, Acrobat32, Actor33 and Theatre
+  Actor36 source families. Clay/Pottery/Household, Inspector and Food/Market
+  profession associations remain curated. Religion, Water, Ancestor and further
+  material/luxury couriers retain named markers; immigration has no separate
+  World actor. Feet, static idle, global phase origin and two/four-tick cadence
+  are authored. Original load/action/idle variants, timing, roaming and complete
+  profession reconstruction remain partial. Existing alias/image/memory limits
+  are unchanged; unavailable art retains historical profiles. See the
+  [OE62 inventory and evidence boundary](docs/rendering/oe62-original-walker-animations.md).
 - **Fresh Common Type2 artwork has a narrow original binding.** The pinned
   normal purchase path publishes group `0x47a`, variant0, physical1508 before
   resident admission; the ordinary setter's `0x471`/physical1509–1510 is a

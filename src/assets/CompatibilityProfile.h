@@ -47,6 +47,11 @@ struct CompatibilityProfile {
     std::string original_house_metadata_error;
     std::filesystem::path original_building_profile;
     std::string original_building_metadata_error;
+    // Schema-7 complete walker replacement is independently optional. The old
+    // core and supplements remain available if any dependency fails.
+    std::filesystem::path walker_animation_profile;
+    std::vector<CompatibilityFingerprint> walker_animation_files;
+    std::string walker_animation_metadata_error;
 };
 
 struct CompatibilityResult {
@@ -101,6 +106,13 @@ struct CompatibilityResult {
     bool original_building_compatible() const {
         return compatible() && original_building_status==CompatibilityStatus::Compatible &&
             !profile->original_building_profile.empty();
+    }
+    CompatibilityStatus walker_animation_status = CompatibilityStatus::Unknown;
+    std::size_t walker_animation_files_hashed = 0;
+    std::string walker_animation_detail = "optional complete walker animations are not declared";
+    bool walker_animation_compatible() const {
+        return compatible() && walker_animation_status==CompatibilityStatus::Compatible &&
+            !profile->walker_animation_profile.empty();
     }
 };
 

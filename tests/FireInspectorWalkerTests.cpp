@@ -106,7 +106,7 @@ assets::WalkerVisualProfile profile_checks(Fixture& fixture) {
     static_assert(assets::walker_role_index(WalkerVisualRole::Pottery)==1);
     static_assert(assets::walker_role_index(WalkerVisualRole::Household)==2);
     static_assert(assets::walker_role_index(WalkerVisualRole::FireInspector)==3);
-    static_assert(assets::walker_visual_role_count==8 && assets::walker_schema5_role_count==7 && assets::walker_schema4_role_count==6 && assets::walker_schema3_role_count==4 &&
+    static_assert(assets::walker_schema6_role_count==8 && assets::walker_visual_role_count==12 && assets::walker_schema5_role_count==7 && assets::walker_schema4_role_count==6 && assets::walker_schema3_role_count==4 &&
                   assets::walker_core_role_count==3);
     auto core=assets::load_walker_visual_profile(fixture.data,fixture.core);
     const auto original=core;

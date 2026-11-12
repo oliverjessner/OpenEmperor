@@ -45,7 +45,10 @@ position; its Courier ID is not a reusable Walker identity.
 The School and Theatre Inspectors distinguish attempts, actual spawns, current
 Music, destination, movement and accepted arrivals. House **Visits** shows the
 actual Theatre/Walker receipt and the Musician input supporting that visit.
-Theatre and venue walker use authored fallback presentation. Their drawing and
+Theatre retains authored fallback presentation. The separately fingerprinted
+[OE62 profile](../rendering/oe62-original-walker-animations.md) adds the
+source-bound Actor36 walking family; unavailable art retains the named marker.
+Its feet and cadence remain authored. Their drawing and
 picking retain the full footprint and actual foot; a 4× stage can exceed the
 map aperture. Software SDL inspection is separate from native input or human
 acceptance.

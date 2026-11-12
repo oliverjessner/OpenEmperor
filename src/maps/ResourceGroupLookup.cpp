@@ -35,8 +35,13 @@ GroupResolution resolve_resource_group(
     if (found == registrations.end())
         return result;
     const auto* layout = found->second.layout;
+    const bool walker_sprite_registration=layout && layout->sg3_version==214 &&
+        layout->evidence==RuntimeLayoutEvidence::WalkerSprites38And39 &&
+        (layout->slot==38U || layout->slot==39U) && layout->first_physical_record==1U &&
+        layout->system_record_skip==0U && !layout->system_branch_activated &&
+        layout->first_group_filename==(layout->slot==38U ? "Peddler":"alligator");
     if (layout == nullptr || !layout->verified_registration ||
-        layout->slot != result.slot || layout->sg3_version != 213) {
+        layout->slot != result.slot || (layout->sg3_version != 213 && !walker_sprite_registration)) {
         result.status = GroupLookupStatus::UnverifiedRegistration;
         return result;
     }

@@ -27,7 +27,7 @@ public:
     bool draw(std::size_t frame,scene::Point ground,double zoom,
               const assets::WalkerRoleVisual& role_visual,
               const assets::WalkerVisualProfile& profile,
-              scene::Point clip_min,scene::Point clip_max) const;
+              scene::Point clip_min,scene::Point clip_max,bool clip_flip_x=false) const;
     std::size_t texture_count() const { return textures_.size(); }
     std::uint64_t logical_bytes() const { return logical_bytes_; }
     static std::size_t live_texture_count();

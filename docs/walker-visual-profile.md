@@ -2,6 +2,12 @@
 
 `--sandbox-visuals <profile.json>` is an optional display layer for Clay, Pottery and Household couriers; schema 3 also permits FireInspector, schema 4 Supplier/Distributor schema 5 Service and schema 6 HealthWorker. The menu's **Walker JSON...** button selects the same kind of profile for the current app session. Store custom profiles referring to your legally obtained game data under ignored `.local/visuals/`. Built-in compatibility resources contain OpenEmperor metadata only; custom profiles and original frames are not bundled. F2 switches all configured roles between sprites and ordinary courier markers; the World, save schema, and rule profile do not change. An unconfigured role retains its marker.
 
+Schema7 adds `music`, `acrobat`, `drama` and `venue_music` as visual roles8–11,
+compact direction transforms and a static idle transform. The separately
+fingerprinted complete built-in pack replaces the historical configuration
+only after atomic preparation; the existing profiles below remain its fallback.
+See the [OE62 source and role inventory](rendering/oe62-original-walker-animations.md).
+
 The JSON is an OpenEmperor convention, not an Emperor format. Each `image_index` is a **physical SG3 record number**, including record zero in numbering (zero itself is rejected). No runtime-table skip or packed graphic-ID conversion is applied. `archive` is relative to the selected game-data root. A frame's `foot_anchor` is measured in its decoded image pixels from the top-left to the chosen projected ground point. The anchor is chosen by visual inspection; SG3 animation offsets are not treated as verified pivots. Frame dimensions may differ.
 
 ```json
@@ -55,7 +61,21 @@ Automatic Service activation uses the independently fingerprinted SprMain pair a
 
 Automatic Health activation uses the independently fingerprinted SprMain pair and separate schema-6 `health-walker.json` supplement, for City-v15/16 only. It adds 48 aliases, 24 native images and 154,160 logical RGBA bytes: the complete configuration measures 288/320 aliases, 176/256 physical images and 1,358,208 bytes under the unchanged 64 MiB limits. This measured twelve-phase sequence justifies the versioned alias increase; standalone schemas 1–5 and aggregates remaining below schema 6 retain their exact 256 bound. Existing optional supplements appended to a merged schema-6 profile share its 320 bound. Removing Health retains schema 6 while the remaining aliases exceed 256, avoiding a false historical-schema label. Fully prepared Fire may evict Health first, then Service, Market and Inspector; failed staging evicts nothing. Independent optional failures retain named Health markers and foreign texture identity. Custom walkers receive no supplements. Actual Idle hides centrally, interrupted trips are static at their real position, and only actual House arrival cures or grants protection. See [the Health contract and test starter](health-walker-visuals.md).
 
-For a selected profile, F3 opens a bounded clip inspection panel over the sandbox. `V` cycles all eight visual roles, showing `UNCONFIGURED` for a missing one. `Q` cycles storage directions, `C`/`E` select the previous/next configured frame without advancing the World, `X` switches 1×/4× nearest-neighbor display, and `B` switches dark/light backgrounds. The panel shows role, archive, physical record, frame size, chosen foot anchor, tick rate, short evidence, full image boundary, and projected ground point. F2 remains the separate live sprite/marker toggle. The panel does not change the simulation's tick-bound animation.
+For a selected profile, F3 opens a bounded clip inspection panel over the sandbox. `V` cycles all twelve visual roles, showing `UNCONFIGURED` for a missing one. `Q` cycles storage directions, `C`/`E` select the previous/next configured frame without advancing the World, `X` switches 1×/4× nearest-neighbor display, and `B` switches dark/light backgrounds. The panel shows role, archive, physical record, frame size, effective foot anchor/flip, tick rate, short evidence, full image boundary, and projected ground point. F2 remains the separate live sprite/marker toggle. The panel does not change the simulation's tick-bound animation.
+
+Schema7 accepts a clip as the historical alias array or as exactly
+`{"frames":["native-a","native-b"],"flip_x":true}`. The aliases still name
+native decoded images; the extra reflection changes their displayed feet as
+`width−foot_x` and composes with a legacy frame flip using XOR. Optional strict
+boolean `idle_flip_x` does the same for the static idle alias. All four animated
+directions are required in every schema7 role. Unknown top-level, role, frame,
+direction and transform fields reject activation. The existing320 total named
+aliases,256 physical images,64 entries per clip and64-MiB logical RGBA limits
+also apply to schema7. Unchanged old schemas do not acquire these transforms.
+Built-in source-qualified family admission additionally checks the actual
+resource registrations, phase/stride, physical records, directions and explicit
+authored anchors before publication; generic custom metadata makes no Original
+profession claim.
 
 The ordinary RGB555 decoder still represents source value `0x7c00` as opaque red. A separately verified presentation step applies only to Omega Sprite records whose SG3 byte 59 is nonzero and which have no separate alpha stream. It converts exact decoded `0x7c00` markers to straight RGBA black with alpha 128 once while the profile is loaded. SDL source-over then darkens the destination to approximate the original RGB555 blitter's per-channel floor-half operation. No per-frame pixel scan occurs, nearby red shades stay unchanged, and the rule is not applied to Type-30 images. The RGBA blend can differ by one quantization step from the original 5-bit operation; this is a presentation limitation rather than a file-format reinterpretation.
 

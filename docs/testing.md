@@ -44,6 +44,57 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Original walker families and full cycles (OE62)
+
+The [OE62 contract](rendering/oe62-original-walker-animations.md) inventories
+every actual CourierRole, source-bound and curated associations, frame/foot
+semantics, retained markers and Original timing limits. Build the current app
+so its metadata-only `walker-animations.json` is copied beside the executable.
+The complete optional profile requires both exact SprMain and SprMain2 pairs;
+custom profiles and historical schema1–6 keep their separate behavior.
+
+```sh
+ctest --test-dir build --output-on-failure -R 'walker|resource-group|original-(culture|music-venue|venue-house-service)|bridge|ramp|movement|begun|road|save|recovery'
+```
+
+`walker-animation-profile` checks compact clips, composed reflection and idle,
+complete cycles, direction changes, strict schema7 fields, historical schemas
+and unchanged320-alias/256-image/64-MiB bounds using original-free fixtures.
+`walker-animation-compatibility-fingerprints` checks complete twelve-role
+selection, atomic four-file dependencies, missing/tampered/unsafe resources,
+symlinks and custom/historical fallback. Existing walker profile, pose,
+software/Metal flip, Inspector, Market, Service and Health tests remain required.
+
+For productive source integration, supply explicit normally paid Rule18 and
+Rule23 OpenEmperor saves. Never point F5 at protected evidence or personal saves.
+Use a fresh ignored output parent:
+
+```sh
+cmake -S . -B .local/oe62/build-release -DCMAKE_BUILD_TYPE=Release \
+  -DOPENEMPEROR_USE_SYSTEM_SDL3=ON \
+  -DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT=/path/to/emperor \
+  -DOPENEMPEROR_OE62_RULE18_TEST_SAVE=/explicit/earned-rule18.save.json \
+  -DOPENEMPEROR_OE62_RULE23_TEST_SAVE=/explicit/earned-rule23.save.json \
+  -DOPENEMPEROR_OE62_VISUAL_OUTPUT_ROOT="$PWD/.local/oe62/visuals"
+cmake --build .local/oe62/build-release --parallel 2
+ctest --test-dir .local/oe62/build-release --output-on-failure
+```
+
+Compare complete World and canonical SaveDocument bytes around actual renders,
+pointer probes, pause/resume and F5/F9. Run separate creator/restore processes
+and compare full per-tick documents/digests, literal checkpoints and real cargo,
+arrival, House Music96 and retirement evidence against the OE61 baseline.
+One PNG is insufficient: inspect consecutive frame sequences across complete
+cycles and last-to-first transitions at1280×800/1600×900/1920×1080 and1×/2×/4×.
+Verify opaque hits, transparent misses, common feet, real current edges, road
+and building composition, borders and existing fire/smoke overlays. Keep
+source contact sheets, synthetic direct renderer checks and actual productive
+software-SDL frames separate. Open every generated image; measure memory and
+render time using the same scene/camera/backend rather than treating test
+duration as FPS. Recheck all twelve prohibited frame-work counters and the
+protected input bytes. Repeat focused Debug and ASan/UBSan checks, historical
+schemas and Rule18 Golden City. Native human acceptance remains separate.
+
 ## House graphics and paid-starter presentation (OE58/OE59)
 
 Keep the [human report](qa/oe58-human-playtest.md) separate from software-SDL

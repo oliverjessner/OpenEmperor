@@ -114,7 +114,7 @@ void schema_checks(Fixture& f) {
     static_assert(assets::walker_role_index(Role::Clay)==0&&assets::walker_role_index(Role::Pottery)==1&&assets::walker_role_index(Role::Household)==2);
     static_assert(assets::walker_role_index(Role::FireInspector)==3&&assets::walker_role_index(Role::Supplier)==4&&assets::walker_role_index(Role::Distributor)==5&&assets::walker_role_index(Role::Service)==6&&assets::walker_role_index(Role::HealthWorker)==7);
     static_assert(static_cast<unsigned>(sim::CourierRole::HealthWorker)==11);
-    static_assert(assets::walker_core_role_count==3&&assets::walker_schema3_role_count==4&&assets::walker_schema4_role_count==6&&assets::walker_schema5_role_count==7&&assets::walker_visual_role_count==8);
+    static_assert(assets::walker_core_role_count==3&&assets::walker_schema3_role_count==4&&assets::walker_schema4_role_count==6&&assets::walker_schema5_role_count==7&&assets::walker_schema6_role_count==8&&assets::walker_visual_role_count==12);
     static_assert(assets::walker_max_frame_aliases==320&&assets::walker_legacy_max_frame_aliases==256&&assets::walker_frame_alias_limit(5)==256&&assets::walker_frame_alias_limit(6)==320&&assets::walker_max_unique_assets==256&&assets::walker_max_rgba_bytes==64U*1024U*1024U);
     const auto good=f.profile();check(good.schema_version==6&&good.find(Role::HealthWorker)&&good.unique_images.size()==2&&assets::walker_rgba_bytes(good)==1528,"schema6 HealthWorker physical dedupe/bytes changed");
     check(std::string_view(assets::walker_role_name(Role::HealthWorker))=="health_worker"&&oe::walker_visual_role(sim::CourierRole::HealthWorker)==Role::HealthWorker&&oe::walker_visual_role(sim::CourierRole::Service)==Role::Service,"append-only HealthWorker logical mapping or Health fallback changed");
@@ -163,7 +163,7 @@ void schema_checks(Fixture& f) {
     }
     j=Fixture::manifest();j["roles"]["health_worker"]["frames"][0].erase("flip_x");authored::Fixture::save(f.health,j);
     check(!f.profile().find(Role::HealthWorker)->frames[0].flip_x,"omitted Health display flip is not native");
-    j=Fixture::manifest();j["schema_version"]=7;invalid(j,"future walker schema admitted");
+    j=Fixture::manifest();j["schema_version"]=8;invalid(j,"future walker schema admitted");
     authored::Fixture::save(f.health,Fixture::manifest());
 }
 void append_checks(Fixture& f) {

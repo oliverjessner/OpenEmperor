@@ -1,4 +1,5 @@
 #include "app/SandboxView.h"
+#include "app/WalkerAnimationSelection.h"
 #include "app/ServiceCoverage.h"
 #include "maps/LandscapeProvenance.h"
 #include "maps/RegeneratedMapRenderPlan.h"
@@ -976,6 +977,20 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
     prepare_original_house_visuals();
     if (original_house_manifest_.empty() && !original_building_manifest_.empty())
         set_original_building_visuals(original_building_manifest_,original_building_source_,original_building_fallback_reason_);
+    if (original_production_fixture() && walker_source_==VisualProfileSource::Builtin &&
+        walker_animation_source_==VisualProfileSource::Builtin &&
+        !walker_manifest_.empty() && !walker_animation_manifest_.empty()) {
+        // Keep the historical Original bodies and independent walker tails at
+        // their existing priority. The complete optional replacement is tried
+        // only after those eager owners have reserved their session bytes.
+        const auto core=walker_manifest_;
+        const auto message=last_message_;
+        try { set_walker_visuals(core,walker_source_); }
+        catch (const std::exception& error) {
+            walker_animation_fallback_reason_=std::string("Walker animation replacement failed: ")+error.what();
+        }
+        last_message_=message;
+    }
     reset_camera();
     if (demo_) place_demo();
     prepare_original_field_order();
@@ -1020,6 +1035,7 @@ void SandboxView::shutdown() {
     walker_diagnostic_open_=false;
     walker_sprites_.reset();
     walker_profile_.reset();
+    walker_animation_active_=false;
     fire_inspector_extension_=market_walker_extension_=service_walker_extension_=health_walker_extension_=false;
     building_sprite_.reset();
     building_profile_.reset();
@@ -1044,6 +1060,7 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
                                      VisualProfileSource source) {
     if (manifest.empty()) {
         walker_sprites_.reset(); walker_profile_.reset(); walker_manifest_.clear();
+        walker_animation_active_=false;
         visual_hits_.clear(); visual_frame_valid_=false;
         walker_source_=VisualProfileSource::Fallback;
         fire_inspector_extension_=market_walker_extension_=service_walker_extension_=health_walker_extension_=false;
@@ -1057,7 +1074,27 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
     if (!renderer_) { walker_manifest_=manifest; walker_source_=source; return; }
     if (!simulation::production_profile(rules_))
         throw std::runtime_error("walker visuals require a production sandbox profile");
-    auto profile=assets::load_walker_visual_profile(data_root_,manifest);
+    const bool retained_core=walker_profile_ && walker_sprites_ &&
+        walker_source_==source && walker_manifest_==manifest;
+    bool complete_animation=false;
+    std::optional<assets::WalkerVisualProfile> candidate;
+    if (source==VisualProfileSource::Builtin &&
+        (!original_production_fixture() || world_) &&
+        walker_animation_source_==VisualProfileSource::Builtin && !walker_animation_manifest_.empty()) {
+        try {
+            candidate=assets::load_walker_visual_profile(data_root_,walker_animation_manifest_);
+            if (candidate->schema_version!=7 || std::any_of(candidate->roles.begin(),candidate->roles.end(),
+                [](const auto& role){ return !role; }))
+                throw std::runtime_error("Complete walker animations require all schema-7 roles");
+            validate_builtin_walker_animations(data_root_,*candidate);
+            complete_animation=true;
+        } catch (const std::exception& error) {
+            candidate.reset();
+            walker_animation_fallback_reason_=std::string("Walker animation preparation failed: ")+error.what();
+            if (retained_core) return;
+        }
+    }
+    auto profile=candidate ? std::move(*candidate):assets::load_walker_visual_profile(data_root_,manifest);
     auto textures=std::make_unique<WalkerSpriteSet>();
     auto available=assets::walker_max_rgba_bytes;
     if (profile.schema_version>=3) {
@@ -1067,12 +1104,23 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
         if (!headroom) throw std::runtime_error("Session RGBA texture budget exhausted");
         available=*headroom;
     }
-    textures->initialize(renderer_,profile,available);
+    try { textures->initialize(renderer_,profile,available); }
+    catch (const std::exception& error) {
+        if (!complete_animation) throw;
+        walker_animation_fallback_reason_=std::string("Walker animation upload failed: ")+error.what();
+        if (retained_core) return;
+        complete_animation=false;
+        profile=assets::load_walker_visual_profile(data_root_,manifest);
+        textures=std::make_unique<WalkerSpriteSet>();
+        textures->initialize(renderer_,profile,available);
+    }
     walker_sprites_=std::move(textures);
     walker_profile_=std::move(profile);
     visual_hits_.clear(); visual_frame_valid_=false;
     walker_manifest_=manifest;
     walker_source_=source;
+    walker_animation_active_=complete_animation;
+    if (complete_animation) walker_animation_fallback_reason_.clear();
     walker_core_schema_=walker_profile_->schema_version;
     fire_inspector_extension_=market_walker_extension_=service_walker_extension_=health_walker_extension_=false;
     fire_inspector_fallback_draws_=0;
@@ -1081,9 +1129,88 @@ void SandboxView::set_walker_visuals(const std::filesystem::path& manifest,
     walker_moving_drawn_.fill(false);
     walker_unmapped_fallbacks_=walker_invalid_edge_fallbacks_=0;
     walker_diagnostic_role_=walker_diagnostic_direction_=walker_diagnostic_step_=0;
-    last_message_="Curated walker previews active";
+    last_message_=complete_animation ? "Walker full cycles active; curated roles remain labeled":"Curated walker previews active";
     enforce_fire_texture_budget();
     if (world_) { prepare_fire_inspector_extension();prepare_market_walker_extension();prepare_service_walker_extension();prepare_health_walker_extension(); }
+}
+void SandboxView::set_walker_animation_visuals(const std::filesystem::path& manifest,
+        VisualProfileSource source,std::string fallback_reason) {
+    walker_animation_manifest_=manifest;
+    walker_animation_source_=source;
+    walker_animation_fallback_reason_=fallback_reason.empty() ?
+        "No complete walker animation profile selected":std::move(fallback_reason);
+    if (renderer_ && !walker_manifest_.empty()) {
+        const auto core=walker_manifest_;const auto core_source=walker_source_;
+        set_walker_visuals(core,core_source);
+    }
+}
+SandboxView::LegacyWalkerPreparation SandboxView::prepare_legacy_walker_fallback(
+        std::uint64_t available_bytes) const {
+    if (walker_source_!=VisualProfileSource::Builtin || walker_manifest_.empty())
+        throw std::runtime_error("No historical built-in walker profile is available");
+    LegacyWalkerPreparation prepared;
+    prepared.profile=assets::load_walker_visual_profile(data_root_,walker_manifest_);
+    if (prepared.profile.schema_version>=7)
+        throw std::runtime_error("Historical walker fallback must retain its original schema");
+    prepared.core_schema=prepared.profile.schema_version;
+    prepared.sprites=std::make_unique<WalkerSpriteSet>();
+    prepared.sprites->initialize(renderer_,prepared.profile,available_bytes);
+    prepared.fallback_reasons={fire_inspector_fallback_reason_,market_walker_fallback_reason_,
+        service_walker_fallback_reason_,health_walker_fallback_reason_};
+    const std::array manifests{fire_inspector_manifest_,market_walker_manifest_,service_walker_manifest_,health_walker_manifest_};
+    const std::array sources{fire_inspector_source_,market_walker_source_,service_walker_source_,health_walker_source_};
+    const std::array supported{simulation::fire_profile(rules_),simulation::food_profile(rules_),
+        simulation::service_profile(rules_),simulation::health_profile(rules_)};
+    using Role=assets::WalkerVisualRole;
+    constexpr std::array roles{Role::FireInspector,Role::Supplier,Role::Service,Role::HealthWorker};
+    using Append=void (*)(const std::filesystem::path&,const std::filesystem::path&,assets::WalkerVisualProfile&);
+    constexpr std::array<Append,4> append{assets::append_fire_inspector_visual_profile,
+        assets::append_market_visual_profile,assets::append_service_visual_profile,assets::append_health_visual_profile};
+    bool budget_closed=false;
+    for (std::size_t i=0;i<roles.size();++i) {
+        if (budget_closed) {
+            prepared.fallback_reasons[i]="Session RGBA texture budget exhausted";
+            continue;
+        }
+        if (!supported[i] || sources[i]!=VisualProfileSource::Builtin || manifests[i].empty() ||
+            prepared.profile.find(roles[i]) || (i==1 && prepared.profile.find(Role::Distributor))) continue;
+        const auto images=prepared.profile.unique_images.size();
+        const auto schema=prepared.profile.schema_version;
+        const auto rollback=[&] {
+            prepared.profile.roles[assets::walker_role_index(roles[i])].reset();
+            if (i==1) prepared.profile.roles[assets::walker_role_index(Role::Distributor)].reset();
+            prepared.profile.unique_images.resize(images);prepared.profile.schema_version=schema;
+        };
+        try { append[i](data_root_,manifests[i],prepared.profile); }
+        catch (const std::exception& error) {
+            rollback();prepared.fallback_reasons[i]=std::string("Historical walker preparation failed: ")+error.what();
+            continue;
+        }
+        if (assets::walker_rgba_bytes(prepared.profile)>available_bytes) {
+            rollback();budget_closed=true;
+            prepared.fallback_reasons[i]="Session RGBA texture budget exhausted";
+            continue;
+        }
+        // GPU failure is a failed replacement transaction, not permission to
+        // discard any currently prepared complete-pack or Fire textures.
+        prepared.sprites->append(prepared.profile,available_bytes);
+        prepared.extensions[i]=true;prepared.fallback_reasons[i].clear();
+    }
+    return prepared;
+}
+void SandboxView::publish_legacy_walker_fallback(LegacyWalkerPreparation&& prepared,std::string reason) {
+    walker_profile_=std::move(prepared.profile);walker_sprites_=std::move(prepared.sprites);
+    walker_core_schema_=prepared.core_schema;walker_animation_active_=false;
+    walker_animation_fallback_reason_=std::move(reason);
+    fire_inspector_extension_=prepared.extensions[0];market_walker_extension_=prepared.extensions[1];
+    service_walker_extension_=prepared.extensions[2];health_walker_extension_=prepared.extensions[3];
+    fire_inspector_fallback_reason_=std::move(prepared.fallback_reasons[0]);
+    market_walker_fallback_reason_=std::move(prepared.fallback_reasons[1]);
+    service_walker_fallback_reason_=std::move(prepared.fallback_reasons[2]);
+    health_walker_fallback_reason_=std::move(prepared.fallback_reasons[3]);
+    visual_hits_.clear();visual_frame_valid_=false;walker_role_stats_={};
+    walker_moving_drawn_.fill(false);walker_unmapped_fallbacks_=walker_invalid_edge_fallbacks_=0;
+    walker_diagnostic_role_=walker_diagnostic_direction_=walker_diagnostic_step_=0;
 }
 void SandboxView::remove_fire_inspector_extension() {
     if (!fire_inspector_extension_) return;
@@ -2137,6 +2264,21 @@ std::optional<std::uint64_t> SandboxView::session_texture_headroom(
 }
 void SandboxView::enforce_fire_texture_budget() {
     const auto exhausted=[&] { return !session_texture_headroom(true,true); };
+    if (walker_animation_active_ && exhausted()) {
+        try {
+            const auto available=session_texture_headroom(false,true);
+            if (!available) throw std::runtime_error("No session budget remains for historical walkers");
+            auto prepared=prepare_legacy_walker_fallback(*available);
+            publish_legacy_walker_fallback(std::move(prepared),"Complete walker animations yielded to the session RGBA budget");
+        } catch (const std::exception& error) {
+            // An already valid Fire remains prepared. With no admissible old
+            // core, retire the whole optional pack together and use markers.
+            walker_animation_fallback_reason_=std::string("Historical walker fallback unavailable: ")+error.what();
+            walker_sprites_.reset();walker_profile_.reset();walker_animation_active_=false;
+            fire_inspector_extension_=market_walker_extension_=service_walker_extension_=health_walker_extension_=false;
+            visual_hits_.clear();visual_frame_valid_=false;walker_role_stats_={};
+        }
+    }
     if (health_walker_extension_ && exhausted()) {
         remove_health_walker_extension();
         health_walker_fallback_reason_="Session RGBA texture budget exhausted";
@@ -2184,6 +2326,20 @@ void SandboxView::set_fire_visuals(const std::filesystem::path& manifest,
             return *base-retained;
         };
         auto available=available_for();
+        if ((!available || bytes>*available) && walker_animation_active_) {
+            if (!base || bytes>*base)
+                throw std::runtime_error("fire clip exceeds remaining session RGBA budget");
+            auto legacy=prepare_legacy_walker_fallback(*base-bytes);
+            auto sprites=std::make_unique<FireSpriteSet>();
+            sprites->initialize(renderer_,profile,*base-legacy.sprites->logical_bytes());
+            // The two candidate owners are ready before the complete pack or
+            // any previously valid Fire is released. No partial schema7 pack.
+            publish_legacy_walker_fallback(std::move(legacy),"Complete walker animations yielded to Fire within the session RGBA budget");
+            fire_sprites_=std::move(sprites);fire_profile_=std::move(profile);
+            fire_manifest_=manifest;fire_source_=source;fire_fallback_reason_.clear();
+            fire_frames_drawn_.fill(false);fire_draws_=fire_fallback_draws_=0;
+            return;
+        }
         using Role=assets::WalkerVisualRole;
         // Preserve the fire-priority policy only on genuine aggregate pressure.
         // Plan optional eviction without changing any existing pixels/textures.
@@ -2234,6 +2390,10 @@ void SandboxView::set_fire_visuals(const std::filesystem::path& manifest,
         fire_frames_drawn_.fill(false);
         fire_draws_=fire_fallback_draws_=0;
     } catch (const std::exception& error) {
+        if (walker_animation_active_) {
+            fire_fallback_reason_=std::string("Fire candidate retained complete walker assets: ")+error.what();
+            return;
+        }
         set_fire_visuals({},VisualProfileSource::Fallback,std::string("Fire clip preparation failed: ")+error.what());
     }
 }
@@ -4097,8 +4257,9 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
                 if (pose.frame) {
                     const auto& frame=visual->frames[*pose.frame];
                     const auto& image=walker_profile_->unique_images[frame.image_index];
-                    hit.image=frame.image_index; hit.origin={ground.x-frame.foot_x,ground.y-frame.foot_y};
-                    hit.flip_x=frame.flip_x;
+                    const auto transform=assets::walker_frame_transform(frame,image.width,pose.clip_flip_x);
+                    hit.image=frame.image_index; hit.origin={ground.x-transform.foot_x,ground.y-transform.foot_y};
+                    hit.flip_x=transform.flip_x;
                     hit.width=image.width; hit.height=image.height;
                     append(hit);
                     if (pose.loaded && debug_open_) {
@@ -4642,11 +4803,12 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 if (!walker_sprites_->draw(*pose.frame,ground,camera_.zoom,*visual,*walker_profile_,
                     {static_cast<double>(layout_.map.x),static_cast<double>(layout_.map.y)},
                     {static_cast<double>(layout_.map.x+layout_.map.w),
-                     static_cast<double>(layout_.map.y+layout_.map.h)})) return false;
+                     static_cast<double>(layout_.map.y+layout_.map.h)},pose.clip_flip_x)) return false;
                 const auto& frame=visual->frames[*pose.frame];
                 const auto& image=walker_profile_->unique_images[frame.image_index];
-                const double left=ground.x-frame.foot_x*camera_.zoom;
-                const double top=ground.y-frame.foot_y*camera_.zoom;
+                const auto transform=assets::walker_frame_transform(frame,image.width,pose.clip_flip_x);
+                const double left=ground.x-transform.foot_x*camera_.zoom;
+                const double top=ground.y-transform.foot_y*camera_.zoom;
                 const bool visible=left+image.width*camera_.zoom>layout_.map.x &&
                     top+image.height*camera_.zoom>layout_.map.y &&
                     left<layout_.map.x+layout_.map.w &&
@@ -7547,7 +7709,7 @@ std::string SandboxView::walker_clip_status(const simulation::CourierState& cour
         std::string(simulation::courier_phase_name(courier.phase));
     std::string reason;
     if (!role) reason=std::string(courier_role_label(courier.role))+
-        " has no assigned visual family (outside Food/Market)";
+        " has no qualified visual family";
     else if (!walker_visuals_enabled_) reason="F2 marker comparison";
     else if (!visual) {
         if (walker_source_==VisualProfileSource::Custom)
@@ -7556,6 +7718,8 @@ std::string SandboxView::walker_clip_status(const simulation::CourierState& cour
         else if (role==assets::WalkerVisualRole::FireInspector) reason=fire_inspector_fallback_reason_;
         else if (role==assets::WalkerVisualRole::Service) reason=service_walker_fallback_reason_;
         else if (role==assets::WalkerVisualRole::HealthWorker) reason=health_walker_fallback_reason_;
+        else if (assets::walker_role_index(*role)>=assets::walker_schema6_role_count)
+            reason=walker_animation_fallback_reason_;
         else reason="Core profile has no configured "+std::string(assets::walker_role_name(*role));
     } else if (!walker_sprites_) reason="Walker asset preparation unavailable";
     else {
@@ -7567,8 +7731,14 @@ std::string SandboxView::walker_clip_status(const simulation::CourierState& cour
     if (!reason.empty()) return "Marker fallback: "+reason;
     const auto pose=resolved_walker_pose(*world_,courier,*visual);
     const auto* frame=pose.frame ? &visual->frames[*pose.frame]:nullptr;
-    return "Curated clip: "+(visual->clip_id.empty() ? std::string(assets::walker_role_name(*role)):visual->clip_id)+
-        (frame ? " | #"+std::to_string(frame->id.image_index)+(frame->flip_x ? " flip_x":" native"):"");
+    const bool profession_bound=walker_animation_active_ && world_->original_production_enabled() &&
+        (assets::walker_role_index(*role)>=assets::walker_schema6_role_count ||
+         *role==assets::WalkerVisualRole::Service || *role==assets::WalkerVisualRole::HealthWorker);
+    const bool flip=frame && assets::walker_frame_transform(*frame,
+        walker_profile_->unique_images[frame->image_index].width,pose.clip_flip_x).flip_x;
+    return std::string(profession_bound ? "Source-bound clip; authored feet/timing: ":"Curated clip: ")+
+        (visual->clip_id.empty() ? std::string(assets::walker_role_name(*role)):visual->clip_id)+
+        (frame ? " | #"+std::to_string(frame->id.image_index)+(flip ? " flip_x":" native"):"");
 }
 std::vector<SandboxView::WalkerDiagnostic> SandboxView::walker_diagnostics() const {
     std::vector<WalkerDiagnostic> rows;
@@ -7647,6 +7817,8 @@ bool SandboxView::draw_walker_diagnostic() {
     const auto step=walker_diagnostic_step_%clip.size();
     const auto& frame=visual->frames[clip[step]];
     const auto& image=walker_profile_->unique_images[frame.image_index];
+    const bool clip_flip=visual->clip_flip_x[walker_diagnostic_direction_];
+    const auto transform=assets::walker_frame_transform(frame,image.width,clip_flip);
     const auto compact=[](double value) {
         auto text=std::to_string(value);
         while (!text.empty() && text.back()=='0') text.pop_back();
@@ -7656,18 +7828,18 @@ bool SandboxView::draw_walker_diagnostic() {
     if (!label(3,"Physical #"+std::to_string(frame.id.image_index)+"  step "+
         std::to_string(step+1)+"/"+std::to_string(clip.size())) ||
         !label(4,"Size "+std::to_string(image.width)+"x"+std::to_string(image.height)+
-            "  foot "+compact(frame.foot_x)+","+compact(frame.foot_y)) ||
+            "  foot "+compact(transform.foot_x)+","+compact(transform.foot_y)) ||
         !label(5,frame.id.archive_relative_path.generic_string()) ||
         !label(6,"tick/frame "+std::to_string(visual->ticks_per_frame)+" | "+visual->evidence) ||
-        !label(7,"Clip: "+visual->clip_id+(frame.flip_x ? " | flip_x":" | native")))
+        !label(7,"Clip: "+visual->clip_id+(transform.flip_x ? " | flip_x":" | native")))
         return false;
     const double zoom=(walker_diagnostic_zoom4_ ? 4.0:1.0)*layout_.scale;
     const scene::Point ground{panel.x+panel.w-105*scale,panel.y+300*scale};
-    const SDL_FRect bounds{static_cast<float>(ground.x-frame.foot_x*zoom),
-        static_cast<float>(ground.y-frame.foot_y*zoom),
+    const SDL_FRect bounds{static_cast<float>(ground.x-transform.foot_x*zoom),
+        static_cast<float>(ground.y-transform.foot_y*zoom),
         static_cast<float>(image.width*zoom),static_cast<float>(image.height*zoom)};
     if (!walker_sprites_->draw(clip[step],ground,zoom,*visual,*walker_profile_,
-            {panel.x,panel.y},{panel.x+panel.w,panel.y+panel.h}) ||
+            {panel.x,panel.y},{panel.x+panel.w,panel.y+panel.h},clip_flip) ||
         !SDL_SetRenderDrawColor(renderer_,20,210,245,255) ||
         !SDL_RenderRect(renderer_,&bounds)) return false;
     const float gx=static_cast<float>(ground.x),gy=static_cast<float>(ground.y);

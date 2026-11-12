@@ -1,5 +1,6 @@
 #include "assets/WalkerVisualProfile.h"
 #include "app/WalkerPose.h"
+#include "core/PerformanceDiagnostics.h"
 #include "renderer/WalkerSpriteSet.h"
 #include "simulation/World.h"
 #include <SDL3/SDL.h>
@@ -13,6 +14,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
 #include <string_view>
 #include <tuple>
@@ -307,6 +309,104 @@ void pose_checks(const openemperor::assets::WalkerVisualProfile& profile) {
     check(walker_pose(courier,6,partial).fallback==WalkerFallback::UnmappedDirection &&
           !walker_pose(courier,6,partial).frame,"unmapped direction hidden");
 }
+// The manifest's order, rather than numeric frame/physical-record order, owns
+// the cycle. Deliberately shuffled indices expose sorting and truncated loops.
+constexpr std::array<std::size_t,12> cycle_order{9,2,7,0,11,4,1,10,5,8,3,6};
+void full_cycle_pose_checks() {
+    using namespace openemperor;
+    namespace sim=simulation;
+    constexpr std::array roles{sim::CourierRole::Clay,sim::CourierRole::Pottery,
+        sim::CourierRole::Household,sim::CourierRole::FireInspector,sim::CourierRole::Food,
+        sim::CourierRole::MarketFoodDistribution,sim::CourierRole::Service,sim::CourierRole::HealthWorker,
+        sim::CourierRole::OriginalMusic,sim::CourierRole::OriginalMusicPerformer,
+        sim::CourierRole::OriginalAcrobat,sim::CourierRole::OriginalDrama,sim::CourierRole::OriginalVenueMusic};
+    constexpr std::array directions{assets::StorageDirection::PosX,assets::StorageDirection::PosY,
+        assets::StorageDirection::NegX,assets::StorageDirection::NegY};
+    for (const auto logical_role:roles) {
+        assets::WalkerVisualProfile profile;profile.schema_version=7;
+        const auto visual_role=*walker_visual_role(logical_role);
+        auto& visual=profile.roles[assets::walker_role_index(visual_role)].emplace();
+        visual.ticks_per_frame=assets::walker_role_index(visual_role)<3 ? 4:2;
+        visual.idle_frame=17;visual.frames.resize(24);
+        constexpr std::array<std::size_t,4> native_offset{0,12,0,12};
+        visual.clip_flip_x={false,true,true,false};
+        for (std::size_t direction=0;direction<4;++direction)
+            for (const auto frame:cycle_order) visual.clips[direction].push_back(native_offset[direction]+frame);
+        sim::CourierState courier;courier.id=static_cast<sim::CourierId>(901);
+        courier.owner=static_cast<sim::BuildingId>(801);courier.role=logical_role;
+        courier.enabled=true;courier.phase=sim::CourierPhase::ToWarehouse;
+        courier.path={{2,2},{3,2},{3,3},{2,3},{2,2}};courier.cargo=3;
+        const auto ticks=static_cast<std::uint64_t>(visual.ticks_per_frame);
+        const auto maximum=std::numeric_limits<std::uint64_t>::max();
+        performance::set_enabled(true);performance::reset();
+        for (std::size_t edge=0;edge<4;++edge) {
+            courier.path_vertex=edge;
+            const auto direction=assets::direction_index(directions[edge]);
+            for (const auto phase:{sim::CourierPhase::ToWarehouse,sim::CourierPhase::Returning}) {
+                courier.phase=phase;courier.cargo=phase==sim::CourierPhase::Returning ? 0:3;
+                std::uint64_t tick=0;
+                for (int cycle=0;cycle<3;++cycle) for (const auto frame:cycle_order) {
+                    for (std::uint64_t hold=0;hold<ticks;++hold) {
+                        const auto pose=walker_pose(courier,tick++,profile);
+                        check(pose.frame==native_offset[direction]+frame && pose.direction==directions[edge] &&
+                            pose.clip_flip_x==visual.clip_flip_x[direction] &&
+                            pose.role==visual_role && pose.moving && pose.loaded==(courier.cargo>0) &&
+                            pose.fallback==WalkerFallback::None,"Full twelve-phase manifest cycle/cadence changed");
+                        check(walker_pose(courier,tick-1,profile).frame==pose.frame,
+                            "Repeated paused draw advanced a twelve-phase cycle");
+                    }
+                }
+                check(walker_pose(courier,tick,profile).frame==native_offset[direction]+cycle_order.front(),
+                    "Last-to-first frame boundary lost its first phase");
+                // UINT64_MAX is a valid read-only presentation query. Matching
+                // the preceding divisible tick catches clock addition overflow.
+                const auto aligned=maximum-(ticks-1);
+                check(walker_pose(courier,maximum,profile).frame==walker_pose(courier,aligned,profile).frame,
+                    "Large World tick overflowed within an authored frame");
+                courier.route_pending=true;courier.edge_progress=1;
+                check(walker_pose(courier,ticks,profile).moving &&
+                    walker_pose(courier,ticks,profile).frame==native_offset[direction]+cycle_order[1],
+                    "Pending route interrupted an already begun edge");
+                courier.edge_progress=0;
+                const auto wait=walker_pose(courier,ticks,profile);
+                check(!wait.moving && walker_pose(courier,maximum,profile).frame==wait.frame,
+                    "Stopped route animated at its actual position");
+                if (assets::walker_role_index(visual_role)<3)
+                    check(!wait.direction && !wait.clip_flip_x && wait.frame==visual.idle_frame,
+                        "Historical core waiting pose changed");
+                else check(wait.direction==directions[edge] && wait.frame==native_offset[direction]+cycle_order.front() &&
+                    wait.clip_flip_x==visual.clip_flip_x[direction],
+                    "Waiting figure lost its real next-edge facing");
+                courier.route_pending=false;
+            }
+        }
+        courier.path_vertex=0;courier.path={{2,2},{3,3}};
+        check(walker_pose(courier,0,profile).fallback==WalkerFallback::InvalidEdge,
+            "Diagonal edge fabricated a cardinal full-cycle direction");
+        courier.path={{std::numeric_limits<int>::min(),0},{std::numeric_limits<int>::max(),0}};
+        check(walker_pose(courier,0,profile).fallback==WalkerFallback::InvalidEdge,
+            "Extreme edge overflow fabricated a walking direction");
+        courier.path={{2,2}};courier.route_pending=true;
+        check(!walker_pose(courier,maximum,profile).moving &&
+            !walker_pose(courier,maximum,profile).clip_flip_x &&
+            walker_pose(courier,maximum,profile).frame==visual.idle_frame,
+            "No-edge waiting figure invented a direction or walking phase");
+        courier.phase=sim::CourierPhase::IdleAtWorkshop;
+        check(!walker_pose(courier,maximum,profile).moving &&
+            walker_pose(courier,maximum,profile).frame==visual.idle_frame,
+            "Home idle animated a full walking cycle");
+        visual.idle_flip_x=true;
+        const auto reflected_idle=walker_pose(courier,maximum,profile);
+        check(!reflected_idle.moving && !reflected_idle.direction && reflected_idle.clip_flip_x &&
+            reflected_idle.frame==visual.idle_frame,"Compacted idle lost its explicit display facing");
+        for (std::size_t i=0;i<static_cast<std::size_t>(performance::Counter::Count);++i)
+            check(performance::counter(static_cast<performance::Counter>(i))==0,
+                "Full-cycle pose query performed prohibited frame work");
+        performance::set_enabled(false);
+        check(courier.id==static_cast<sim::CourierId>(901) && courier.owner==static_cast<sim::BuildingId>(801) &&
+            courier.role==logical_role,"Animation changed actor/channel identity");
+    }
+}
 void render_checks(const openemperor::assets::WalkerVisualProfile& profile) {
     check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"SDL dummy init");
     SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
@@ -399,6 +499,89 @@ void four_direction_pixels(const openemperor::assets::WalkerVisualProfile& profi
     check(near(light[0],150) && near(light[1],110) && near(light[2],220),
           "half-alpha light blend or texture modulation mismatch");
     sprites.shutdown();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
+}
+openemperor::assets::WalkerVisualProfile full_cycle_profile() {
+    using namespace openemperor::assets;
+    WalkerVisualProfile profile;profile.schema_version=7;
+    auto& role=profile.roles[walker_role_index(WalkerVisualRole::Clay)].emplace();
+    role.ticks_per_frame=4;role.clip_flip_x={false,true,true,false};
+    for (std::size_t native_direction=0;native_direction<2;++native_direction)
+        for (std::size_t phase=0;phase<12;++phase) {
+            RgbaImage image;image.width=static_cast<std::uint16_t>(8+phase%4);
+            image.height=static_cast<std::uint16_t>(10+phase%3);
+            image.pixels.assign(static_cast<std::size_t>(image.width)*image.height*4,0);
+            const int foot_x=3+static_cast<int>(phase%3),foot_y=8+static_cast<int>(phase%3);
+            const std::array<std::uint8_t,4> color{static_cast<std::uint8_t>((phase+1)*16),
+                static_cast<std::uint8_t>((native_direction+1)*60),160,255};
+            const auto put=[&](int x,int y,const std::array<std::uint8_t,4>& rgba) {
+                const auto at=(static_cast<std::size_t>(y)*image.width+static_cast<unsigned>(x))*4;
+                std::copy(rgba.begin(),rgba.end(),image.pixels.begin()+static_cast<std::ptrdiff_t>(at));
+            };
+            for (int y=foot_y-3;y<foot_y;++y) for (int x=foot_x-1;x<=foot_x;++x) put(x,y,color);
+            put(foot_x-1,foot_y,{0,0,0,128});
+            WalkerFrame frame;frame.alias="native-"+std::to_string(native_direction)+"-"+std::to_string(phase);
+            frame.id={"DATA/authored-cycle.sg3",static_cast<std::uint32_t>(1+profile.unique_images.size())};
+            frame.foot_x=foot_x;frame.foot_y=foot_y;frame.image_index=profile.unique_images.size();
+            role.frames.push_back(frame);profile.unique_images.push_back(std::move(image));
+        }
+    constexpr std::array<std::size_t,4> native_offset{0,12,0,12};
+    for (std::size_t direction=0;direction<4;++direction)
+        for (const auto frame:cycle_order) role.clips[direction].push_back(native_offset[direction]+frame);
+    return profile;
+}
+void full_cycle_pixels(const openemperor::assets::WalkerVisualProfile& profile) {
+    using namespace openemperor;
+    check(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy") && SDL_Init(SDL_INIT_VIDEO),"cycle SDL init");
+    SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
+    check(SDL_CreateWindowAndRenderer("twelve-phase Walker pixels",100,100,SDL_WINDOW_HIDDEN,
+        &window,&renderer),"cycle software renderer");
+    WalkerSpriteSet sprites;sprites.initialize(renderer,profile);
+    check(sprites.texture_count()==24 && sprites.logical_bytes()==assets::walker_rgba_bytes(profile),
+        "Four twelve-phase clips duplicated reflected physical textures");
+    const auto& role=*profile.find(assets::WalkerVisualRole::Clay);
+    simulation::CourierState courier;courier.enabled=true;courier.role=simulation::CourierRole::Clay;
+    courier.phase=simulation::CourierPhase::ToWarehouse;
+    courier.path={{2,2},{3,2},{3,3},{2,3},{2,2}};
+    constexpr std::array<std::size_t,4> native_direction_for_edge{0,0,1,1};
+    constexpr std::array<bool,4> flip_for_edge{false,true,true,false};
+    const scene::Point ground{45,65};
+    for (const double zoom:{1.0,2.0,4.0}) for (std::size_t edge=0;edge<4;++edge) {
+        courier.path_vertex=edge;std::uint64_t tick=0;
+        for (int cycle=0;cycle<3;++cycle) for (const auto phase:cycle_order) {
+            check(SDL_SetRenderDrawColor(renderer,40,80,120,255) && SDL_RenderClear(renderer),"cycle clear");
+            performance::set_enabled(true);performance::reset();
+            const auto pose=walker_pose(courier,tick,profile);
+            check(pose.frame && sprites.draw(*pose.frame,ground,zoom,role,profile,{0,0},{100,100},pose.clip_flip_x),
+                "Actual pose did not submit a full-cycle native/clip-reflected image");
+            for (std::size_t i=0;i<static_cast<std::size_t>(performance::Counter::Count);++i)
+                check(performance::counter(static_cast<performance::Counter>(i))==0,
+                    "Full-cycle render performed prohibited frame work");
+            performance::set_enabled(false);
+            const bool flip=flip_for_edge[edge];
+            const int contact_x=static_cast<int>(ground.x+(flip ? -0.5:0.5)*zoom);
+            const int contact_y=static_cast<int>(ground.y-0.5*zoom);
+            check(pixel(renderer,contact_x,contact_y)==std::array<std::uint8_t,4>{
+                    static_cast<std::uint8_t>((phase+1)*16),
+                    static_cast<std::uint8_t>((native_direction_for_edge[edge]+1)*60),160,255},
+                "Ordered phase, facing or variable-canvas common foot changed in actual pixels");
+            const int shadow_x=static_cast<int>(ground.x+(flip ? 0.5:-0.5)*zoom);
+            const auto shadow=pixel(renderer,shadow_x,static_cast<int>(ground.y+0.5*zoom));
+            check(std::abs(static_cast<int>(shadow[0])-20)<=1 &&
+                std::abs(static_cast<int>(shadow[1])-40)<=1 &&
+                std::abs(static_cast<int>(shadow[2])-60)<=1 && shadow[3]==255,
+                "Full-cycle shadow changed alpha or moved away from its explicit foot");
+            // Canvas corners stay transparent through phase/size/direction changes.
+            const int width=8+static_cast<int>(phase%4),foot_x=3+static_cast<int>(phase%3);
+            const int foot_y=8+static_cast<int>(phase%3);
+            const int left=static_cast<int>(ground.x-(flip ? width-foot_x:foot_x)*zoom);
+            const int top=static_cast<int>(ground.y-foot_y*zoom);
+            check(pixel(renderer,left,top)==std::array<std::uint8_t,4>{40,80,120,255},
+                "Cycle size or reflection exposed a transparent canvas corner");
+            tick+=role.ticks_per_frame;
+        }
+    }
+    sprites.shutdown();check(WalkerSpriteSet::live_texture_count()==0,"Cycle textures survived shutdown");
+    SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();
 }
 void multi_role_pixels() {
     using namespace openemperor;
@@ -594,9 +777,10 @@ int main(int argc,char* argv[]) {
         }
         Fixture fixture;profile_checks(fixture);multi_role_profile_checks(fixture);
         auto profile=openemperor::assets::load_walker_visual_profile(fixture.data,fixture.manifest);
-        pose_checks(profile);render_checks(profile);
+        pose_checks(profile);full_cycle_pose_checks();render_checks(profile);
         const auto four=four_direction_profile();four_direction_pixels(four);multi_role_pixels();
-        simulation_neutrality(four);industry_multi_role_neutrality(four);
+        const auto cycle=full_cycle_profile();full_cycle_pixels(cycle);
+        simulation_neutrality(cycle);industry_multi_role_neutrality(four);
         std::cout<<"walker profile, pose, software pixels and neutral World checks passed\n";
         return 0;
     } catch (const std::exception& error) { std::cerr<<error.what()<<'\n';return 1; }

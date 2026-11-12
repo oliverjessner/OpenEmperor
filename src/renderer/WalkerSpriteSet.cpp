@@ -95,15 +95,16 @@ void WalkerSpriteSet::shutdown() {
 bool WalkerSpriteSet::draw(std::size_t frame,scene::Point ground,double zoom,
                            const assets::WalkerRoleVisual& role_visual,
                            const assets::WalkerVisualProfile& profile,
-                           scene::Point clip_min,scene::Point clip_max) const {
+                           scene::Point clip_min,scene::Point clip_max,bool clip_flip_x) const {
     const auto& selected=role_visual.frames.at(frame);
     const auto& image=profile.unique_images.at(selected.image_index);
-    const SDL_FRect destination{static_cast<float>(ground.x-selected.foot_x*zoom),
-        static_cast<float>(ground.y-selected.foot_y*zoom),
+    const auto transform=assets::walker_frame_transform(selected,image.width,clip_flip_x);
+    const SDL_FRect destination{static_cast<float>(ground.x-transform.foot_x*zoom),
+        static_cast<float>(ground.y-transform.foot_y*zoom),
         static_cast<float>(image.width*zoom),static_cast<float>(image.height*zoom)};
     if (destination.x+destination.w<=clip_min.x || destination.y+destination.h<=clip_min.y ||
         destination.x>=clip_max.x || destination.y>=clip_max.y) return true;
-    if (selected.flip_x)
+    if (transform.flip_x)
         return SDL_RenderTextureRotated(renderer_,textures_.at(selected.image_index),nullptr,
                                        &destination,0.0,nullptr,SDL_FLIP_HORIZONTAL);
     return SDL_RenderTexture(renderer_,textures_.at(selected.image_index),nullptr,&destination);

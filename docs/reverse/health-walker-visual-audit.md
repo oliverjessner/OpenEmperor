@@ -1,5 +1,14 @@
 # Bounded HealthWorker figure audit
 
+This records the historical, unchanged schema-6 Health2925 supplement. OE62's
+independently fingerprinted complete schema-7 profile instead selects the
+source-qualified Herbalist207 family1813. The actual factory, Actor30, owner
+callback and graphic selection are recorded in the
+[medical graphic contract](original-service-spawn-contract.md#medical-source-owned-walking-graphics).
+Classic authored HealthPost is still an authored association. Failed optional
+complete-profile preparation retains the historical supplement and its exact
+budgets. Neither path recovers original pivots, World-tick timing or illness AI.
+
 Starting source HEAD is `ec32265f137611d26bb49805fb26baa2df0d13de`; original archives are read-only. Production metadata is `resources/compatibility/gog-derived-2.0.0.2-en-assetset-1/health-walker.json`, SHA-256 `5f563502b8930ad1f25c2b28083cff32277d5488d7ea395745f1dc3d8ca76109`. Only metadata is tracked. Original RGBA, contact sheets, hashes, runners and captures stay ignored under `.local/health-walker/`.
 
 **A — Original pixels:** 24 native SprMain records freshly decoded through the production SG3 loader have positive opaque, transparent and shadow witnesses. Raw and prepared RGBA hashes match the independent audit. The pinned sources are SprMain.sg3 (991,080 bytes, SHA-256 `3e2817d2644453acc92068d6c1e26532212be213b43b848ebe95ba21654adef8`) and SprMain.555 (26,717,501 bytes, SHA-256 `d84eb6759e9ce50b0ad75596773b9224f9c1a9b8dd80b691c066c3de7e8df438`). Health declares and verifies this pair independently of the other roles.

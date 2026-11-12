@@ -10,6 +10,7 @@ enum class WalkerFallback { None, UnmappedDirection, InvalidEdge };
 struct WalkerPose {
     bool moving=false;
     bool loaded=false;
+    bool clip_flip_x=false; // Additional direction transform; idle is unchanged.
     std::optional<assets::StorageDirection> direction;
     std::optional<std::size_t> frame; // Profile frame index, not an SG3 record.
     std::optional<assets::WalkerVisualRole> role;

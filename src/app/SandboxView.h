@@ -207,6 +207,13 @@ public:
     void load_now();
     void set_walker_visuals(const std::filesystem::path& manifest,
                             VisualProfileSource source=VisualProfileSource::Custom);
+    // Complete schema-7 replacement, independently fingerprinted and prepared
+    // atomically. Missing/invalid optional art retains the historical profiles.
+    void set_walker_animation_visuals(const std::filesystem::path& manifest,
+                            VisualProfileSource source=VisualProfileSource::Builtin,
+                            std::string fallback_reason={});
+    bool walker_animations_active() const { return walker_animation_active_; }
+    const std::string& walker_animation_fallback_reason() const { return walker_animation_fallback_reason_; }
     // Built-in optional tail; explicit custom walker profiles are never supplemented.
     void set_fire_inspector_visuals(const std::filesystem::path& manifest,
                                    VisualProfileSource source=VisualProfileSource::Builtin,
@@ -759,6 +766,19 @@ private:
     std::filesystem::path data_root_,map_relative_,save_path_;
     std::filesystem::path walker_manifest_;
     VisualProfileSource walker_source_=VisualProfileSource::Fallback;
+    std::filesystem::path walker_animation_manifest_;
+    VisualProfileSource walker_animation_source_=VisualProfileSource::Fallback;
+    std::string walker_animation_fallback_reason_="No complete walker animation profile selected";
+    bool walker_animation_active_=false;
+    struct LegacyWalkerPreparation {
+        assets::WalkerVisualProfile profile;
+        std::unique_ptr<WalkerSpriteSet> sprites;
+        std::uint32_t core_schema=0;
+        std::array<bool,4> extensions{}; // Inspector, Market, Service, Health.
+        std::array<std::string,4> fallback_reasons;
+    };
+    LegacyWalkerPreparation prepare_legacy_walker_fallback(std::uint64_t available_bytes) const;
+    void publish_legacy_walker_fallback(LegacyWalkerPreparation&& prepared,std::string reason);
     std::optional<assets::WalkerVisualProfile> walker_profile_;
     std::unique_ptr<WalkerSpriteSet> walker_sprites_;
     bool walker_visuals_enabled_=true;
