@@ -1056,6 +1056,12 @@ if(BUILD_TESTING)
     add_test(NAME original-food-world COMMAND openemperor-original-food-world-tests)
     set_tests_properties(original-food-world PROPERTIES TIMEOUT 180)
 
+    add_executable(openemperor-food-batch-arithmetic-tests tests/FoodBatchArithmeticTests.cpp)
+    target_include_directories(openemperor-food-batch-arithmetic-tests PRIVATE src)
+    openemperor_enable_warnings(openemperor-food-batch-arithmetic-tests)
+    add_test(NAME food-batch-arithmetic COMMAND openemperor-food-batch-arithmetic-tests)
+    set_tests_properties(food-batch-arithmetic PROPERTIES TIMEOUT 20)
+
     add_executable(openemperor-original-services-world-tests tests/OriginalServicesWorldTests.cpp)
     target_link_libraries(openemperor-original-services-world-tests PRIVATE openemperor-persistence)
     openemperor_enable_warnings(openemperor-original-services-world-tests)
