@@ -121,6 +121,9 @@ inline std::optional<assets::OriginalBuildingVisualRole> original_building_visua
     case O::OriginalHempField:return R::HempField;
     case O::OriginalWheatField:return R::WheatField;
     case O::OriginalMilletField:return R::MilletField;
+    case O::OriginalRiceField:return R::RiceField;
+    case O::OriginalCabbageField:return R::CabbageField;
+    case O::OriginalSoybeanField:return R::SoybeanField;
     case O::OriginalLoggingShed38:return R::LoggingShed;
     case O::OriginalBronzeSmelter39:return R::BronzeSmelter;
     case O::OriginalBronzewareMaker42:return R::BronzewareMaker;

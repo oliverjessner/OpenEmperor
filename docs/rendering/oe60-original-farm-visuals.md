@@ -267,3 +267,39 @@ remain under `.local/oe60-5/field-order-fix/`, including
 freeze. LeakSanitizer (`detect_leaks=0`), native/human acceptance, new timing,
 long paid-gameplay and historical-save replays were not run for this correction;
 the earlier broad results above remain historical.
+
+
+## Explicit Agriculture presentation
+
+Rule24/schema40 selects the separate `original-agriculture-buildings.json`
+visual schema5 only for the built-in supplement. The historical schema4 resource
+and schemas1–4 keep their roles, physical image prefixes, field policy and
+fallbacks. New identities are Rice197, Cabbage198 and Soy199; presentation grants
+no construction, parent, crop quantity, harvest or Food authority.
+
+Cabbage uses General group0x42f physical2434–2439 and Soy group0x430
+physical2446–2451. All twelve records are complete native Type30 side1 rasters
+with base3200 bytes and no animation. The shared loader verifies fingerprints,
+registered groups, native geometry, containment, complete decode and the existing
+combined64 MiB budget atomically. No original pixels are stored in resources.
+The quantity selector uses the observed ordinary Food publication rule: integer
+percentage `quantity/100`, stage0 at zero percent, otherwise
+`min(5, percentage/20+1)`. Per-cell variation remains the canonical zero bank.
+World production is locked until Original tending and harvest timing are fully
+verified; native source images grant no quantity or harvest. Agriculture's Wheat/Millet visual selection also reads
+its separate actual field quantity; legacy modes retain their80-tick selector.
+
+Rice has a named authored fallback. Its source publisher combines eight-neighbor
+topology, a growing bank and separate quantity overlays; a group registration or
+initial tile is insufficient to admit a complete paid Rice image. The renderer
+does not substitute the Cabbage/Soy stage bank. Preparing Rice topology and
+quantity overlays remains a separate rendering requirement.
+
+The disposable painter cache holds at most32 Agriculture fields and two inherited
+Hemp fields, within the unchanged82-body budget. It is prepared at World/layout
+revision boundaries and uses authoritative parent IDs and quantities. Frame and
+hover paths add no parsing, image decode, upload, map scan or gameplay command.
+`AgriculturePresentationTests` covers explicit menu selection, separate tools,
+keyboard actions, pure frames and F5/F9. The existing building-profile tests cover
+schema5 canonical fields, explicit Rice fallback, hostile selectors and unchanged
+historical schemas; optional original-data checks decode the twelve source rasters.

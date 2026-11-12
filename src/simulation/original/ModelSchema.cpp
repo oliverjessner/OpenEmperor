@@ -81,6 +81,9 @@ std::string_view model_label(ModelBuilding building) {
     case ModelBuilding::HempField: return "Hemp Field";
     case ModelBuilding::WheatField: return "Wheat Field";
     case ModelBuilding::MilletField: return "Millet Field";
+    case ModelBuilding::RiceField: return "Rice Paddy";
+    case ModelBuilding::CabbageField: return "Cabbage Field";
+    case ModelBuilding::SoybeanField: return "Soybean Field";
     }
     throw std::out_of_range("invalid named original building ID");
 }

@@ -4,12 +4,12 @@ The optional **City-v16 Rule10 / schema26 / policy3 / development revision27**
 has paid production, transport, House evolution, taxes and recovery. Full original
 parity remains partial; see [the play guide](player-handoff.md) and [Known Issues](../../KNOWN_ISSUES.md).
 
-The [Agriculture architecture](agriculture.md) defines one future integrated
-generation, its source/evidence gates and the AGRI-02–07 dependency plan.
-AGRI-01 shares pure multi-kind Food arithmetic with the unchanged two-crop
-adapter only. Proposed Rule24/schema40 identifiers remain documentation-only;
-no Agriculture create/restore/menu/CLI path is active, and Rules1–23 retain
-their exact contracts.
+The [Agriculture architecture](agriculture.md) defines the explicit Rule24/
+policy3/schema40 construction/Food foundations added during AGRI-02. Its separate
+five-kind state and source-bound fertility preserve Rule1–23/schema1–39.
+**Production is locked:** complete Original tending/harvest timing is unproved;
+no authored calendar substitute or Food origin is active. Functional AGRI-02
+chains and irrigation/orchard/ecology integration remain incomplete.
 
 ## Versions and source preparation
 

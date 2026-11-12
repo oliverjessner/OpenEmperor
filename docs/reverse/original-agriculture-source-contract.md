@@ -42,6 +42,18 @@ The captured-window receipts retain exact read-only `objdump` arguments, source
 section offsets and SHA-256 values. The check commands validate retained static
 observations; they do not execute the original game or exercise new World rules.
 
+The field-admission follow-up is retained separately under ignored
+`.local/agri-02/research/`. `verify_agri02.py` checks25 fresh bounded windows,
+7,466 overlapping instruction/data lines and20,437 decoded bytes against the
+pinned EXE, with51 narrow instruction/table/model assertions. All three input
+files retain their byte hashes, lengths, modes and modification times. The
+private `verified-agri02-source-report.json` explicitly excludes game execution,
+named-month/World-clock parity and a universal Rice pump prerequisite.
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02/research/verify_agri02.py
+```
+
 - `MODEL_OBSERVED`: original model labels and raw columns; neither cost nor
   `SZE` establishes a complete purchase transaction or footprint.
 - `EXE_OBSERVED`: the narrow static factory, call, dataflow and table operations
@@ -86,10 +98,42 @@ FoodQuality, consumption or delivery-unit rules.
 
 The field purchase path `0x4c1320` separately tests the selected cells, creates
 accepted fields through the real object manager and publishes each actual field.
-It does not establish OpenEmperor's current immutable one-field-per-parent
-ownership contract. The later Farm search, work assignment and returning actor
-references must be reconciled before admitting a new ownership model. A field
-label or nearby Farmhouse does not grant staffing, tending or harvested stock.
+Its cell checks include terrain mask`0xaffede6f`, a typed placement predicate,
+the separate checks at`0x416bb0`/`0x416bd0` and the result of
+`0x59c770→0x59c8a0`. Only an accepted actual build calls manager`0x42d540` and
+the accounting callback`0x5ef430`; the count/preview path does not do this.
+The complete meaning of every veto and final purchase arithmetic remain open.
+
+The typed predicate is bound through`0x4c1530`, instance`0x1031408` and
+constructor-installed vtable`0x7ae2e4` to`0x4bfb80`. It first applies shared
+terrain predicate`0x42e250`. For **Rice197 only**, it additionally requires the
+separate per-cell byte at`0xe9f8e0` to equal100 (`0x4bfbbf`). This is the
+serialized fertility operand also used by the existing landscape reader, not
+terrain bit`0x80`, water adjacency, a sprite or a pump-distance inference.
+This operand must enter a source-bound World terrain context before it may
+authorize a Rice command; a renderer-owned buffer is insufficient.
+
+The same placement predicate maps the field to its actual required farm type
+with`0x4c3440`, then searches actual active matching farms with
+`0x4c5590→0x4c55a0`. Food fields195–199 map to Farmhouse193. Each axis must be
+within the farm's virtual`+0x260` range of at least one footprint endpoint.
+Farmhouse193 binds that callback to`0x4c31f0`; the pinned range value at
+`0x84c554` is3 and its initial side is3. Thus the bounded search covers offsets
+−3 through+5 on each axis relative to the Farm origin, subject to all other
+cell vetoes. The analogous work-range check is`0x4c3c60`.
+
+This actual matching-farm/range search does not establish OpenEmperor's current
+immutable one-field-per-parent ownership contract. The subsequent work search
+examines compatible fields, actual retained quantity and assignment state.
+Concurrent work commitments and the complete worker loop must still be
+reconciled before claiming Original ownership parity. A label or nearby
+Farmhouse grants no staffing, tending or harvested stock.
+
+The pinned model rows report Farmhouse193 base cost50 and staff22; Rice197
+base7, Cabbage198 base5 and Soybean199 base5, each with field staff0. These
+`MODEL_OBSERVED` inputs use the existing documented model column meanings and
+do not replace difficulty arithmetic, separate field payments or complete
+footprints. Zero field staff does not make an untended field productive.
 
 ## Quantity, work and the source calendar
 
@@ -106,17 +150,101 @@ at sentinel−1 and compares entries with calendar slot `0xc82eec`. At a matchin
 slot with subcounter `0xc82ef0==0`, `0x4c1a20` finds actual matching fields and
 sets bit`0x8000` in their own-info word`+0x6a`.
 
+The separate start table at`0x7ae22c` and end table at`0x7ae19c` have the
+following first entries in this EXE; each row's remaining three entries is−1.
+The growing-period query`0x4c0760` compares the current outer slot with a start
+included/end excluded interval. These are raw source slot numbers, not inferred
+month names or elapsed durations in the current World contract.
+
+| Crop index / field type | Start slot | End / harvest-mark slot |
+|---|---:|---:|
+|0 / Wheat195|2|6|
+|1 / Millet196|6|10|
+|2 / Rice197|5|9|
+|3 / Cabbage198|7|11|
+|4 / Soybean199|4|8|
+|5 / Hemp194|3|8|
+
 The shared source scheduler advances its phase through0–50, its subcounter
 through0–15 and its outer slot through0–11. These order/count observations do not
 prove an original number of seconds, a World20-Hz mapping, named calendar dates,
 regional seasons or all event ordering. The existing Original-economy adapter's
 816-World-tick month remains an authored integration choice.
 
+The relative cadence is bounded more precisely: after phase50 the dispatcher
+resets its phase and calls`0x4ac650`. That function increments subcounter
+`0xc82ef0`; when it exceeds15, it resets it to0 and increments outer slot
+`0xc82eec`, wrapping after11. Its final unconditional chain
+`0x4acc21→0x4bfdb0`, `0x4acc28→0x4c0570` reaches active fields and their
+`0x4c1bc0` work decay. Thus this decay belongs to every completed phase cycle,
+including the ordinary subslot advances, rather than only to an outer-slot
+boundary. Field growth is visited at phase20 before that cycle's decay.
+
 The field branch reached through `0x51e50a→0x4c0f60` checks actual source state,
 decrements a retained countdown, invokes field callback`+0x25c`, adds its result
 to signed quantity`+0x04`, caps that quantity at10000 and republishes the field.
 The ordinary Food field callback`0x4c2260` additionally reads schedule/work state;
-the original is not a single shared elapsed-time progress counter. The checked
+it returns0 in the last configured end slot (`0x4c16c0`), otherwise157 when
+the work flag's low byte exceeds32,79 when that byte is1–32 and0 when it is0.
+It does not itself call the start-inclusive/end-exclusive growing-period query.
+That separate query's existence therefore does not establish a complete four-slot
+quantity-increment rule. Likewise neither this callback nor the calendar driver
+contains an automatic end-slot harvest or four-portion World stock credit.
+The actual work-completion callback`0x4c1d20` sets low-byte bit`0x40` and clears
+the field's worker reference. The separate decay helper`0x4c1bc0` decrements
+that low byte to a minimum of0 while preserving the high work/harvest bits.
+These are quantity increments and retained work, not World tick counts or a
+license to make a merely staffed/proximate Farm grow arbitrary fields. The
+complete arrival/dispatch scheduling remains a separate boundary.
+
+Actual tending and harvesting use separate actor-clock transitions. The grower
+state dispatcher`0x4cc670` reads retained actor/source/field identities and uses
+state table`0x4cd1b8`. In the tending branch, `0x4cc96d→0x4c2dc0` decrements
+the actual actor's signed wait word`+0x3e`; only after it reaches0 or less does
+it resolve that actor's field reference`+0x68`, verify field compatibility and
+call field slot`+0x264` at`0x4c2e29` (`0x4c1d20`). The actor then enters state6.
+The analogous harvest chain`0x4ccc17→0x4c2fd0` has its own wait-word gate and
+calls field slot`+0x268` at`0x4c3039` (`0x4c1dd0`), then enters actor state10.
+The preceding state branches initialize waits using source floating-point
+operands and rounding at`0x4cc8f3..0x4cc918` and`0x4ccb92..0x4ccba6`, following
+movement outcomes. Those actor transitions cannot be replaced by Farm staffing,
+a calendar match, a planned field visit or a quantity threshold.
+
+The immediate wait operands are now bound. The classifier
+`0x4c0750→0x4c0640` is true only for field types26/27/28, and false for Food
+fields195–199. The common float at`0x7affe0` is51; the harvest branch's doubles
+at`0x7ae0f0`/`0x7ac780` are4/0.5. Conversion helper`0x7650fc` temporarily sets
+x87 rounding control to truncation toward zero, converts, and restores the
+previous control word. In the checked initializer branches:
+
+| Bound field type | Tending wait word | Harvest wait word |
+|---|---:|---:|
+|195–199 Food fields|51|25 (truncated from0.5×51)|
+|26/27/28 plant fields|204|204|
+
+These values apply only after the relevant field predicate accepts and retained
+field word`+0x2e` is nonzero. The alternate branches write0, and terrain
+flag`0x100` subsequently overrides either initialized wait with0. The meaning
+and complete writers of that retained field word are not inferred as staffing
+or productivity from its location. The waits count subsequent eligible actor
+state invocations; they do not measure World ticks, travel or a full crop season.
+
+The shared type dispatcher`0x4c7580` indexes behavior pointers at
+`0x84e784+40*actor_type`. Raw actor type26's entry`0x84eb94` points to
+`0x4cc670` (the Grower behavior). This raw actor type domain is separate from
+the plant-field type26 above. The registry binding does not close how often
+the actual actor reaches that dispatcher or the movement/state branches.
+
+These observations close relative phase/subslot cadence and the immediate
+work/harvest wait gates, not the complete accepted field initialization,
+actor update rate, movement-to-state transitions or repeated
+field assignment/tending lifecycle. A fixed160-increment adapter, an assumed
+63-event ripening period or a fixed four-portion seasonal harvest is therefore
+**AUTHORED**, not a verified Original time rule. With the user's proof-only
+timing requirement, these unclosed production transitions remain unavailable;
+none may be activated as an Original seasonal chain.
+
+The original is not a single shared elapsed-time progress counter. The checked
 callback`0x4c1dd0` marks work state, gates yield on the schedule bit, reads the
 actual field quantity, includes source terrain fertility, irrigation, crop/region
 and other global modifiers, records a calendar-indexed result, adds it to the
@@ -134,6 +262,26 @@ Rice197 also has a separate topology publisher: `0x4c2360` dispatches to an
 eight-neighbor same-type query at `0x4c22c0`, uses source variation and additional
 Farm/work/calendar conditions. Reusing the six ordinary field images or the
 current parent-Farm80-tick stage mapping does not reconstruct Rice state.
+The checked publisher adds48 to its topology/variation image only with an
+actual matching Farm, a successful Farm virtual`+0x1b4` operation query and a
+current growing or end slot. The separate draw routine`0x4c24d0` requires a
+retained Rice image in that additional bank and reads quantity to choose
+`min(4,percent/20)` for up to nine smaller components from group`0x49d`.
+The topology masks, component positioning and complete overlay preparation
+must be recovered together; a group identity alone does not prove one ordinary
+field sprite per growth stage.
+
+The separately prepared Cabbage198 and Soybean199 native metadata is checked
+against user-supplied `DATA/China_General.sg3`, SHA-256
+`c9ae527102c312098cbfe82932ce1b39c6c96692981c874dc853306835583e46`.
+The private receipt `.local/agri-02/field-geometry.json` uses the existing SG3
+record layout and contains metadata only. Cabbage's six canonical records
+2434–2439 have native width78 and heights40/40/40/44/42/47; Soybean's records
+2446–2451 have width78 and heights41/42/43/46/50/51. All twelve are Type30,
+base data length3200 and animation count0. These facts support native preparation of
+the first six quantity images, subject to complete production-loader decoding.
+They do not validate the alternative variation bank, a resize, elapsed-time
+growth, Rice topology/overlays or Original whole-scene composition.
 
 ## Farmhouse storage and actual transport
 
@@ -210,6 +358,15 @@ through `0x425260→0x425250`, retained object identity and the source wet/dry i
 bank. The meaning and full lifetime of that additional global condition remain
 unknown. Harvest and estimate callers use this result as one input; proximity
 alone is insufficient.
+
+The checked harvest callback queries irrigation after deriving the base yield
+and uses it to add a field-class-dependent fertility modifier. Together with Rice's
+separate100-fertility placement check, this does **not** prove that every
+Original Rice field requires a Pump or Ditch to be purchased or to harvest.
+An unresolved Rice watering restriction in a new World adapter must therefore
+be labelled as that adapter's conservative gate, with its missing source-bound
+fertility/irrigation proof stated explicitly; it must not be presented as a
+verified universal Original pump rule or bypassed with render/proximity data.
 
 These source image-bank dependencies must not be copied into rendering as a new
 World authority. A future integrated Agriculture contract needs explicit

@@ -50,6 +50,14 @@ struct FoodObservation {
     std::optional<simulation::OriginalFoodQualityWitness> quality_witness;
     bool operator==(const FoodObservation&) const = default;
 };
+struct AgricultureFoodObservation {
+    simulation::AgricultureAmounts stock{};
+    simulation::AgricultureCounters received{},departed{},returned{},consumed{},incoming{},city_produced{};
+    std::uint64_t missed_demands=0;
+    std::uint8_t quality=0;
+    std::optional<simulation::AgricultureQualityWitness> quality_witness;
+    bool operator==(const AgricultureFoodObservation&) const = default;
+};
 // Bounded, disposable presentation data. It owns no World, route, model,
 // saved authority, resource handle or mutable cache.
 struct HouseInspection {
@@ -63,6 +71,7 @@ struct HouseInspection {
     CheckSchedule checks;
     std::array<GoodsObservation,original::goods_count> goods{};
     FoodObservation food;
+    std::optional<AgricultureFoodObservation> agriculture_food;
     std::array<simulation::OriginalServiceAvailability,9> visits{};
     std::array<std::vector<std::string>,4> sections;
     std::array<OverlayObservation,3> overlays;
@@ -217,7 +226,8 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
     const auto water=std::lower_bound(production.water.houses.begin(),production.water.houses.end(),id,
         [](const auto& row,auto key){return row.building_id<key;});
     if (consumption==production.house_consumption.end() || consumption->building_id!=id ||
-        food==production.food.stocks.end() || food->building_id!=id || water==production.water.houses.end() || water->building_id!=id)
+        (!world.original_agriculture_enabled() && (food==production.food.stocks.end() || food->building_id!=id)) ||
+        water==production.water.houses.end() || water->building_id!=id)
         throw std::logic_error("Original House inspection lost its actual accounts");
     if (wants(Section::Goods)) {
     const auto balances=world.original_goods_balances();
@@ -238,6 +248,29 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
             }
         }
     }
+    if (world.original_agriculture_enabled()) {
+        if (!world.original_agriculture_state()) throw std::logic_error("Agriculture House inspection lost state");
+        const auto& agriculture=*world.original_agriculture_state();
+        const auto stock=std::lower_bound(agriculture.stocks.begin(),agriculture.stocks.end(),id,
+            [](const auto& row,auto key){return row.building_id<key;});
+        if (stock==agriculture.stocks.end() || stock->building_id!=id)
+            throw std::logic_error("Agriculture House inspection lost its actual account");
+        auto& observed=result.agriculture_food.emplace();
+        observed.stock=stock->amounts;observed.received=stock->received;observed.departed=stock->departed;
+        observed.returned=stock->returned;observed.consumed=stock->consumed;observed.missed_demands=stock->missed_demands;
+        observed.quality=home->house.food_quality;observed.quality_witness=stock->quality_witness;
+        for (const auto& field:agriculture.fields) {
+            const auto crop=static_cast<std::size_t>(field.crop);
+            if (crop>=observed.city_produced.size()) throw std::logic_error("unknown Agriculture crop");
+            observed.city_produced[crop]=detail::add(observed.city_produced[crop],field.harvested);
+        }
+        for (const auto& trip:agriculture.trips) if (trip.target==id && trip.phase==simulation::OriginalGoodsTransferPhase::Loaded)
+            for (std::size_t crop=0;crop<observed.incoming.size();++crop) {
+                const auto remaining=std::int64_t(trip.loaded[crop])-trip.delivered[crop]-trip.returned[crop];
+                if (remaining<0) throw std::logic_error("negative Agriculture inbound cargo");
+                observed.incoming[crop]=detail::add(observed.incoming[crop],static_cast<std::uint64_t>(remaining));
+            }
+    } else {
     auto& observed_food=result.food;
     observed_food.stock=food->amounts;observed_food.received=food->received;observed_food.departed=food->departed;
     observed_food.returned=food->returned;observed_food.consumed=food->consumed;
@@ -253,6 +286,7 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
             if (remaining<0) throw std::logic_error("negative observed Food cargo");
             observed_food.incoming[crop]=detail::add(observed_food.incoming[crop],static_cast<std::uint64_t>(remaining));
         }
+    }
     }
     if (wants(Section::Visits)) for (std::size_t r=0;r<result.visits.size();++r)
         result.visits[r]=world.original_service_availability(id,detail::roles[r]);
@@ -326,6 +360,25 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
         detail::line(goods,"  City produced "+std::to_string(value.city.totals.produced));
         detail::line(goods,"  City source reserved "+std::to_string(value.city.source_reserved)+" | cargo "+std::to_string(value.city.cargo));
     }
+    if (result.agriculture_food) {
+        constexpr std::array names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)"};
+        const auto& observed=*result.agriculture_food;
+        detail::line(goods,"Food quality "+std::to_string(observed.quality)+" (authored weighted nutrition)");
+        for (std::size_t crop=0;crop<observed.stock.size();++crop) {
+            detail::line(goods,std::string(names[crop])+" House stock "+std::to_string(observed.stock[crop])+" | inbound "+std::to_string(observed.incoming[crop]));
+            detail::line(goods,"  Received "+std::to_string(observed.received[crop])+" | consumed "+std::to_string(observed.consumed[crop]));
+            detail::line(goods,"  Departed "+std::to_string(observed.departed[crop])+" | returned "+std::to_string(observed.returned[crop]));
+            detail::line(goods,"  City harvested "+std::to_string(observed.city_produced[crop]));
+        }
+        detail::line(goods,"Food missed demands "+std::to_string(observed.missed_demands));
+        if (observed.quality_witness) {
+            const auto& witness=*observed.quality_witness;
+            detail::line(goods,"Quality arrival witness tick "+std::to_string(witness.tick));
+            for (std::size_t crop=0;crop<names.size();++crop)
+                detail::line(goods,std::string("Accepted ")+names[crop]+" "+std::to_string(witness.accepted[crop]));
+            detail::line(goods,"Previous quality "+std::to_string(witness.previous_quality));
+        } else detail::line(goods,"Quality arrival witness: none");
+    } else {
     detail::line(goods,"Food quality "+std::to_string(observed_food.quality)+" (actual score)");
     for (std::size_t crop=0;crop<observed_food.stock.size();++crop) {
         const auto name=crop==0 ? "Wheat":"Millet";
@@ -345,6 +398,7 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
     } else detail::line(goods,"Quality arrival witness: none");
     }
 
+    }
     if (wants(Section::Visits)) {
     auto& visits=result.sections[static_cast<std::size_t>(Section::Visits)];
     detail::line(visits,"Actual timers are raw countdowns");

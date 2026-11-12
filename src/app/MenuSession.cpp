@@ -22,7 +22,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     CancelDeleteRecovery, GreatWallChoice, RecheckMap, BridgesChoice, RampsChoice,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
     OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice, AuthoredLandTradeNewGame,
-    OriginalMusicVenuesNewGame, OriginalVenueHouseServiceNewGame, StarterEmptyCity, StarterChooseMap,
+    OriginalMusicVenuesNewGame, OriginalVenueHouseServiceNewGame, StarterEmptyCity, StarterChooseMap, OriginalAgricultureNewGame,
     MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
@@ -33,6 +33,7 @@ struct OriginalChoice {
     const char* detail;
 };
 constexpr OriginalChoice original_choices[]={
+    {OriginalAgricultureNewGame,simulation::kOriginalAgricultureRuleVersion,SDLK_A,"A Agriculture (rule 24)","Paid typed crops; production locked pending Original timing proof"},
     {OriginalVenueHouseServiceNewGame,simulation::kOriginalVenueHouseServiceRuleVersion,SDLK_K,"K Venue House music (23)","Paid School to Theatre to physical House Music visits"},
     {OriginalMusicVenuesNewGame,simulation::kOriginalMusicVenuesRuleVersion,SDLK_B,"B Music venues (rule 22)","Paid Music School to Theatre; no House effect"},
     {OriginalNewGame,simulation::kOriginalProductionRuleVersion,SDLK_O,"O Original economy","Original model economy"},
@@ -329,6 +330,9 @@ void MenuSession::finish_loading() {
         auto view=version==simulation::kAuthoredLandTradeRuleVersion ?
             SandboxView::create_authored_land_trade(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_}) :
+            simulation::original_agriculture_enabled(profile,version) ?
+            SandboxView::create_original_agriculture(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
             simulation::original_venue_house_service_enabled(profile,version) ?
             SandboxView::create_original_venue_house_service(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
@@ -915,6 +919,10 @@ void MenuSession::rebuild_buttons() {
         buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,left_y,210);left_y+=34;
         for (const auto& choice:original_choices) {
+            if (choice.action==OriginalAgricultureNewGame) {
+                add(choice.action,choice.label,40,40,230,28);
+                continue;
+            }
             if (choice.action==OriginalVenueHouseServiceNewGame) {
                 add(choice.action,choice.label,40,4,230,28);
                 continue;
@@ -1211,7 +1219,8 @@ bool MenuSession::render() {
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
             if (e.error.empty() && simulation::original_production_enabled(
                     simulation::RulesProfile::CityV16,e.rule_version) &&
-                e.schema==(e.rule_version==simulation::kOriginalVenueHouseServiceRuleVersion ? 39U:
+                e.schema==(e.rule_version==simulation::kOriginalAgricultureRuleVersion ? 40U:
+                    e.rule_version==simulation::kOriginalVenueHouseServiceRuleVersion ? 39U:
                     e.rule_version==simulation::kOriginalMusicVenuesRuleVersion ? 38U:
                     e.rule_version==simulation::kOriginalSafeDemolitionRuleVersion ? 35U:
                     e.rule_version==simulation::kOriginalDeadlineFoodDispatchRuleVersion ? 34U:

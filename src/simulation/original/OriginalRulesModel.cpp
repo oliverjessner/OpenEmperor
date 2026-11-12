@@ -18,6 +18,8 @@ constexpr std::array<ModelBuilding,24> production_buildings{
     ModelBuilding::MusicSchool,ModelBuilding::AcrobatSchool,ModelBuilding::DramaSchool,
     ModelBuilding::LoggingShed, ModelBuilding::BronzeSmelter, ModelBuilding::BronzewareMaker, ModelBuilding::LacquerwareMaker, ModelBuilding::PaperMaker, ModelBuilding::Weaver, ModelBuilding::TeaCuringShed, ModelBuilding::LacquerRefinery, ModelBuilding::SilkwormShed, ModelBuilding::TeaBush, ModelBuilding::LacquerTree, ModelBuilding::MulberryTree};
 
+constexpr std::array agriculture_buildings{ModelBuilding::RiceField,ModelBuilding::CabbageField,ModelBuilding::SoybeanField};
+
 ModelProvenance checked_provenance(const ModelData& model,Difficulty difficulty) {
     if (static_cast<std::size_t>(difficulty)>=difficulty_count)
         throw std::out_of_range("invalid original rules model difficulty");
@@ -80,14 +82,29 @@ std::optional<BuildingRow> prepare_culture_building(
     return row;
 }
 
+std::optional<std::array<BuildingRow,3>> prepare_agriculture_buildings(
+        const ModelData& model,Difficulty difficulty,bool enabled) {
+    if (!enabled) return std::nullopt;
+    std::array<BuildingRow,3> rows{};
+    for (std::size_t row=0;row<agriculture_buildings.size();++row) {
+        const auto building=agriculture_buildings[row];
+        if (!model.has_building(model_id(building)))
+            throw std::invalid_argument("Agriculture model is missing named building: "+std::string(model_label(building)));
+        for (std::size_t field=0;field<building_field_count;++field)
+            rows[row][field]=original::building_value(model,building,static_cast<BuildingField>(field),difficulty);
+    }
+    return rows;
+}
+
 } // namespace
 
-OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture)
+OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture,bool agriculture)
     : provenance_(checked_provenance(model,difficulty)),difficulty_(difficulty),
       house_rules_(model,difficulty),building_rows_(prepare_buildings(model,difficulty)),
       production_prepared_(production),
       production_rows_(prepare_production_buildings(model,difficulty,production)),
-      culture_row_(prepare_culture_building(model,difficulty,culture)) {}
+      culture_row_(prepare_culture_building(model,difficulty,culture)),
+      agriculture_rows_(prepare_agriculture_buildings(model,difficulty,agriculture)) {}
 
 std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare(ModelData model,Difficulty difficulty) {
     return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,false));
@@ -101,7 +118,13 @@ std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_culture(Mo
     return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,true,true));
 }
 
+std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_agriculture(ModelData model,Difficulty difficulty) {
+    return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,true,false,true));
+}
+
 bool OriginalRulesModel::supports_building(ModelBuilding building) const noexcept {
+    if (std::find(agriculture_buildings.begin(),agriculture_buildings.end(),building)!=agriculture_buildings.end())
+        return agriculture_rows_.has_value();
     if (building==ModelBuilding::TheatrePavilion) return culture_row_.has_value();
     if (std::find(buildings.begin(),buildings.end(),building)!=buildings.end()) return true;
     return production_prepared_ &&
@@ -111,6 +134,11 @@ bool OriginalRulesModel::supports_building(ModelBuilding building) const noexcep
 std::int32_t OriginalRulesModel::building_value(ModelBuilding building,BuildingField field) const {
     const auto column=static_cast<std::size_t>(field);
     if (column>=building_field_count) throw std::out_of_range("invalid prepared original building field");
+    const auto agriculture=std::find(agriculture_buildings.begin(),agriculture_buildings.end(),building);
+    if (agriculture!=agriculture_buildings.end()) {
+        if (!agriculture_rows_) throw std::out_of_range("Agriculture model was not explicitly prepared");
+        return agriculture_rows_->at(static_cast<std::size_t>(agriculture-agriculture_buildings.begin())).at(column);
+    }
     if (building==ModelBuilding::TheatrePavilion) {
         if (!culture_row_) throw std::out_of_range("culture model was not explicitly prepared");
         return culture_row_->at(column);

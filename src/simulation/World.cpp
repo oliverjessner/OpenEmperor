@@ -256,6 +256,9 @@ std::optional<Object> placed_object(CommandType type) {
     case CommandType::PlaceOriginalFoodFarm: return Object::OriginalFoodFarm;
     case CommandType::PlaceOriginalWheatField: return Object::OriginalWheatField;
     case CommandType::PlaceOriginalMilletField: return Object::OriginalMilletField;
+    case CommandType::PlaceOriginalRiceField: return Object::OriginalRiceField;
+    case CommandType::PlaceOriginalCabbageField: return Object::OriginalCabbageField;
+    case CommandType::PlaceOriginalSoybeanField: return Object::OriginalSoybeanField;
     case CommandType::PlaceOriginalAncestorShrine: return Object::OriginalAncestorShrine214;
     case CommandType::PlaceOriginalWaterWell: return Object::OriginalWaterWell72;
     case CommandType::PlaceOriginalDaoistShrine: return Object::OriginalDaoistShrine215;
@@ -320,6 +323,10 @@ BuildingFootprint building_footprint(RulesProfile profile,std::uint32_t rule_ver
         if (kind==Object::OriginalMusicSchool211) return {2,2};
         if (kind==Object::OriginalConfucianAcademy219) return {3,3};
         if (kind==Object::OriginalDaoistShrine215 || kind==Object::OriginalBuddhistShrine217) return {2,2};
+    }
+    if(kind==Object::OriginalRiceField || kind==Object::OriginalCabbageField || kind==Object::OriginalSoybeanField) {
+        if(!original_agriculture_enabled(profile,rule_version)) throw std::invalid_argument("new crops require Agriculture Rule24");
+        return {1,1};
     }
     if (kind==Object::OriginalWaterWell72 && original_production_enabled(profile,rule_version)) return {2,2};
     if (kind==Object::OriginalAncestorShrine214 && original_production_enabled(profile,rule_version)) return {2,2};
@@ -457,7 +464,7 @@ bool rule_version_supported(RulesProfile profile,std::uint32_t version) {
     if (profile==RulesProfile::CityV11) return version>=1 && version<=4;
     if (profile==RulesProfile::CityV16) return (version>=1 && version<=16) ||
         version==kOriginalDeadlineServiceDispatchRuleVersion || version==kOriginalDeadlineFoodDispatchRuleVersion ||
-        version==kOriginalSafeDemolitionRuleVersion || original_music_venues_enabled(profile,version);
+        version==kOriginalSafeDemolitionRuleVersion || original_music_venues_enabled(profile,version) || original_agriculture_enabled(profile,version);
     if (fire_profile(profile)) return version==1;
     return version==1;
 }
@@ -507,6 +514,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v19{19,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v22{22,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v23{23,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v24{24,32,64,32,5,800};
+    if (original_agriculture_enabled(profile,version)) return city_v16_v24;
     if (original_venue_house_service_enabled(profile,version)) return city_v16_v23;
     if (original_music_venues_enabled(profile,version)) return city_v16_v22;
     if (original_safe_demolition_enabled(profile,version)) return city_v16_v19;
@@ -582,6 +591,10 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     if (original_influence_enabled()) original_influence_.emplace();
     if (original_goods_enabled()) original_goods_.emplace();
     if (original_production_enabled()) original_production_.emplace();
+    if (original_agriculture_enabled()) {
+        if(!original_terrain_facts_->fertility_complete()) throw std::invalid_argument("Agriculture requires complete source-bound fertility");
+        agriculture_.emplace();
+    }
     if(authored_land_trade_enabled()) {land_trade_.emplace();land_trade_->model_source=original_model_source(*original_rules_model_);land_trade_->source_map_sha256=land_trade_boundary_->source_map_sha256();}
     treasury_=city_profile(profile) ? starting_treasury_for(profile,rule_version_):0;
     objects_.assign(buildable_.size(),Object::Empty);
@@ -849,6 +862,13 @@ std::int64_t World::construction_cost(CommandType type) const {
     case CommandType::PlaceOriginalHempField:
         return original_production_enabled() ? original_rules_model_->building_value(
             type==CommandType::PlaceOriginalHempFarm ? original::ModelBuilding::HempFarm:original::ModelBuilding::HempField,
+            original::BuildingField::Cost):0;
+    case CommandType::PlaceOriginalRiceField:
+    case CommandType::PlaceOriginalCabbageField:
+    case CommandType::PlaceOriginalSoybeanField:
+        return original_agriculture_enabled() ? original_rules_model_->building_value(
+            type==CommandType::PlaceOriginalRiceField ? original::ModelBuilding::RiceField:
+            type==CommandType::PlaceOriginalCabbageField ? original::ModelBuilding::CabbageField:original::ModelBuilding::SoybeanField,
             original::BuildingField::Cost):0;
     case CommandType::PlaceOriginalFoodFarm:
     case CommandType::PlaceOriginalWheatField:
@@ -1451,7 +1471,8 @@ CommandResult World::validate(Command command) const {
     if (command.type==CommandType::PlaceOriginalAncestorShrine && !original_production_enabled())
         return {false,false,"Ancestor shrine requires explicit original production rules",command_sequence_,ticks_};
     if (command.type==CommandType::PlaceOriginalFoodFarm || command.type==CommandType::PlaceOriginalWheatField ||
-        command.type==CommandType::PlaceOriginalMilletField) {
+        command.type==CommandType::PlaceOriginalMilletField || command.type==CommandType::PlaceOriginalRiceField ||
+        command.type==CommandType::PlaceOriginalCabbageField || command.type==CommandType::PlaceOriginalSoybeanField) {
         const auto checked=validate_original_food_command(command);if (!checked.accepted) return checked;
     }
     if (command.type==CommandType::PlaceOriginalHempFarm || command.type==CommandType::PlaceOriginalHempField) {
@@ -1476,7 +1497,8 @@ CommandResult World::validate(Command command) const {
         command.type!=CommandType::PlaceWarehouse && command.type!=CommandType::PlaceMarket &&
         command.type!=CommandType::PlaceOriginalHempFarm && command.type!=CommandType::PlaceOriginalHempField &&
         command.type!=CommandType::PlaceOriginalFoodFarm && command.type!=CommandType::PlaceOriginalWheatField &&
-        command.type!=CommandType::PlaceOriginalMilletField &&
+        command.type!=CommandType::PlaceOriginalMilletField && command.type!=CommandType::PlaceOriginalRiceField &&
+        command.type!=CommandType::PlaceOriginalCabbageField && command.type!=CommandType::PlaceOriginalSoybeanField &&
         command.type!=CommandType::PlaceHealthPost && command.type!=CommandType::PlaceServicePost &&
         command.type!=CommandType::PlaceOriginalDaoistShrine && command.type!=CommandType::PlaceOriginalBuddhistShrine &&
         command.type!=CommandType::PlaceOriginalConfucianAcademy &&
@@ -1548,7 +1570,8 @@ CommandResult World::validate(Command command) const {
         command.type!=CommandType::PlaceFireWatch && command.type!=CommandType::PlaceWell &&
         command.type!=CommandType::PlaceHealthPost && command.type!=CommandType::PlaceOriginalHempFarm &&
         command.type!=CommandType::PlaceOriginalHempField && command.type!=CommandType::PlaceOriginalFoodFarm &&
-        command.type!=CommandType::PlaceOriginalWheatField && command.type!=CommandType::PlaceOriginalMilletField &&
+        command.type!=CommandType::PlaceOriginalWheatField && command.type!=CommandType::PlaceOriginalMilletField && command.type!=CommandType::PlaceOriginalRiceField &&
+        command.type!=CommandType::PlaceOriginalCabbageField && command.type!=CommandType::PlaceOriginalSoybeanField &&
         command.type!=CommandType::PlaceOriginalDaoistShrine && command.type!=CommandType::PlaceOriginalBuddhistShrine &&
         command.type!=CommandType::PlaceOriginalConfucianAcademy &&
         command.type!=CommandType::PlaceOriginalMusicSchool && command.type!=CommandType::PlaceOriginalAcrobatSchool &&
@@ -2104,14 +2127,26 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
     }
     case CommandType::PlaceOriginalFoodFarm: {
         auto& farm=add_v10_building(Object::OriginalFoodFarm);farm.placed_tick=ticks_;
-        original_production_->food.farms.push_back({farm.id,std::nullopt,OriginalFoodCrop::Wheat,0});
-        original_production_->food.stocks.push_back(OriginalFoodStock{farm.id});
+        if(original_agriculture_enabled()) {agriculture_->farms.push_back({farm.id});agriculture_->stocks.push_back(AgricultureStock{farm.id});}
+        else {original_production_->food.farms.push_back({farm.id,std::nullopt,OriginalFoodCrop::Wheat,0});
+            original_production_->food.stocks.push_back(OriginalFoodStock{farm.id});}
         add_v10_courier(farm.id,CourierRole::OriginalFoodToMarket,Good::Food);break;
     }
     case CommandType::PlaceOriginalWheatField:
-    case CommandType::PlaceOriginalMilletField: {
-        const auto kind=command.type==CommandType::PlaceOriginalWheatField ? Object::OriginalWheatField:Object::OriginalMilletField;
+    case CommandType::PlaceOriginalMilletField:
+    case CommandType::PlaceOriginalRiceField:
+    case CommandType::PlaceOriginalCabbageField:
+    case CommandType::PlaceOriginalSoybeanField: {
+        const auto kind=*placed_object(command.type);
+        const auto parent=original_agriculture_enabled() ? agriculture_farm_for_field(command.cell,command.building_id):std::nullopt;
         auto& field=add_v10_building(kind);field.placed_tick=ticks_;
+        if(original_agriculture_enabled()) {
+            const auto crop=command.type==CommandType::PlaceOriginalWheatField ? AgricultureCrop::Wheat:
+                command.type==CommandType::PlaceOriginalMilletField ? AgricultureCrop::Millet:
+                command.type==CommandType::PlaceOriginalRiceField ? AgricultureCrop::Rice:
+                command.type==CommandType::PlaceOriginalCabbageField ? AgricultureCrop::Cabbage:AgricultureCrop::Soybean;
+            agriculture_->fields.push_back({field.id,*parent,crop});break;
+        }
         const auto farm=std::find_if(original_production_->food.farms.begin(),original_production_->food.farms.end(),
             [&](const auto& row){return row.farm_id==command.building_id;});
         farm->field_id=field.id;farm->crop=kind==Object::OriginalWheatField ? OriginalFoodCrop::Wheat:OriginalFoodCrop::Millet;
@@ -2221,7 +2256,8 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
                 OriginalHousingHouse housing;housing.building_id=b.id;original_production_->housing.houses.push_back(housing);
                 OriginalFinanceHouse finance;finance.building_id=b.id;original_production_->finance.houses.push_back(finance);
                 OriginalWaterHouseState water;water.building_id=b.id;original_production_->water.houses.push_back(water);
-                original_production_->food.stocks.push_back(OriginalFoodStock{b.id});
+                if(original_agriculture_enabled()) agriculture_->stocks.push_back(AgricultureStock{b.id});
+                else original_production_->food.stocks.push_back(OriginalFoodStock{b.id});
             }
             break;
         }
@@ -2293,7 +2329,8 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         add_v10_courier(id,CourierRole::MarketPotteryDistribution,Good::Pottery);
         if (original_production_enabled()) {
             original_goods_->stocks.push_back({id,{}});
-            original_production_->food.stocks.push_back(OriginalFoodStock{id});
+            if(original_agriculture_enabled()) agriculture_->stocks.push_back(AgricultureStock{id});
+            else original_production_->food.stocks.push_back(OriginalFoodStock{id});
             add_v10_courier(id,CourierRole::OriginalFoodToHouse,Good::Food);
         }
         else add_v10_courier(id,CourierRole::MarketFoodDistribution,Good::Food);
@@ -3692,6 +3729,9 @@ bool World::industry_balance_valid() const {
             case Object::OriginalFoodFarm:
             case Object::OriginalWheatField:
             case Object::OriginalMilletField:
+            case Object::OriginalRiceField:
+            case Object::OriginalCabbageField:
+            case Object::OriginalSoybeanField:
             case Object::OriginalDaoistShrine215:
             case Object::OriginalBuddhistShrine217:
             case Object::OriginalMusicSchool211:
@@ -4305,6 +4345,7 @@ std::string World::canonical_state() const {
         }
     }
     if(source_cell_ramps_supported())out<<authored_source_cell_ramp_contract<<":20|";
+    if(original_agriculture_enabled()) out<<original_agriculture_contract<<":24:"<<original_terrain_facts_->source_map_sha256()<<'|';
     if (original_venue_house_service_enabled()) out<<original_venue_house_service_contract<<":23:"<<original_terrain_facts_->source_map_sha256()<<'|';
     else if (original_music_venues_enabled()) out<<original_music_venues_contract<<":22:"
         <<original_terrain_facts_->source_map_sha256()<<'|';
@@ -4464,6 +4505,16 @@ std::string World::canonical_state() const {
     if (original_production_)
         out<<"|original-production:"<<original_production_->development_revision<<','
            <<original_production_->residents_admitted<<','<<original_production_->pottery_handed_off;
+    if(agriculture_) {
+        out<<"|agriculture:"<<agriculture_revision<<','<<agriculture_catalog;
+        for(const auto& f:agriculture_->farms) out<<"|af:"<<static_cast<std::uint32_t>(f.farm_id);
+        for(const auto& f:agriculture_->fields) out<<"|ac:"<<static_cast<std::uint32_t>(f.field_id)<<','<<static_cast<std::uint32_t>(f.farm_id)<<','<<int(f.crop)<<','<<f.quantity<<','<<f.productive_events<<','<<f.harvested<<','<<f.last_harvest_cycle;
+        const auto amounts=[&](const auto& a){for(auto n:a) out<<','<<n;};
+        const auto witness=[&](const auto& w){out<<','<<bool(w);if(w){out<<','<<static_cast<std::uint32_t>(w->transfer.courier_id)<<','<<w->transfer.sequence<<','<<w->tick<<','<<int(w->previous_quality);amounts(w->accepted);amounts(w->consumed_before);}};
+        for(const auto& row:agriculture_->stocks) {out<<"|as:"<<static_cast<std::uint32_t>(row.building_id)<<','<<row.missed_demands;amounts(row.amounts);amounts(row.received);amounts(row.departed);amounts(row.returned);amounts(row.consumed);witness(row.quality_witness);}
+        for(const auto& t:agriculture_->trips) {out<<"|at:"<<static_cast<std::uint32_t>(t.transfer.courier_id)<<','<<t.transfer.sequence<<','<<static_cast<std::uint32_t>(t.source)<<','<<static_cast<std::uint32_t>(t.target)<<','<<int(t.phase);amounts(t.loaded);amounts(t.delivered);amounts(t.returned);}
+        for(const auto& e:agriculture_->housing_evaluations){out<<"|ah:"<<static_cast<std::uint32_t>(e.building_id)<<','<<e.tick;amounts(e.received);amounts(e.consumed);witness(e.quality_witness);}
+    }
     if (original_production_) for (const auto& farm:original_production_->hemp_farms)
         out<<"|original-hemp:"<<static_cast<std::uint32_t>(farm.farm_id)<<','
            <<(farm.field_id ? static_cast<std::uint32_t>(*farm.field_id):0)<<','<<farm.harvested;
@@ -4665,6 +4716,7 @@ WorldSnapshot World::snapshot() const {
     s.original_influence=original_influence_;
     s.original_goods=original_goods_;
     s.original_production=original_production_;
+    s.agriculture=agriculture_;
     s.land_trade=land_trade_;
     for (int y=0;y<height_;++y) for (int x=0;x<width_;++x)
         if (object_at({x,y})==Object::Road) s.roads.push_back({x,y});
@@ -4730,6 +4782,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.original_influence_=s.original_influence;
     w.original_goods_=s.original_goods;
     w.original_production_=s.original_production;
+    w.agriculture_=s.agriculture;
     w.land_trade_=s.land_trade;
     if (!maintenance_profile(s.profile) && s.maintenance_spent_total)
         throw std::invalid_argument("maintenance authority requires City-v16");
@@ -4824,6 +4877,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 b.kind==Object::Workshop ||
                 ((original_elite_house_kind(b.kind) || original_industry_model(b.kind) || b.kind==Object::OriginalHempFarm || b.kind==Object::OriginalHempField || b.kind==Object::OriginalFoodFarm ||
                   b.kind==Object::OriginalWheatField || b.kind==Object::OriginalMilletField ||
+                  b.kind==Object::OriginalRiceField || b.kind==Object::OriginalCabbageField || b.kind==Object::OriginalSoybeanField ||
                   (b.kind==Object::OriginalMusicSchool211 || b.kind==Object::OriginalAcrobatSchool212 ||
                    b.kind==Object::OriginalDramaSchool213 || b.kind==Object::OriginalDaoistShrine215 || b.kind==Object::OriginalBuddhistShrine217 ||
                    b.kind==Object::OriginalConfucianAcademy219 || b.kind==Object::OriginalAncestorShrine214 || b.kind==Object::OriginalWaterWell72)) && !w.original_production_enabled()) ||

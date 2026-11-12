@@ -116,6 +116,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule24/schema40 Agriculture; no historical Food/save migration.
+    static std::unique_ptr<SandboxView> create_original_agriculture(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit authored Rule19/schema35; never changes historical demolition rights.
     static std::unique_ptr<SandboxView> create_original_safe_demolition(
         maps::StoredMapSession session,
@@ -742,6 +747,9 @@ private:
     bool original_music_venues() const {
         return simulation::original_music_venues_enabled(rules_,requested_rule_version_);
     }
+    bool original_agriculture() const {
+        return simulation::original_agriculture_enabled(rules_,requested_rule_version_);
+    }
     bool original_venue_house_service() const {
         return simulation::original_venue_house_service_enabled(rules_,requested_rule_version_);
     }
@@ -830,7 +838,7 @@ private:
         scene::WorldDrawKey key{};
         bool adjusted=false,ambiguous=false;
     };
-    std::array<OriginalFieldOrder,5> original_field_order_{};
+    std::array<OriginalFieldOrder,simulation::agriculture_field_limit+2> original_field_order_{};
     std::size_t original_field_order_count_=0;
     std::uint64_t original_field_order_revision_=UINT64_MAX;
     bool building_enabled_=true;

@@ -79,6 +79,10 @@ struct Fixture {
             const auto* identity=a::original_building_visual_identity(a::original_field_roles[index]);
             u16(sg3,80U+2U*((identity->group_key%512U)-1U),205U+6U*static_cast<unsigned>(index));
         }
+        for (std::size_t index=1;index<a::agriculture_field_roles.size();++index) {
+            const auto* identity=a::original_building_visual_identity(a::agriculture_field_roles[index]);
+            u16(sg3,80U+2U*((identity->group_key%512U)-1U),205U+6U*static_cast<unsigned>(index));
+        }
         const auto record=[&](unsigned index,unsigned side,unsigned height,unsigned offset) {
             const auto at=40680U+64U*index,base=3200U*side*side;
             u32(sg3,at,offset);u32(sg3,at+4,base);u32(sg3,at+8,base);
@@ -100,9 +104,11 @@ struct Fixture {
         for (const auto& id:a::original_building_visual_identities) {
             if (schema==1 && static_cast<std::size_t>(id.role)>=a::original_building_schema1_role_count) break;
             if (schema<4 && static_cast<std::size_t>(id.role)>=a::original_building_schema23_role_count) break;
+            if (schema==4 && static_cast<std::size_t>(id.role)>=a::original_building_schema4_role_count) break;
             if (!id.static_base_supported) {
-                if(schema>=3) {
-                    Json stages=Json::array();const auto index=*a::original_field_role_index(id.role);
+                if(schema>=3 && id.role!=a::OriginalBuildingVisualRole::RiceField) {
+                    Json stages=Json::array();const auto raw_index=*a::original_field_role_index(id.role);
+                    const auto index=raw_index>=a::original_field_role_count ? raw_index-a::original_field_role_count:raw_index;
                     for(unsigned stage=0;stage<6;++stage)stages.push_back({{"stage",stage},
                         {"image_index",205U+6U*static_cast<unsigned>(index)+stage},{"width",78U},{"height",40U+stage},
                         {"base_bytes",3200U},{"ground_anchor",{39U,20U+stage}}});
@@ -127,6 +133,7 @@ struct Fixture {
             {"files",{{{"path","DATA/China_General.sg3"},{"sha256",hash(sg3)}},
                       {{"path","DATA/China_General.555"},{"sha256",hash(bitmap)}}}},{"buildings",rows}};
         if(schema>=3)result["field_selection"]=a::original_field_selection_contract;
+        if(schema>=5)result["agriculture_field_selection"]=a::agriculture_field_selection_contract;
         return result;
     }
     a::BuildingVisualProfile legacy() const {
@@ -197,7 +204,7 @@ void synthetic() {
     bad=f.valid();bad["buildings"][0]["base_bytes"]=3200U;f.reject(bad,"wrong base accepted");
     bad=f.valid();bad["buildings"][0].erase("archive");f.reject(bad,"partial row accepted");
     bad=f.valid();bad["buildings"][0]["unknown"]=true;f.reject(bad,"unknown row key accepted");
-    bad=f.valid();bad["schema_version"]=5U;f.reject(bad,"unknown supplement schema accepted");
+    bad=f.valid();bad["schema_version"]=6U;f.reject(bad,"unknown supplement schema accepted");
     bad=f.valid(1);bad["buildings"][0]["native"]=true;f.reject(bad,"schema1 gained schema2 row keys");
     bad=f.valid();bad["schema_version"]=1U;f.reject(bad,"schema1 accepted fifteen rows");
     bad=f.valid(1);bad["buildings"][9]["model_type"]=192U;f.reject(bad,"schema1 accepted appended role");
@@ -255,7 +262,7 @@ void compatibility() {
     write(metadata,f.valid(1));result=detect();check(result.compatible() && result.original_building_compatible(),"historical schema1 optional profile stopped activating");
     write(metadata,f.valid(3));result=detect();check(result.compatible() && result.original_building_compatible(),"explicit schema3 field supplement stopped activating");
     write(metadata,f.valid(4));result=detect();check(result.compatible() && result.original_building_compatible(),"explicit schema4 static industry supplement stopped activating");
-    auto unknown=f.valid();unknown["schema_version"]=5;write(metadata,unknown);result=detect();
+    auto unknown=f.valid();unknown["schema_version"]=6;write(metadata,unknown);result=detect();
     check(result.compatible() && !result.original_building_compatible(),"unknown supplement schema activated");
     auto bad=f.valid();bad["files"][0]["sha256"]=std::string(64,'0');write(metadata,bad);result=detect();
     check(result.compatible() && !result.original_building_compatible(),"optional mismatched metadata damaged core or activated");
@@ -364,7 +371,7 @@ void appended_static_roles() {
         "schema4 failed shared physical dedup or changed a historical image/field/core/House entry");
     for(std::size_t index=0;index<a::original_building_schema23_role_count;++index)
         check(complete["original"][index]==historical["original"][index],"schema4 changed a historical static selection");
-    for(std::size_t index=a::original_building_schema23_role_count;index<a::original_building_role_count;++index) {
+    for(std::size_t index=a::original_building_schema23_role_count;index<a::original_building_schema4_role_count;++index) {
         const auto& identity=a::original_building_visual_identities[index];
         check(!old.find_original_building(identity.role,identity.footprint_side) &&
             !old.fallback_original_building(identity.role,identity.footprint_side).empty(),
@@ -397,6 +404,22 @@ void appended_static_roles() {
     check(!absent.find_original_building(identity.role,identity.footprint_side) &&
         absent.find_original_building(a::original_building_visual_identities[index+1].role,3) &&
         state(absent)["field_stages"]==historical["field_stages"],"explicit industry fallback damaged independent roles");
+}
+void agriculture_fields() {
+    Fixture fixture;auto metadata=fixture.valid(5);write(fixture.manifest,metadata);
+    auto profile=fixture.legacy();a::append_original_building_visual_profile(fixture.data,fixture.manifest,profile);
+    check(profile.original_field_prepared && !profile.find_original_field(a::OriginalBuildingVisualRole::RiceField,1,0),
+        "Agriculture Rice fallback or field preparation differs");
+    for (const auto role:{a::OriginalBuildingVisualRole::CabbageField,a::OriginalBuildingVisualRole::SoybeanField})
+        for(std::uint8_t stage=0;stage<6;++stage)
+            check(profile.find_original_field(role,1,stage),"Agriculture canonical source stage missing");
+    auto invalid=metadata;invalid.erase("agriculture_field_selection");fixture.reject(invalid,"Agriculture selector marker missing");
+    invalid=metadata;invalid["agriculture_field_selection"]="guessed-original-seasons";fixture.reject(invalid,"Agriculture selector marker changed");
+    invalid=metadata;invalid["buildings"][23]["native"]=true;fixture.reject(invalid,"Rice topology bypass accepted");
+    for(const auto schema:{1U,2U,3U,4U}) {
+        invalid=fixture.valid(schema);invalid["buildings"].push_back(metadata["buildings"][24]);
+        fixture.reject(invalid,"Historical visual schema admitted Agriculture crop");
+    }
 }
 void real(const fs::path& data,const fs::path& resources) {
     const auto pack=resources/"Compatibility/gog-derived-2.0.0.2-en-assetset-1";
@@ -459,12 +482,27 @@ void real(const fs::path& data,const fs::path& resources) {
             check(!retained.find_original_building(a::original_building_visual_identities[i].role,
                 a::original_building_visual_identities[i].footprint_side),"historical schema gained a later native body");
     }
+    auto agriculture=a::load_building_visual_profile(data,pack/"buildings.json");
+    a::append_original_house_visual_profile(data,pack/"original-houses.json",agriculture);
+    a::append_original_building_visual_profile(data,pack/"original-agriculture-buildings.json",agriculture);
+    check(agriculture.unique_images.size()==76 && !agriculture.find_original_field(a::OriginalBuildingVisualRole::RiceField,1,0),
+        "Real Agriculture field pool or explicit Rice fallback differs");
+    for(const auto pair:{std::pair{a::OriginalBuildingVisualRole::CabbageField,2434U},
+                        std::pair{a::OriginalBuildingVisualRole::SoybeanField,2446U}})
+        for(std::uint8_t stage=0;stage<6;++stage) {
+            const auto* entry=agriculture.find_original_field(pair.first,1,stage);
+            check(entry && entry->id.image_index==pair.second+stage,"Real Agriculture source group/stage differs");
+            const auto decoded=a::load_sg3_image({data/entry->id.archive_relative_path,entry->id.image_index});
+            const auto& image=agriculture.unique_images.at(entry->image_index);
+            check(image.pixels==decoded.pixels&&entry->ground_x==39&&entry->ground_y==image.height-20,
+                "Whole Agriculture source raster or front-cell anchor changed");
+        }
     const auto detected=a::detect_compatibility(data,resources/"Compatibility");check(detected.original_building_compatible(),"committed pack supplement not declared");
 }
 }
 int main(int argc,char** argv) {
     try{check(argc==1 || (argc==4 && std::string_view(argv[1])=="--real"),"Usage: original-building-profile [--real DATA RESOURCES]");
-        synthetic();fields();appended_static_roles();compatibility();if(argc==4)real(fs::canonical(argv[2]),fs::canonical(argv[3]));
+        synthetic();fields();appended_static_roles();agriculture_fields();compatibility();if(argc==4)real(fs::canonical(argv[2]),fs::canonical(argv[3]));
         std::cout<<"Original static building identity, atomic guards, native RGBA, shared budget and compatibility PASS\n";return 0;
     }catch(const std::exception& e){perf::set_enabled(false);std::cerr<<"Original building profile FAIL: "<<e.what()<<'\n';return 1;}
 }

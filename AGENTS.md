@@ -134,6 +134,18 @@
   DES source, increased limit, automatic migration or default change. Rules1–22
   and schemas1–38 stay exact; Rule18 remains recommended. See
   [OE57](docs/original-economy/oe57-venue-house-service.md).
+- Agriculture construction/Food foundations are an explicit Rule24/policy3/
+  schema40 contract with marker `authored-agriculture-v1`, catalog
+  `wheat7-millet5-rice6-cabbage3-beancurd1-v1` and separate revision28 state.
+  Inherit Rule18 without venues/trade/demolition; keep legacy production Food
+  strictly empty in24. Paid193/195–199 geometry, source-bound Rice fertility100,
+  separate typed accounting and exact saves do not establish production.
+  `agriculture_production_clock_verified` is false: no crop quantity, tending,
+  harvest, Food or FoodQuality grant is admitted. Only fully proved Original
+  time rules may activate; no authored calendar/160-step/fixed-yield substitute.
+  Future activation needs a new explicit version/schema, never reinterpretation
+  of24. Rules1–23/schemas1–39 and defaults remain exact. See
+  [Agriculture](docs/original-economy/agriculture.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

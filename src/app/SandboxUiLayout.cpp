@@ -138,7 +138,7 @@ InspectorLayout make_inspector_layout(Rect panel,int scale,std::size_t buildings
     return out;
 }
 
-Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health,bool income,bool service,bool bridges,bool ramps,bool original_production,bool industry_page,bool original_fire_protection,bool original_music_venues) {
+Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health,bool income,bool service,bool bridges,bool ramps,bool original_production,bool industry_page,bool original_fire_protection,bool original_music_venues,bool original_agriculture) {
     Layout out;
     out.scale=std::max(1,static_cast<int>(std::lround(std::min(
         width/static_cast<double>(std::max(1,window_width)),
@@ -161,6 +161,7 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     if (original_production) {
         tools.push_back(Action::OriginalHempFarm);tools.push_back(Action::OriginalHempField);
         tools.push_back(Action::OriginalFoodFarm);tools.push_back(Action::OriginalWheatField);tools.push_back(Action::OriginalMilletField);
+        if (original_agriculture) { tools.push_back(Action::OriginalRiceField);tools.push_back(Action::OriginalCabbageField);tools.push_back(Action::OriginalSoybeanField); }
         tools.push_back(Action::OriginalMusicSchool);tools.push_back(Action::OriginalAcrobatSchool);tools.push_back(Action::OriginalDramaSchool);
     }
     if (original_production) {

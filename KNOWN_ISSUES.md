@@ -10,14 +10,15 @@ complete original-game compatibility.
   crop, mining, fishing or seasonal behavior. OE55 adds no new crop, World rule,
   save schema or playable production chain. See the
   [production evidence boundary](docs/original-economy/oe55-production.md).
-- **Integrated Agriculture is not active.** AGRI-01 documents fresh bounded
-  crop/resource, irrigation and hunting/fishing return evidence and introduces
-  reusable Food arithmetic without widening the historical two-crop DTO.
-  Rice/Cabbage/Soybean, Orchard29, Fishing31, Hunter33 and202/203 remain
-  unavailable as new paid gameplay. Source labels, raw yield/cargo counters and
-  configuration files do not establish complete seasonal production or World
-  units. One future mode and its evidence/implementation gates are defined in
-  the [Agriculture architecture](docs/original-economy/agriculture.md).
+- **Agriculture crop production is locked.** Rule24/schema40 provides typed
+  Rice/Cabbage/Soy (source output BeanCurd), paid source-verified Farm/Field
+  construction, Rice fertility100, Food accounting foundations and exact saves.
+  It creates no Food and grants no FoodQuality: the complete Original Grower
+  tending/harvest clock and yield transition are unproved, and an authored time
+  substitute is not authorized. AGRI-02 functional production chains are not
+  complete. Irrigation202/203, Orchard29 and hunting/fishing also remain closed.
+  Menu/inspectors show the lock. See the
+  [Agriculture contract](docs/original-economy/agriculture.md).
 - **Land trade is authored, finite and opt-in.** Rule21/schema37 uses classic
   Rule6 and two paid Warehouses, one explicitly bound boundary gateway and one
   real caravan. Only four-unit Pottery imports/exports at authored unit prices 6/3 are

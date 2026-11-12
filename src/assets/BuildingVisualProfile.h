@@ -1,6 +1,7 @@
 #pragma once
 #include "assets/AssetCatalog.h"
 #include "assets/Sg3RgbaDecoder.h"
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <optional>
@@ -29,7 +30,8 @@ enum class OriginalBuildingVisualRole {
     BuddhistShrine, ConfucianAcademy, PaperMaker, Weaver,
     HempFarm, Farmhouse, HempField, WheatField, MilletField,
     LoggingShed, BronzeSmelter, BronzewareMaker, LacquerwareMaker,
-    TeaCuringShed, LacquerRefinery, SilkwormShed, AncestorShrine
+    TeaCuringShed, LacquerRefinery, SilkwormShed, AncestorShrine,
+    RiceField, CabbageField, SoybeanField
 };
 struct OriginalBuildingVisualIdentity {
     OriginalBuildingVisualRole role;
@@ -64,20 +66,35 @@ inline constexpr std::array original_building_visual_identities{
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::TeaCuringShed,237,0x43b,2},
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::LacquerRefinery,238,0x43d,2},
     OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::SilkwormShed,239,0x43c,2},
-    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::AncestorShrine,214,0x481,2}};
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::AncestorShrine,214,0x481,2},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::RiceField,197,0x42d,1,false},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::CabbageField,198,0x42f,1,false},
+    OriginalBuildingVisualIdentity{OriginalBuildingVisualRole::SoybeanField,199,0x430,1,false}};
 inline constexpr std::size_t original_building_schema1_role_count=10;
 inline constexpr std::size_t original_building_schema23_role_count=15;
 inline constexpr std::size_t original_building_schema4_role_count=23;
+inline constexpr std::size_t original_building_schema5_role_count=26;
 inline constexpr std::size_t original_building_role_count=original_building_visual_identities.size();
 inline constexpr std::array original_field_roles{OriginalBuildingVisualRole::HempField,
     OriginalBuildingVisualRole::WheatField,OriginalBuildingVisualRole::MilletField};
 inline constexpr std::size_t original_field_role_count=original_field_roles.size();
+inline constexpr std::array agriculture_field_roles{OriginalBuildingVisualRole::RiceField,
+    OriginalBuildingVisualRole::CabbageField,OriginalBuildingVisualRole::SoybeanField};
+inline constexpr std::size_t original_all_field_role_count=original_field_role_count+agriculture_field_roles.size();
 inline constexpr std::size_t original_field_stage_count=6;
+inline constexpr const char* agriculture_field_selection_contract="source-quantity-canonical-no-variation-v1";
 inline constexpr const char* original_field_selection_contract="authored-farm-progress-six-canonical-0-v1";
 constexpr std::optional<std::size_t> original_field_role_index(OriginalBuildingVisualRole role) {
     for (std::size_t index=0;index<original_field_roles.size();++index)
         if (original_field_roles[index]==role) return index;
+    for (std::size_t index=0;index<agriculture_field_roles.size();++index)
+        if (agriculture_field_roles[index]==role) return original_field_role_count+index;
     return std::nullopt;
+}
+constexpr std::optional<std::uint8_t> agriculture_field_quantity_stage(std::uint32_t quantity) {
+    if (quantity>10000) return std::nullopt;
+    const auto percent=quantity/100U;
+    return static_cast<std::uint8_t>(percent==0 ? 0:std::min(5U,percent/20U+1U));
 }
 // Presentation quantization of the existing authored80-productive-tick clock.
 // This does not reconstruct Original field quantity, calendar or terrain state.
@@ -129,7 +146,7 @@ struct BuildingVisualProfile {
     std::array<std::string,original_building_role_count> original_building_fallbacks;
     // Schema3 and later; distinct from historical static-body selection.
     bool original_field_prepared=false;
-    std::array<std::array<std::optional<BuildingVisualEntry>,original_field_stage_count>,original_field_role_count> original_field_entries;
+    std::array<std::array<std::optional<BuildingVisualEntry>,original_field_stage_count>,original_all_field_role_count> original_field_entries;
     const BuildingVisualEntry* find_original_field(OriginalBuildingVisualRole role,
             std::uint8_t actual_side,std::uint8_t stage) const {
         const auto index=original_field_role_index(role);

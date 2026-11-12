@@ -46,12 +46,19 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # values stay empty and legacy probe behavior must remain byte-identical. The
 # matching fresh archives and three strict DTO/API pins prevent stale ABI reuse;
 # these pins do not certify Rule23 gameplay, saves or Original roaming parity.
+# Rule24 adds a separately selected Agriculture DTO and model capability plus
+# complete source-bound fertility. The Original Grower/work/harvest clock remains
+# unverified: every Agriculture field production counter and Food origin is
+# refused while that proof gate is closed. Historical DTO layouts, model sets
+# and fourth-module probe calls remain exact. These reviewed additive ABI pins
+# require fresh matching libraries; they establish no Agriculture clock parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "7c504432a42cb3a254900b08f04c1b020efae0fd",
+    "World.h": "2b7fcebe133b04dbd6789a7bdcd3203955f0fb42",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
-    "OriginalTerrainFacts.h": "1a24ed7cb80a0152560b76d9445c04e5b0829ed5",
+    "OriginalTerrainFacts.h": "d49e7b513c9b1224ae567e2d013a97b66b60cdb8",
+    "AgricultureState.h": "eb2ae54814ad5bb0fcf720174974ef52cdfb25c1",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",
     "OriginalSafeDemolitionState.h": "a4f27b05d422d004cc4bfcae49ccc5f67a6c6121",
 }
@@ -566,8 +573,8 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
     if finance_blob != "4c42d35342a89c113b44965562635421efccecd1":
         raise ValueError("Original-finance ABI drift requires reviewed compatibility contract")
     model_header_blobs = {}
-    for name, expected in (("ModelSchema.h", "ea9c84c240d47efe0479b740ec298009c2d12185"),
-                           ("OriginalRulesModel.h", "63e6f7f167dce0d7e1480835759f01bd49d3a4a5")):
+    for name, expected in (("ModelSchema.h", "e7c52955663996b72964ab10e36c72186250edf8"),
+                           ("OriginalRulesModel.h", "4fc98da6ed7693b03633e29ce89d8ba5188b7dca")):
         header = ROOT / "src/simulation/original" / name
         actual = hashlib.sha1(b"blob " + str(header.stat().st_size).encode() + b"\0" + header.read_bytes()).hexdigest()
         if actual != expected:

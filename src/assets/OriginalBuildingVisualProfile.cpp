@@ -36,6 +36,9 @@ const char* original_building_role_name(OriginalBuildingVisualRole role) {
     case OriginalBuildingVisualRole::LacquerRefinery:return "Lacquer Refinery";
     case OriginalBuildingVisualRole::SilkwormShed:return "Silkworm Shed";
     case OriginalBuildingVisualRole::AncestorShrine:return "Ancestor Shrine";
+    case OriginalBuildingVisualRole::RiceField:return "Rice Field";
+    case OriginalBuildingVisualRole::CabbageField:return "Cabbage Field";
+    case OriginalBuildingVisualRole::SoybeanField:return "Soy Field (Bean Curd)";
     }
     return "Unsupported Original building";
 }
@@ -59,15 +62,18 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
     if (fs::is_symlink(fs::symlink_status(manifest,error)) || error)
         reader.fail("metadata missing or linked");
     const auto json=reader.read_manifest(manifest);
-    const auto schema=reader.number(json,"schema_version",4);
-    if (schema>=3) reader.keys(json,{"schema_version","mode","selection","anchor_policy","field_selection","evidence","files","buildings"});
+    const auto schema=reader.number(json,"schema_version",5);
+    if (schema>=5) reader.keys(json,{"schema_version","mode","selection","anchor_policy","field_selection","agriculture_field_selection","evidence","files","buildings"});
+    else if (schema>=3) reader.keys(json,{"schema_version","mode","selection","anchor_policy","field_selection","evidence","files","buildings"});
     else reader.keys(json,{"schema_version","mode","selection","anchor_policy","evidence","files","buildings"});
-    if ((schema!=1 && schema!=2 && schema!=3 && schema!=4) || reader.string(json,"mode")!="original_building_bases" ||
+    if ((schema!=1 && schema!=2 && schema!=3 && schema!=4 && schema!=5) || reader.string(json,"mode")!="original_building_bases" ||
         reader.string(json,"selection")!="canonical_static_base" || reader.string(json,"anchor_policy")!="type30_front_cell")
         reader.fail("unsupported schema, selection or anchor policy");
     (void)reader.string(json,"evidence");
     if (schema>=3 && reader.string(json,"field_selection")!=original_field_selection_contract)
         reader.fail("unsupported authored field selection");
+    if (schema>=5 && reader.string(json,"agriculture_field_selection")!=agriculture_field_selection_contract)
+        reader.fail("unsupported Agriculture field selection");
     if (!json.contains("files") || !json.at("files").is_array() || json.at("files").size()!=2)
         reader.fail("exactly two General asset fingerprints required");
     std::map<fs::path,fs::path> verified;
@@ -83,7 +89,7 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
         if (reader.sha256(actual)!=hash) reader.fail("fingerprint mismatch for "+path.generic_string());
     }
     const auto role_count=schema==1 ? original_building_schema1_role_count:
-        schema<4 ? original_building_schema23_role_count:original_building_schema4_role_count;
+        schema<4 ? original_building_schema23_role_count:schema==4 ? original_building_schema4_role_count:original_building_schema5_role_count;
     if (!json.contains("buildings") || !json.at("buildings").is_array() || json.at("buildings").size()!=role_count)
         reader.fail("schema requires exactly "+std::to_string(role_count)+" explicit Original building roles");
     const auto archive=read_sg3_archive(verified.at(general_archive));
@@ -176,6 +182,7 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
             continue;
         }
         if (schema>=3 && field_index) {
+            if (*role==OriginalBuildingVisualRole::RiceField) reader.fail("Rice topology/overlay selector requires explicit authored fallback");
             const auto group=reader.number(row,"group_key",0x7fffffffU);
             if (group!=identity.group_key) reader.fail("Original crop/group mismatch");
             const auto archive_path=reader.relative(reader.string(row,"archive",4096));

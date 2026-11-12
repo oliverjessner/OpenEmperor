@@ -1,0 +1,773 @@
+{
+  "schema_version": 5,
+  "mode": "original_building_bases",
+  "selection": "canonical_static_base",
+  "anchor_policy": "type30_front_cell",
+  "evidence": "Schema5 retains exact schema4 entries. Agriculture-only Cabbage198 and Soy199 use verified quantity-publisher offsets0..5 with variation0. Production stays locked until Original tending/harvest timing is verified. Rice topology/overlays remain an authored fallback. Pixels come from fingerprinted user data; no gameplay authority. See docs/rendering/oe60-original-farm-visuals.md and docs/reverse/original-agriculture-source-contract.md.",
+  "files": [
+    {
+      "path": "DATA/China_General.sg3",
+      "sha256": "c9ae527102c312098cbfe82932ce1b39c6c96692981c874dc853306835583e46"
+    },
+    {
+      "path": "DATA/China_General.555",
+      "sha256": "3cb09cd2c954eb355e2253482845e7117b353c24506575795bcaa1fe45db33f2"
+    }
+  ],
+  "buildings": [
+    {
+      "model_type": 72,
+      "original_side": 2,
+      "fallback": "Original Well static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 1559,
+      "width": 158,
+      "height": 132,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        112
+      ],
+      "group_key": 1154,
+      "variant": 0,
+      "evidence": "Pinned Model72 registration at VA0x823c60, group0x482, independently resolved through shared General2 layout; original base Well identity. Original water mechanics and evolution remain outside this static image. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 208,
+      "original_side": 2,
+      "fallback": "Original Acupuncturist clinic static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 1593,
+      "width": 158,
+      "height": 137,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        117
+      ],
+      "group_key": 1157,
+      "variant": 0,
+      "evidence": "Pinned Model208 registration at VA0x824920, group0x485, independently resolved through shared General2 layout; source identity is Acupuncturist Clinic. Original-production ServicePost mechanics remain authored. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 211,
+      "original_side": 2,
+      "fallback": "Original Music School static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 589,
+      "width": 158,
+      "height": 137,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        117
+      ],
+      "group_key": 1042,
+      "variant": 0,
+      "evidence": "Pinned culture source211 constructor and static registration at VA0x824968, group0x412; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 212,
+      "original_side": 3,
+      "fallback": "Original Acrobat School static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 460,
+      "width": 238,
+      "height": 162,
+      "base_bytes": 28800,
+      "ground_anchor": [
+        119,
+        142
+      ],
+      "group_key": 1040,
+      "variant": 0,
+      "evidence": "Pinned culture source212 constructor and static registration at VA0x824980, group0x410; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 213,
+      "original_side": 3,
+      "fallback": "Original Drama School static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 501,
+      "width": 238,
+      "height": 176,
+      "base_bytes": 28800,
+      "ground_anchor": [
+        119,
+        156
+      ],
+      "group_key": 1041,
+      "variant": 0,
+      "evidence": "Pinned culture source213 constructor and static registration at VA0x824998, group0x411; shared General2 resolution. Complete static base only; performer state and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 215,
+      "original_side": 2,
+      "fallback": "Original Daoist Shrine static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2245,
+      "width": 158,
+      "height": 134,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        114
+      ],
+      "group_key": 1179,
+      "variant": 0,
+      "evidence": "Pinned religious source215 constructor and static registration at VA0x8249c8, group0x49b; shared General2 resolution. Complete static base only; religion visits and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 217,
+      "original_side": 2,
+      "fallback": "Original Buddhist Shrine static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2258,
+      "width": 158,
+      "height": 142,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        122
+      ],
+      "group_key": 1180,
+      "variant": 0,
+      "evidence": "Pinned religious source217 constructor and static registration at VA0x8249f8, group0x49c; shared General2 resolution. Complete static base only; religion visits and animation not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 219,
+      "original_side": 3,
+      "fallback": "Original Confucian Academy static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2309,
+      "width": 238,
+      "height": 201,
+      "base_bytes": 28800,
+      "ground_anchor": [
+        119,
+        181
+      ],
+      "group_key": 1183,
+      "variant": 0,
+      "evidence": "Pinned religious source219 constructor and static registration at VA0x824a28, group0x49f; shared General2 resolution. Complete static base only; Academy material prerequisites remain World-owned. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 45,
+      "original_side": 2,
+      "fallback": "Original Paper Maker static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2811,
+      "width": 158,
+      "height": 102,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        82
+      ],
+      "group_key": 1098,
+      "variant": 0,
+      "evidence": "Pinned maker bodywriter VA0x5f1ee0 -> selector0x4f13f0 -> Model45 registration group0x44a; shared General2 resolution. Complete static base only; production and animation state not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 47,
+      "original_side": 2,
+      "fallback": "Original Weaver static base unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2768,
+      "width": 158,
+      "height": 119,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        99
+      ],
+      "group_key": 1094,
+      "variant": 0,
+      "evidence": "Pinned maker bodywriter VA0x5f1ee0 -> selector0x4f13f0 -> Model47 registration group0x446; shared General2 resolution. Complete static base only; production and animation state not inferred. Native Type30 geometry and complete decoded image verified; front-cell anchor is authored geometric placement, not a recovered per-model runtime pivot.",
+      "native": true
+    },
+    {
+      "model_type": 192,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Original Hemp Farm static body unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 825,
+      "width": 158,
+      "height": 137,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        117
+      ],
+      "group_key": 1197,
+      "variant": 0,
+      "evidence": "Pinned EXE SHA-256 6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e: Model192 factory/vtable-qualified placement/body callback VA0x4c2ac0 resolves group0x4ad plus definition offset zero. Shared General2 lookup yields physical825; native Type30 base and Omega are decoded whole. Animation metadata is not an active frame selector. Front-cell anchor is authored geometry. No World production-state, clock or authority change."
+    },
+    {
+      "model_type": 193,
+      "original_side": 3,
+      "native": true,
+      "fallback": "Original Farmhouse static body unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 793,
+      "width": 238,
+      "height": 192,
+      "base_bytes": 28800,
+      "ground_anchor": [
+        119,
+        172
+      ],
+      "group_key": 1082,
+      "variant": 0,
+      "evidence": "Pinned EXE SHA-256 6373328bfc5c4886d9abc9544eb706e89e7d465b18176ea8205fe27aaee53c0e: Model193 factory/vtable-qualified placement/body callback VA0x4c2ac0 resolves group0x43a plus definition offset zero. Shared General2 lookup yields physical793; native Type30 base and Omega are decoded whole. Animation metadata is not an active frame selector. Front-cell anchor is authored geometry. No World production-state, clock or authority change."
+    },
+    {
+      "model_type": 194,
+      "original_side": 1,
+      "native": true,
+      "fallback": "Hemp Field: native authored progress illustrations unavailable; authored field fallback",
+      "evidence": "Source-qualified Model194 field family group0x431. Canonical offsets0..5 select complete static native Type30 images, not an animation. Stage=floor(6*Farm.progress/80) is an AUTHORED visual mapping; it is not Original per-field quantity, growth/calendar timing or actual terrain variation. No World or save state is added. Each anchor is authored front-cell geometry.",
+      "archive": "DATA/China_General.sg3",
+      "group_key": 1073,
+      "stages": [
+        {
+          "stage": 0,
+          "image_index": 2458,
+          "width": 78,
+          "height": 41,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            21
+          ]
+        },
+        {
+          "stage": 1,
+          "image_index": 2459,
+          "width": 78,
+          "height": 46,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            26
+          ]
+        },
+        {
+          "stage": 2,
+          "image_index": 2460,
+          "width": 78,
+          "height": 52,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            32
+          ]
+        },
+        {
+          "stage": 3,
+          "image_index": 2461,
+          "width": 78,
+          "height": 56,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            36
+          ]
+        },
+        {
+          "stage": 4,
+          "image_index": 2462,
+          "width": 78,
+          "height": 60,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            40
+          ]
+        },
+        {
+          "stage": 5,
+          "image_index": 2463,
+          "width": 78,
+          "height": 66,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            46
+          ]
+        }
+      ]
+    },
+    {
+      "model_type": 195,
+      "original_side": 1,
+      "native": true,
+      "fallback": "Wheat Field: native authored progress illustrations unavailable; authored field fallback",
+      "evidence": "Source-qualified Model195 field family group0x42e. Canonical offsets0..5 select complete static native Type30 images, not an animation. Stage=floor(6*Farm.progress/80) is an AUTHORED visual mapping; it is not Original per-field quantity, growth/calendar timing or actual terrain variation. No World or save state is added. Each anchor is authored front-cell geometry.",
+      "archive": "DATA/China_General.sg3",
+      "group_key": 1070,
+      "stages": [
+        {
+          "stage": 0,
+          "image_index": 2422,
+          "width": 78,
+          "height": 43,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            23
+          ]
+        },
+        {
+          "stage": 1,
+          "image_index": 2423,
+          "width": 78,
+          "height": 49,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            29
+          ]
+        },
+        {
+          "stage": 2,
+          "image_index": 2424,
+          "width": 78,
+          "height": 54,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            34
+          ]
+        },
+        {
+          "stage": 3,
+          "image_index": 2425,
+          "width": 78,
+          "height": 58,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            38
+          ]
+        },
+        {
+          "stage": 4,
+          "image_index": 2426,
+          "width": 78,
+          "height": 62,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            42
+          ]
+        },
+        {
+          "stage": 5,
+          "image_index": 2427,
+          "width": 78,
+          "height": 67,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            47
+          ]
+        }
+      ]
+    },
+    {
+      "model_type": 196,
+      "original_side": 1,
+      "native": true,
+      "fallback": "Millet Field: native authored progress illustrations unavailable; authored field fallback",
+      "evidence": "Source-qualified Model196 field family group0x42c. Canonical offsets0..5 select complete static native Type30 images, not an animation. Stage=floor(6*Farm.progress/80) is an AUTHORED visual mapping; it is not Original per-field quantity, growth/calendar timing or actual terrain variation. No World or save state is added. Each anchor is authored front-cell geometry.",
+      "archive": "DATA/China_General.sg3",
+      "group_key": 1068,
+      "stages": [
+        {
+          "stage": 0,
+          "image_index": 2410,
+          "width": 78,
+          "height": 43,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            23
+          ]
+        },
+        {
+          "stage": 1,
+          "image_index": 2411,
+          "width": 78,
+          "height": 43,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            23
+          ]
+        },
+        {
+          "stage": 2,
+          "image_index": 2412,
+          "width": 78,
+          "height": 49,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            29
+          ]
+        },
+        {
+          "stage": 3,
+          "image_index": 2413,
+          "width": 78,
+          "height": 53,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            33
+          ]
+        },
+        {
+          "stage": 4,
+          "image_index": 2414,
+          "width": 78,
+          "height": 56,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            36
+          ]
+        },
+        {
+          "stage": 5,
+          "image_index": 2415,
+          "width": 78,
+          "height": 61,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            41
+          ]
+        }
+      ]
+    },
+    {
+      "model_type": 38,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2726,
+      "width": 158,
+      "height": 122,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        102
+      ],
+      "group_key": 1086,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Industrial5f0e20 selects5f5260 ->5f5230 ->vtable7c06fc. Actual body+100 ->5f1ee0 and group+25c ->4f13f0 read the type registration, then408170 ->4b72b0. Shared General-slot2 resolves group43e to physical2726; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 39,
+      "original_side": 3,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2697,
+      "width": 238,
+      "height": 208,
+      "base_bytes": 28800,
+      "ground_anchor": [
+        119,
+        188
+      ],
+      "group_key": 1090,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Industrial5f0e20 enters557340; type39 predicate558570 selects5590a0 ->vtable7b7e24. Actual body+100 ->5f1ee0 and group+25c ->4f13f0 read the type registration, then408170 ->4b72b0. Shared General-slot2 resolves group442 to physical2697; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 42,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2788,
+      "width": 158,
+      "height": 132,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        112
+      ],
+      "group_key": 1095,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Industrial5f0e20 selects5f5170 ->5f5100 ->vtable7bfee0. Actual body+100 ->5f1ee0 and group+25c ->4f13f0 read the type registration, then408170 ->4b72b0. Shared General-slot2 resolves group447 to physical2788; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 44,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2750,
+      "width": 158,
+      "height": 120,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        100
+      ],
+      "group_key": 1093,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Industrial5f0e20 selects5f5060 ->5f5010 ->vtable7bf6c4. Actual body+100 ->5f1ee0 and group+25c ->4f13f0 read the type registration, then408170 ->4b72b0. Shared General-slot2 resolves group445 to physical2750; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 237,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 840,
+      "width": 158,
+      "height": 121,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        101
+      ],
+      "group_key": 1083,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Predicate4c2930 and factory4c2960 select4c29fc ->4c5cc0 ->vtable7af95c. Actual body+100 ->4c5bf0 calls group selector+264 ->4c2ac0, then408170 ->4b72b0 with registered offset0. Shared General-slot2 resolves group43b to physical840; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 238,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 812,
+      "width": 158,
+      "height": 131,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        111
+      ],
+      "group_key": 1085,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Predicate4c2930 and factory4c2960 select4c29fc ->4c5cc0 ->vtable7af95c. Actual body+100 ->4c5bf0 calls group selector+264 ->4c2ac0, then408170 ->4b72b0 with registered offset0. Shared General-slot2 resolves group43d to physical812; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 239,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 856,
+      "width": 158,
+      "height": 120,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        100
+      ],
+      "group_key": 1084,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Predicate4c2930 and factory4c2960 select4c29fc ->4c5cc0 ->vtable7af95c. Actual body+100 ->4c5bf0 calls group selector+264 ->4c2ac0, then408170 ->4b72b0 with registered offset0. Shared General-slot2 resolves group43c to physical856; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 214,
+      "original_side": 2,
+      "native": true,
+      "fallback": "Qualified Original static body unavailable for the actual footprint; authored marker",
+      "archive": "DATA/China_General.sg3",
+      "image_index": 2232,
+      "width": 158,
+      "height": 149,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        129
+      ],
+      "group_key": 1153,
+      "variant": 0,
+      "evidence": "Pinned EXE6373328b: Religion5aae70 type214 branch5aaea0 explicitly supplies group481 to5ab0d0 ->vtable7bc0b4. Actual body+100 ->5abef0 reads the constructor-bound group+158, then408170 ->4b72b0. Shared General-slot2 resolves group481 to physical2232; complete native Type30 and source alpha. Static representative with authored front-cell anchor; no stock, progress, fire, staffing or animation selector is inferred. See docs/rendering/oe61-original-building-visuals.md."
+    },
+    {
+      "model_type": 197,
+      "original_side": 1,
+      "native": false,
+      "fallback": "Rice topology and growth overlay selector unprepared; authored Rice fallback",
+      "evidence": "EXE_OBSERVED separate Rice publisher4c22c0 and quantity overlay4c24d0; registration0x42d alone does not admit a static paid Rice sprite."
+    },
+    {
+      "model_type": 198,
+      "original_side": 1,
+      "native": true,
+      "fallback": "Cabbage quantity sprite unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "group_key": 1071,
+      "stages": [
+        {
+          "stage": 0,
+          "image_index": 2434,
+          "width": 78,
+          "height": 40,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            20
+          ]
+        },
+        {
+          "stage": 1,
+          "image_index": 2435,
+          "width": 78,
+          "height": 40,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            20
+          ]
+        },
+        {
+          "stage": 2,
+          "image_index": 2436,
+          "width": 78,
+          "height": 40,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            20
+          ]
+        },
+        {
+          "stage": 3,
+          "image_index": 2437,
+          "width": 78,
+          "height": 44,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            24
+          ]
+        },
+        {
+          "stage": 4,
+          "image_index": 2438,
+          "width": 78,
+          "height": 42,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            22
+          ]
+        },
+        {
+          "stage": 5,
+          "image_index": 2439,
+          "width": 78,
+          "height": 47,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            27
+          ]
+        }
+      ],
+      "evidence": "EXE_OBSERVED group registration and ordinary food publisher4c2360; quantity percentage floor(q/100), stage0 at0%, otherwise min(5,percent/20+1). Canonical variation bank0 only. Native Type30 side1 geometry verified from source headers; World growth is locked pending complete Original timing proof; source gameplay is not inferred from pixels."
+    },
+    {
+      "model_type": 199,
+      "original_side": 1,
+      "native": true,
+      "fallback": "Soy quantity sprite unavailable; authored fallback",
+      "archive": "DATA/China_General.sg3",
+      "group_key": 1072,
+      "stages": [
+        {
+          "stage": 0,
+          "image_index": 2446,
+          "width": 78,
+          "height": 41,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            21
+          ]
+        },
+        {
+          "stage": 1,
+          "image_index": 2447,
+          "width": 78,
+          "height": 42,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            22
+          ]
+        },
+        {
+          "stage": 2,
+          "image_index": 2448,
+          "width": 78,
+          "height": 43,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            23
+          ]
+        },
+        {
+          "stage": 3,
+          "image_index": 2449,
+          "width": 78,
+          "height": 46,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            26
+          ]
+        },
+        {
+          "stage": 4,
+          "image_index": 2450,
+          "width": 78,
+          "height": 50,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            30
+          ]
+        },
+        {
+          "stage": 5,
+          "image_index": 2451,
+          "width": 78,
+          "height": 51,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            31
+          ]
+        }
+      ],
+      "evidence": "EXE_OBSERVED group registration and ordinary food publisher4c2360; quantity percentage floor(q/100), stage0 at0%, otherwise min(5,percent/20+1). Canonical variation bank0 only. Native Type30 side1 geometry verified from source headers; World growth is locked pending complete Original timing proof; source gameplay is not inferred from pixels."
+    }
+  ],
+  "field_selection": "authored-farm-progress-six-canonical-0-v1",
+  "agriculture_field_selection": "source-quantity-canonical-no-variation-v1"
+}

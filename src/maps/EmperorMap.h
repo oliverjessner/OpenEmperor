@@ -19,6 +19,7 @@ constexpr std::uint32_t stored_grid_width = 228;
 constexpr std::uint32_t stored_grid_height = 228;
 constexpr std::uint64_t terrain_logical_offset = 261455;
 constexpr std::uint64_t objects_logical_offset = 469391;
+constexpr std::uint64_t fertility_logical_offset = 937255;
 constexpr std::uint64_t grid_byte_length = 228U * 228U * 4U;
 
 enum class PartProfile { Map, SavedGame, Unknown, UnsupportedMap };
@@ -42,11 +43,14 @@ struct ParsedEmperorMap {
     std::uint32_t declared_map_size = 0;
     MapLayer terrain_raw;
     MapLayer objects_raw;
+    // Explicitly requested immutable serialized operand; absent on historical reads.
+    std::vector<std::uint8_t> fertility_bytes;
     std::uint32_t terrain_at(std::uint32_t x, std::uint32_t y) const;
     std::uint32_t object_at(std::uint32_t x, std::uint32_t y) const;
     std::uint64_t terrain_cell_offset(std::uint32_t x, std::uint32_t y) const;
     std::uint64_t object_cell_offset(std::uint32_t x, std::uint32_t y) const;
 };
-ParsedEmperorMap read_emperor_map(const EmperorContainer& container, std::size_t part);
+ParsedEmperorMap read_emperor_map(const EmperorContainer& container, std::size_t part,
+                                  bool include_fertility=false);
 
 } // namespace openemperor::maps

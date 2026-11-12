@@ -102,6 +102,31 @@ SDL_Color original_house_status_color(original_house_ui::Status status) {
     }
     return {148,157,172,38};
 }
+const char* agriculture_production_status() {
+    return simulation::agriculture_production_clock_verified ? "Original production clock verified":
+        "Production locked: Original tending/harvest timing unverified";
+}
+constexpr std::array agriculture_food_names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)"};
+bool append_agriculture_stock_lines(const simulation::World& world,simulation::BuildingId id,
+        std::vector<std::string>& lines,int capacity) {
+    if (!world.original_agriculture_enabled()) return false;
+    if (!world.original_agriculture_state()) throw std::logic_error("Agriculture inspector lost state");
+    const auto& state=*world.original_agriculture_state();
+    for (const auto& stock:state.stocks) if (stock.building_id==id) {
+        int total=0;
+        for (const auto amount:stock.amounts) total+=amount;
+        lines.push_back("Food total "+std::to_string(total)+"/"+std::to_string(capacity));
+        for (std::size_t crop=0;crop<agriculture_food_names.size();++crop) {
+            std::int64_t incoming=0;
+            for (const auto& trip:state.trips) if (trip.target==id && trip.phase==simulation::OriginalGoodsTransferPhase::Loaded)
+                incoming+=std::int64_t(trip.loaded[crop])-trip.delivered[crop]-trip.returned[crop];
+            lines.push_back(std::string(agriculture_food_names[crop])+" "+std::to_string(stock.amounts[crop])+" | inbound "+std::to_string(incoming));
+        }
+        lines.push_back("Food demand misses "+std::to_string(stock.missed_demands));
+        break;
+    }
+    return true;
+}
 struct IndustryTool {
     sandbox_ui::Action action;
     simulation::CommandType command;
@@ -313,6 +338,9 @@ const char* tool_name(simulation::RulesProfile rules,int tool) {
         case 18: return "Food Farmhouse: 3x3, buy an adjacent field separately";
         case 19: return "Wheat Field: select a Food Farm, place adjacent field";
         case 20: return "Millet Field: select a Food Farm, place adjacent field";
+        case 43: return "Rice Field: requires source fertility100 and an eligible paid Farmhouse";
+        case 44: return "Cabbage Field: place within a paid Farmhouse work area";
+        case 45: return "Soy Field: distinct Bean Curd food output; paid Farmhouse required";
         case 21: return "Ancestor Shrine: 2x2, staffed visitors grant Ancestor access";
         case 22: return "Water Well: 2x2, staffed actual visits supply water";
         case 23: return "Daoist: 2x2, staffed actual visits supply religion";
@@ -357,6 +385,9 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::OriginalFoodFarm: return "Food Farmhouse";
     case simulation::Object::OriginalWheatField: return "Wheat Field";
     case simulation::Object::OriginalMilletField: return "Millet Field";
+    case simulation::Object::OriginalRiceField: return "Rice Field";
+    case simulation::Object::OriginalCabbageField: return "Cabbage Field";
+    case simulation::Object::OriginalSoybeanField: return "Soy Field (Bean Curd)";
     case simulation::Object::OriginalAncestorShrine214: return "Ancestor Shrine";
     case simulation::Object::OriginalWaterWell72: return "Water Well";
     case simulation::Object::OriginalDaoistShrine215: return "Daoist";
@@ -406,6 +437,9 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool,boo
         case 18: return simulation::CommandType::PlaceOriginalFoodFarm;
         case 19: return simulation::CommandType::PlaceOriginalWheatField;
         case 20: return simulation::CommandType::PlaceOriginalMilletField;
+        case 43: return simulation::CommandType::PlaceOriginalRiceField;
+        case 44: return simulation::CommandType::PlaceOriginalCabbageField;
+        case 45: return simulation::CommandType::PlaceOriginalSoybeanField;
         case 21: return simulation::CommandType::PlaceOriginalAncestorShrine;
         case 22: return simulation::CommandType::PlaceOriginalWaterWell;
         case 23: return simulation::CommandType::PlaceOriginalDaoistShrine;
@@ -578,6 +612,19 @@ std::unique_ptr<SandboxView> SandboxView::create_original_venue_house_service(
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_original_agriculture(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid original Agriculture difficulty");
+    if (session.input_sha256.empty())
+        throw std::invalid_argument("Rule24 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kOriginalAgricultureRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;
+    result->original_paid_starter_=paid_starter;
+    return result;
+}
+
 std::unique_ptr<SandboxView> SandboxView::create_original_safe_demolition(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
     if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
@@ -736,7 +783,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : original_venue_house_service() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : original_agriculture() ?
+        persistence::restore_original_agriculture(document,data_root_,buildable_mask_) : original_venue_house_service() ?
         persistence::restore_original_venue_house_service(document,data_root_,buildable_mask_) : original_music_venues() ?
         persistence::restore_original_music_venues(document,data_root_,buildable_mask_) : original_safe_demolition() ?
         persistence::restore_original_safe_demolition(document,data_root_,buildable_mask_) : original_deadline_food_dispatch() ?
@@ -843,7 +891,12 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
                 initial_save_->map_permissions_policy_version:
                 maps::map_rules_policy_version(rules_,active_version),expected_map_input_sha256_);
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain;
-    if (original_cardinal_water() || original_inspector_coordination() || original_deadline_fire_dispatch() || original_deadline_service_dispatch() || original_deadline_food_dispatch() || original_safe_demolition() || original_music_venues())
+    if (original_agriculture()) {
+        terrain=persistence::prepare_original_agriculture_terrain_facts(data_root_,map_relative_);
+        if (terrain->source_map_sha256()!=expected_map_input_sha256_)
+            throw std::runtime_error("Original map changed before Agriculture terrain preparation");
+    }
+    else if (original_cardinal_water() || original_inspector_coordination() || original_deadline_fire_dispatch() || original_deadline_service_dispatch() || original_deadline_food_dispatch() || original_safe_demolition() || original_music_venues())
         terrain=std::make_shared<const simulation::OriginalTerrainFacts>(
             original_map_.terrain_raw.values,expected_map_input_sha256_);
     original_map_={};
@@ -852,7 +905,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : original_venue_house_service() ?
+                std::move(permissions)) : original_agriculture() ?
+            persistence::restore_original_agriculture(*initial_save_,data_root_,
+                buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_venue_house_service() ?
             persistence::restore_original_venue_house_service(*initial_save_,data_root_,
                 buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_music_venues() ?
             persistence::restore_original_music_venues(*initial_save_,data_root_,
@@ -896,6 +951,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (original_agriculture()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_original_agriculture(
+            std::move(permissions),persistence::prepare_original_agriculture_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_=std::string("Agriculture: paid typed crop construction. ")+agriculture_production_status();
     } else if (original_venue_house_service()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_venue_house_service(
             std::move(permissions),persistence::prepare_original_culture_rules_model(data_root_,
@@ -998,6 +1058,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     }
     if (!builtin_errors.empty()) last_message_=builtin_errors.front();
+    if (original_agriculture()) last_message_+=" | "+std::string(agriculture_production_status());
     if (original_save_fixture_) clock_.pause_and_reset();
     update_window_title();
 }
@@ -1007,7 +1068,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(original_venue_house_service())title+=" | save schema 39 | physical Theatre to House Music";
+    if(original_agriculture())title+=" | save schema 40 | Agriculture";
+    else if(original_venue_house_service())title+=" | save schema 39 | physical Theatre to House Music";
     else if(original_music_venues())title+=" | save schema 38 | paid Music performer to Theatre";
     else if(world_->authored_land_trade_enabled())title+=" | save schema 37 | authored finite land trade";
     else if(world_->source_cell_ramps_supported())title+=" | save schema 36 | authored source-cell ramps";
@@ -1741,7 +1803,10 @@ bool SandboxView::append_requested_original_building_visuals(assets::BuildingVis
     try {
         const auto available=session_texture_headroom(true,true,false);
         if (!available) throw std::runtime_error("Session RGBA texture budget exhausted");
-        assets::append_original_building_visual_profile(data_root_,manifest,profile,*available);
+        const auto selected_manifest=original_agriculture() && source==VisualProfileSource::Builtin &&
+            manifest.filename()=="original-buildings.json" ?
+            manifest.parent_path()/"original-agriculture-buildings.json":manifest;
+        assets::append_original_building_visual_profile(data_root_,selected_manifest,profile,*available);
         reason.clear();return true;
     } catch(const std::exception& failure) {
         if (source==VisualProfileSource::Custom) throw;
@@ -1807,6 +1872,23 @@ SandboxView::OriginalFieldVisualSelection SandboxView::original_field_visual_sel
     if (!world_ || !original_production_fixture() || !building_profile_) return result;
     const auto role=original_building_visual_role(kind);
     if (!role || !assets::original_field_role_index(*role)) return result;
+    if (original_agriculture() && kind!=simulation::Object::OriginalHempField) {
+        if (kind==simulation::Object::OriginalRiceField) return result;
+        if (placement_preview) {
+            result.stage=0;result.entry=building_profile_->find_original_field(*role,1,0);return result;
+        }
+        const auto owner=world_->building_owner_at(cell);
+        if (!owner || !world_->original_agriculture_state()) return result;
+        const auto& body=world_->building(*owner);
+        if (body.kind!=kind || body.cell!=cell) return result;
+        for (const auto& field:world_->original_agriculture_state()->fields) if (field.field_id==*owner) {
+            const auto stage=assets::agriculture_field_quantity_stage(field.quantity);
+            if (!stage) return result;
+            result.farm=field.farm_id;result.progress=static_cast<int>(field.quantity);result.stage=stage;
+            result.entry=building_profile_->find_original_field(*role,1,*stage);break;
+        }
+        return result;
+    }
     if (placement_preview) {
         // A ghost uses the authored cycle's initial image. It grants no paid
         // field, Farm association, progress or original construction semantics.
@@ -1886,6 +1968,8 @@ void SandboxView::prepare_original_field_order(bool force) {
     const auto& production=*world_->original_production_state();
     for (const auto& farm:production.hemp_farms) append(farm.field_id);
     for (const auto& farm:production.food.farms) append(farm.field_id);
+    if (original_agriculture() && world_->original_agriculture_state())
+        for (const auto& field:world_->original_agriculture_state()->fields) append(field.field_id);
 }
 void SandboxView::apply_original_field_order(DrawInstance& instance) const {
     if (instance.placement_preview || !unified_depth_ ||
@@ -1929,7 +2013,9 @@ SandboxView::OriginalBuildingVisualDiagnostic SandboxView::original_building_vis
         result.image_origin={result.ground.x-entry->ground_x,result.ground.y-entry->ground_y};
         if (field.entry) {
             result.field_farm=field.farm;result.field_stage=field.stage;result.field_farm_progress=field.progress;
-            result.selection="Original crop images; authored six-stage Farm progress mapping; canonical variation0 and authored anchor";
+            result.selection=original_agriculture() && body->kind!=simulation::Object::OriginalHempField ?
+                "Original crop images; source quantity selector; production locked; canonical variation0 and authored anchor":
+                "Original crop images; authored six-stage Farm progress mapping; canonical variation0 and authored anchor";
             if (result.active && unified_depth_ && background_.landscape_mode()!=LandscapeDebugMode::Snapshot)
                 for (std::size_t i=0;i<original_field_order_count_;++i) if (original_field_order_[i].id==id) {
                     const auto& order=original_field_order_[i];
@@ -1952,18 +2038,23 @@ bool SandboxView::append_original_building_visual_diagnostic(std::vector<std::st
         simulation::BuildingId id) const {
     const auto art=original_building_visual_diagnostic(id);
     if (!art.applicable) return false;
+    const bool agriculture_field=original_agriculture() && art.model_type>=195 && art.model_type<=199;
     const auto append_field_details=[&] {
         if (!art.field_stage || !art.field_farm) return;
-        lines.push_back("Field visual stage "+std::to_string(*art.field_stage+1)+"/6 (authored)");
+        lines.push_back("Field visual stage "+std::to_string(*art.field_stage+1)+
+            (agriculture_field ? "/6 (quantity selector)":"/6 (authored)"));
         lines.push_back("Farm #"+std::to_string(static_cast<unsigned>(*art.field_farm))+" progress "+
-            std::to_string(art.field_farm_progress)+"/80");
-        lines.push_back("Original crop images; authored growth and anchor");
-        lines.push_back("Canonical variation0; original calendar not reproduced");
+            std::to_string(art.field_farm_progress)+(agriculture_field ? "/10000 quantity":"/80"));
+        lines.push_back(agriculture_field ? agriculture_production_status():
+            "Original crop images; authored growth and anchor");
+        lines.push_back(agriculture_field ? "Canonical variation0; actual stored field quantity":
+            "Canonical variation0; original calendar not reproduced");
         if (art.field_order_ambiguous)
             lines.push_back("Complex adjacent ordering; historical painter retained");
     };
     if (!debug_open_) {
-        lines.push_back(art.active ? art.field_stage ? "Art: original crop image; authored growth":
+        lines.push_back(art.active ? art.field_stage ? agriculture_field ?
+            "Art: original crop image; quantity selector":"Art: original crop image; authored growth":
             "Art: original static image":"Art: authored fallback");
         append_field_details();
         return true;
@@ -2477,7 +2568,7 @@ void SandboxView::update_layout(bool preserve_center) {
         simulation::market_profile(rules_),simulation::service_profile(rules_),
         world_ ? world_->bridges_supported():simulation::bridges_rule_enabled(rules_,requested_rule_version_),
         world_ ? world_->ramps_supported():simulation::ramps_rule_enabled(rules_,requested_rule_version_),
-        original_production_fixture(),industry_page_,original_fire_protection(),original_music_venues());
+        original_production_fixture(),industry_page_,original_fire_protection(),original_music_venues(),original_agriculture());
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) {layout_=next;return;}
     // Panel toggles and resize change the clipped viewport before another
@@ -2845,7 +2936,7 @@ simulation::CommandResult SandboxView::preview(simulation::Cell cell) const {
 }
 simulation::Command SandboxView::placement_command(simulation::Cell cell) const {
     simulation::Command command{command_type(rules_,tool_,original_influence_fixture()),cell};
-    if (tool_==17 || tool_==19 || tool_==20) command.building_id=selected_building().value_or(simulation::BuildingId{});
+    if (tool_==17 || (!original_agriculture() && (tool_==19 || tool_==20))) command.building_id=selected_building().value_or(simulation::BuildingId{});
     if (original_production_fixture() && tool_>=38 && tool_<=40) {
         const auto wanted=static_cast<simulation::Object>(static_cast<unsigned>(simulation::Object::OriginalTeaCuringShed237)+static_cast<unsigned>(tool_-38));
         std::optional<simulation::BuildingId> candidate;
@@ -2891,6 +2982,9 @@ void SandboxView::set_tool(int tool) {
     case 18: action=sandbox_ui::Action::OriginalFoodFarm; break;
     case 19: action=sandbox_ui::Action::OriginalWheatField; break;
     case 20: action=sandbox_ui::Action::OriginalMilletField; break;
+    case 43: action=sandbox_ui::Action::OriginalRiceField; break;
+    case 44: action=sandbox_ui::Action::OriginalCabbageField; break;
+    case 45: action=sandbox_ui::Action::OriginalSoybeanField; break;
     case 21: action=sandbox_ui::Action::OriginalAncestorShrine; break;
     case 22: action=sandbox_ui::Action::OriginalWaterWell; break;
     case 23: action=sandbox_ui::Action::OriginalDaoistShrine; break;
@@ -3009,6 +3103,24 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
         return std::count_if(world_->buildings().begin(),world_->buildings().end(),
             [&](const simulation::BuildingState& b) { return b.placed && b.kind==kind; });
     };
+    if (original_agriculture() && (action==sandbox_ui::Action::OriginalFoodFarm ||
+        action==sandbox_ui::Action::OriginalWheatField || action==sandbox_ui::Action::OriginalMilletField ||
+        action==sandbox_ui::Action::OriginalRiceField || action==sandbox_ui::Action::OriginalCabbageField ||
+        action==sandbox_ui::Action::OriginalSoybeanField)) {
+        if (walker_diagnostic_open_ || !world_->original_agriculture_state()) return false;
+        const auto command=action==sandbox_ui::Action::OriginalFoodFarm ? simulation::CommandType::PlaceOriginalFoodFarm:
+            action==sandbox_ui::Action::OriginalWheatField ? simulation::CommandType::PlaceOriginalWheatField:
+            action==sandbox_ui::Action::OriginalMilletField ? simulation::CommandType::PlaceOriginalMilletField:
+            action==sandbox_ui::Action::OriginalRiceField ? simulation::CommandType::PlaceOriginalRiceField:
+            action==sandbox_ui::Action::OriginalCabbageField ? simulation::CommandType::PlaceOriginalCabbageField:
+                simulation::CommandType::PlaceOriginalSoybeanField;
+        if (world_->treasury()<world_->construction_cost(command)) return false;
+        const auto& state=*world_->original_agriculture_state();
+        return action==sandbox_ui::Action::OriginalFoodFarm ? state.farms.size()<3:
+            !state.farms.empty() && state.fields.size()<simulation::agriculture_field_limit;
+    }
+    if (action==sandbox_ui::Action::OriginalRiceField || action==sandbox_ui::Action::OriginalCabbageField ||
+        action==sandbox_ui::Action::OriginalSoybeanField) return false;
     if (action==sandbox_ui::Action::OriginalFoodFarm || action==sandbox_ui::Action::OriginalWheatField || action==sandbox_ui::Action::OriginalMilletField) {
         if (!original_production_fixture()) return false;
         const bool field=action!=sandbox_ui::Action::OriginalFoodFarm;
@@ -3328,6 +3440,9 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         else if (action==A::OriginalFoodFarm) command=simulation::CommandType::PlaceOriginalFoodFarm;
         else if (action==A::OriginalWheatField) command=simulation::CommandType::PlaceOriginalWheatField;
         else if (action==A::OriginalMilletField) command=simulation::CommandType::PlaceOriginalMilletField;
+        else if (action==A::OriginalRiceField) command=simulation::CommandType::PlaceOriginalRiceField;
+        else if (action==A::OriginalCabbageField) command=simulation::CommandType::PlaceOriginalCabbageField;
+        else if (action==A::OriginalSoybeanField) command=simulation::CommandType::PlaceOriginalSoybeanField;
         else if (action==A::OriginalAncestorShrine) command=simulation::CommandType::PlaceOriginalAncestorShrine;
         else if (action==A::OriginalWaterWell) command=simulation::CommandType::PlaceOriginalWaterWell;
         else if (action==A::OriginalDaoistShrine) command=simulation::CommandType::PlaceOriginalDaoistShrine;
@@ -3378,7 +3493,7 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     if (action==A::Select || action==A::Road || action==A::Clay || action==A::Pottery ||
         action==A::Warehouse || action==A::RemoveRoad || action==A::Household ||
         action==A::Farm || action==A::OriginalHempFarm || action==A::OriginalHempField || action==A::OriginalFoodFarm ||
-        action==A::OriginalWheatField || action==A::OriginalMilletField || action==A::OriginalAncestorShrine || action==A::OriginalWaterWell ||
+        action==A::OriginalWheatField || action==A::OriginalMilletField || action==A::OriginalRiceField || action==A::OriginalCabbageField || action==A::OriginalSoybeanField || action==A::OriginalAncestorShrine || action==A::OriginalWaterWell ||
         action==A::OriginalDaoistShrine || action==A::OriginalBuddhistShrine || action==A::OriginalConfucianAcademy ||
         action==A::OriginalMusicSchool || action==A::OriginalAcrobatSchool || action==A::OriginalDramaSchool || action==A::ServicePost || action==A::Market || action==A::FireWatch || action==A::Well || action==A::HealthPost || (action==A::Bridge || action==A::Ramp)) {
         cancel_gesture();
@@ -3387,8 +3502,10 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
             action==A::Warehouse ? (simulation::production_profile(rules_) ? 4:3) :
             action==A::RemoveRoad ? 6:action==A::Household ? 7:action==A::Farm ? 8:
             action==A::ServicePost ? 9:action==A::FireWatch ? 11:action==A::Well ? 12:action==A::HealthPost ? 13:action==A::Bridge ? 14:action==A::Ramp ? 15:action==A::OriginalHempFarm ? 16:action==A::OriginalHempField ? 17:
-            action==A::OriginalFoodFarm ? 18:action==A::OriginalWheatField ? 19:action==A::OriginalMilletField ? 20:action==A::OriginalAncestorShrine ? 21:action==A::OriginalWaterWell ? 22:action==A::OriginalDaoistShrine ? 23:action==A::OriginalBuddhistShrine ? 24:action==A::OriginalConfucianAcademy ? 25:action==A::OriginalMusicSchool ? 26:action==A::OriginalAcrobatSchool ? 27:action==A::OriginalDramaSchool ? 28:0;
-        last_message_=original_venue_house_service() && tool_==26 ? "Music School: paid2x2; actual performer supplies Theatre; no direct House grant":
+            action==A::OriginalFoodFarm ? 18:action==A::OriginalWheatField ? 19:action==A::OriginalMilletField ? 20:action==A::OriginalRiceField ? 43:action==A::OriginalCabbageField ? 44:action==A::OriginalSoybeanField ? 45:action==A::OriginalAncestorShrine ? 21:action==A::OriginalWaterWell ? 22:action==A::OriginalDaoistShrine ? 23:action==A::OriginalBuddhistShrine ? 24:action==A::OriginalConfucianAcademy ? 25:action==A::OriginalMusicSchool ? 26:action==A::OriginalAcrobatSchool ? 27:action==A::OriginalDramaSchool ? 28:0;
+        last_message_=original_agriculture() && (tool_==18 || tool_==19 || tool_==20 || (tool_>=43 && tool_<=45)) ?
+            std::string(agriculture_production_status())+" | Paid field work area -3..+5; Rice requires source fertility100":
+            original_venue_house_service() && tool_==26 ? "Music School: paid2x2; actual performer supplies Theatre; no direct House grant":
             original_music_venues() && tool_==26 ? "Music School: paid2x2; real performer to Theatre75; no House effect":
             original_influence_fixture() && tool_==12 ? "Well72 influence source: 2x2, $60, no water":
             tool_==15 ? "Ramp: neighboring roads, one signed level, $40":tool_==14 ? "Bridge: drag from one land road to the opposite bank; 1..8 water cells":tool_name(rules_,tool_);
@@ -3682,6 +3799,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             set_tool(static_cast<int>(event.key.key-SDLK_1)+1);
         else if (event.key.key==SDLK_0 && simulation::market_profile(rules_))
             set_tool(0);
+        else if (original_agriculture() && (event.key.mod&SDL_KMOD_SHIFT) && event.key.key==SDLK_R) set_tool(43);
+        else if (original_agriculture() && (event.key.mod&SDL_KMOD_SHIFT) && event.key.key==SDLK_C) set_tool(44);
+        else if (original_agriculture() && (event.key.mod&SDL_KMOD_SHIFT) && event.key.key==SDLK_S) set_tool(45);
         else if (event.key.key==SDLK_F && simulation::fire_profile(rules_)) set_tool(11);
         else if (event.key.key==SDLK_J && simulation::health_profile(rules_)) set_tool(13);
         else if (event.key.key==SDLK_N && original_production_fixture()) set_tool(16);
@@ -4720,7 +4840,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             if (object==simulation::Object::Farm)
                 color=debug_open_ ? SDL_Color{220,190,55,255}:SDL_Color{126,119,70,255};
             if (object==simulation::Object::OriginalHempFarm || object==simulation::Object::OriginalHempField ||
-                object==simulation::Object::OriginalFoodFarm || object==simulation::Object::OriginalWheatField || object==simulation::Object::OriginalMilletField)
+                object==simulation::Object::OriginalFoodFarm || object==simulation::Object::OriginalWheatField || object==simulation::Object::OriginalMilletField ||
+                object==simulation::Object::OriginalRiceField || object==simulation::Object::OriginalCabbageField || object==simulation::Object::OriginalSoybeanField)
                 color=debug_open_ ? SDL_Color{105,220,90,255}:SDL_Color{89,126,68,255};
             if (object==simulation::Object::ServicePost)
                 color=debug_open_ ? SDL_Color{80,205,255,255}:SDL_Color{91,119,132,255};
@@ -4907,6 +5028,9 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==18 ? simulation::Object::OriginalFoodFarm:
             tool_==19 ? simulation::Object::OriginalWheatField:
             tool_==20 ? simulation::Object::OriginalMilletField:
+            tool_==43 ? simulation::Object::OriginalRiceField:
+            tool_==44 ? simulation::Object::OriginalCabbageField:
+            tool_==45 ? simulation::Object::OriginalSoybeanField:
             tool_==21 ? simulation::Object::OriginalAncestorShrine214:
             tool_==22 ? simulation::Object::OriginalWaterWell72:
             tool_==23 ? simulation::Object::OriginalDaoistShrine215:
@@ -5246,6 +5370,9 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==18 ? simulation::Object::OriginalFoodFarm:
             tool_==19 ? simulation::Object::OriginalWheatField:
             tool_==20 ? simulation::Object::OriginalMilletField:
+            tool_==43 ? simulation::Object::OriginalRiceField:
+            tool_==44 ? simulation::Object::OriginalCabbageField:
+            tool_==45 ? simulation::Object::OriginalSoybeanField:
             tool_==21 ? simulation::Object::OriginalAncestorShrine214:
             tool_==22 ? simulation::Object::OriginalWaterWell72:
             tool_==23 ? simulation::Object::OriginalDaoistShrine215:
@@ -5666,6 +5793,10 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 std::string("Phase: ")+simulation::courier_phase_name(found->phase),
                 "Cargo: "+std::to_string(displayed_courier_cargo(*world_,*found)),
                 std::string("Goods: ")+displayed_courier_good(*world_,*found)};
+            if (original_agriculture()) for (const auto& trip:world_->original_agriculture_state()->trips)
+                if (trip.transfer.courier_id==found->id) for (std::size_t crop=0;crop<agriculture_food_names.size();++crop)
+                    lines.push_back(std::string(agriculture_food_names[crop])+" cargo "+
+                        std::to_string(trip.loaded[crop]-trip.delivered[crop]-trip.returned[crop]));
             if (original_production_fixture()) walker_lines.push_back("Incoming reserved: "+
                 std::to_string(displayed_courier_reservation(*world_,*found)));
             if (found->role==simulation::CourierRole::OriginalMusicPerformer && original_music_venues()) {
@@ -5897,7 +6028,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                         break;
                     }
             }
-            for (const auto& food:world_->original_production_state()->food.stocks) if (food.building_id==*house_id) {
+            if (!append_agriculture_stock_lines(*world_,*house_id,lines,8)) for (const auto& food:world_->original_production_state()->food.stocks) if (food.building_id==*house_id) {
                 lines.push_back("Food: "+std::to_string(food.amounts[0]+food.amounts[1])+"/8 Quality: "+std::to_string(h.food_quality)+
                     " W"+std::to_string(food.amounts[0])+" M"+std::to_string(food.amounts[1]));
                 lines.push_back("Food demand misses: "+std::to_string(food.missed_demands));
@@ -5994,7 +6125,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                     lines.push_back("Music"+std::to_string(home->house.music)+" Acrobat"+std::to_string(home->house.acrobat)+
                         " Drama"+std::to_string(home->house.drama));
                 }
-                for (const auto& food:world_->original_production_state()->food.stocks) if (food.building_id==*house_id) {
+                if (!append_agriculture_stock_lines(*world_,*house_id,lines,8)) for (const auto& food:world_->original_production_state()->food.stocks) if (food.building_id==*house_id) {
                     lines.push_back("Food: "+std::to_string(food.amounts[0]+food.amounts[1])+"/8 Quality: "+
                         std::to_string(home!=houses.end() ? home->house.food_quality:0)+
                         " W"+std::to_string(food.amounts[0])+" M"+std::to_string(food.amounts[1]));
@@ -6398,9 +6529,33 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         const int capacity=b.kind==simulation::Object::Warehouse ? 32:16;
         lines.push_back("Ceramics stock "+std::to_string(displayed_original_stock(*world_,*id,original::Goods::Ceramics))+"/"+std::to_string(capacity));
         lines.push_back("Hemp stock "+std::to_string(displayed_original_stock(*world_,*id,original::Goods::Hemp))+"/"+std::to_string(capacity));
-        if (b.kind==simulation::Object::Market) for (const auto& food:world_->original_production_state()->food.stocks)
+        if (original_agriculture()) append_agriculture_stock_lines(*world_,*id,lines,capacity);
+        else if (b.kind==simulation::Object::Market) for (const auto& food:world_->original_production_state()->food.stocks)
             if (food.building_id==*id) lines.push_back("Food Wheat "+std::to_string(food.amounts[0])+" / Millet "+std::to_string(food.amounts[1])+" (total cap16)");
         if (b.kind==simulation::Object::Warehouse) lines.push_back("Unconverted Pottery incoming "+std::to_string(b.reserved_incoming));
+    } else if (original_agriculture() && b.kind==simulation::Object::OriginalFoodFarm) {
+        append_agriculture_stock_lines(*world_,*id,lines,8);
+        std::size_t fields=0;
+        for (const auto& field:world_->original_agriculture_state()->fields) if (field.farm_id==*id) ++fields;
+        lines.push_back("Paid bound fields "+std::to_string(fields));
+        lines.push_back("Work area: -3..+5 cells on both axes");
+        lines.push_back("Nearest eligible paid Farmhouse owns each field");
+        lines.push_back(agriculture_production_status());
+    } else if (original_agriculture() && (b.kind==simulation::Object::OriginalWheatField ||
+        b.kind==simulation::Object::OriginalMilletField || b.kind==simulation::Object::OriginalRiceField ||
+        b.kind==simulation::Object::OriginalCabbageField || b.kind==simulation::Object::OriginalSoybeanField)) {
+        for (const auto& field:world_->original_agriculture_state()->fields) if (field.field_id==*id) {
+            lines.push_back(std::string("Output: ")+agriculture_food_names[static_cast<std::size_t>(field.crop)]);
+            lines.push_back("Bound Farmhouse #"+std::to_string(static_cast<unsigned>(field.farm_id)));
+            lines.push_back("Quantity "+std::to_string(field.quantity)+"/10000");
+            lines.push_back("Productive events "+std::to_string(field.productive_events));
+            lines.push_back("Actually harvested "+std::to_string(field.harvested));
+            lines.push_back("Last harvest cycle "+std::to_string(field.last_harvest_cycle));
+            lines.push_back(agriculture_production_status());
+            if (field.crop==simulation::AgricultureCrop::Rice)
+                lines.push_back("Rice admitted by source fertility100; dynamic irrigation awaits AGRI-04");
+            break;
+        }
     } else if (b.kind==simulation::Object::OriginalFoodFarm) {
         for (const auto& food:world_->original_production_state()->food.stocks) if (food.building_id==*id)
             lines.push_back("Food stock "+std::to_string(food.amounts[0]+food.amounts[1])+"/8");
@@ -7167,7 +7322,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(original_venue_house_service())overview+=" | Policy3 | Save39 | physical Venue to House Music";
+        if(original_agriculture())overview+=" | Policy 3 | Save 40 | Agriculture | Production LOCKED";
+        else if(original_venue_house_service())overview+=" | Policy3 | Save39 | physical Venue to House Music";
         else if(original_music_venues())overview+=" | Policy3 | Save38 | Music to Theatre; no House effect";
         else if(world_->authored_land_trade_enabled())overview+=" | Policy3 | Save37 | Authored finite Pottery trade";
         else if(world_->source_cell_ramps_supported())overview+=" | Policy 3 | Save 36 | Authored source-cell ramps "+std::to_string(world_->source_cell_ramps().size());
@@ -7249,11 +7405,18 @@ bool SandboxView::draw_hud() {
             std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalHempField));
         case A::OriginalFoodFarm: return "O Food Farm $"+
             std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalFoodFarm))+
-            (original_sustainable_economy() ? " "+std::to_string(world_->original_production_state()->food.farms.size())+"/3":"");
+            (original_agriculture() ? " "+std::to_string(world_->original_agriculture_state()->farms.size())+"/3":
+             original_sustainable_economy() ? " "+std::to_string(world_->original_production_state()->food.farms.size())+"/3":"");
         case A::OriginalWheatField: return "W Wheat $"+
             std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalWheatField));
         case A::OriginalMilletField: return "L Millet $"+
             std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalMilletField));
+        case A::OriginalRiceField: return "Shift-R Rice $"+
+            std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalRiceField));
+        case A::OriginalCabbageField: return "Shift-C Cabbage $"+
+            std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalCabbageField));
+        case A::OriginalSoybeanField: return "Shift-S Soy $"+
+            std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalSoybeanField));
         case A::OriginalDaoistShrine: return "U Daoist "+
             std::to_string(count(simulation::Object::OriginalDaoistShrine215))+"/2 $"+
             std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalDaoistShrine));
@@ -7338,6 +7501,9 @@ bool SandboxView::draw_hud() {
         case A::OriginalFoodFarm: active=tool_==18; break;
         case A::OriginalWheatField: active=tool_==19; break;
         case A::OriginalMilletField: active=tool_==20; break;
+        case A::OriginalRiceField: active=tool_==43; break;
+        case A::OriginalCabbageField: active=tool_==44; break;
+        case A::OriginalSoybeanField: active=tool_==45; break;
         case A::OriginalAncestorShrine: active=tool_==21; break;
         case A::OriginalWaterWell: active=tool_==22; break;
         case A::OriginalDaoistShrine: active=tool_==23; break;
@@ -7867,9 +8033,11 @@ bool SandboxView::draw_help_overlay() {
             "ORIGINAL ECONOMY - H closes", "Q Water Well | Y Ancestor Shrine",
             "U Daoist | K Buddhist | V Confucian",
             original_music_venues() ? "E Music -> G Theatre75 (4x4)":"E Music | C Acrobat | A Drama",
-            "O Food Farm | W Wheat | L Millet", "N Hemp Farm | M Hemp Field",
+            "O Food Farm | W Wheat | L Millet", original_agriculture() ?
+                "Shift-R Rice | Shift-C Cabbage | Shift-S Soy":"N Hemp Farm | M Hemp Field",
             "J Herbalist | 9 Acupuncture", "0 Market | 5 Select | 1 Road",
-            "F5 Save | F9 Load | Space Pause", "Panel wheel scrolls; sources need workers",
+            "F5 Save | F9 Load | Space Pause", original_agriculture() ?
+                "Production LOCKED: Original timing unverified":"Panel wheel scrolls; sources need workers",
             original_fire_protection() ? "F Watch: $80; 2 workers (2W)":"Actual arrivals supply Houses",
             original_fire_protection() ? "Inspector arrival:2400 ticks protection":"Water is evaluated on phase28",
             "PageUp/Down: sections | F10: overlays", "Plain needs Water/Food/Ancestor",

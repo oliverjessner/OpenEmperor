@@ -1,8 +1,10 @@
 # Agriculture: integration architecture and evidence gates
 
 This is the maintained design for completing civilian agriculture in one
-explicit Original-economy generation. **AGRI-01 prepares arithmetic and source
-contracts; it does not implement or activate additional agricultural gameplay.**
+explicit Original-economy generation. **AGRI-02 currently implements verified
+Rule24/policy3/schema40 construction and Food foundations; production is locked.**
+The requested functional crop chains are not complete. Only fully proved Original
+time rules may activate: an authored growth/calendar fallback is excluded.
 The recommended Rule18/policy3/schema34 and every existing Rule1–23/schema1–39
 retain their own prices, clocks, quantities, identities, limits and save bytes.
 
@@ -44,9 +46,9 @@ fish-return100 and conditional100→400 outgoing cargo need a common unit/effect
 contract before integration. Clamped source-bin overflow and the cause of the
 conditional cargo branch remain explicit accounting gaps.
 
-## Existing authority and safe foundations
+## Historical authority and shared foundations
 
-Current `OriginalFoodState` contains exactly two authored crop columns. Its
+Historical `OriginalFoodState` contains exactly two authored crop columns. Its
 Farm/Market/House stocks, `loaded-delivered-returned` cargo, actual-arrival
 witnesses and checked owner/global equations are the sole Food authority.
 Warehouses currently have **no Food account**. Six household Goods and five
@@ -56,8 +58,9 @@ auxiliary materials are separate inventories and cannot be reinterpreted as Food
 canonical-prefix portion selection, authored mixed-cart selection and weighted
 batch scoring for any nonempty fixed array dimension. Current production calls
 these helpers with its unchanged two-column arrays and20/80 scores. Farm checks
-iterate the actual array rather than using `1-crop`. No new crop ID, source,
-account, cart, resource, timer, serialization field or permission is introduced.
+iterate the actual array rather than using `1-crop`. AGRI-01 introduced no new crop ID, source,
+account, cart, resource, timer, serialization field or permission. AGRI-02 adds
+only the separately versioned foundations below.
 
 These are arithmetic functions, not a second ledger, production simulator or
 resource catalog. Multi-kind tests use independently authored synthetic examples;
@@ -65,38 +68,105 @@ they establish arithmetic behavior, not Original rice, hunting or fishing rules.
 The existing Wheat-first sink, mixed load choice, original House-quality blend,
 80-productive-tick harvest, capacities8/16/8, cart4 and movement5 stay exact.
 
-## One future Agriculture mode
+## Agriculture crop foundations and activation gate (AGRI-02)
 
-The future user choice is **Agriculture**, based on Rule18's existing Original
-economy, needs-aware logistics, services, fire policy and source-bound terrain.
-It does not silently combine Rule19 demolition, Rule20 terrain, Rule21 trade or
-Rule22/23 venue policy. Non-agricultural behavior stays inherited unless the
-final versioned contract explicitly says otherwise.
+Select **Agriculture** in the menu or use `--original-agriculture`. The mode is
+Rule24/policy3/schema40, marker `authored-agriculture-v1`, catalog
+`wheat7-millet5-rice6-cabbage3-beancurd1-v1`, Agriculture revision28. Shared
+Original production metadata remains revision27. It inherits Rule18 economy,
+services, deadline-aware Food dispatch, fire and source-bound terrain, without
+Rule19 demolition, Rule20 terrain, Rule21 trade or Rule22/23 venues. Defaults
+remain unchanged. No historical save is converted.
 
-The proposed entry points are `World::create_original_agriculture`, the matching
-strict persistence restore path and CLI `--original-agriculture`, plus one menu
-choice named Agriculture. These names describe future integration, not callable
-AGRI-01 APIs. Normal loading continues to dispatch by the saved generation.
+`AgricultureState` is the sole five-kind Food authority. Legacy
+`original_production.food` is strictly empty in Rule24. Indices0..4 are Wheat,
+Millet, Rice, Cabbage and Soybean; the last represents the source199 output
+**BeanCurd resource1**, without an invented raw-soybean processing recipe.
+Historical `OriginalFoodState`, its two columns and all schemas1–39 stay exact.
+The shared typed Food engine handles both widths; there is no second navigator,
+route cache, transport simulation or mirrored aggregate stock.
 
-Rule24/policy3/schema40 and production revision28 are **documentation-only
-candidates** for the first integrated contract. No constants, support predicate,
-constructor, restore route, menu entry, CLI flag or writer accepts them in
-AGRI-01. Recheck allocation before activation. The proposed exact marker is
-`authored-integrated-agriculture-v1`; it identifies the eventual bounded adapter,
-not a claim that all Original timing has been reproduced.
+**Verified construction facts:** Farmhouse193 has a complete3x3 footprint;
+fields195–199 are1x1. Prepared model/difficulty arithmetic charges every Farm
+and Field separately (pinned source base193:50/22 employees;197:7/0;
+198/199:5/0). All ordinary shared map/occupancy/footprint rules still apply.
+The source work box is coordinate-wise −3..+5 relative to the Farm origin.
+Rule24 binds each field permanently to an existing paid Farm in that box: an
+explicit selected Farm must qualify; otherwise nearest Farm center wins, then
+BuildingId. This immutable ownership/tie rule is **AUTHORED**; source farm search
+does not establish immutable ownership. One Farm can own multiple different
+crops. Existing limits remain3 Food Farms,82 total bodies,58 movement channels,
+20 Houses; the new crop-field cap is32 across all Farms. Neither Fields nor UI
+create workers. New Farm/Field demolition is refused without refund or stock loss.
 
-Policy3 may be retained only if its source admission and permission semantics
-stay exact. AGRI-02 must decide whether the new shore/water/ditch context needs
-a new policy version; if so, bind that version in the same single Agriculture
-contract instead of changing the meaning of historical Policy3.
+**Rice admission:** consume the separate serialized fertility byte plane through
+the existing map reader and bind it to the full map SHA. Source197 requires
+fertility exactly100. Water proximity, a terrain fertility-looking bit, a
+renderer overlay or the mere presence of a Pump never substitutes for that
+operand. Recreate complete immutable fertility on load and recheck every Rice
+cell. A universal Rice-Pump requirement is not established by the checked source
+path. Fertility100 admits Rice construction/identity only; all growth/harvest
+remains behind the Original work/timing gate below. Irrigation's network,
+operation and yield bonus remain AGRI-04-only and grant nothing in Rule24.
 
-AGRI-02–06 build and verify components behind internal test construction. They
-must not publish per-crop, irrigation-only or fishing-only player modes, nor
-silently revise a previously accepted save. AGRI-07 activates the single complete
-generation only after its evidence and acceptance gates pass. If a required
-mechanism remains unknown, keep activation closed and report the exact blocker.
-An authored substitute needs an explicit documented decision and a versioned
-contract; missing proof is not a reason to generate stock or time.
+**Original work/timing gate:** `agriculture_production_clock_verified` is false.
+The source phase20 driver calls the field growth path once per51-phase cycle;
+calendar subslots run0..15 and outer slots0..11. Recorded start/end slots do
+**not** prove a four-slot growth window: the checked callback suppresses growth
+in the configured end slot, otherwise uses actual field work, returning157/79/0.
+Actual Grower arrival and its countdown invoke tending; another actual Grower
+state/countdown invokes harvesting. Slot entry and full Farm staffing alone do
+not prove either transition. Complete actor update/movement/arrival timing,
+work decay/reset, harvest admission and yield conversion remain unclosed.
+See the exact bounded [source evidence](../reverse/original-agriculture-source-contract.md).
+
+Consequently Rule24 creates **no Food**, grows no field quantity and grants no
+House FoodQuality, including when staff, road access and calendar slots are
+available. Pause/fire/full stores/year rollover cannot bypass this gate.
+Restored nonzero field quantity, work/harvest counters or harvest-cycle state
+are refused. No160-step growth,63-event harvest, fixed four-portion yield or
+invented Original harvest time is activated. UI/menu/inspectors explicitly say
+production is locked. This generation cannot be recommended as a functioning
+agricultural economy. Activating actual work later requires a newly selected
+version/schema; Rule24 saves must retain their closed contract without migration.
+
+**Transport and consumption:** capacity8 Farm/16 Market/8 House, physical Cart4,
+existing five-tick legal edges, actual-arrival credit, source return room and
+complete `loaded-delivered-returned` cargo remain shared. The typed transport foundation represents all
+five distinct kinds; Warehouses still have no Food account. Mixed loads retain
+canonical per-kind quantities. Its shared consumption code preserves one-portion demand
+in catalog order; it cannot substitute or relabel a crop. Full recipients and
+road cuts preserve cargo/reservations until physical delivery or return.
+For each kind, `harvest + received + returned = stock + departed + consumed` at
+an owner, and `harvest = stock + outstanding cargo + household consumption`
+globally. Checked counters and bounded per-field productive events/quantity/
+harvest-cycle witnesses refuse impossible restored histories.
+
+**FoodQuality foundation (inactive without a proved Food origin):** no complete
+original five-food scoring rule is claimed.
+The explicit authored scores are Wheat20, Millet80, Rice60, Cabbage70, BeanCurd90.
+A batch uses its integer quantity-weighted mean; actual House arrival blends it
+with previous physical stock using the existing verified integer blend. An
+empty House stock resets quality0; consuming a nonfinal portion retains the
+last witnessed blend, matching the inherited adapter. Full-width actual-arrival
+witnesses and retained House evaluation inputs live only in Agriculture state;
+legacy two-column evaluation evidence stays empty. Dispatch/proximity/restore
+cannot grant quality or service. Inspection names these choices.
+
+Cabbage/Soy field groups and six quantity-based source stages are prepared in
+the separately selected schema5 visual profile. Quantity→stage selection in this
+adapter is authored. Rice's neighbor-dependent topology and quantity overlays
+are not yet fully prepared; its explicit authored fallback does not suggest
+verified native rice growth art. No original pixels enter the repository.
+
+Save/load, F5/F9 and Recovery require exact schema40, mode/catalog markers,
+full source/model identities, five-column records, complete paid identities,
+field ownership, calendar bounds, physical trip bindings, conservation and House
+witnesses. Unknown members, duplicate keys, relabeled schema34 documents, source
+changes and cross-generation authority fail closed before atomic publication.
+Agriculture writes also refuse an existing target from any historical generation;
+an existing schema34 Wheat/Millet file keeps its exact bytes. Menu new-game
+targets remain unique, and a CLI save target must be a separate schema40 file.
 
 ## Runtime data and ownership
 
@@ -216,7 +286,7 @@ manufacture mass, erase overflow or borrow the current four-unit cart scale.
 
 Each historical Rule1–23 retains its own exact tick order. In particular, the
 inherited Rule18 production path keeps finance→staffing→production→dispatch→
-movement→fire→immigration→services/evolution/consumption. The future mode declares where
+movement→fire→immigration→services/evolution/consumption. The future proved production contract must declare where
 calendar, field work, ecology and irrigation effects enter that single World
 update. Specify simultaneous harvest/dispatch, arrival/consumption and calendar
 boundary cases; never let a UI refresh advance them or catch up by duplicating
@@ -249,12 +319,12 @@ file, complete validation and preserved input; it is not part of AGRI-01–07.
 
 | Work | Depends on | Concrete deliverable and gate |
 |---|---|---|
-| AGRI-02: catalog, source context and persistence design | AGRI-01 evidence | Final typed resource bindings, immutable catalog/source context, bounds/workforce accounting, new generation DTO and fail-closed validation design. Close Soybean/BeanCurd semantics and determine whether29 is a real producer, alias or unused path. Unknown types stay unavailable. Prove legacy bytes and synthetic multi-kind conservation; no player activation. |
-| AGRI-03: crops and calendar | AGRI-02 | Paid193/fields195–199 ownership, complete geometry/admission, growth/tending/harvest quantities and one explicitly versioned calendar. Independent tests cross actual boundaries, staffing/fire/pause/full buffers and multiple harvests; verify all proposed original-to-World units. No assumed80-tick additional crops. |
+| AGRI-02: crop chains (not complete) | AGRI-01 evidence, complete Original tending/harvest clock proof | Implemented: typed Food foundation, paid source-verified construction, Rice fertility and exact schema40/Recovery. Blocked: actual growth/harvest/earned Food delivery. No authored time substitute is authorized. |
+| AGRI-03: seasonal fidelity and wider acceptance | Completed AGRI-02 Original work/harvest proof and implementation | Extend proved seasonal/climate/yield behavior and calendar inspection, multi-season and native acceptance. AGRI-02 cannot defer its required working crop clock to this step. Any activated behavior needs a newly selected contract; Rule24 stays closed. |
 | AGRI-04: irrigation | AGRI-02, AGRI-03 | Paid202/203 claims, intake/orientation/height and connectivity, actual pump operation, proven field effects and deterministic reconstruction. Test dry/disconnected/unoperated pumps, network edits, boundary/fertility conflicts, actual output differences and unchanged source bytes. |
 | AGRI-05: orchard identity and physical harvesting | AGRI-02, shared field/work/calendar foundations in AGRI-03 | Resolve29's actual UI/factory/runtime role first; if not a standalone admitted producer, document that negative result and implement only proven applicable plant chains. Real harvesting work/return, output identity/units and proven depletion/regeneration. Do not invent a fruit resource to satisfy a label. Reuse existing237–239 ownership without changing their legacy contracts. |
 | AGRI-06: hunting and fishing | AGRI-02, shared work/return foundations from AGRI-05; relevant terrain/edge work from AGRI-04 | Paid31/33 geometry, source-bound179/183 origins, real prey/boat lifetimes, work routes, depletion and actual returned Fish/Meat units plus outgoing physical carts. Close ecology, replenishment, shore/return/staffing and target acceptance; no marker-based stock grant. |
-| AGRI-07: integrated Agriculture activation | AGRI-02–06 complete evidence/implementation gates | One explicit generation with complete producer→store/Market→House paths, exact schema/create/restore/menu/CLI/Recovery, catalog-aware needs/consumption witnesses and production inspection/rendering. Paid multi-season multi-source city, independent creator/restore processes, complete-document/cargo/accounting equality, hostile-save refusal, historical Rule1–23/schema1–39 controls and measured budgets. Activate only after all required chains close; native/human acceptance stays separately reported. |
+| AGRI-07: integrated Agriculture activation | AGRI-02–06 complete evidence/implementation gates | One explicit generation with complete producer→store/Market→House paths, exact schema/create/restore/menu/CLI/Recovery, catalog-aware needs/consumption witnesses and production inspection/rendering. Paid multi-season multi-source city, independent creator/restore processes, complete-document/cargo/accounting equality, hostile-save refusal, historical Rule1–23/schema1–39 controls and measured budgets. Extend the one Agriculture lineage only after all additional required chains close; native/human acceptance stays separately reported. |
 
 The plan orders evidence and integration, not an unconditional promise to fill
 unknown mechanics with authored guesses. Required remaining decisions include
@@ -277,5 +347,5 @@ helper tests alone do not establish historical gameplay compatibility.
 Raw Original files, executable windows, private scripts and reports stay under
 ignored `.local/`. Hash/size/mode/mtime guards bracket source research. Do not
 store original binaries, table dumps, proprietary fixtures or disassembly in
-Git. AGRI-01 has no new-game native acceptance to claim, and its research does
+Git. Automated crop checks have no human native acceptance to claim, and its research does
 not establish full Original agricultural reproduction.

@@ -346,8 +346,12 @@ int main(int argc,char** argv) {
         const auto texture_count=view->building_texture_count();check(texture_count==expected_textures,
             "Startup shared core/House/Original texture pool differs from its selected revision");
         const auto initial_stats=view->original_building_display_stats();
-        check(initial_stats.active&&std::all_of(initial_stats.configured_roles.begin(),initial_stats.configured_roles.end(),[](bool value){return value;}),
+        const auto historical_end=initial_stats.configured_roles.begin()+
+            static_cast<std::ptrdiff_t>(assets::original_building_schema4_role_count);
+        check(initial_stats.active&&std::all_of(initial_stats.configured_roles.begin(),historical_end,[](bool value){return value;}),
             "Complete selected native bodies and authored field image tables were not atomically prepared");
+        check(std::none_of(historical_end,initial_stats.configured_roles.end(),[](bool value){return value;}),
+            "Historical schema4 admitted a later Agriculture visual identity");
         key(*view,SDLK_F1);check(view->debug_diagnostics(),"Explicit F1 diagnostic alpha picking did not activate");
         Json records=Json::array(),matrix=Json::array(),alpha=Json::array(),bodies=Json::array(),actors=Json::array();
         std::vector<sim::BuildingId> owners(expected.size());std::vector<assets::RgbaImage> images(expected.size());
