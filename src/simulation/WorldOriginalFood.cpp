@@ -1,4 +1,5 @@
 #include "simulation/World.h"
+#include "simulation/FoodBatchArithmetic.h"
 #include "simulation/original/OriginalRulesModel.h"
 
 #include <algorithm>
@@ -17,9 +18,7 @@ std::size_t crop_index(OriginalFoodCrop crop) {
     if (result>=original_food_crop_count) invalid("unsupported authored Food crop");return result;
 }
 int volume(const OriginalFoodAmounts& amounts) {
-    std::int64_t result=0;
-    for (const auto n:amounts) {if (n<0) invalid("negative Food portion");result+=n;}
-    if (result>INT32_MAX) invalid("Food volume outside bounded integer domain");return static_cast<int>(result);
+    return food_batch::volume(amounts);
 }
 void add(std::uint64_t& target,std::uint64_t n) {
     if (n>UINT64_MAX-target) invalid("Food history sum overflows");target+=n;
@@ -60,13 +59,8 @@ bool adjacent(Cell farm,Cell field) {
     return std::max({x-fx,std::int64_t{0},fx-(x+2)})+std::max({y-fy,std::int64_t{0},fy-(y+2)})==1;
 }
 OriginalFoodAmounts portions(const OriginalFoodAmounts& source,int count) {
-    OriginalFoodAmounts result{};
-    // Authored mixed-cart choice from physical portions, not a quality grant.
-    if (count>=2 && source[0] && source[1]) {result={1,1};count-=2;}
-    for (std::size_t g=0;g<result.size();++g) {
-        const auto n=std::min(count,source[g]-result[g]);result[g]+=n;count-=n;
-    }
-    if (count) invalid("Food load exceeds its actual source portions");return result;
+    if (count<0) invalid("negative Food load");
+    return food_batch::mixed_portions(source,static_cast<std::uint64_t>(count));
 }
 void return_load(OriginalFoodState& food,OriginalFoodTrip& trip) {
     const auto cargo=remaining(trip);auto& source=account(food.stocks,trip.source);
@@ -145,7 +139,9 @@ void validate_food(const OriginalFoodState& food,const Buildings& buildings,cons
             const auto farm=std::find_if(food.farms.begin(),food.farms.end(),[&](const auto& f){return f.farm_id==source.id;});
             if (farm==food.farms.end()) invalid("Food source trip has no paid Farm");
             const auto crop=crop_index(farm->crop);
-            if (trip.loaded[1-crop] || static_cast<std::uint64_t>(trip.loaded[crop])>farm->harvested)
+            if (static_cast<std::uint64_t>(trip.loaded[crop])>farm->harvested)
+                invalid("Food Farm latest load exceeds its own selected crop harvest");
+            for (std::size_t g=0;g<trip.loaded.size();++g) if (g!=crop && trip.loaded[g])
                 invalid("Food Farm latest load exceeds its own selected crop harvest");
         } else for (std::size_t g=0;g<cargo.size();++g)
             if (static_cast<std::uint64_t>(trip.loaded[g])>from.received[g]) invalid("Market Food load has no possible actual received origin");
@@ -164,8 +160,8 @@ void validate_food(const OriginalFoodState& food,const Buildings& buildings,cons
         if (b.kind==Object::OriginalFoodFarm) {
             const auto farm=std::find_if(food.farms.begin(),food.farms.end(),[&](const auto& f){return f.farm_id==b.id;});
             if (farm==food.farms.end()) invalid("Food stock has no paid Farm record");own_harvest[crop_index(farm->crop)]=farm->harvested;
-            const auto other=1-crop_index(farm->crop);
-            if (stock.amounts[other] || stock.departed[other] || stock.returned[other])
+            for (std::size_t g=0;g<stock.amounts.size();++g) if (g!=crop_index(farm->crop) &&
+                    (stock.amounts[g] || stock.departed[g] || stock.returned[g]))
                 invalid("Food Farm never owned the other immutable paid Field crop");
             if (check_progress && std::int64_t(amount)+return_room(food,b.id)==8 && b.progress) invalid("full Food source retains crop progress");
         }
@@ -183,13 +179,13 @@ void validate_food(const OriginalFoodState& food,const Buildings& buildings,cons
             if (stock.missed_demands || stock.quality_witness) invalid("only actual Houses own Food demand and quality witnesses");
             const auto c=std::find_if(couriers.begin(),couriers.end(),[&](const auto& actor){return actor.owner==b.id && food_role(actor.role);});
             if (c==couriers.end()) invalid("paid Food source lost its real courier");const auto* trip=trip_for(food.trips,c->id);
-            std::uint64_t departed=stock.departed[0];add(departed,stock.departed[1]);
+            const auto departed=food_batch::history_total(stock.departed);
             if (!trip ? departed!=0:departed<trip->transfer.sequence || departed/4+(departed%4!=0)>trip->transfer.sequence)
                 invalid("Food dispatch history exceeds its actual positive Cart sequences");
         } else {
             const auto& h=home(houses,b.id);const auto age=ticks-b.placed_tick;
             const auto opportunities=age<120 ? 0:events(ticks)-events(b.placed_tick+119);
-            std::uint64_t used=stock.consumed[0];add(used,stock.consumed[1]);add(used,stock.missed_demands);
+            auto used=food_batch::history_total(stock.consumed);add(used,stock.missed_demands);
             if (used>opportunities || (!h.house.occupants && used)) invalid("Food demand exceeds actual paid occupied-House clock opportunities");
             if (!stock.quality_witness) {
                 if (stock.received!=OriginalFoodCounters{} || stock.consumed!=OriginalFoodCounters{} || amount || h.house.food_quality)
@@ -253,8 +249,9 @@ void validate_food(const OriginalFoodState& food,const Buildings& buildings,cons
 }
 
 FoodBatchQuality original_food_batch_quality(const OriginalFoodAmounts& amounts) {
-    const auto n=volume(amounts);if (!n) return {};
-    return {static_cast<std::uint8_t>((std::int64_t(amounts[0])*20+std::int64_t(amounts[1])*80)/n)};
+    // Frozen authored Rules10–23 scores; no additional crop is admitted.
+    constexpr std::array<std::uint8_t,original_food_crop_count> scores{20,80};
+    return {food_batch::weighted_quality(amounts,scores)};
 }
 
 void World::validate_original_food_model() const {
@@ -503,7 +500,11 @@ void World::consume_original_food() {
     for (auto& h:houses) {
         if (!h.house.occupants) continue;auto& stock=account(candidate.stocks,h.building_id);
         if (!volume(stock.amounts)) {add(stock.missed_demands,1);continue;}
-        const std::size_t crop=stock.amounts[0] ? 0:1;--stock.amounts[crop];add(stock.consumed[crop],1);
+        const auto consumed=food_batch::prefix_portions(stock.amounts,1);
+        for (std::size_t crop=0;crop<consumed.size();++crop) if (consumed[crop]) {
+            stock.amounts[crop]-=consumed[crop];
+            add(stock.consumed[crop],static_cast<std::uint64_t>(consumed[crop]));
+        }
         if (!volume(stock.amounts)) h.house.food_quality=0;
     }
     validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_);

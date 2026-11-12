@@ -537,7 +537,7 @@ void vacant_grass_contrast(SDL_Window* window,SDL_Renderer* renderer,const fs::p
     auto session=oe::maps::load_stored_map_session(data,"Cities/A.map",oe::maps::FootprintPolicy::EdgeByte4x4Preview,
         oe::maps::StoredGraphicsProfile::Slot8);
     auto view=oe::SandboxView::create_original_production_save_fixture(std::move(session));
-    const auto save=temp.root/"saves/vacant.json";view->configure_save(data,"Cities/A.map",save);view->initialize(window,renderer);
+    const auto save=fs::canonical(temp.root)/"saves/vacant.json";view->configure_save(data,"Cities/A.map",save);view->initialize(window,renderer);
     buy(*view,sim::CommandType::PlaceRoad,{111,113});const auto id=buy(*view,sim::CommandType::PlaceHousehold,{110,111});
     vacant_matrix(*view,window,renderer,data,save,out,id,dark ? "authored-dark-grass":"authored-light-grass",false,false);
     view->shutdown();

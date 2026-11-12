@@ -44,6 +44,45 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Agriculture foundations (AGRI-01)
+
+The [Agriculture architecture](original-economy/agriculture.md) and
+[source contract](reverse/original-agriculture-source-contract.md) describe
+inactive future systems, not an available Agriculture game mode. Use a single
+fresh ignored build tree and keep existing source/Save/Recovery evidence intact:
+
+```sh
+cmake -S . -B .local/agri-01/build-release -DCMAKE_BUILD_TYPE=Release \
+  -DOPENEMPEROR_USE_SYSTEM_SDL3=ON \
+  -DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT="$PWD/.local/gog-extracted/app"
+cmake --build .local/agri-01/build-release --parallel 4
+ctest --test-dir .local/agri-01/build-release --output-on-failure
+```
+
+`food-batch-arithmetic` checks synthetic1/3/5/16-kind volume, canonical physical
+loading/consumption, authored mixed loads, caller-supplied weighted scores,
+counter/quantity overflow and input preservation on rejection. Compile guards
+freeze the historical Wheat/Millet IDs, exact two-column amounts and counters.
+Run the existing Food World/save tests (including crop2/width3 rejection),
+deadline Food, production, market, housing, goods, movement and Recovery tests.
+Repeat those focused checks under Debug and ASan/UBSan; on macOS explicitly
+disable unsupported LeakSanitizer rather than claiming it was tested.
+
+Full CTest regression is separate from literal pre-AGRI schema1–39 document
+comparisons and active paid creator/restore continuations. Generate fresh small
+comparison outputs; preserve the old originals, fixtures and baseline documents.
+Do not regenerate multi-gigabyte per-tick traces when complete canonical
+checkpoints and existing independent replay controls cover the arithmetic
+change. Record exactly which documents, ticks and histories were compared.
+
+Original research is read-only. Keep raw byte windows, disassembly, checkers,
+configuration/table extracts and SHA/size/mode/mtime guards private under
+`.local/agri-01/`. Source table identity, static callback proof, synthetic batch
+tests and existing paid gameplay are distinct evidence. No original EXE
+execution, new Agriculture gameplay or native/human acceptance follows from
+these checks. Existing optional OE52/OE61/OE62 visual checks retain their own
+explicit earned-save inputs and output paths below.
+
 ## Original walker families and full cycles (OE62)
 
 The [OE62 contract](rendering/oe62-original-walker-animations.md) inventories

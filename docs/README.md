@@ -11,6 +11,7 @@ Start with the [quick start](../README.md) and [known issues](../KNOWN_ISSUES.md
 ## Development
 
 - [Architecture](architecture.md) and [Original economy](original-economy/architecture-map.md): engine boundaries, persistence and versioned runtime contracts.
+- [Agriculture architecture](original-economy/agriculture.md): source findings, inactive multi-kind foundations and the integrated AGRI-02–07 plan.
 - [Economy and fire diagnosis](original-economy/oe35-economy-fire-diagnosis.md): paid strategy comparisons, capital reach and fire-protection limits.
 - [Versioned fire protection](original-economy/oe36-fire-protection.md): paid Rule11 Watches, actual Inspector visits, schema27 and measured effects.
 - [Deadline-aware fire dispatch](original-economy/oe45-fire-coverage.md): Rule16/schema32 with paid Elite17 retention for20,400 ticks, complete current needs and positive operating cashflow; measured citywide limits remain.

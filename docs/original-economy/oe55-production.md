@@ -6,6 +6,14 @@ harvest, processing, transport and consumption chain. No new crop, recipe, World
 rule, save schema or gameplay option is activated. The existing recommended
 Rule18 economy and all historical generations retain their own behavior.
 
+The subsequent [Agriculture architecture](agriculture.md) and
+[fresh agricultural source contract](../reverse/original-agriculture-source-contract.md)
+qualify additional factory, field, resource, irrigation and actual-return facts.
+They do not promote the unsupported rows below to paid gameplay. AGRI-01 adds
+only reusable batch arithmetic used by the unchanged two-crop adapter; one
+future integrated Agriculture generation remains gated by the documented
+AGRI-02–07 evidence and implementation dependencies.
+
 ## What the sources establish
 
 The [model provenance register](model-provenance.md) defines the source revision,
@@ -40,9 +48,11 @@ retain source spelling, including `Confucian Academny`.
 `F1/F2` describes an existing functional adapter with that World side. Neither
 establishes a new original purchase footprint. Existing plant/field attachment,
 materials and sinks are qualified in the paid-path table below. `U` means no
-purchasable World kind: original footprint, attachment, recipe/input/output,
-quantity, period, capacity, route and demand remain **UNKNOWN** in these consulted
-contracts. No missing field is filled from a nearby row or from `Resource=0`.
+purchasable World kind. Original footprint, attachment, recipe/input/output,
+quantity, period, capacity, route and demand need separate evidence; the newer
+agricultural source contract proves some bounded identities and callbacks,
+while complete paid lifecycles remain unavailable. No missing field is filled
+from a nearby row or from `Resource=0`.
 
 ### Fields, plants, sources and processors
 
@@ -92,6 +102,14 @@ selections for the current Farmhouse. Orchard Shed29 is not a substitute for
 the already implemented specific237/238/239 producers. The raw Iron/Steel,
 Stone/Salt/Jade, mint/printing and Weaponsmith names establish no material recipe
 or Funds operation.
+
+The freshly checked field resource selector maps197→6 `Rice`,198→3 `Cabbage`
+and199→1 `BeanCurd`;199's raw `Soybean Field` label does not establish a new
+soybean output commodity. The examined FarmHold/OrchardHold predicate excludes29.
+Actual Farmhouse returns use resource-tagged bins and a separate cart spawn;
+hunting/fishing use actual work and return callbacks. Raw amounts, conditional
+cargo effects, clamped overflow, ecology and World calendar conversion still
+need closure. See the source contract for the exact evidence and unknowns.
 
 ### Distribution, storage and material sinks
 
