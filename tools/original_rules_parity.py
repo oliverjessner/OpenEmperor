@@ -52,13 +52,20 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # refused while that proof gate is closed. Historical DTO layouts, model sets
 # and fourth-module probe calls remain exact. These reviewed additive ABI pins
 # require fresh matching libraries; they establish no Agriculture clock parity.
+# Rule25 appends its explicitly optional plantation DTO, monotone worker role,
+# create/restore APIs and default-empty World state. Older predicates retain
+# their exact results; the fourth-module probe still exercises only the same
+# historical HouseholdV3/CityV7 calls. The new directly included DTO is pinned
+# independently, and fresh current libraries must match the reviewed layout.
+# This additive ABI review establishes no plantation or authored Food parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "2b7fcebe133b04dbd6789a7bdcd3203955f0fb42",
+    "World.h": "804e70042dec464c43663658e070a371f195b6da",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "d49e7b513c9b1224ae567e2d013a97b66b60cdb8",
     "AgricultureState.h": "eb2ae54814ad5bb0fcf720174974ef52cdfb25c1",
+    "PlantationsState.h": "7fd4ceab82bc8c4442aa470c3cb3275983cb3e8a",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",
     "OriginalSafeDemolitionState.h": "a4f27b05d422d004cc4bfcae49ccc5f67a6c6121",
 }

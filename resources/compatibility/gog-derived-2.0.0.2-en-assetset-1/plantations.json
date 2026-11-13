@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "mode": "plantation_bases",
+  "selection": "authored80-source-quantity-canonical-unharvested-v1",
+  "anchor_policy": "type30_front_cell",
+  "files": [
+    {
+      "path": "DATA/China_General.sg3",
+      "sha256": "c9ae527102c312098cbfe82932ce1b39c6c96692981c874dc853306835583e46"
+    },
+    {
+      "path": "DATA/China_General.555",
+      "sha256": "3cb09cd2c954eb355e2253482845e7117b353c24506575795bcaa1fe45db33f2"
+    }
+  ],
+  "plants": [
+    {
+      "model_type": 26,
+      "group_key": 1074,
+      "evidence": "Pinned EXE6373328b constructor4c2710 -> vtable7aef50 +260 publisher4c2820. Source crop group and count-derived quantity selector verified; canonical variation0 and harvest-done=false. World80-tick growth maps to quantity0..10000 as an explicitly authored presentation adapter. No Original time, season, irrigation or harvest parity. Shared General slot2 reader; native Type30 plus Omega; authored front-cell anchor. Lacquer canonical offset4 has observed source size flag0; full78x86/base3200 geometry and independent paid1x1 footprint remain required.",
+      "stages": [
+        {
+          "image_index": 2470,
+          "width": 78,
+          "height": 43,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            23
+          ]
+        },
+        {
+          "image_index": 2471,
+          "width": 78,
+          "height": 44,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            24
+          ]
+        },
+        {
+          "image_index": 2472,
+          "width": 78,
+          "height": 44,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            24
+          ]
+        },
+        {
+          "image_index": 2473,
+          "width": 78,
+          "height": 45,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            25
+          ]
+        }
+      ]
+    },
+    {
+      "model_type": 27,
+      "group_key": 1076,
+      "evidence": "Pinned EXE6373328b constructor4c2710 -> vtable7aef50 +260 publisher4c2820. Source crop group and count-derived quantity selector verified; canonical variation0 and harvest-done=false. World80-tick growth maps to quantity0..10000 as an explicitly authored presentation adapter. No Original time, season, irrigation or harvest parity. Shared General slot2 reader; native Type30 plus Omega; authored front-cell anchor. Lacquer canonical offset4 has observed source size flag0; full78x86/base3200 geometry and independent paid1x1 footprint remain required.",
+      "stages": [
+        {
+          "image_index": 2494,
+          "width": 78,
+          "height": 83,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            63
+          ]
+        },
+        {
+          "image_index": 2495,
+          "width": 78,
+          "height": 83,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            63
+          ]
+        },
+        {
+          "image_index": 2496,
+          "width": 78,
+          "height": 85,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            65
+          ]
+        },
+        {
+          "image_index": 2497,
+          "width": 78,
+          "height": 85,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            65
+          ]
+        },
+        {
+          "image_index": 2498,
+          "width": 78,
+          "height": 86,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            66
+          ]
+        },
+        {
+          "image_index": 2499,
+          "width": 78,
+          "height": 86,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            66
+          ]
+        }
+      ]
+    },
+    {
+      "model_type": 28,
+      "group_key": 1075,
+      "evidence": "Pinned EXE6373328b constructor4c2710 -> vtable7aef50 +260 publisher4c2820. Source crop group and count-derived quantity selector verified; canonical variation0 and harvest-done=false. World80-tick growth maps to quantity0..10000 as an explicitly authored presentation adapter. No Original time, season, irrigation or harvest parity. Shared General slot2 reader; native Type30 plus Omega; authored front-cell anchor. Lacquer canonical offset4 has observed source size flag0; full78x86/base3200 geometry and independent paid1x1 footprint remain required.",
+      "stages": [
+        {
+          "image_index": 2482,
+          "width": 78,
+          "height": 61,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            41
+          ]
+        },
+        {
+          "image_index": 2483,
+          "width": 78,
+          "height": 64,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            44
+          ]
+        },
+        {
+          "image_index": 2484,
+          "width": 78,
+          "height": 64,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            44
+          ]
+        },
+        {
+          "image_index": 2485,
+          "width": 78,
+          "height": 65,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            45
+          ]
+        },
+        {
+          "image_index": 2486,
+          "width": 78,
+          "height": 66,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            46
+          ]
+        },
+        {
+          "image_index": 2487,
+          "width": 78,
+          "height": 68,
+          "base_bytes": 3200,
+          "ground_anchor": [
+            39,
+            48
+          ]
+        }
+      ]
+    }
+  ]
+}

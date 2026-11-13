@@ -527,6 +527,7 @@ World World::restore_original_production_development(const WorldSnapshot& snapsh
 }
 
 void World::validate_original_production_snapshot(const WorldSnapshot& s) {
+    validate_original_plantations_snapshot(s);
     validate_original_music_venues_snapshot(s);
     validate_original_agriculture_snapshot(s);
     if (!simulation::original_production_enabled(s.profile,s.rule_version)) {
@@ -638,6 +639,14 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
             if (static_cast<std::uint32_t>(c.id)!=courier_index+retired_before+1 || c.owner!=b.id || c.role!=role)
                 invalid("original production courier IDs must follow purchased owners");
             ++courier_index;
+            if(simulation::original_plantations_enabled(s.profile,s.rule_version) &&
+                (b.kind==Object::OriginalTeaCuringShed237 || b.kind==Object::OriginalLacquerRefinery238 || b.kind==Object::OriginalSilkwormShed239)) {
+                if(courier_index>=s.couriers.size()) invalid("missing paid plantation Grower channel");
+                const auto& worker=s.couriers[courier_index];
+                if(static_cast<std::uint32_t>(worker.id)!=courier_index+retired_before+1 || worker.owner!=b.id ||
+                    worker.role!=CourierRole::OriginalPlantationGrower) invalid("plantation Grower identity must follow its paid source output channel");
+                ++courier_index;
+            }
             if (b.kind==Object::Warehouse) {
                 if (courier_index>=s.couriers.size()) invalid("missing paid Warehouse Aux supplier");
                 const auto& supplier=s.couriers[courier_index];
@@ -750,6 +759,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         c.role!=CourierRole::OriginalAcrobat && c.role!=CourierRole::OriginalDrama &&
         !(simulation::original_music_venues_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalMusicPerformer) &&
         !(simulation::original_venue_house_service_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalVenueMusic) &&
+        !(simulation::original_plantations_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalPlantationGrower) &&
         c.role!=CourierRole::OriginalLuxuryToWarehouse && c.role!=CourierRole::OriginalAuxToWarehouse && c.role!=CourierRole::OriginalAuxSupplier &&
         !(simulation::original_fire_protection_enabled(s.profile,s.rule_version) && c.role==CourierRole::FireInspector))
         invalid("unsupported original production courier role");
@@ -914,6 +924,7 @@ void World::tick_original_production() {
     // Staffing belongs to the pre-tick population. Immigration cannot staff a
     // producer until the next ordinary tick. No 400t legacy demand is run.
     advance_clay_pottery_production();advance_original_hemp();advance_original_food();update_original_industry();
+    if(original_plantations_enabled()) update_plantations();
     for (auto& c:couriers_) dispatch_v2(c);
     for (auto& c:couriers_) move_v2(c);
     update_fire();admit_original_residents();tick_staffing_active_=false;
@@ -922,6 +933,7 @@ void World::tick_original_production() {
     if (dispatch.evolution) evaluate_original_houses();
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
     validate_original_food_state();validate_original_industry_state();
+    validate_plantations_state();
     validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();validate_original_venue_house_service_state();
     const auto balances=original_production_goods_balances();
     if (!population_valid() || !fire_state_valid() || !production_balance_valid() || !navigation_valid() ||

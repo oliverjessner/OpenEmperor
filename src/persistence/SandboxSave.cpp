@@ -1225,6 +1225,86 @@ simulation::AgricultureState parse_agriculture(const json& j) {
     require(canonical_fields(j,agriculture_json(state)),"schema40 contains unknown or noncanonical Agriculture fields");
     return state;
 }
+json plantations_receipt_json(const simulation::PlantationReceipt& receipt) {
+    return {{"grower_id",static_cast<std::uint64_t>(receipt.grower_id)},
+        {"courier_id",static_cast<std::uint32_t>(receipt.courier_id)},
+        {"dispatched_tick",receipt.dispatched_tick},{"picked_tick",receipt.picked_tick},
+        {"returned_tick",receipt.returned_tick}};
+}
+json plantations_json(const simulation::PlantationsState& state) {
+    using namespace simulation;
+    require(state.plants.size()<=plantation_plant_limit && state.sources.size()<=plantation_source_limit,
+            "schema41 plantation collection exceeds bounded context");
+    json plants=json::array(),sources=json::array();
+    for (const auto& row:state.plants) plants.push_back({
+        {"plant_id",static_cast<std::uint32_t>(row.plant_id)},
+        {"source_id",static_cast<std::uint32_t>(row.source_id)},{"growth",row.growth},
+        {"productive_ticks",row.productive_ticks},{"grown",row.grown},
+        {"harvested",row.harvested},{"returned",row.returned},
+        {"last_receipt",row.last_receipt ? plantations_receipt_json(*row.last_receipt):json(nullptr)}});
+    for (const auto& row:state.sources) {
+        json trip=nullptr;
+        if (row.latest_trip) {
+            const auto& t=*row.latest_trip;
+            trip={{"grower_id",static_cast<std::uint64_t>(t.grower_id)},
+                {"plant_id",static_cast<std::uint32_t>(t.plant_id)},{"dispatched_tick",t.dispatched_tick},
+                {"picked_tick",t.picked_tick ? json(*t.picked_tick):json(nullptr)},
+                {"returned_tick",t.returned_tick ? json(*t.returned_tick):json(nullptr)},
+                {"delivered",t.delivered}};
+        }
+        sources.push_back({{"building_id",static_cast<std::uint32_t>(row.building_id)},
+            {"courier_id",static_cast<std::uint32_t>(row.courier_id)},
+            {"spawned",row.spawned},{"latest_trip",std::move(trip)}});
+    }
+    return {{"revision",plantations_revision},{"catalog",plantations_catalog},
+        {"next_grower_id",state.next_grower_id},{"plants",std::move(plants)},{"sources",std::move(sources)}};
+}
+simulation::PlantationsState parse_plantations(const json& j) {
+    using namespace simulation;
+    require(number(field(j,"revision"),UINT32_MAX)==plantations_revision &&
+            str(field(j,"catalog"))==plantations_catalog,"schema41 requires its exact plantation revision and catalog");
+    const auto positive=[](const json& value,std::uint64_t bound=UINT64_MAX) {
+        const auto result=number(value,bound);require(result>0,"schema41 plantation identity must be positive");
+        return result;
+    };
+    const auto building_id=[&](const json& value){return static_cast<BuildingId>(positive(value,UINT32_MAX));};
+    const auto courier_id=[&](const json& value){return static_cast<CourierId>(positive(value,UINT32_MAX));};
+    const auto grower_id=[&](const json& value){return static_cast<PlantationGrowerId>(positive(value));};
+    PlantationsState state;state.next_grower_id=positive(field(j,"next_grower_id"));
+    const auto& plants=field(j,"plants");
+    require(plants.is_array() && plants.size()<=plantation_plant_limit,"schema41 plant collection exceeds bound");
+    for (const auto& value:plants) {
+        PlantationPlant row;row.plant_id=building_id(field(value,"plant_id"));row.source_id=building_id(field(value,"source_id"));
+        require(state.plants.empty() || state.plants.back().plant_id<row.plant_id,
+                "schema41 plant IDs must be sorted and unique");
+        row.growth=static_cast<std::uint32_t>(number(field(value,"growth"),plantation_growth_ticks));
+        row.productive_ticks=number(field(value,"productive_ticks"));row.grown=number(field(value,"grown"));
+        row.harvested=number(field(value,"harvested"));row.returned=number(field(value,"returned"));
+        const auto& receipt=field(value,"last_receipt");
+        if (!receipt.is_null()) row.last_receipt=PlantationReceipt{grower_id(field(receipt,"grower_id")),
+            courier_id(field(receipt,"courier_id")),number(field(receipt,"dispatched_tick")),
+            number(field(receipt,"picked_tick")),number(field(receipt,"returned_tick"))};
+        state.plants.push_back(row);
+    }
+    const auto& sources=field(j,"sources");
+    require(sources.is_array() && sources.size()<=plantation_source_limit,"schema41 plantation source collection exceeds bound");
+    for (const auto& value:sources) {
+        PlantationSource row;row.building_id=building_id(field(value,"building_id"));row.courier_id=courier_id(field(value,"courier_id"));
+        require(state.sources.empty() || state.sources.back().building_id<row.building_id,
+                "schema41 plantation sources must have sorted unique IDs");
+        row.spawned=number(field(value,"spawned"));const auto& trip=field(value,"latest_trip");
+        if (!trip.is_null()) {
+            PlantationTrip t;t.grower_id=grower_id(field(trip,"grower_id"));t.plant_id=building_id(field(trip,"plant_id"));
+            t.dispatched_tick=number(field(trip,"dispatched_tick"));
+            if (!field(trip,"picked_tick").is_null()) t.picked_tick=number(field(trip,"picked_tick"));
+            if (!field(trip,"returned_tick").is_null()) t.returned_tick=number(field(trip,"returned_tick"));
+            t.delivered=static_cast<std::uint8_t>(number(field(trip,"delivered"),1));row.latest_trip=t;
+        }
+        state.sources.push_back(row);
+    }
+    require(canonical_fields(j,plantations_json(state)),"schema41 contains unknown or noncanonical plantation fields");
+    return state;
+}
 json music_arrival_json(const simulation::OriginalMusicArrival& a) {
     return {{"performer_id",static_cast<std::uint64_t>(a.performer_id)},
         {"school_id",static_cast<std::uint32_t>(a.school_id)},
@@ -1899,11 +1979,12 @@ simulation::OriginalCultureState parse_production_culture(const json& j,bool ven
     return state;
 }
 json production_document_json(const SaveDocument& d) {
-    const bool agriculture=simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version);
+    const bool plantations=simulation::original_plantations_enabled(d.world.profile,d.world.rule_version);
+    const bool agriculture=simulation::original_agriculture_family_enabled(d.world.profile,d.world.rule_version);
     const bool fire=simulation::original_fire_protection_enabled(d.world.profile,d.world.rule_version);
     const bool culture=simulation::original_music_venues_enabled(d.world.profile,d.world.rule_version);
     const bool venue_service=simulation::original_venue_house_service_enabled(d.world.profile,d.world.rule_version);
-    const auto schema=agriculture ? 40U:venue_service ? 39U:culture ? 38U:simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version) ? 35U:
+    const auto schema=plantations ? 41U:agriculture ? 40U:venue_service ? 39U:culture ? 38U:simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version) ? 35U:
         simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version) ? 34U:
         simulation::original_deadline_service_dispatch_enabled(d.world.profile,d.world.rule_version) ? 33U:
         simulation::original_deadline_fire_dispatch_enabled(d.world.profile,d.world.rule_version) ? 32U:
@@ -1923,7 +2004,8 @@ json production_document_json(const SaveDocument& d) {
             "culture authority is mandatory only for Rule22/23 schema38/39");
     require(d.map_permissions_policy_version==simulation::kBridgesMapPermissionsPolicyVersion &&
             valid_hash(d.map_permissions_sha256),"schema26 requires immutable policy3 identity");
-    require(d.world.agriculture.has_value()==agriculture,"Agriculture authority requires exact Rule24/schema40");
+    require(d.world.agriculture.has_value()==agriculture,"Agriculture authority requires its exact versioned generation");
+    require(d.world.plantations.has_value()==plantations,"Plantation authority requires exact Rule25/schema41");
     simulation::World::validate_original_production_snapshot(d.world);
     // Reuse infrastructure syntax only. No positive state enters a frozen
     // schema23/24/25 admission path or an older live World restore.
@@ -1931,6 +2013,7 @@ json production_document_json(const SaveDocument& d) {
     projected.world.rule_version=6;
     projected.world.original_economy.reset();projected.world.original_influence.reset();
     projected.world.original_goods.reset();projected.world.original_production.reset();projected.world.agriculture.reset();
+    projected.world.plantations.reset();
     for (auto& building:projected.world.buildings) {
         if (culture && building.kind==simulation::Object::OriginalTheatre75) building.kind=simulation::Object::ServicePost;
         else if (simulation::original_elite_house_kind(building.kind)) building.kind=simulation::Object::Household;
@@ -1960,7 +2043,9 @@ json production_document_json(const SaveDocument& d) {
             building.kind=simulation::Object::ServicePost;
     }
     for (auto& courier:projected.world.couriers) {
-        if ((culture && courier.role==simulation::CourierRole::OriginalMusicPerformer) ||
+        if (plantations && courier.role==simulation::CourierRole::OriginalPlantationGrower)
+            courier.role=simulation::CourierRole::Service;
+        else if ((culture && courier.role==simulation::CourierRole::OriginalMusicPerformer) ||
             (venue_service && courier.role==simulation::CourierRole::OriginalVenueMusic)) courier.role=simulation::CourierRole::Service;
         else if (courier.role==simulation::CourierRole::OriginalHempToWarehouse ||
             courier.role==simulation::CourierRole::OriginalLuxuryToWarehouse ||
@@ -1984,14 +2069,15 @@ json production_document_json(const SaveDocument& d) {
     auto result=document_json(projected);
     result["schema_version"]=schema;result["rules"]["version"]=d.world.rule_version;
     if (agriculture) result["rules"]["agriculture"]=simulation::original_agriculture_contract;
+    if (plantations) result["rules"]["plantations"]=simulation::original_plantations_contract;
     if (culture) result["rules"]["music_venues"]=simulation::original_music_venues_contract;
     if (venue_service) result["rules"]["venue_house_service"]=simulation::original_venue_house_service_contract;
-    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40) result["rules"]["market_logistics"]=simulation::original_market_logistics_contract;
-    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40) result["rules"]["cardinal_water"]=simulation::original_cardinal_water_contract;
+    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) result["rules"]["market_logistics"]=simulation::original_market_logistics_contract;
+    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) result["rules"]["cardinal_water"]=simulation::original_cardinal_water_contract;
     if (schema==31) result["rules"]["inspector_coordination"]=simulation::original_inspector_coordination_contract;
-    if (schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40) result["rules"]["deadline_fire_dispatch"]=simulation::original_deadline_fire_dispatch_contract;
-    if (schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40) result["rules"]["deadline_service_dispatch"]=simulation::original_deadline_service_dispatch_contract;
-    if (schema==34 || schema==35 || schema==38 || schema==39 || schema==40) result["rules"]["deadline_food_dispatch"]=simulation::original_deadline_food_dispatch_contract;
+    if (schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) result["rules"]["deadline_fire_dispatch"]=simulation::original_deadline_fire_dispatch_contract;
+    if (schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) result["rules"]["deadline_service_dispatch"]=simulation::original_deadline_service_dispatch_contract;
+    if (schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) result["rules"]["deadline_food_dispatch"]=simulation::original_deadline_food_dispatch_contract;
     if (schema==35) result["rules"]["safe_demolition"]=simulation::original_safe_demolition_contract;
     for (std::size_t i=0;i<d.world.buildings.size();++i)
         result["world"]["buildings"][i]["kind"]=static_cast<int>(d.world.buildings[i].kind);
@@ -2021,11 +2107,15 @@ json production_document_json(const SaveDocument& d) {
     if (schema==35) result["world"]["original_production"]["safe_demolition"]=production_safe_demolition_json(*production.safe_demolition);
     if (culture) result["world"]["original_production"]["culture"]=production_culture_json(*production.culture,venue_service);
     if (agriculture) result["world"]["agriculture"]=agriculture_json(*d.world.agriculture);
+    if (plantations) result["world"]["plantations"]=plantations_json(*d.world.plantations);
     return result;
 }
 SaveDocument parse_production_document(const json& j) {
     const auto schema=number(field(j,"schema_version"));
-    const bool agriculture=schema==40;
+    const bool plantations=schema==41;
+    const bool agriculture=schema==40 || plantations;
+    if (plantations) require(str(field(field(j,"rules"),"plantations"))==simulation::original_plantations_contract,
+        "schema41 requires its exact plantation contract");
     if (agriculture) require(str(field(field(j,"rules"),"agriculture"))==simulation::original_agriculture_contract,
         "schema40 requires its exact Agriculture contract");
     const bool venue_service=schema==39;
@@ -2033,22 +2123,23 @@ SaveDocument parse_production_document(const json& j) {
         "schema39 requires its exact authored venue House-service contract");
     if (schema==38 || schema==39) require(str(field(field(j,"rules"),"music_venues"))==simulation::original_music_venues_contract,
         "schema38 requires its exact authored music-venue contract");
-    const bool fire=schema==27 || schema==28 || schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40;
-    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40) require(str(field(field(j,"rules"),"market_logistics"))==simulation::original_market_logistics_contract,
+    const bool fire=schema==27 || schema==28 || schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41;
+    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) require(str(field(field(j,"rules"),"market_logistics"))==simulation::original_market_logistics_contract,
         "schema29 requires its exact authored market-logistics contract");
-    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40) require(str(field(field(j,"rules"),"cardinal_water"))==simulation::original_cardinal_water_contract,
+    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) require(str(field(field(j,"rules"),"cardinal_water"))==simulation::original_cardinal_water_contract,
         "schema30 requires its exact verified cardinal-water contract");
     if (schema==31) require(str(field(field(j,"rules"),"inspector_coordination"))==simulation::original_inspector_coordination_contract,
         "schema31 requires its exact authored Inspector-coordination contract");
-    if (schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40) require(str(field(field(j,"rules"),"deadline_fire_dispatch"))==simulation::original_deadline_fire_dispatch_contract,
+    if (schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) require(str(field(field(j,"rules"),"deadline_fire_dispatch"))==simulation::original_deadline_fire_dispatch_contract,
         "schema32 requires its exact authored deadline-fire-dispatch contract");
-    if (schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40) require(str(field(field(j,"rules"),"deadline_service_dispatch"))==simulation::original_deadline_service_dispatch_contract,
+    if (schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) require(str(field(field(j,"rules"),"deadline_service_dispatch"))==simulation::original_deadline_service_dispatch_contract,
         "schema33 requires its exact authored deadline-service-dispatch contract");
-    if (schema==34 || schema==35 || schema==38 || schema==39 || schema==40) require(str(field(field(j,"rules"),"deadline_food_dispatch"))==simulation::original_deadline_food_dispatch_contract,
+    if (schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41) require(str(field(field(j,"rules"),"deadline_food_dispatch"))==simulation::original_deadline_food_dispatch_contract,
         "schema34 requires its exact authored deadline-food-dispatch contract");
     if (schema==35) require(str(field(field(j,"rules"),"safe_demolition"))==simulation::original_safe_demolition_contract,
         "schema35 requires its exact authored safe-demolition contract");
-    const auto rule_version=agriculture ? simulation::kOriginalAgricultureRuleVersion:
+    const auto rule_version=plantations ? simulation::kOriginalPlantationsRuleVersion:
+        agriculture ? simulation::kOriginalAgricultureRuleVersion:
         schema==39 ? simulation::kOriginalVenueHouseServiceRuleVersion:
         schema==38 ? simulation::kOriginalMusicVenuesRuleVersion:
         schema==35 ? simulation::kOriginalSafeDemolitionRuleVersion:
@@ -2111,7 +2202,7 @@ SaveDocument parse_production_document(const json& j) {
     if (schema==35) state.safe_demolition=parse_production_safe_demolition(field(production,"safe_demolition"));
     auto projected=j;
     projected["schema_version"]=22;projected["rules"]["version"]=6;
-    for (const char* key:{"original_economy","original_influence","original_goods","original_production","agriculture"})
+    for (const char* key:{"original_economy","original_influence","original_goods","original_production","agriculture","plantations"})
         projected["world"].erase(key);
     auto& buildings=projected["world"]["buildings"];
     require(buildings.is_array() && buildings.size()<=simulation::Rules::original_production_building_limit,
@@ -2158,8 +2249,10 @@ SaveDocument parse_production_document(const json& j) {
     require(couriers.is_array() && couriers.size()<=simulation::Rules::original_production_courier_limit,
             "schema26 courier collection exceeds bound");
     for (auto& courier:couriers) {
-        const auto role=number(field(courier,"role"),static_cast<unsigned>(venue_service ? simulation::CourierRole::OriginalVenueMusic:schema==38 ? simulation::CourierRole::OriginalMusicPerformer:simulation::CourierRole::OriginalAuxSupplier));
-        if (((schema==38 || schema==39) && role==static_cast<unsigned>(simulation::CourierRole::OriginalMusicPerformer)) ||
+        const auto role=number(field(courier,"role"),static_cast<unsigned>(plantations ? simulation::CourierRole::OriginalPlantationGrower:venue_service ? simulation::CourierRole::OriginalVenueMusic:schema==38 ? simulation::CourierRole::OriginalMusicPerformer:simulation::CourierRole::OriginalAuxSupplier));
+        if (plantations && role==static_cast<unsigned>(simulation::CourierRole::OriginalPlantationGrower))
+            courier["role"]=static_cast<int>(simulation::CourierRole::Service);
+        else if (((schema==38 || schema==39) && role==static_cast<unsigned>(simulation::CourierRole::OriginalMusicPerformer)) ||
             (venue_service && role==static_cast<unsigned>(simulation::CourierRole::OriginalVenueMusic)))
             courier["role"]=static_cast<int>(simulation::CourierRole::Service);
         else if (role==static_cast<unsigned>(simulation::CourierRole::OriginalHempToWarehouse) ||
@@ -2193,6 +2286,7 @@ SaveDocument parse_production_document(const json& j) {
     if (fire) state.fire_protection=parse_fire_protection(field(production,"fire_protection"),d.world.width,d.world.height);
     d.world.original_production=state;
     if (agriculture) d.world.agriculture=parse_agriculture(field(world,"agriculture"));
+    if (plantations) d.world.plantations=parse_plantations(field(world,"plantations"));
     simulation::World::validate_original_production_snapshot(d.world);
     require(canonical_fields(j,production_document_json(d)),"schema26 contains unknown or noncanonical save fields");
     return d;
@@ -2379,8 +2473,10 @@ SaveDocument parse_source_cell_document(const json& j) {
     return d;
 }
 json document_json(const SaveDocument& d) {
-    require(!d.world.agriculture || simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version),
-            "Agriculture authority requires exact Rule24/schema40");
+    require(!d.world.agriculture || simulation::original_agriculture_family_enabled(d.world.profile,d.world.rule_version),
+            "Agriculture authority requires its exact versioned generation");
+    require(!d.world.plantations || simulation::original_plantations_enabled(d.world.profile,d.world.rule_version),
+            "Plantation authority requires exact Rule25/schema41");
     if (land_trade_world(d.world)) return land_trade_document_json(d);
     require(!d.world.land_trade,"land trade authority requires exact Rule21/schema37");
     if (simulation::source_cell_ramps_enabled(d.world.profile,d.world.rule_version)) return source_cell_document_json(d);
@@ -2430,10 +2526,13 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j,SnapshotSyntax syntax) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    if (schema==38 || schema==39 || schema==40) {
-        require(syntax==SnapshotSyntax::Frozen,"schema38/39/40 cannot select projected syntax");
+    if (schema==38 || schema==39 || schema==40 || schema==41) {
+        require(syntax==SnapshotSyntax::Frozen,"schema38/39/40/41 cannot select projected syntax");
         return parse_production_document(j);
     }
+    require(syntax==SnapshotSyntax::OriginalProduction ||
+            (!field(j,"rules").contains("plantations") && !field(j,"world").contains("plantations") && !j.contains("plantations")),
+            "Plantation marker and authority require exact schema41");
     require(syntax==SnapshotSyntax::OriginalProduction ||
             (!field(j,"rules").contains("agriculture") && !field(j,"world").contains("agriculture") && !j.contains("agriculture")),
             "Agriculture marker and authority require exact schema40");
@@ -2620,7 +2719,7 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
                 "schema26 requires complete immutable policy3 map permissions");
         d.map_permissions_policy_version=d.prepared_permissions->policy_version();
         d.map_permissions_sha256=map_permissions_fingerprint(*d.prepared_permissions,d.map_sha256);
-        if (simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version) ||
+        if (simulation::original_agriculture_family_enabled(d.world.profile,d.world.rule_version) ||
             simulation::original_music_venues_enabled(d.world.profile,d.world.rule_version) ||
             simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version) ||
             simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version) ||
@@ -2630,6 +2729,8 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
             simulation::original_cardinal_water_enabled(d.world.profile,d.world.rule_version)) {
             d.prepared_original_terrain_facts=world.original_terrain_facts();
             require(d.prepared_original_terrain_facts && d.prepared_original_terrain_facts->source_map_sha256()==d.map_sha256,
+                simulation::original_plantations_enabled(d.world.profile,d.world.rule_version) ?
+                    "schema41 World terrain context differs from complete source-map SHA-256":
                 simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version) ?
                     "schema40 World terrain context differs from complete source-map SHA-256":
                 simulation::original_venue_house_service_enabled(d.world.profile,d.world.rule_version) ?
@@ -2647,7 +2748,10 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
                 simulation::original_inspector_coordination_enabled(d.world.profile,d.world.rule_version) ?
                     "schema31 World terrain context differs from complete source-map SHA-256":
                     "schema30 World terrain context differs from complete source-map SHA-256");
-            if (simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version))
+            if (simulation::original_plantations_enabled(d.world.profile,d.world.rule_version))
+                (void)restore_original_plantations(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
+                    d.prepared_original_terrain_facts);
+            else if (simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version))
                 (void)restore_original_agriculture(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
                     d.prepared_original_terrain_facts);
             else if (simulation::original_venue_house_service_enabled(d.world.profile,d.world.rule_version))
@@ -2762,8 +2866,8 @@ SaveDocument read_save(const fs::path& path) {
         require(!duplicate_key,"schema25 duplicate save key");
     if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==36)
         require(!duplicate_key,"schema36 duplicate save key");
-    if (j.is_object() && j.contains("schema_version") && (j.at("schema_version")==38 || j.at("schema_version")==39 || j.at("schema_version")==40))
-        require(!duplicate_key,"schema38/39/40 duplicate save key");
+    if (j.is_object() && j.contains("schema_version") && (j.at("schema_version")==38 || j.at("schema_version")==39 || j.at("schema_version")==40 || j.at("schema_version")==41))
+        require(!duplicate_key,"schema38/39/40/41 duplicate save key");
     if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==37)
         require(!duplicate_key,"schema37 duplicate save key");
     if (j.is_object() && j.contains("schema_version") &&
@@ -3119,7 +3223,8 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
         std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
         std::shared_ptr<const original::OriginalRulesModel> model,std::uint32_t rule_version,
         std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr) {
-    const bool agriculture=rule_version==simulation::kOriginalAgricultureRuleVersion;
+    const bool plantations=rule_version==simulation::kOriginalPlantationsRuleVersion;
+    const bool agriculture=rule_version==simulation::kOriginalAgricultureRuleVersion || plantations;
     const bool venue_service=rule_version==simulation::kOriginalVenueHouseServiceRuleVersion;
     const bool culture=rule_version==simulation::kOriginalMusicVenuesRuleVersion || venue_service;
     const bool safe=rule_version==simulation::kOriginalSafeDemolitionRuleVersion;
@@ -3130,7 +3235,7 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
     const bool cardinal=rule_version==simulation::kOriginalCardinalWaterRuleVersion;
     const bool logistics=rule_version==simulation::kOriginalMarketLogisticsRuleVersion;
     const bool sustainable=rule_version==simulation::kOriginalSustainableRuleVersion;
-    const auto schema=agriculture ? 40U:venue_service ? 39U:culture ? 38U:safe ? 35U:food ? 34U:service ? 33U:deadline ? 32U:coordination ? 31U:cardinal ? 30U:logistics ? 29U:sustainable ? 28U:27U;
+    const auto schema=plantations ? 41U:agriculture ? 40U:venue_service ? 39U:culture ? 38U:safe ? 35U:food ? 34U:service ? 33U:deadline ? 32U:coordination ? 31U:cardinal ? 30U:logistics ? 29U:sustainable ? 28U:27U;
     require(d.world.profile==simulation::RulesProfile::CityV16 && d.world.rule_version==rule_version,
             "original fire restore requires its exact explicit City-v16 rule generation");
     require(d.source_schema_version==0 || d.source_schema_version==schema,
@@ -3171,6 +3276,7 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
         auto live=agriculture ? prepare_original_agriculture_terrain_facts(root,d.map_relative):
             prepare_original_terrain_facts(root,d.map_relative);
         require(live->source_map_sha256()==d.map_sha256,
+                plantations ? "schema41 live terrain source SHA-256 differs from save":
                 agriculture ? "schema40 live terrain source SHA-256 differs from save":
                 venue_service ? "schema39 live terrain source SHA-256 differs from save":
                 culture ? "schema38 live terrain source SHA-256 differs from save":
@@ -3180,7 +3286,7 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
                 deadline ? "schema32 live terrain source SHA-256 differs from save":
                 coordination ? "schema31 live terrain source SHA-256 differs from save":
                     "schema30 live terrain source SHA-256 differs from save");
-        if (terrain) require(*terrain==*live,agriculture ? "schema40 prepared terrain facts differ from live original source":venue_service ? "schema39 prepared terrain facts differ from live original source":
+        if (terrain) require(*terrain==*live,plantations ? "schema41 prepared terrain facts differ from live original source":agriculture ? "schema40 prepared terrain facts differ from live original source":venue_service ? "schema39 prepared terrain facts differ from live original source":
             culture ? "schema38 prepared terrain facts differ from live original source":
             safe ? "schema35 prepared terrain facts differ from live original source":
             food ? "schema34 prepared terrain facts differ from live original source":
@@ -3189,7 +3295,7 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
             coordination ? "schema31 prepared terrain facts differ from live original source":
             "schema30 prepared terrain facts differ from live original source");
         if (d.prepared_original_terrain_facts)
-            require(*d.prepared_original_terrain_facts==*live,agriculture ? "schema40 document terrain facts differ from live original source":venue_service ? "schema39 document terrain facts differ from live original source":
+            require(*d.prepared_original_terrain_facts==*live,plantations ? "schema41 document terrain facts differ from live original source":agriculture ? "schema40 document terrain facts differ from live original source":venue_service ? "schema39 document terrain facts differ from live original source":
                 culture ? "schema38 document terrain facts differ from live original source":
                 safe ? "schema35 document terrain facts differ from live original source":
                 food ? "schema34 document terrain facts differ from live original source":
@@ -3197,6 +3303,8 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
                 deadline ? "schema32 document terrain facts differ from live original source":
                 coordination ? "schema31 document terrain facts differ from live original source":
                 "schema30 document terrain facts differ from live original source");
+        if (plantations)
+            return simulation::World::restore_original_plantations(d.world,std::move(permissions),std::move(model),std::move(live));
         if (agriculture)
             return simulation::World::restore_original_agriculture(d.world,std::move(permissions),std::move(model),std::move(live));
         if (venue_service)
@@ -3301,6 +3409,13 @@ simulation::World restore_original_agriculture(const SaveDocument& d,const fs::p
     return restore_original_fire_generation(d,root,std::move(mask),std::move(permissions),std::move(model),
         simulation::kOriginalAgricultureRuleVersion,std::move(terrain));
 }
+simulation::World restore_original_plantations(const SaveDocument& d,const fs::path& root,
+        std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
+        std::shared_ptr<const original::OriginalRulesModel> model,
+        std::shared_ptr<const simulation::OriginalTerrainFacts> terrain) {
+    return restore_original_fire_generation(d,root,std::move(mask),std::move(permissions),std::move(model),
+        simulation::kOriginalPlantationsRuleVersion,std::move(terrain));
+}
 void validate_save_target(const fs::path& path,const fs::path& root) {
     require(!path.empty(),"save path is empty");
     const auto absolute=fs::absolute(path).lexically_normal();
@@ -3329,12 +3444,21 @@ void write_save(const fs::path& path,const SaveDocument& d,const fs::path& root,
                 simulation::original_agriculture_enabled(existing.world.profile,existing.world.rule_version),
                 "Agriculture cannot overwrite a historical save; choose a separate schema40 target");
     }
+    if (simulation::original_plantations_enabled(d.world.profile,d.world.rule_version) && fs::exists(path)) {
+        const auto existing=read_save(path);
+        require(existing.source_schema_version==41 &&
+                simulation::original_plantations_enabled(existing.world.profile,existing.world.rule_version),
+                "Plantations cannot overwrite a historical save; choose a separate schema41 target");
+    }
     // Recheck original inputs and all world invariants before writing any bytes.
     if (land_trade_world(d.world))
         (void)restore_authored_land_trade(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
             d.prepared_land_trade_boundary_facts);
     else if (simulation::original_production_enabled(d.world.profile,d.world.rule_version))
-        if (simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version))
+        if (simulation::original_plantations_enabled(d.world.profile,d.world.rule_version))
+            (void)restore_original_plantations(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
+                d.prepared_original_terrain_facts);
+        else if (simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version))
             (void)restore_original_agriculture(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
                 d.prepared_original_terrain_facts);
         else if (simulation::original_venue_house_service_enabled(d.world.profile,d.world.rule_version))

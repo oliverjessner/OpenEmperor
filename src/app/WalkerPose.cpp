@@ -19,7 +19,8 @@ bool market_transport(simulation::CourierRole role) {
 }
 }
 bool walker_live_visible(const simulation::CourierState& courier) {
-    if (courier.role==simulation::CourierRole::OriginalVenueMusic)
+    if (courier.role==simulation::CourierRole::OriginalVenueMusic ||
+        courier.role==simulation::CourierRole::OriginalPlantationGrower)
         return courier.phase!=simulation::CourierPhase::IdleAtWorkshop;
     if (courier.role==simulation::CourierRole::OriginalMusicPerformer)
         return courier.enabled && courier.phase!=simulation::CourierPhase::IdleAtWorkshop;
@@ -63,7 +64,8 @@ std::optional<assets::WalkerVisualRole> walker_visual_role(simulation::CourierRo
     case simulation::CourierRole::OriginalWater: return std::nullopt;
     case simulation::CourierRole::OriginalLuxuryToWarehouse:
     case simulation::CourierRole::OriginalAuxToWarehouse:
-    case simulation::CourierRole::OriginalAuxSupplier: return std::nullopt;
+    case simulation::CourierRole::OriginalAuxSupplier:
+    case simulation::CourierRole::OriginalPlantationGrower: return std::nullopt;
     case simulation::CourierRole::None: return std::nullopt;
     }
     return std::nullopt;

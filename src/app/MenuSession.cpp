@@ -33,7 +33,7 @@ struct OriginalChoice {
     const char* detail;
 };
 constexpr OriginalChoice original_choices[]={
-    {OriginalAgricultureNewGame,simulation::kOriginalAgricultureRuleVersion,SDLK_A,"A Agriculture (rule 24)","Paid typed crops; production locked pending Original timing proof"},
+    {OriginalAgricultureNewGame,simulation::kOriginalPlantationsRuleVersion,SDLK_A,"A Agriculture (rule 25)","Paid plantations; AUTHORED Wheat/Millet; Rice/Cabbage/Soy locked"},
     {OriginalVenueHouseServiceNewGame,simulation::kOriginalVenueHouseServiceRuleVersion,SDLK_K,"K Venue House music (23)","Paid School to Theatre to physical House Music visits"},
     {OriginalMusicVenuesNewGame,simulation::kOriginalMusicVenuesRuleVersion,SDLK_B,"B Music venues (rule 22)","Paid Music School to Theatre; no House effect"},
     {OriginalNewGame,simulation::kOriginalProductionRuleVersion,SDLK_O,"O Original economy","Original model economy"},
@@ -330,6 +330,9 @@ void MenuSession::finish_loading() {
         auto view=version==simulation::kAuthoredLandTradeRuleVersion ?
             SandboxView::create_authored_land_trade(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_}) :
+            simulation::original_plantations_enabled(profile,version) ?
+            SandboxView::create_original_plantations(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
             simulation::original_agriculture_enabled(profile,version) ?
             SandboxView::create_original_agriculture(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
@@ -1219,7 +1222,8 @@ bool MenuSession::render() {
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
             if (e.error.empty() && simulation::original_production_enabled(
                     simulation::RulesProfile::CityV16,e.rule_version) &&
-                e.schema==(e.rule_version==simulation::kOriginalAgricultureRuleVersion ? 40U:
+                e.schema==(e.rule_version==simulation::kOriginalPlantationsRuleVersion ? 41U:
+                    e.rule_version==simulation::kOriginalAgricultureRuleVersion ? 40U:
                     e.rule_version==simulation::kOriginalVenueHouseServiceRuleVersion ? 39U:
                     e.rule_version==simulation::kOriginalMusicVenuesRuleVersion ? 38U:
                     e.rule_version==simulation::kOriginalSafeDemolitionRuleVersion ? 35U:

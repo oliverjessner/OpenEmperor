@@ -2,17 +2,22 @@
 
 **RESEARCH_PARTIAL.** Further model rows can be inspected, but the consulted
 contracts do not establish an additional complete original construction,
-harvest, processing, transport and consumption chain. No new crop, recipe, World
-rule, save schema or gameplay option is activated. The existing recommended
+harvest, processing, transport and consumption chain by inspection alone.
+This register grants no gameplay capability. The existing recommended
 Rule18 economy and all historical generations retain their own behavior.
 
 The subsequent [Agriculture architecture](agriculture.md) and
 [fresh agricultural source contract](../reverse/original-agriculture-source-contract.md)
 qualify additional factory, field, resource, irrigation and actual-return facts.
 They do not promote the unsupported rows below to paid gameplay. AGRI-01 adds
-only reusable batch arithmetic used by the unchanged two-crop adapter; one
-future integrated Agriculture generation remains gated by the documented
-AGRI-02–07 evidence and implementation dependencies.
+only reusable batch arithmetic used by the historical two-crop adapter.
+Rule24/schema40 adds paid crop foundations with Food production locked.
+AGRI-03's separate Rule25/schema41 extends the Agriculture lineage with the
+three material plantations: authored finite growth and real worker pickup/return
+into the existing ledgers. It also expressly retains the authored Wheat/Millet
+Food adapter; Rice/Cabbage/Soy stay closed. Their completion matrix and current validation
+boundary are in [Agriculture](agriculture.md#material-plantations-and-completion-matrix-agri-03).
+Further activation remains subject to the AGRI-02–07 evidence gates.
 
 ## What the sources establish
 
@@ -61,7 +66,7 @@ from a nearby row or from `Resource=0`.
 | 26 | `Tea Bush` | 6 | 0 | 0 | E1; paid plant for237 |
 | 27 | `Lacquer Tree` | 5 | 0 | 0 | E1; paid plant for238 |
 | 28 | `Mulberry Tree` | 5 | 0 | 0 | E1; paid plant for239 |
-| 29 | `Orchard Shed` | 30 | 10 | 0 | U; not purchasable |
+| 29 | `Orchard Shed` | 30 | 10 | 0 | U; checked UI submenu for238/239/237 |
 | 31 | `Fishing Quay` | 50 | 10 | 0 | U; not purchasable |
 | 33 | `Hunter's Tent` | 32 | 15 | 0 | U; not purchasable |
 | 35 | `Clay Pit` | 75 | 14 | 0 | F2; native Clay source |
@@ -83,13 +88,13 @@ from a nearby row or from `Resource=0`.
 | 52 | `Carpenters' Guild` | 60 | 25 | 0 | U; not purchasable |
 | 53 | `Mill` | 85 | 16 | 0 | U; not purchasable |
 | 192 | `Hemp Farm` | 40 | 18 | 0 | E2; owned Hemp Field194 |
-| 193 | `Farmhouse` | 50 | 22 | 0 | E3; one Wheat195/Millet196 field |
+| 193 | `Farmhouse` | 50 | 22 | 0 | E3; historical Wheat/Millet; Rule24 paid multi-crop fields, production locked |
 | 194 | `Hemp Field` | 4 | 0 | 0 | E1; child of paid192 |
 | 195 | `Wheat Field` | 5 | 0 | 0 | E1; selected child of193 |
 | 196 | `Millet Field` | 4 | 0 | 0 | E1; selected child of193 |
-| 197 | `Rice Paddy` | 7 | 0 | 0 | U; not purchasable |
-| 198 | `Cabbage Field` | 5 | 0 | 0 | U; not purchasable |
-| 199 | `Soybean Field` | 5 | 0 | 0 | U; not purchasable |
+| 197 | `Rice Paddy` | 7 | 0 | 0 | Rule24 E1; paid field, production locked |
+| 198 | `Cabbage Field` | 5 | 0 | 0 | Rule24 E1; paid field, production locked |
+| 199 | `Soybean Field` | 5 | 0 | 0 | Rule24 E1; paid field, production locked |
 | 202 | `Irrigation Ditch` | 4 | 0 | 0 | U; not purchasable |
 | 203 | `Irrigation Pump` | 10 | 10 | 0 | U; not purchasable |
 | 226 | `Weaponsmith` | 60 | 8 | 0 | U; not purchasable |
@@ -98,14 +103,23 @@ from a nearby row or from `Resource=0`.
 | 239 | `Silkworm Shed` | 40 | 12 | 0 | E2; paid Tree28 |
 
 Rice Paddy197, Cabbage198 and Soybean199 are raw Field candidates, not new
-selections for the current Farmhouse. Orchard Shed29 is not a substitute for
-the already implemented specific237/238/239 producers. The raw Iron/Steel,
+selections for the historical Farmhouse; Rule24 separately admits their paid
+construction with production locked. The checked UI uses Orchard Shed29 as a
+submenu for238/239/237, not an independent fruit producer. The shipped manual
+likewise describes Tea/Lacquer/Mulberry orchards. Their outputs are
+Tea13/Lacquer14/RawSilk12, and the pinned resource-name and Trade catalogs contain
+no Fruit commodity. Registered side0/body group0 and the generic non-producing
+factory path give29 no supported standalone footprint or building-body sprite.
+It must not replace the already implemented specific237/238/239 producers or
+convert their plants to Food. The raw Iron/Steel,
 Stone/Salt/Jade, mint/printing and Weaponsmith names establish no material recipe
 or Funds operation.
 
 The freshly checked field resource selector maps197→6 `Rice`,198→3 `Cabbage`
 and199→1 `BeanCurd`;199's raw `Soybean Field` label does not establish a new
-soybean output commodity. The examined FarmHold/OrchardHold predicate excludes29.
+soybean output commodity. The examined FarmHold/OrchardHold predicate excludes29;
+the [agricultural source contract](../reverse/original-agriculture-source-contract.md#model29-is-a-submenu-marker-not-an-orchard-producer)
+records the separate UI/factory paths, catalog proof and remaining caller scope.
 Actual Farmhouse returns use resource-tagged bins and a separate cart spawn;
 hunting/fishing use actual work and return callbacks. Raw amounts, conditional
 cargo effects, clamped overflow, ecology and World calendar conversion still
@@ -182,18 +196,20 @@ nearby stock alone does not supply a House.
 
 | Existing paid path | Authoritative material path and sink | Evidence boundary |
 |---|---|---|
-| Farmhouse193 + Wheat195 or Millet196 | Separate Food stock/trips → Market → occupied House | Authored field ownership, 80 productive ticks per unit, scores20/80 and occupied-House sink; not original seasonal agriculture |
+| Farmhouse193 + Wheat195 or Millet196 | Separate Food stock/trips → Market → occupied House | Historical adapter is expressly retained in Rule25's sole five-kind ledger: one productive Wheat/Millet field per Farm,80 productive ticks per unit, scores20/80 and real occupied-House sink. Rule24 remains closed; not original seasonal agriculture. |
 | Hemp Farm192 + Hemp Field194 | Six-goods Hemp → Warehouse → Market → House, or Paper Maker | Authored adjacent paid field and 80-tick harvest; original quantities/clock remain unresolved |
 | Clay Source / Kiln43 | Native Clay cargo → Pottery → Warehouse conversion to Ceramics → Market → House | Existing functional ClayPit35/Kiln43 adapters; conversion is a World boundary, not interchangeable commodity IDs |
 | Logging Shed38 | Auxiliary Wood → Warehouse → supported processors | Material identity and physical Woodcutter return have source evidence; managed World forestry is authored |
 | Bronze Smelter39 | Wood + managed internal Ore → Bronze → Warehouse | Original internal extraction requirement is known; ecology, raw scaling and World clock are not reconstructed |
 | Bronzeware Maker42 | Actual Bronze + native Clay → Bronzeware → Warehouse/Market/House | Input identities are evidenced; unit recipe and productive period are authored |
-| Lacquer Refinery238 + Tree27; Lacquerware Maker44 | Lacquer + Wood → Lacquerware → Warehouse/Market/House | Matching plant and returned material are evidenced; planting/yield/calendar and unit recipe are authored |
-| Silkworm Shed239 + Mulberry28; Weaver47 | RawSilk → Silk → Warehouse/Market/House | Matching plant/input identity is evidenced; unit recipe and productive period are authored |
-| Tea Curing Shed237 + Bush26 | Tea → Warehouse/Market/House | Matching plant and physical return are evidenced; yield/period/planting policy are authored |
+| Lacquer Refinery238 + Tree27; Lacquerware Maker44 | Lacquer + Wood → Lacquerware → Warehouse/Market/House | Rule25 adds actual plant pickup/source return; range3 and material bindings are evidenced. Growth80/unit yield, binding, routing, regrowth and recipe units remain authored. |
+| Silkworm Shed239 + Mulberry28; Weaver47 | RawSilk → Silk → Warehouse/Market/House | Rule25 adds finite plant readiness and actual Grower return. RawSilk/input identities are evidenced; work period, yield and unit recipe remain authored. |
+| Tea Curing Shed237 + Bush26 | Tea → Warehouse/Market/House | Rule25 adds bounded multiple plants, finite readiness and actual Grower return. Original full tending/calendar/yield parity remains unproved. |
 | Paper Maker45 | Actual Hemp → auxiliary Paper → Warehouse → Confucian Academy219 | Original input is Hemp, not Wood; Paper-only Academy supply and one unit per tour are authored |
 
-Food retains two crop columns; House goods retain six typed commodities and
+Historical Food retains two crop columns; Rules24/25 use five separately saved
+Food columns. Rule24 production remains locked; Rule25 expressly retains the
+authored Wheat/Millet adapter while Rice/Cabbage/Soy stay locked. House goods retain six typed commodities and
 industry retains five auxiliary materials. These inventories, their capacities,
 incoming reservations and return room cannot be expanded through inspection.
 The production contract retains its existing body, House, Farm, producer and
@@ -202,6 +218,13 @@ Farms in Rule18 and at most two of each existing industry producer kind. These
 are bounds, not grants of workers or materials. Managed Ore is local to its
 paid Smelter; it is not evidence of an independently paid mine or an Ore-courier
 chain.
+
+The three Rule25 plantation sources remain at most two per kind/six total;
+32 separately paid plants share those existing body/channel budgets. Schemas1–40
+and historical plant behavior remain exact. Material work does not produce Food,
+and authored lower-House consumer tests do not establish a complete native-model
+city or Original seasonal plantation parity. Current tests/results are reported
+in [testing](../testing.md#agriculture-foundations-agri-01).
 
 ## Why no additional original chain is selected
 

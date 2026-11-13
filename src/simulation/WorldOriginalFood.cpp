@@ -103,11 +103,18 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
     std::array<BuildingId,3> assigned_fields{};std::size_t assigned=0;
     Counters harvest{},all_stock{},all_consumed{},all_departed{},all_received{},all_returned{},all_cargo{};
     if constexpr (agriculture) {
+        const bool authored_food=simulation::original_plantations_enabled(profile,rule);
         if(food.fields.size()!=fields) invalid("Agriculture field count differs from paid bodies");
         for(std::size_t i=0;i<food.farms.size();++i) {
             const auto& row=food.farms[i];const auto& b=body(buildings,row.farm_id);
-            if(b.kind!=Object::OriginalFoodFarm || b.progress || (i && !(food.farms[i-1].farm_id<row.farm_id)))
+            if(b.kind!=Object::OriginalFoodFarm || b.progress<0 || b.progress>=80 || (!authored_food && b.progress) ||
+                (i && !(food.farms[i-1].farm_id<row.farm_id)))
                 invalid("Agriculture Farm identity/progress invalid");
+            const auto productive=std::count_if(food.fields.begin(),food.fields.end(),[&](const auto& field) {
+                return field.farm_id==row.farm_id && (field.crop==AgricultureCrop::Wheat || field.crop==AgricultureCrop::Millet);
+            });
+            if(authored_food && (productive>1 || (!productive && b.progress)))
+                invalid("authored Wheat/Millet adapter requires one paid productive Field per Farm");
         }
         for(std::size_t i=0;i<food.fields.size();++i) {
             const auto& field=food.fields[i];const auto& b=body(buildings,field.field_id);const auto& farm=body(buildings,field.farm_id);
@@ -117,8 +124,15 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
                 (i && !(food.fields[i-1].field_id<field.field_id)) ||
                 std::none_of(food.farms.begin(),food.farms.end(),[&](const auto& f){return f.farm_id==farm.id;}))
                 invalid("Agriculture field lost its paid compatible Farm or work area");
-            if(field.quantity || field.productive_events || field.harvested || field.last_harvest_cycle)
+            const bool productive=authored_food && g<2;
+            if(field.quantity || field.productive_events || (!productive && field.harvested) || field.last_harvest_cycle)
                 invalid("Agriculture production requires fully verified Original tending/harvest timing");
+            if(productive) {
+                const auto age=ticks-b.placed_tick;
+                if(field.harvested>age/80 || (check_progress && field.harvested==age/80 &&
+                    static_cast<std::uint64_t>(farm.progress)>age%80))
+                    invalid("authored Wheat/Millet harvest exceeds its paid80-tick opportunities");
+            }
             add(harvest[g],field.harvested);
         }
     } else {
@@ -348,7 +362,7 @@ CommandResult World::validate_original_food_command(Command command) const {
 }
 void World::validate_original_food_snapshot(const WorldSnapshot& snapshot) {
     if (!snapshot.original_production || !snapshot.original_economy) invalid("Food snapshot has no original production authority");
-    if(simulation::original_agriculture_enabled(snapshot.profile,snapshot.rule_version)) {
+    if(simulation::original_agriculture_family_enabled(snapshot.profile,snapshot.rule_version)) {
         if(!snapshot.agriculture || snapshot.original_production->food!=OriginalFoodState{}) invalid("Agriculture requires sole five-kind Food authority");
         validate_food(*snapshot.agriculture,snapshot.buildings,snapshot.couriers,snapshot.original_economy->houses,snapshot.ticks,snapshot.profile,snapshot.rule_version);return;
     }
@@ -383,6 +397,20 @@ int World::original_food_headroom(BuildingId owner) const {
     });
 }
 void World::advance_original_food() {
+    if(original_plantations_enabled()) {
+        // Explicit retained AUTHORED adapter, not Original Grower/calendar
+        // reconstruction. Only Wheat/Millet have an admitted80-tick origin.
+        for(auto& record:agriculture_->fields) {
+            const auto g=static_cast<std::size_t>(record.crop);if(g>=2) continue;
+            auto& farm=mutable_building(record.farm_id);
+            if(!farm.operating_enabled || building_on_fire(farm.id) || !building_staffed_for_tick(farm.id) ||
+                building_entrances(farm.id).empty()) continue;
+            if(original_food_headroom(farm.id)<=0) {farm.progress=0;continue;}
+            if(farm.progress<79) {++farm.progress;continue;}
+            add(record.harvested,1);++account(agriculture_->stocks,farm.id).amounts[g];farm.progress=0;
+        }
+        return;
+    }
     // Rule24 deliberately has no active Food origin. Source phase20 is known,
     // but actual Grower work/harvest countdown and arrival timing is unclosed.
     if(original_agriculture_enabled()) return;
@@ -636,7 +664,12 @@ CommandResult World::validate_agriculture_command(Command command) const {
         if(agriculture_->farms.size()>=original_food_farm_limit(profile_,rule_version_)) {result.reason="Agriculture Farm limit reached";return result;}
     } else {
         if(agriculture_->fields.size()>=agriculture_field_limit) {result.reason="Agriculture field limit reached";return result;}
-        if(!agriculture_farm_for_field(command.cell,command.building_id)) {result.reason="Field requires an existing paid Farmhouse within its source work area";return result;}
+        const auto parent=agriculture_farm_for_field(command.cell,command.building_id);
+        if(!parent) {result.reason="Field requires an existing paid Farmhouse within its source work area";return result;}
+        if(original_plantations_enabled() && (command.type==CommandType::PlaceOriginalWheatField || command.type==CommandType::PlaceOriginalMilletField) &&
+            std::any_of(agriculture_->fields.begin(),agriculture_->fields.end(),[&](const auto& f) {
+                return f.farm_id==*parent && (f.crop==AgricultureCrop::Wheat || f.crop==AgricultureCrop::Millet);
+            })) {result.reason="AUTHORED Wheat/Millet adapter permits one productive Field per Farm";return result;}
         if(command.type==CommandType::PlaceOriginalRiceField && original_terrain_facts_->fertility(command.cell)!=100) {
             result.reason="Rice requires source fertility100; irrigation cannot bypass this prerequisite";return result;
         }
@@ -651,7 +684,7 @@ void World::validate_agriculture_model() const {
             invalid("Agriculture requires separately prepared positive-price zero-worker crop models");
 }
 void World::validate_original_agriculture_snapshot(const WorldSnapshot& snapshot) {
-    if(!simulation::original_agriculture_enabled(snapshot.profile,snapshot.rule_version)) {
+    if(!simulation::original_agriculture_family_enabled(snapshot.profile,snapshot.rule_version)) {
         if(snapshot.agriculture) invalid("Agriculture authority requires exact Rule24");return;
     }
     validate_original_food_snapshot(snapshot);

@@ -214,7 +214,7 @@ void historical_service(const WorldSnapshot& s,BuildingId id,std::uint64_t first
     if (original::service_timer(proof.input,role)!=expected) invalid("Housing input service timer differs from actual visit phase");
 }
 void historical_food(const WorldSnapshot& s,BuildingId id,std::uint64_t first,const OriginalHousingEvaluation& proof) {
-    if (simulation::original_agriculture_enabled(s.profile,s.rule_version)) {
+    if (simulation::original_agriculture_family_enabled(s.profile,s.rule_version)) {
         historical_agriculture_food(s,id,first,proof);return;
     }
     const auto& current=by_id(s.original_production->food.stocks,id);
@@ -279,7 +279,7 @@ void historical_food(const WorldSnapshot& s,BuildingId id,std::uint64_t first,co
 
 void World::validate_original_housing_snapshot(const WorldSnapshot& s) {
     const auto& state=s.original_production->housing;const auto& homes=s.original_economy->houses;
-    const bool agriculture=simulation::original_agriculture_enabled(s.profile,s.rule_version);
+    const bool agriculture=simulation::original_agriculture_family_enabled(s.profile,s.rule_version);
     if (agriculture) validate_agriculture_housing_rows(s);
     if (state.houses.size()!=homes.size() || s.original_production->house_consumption.size()!=homes.size() || state.houses.size()>20 || state.neutral_source_origins.size()>37 ||
         state.neutral_source_origins.size()!=s.original_influence->sources.size()+s.original_influence->removed_sources.size())

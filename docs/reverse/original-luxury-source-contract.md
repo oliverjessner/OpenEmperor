@@ -52,9 +52,33 @@ Those exact bits and byte conditions are evidenced. Full growth, tree choice, re
 
 **EXE-OBSERVED:** concrete Smelter39 uses vtable`0x7b7e24`. Output selector `0x558d00` chooses Bronze11, and `0x558d30` chooses Wood10. Production prerequisite `0x5587e0` also requires at least100 raw units of internally extracted stock at word`+0x72`; extraction selector `0x558b50` yields search tag`0x100002`. Calling that tag a complete ore ecology, or treating Wood as the only input, would exceed this proof.
 
-For237/238/239, factory `0x4c2960` selects `cOrchardHold`, and `0x4c5310` chooses output13/14/12. Pair selector `0x4c0800` binds each source to its actual26/27/28 plant kind. Dispatch through `0x4c3550` creates Grower26 and records both source word`+0x62` and plant word`+0x68`. Harvest work reaches the actual plant's `+0x268→0x4c1dd0`, which moves calculated yield into Actor word`+0x7c` and clears that plant's work/assignment. Only actual return state8 invokes source receipt `0x4c2e50`, resolves the retained plant ID and credits the corresponding physical stock.
+For237/238/239, factory `0x4c2960` selects `cOrchardHold`, and `0x4c5310`
+chooses output13/14/12. Pair selector `0x4c0800` qualifies the actual26/27/28
+plant kind. The shared dispatch gate `0x4c3550` invokes the source's distinct
+tending/harvest dispatch callbacks. Their accepted actor creation binds the
+actual source in Grower26 word`+0x62`; subsequent work selection retains the
+actual plant in word`+0x68`. This distinction matters: the checked harvest
+spawn clears`+0x68` at`0x4c3c05`, while later work selection assigns it at
+`0x4c2c5c`. An initial spawn is not proof that a particular plant has been reached.
 
-This proves separate plant identity and real returned yield. It does not import the whole original planting purchase formula, autolayout, tending, fertility, seasonal timing or regional yields. Revision24 pays both model components explicitly.
+Actual tending calls plant slot`+0x264→0x4c1d20` after its actor wait gate and
+sets the plant's work state. The separate harvest wait calls
+`+0x268→0x4c1dd0`; only a retained harvest mark permits calculated yield to enter
+Actor word`+0x7c`. This clears the plant quantity without deleting the plant.
+Grower return branch`0x4ccca8` requires actual movement result8 before
+`0x4cccbf` invokes source slot`+0x268→0x4c2e50`. That receipt resolves the
+retained plant identity and adds actual actor yield to source stock`+0x40`.
+Dispatch, elapsed growth or field proximity alone does not credit that stock.
+
+The fresh plantation checker is
+`.local/agri-03/plantation-source/verify_plantations.py`; its private report
+passes26 bounded windows /3,045 decoded lines /8,746 overlapping matched
+instruction bytes with unchanged EXE/model/FarmConfig guards. The
+[agriculture contract](original-agriculture-source-contract.md#concrete-plantation-state-and-the-rule25-adapter)
+records the distinct plant growth callbacks, raw source seasons, shared range
+and yield modifiers. Full accepted-purchase initialization, actor cadence,
+World-time mapping, exact seasonal regeneration and original yield units remain
+unclosed. Revision24's historical paid adjacent-plant adapter remains exact.
 
 ## Original Academy selects Paper27 or Wood10
 
@@ -73,6 +97,18 @@ The original [needs predicate](original-house-needs-contract.md) accepts Bronzew
 Managed Forestry and managed internal Ore,80 productive ticks per chosen unit,1 of every recipe input, separately bought adjacent Orchardplants, stock buffers8, Warehouse32 per material and Paper1 per successful Academy dispatch are versioned authored rules. They preserve the evidenced material identities and distinct paid bodies without claiming reconstructed resource-byte255/search-tag ecology, raw100/400 scaling, full calendar, venue/Elite behavior or original production balance.
 
 The six House stocks remain the sole household goods authority. Wood/Bronze/RawSilk/Lacquer/Paper have their own five-material authority; Clay retains native physical stock/cargo, and PaperMaker Hemp remains in the six-goods ledger. Recipe inputs commit together with output, real couriers deliver to actual endpoints, and counters bind actual consumption. No source count, model name or default market price grants material or workers. Current gameplay/save/process/SDL results must be reported separately after execution; this document asserts only the bounded source findings above.
+
+The separate Agriculture Rule25 plantation contract retains80 productive
+World ticks and a chosen unit yield as **AUTHORED**, now attached to each paid
+plant's finite readiness state. A real worker must reach the plant, pick its
+single ready unit and return to the actual source before the existing sole
+Tea or auxiliary-material stock receives it. Shared five-tick land movement,
+explicit selected-source binding, repeated plant regrowth and World staffing,
+road, pause and fire gates are authored integration choices. Source-buffer8,
+Warehouse32 and existing one-unit recipes retain their documented units; they
+are not conversions of the Original100/400 raw cart thresholds. The new contract
+preserves the historical six House goods and five auxiliary materials, and
+does not enlarge the existing82-body/58-channel budgets or migrate old saves.
 
 ## Additional-chain evidence boundary
 

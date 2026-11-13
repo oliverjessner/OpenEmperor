@@ -433,22 +433,22 @@ int main(int argc,char** argv) {
         check(SDL_GetRendererName(renderer)&&std::string_view(SDL_GetRendererName(renderer))=="software",
             "Isolated Rice presentation requires the requested software renderer");
         Menu menu({},app,std::make_unique<Dialog>());menu.initialize(window,renderer);
-        check(!menu.original_agriculture_setup()&&!menu.diagnostic_button_rect("A Agriculture (rule 24)"),"Agriculture became a default");
+        check(!menu.original_agriculture_setup()&&!menu.diagnostic_button_rect("A Agriculture (rule 25)"),"Agriculture became a default");
         key(menu,SDLK_U);wait_map(menu,18);key(menu,SDLK_ESCAPE);
-        key(menu,SDLK_A);wait_map(menu,24);
+        key(menu,SDLK_A);wait_map(menu,25);
         check(menu.original_agriculture_setup(),"A did not explicitly select Agriculture");
         key(menu,SDLK_RETURN);check(menu.state()==Menu::State::Loading&&menu.render(),"Present deferred Loading");menu.advance();
         check(menu.state()==Menu::State::Playing&&menu.sandbox(),"Agriculture candidate failed");
         auto& view=*menu.sandbox();check(view.world().original_agriculture_enabled()&&view.paused(),"Wrong active mode or unpaused startup");
-        check(!sim::agriculture_production_clock_verified && view.last_message().find("Production locked")!=std::string::npos,
-            "Unverified Original timing lacks its explicit production lock status");
+        check(!sim::agriculture_production_clock_verified && view.last_message().find("AUTHORED Wheat/Millet; Rice/Cabbage/Soy locked")!=std::string::npos,
+            "Rule25 lacks the explicit authored-food/locked-crops boundary");
         key(menu,SDLK_R,SDL_KMOD_SHIFT);check(view.tool()==43,"Rice keyboard action differs from shared tool path");
         key(menu,SDLK_C,SDL_KMOD_SHIFT);check(view.tool()==44,"Cabbage keyboard action differs from shared tool path");
         key(menu,SDLK_S,SDL_KMOD_SHIFT);check(view.tool()==45,"Soy keyboard action differs from shared tool path");
         const auto before=view.world().snapshot();for(int frame=0;frame<30;++frame)check(menu.render(),"Pure Agriculture frame failed");
         check(view.world().snapshot()==before,"Presentation changed paid Agriculture state");
         key(menu,SDLK_F5);const auto document=oe::persistence::read_save(menu.settings().last_save);
-        check(document.source_schema_version==40&&document.world.rule_version==24,"Actual F5 saved wrong generation");
+        check(document.source_schema_version==41&&document.world.rule_version==25,"Actual F5 saved wrong generation");
         const auto bytes=q::f::read_text(menu.settings().last_save);view.tick_once();key(menu,SDLK_F9);
         check(view.world().snapshot()==before&&q::f::read_text(menu.settings().last_save)==bytes,"F9 changed generation or source bytes");
         const auto output=repository_root()/".local/agri-02/presentation";fs::create_directories(output);

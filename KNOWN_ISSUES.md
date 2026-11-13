@@ -10,15 +10,30 @@ complete original-game compatibility.
   crop, mining, fishing or seasonal behavior. OE55 adds no new crop, World rule,
   save schema or playable production chain. See the
   [production evidence boundary](docs/original-economy/oe55-production.md).
-- **Agriculture crop production is locked.** Rule24/schema40 provides typed
+- **Original Agriculture timing is incomplete.** Frozen Rule24/schema40 provides typed
   Rice/Cabbage/Soy (source output BeanCurd), paid source-verified Farm/Field
   construction, Rice fertility100, Food accounting foundations and exact saves.
   It creates no Food and grants no FoodQuality: the complete Original Grower
-  tending/harvest clock and yield transition are unproved, and an authored time
-  substitute is not authorized. AGRI-02 functional production chains are not
-  complete. Irrigation202/203, Orchard29 and hunting/fishing also remain closed.
+  tending/harvest clock and yield transition are unproved. Rule25 expressly
+  retains the existing authored80-tick Wheat/Millet adapter with actual physical
+  Food deliveries and consumption. Rice/Cabbage/Soy remain locked in25; all Food
+  remains locked in24. No Original seasonal clock is activated.
+  AGRI-02 functional Food chains are not
+  complete. Irrigation202/203 and hunting/fishing also remain closed.
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
+- **Material plantations retain authored work rules.** Explicit Agriculture
+  Rule25/schema41 adds paid Tea26/237, Lacquer27/238 and Mulberry28/239 plant
+  readiness, actual Grower pickup/return and regrowth into the existing typed
+  processing/House chains. Growth80, unit yields, source binding and shared land
+  movement remain authored; full Original tending cadence, seasonal regeneration,
+  yield units and irrigation effects remain unproved or inactive. Food-positive
+  consumer controls earn actual Wheat/Millet Food and Water/Ancestor service;
+  earlier Food0 controls remain separately identified. Tests lower authored model
+  prerequisites; they do not establish native-model city progression or human
+  acceptance. Current validation is reported separately. Model29 is a checked
+  submenu marker and adds no Fruit commodity. See the
+  [completion matrix](docs/original-economy/agriculture.md#material-plantations-and-completion-matrix-agri-03).
 - **Land trade is authored, finite and opt-in.** Rule21/schema37 uses classic
   Rule6 and two paid Warehouses, one explicitly bound boundary gateway and one
   real caravan. Only four-unit Pottery imports/exports at authored unit prices 6/3 are
@@ -67,7 +82,11 @@ complete original-game compatibility.
   Tea237, Refinery238, Silkworm239 and Ancestor214 bodies matching existing paid
   identities and footprints. No stock/load, paused, burning or understaffed
   image variant is inferred; the existing operation and fire overlay remain
-  authoritative. Plants26–28 retain markers without a qualified growth selector.
+  authoritative. Rule25's separate optional plantation supplement prepares16
+  native plant images using an expressly authored80-tick-to-quantity projection;
+  Original growth timing, harvest-state animation and whole-scene parity remain
+  open. Grower26 keeps a named worker marker; no Original Grower animation/feet
+  parity is claimed. Missing plant assets keep named markers.
   Missing ownership or incompatible sources retain named authored fallbacks.
   Unassigned service/religion/luxury walker families and pending
   Elite plots retain their named historical fallbacks. Existing Market,
