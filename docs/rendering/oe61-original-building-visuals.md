@@ -61,9 +61,9 @@ bitmap-group name alone is not such a key.
 |33|OriginalTeaCuringShed237 /237|2×2|`0x43b` →840|Static0 /15|New qualified body; separately paid Bush26 and real World production remain required.|
 |34|OriginalLacquerRefinery238 /238|2×2|`0x43d` →812|Static0 /12|New qualified body; separately paid Tree27 and real World production remain required.|
 |35|OriginalSilkwormShed239 /239|2×2|`0x43c` →856|Static0 /22|New qualified body; separately paid Mulberry28 and real World production remain required.|
-|36|OriginalTeaBush26 /26|1×1|None selected; raw registration `0x432` unused|Authored marker; no animation|Harvest identity is evidenced; a compatible concrete graphical-state selector is not.|
-|37|OriginalLacquerTree27 /27|1×1|None selected; raw registration `0x434` unused|Authored marker; no animation|Same unsupported graphical-state boundary; do not borrow the six farm-field stages.|
-|38|OriginalMulberryTree28 /28|1×1|None selected; raw registration `0x433` unused|Authored marker; no animation|Same unsupported graphical-state boundary.|
+|36|OriginalTeaBush26 /26|1×1|Rule25 supplement `0x432` →2470–2473|Four canonical quantity images; no animation|Original publisher is verified;80-tick World growth projection and anchor are authored. Historical modes retain their marker.|
+|37|OriginalLacquerTree27 /27|1×1|Rule25 supplement `0x434` →2494–2499|Six canonical quantity images; no animation|Independent plant publisher; no farm-stage substitution. Historical modes retain their marker.|
+|38|OriginalMulberryTree28 /28|1×1|Rule25 supplement `0x433` →2482–2487|Six canonical quantity images; no animation|Independent plant publisher; Original time/season/irrigation parity remains unproved.|
 |39|OriginalElitePlot / pending Elite family|2×2|No matching native body; Type11's4×4 entry is refused|Authored pending plot|A2×2 reservation cannot display a materialized4×4 House or grant occupants.|
 |40|OriginalEliteHouse / materialized Elite family|4×4|House table below: Type11–17|Canonical0; no building animation|Existing House-state lookup with actual4×4 footprint; missing art retains the authored Elite body.|
 
@@ -73,7 +73,50 @@ be purchased. The [model candidate register](../../src/simulation/original/Origi
 also retains conservative functional/mechanics classifications; it is not the
 renderer’s native-art admission table.
 
-### House-state selections
+### Rule25 plantation supplement
+
+Rule25 also reuses the existing six-image Wheat/Millet bank and authored
+Farm-progress quantization for its explicitly authorized80-tick adapter. The
+actual paid parent Farm's `progress` selects the frame; actual field
+`harvested` is shown separately. No stored Original quantity, season, crop
+calendar or Original timing is inferred. Rice/Cabbage/Soy remain locked, and
+Rule24 preserves its exact zero-quantity/production-locked presentation.
+
+The independent metadata-only `plantations.json` schema1 supplement prepares
+exactly16 native plant images through the shared General2 registration,
+payload reader and decoder. It leaves all historical building schemas1–6 and
+Rules1–24 selections exact. Both General SHA256 fingerprints must match before
+atomic publication; containment, complete canonical banks, physical identity,
+native Type30/Omega geometry and the existing combined64MiB budget remain
+mandatory. Repeated physical assets share the existing eager pool.
+
+The source constructor `4c2710` publishes vtable`7aef50`, whose `+260`
+callback `4c2820` selects plant images. For canonical variation0 and the
+harvest-done flag false, percent is integer quantity/100: Tea selects
+`min(3,3*percent/32)`, Lacquer `min(5,percent/20)`, Mulberry
+`min(5,2*percent/20)`. Rule25 explicitly projects its authored0–80 productive
+ticks to quantity0–10000. These images follow actual saved plant growth;
+they do not establish Original growth rates, season slots, tending or harvest
+animation. Preview uses the initial image and grants no plant or quantity.
+The independent source harvest flag and variation bank are not synthesized.
+
+All36 checked source bank records are width78, Type30, base3200 bytes,
+without animation, mirror or separate alpha. Lacquer offset4/physical2498
+has the observed size hint0; only this exact plant/offset with full78×86
+geometry is admitted by the new supplement. Its1×1 footprint is independently
+proved. The shared decoder already derives this geometry from the complete
+base; no general zero-side admission or historical decoder change is added.
+Front-cell anchors `[39,height−20]` are authored projection conventions.
+
+Selection, culling, picking and previews reuse the prepared shared images.
+A bounded painter cache adds the actual32 plantation plants to the existing
+field rows at geometry revision boundaries; no neighbor discovery, source
+read, decode or upload runs inside frames/hover. F4 retains the explicitly
+labelled authored comparison. Growers are real World workers rendered as
+named markers; their budget boundary is recorded in the
+[walker contract](oe62-original-walker-animations.md).
+
+## House-state selections
 
 These existing House rows are unchanged. Every row selects static offset0;
 the second Original variation is not selected from the raw map byte. Types2–10

@@ -121,6 +121,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Current Agriculture Rule25/schema41; Rule24 remains an exact restore path.
+    static std::unique_ptr<SandboxView> create_original_plantations(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit authored Rule19/schema35; never changes historical demolition rights.
     static std::unique_ptr<SandboxView> create_original_safe_demolition(
         maps::StoredMapSession session,
@@ -302,6 +307,18 @@ public:
         std::string selection,evidence,fallback_reason;
     };
     OriginalBuildingVisualDiagnostic original_building_visual_diagnostic(simulation::BuildingId id) const;
+    struct PlantationVisualDiagnostic {
+        bool applicable=false,configured=false,active=false;
+        std::uint16_t model_type=0;
+        std::uint32_t growth=0;
+        std::optional<std::uint8_t> stage;
+        std::optional<simulation::BuildingId> source;
+        std::optional<assets::AssetId> asset;
+        scene::Point ground{},image_origin{};
+        std::uint16_t image_width=0,image_height=0;
+        std::string selection,fallback_reason;
+    };
+    PlantationVisualDiagnostic plantation_visual_diagnostic(simulation::BuildingId id) const;
     struct OriginalHouseDisplayStats {
         bool configured=false,active=false;
         VisualProfileSource source=VisualProfileSource::Fallback;
@@ -761,7 +778,10 @@ private:
         return simulation::original_music_venues_enabled(rules_,requested_rule_version_);
     }
     bool original_agriculture() const {
-        return simulation::original_agriculture_enabled(rules_,requested_rule_version_);
+        return simulation::original_agriculture_family_enabled(rules_,requested_rule_version_);
+    }
+    bool original_plantations() const {
+        return simulation::original_plantations_enabled(rules_,requested_rule_version_);
     }
     bool original_venue_house_service() const {
         return simulation::original_venue_house_service_enabled(rules_,requested_rule_version_);
@@ -851,7 +871,7 @@ private:
         scene::WorldDrawKey key{};
         bool adjusted=false,ambiguous=false;
     };
-    std::array<OriginalFieldOrder,simulation::agriculture_field_limit+2> original_field_order_{};
+    std::array<OriginalFieldOrder,simulation::agriculture_field_limit+2+simulation::plantation_plant_limit> original_field_order_{};
     std::size_t original_field_order_count_=0;
     std::uint64_t original_field_order_revision_=UINT64_MAX;
     // Inactive Rice topology is disposable presentation state. Only paid

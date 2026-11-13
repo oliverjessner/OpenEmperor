@@ -7,13 +7,18 @@ parity remains partial; see [the play guide](player-handoff.md) and [Known Issue
 The [Agriculture architecture](agriculture.md) defines the explicit Rule24/
 policy3/schema40 construction/Food foundations added during AGRI-02. Its separate
 five-kind state and source-bound fertility preserve Rule1–23/schema1–39.
-**Production is locked:** complete Original tending/harvest timing is unproved;
-no authored calendar substitute or Food origin is active. Functional AGRI-02
-chains and irrigation/orchard/ecology integration remain incomplete.
-AGRI-03 identifies Model29 as a submenu for237–239 on the checked UI path,
-with Tea/Lacquer/RawSilk outputs and no Fruit commodity in the pinned catalogs.
-It adds rejection guards and evidence, not an edible-fruit producer or a new
-version. See the [orchard boundary](agriculture.md#orchard-identity-boundary-agri-03).
+**Rule24 Food production is locked:** complete Original tending/harvest timing is unproved;
+no authored calendar substitute or Food origin is active in that generation. Functional AGRI-02
+chains and irrigation/ecology integration remain incomplete. Current Agriculture
+new games explicitly select Rule25/policy3/schema41 for the three material
+plantations. World owns paid multi-plant readiness and real Grower pickup/return;
+only return credits the existing Tea/Lacquer/RawSilk ledgers. Growth80, unit yield,
+land routing and regrowth remain expressly authored. Rule25 also retains the
+expressly authorized authored80-tick Wheat/Millet Food adapter, with real
+Market/House arrivals and consumption; Rice/Cabbage/Soy stay locked. No Original
+seasonal clock is activated.
+Model29 is a submenu marker, with no Fruit commodity. See the
+[completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 
 ## Versions and source preparation
 
@@ -34,6 +39,8 @@ version. See the [orchard boundary](agriculture.md#orchard-identity-boundary-agr
 | Rule19 / schema35 / revision27 | Explicit authored safe demolition of never-occupied Common2x2 Houses and paused, physically settled Clay Sources. Inherits Rule18; bounded retirement provenance retains paid identities, extraction, latest completed Clay trip and closed installed upkeep. No refund, migration or budget increase. |
 | Rule22 / schema38 / revision27 | Explicit paid Music211→Performer34→Theatre75 slice. Inherits Rule18 and replaces only Music's direct House-service adapter. Actual one-way arrival owns a separate venue32 timer; no House96, Actor36 or Rule19 retirement authority. Automated World/save/scripted SDL coverage; native/human NOT_RUN. |
 | Rule23 / schema39 / revision27 | Explicit paid School→Performer→Theatre→VenueWalker→occupied House Music. Inherits Rule22 and the unchanged Rule18 economy. Real current-Music arrival alone assigns the existing House96 timer; cached targeted roundtrip, phase35 clock, typed lifetime IDs and strict JSON are authored. Rules1–22/schemas1–38 stay separate; Original roaming/clock/save parity and native human acceptance remain open. |
+| Rule24 / schema40 / Agriculture revision28 | Frozen paid source-bound five-kind Food foundations and Rice fertility100 admission. Food growth/harvest/quality remain locked; existing historical plant adapters and exact saves stay unchanged. |
+| Rule25 / schema41 / plantation revision1 | Current explicit Agriculture material plantations:32 paid matching plants, six sources within82 bodies/58 channels; authored80-tick finite readiness, actual Grower pickup/return and regrowth. Existing six Goods/five Aux ledgers remain sole authority. The expressly retained authored Wheat/Millet80-tick adapter uses the sole five-kind Food ledger and physical House deliveries/consumption; Rice/Cabbage/Soy stay locked. Exact marker/catalog, create/restore and Recovery; no migration or default change. Validation results are separately reported. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy
@@ -46,15 +53,30 @@ inventories remain sole authority; finite external offers and paid orders have
 their own source/model/difficulty-bound journal. No Original goods, finance,
 merchant, partner or gateway contract is expanded.
 
-The [production candidate register](oe55-production.md) is research-only.
-Raw model rows do not extend the prepared capability list, World object kinds,
-two-crop Food state, six House goods or five auxiliary materials. No additional
-crop, recipe, rule or schema is activated. The existing Rule18 economy and the
-separate classic Rule21 trade contract retain their own authority and saves.
+The [production candidate register](oe55-production.md) grants no gameplay
+authority by inspection. Raw model rows do not extend prepared capabilities,
+World object kinds, inventories or saves. The separately implemented Rule24/25
+contracts above own their admitted behavior; unsupported register rows stay
+closed. Rule18 and classic Rule21 retain their own authority and saves.
 
-Rules1–14 and schemas1–30 retain their identities and canonical bytes. City-v11
+Rules1–24 and schemas1–40 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
 saves into Original economy. Bridge/Ramp infrastructure retains its existing contracts.
+
+Rule25 extends the one Agriculture lineage and inherits Rule24's Rule18-based
+terrain, finance, market, service and fire contracts without venues, demolition
+or trade. `PlantationsState` saves plant work, picked cargo, actual receipts and
+typed worker lifetimes; `World` reuses the existing navigator and movement
+channels. Rendering supplies no work or stock. The marker is
+`authored-agriculture-plantations-v1`, with catalog
+`tea26-237-lacquer27-238-mulberry28-239-v1`; source/model/terrain and inherited
+Agriculture identities are independently rechecked on restore. Food remains
+closed in24;25 admits one productive Wheat/Millet field per Farm with authored80
+productive ticks per portion, existing capacities/cart4/scores20/80 and actual
+House receipts/consumption. The remaining three Food columns stay closed.
+Automated luxury-consumer controls use explicitly authored lower-House needs;
+the Food-positive variant requires real Food/Water/Ancestor input. Neither
+establishes native-model city progression.
 Rule11 inherits the unchanged Rule10 economic values and uses its own fire guard;
 Rule10 still rejects FireWatch. The [fire protection contract](oe36-fire-protection.md)
 defines its authored building, actual arrivals and separate schema27 validation.

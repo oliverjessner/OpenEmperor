@@ -149,6 +149,9 @@ struct BuildingVisualProfile {
     // Schema3 and later; distinct from historical static-body selection.
     bool original_field_prepared=false;
     std::array<std::array<std::optional<BuildingVisualEntry>,original_field_stage_count>,original_all_field_role_count> original_field_entries;
+    // Independent Rule25 supplement; historical Original role/schema tables stay exact.
+    bool plantation_prepared=false;
+    std::array<std::array<std::optional<BuildingVisualEntry>,6>,3> plantation_entries{};
     // Schema6's inactive, unworked representative only. This mask index is
     // derived during asset preparation; no source table or work clock is saved.
     bool original_rice_prepared=false;

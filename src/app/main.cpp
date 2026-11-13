@@ -625,7 +625,7 @@ int main(int argc, char* argv[]) {
             const auto active_rule_version=initial ? initial->world.rule_version:
                 authored_land_trade ? openemperor::simulation::kAuthoredLandTradeRuleVersion:
                 source_cell_ramps ? openemperor::simulation::kAuthoredSourceCellRampRuleVersion:
-                original_agriculture ? openemperor::simulation::kOriginalAgricultureRuleVersion:
+                original_agriculture ? openemperor::simulation::kOriginalPlantationsRuleVersion:
                 original_venue_house_service ? openemperor::simulation::kOriginalVenueHouseServiceRuleVersion:
                 original_music_venues ? openemperor::simulation::kOriginalMusicVenuesRuleVersion:
                 original_safe_demolition ? openemperor::simulation::kOriginalSafeDemolitionRuleVersion:
@@ -645,6 +645,9 @@ int main(int argc, char* argv[]) {
                     openemperor::simulation::original_cardinal_terrain_enabled(sandbox_rules,active_rule_version));
             if (active_rule_version==openemperor::simulation::kAuthoredLandTradeRuleVersion)
                 sandbox_view=openemperor::SandboxView::create_authored_land_trade(std::move(session));
+            else if (openemperor::simulation::original_plantations_enabled(sandbox_rules,active_rule_version))
+                sandbox_view=openemperor::SandboxView::create_original_plantations(
+                    std::move(session),std::nullopt,!initial);
             else if (openemperor::simulation::original_agriculture_enabled(sandbox_rules,active_rule_version))
                 sandbox_view=openemperor::SandboxView::create_original_agriculture(
                     std::move(session),std::nullopt,!initial);

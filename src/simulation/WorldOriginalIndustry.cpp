@@ -150,7 +150,8 @@ template<class Building> void bounded_body(const Building& b,int width,int heigh
 }
 template<class Buildings,class Couriers>
 void validate_industry(const OriginalIndustryState& state,const Buildings& buildings,const Couriers& couriers,
-    const OriginalGoodsState& goods,const OriginalServicesState& services,int width,int height,std::uint64_t tick) {
+    const OriginalGoodsState& goods,const OriginalServicesState& services,int width,int height,std::uint64_t tick,
+    bool plantations=false) {
     if (state.sources.size()>original_industry_source_limit || state.managed_ore.size()>original_managed_ore_limit ||
         state.auxiliary.size()>original_aux_owner_limit || state.aux_trips.size()>original_aux_courier_limit ||
         state.clay_trips.size()>original_clay_trip_limit) invalid("industry finite authority exceeded");
@@ -174,7 +175,10 @@ void validate_industry(const OriginalIndustryState& state,const Buildings& build
         if (std::count_if(couriers.begin(),couriers.end(),[&](const auto& c){return c.owner==b.id && c.role==role;})!=1)
             invalid("industry source requires its own fixed-domain output actor");
         std::uint64_t start=b.placed_tick;
-        if (s.plant_id) {
+        const bool physical=plantations && plant_for(b.kind)!=Object::Empty;
+        if(physical) {
+            if(s.plant_id || s.progress) invalid("physical plantation has duplicate legacy plant/work authority");
+        } else if (s.plant_id) {
             const auto& p=body(buildings,*s.plant_id);
             if (plant_for(b.kind)==Object::Empty || p.kind!=plant_for(b.kind) || p.id<=b.id ||
                 p.placed_tick<b.placed_tick || p.placed_tick>tick || !adjacent(b.cell,p.cell) ||
@@ -183,7 +187,7 @@ void validate_industry(const OriginalIndustryState& state,const Buildings& build
             assigned[linked++]=p.id;start=p.placed_tick;
         } else if (plant_for(b.kind)!=Object::Empty && (s.completed || s.progress)) invalid("orchard has no purchased plant origin");
         const auto age=tick-start;
-        if (s.completed>age/80 || (s.completed==age/80 && static_cast<std::uint64_t>(s.progress)>age%80))
+        if (!physical && (s.completed>age/80 || (s.completed==age/80 && static_cast<std::uint64_t>(s.progress)>age%80)))
             invalid("industry completed output exceeds productive paid age");
         for (std::size_t g=0;g<original::goods_count;++g)
             if (s.goods_inputs_used[g]!=(b.kind==Object::OriginalPaperMaker45 && g==0 ? s.completed:0))
@@ -249,7 +253,7 @@ void validate_industry(const OriginalIndustryState& state,const Buildings& build
             }
         }
     }
-    if (linked!=plants) invalid("orphan industry plant");
+    if (!plantations && linked!=plants) invalid("orphan industry plant");
     for (std::size_t i=0;i<state.managed_ore.size();++i) {
         const auto& ore=state.managed_ore[i];const auto& b=body(buildings,ore.building_id);const auto& source=account(state.sources,b.id);
         if ((i && !(state.managed_ore[i-1].building_id<ore.building_id)) || b.kind!=Object::OriginalBronzeSmelter39 ||
@@ -423,6 +427,13 @@ CommandResult World::validate_original_industry_command(Command command) const {
             result.reason="industry source type limit reached";return result;
         }
     } else {
+        if(original_plantations_enabled()) {
+            const auto owner=plantation_source_for_plant(kind,command.cell,command.building_id);
+            if(!owner || *owner!=command.building_id) {
+                result.reason="plant requires its selected paid matching plantation within range3 and a free plant slot";return result;
+            }
+            result.accepted=true;result.changed=true;result.reason="physical plantation plant facts ready";return result;
+        }
         const auto at=std::find_if(original_production_->industry.sources.begin(),original_production_->industry.sources.end(),
             [&](const auto& s){return s.building_id==command.building_id;});
         if (at==original_production_->industry.sources.end() || at->plant_id ||
@@ -434,14 +445,15 @@ CommandResult World::validate_original_industry_command(Command command) const {
 }
 void World::validate_original_industry_snapshot(const WorldSnapshot& s) {
     if (!s.original_production || !s.original_goods) invalid("industry requires active sole production/goods authority");
-    validate_industry(s.original_production->industry,s.buildings,s.couriers,*s.original_goods,s.original_production->services,s.width,s.height,s.ticks);
+    validate_industry(s.original_production->industry,s.buildings,s.couriers,*s.original_goods,s.original_production->services,s.width,s.height,s.ticks,
+        simulation::original_plantations_enabled(s.profile,s.rule_version));
     if (simulation::original_safe_demolition_enabled(s.profile,s.rule_version)) {
         if (!s.original_production->safe_demolition) invalid("Rule19 industry requires its retired purchase journal");
         validate_retired_clay(*s.original_production->safe_demolition,s.buildings,s.couriers,s.ticks);
     }
 }
 void World::validate_original_industry_state() const {
-    validate_industry(original_production_->industry,buildings_,couriers_,*original_goods_,original_production_->services,width_,height_,ticks_);
+    validate_industry(original_production_->industry,buildings_,couriers_,*original_goods_,original_production_->services,width_,height_,ticks_,original_plantations_enabled());
     if (original_safe_demolition_enabled()) {
         if (!original_production_->safe_demolition) invalid("Rule19 industry requires its retired purchase journal");
         validate_retired_clay(*original_production_->safe_demolition,buildings_,couriers_,ticks_);
@@ -597,6 +609,7 @@ void World::consume_original_academy_paper(BuildingId id) {
 void World::update_original_industry() {
     for (std::size_t i=0;i<original_production_->industry.sources.size();++i) {
         auto& live=original_production_->industry.sources[i];const auto& source_body=building(live.building_id);
+        if(original_plantations_enabled() && plant_for(source_body.kind)!=Object::Empty) continue;
         if (!source_body.operating_enabled || building_on_fire(source_body.id) || !building_staffed_for_tick(source_body.id) ||
             building_entrances(source_body.id).empty() || (plant_for(source_body.kind)!=Object::Empty && !live.plant_id)) continue;
         const auto aux=output(source_body.kind);const auto good=original_industry_goods::output(source_body.kind);

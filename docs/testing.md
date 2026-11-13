@@ -46,7 +46,7 @@ scenario does not prove every layout, long-play outcome or original-game parity.
 
 <a id="agriculture-foundations-agri-01"></a>
 
-## Agriculture foundations and orchard identity (AGRI-01–03)
+## Agriculture foundations and material plantations (AGRI-01–03)
 
 Read the [Agriculture gate](original-economy/agriculture.md) and
 [source contract](reverse/original-agriculture-source-contract.md). Rule24 has
@@ -87,6 +87,79 @@ body: its menu identity cannot qualify a generic orchard sprite. Existing
 `original-industry-world`, `original-industry-world-real` and
 `original-industry-save` remain the paid Tea/Lacquer/RawSilk regression controls;
 their authored timing is not Original orchard lifecycle proof.
+
+AGRI-03 extends the explicitly selected Agriculture lineage as Rule25/schema41.
+The following tests exercise the current contract:
+
+- `original-plantations-world`: paid costs/complete geometry, matching ranged
+  multi-plant ownership and32-plant bounds; no-worker/pause/road/fire gates;
+  finite readiness, actual land movement, pickup, source return and regrowth;
+  full storage, loaded output road cuts and actual Tea/Lacquerware/Silk House
+  arrivals plus consumption. It observes completed delivery events before the
+  existing bounded latest-trip rows are compacted. Foreign-source planting on
+  a grower's actual cell or begun next edge must be refused atomically.
+- `original-plantations-save`: strict schema41 markers/catalog, exact saved
+  work/readiness/worker cargo/receipts, growth/outward/picked/returned phases,
+  deterministic continuation and Recovery, malformed authority refusal,
+  historical-target byte preservation and cross-generation rejection.
+- `original-plantations-presentation`: scripted actual paid tools, selected
+  source and range, inspectors, real worker visibility, saved-growth sprites,
+  F4/F5/F9 and pure frame work. `plantation-visual-profile-synthetic` and
+  `plantation-visual-profile-real` cover the16-image plantation supplement, native
+  source geometry, malformed-input atomicity and unchanged historical budgets.
+- `original-plantations-food-adapter`: expressly retained Rule25 authored
+  Wheat/Millet80-tick production, one productive field per Farm, paid crop
+  identity, actual FoodQuality20/80 arrivals and consumption, pause/full-store/
+  natural-fire gates, strict schema41 replay/Recovery and hostile crop relabels.
+  Independent controls keep all Rule24 Food and Rule25 Rice/Cabbage/Soy closed.
+  A Food-positive authored House model requires actual Food/Water/Ancestor
+  input before the three plantation luxury chains reach consumption.
+
+`PlantationsFixture.h` builds its full228×228 map and model independently.
+Every road, source, plant, processor, warehouse, Market and House is paid through
+World commands. The earlier authored lower-House Food0/Water0 positive controls
+remain separately identified. `PlantationFoodAdapterTests.cpp` requires positive
+Food1 plus Water/Ancestor service and earns real Wheat/Millet deliveries before
+luxury consumption. No stocks, harvests, residents or successful
+arrivals are injected. This is separate from a native-model paid-city result.
+Growth80, finite unit yield and five-tick land movement are authored; tests must
+not label them Original time/harvest parity. Grower graphics retain their named
+fallback until their production visual contract is implemented.
+
+In an existing configured build tree:
+
+```sh
+cmake --build build --parallel 2 --target \
+  openemperor-plantations-world-tests openemperor-plantations-save-tests \
+  openemperor-plantation-presentation-tests openemperor-original-building-visual-profile-tests \
+  openemperor-plantation-food-adapter-tests openemperor-plantation-visual-tests
+ctest --test-dir build --output-on-failure \
+  -R '^(original-(plantations-(world|save|presentation|food-adapter)|building-visual-profile(-real)?)|plantation-visual-profile-(synthetic|real))$'
+```
+
+After the corresponding Original test root is configured, the presentation
+executable also accepts `--real "$PWD/.local/gog-extracted/app"`. Its captures
+stay under ignored `.local/agri-03/plantation-presentation/`; open and inspect
+them. Synthetic/direct-render results, scripted SDL, native delivery and human
+acceptance must be reported separately. Repeat focused World/save/visual tests
+in Debug and ASan/UBSan, then run the appropriate historical regression suite
+and literal schema1–40 controls. Current-header/current-library comparisons
+must use fresh small private outputs. Do not overwrite protected fixtures or
+recreate multi-gigabyte traces. The new source proofs stay under ignored
+`.local/agri-03/`; Original files retain hash/size/mode/mtime guards.
+
+The AGRI-03 Release suite passes all336 cases, including targeted reruns of the
+updated Rule25 admission matrix and freshly measured parity-report contracts.
+The seven focused plantation/visual/legacy-Agriculture cases also pass in Debug
+and ASan/UBSan (macOS LeakSanitizer disabled). Fresh current-header/current-library
+collectors preserve123 complete historical SaveDocuments,25 DTO controls and
+four indexes for schemas1–39:3,184,025 literal bytes against both protected
+reference sets. Rule24/schema40 remains separately covered by the unchanged
+Agriculture save tests. The refreshed74-case parity report keeps all earlier
+classifications and observations; it does not establish plantation clock parity.
+The explicit Original-asset SDL presentation run passes and its six captures
+were opened and inspected. All1,558 protected Original/earned inputs retain
+bytes, size, mode and mtime. Native-model city and human acceptance are NOT_RUN.
 
 After building the corresponding targets in a configured tree, the focused
 identity, World, persistence and visual-profile checks are:

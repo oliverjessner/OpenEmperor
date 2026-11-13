@@ -274,7 +274,8 @@ void validate_policy_readback(const SaveDocument& saved,const SaveDocument& sour
         return;
     }
     if (simulation::original_production_enabled(source.world.profile,source.world.rule_version)) {
-        require(saved.source_schema_version==(simulation::original_agriculture_enabled(source.world.profile,source.world.rule_version) ? 40U:
+        require(saved.source_schema_version==(simulation::original_plantations_enabled(source.world.profile,source.world.rule_version) ? 41U:
+                simulation::original_agriculture_enabled(source.world.profile,source.world.rule_version) ? 40U:
                 simulation::original_venue_house_service_enabled(source.world.profile,source.world.rule_version) ? 39U:
                 simulation::original_music_venues_enabled(source.world.profile,source.world.rule_version) ? 38U:
                     simulation::original_safe_demolition_enabled(source.world.profile,source.world.rule_version) ? 35U:
@@ -315,7 +316,8 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
             simulation::original_production_enabled(document.world.profile,document.world.rule_version),
             "schema23 development saves are unavailable in normal recovery histories");
     require((document.source_schema_version==0 || document.source_schema_version==
-                (simulation::original_agriculture_enabled(document.world.profile,document.world.rule_version) ? 40U:
+                (simulation::original_plantations_enabled(document.world.profile,document.world.rule_version) ? 41U:
+                simulation::original_agriculture_enabled(document.world.profile,document.world.rule_version) ? 40U:
                 simulation::original_venue_house_service_enabled(document.world.profile,document.world.rule_version) ? 39U:
                 simulation::original_music_venues_enabled(document.world.profile,document.world.rule_version) ? 38U:
                  simulation::original_safe_demolition_enabled(document.world.profile,document.world.rule_version) ? 35U:
@@ -332,8 +334,11 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
             document.world.original_economy && document.world.original_economy->model_source,
             "original recovery requires its exact Rule10/11/12/13/14/15/16/17/18 schema and revision27 model source");
     require(document.world.agriculture.has_value()==
-            simulation::original_agriculture_enabled(document.world.profile,document.world.rule_version),
-            "Agriculture recovery authority requires exact Rule24/schema40");
+            simulation::original_agriculture_family_enabled(document.world.profile,document.world.rule_version),
+            "Agriculture recovery authority requires its exact generation");
+    require(document.world.plantations.has_value()==
+            simulation::original_plantations_enabled(document.world.profile,document.world.rule_version),
+            "Plantation recovery authority requires exact Rule25/schema41");
     return true;
 }
 using OriginalSourceCheck=std::optional<original::ModelFingerprintResult>;

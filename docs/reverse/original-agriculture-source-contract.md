@@ -551,6 +551,81 @@ supports refusing to admit29 as an Original orchard producer; it does not prove
 that every use of the numeric ID is unreachable. No fruit food, crop, yield,
 calendar, worker lifecycle or paid generic orchard is inferred from its label.
 
+#### Concrete plantation state and the Rule25 adapter
+
+The corrected plantation scope is the three actual plant/source pairs below.
+The fresh private checker
+`.local/agri-03/plantation-source/verify_plantations.py` verifies26 bounded
+windows /3,045 decoded lines /8,746 overlapping instruction bytes against the
+pinned EXE. All EXE/model/FarmConfig SHA-256, size, mode and modification-time
+guards remain unchanged. The Original program is not executed.
+
+| Plant / actual source / commodity | Initial sides, plant / source | Raw start slots | Raw end slots | Quantity addition for work byte>32 /1–32 |
+|---|---|---|---|---|
+|Tea26 / Curing Shed237 / Tea13|1 /2|2,5,8|4,7,10|105 /53|
+|Lacquer27 / Refinery238 / Lacquer14|1 /2|1|6,7|125 /63|
+|Mulberry28 / Silkworm Shed239 / RawSilk12|1 /2|3,6|5,8|157 /79|
+
+**EXE_OBSERVED:** plant constructor`0x4c2710` publishes vtable`0x7aef50`.
+Its quantity callback`+0x25c→0x4c2730` returns0 when the work low byte is0.
+Tea and Mulberry additionally suppress additions in the last configured end
+slot through`0x4c16c0`; Lacquer suppresses additions in any configured end slot
+through`0x4c16f0`. The shared driver`0x4c0f60` applies the retained countdown,
+adds the callback result to quantity and caps it at10000. These are quantity
+increments conditioned on actual work state, not ticks, elapsed seconds or
+proof that staffing alone grows a plant. Raw season slots do not close the
+source-to-World clock or every repeated tending/harvest transition.
+
+The actual source range callback`+0x260→0x4c31f0` reads3 from`0x84c550`.
+The endpoint tests in`0x4c55a0` allow a plant coordinate within that range of
+either footprint endpoint on each axis: with an initial2×2 source, offsets
+−3 through+4 relative to its origin, subject to the remaining placement vetoes.
+`0x4c0800` and`0x4c3440` qualify the matching source/plant types. This proves
+typed geometry, not an immutable single-owner field assignment. The model
+reports Employees12 for each source and0 for each plant. The source dispatch
+uses actual staffing percentage and throttles attempts; OpenEmperor's full
+staffing gate is a separate authored choice.
+
+Tending completion`0x4c1d20` sets work bit`0x40`, while shared decay removes
+the low-byte work contribution over source phase cycles. The actual grower
+has source reference`+0x62` and a subsequently selected plant reference`+0x68`.
+The harvest-spawn branch explicitly initializes the latter to0; later work
+selection assigns its actual target. Harvest callback`0x4c1dd0` requires the
+retained harvest mark`0x8000`, calculates yield, adds it to that actor's`+0x7c`
+and resets the retained plant's quantity. It does not delete the plant or
+purchase another plant in that callback. Only actual return result8 at
+`0x4ccca8` reaches source receipt`0x4c2e50` through`0x4cccbf`; the source then
+adds real returned yield to stock`+0x40`.
+
+The yield calculation includes retained quantity, fertility, crop/region and
+separate global modifiers. When the plant irrigation query`0x4c15b0` succeeds,
+the26/27/28 branch conditionally adds the float0.2 at`0x7ae7c8` to the yield's
+fertility factor. This is a conditional yield modifier, not proof of a universal
+irrigation prerequisite. Complete irrigation admission, global modifier meaning,
+x87 rounding, raw-to-World unit conversion, accepted-purchase initial quantity,
+full actor route/search cadence and recurring seasonal regeneration remain
+**UNKNOWN**. Original100/400 cart thresholds do not establish a World inventory
+capacity or a one-unit harvest rule.
+
+**AUTHORED Rule25 boundary:** the explicitly selected plantation adapter retains
+80 productive World ticks per paid plant and exactly one finite ready unit.
+Picking that unit moves it onto a real grower; only physical return credits
+the existing Tea/five-material ledgers. The retained plant can start another
+authored cycle. Explicit chosen-source binding, shared five-tick land movement,
+full staffing, road, pause and fire gates are authored World rules. The
+source-proved range3 is used with an explicitly chosen matching paid source;
+that binding is not claimed as Original ownership parity. The32-plant and
+six-source bounds remain inside the existing82-body/58-channel budgets.
+Existing buffer8, Warehouse32 and one-unit downstream recipes retain their
+authored units. This adds no independent calendar or irrigation engine and does
+not activate the unverified Food-field clock. Historical Rules1–24 and their
+save contracts retain their exact existing behavior without automatic migration.
+Separately, Rule25 expressly retains the existing **AUTHORED** Wheat/Millet
+80-productive-tick Food adapter, with one productive field per Farm, real
+four-portion transports and scores20/80. It uses the sole five-kind Food ledger;
+it does not claim these Original work/season transitions. Rice/Cabbage/Soy remain
+unproductive and all Rule24 Food stays closed.
+
 ### Fishing Quay31 has physical boat work and later cart delivery
 
 **EXE_OBSERVED:** Industrial factory `0x5f0e20` tests predicate`0x42b740` for31

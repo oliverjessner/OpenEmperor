@@ -2,17 +2,22 @@
 
 **RESEARCH_PARTIAL.** Further model rows can be inspected, but the consulted
 contracts do not establish an additional complete original construction,
-harvest, processing, transport and consumption chain. No new crop, recipe, World
-rule, save schema or gameplay option is activated. The existing recommended
+harvest, processing, transport and consumption chain by inspection alone.
+This register grants no gameplay capability. The existing recommended
 Rule18 economy and all historical generations retain their own behavior.
 
 The subsequent [Agriculture architecture](agriculture.md) and
 [fresh agricultural source contract](../reverse/original-agriculture-source-contract.md)
 qualify additional factory, field, resource, irrigation and actual-return facts.
 They do not promote the unsupported rows below to paid gameplay. AGRI-01 adds
-only reusable batch arithmetic used by the unchanged two-crop adapter; one
-future integrated Agriculture generation remains gated by the documented
-AGRI-02–07 evidence and implementation dependencies.
+only reusable batch arithmetic used by the historical two-crop adapter.
+Rule24/schema40 adds paid crop foundations with Food production locked.
+AGRI-03's separate Rule25/schema41 extends the Agriculture lineage with the
+three material plantations: authored finite growth and real worker pickup/return
+into the existing ledgers. It also expressly retains the authored Wheat/Millet
+Food adapter; Rice/Cabbage/Soy stay closed. Their completion matrix and current validation
+boundary are in [Agriculture](agriculture.md#material-plantations-and-completion-matrix-agri-03).
+Further activation remains subject to the AGRI-02–07 evidence gates.
 
 ## What the sources establish
 
@@ -191,18 +196,20 @@ nearby stock alone does not supply a House.
 
 | Existing paid path | Authoritative material path and sink | Evidence boundary |
 |---|---|---|
-| Farmhouse193 + Wheat195 or Millet196 | Separate Food stock/trips → Market → occupied House | Authored field ownership, 80 productive ticks per unit, scores20/80 and occupied-House sink; not original seasonal agriculture |
+| Farmhouse193 + Wheat195 or Millet196 | Separate Food stock/trips → Market → occupied House | Historical adapter is expressly retained in Rule25's sole five-kind ledger: one productive Wheat/Millet field per Farm,80 productive ticks per unit, scores20/80 and real occupied-House sink. Rule24 remains closed; not original seasonal agriculture. |
 | Hemp Farm192 + Hemp Field194 | Six-goods Hemp → Warehouse → Market → House, or Paper Maker | Authored adjacent paid field and 80-tick harvest; original quantities/clock remain unresolved |
 | Clay Source / Kiln43 | Native Clay cargo → Pottery → Warehouse conversion to Ceramics → Market → House | Existing functional ClayPit35/Kiln43 adapters; conversion is a World boundary, not interchangeable commodity IDs |
 | Logging Shed38 | Auxiliary Wood → Warehouse → supported processors | Material identity and physical Woodcutter return have source evidence; managed World forestry is authored |
 | Bronze Smelter39 | Wood + managed internal Ore → Bronze → Warehouse | Original internal extraction requirement is known; ecology, raw scaling and World clock are not reconstructed |
 | Bronzeware Maker42 | Actual Bronze + native Clay → Bronzeware → Warehouse/Market/House | Input identities are evidenced; unit recipe and productive period are authored |
-| Lacquer Refinery238 + Tree27; Lacquerware Maker44 | Lacquer + Wood → Lacquerware → Warehouse/Market/House | Matching plant and returned material are evidenced; planting/yield/calendar and unit recipe are authored |
-| Silkworm Shed239 + Mulberry28; Weaver47 | RawSilk → Silk → Warehouse/Market/House | Matching plant/input identity is evidenced; unit recipe and productive period are authored |
-| Tea Curing Shed237 + Bush26 | Tea → Warehouse/Market/House | Matching plant and physical return are evidenced; yield/period/planting policy are authored |
+| Lacquer Refinery238 + Tree27; Lacquerware Maker44 | Lacquer + Wood → Lacquerware → Warehouse/Market/House | Rule25 adds actual plant pickup/source return; range3 and material bindings are evidenced. Growth80/unit yield, binding, routing, regrowth and recipe units remain authored. |
+| Silkworm Shed239 + Mulberry28; Weaver47 | RawSilk → Silk → Warehouse/Market/House | Rule25 adds finite plant readiness and actual Grower return. RawSilk/input identities are evidenced; work period, yield and unit recipe remain authored. |
+| Tea Curing Shed237 + Bush26 | Tea → Warehouse/Market/House | Rule25 adds bounded multiple plants, finite readiness and actual Grower return. Original full tending/calendar/yield parity remains unproved. |
 | Paper Maker45 | Actual Hemp → auxiliary Paper → Warehouse → Confucian Academy219 | Original input is Hemp, not Wood; Paper-only Academy supply and one unit per tour are authored |
 
-Food retains two crop columns; House goods retain six typed commodities and
+Historical Food retains two crop columns; Rules24/25 use five separately saved
+Food columns. Rule24 production remains locked; Rule25 expressly retains the
+authored Wheat/Millet adapter while Rice/Cabbage/Soy stay locked. House goods retain six typed commodities and
 industry retains five auxiliary materials. These inventories, their capacities,
 incoming reservations and return room cannot be expanded through inspection.
 The production contract retains its existing body, House, Farm, producer and
@@ -211,6 +218,13 @@ Farms in Rule18 and at most two of each existing industry producer kind. These
 are bounds, not grants of workers or materials. Managed Ore is local to its
 paid Smelter; it is not evidence of an independently paid mine or an Ore-courier
 chain.
+
+The three Rule25 plantation sources remain at most two per kind/six total;
+32 separately paid plants share those existing body/channel budgets. Schemas1–40
+and historical plant behavior remain exact. Material work does not produce Food,
+and authored lower-House consumer tests do not establish a complete native-model
+city or Original seasonal plantation parity. Current tests/results are reported
+in [testing](../testing.md#agriculture-foundations-agri-01).
 
 ## Why no additional original chain is selected
 

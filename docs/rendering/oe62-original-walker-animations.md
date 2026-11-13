@@ -36,6 +36,7 @@ World `CourierId`; the renderer uses its real position and current path edge.
 |AuthoredLandTrader /26|Curated217 Pottery figure|Same expanded figure|AUTHORED; no Original Trader identity.|
 |OriginalMusicPerformer /27|Marker|7076 Musician34 family|EXE_OBSERVED visual; real `PerformerId` is distinct from its fixed school channel.|
 |OriginalVenueMusic /28|Marker|9339 Theatre Actor36 family|EXE_OBSERVED visual; real `VenueWalkerId` is distinct from its fixed Theatre channel.|
+|OriginalPlantationGrower /29|No historical actor|Named marker in Agriculture Rule25|EXE_OBSERVED Original Grower26/source linkage; real monotone `PlantationGrowerId` is distinct from its fixed source channel.|
 
 Immigration has no separate current CourierRole or actor. Actual resident
 admission changes the paid House through World; drawing an extra immigrant
@@ -49,6 +50,28 @@ people, cargo or service effects.
 Classic Clay/Pottery/Household, authored Trader and legacy direct Food retain
 their historical idle visibility. Other source channels hide at their actual
 idle terminal; rendering does not invent an actor waiting at the source.
+
+Rule25 adds a visible worker only after actual World dispatch. It follows the
+shared physical land path to its paid plant and back; pickup and actual return
+remain separate World events. An idle source channel has no actor or marker.
+The inspector names the source, plant, distinct grower identity, current phase
+and sole picked-but-unreturned cargo; it never infers a harvest from artwork.
+
+Fresh bounded source observation qualifies the actual Grower26 registry
+`84e780+40*26+4→4cc670`. That update resolves its actual source through
+Actor word`+62`; `4ccf42→4c3370` admits exactly237/238/239. Their ordinary
+walking keys are respectively`4e79`/`4e7d`/`4e75`, shared SprMain2 physical
+bases5881/6177/5585. Each has12 native phases, stride8 and columns0/2; opposite
+6/4 are zero-payload references with signed−6/−2 offsets. Other actor states
+select separate action/return banks; they are not substituted for walking.
+This qualifies visual identity, not the Original actor or animation cadence.
+
+The current full pack has288 aliases and240 physical assets. Appending all
+three complete source-specific grower families would exceed the unchanged
+320-alias/256-asset limits. Rule25 therefore uses named markers for all three;
+it does not guess one common figure, drop source phases, raise budgets or
+replace historical clips. The fact that5585 is the existing curated Distributor
+family does not make other couriers Original Growers retroactively.
 
 ## Sources, sequences and directions
 

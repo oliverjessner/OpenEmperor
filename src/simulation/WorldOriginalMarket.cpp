@@ -184,6 +184,7 @@ template<class Buildings,class Couriers> void validate_market_bindings(const Bui
 
 bool World::original_market_courier(CourierRole role) const {return original_production_enabled() && typed(role);}
 int World::original_courier_cargo(CourierId id) const {
+    if(original_plantations_enabled() && courier(id).role==CourierRole::OriginalPlantationGrower) return plantation_grower_cargo(id);
     if (!original_production_enabled()) return 0;
     const auto& c=courier(id);
     return original_food_courier(c.role) ? original_food_cargo(id):

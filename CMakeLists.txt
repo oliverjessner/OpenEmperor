@@ -139,6 +139,7 @@ set(OPENEMPEROR_COMPATIBILITY_FILES
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-agriculture-buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-agriculture-rice-buildings.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/plantations.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/roads.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire-inspector.json"
@@ -197,6 +198,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/BuildingVisualProfile.cpp
     src/assets/OriginalHouseVisualProfile.cpp
     src/assets/OriginalBuildingVisualProfile.cpp
+    src/assets/PlantationVisualProfile.cpp
     src/assets/RoadVisualProfile.cpp
     src/assets/CompatibilityProfile.cpp
     src/assets/RgbaPngEncoder.cpp
@@ -305,6 +307,7 @@ target_include_directories(openemperor-original-service-rules PUBLIC src)
 target_link_libraries(openemperor-original-service-rules PUBLIC openemperor-original-house-evolution)
 openemperor_enable_warnings(openemperor-original-service-rules)
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
+    src/simulation/WorldPlantations.cpp
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
     src/simulation/WorldOriginalServices.cpp
     src/simulation/WorldOriginalCulture.cpp
@@ -640,6 +643,14 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-agriculture-presentation-tests)
     add_test(NAME original-agriculture-presentation COMMAND openemperor-agriculture-presentation-tests)
     set_tests_properties(original-agriculture-presentation PROPERTIES TIMEOUT 120)
+
+    add_executable(openemperor-plantation-presentation-tests
+        tests/PlantationPresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-plantation-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-plantation-presentation-tests)
+    add_test(NAME original-plantations-presentation COMMAND openemperor-plantation-presentation-tests)
+    set_tests_properties(original-plantations-presentation PROPERTIES TIMEOUT 180)
     add_executable(openemperor-original-menu-session-tests
         tests/OriginalMenuSessionTests.cpp ${original_menu_test_sources})
     add_executable(openemperor-original-safe-demolition-menu-tests
@@ -1070,6 +1081,24 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-agriculture-save-tests)
     add_test(NAME original-agriculture-save COMMAND openemperor-agriculture-save-tests)
     set_tests_properties(original-agriculture-save PROPERTIES TIMEOUT 240)
+
+    add_executable(openemperor-plantations-world-tests tests/PlantationsWorldTests.cpp)
+    target_link_libraries(openemperor-plantations-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-plantations-world-tests)
+    add_test(NAME original-plantations-world COMMAND openemperor-plantations-world-tests)
+    set_tests_properties(original-plantations-world PROPERTIES TIMEOUT 300)
+
+    add_executable(openemperor-plantations-save-tests tests/PlantationsSaveTests.cpp)
+    target_link_libraries(openemperor-plantations-save-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-plantations-save-tests)
+    add_test(NAME original-plantations-save COMMAND openemperor-plantations-save-tests)
+    set_tests_properties(original-plantations-save PROPERTIES TIMEOUT 300)
+
+    add_executable(openemperor-plantation-food-adapter-tests tests/PlantationFoodAdapterTests.cpp)
+    target_link_libraries(openemperor-plantation-food-adapter-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-plantation-food-adapter-tests)
+    add_test(NAME original-plantations-food-adapter COMMAND openemperor-plantation-food-adapter-tests)
+    set_tests_properties(original-plantations-food-adapter PROPERTIES TIMEOUT 300)
 
     add_executable(openemperor-agriculture-housing-tests tests/OriginalAgricultureHousingTests.cpp)
     target_link_libraries(openemperor-agriculture-housing-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
@@ -1549,6 +1578,18 @@ if(BUILD_TESTING)
     add_test(NAME original-building-visual-profile-real COMMAND openemperor-original-building-visual-profile-tests
         --real "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" "${OPENEMPEROR_TEST_RESOURCE_ROOT}")
     set_tests_properties(original-building-visual-profile original-building-visual-profile-real PROPERTIES TIMEOUT 60)
+
+    add_executable(openemperor-plantation-visual-tests tests/PlantationVisualProfileTests.cpp)
+    target_link_libraries(openemperor-plantation-visual-tests PRIVATE openemperor-sg3 openemperor-maps OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-plantation-visual-tests)
+    add_test(NAME plantation-visual-profile-synthetic COMMAND openemperor-plantation-visual-tests)
+    if(OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT)
+        add_test(NAME plantation-visual-profile-real COMMAND openemperor-plantation-visual-tests
+            "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}"
+            "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/plantations.json")
+        set_tests_properties(plantation-visual-profile-real PROPERTIES TIMEOUT 120)
+    endif()
+    set_tests_properties(plantation-visual-profile-synthetic PROPERTIES TIMEOUT 120)
 
     add_executable(openemperor-road-topology-tests tests/RoadTopologyTests.cpp
         src/app/RoadTopology.cpp src/app/RoadDrag.cpp)

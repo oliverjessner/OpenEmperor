@@ -146,6 +146,23 @@
   Future activation needs a new explicit version/schema, never reinterpretation
   of24. Rules1–23/schemas1–39 and defaults remain exact. See
   [Agriculture](docs/original-economy/agriculture.md).
+- Material plantations extend the explicit Agriculture lineage as Rule25/
+  policy3/schema41, marker `authored-agriculture-plantations-v1`, revision1 and
+  catalog `tea26-237-lacquer27-238-mulberry28-239-v1`. Paid26/237,27/238 and28/239
+  use typed source bindings, range3,32 plants and six sources within unchanged
+  82-body/58-channel limits. World owns authored80-tick finite readiness, real
+  Grower pickup/cargo/return and regrowth; only actual source return credits
+  the existing six-Goods/five-Aux ledgers. Shared five-tick land movement,
+  staffing and unit recipes remain authored. No Fruit, independent calendar or
+  irrigation effect is activated. Rule25 expressly retains the existing authored
+  Wheat/Millet80-tick Food adapter in the sole five-kind ledger: one productive
+  Wheat/Millet field per Farm, progress0–79, actual four-portion carts and House
+  consumption with scores20/80; no Original quantity/events/cycle authority.
+  Rice/Cabbage/Soy stay locked and Rule24 admits no Food origin. Rule24/schema40 and all older
+  rules/saves remain exact without migration; a Rule25 writer may overwrite only
+  an existing schema41 target. Current Agriculture new games select25; general
+  defaults remain unchanged. Original work cadence/yields/seasonal parity and
+  native-model city acceptance remain separate evidence gates.
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.
