@@ -1694,6 +1694,7 @@ assets::BuildingVisualProfile SandboxView::core_building_visual_profile() const 
     result.original_building_entries.fill(std::nullopt);
     result.original_building_fallbacks.fill({});result.original_building_prepared=false;
     result.original_field_entries={};result.original_field_prepared=false;
+    result.original_rice_entries={};result.original_rice_mask_offsets={};result.original_rice_prepared=false;
     result.unique_images.resize(building_core_image_count_);
     return result;
 }
@@ -1803,9 +1804,18 @@ bool SandboxView::append_requested_original_building_visuals(assets::BuildingVis
     try {
         const auto available=session_texture_headroom(true,true,false);
         if (!available) throw std::runtime_error("Session RGBA texture budget exhausted");
-        const auto selected_manifest=original_agriculture() && source==VisualProfileSource::Builtin &&
-            manifest.filename()=="original-buildings.json" ?
-            manifest.parent_path()/"original-agriculture-buildings.json":manifest;
+        auto selected_manifest=manifest;
+        if (original_agriculture() && source==VisualProfileSource::Builtin && manifest.filename()=="original-buildings.json") {
+            const auto rice_manifest=manifest.parent_path()/"original-agriculture-rice-buildings.json";
+            std::error_code rice_status_error;
+            const auto status=std::filesystem::symlink_status(rice_manifest,rice_status_error);
+            if (rice_status_error && rice_status_error!=std::errc::no_such_file_or_directory)
+                throw std::runtime_error("Cannot inspect optional Rice metadata: "+rice_status_error.message());
+            // Only an absent newer supplement falls back to the exact old
+            // schema5 file. A present invalid/linked supplement fails atomically.
+            selected_manifest=std::filesystem::exists(status) || std::filesystem::is_symlink(status) ?
+                rice_manifest:manifest.parent_path()/"original-agriculture-buildings.json";
+        }
         assets::append_original_building_visual_profile(data_root_,selected_manifest,profile,*available);
         reason.clear();return true;
     } catch(const std::exception& failure) {
@@ -1827,6 +1837,7 @@ void SandboxView::set_original_building_visuals(const std::filesystem::path& man
     profile.original_building_entries.fill(std::nullopt);
     profile.original_building_fallbacks.fill({});profile.original_building_prepared=false;
     profile.original_field_entries={};profile.original_field_prepared=false;
+    profile.original_rice_entries={};profile.original_rice_mask_offsets={};profile.original_rice_prepared=false;
     auto prefix=building_core_image_count_;
     for (const auto& entry:profile.original_house_entries) if (entry)
         prefix=std::max(prefix,entry->image_index+1);
@@ -1863,8 +1874,24 @@ SandboxView::OriginalBuildingDisplayStats SandboxView::original_building_display
     stats.fallback_reason=original_building_fallback_reason_;stats.preparation_error=original_building_preparation_error_;
     if (stats.configured) for (std::size_t i=0;i<assets::original_building_role_count;++i)
         stats.configured_roles[i]=building_profile_->original_building_entries[i].has_value() ||
-            building_profile_->find_original_field(assets::original_building_visual_identities[i].role,1,0)!=nullptr;
+            building_profile_->find_original_field(assets::original_building_visual_identities[i].role,1,0)!=nullptr ||
+            (assets::original_building_visual_identities[i].role==assets::OriginalBuildingVisualRole::RiceField &&
+             original_agriculture() && building_profile_->find_original_rice(0)!=nullptr);
     stats.drawn_instances=original_building_draws_;stats.authored_fallbacks=original_building_fallbacks_;return stats;
+}
+SandboxView::OriginalRiceDisplayStats SandboxView::original_rice_display_stats() const {
+    OriginalRiceDisplayStats result;
+    if (!world_ || !original_agriculture()) return result;
+    result.configured=building_profile_ && building_profile_->original_building_prepared && building_profile_->original_rice_prepared;
+    result.active=result.configured && building_visuals_active() && building_sprite_;
+    result.prepared_fields=original_rice_visual_count_;
+    result.prepared_preview_cells=original_rice_preview_mask_count_;result.revision=original_field_order_revision_;
+    if (tool_==43 && original_rice_preview_cell_ && original_rice_preview_revision_==world_->road_revision()) {
+        result.preview_cell=original_rice_preview_cell_;result.preview_mask=original_rice_preview_mask_;
+        if (building_profile_) if (const auto* entry=building_profile_->find_original_rice(original_rice_preview_mask_))
+            result.preview_asset=entry->id;
+    }
+    return result;
 }
 SandboxView::OriginalFieldVisualSelection SandboxView::original_field_visual_selection(
         simulation::Cell cell,simulation::Object kind,bool placement_preview) const {
@@ -1873,7 +1900,25 @@ SandboxView::OriginalFieldVisualSelection SandboxView::original_field_visual_sel
     const auto role=original_building_visual_role(kind);
     if (!role || !assets::original_field_role_index(*role)) return result;
     if (original_agriculture() && kind!=simulation::Object::OriginalHempField) {
-        if (kind==simulation::Object::OriginalRiceField) return result;
+        if (kind==simulation::Object::OriginalRiceField) {
+            if (placement_preview) {
+                if (original_rice_preview_cell_!=cell || original_rice_preview_revision_!=world_->road_revision()) return result;
+                result.rice_neighbor_mask=original_rice_preview_mask_;
+                result.entry=building_profile_->find_original_rice(original_rice_preview_mask_);
+                return result;
+            }
+            const auto owner=world_->building_owner_at(cell);
+            if (!owner) return result;
+            const auto& body=world_->building(*owner);
+            if (body.kind!=kind || body.cell!=cell) return result;
+            for (std::size_t index=0;index<original_rice_visual_count_;++index) {
+                const auto& rice=original_rice_visuals_[index];
+                if (rice.id!=*owner || rice.cell!=cell) continue;
+                result.farm=rice.farm;result.rice_neighbor_mask=rice.mask;
+                result.entry=building_profile_->find_original_rice(rice.mask);break;
+            }
+            return result;
+        }
         if (placement_preview) {
             result.stage=0;result.entry=building_profile_->find_original_field(*role,1,0);return result;
         }
@@ -1932,11 +1977,66 @@ const assets::BuildingVisualEntry* SandboxView::original_building_entry(simulati
     return role ? building_profile_->find_original_building(*role,
         static_cast<std::uint8_t>(simulation::building_footprint(rules_,world_->rule_version(),kind).width)):nullptr;
 }
+std::uint8_t SandboxView::original_rice_neighbor_mask(simulation::Cell cell) const {
+    const auto begin=original_rice_preview_masks_.begin();
+    const auto end=begin+static_cast<std::ptrdiff_t>(original_rice_preview_mask_count_);
+    const auto found=std::lower_bound(begin,end,cell,[](const auto& row,simulation::Cell key) {
+        return std::tie(row.cell.y,row.cell.x)<std::tie(key.y,key.x);
+    });
+    return found!=end && found->cell==cell ? found->mask:0;
+}
+void SandboxView::prepare_original_rice_preview() {
+    if (!world_ || !original_agriculture() || !input_focused_ || tool_!=43 || !hovered_ ||
+        help_open_ || budget_warning_ || pending_demolition_ || road_start_ || bridge_start_ || ramp_start_) {
+        original_rice_preview_cell_.reset();original_rice_preview_revision_=UINT64_MAX;return;
+    }
+    if (original_rice_preview_cell_==hovered_ && original_rice_preview_revision_==world_->road_revision()) return;
+    original_rice_preview_mask_=original_rice_neighbor_mask(*hovered_);
+    original_rice_preview_cell_=hovered_;original_rice_preview_revision_=world_->road_revision();
+}
 void SandboxView::prepare_original_field_order(bool force) {
     if (!force && world_ && original_field_order_revision_==world_->road_revision()) return;
     original_field_order_count_=0;
+    original_rice_visual_count_=0;
+    original_rice_preview_mask_count_=0;
+    original_rice_preview_cell_.reset();original_rice_preview_revision_=UINT64_MAX;
     original_field_order_revision_=world_ ? world_->road_revision():UINT64_MAX;
     if (!world_ || !original_production_fixture() || !world_->original_production_state()) return;
+    if (original_agriculture() && world_->original_agriculture_state()) {
+        const auto& fields=world_->original_agriculture_state()->fields;
+        // Reverse each actual Rice neighbor contribution into at most256
+        // candidate cells. No full-grid pass and no hover/frame neighbor read.
+        for (const auto& field:fields) {
+            const auto& body=world_->building(field.field_id);
+            if (body.kind!=simulation::Object::OriginalRiceField) continue;
+            for (std::size_t bit=0;bit<original_rice_neighbor_offsets.size();++bit) {
+                const auto offset=original_rice_neighbor_offsets[bit];
+                const simulation::Cell candidate{body.cell.x-offset.x,body.cell.y-offset.y};
+                if (!world_->in_bounds(candidate)) continue;
+                const auto begin=original_rice_preview_masks_.begin();
+                const auto end=begin+static_cast<std::ptrdiff_t>(original_rice_preview_mask_count_);
+                const auto row=std::lower_bound(begin,end,candidate,[](const auto& item,simulation::Cell key) {
+                    return std::tie(item.cell.y,item.cell.x)<std::tie(key.y,key.x);
+                });
+                if (row!=end && row->cell==candidate) row->mask=static_cast<std::uint8_t>(row->mask | (1U<<bit));
+                else {
+                    if (original_rice_preview_mask_count_==original_rice_preview_masks_.size())
+                        throw std::logic_error("Rice preview topology exceeds its bounded field neighborhood");
+                    std::move_backward(row,end,end+1);
+                    *row={candidate,static_cast<std::uint8_t>(1U<<bit)};++original_rice_preview_mask_count_;
+                }
+            }
+        }
+        for (const auto& field:fields) {
+            if (field.crop!=simulation::AgricultureCrop::Rice || field.quantity!=0 ||
+                original_rice_visual_count_==original_rice_visuals_.size()) continue;
+            const auto& body=world_->building(field.field_id);
+            if (body.kind!=simulation::Object::OriginalRiceField) continue;
+            original_rice_visuals_[original_rice_visual_count_++]={field.field_id,field.farm_id,body.cell,
+                original_rice_neighbor_mask(body.cell)};
+        }
+    }
+    prepare_original_rice_preview();
     const auto flat_key=[&](const simulation::BuildingState& body) {
         const auto front=simulation::building_front_cell(rules_,world_->rule_version(),body.kind,body.cell);
         const double u=double(front.x)-geometry_.border,v=double(front.y)-geometry_.border;
@@ -2013,7 +2113,10 @@ SandboxView::OriginalBuildingVisualDiagnostic SandboxView::original_building_vis
         result.image_origin={result.ground.x-entry->ground_x,result.ground.y-entry->ground_y};
         if (field.entry) {
             result.field_farm=field.farm;result.field_stage=field.stage;result.field_farm_progress=field.progress;
-            result.selection=original_agriculture() && body->kind!=simulation::Object::OriginalHempField ?
+            result.rice_neighbor_mask=field.rice_neighbor_mask;
+            result.selection=field.rice_neighbor_mask ?
+                "Original Rice inactive paddy topology; Original work/season bank unavailable; canonical variation0; production locked":
+                original_agriculture() && body->kind!=simulation::Object::OriginalHempField ?
                 "Original crop images; source quantity selector; production locked; canonical variation0 and authored anchor":
                 "Original crop images; authored six-stage Farm progress mapping; canonical variation0 and authored anchor";
             if (result.active && unified_depth_ && background_.landscape_mode()!=LandscapeDebugMode::Snapshot)
@@ -2040,6 +2143,12 @@ bool SandboxView::append_original_building_visual_diagnostic(std::vector<std::st
     if (!art.applicable) return false;
     const bool agriculture_field=original_agriculture() && art.model_type>=195 && art.model_type<=199;
     const auto append_field_details=[&] {
+        if (art.rice_neighbor_mask && art.field_farm) {
+            lines.push_back("Inactive Rice paddy; growth and harvest remain locked");
+            lines.push_back("Farm #"+std::to_string(static_cast<unsigned>(*art.field_farm)));
+            if (debug_open_) lines.push_back("Rice8-neighbor mask "+std::to_string(*art.rice_neighbor_mask)+"; variation0");
+            return;
+        }
         if (!art.field_stage || !art.field_farm) return;
         lines.push_back("Field visual stage "+std::to_string(*art.field_stage+1)+
             (agriculture_field ? "/6 (quantity selector)":"/6 (authored)"));
@@ -2053,7 +2162,7 @@ bool SandboxView::append_original_building_visual_diagnostic(std::vector<std::st
             lines.push_back("Complex adjacent ordering; historical painter retained");
     };
     if (!debug_open_) {
-        lines.push_back(art.active ? art.field_stage ? agriculture_field ?
+        lines.push_back(art.active ? art.rice_neighbor_mask ? "Art: original inactive Rice paddy":art.field_stage ? agriculture_field ?
             "Art: original crop image; quantity selector":"Art: original crop image; authored growth":
             "Art: original static image":"Art: authored fallback");
         append_field_details();
@@ -2066,7 +2175,7 @@ bool SandboxView::append_original_building_visual_diagnostic(std::vector<std::st
         lines.push_back("SG3 "+art.asset->archive_relative_path.generic_string()+" #"+std::to_string(art.asset->image_index));
         lines.push_back("Image "+std::to_string(art.image_width)+"x"+std::to_string(art.image_height));
         lines.push_back("Anchor "+std::to_string(art.ground_x)+","+std::to_string(art.ground_y));
-        if (art.field_stage && art.field_farm) {
+        if ((art.field_stage || art.rice_neighbor_mask) && art.field_farm) {
             append_field_details();
         } else lines.push_back("Evidence: registered static base; authored anchor");
     }
@@ -3266,6 +3375,7 @@ void SandboxView::refresh_ramp_visual_topology() {
     visual_frame_valid_=false;
 }
 void SandboxView::cancel_gesture() {
+    original_rice_preview_cell_.reset();original_rice_preview_revision_=UINT64_MAX;
     pressed_button_.reset();
     pressed_building_.reset();
     pressed_land_trade_action_.reset();
@@ -3604,6 +3714,7 @@ void SandboxView::refresh_hover(bool force_road_plan) {
     performance::ScopedTimer timer(performance::Timing::HoverPicking);
     hovered_=pointer_ ? pick(*pointer_) : std::nullopt;
     hover_dirty_=false;
+    prepare_original_rice_preview();
     if(ramp_start_) {
         if(!hovered_) {
             const bool clear_preview=ramp_topology_.has_preview();

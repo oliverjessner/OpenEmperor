@@ -258,18 +258,79 @@ these instructions or from similarly named FarmConfig entries. The original
 x87 arithmetic and rounding require their own bounded differential controls
 before exact output quantities are implemented.
 
-Rice197 also has a separate topology publisher: `0x4c2360` dispatches to an
-eight-neighbor same-type query at `0x4c22c0`, uses source variation and additional
-Farm/work/calendar conditions. Reusing the six ordinary field images or the
-current parent-Farm80-tick stage mapping does not reconstruct Rice state.
-The checked publisher adds48 to its topology/variation image only with an
-actual matching Farm, a successful Farm virtual`+0x1b4` operation query and a
-current growing or end slot. The separate draw routine`0x4c24d0` requires a
-retained Rice image in that additional bank and reads quantity to choose
-`min(4,percent/20)` for up to nine smaller components from group`0x49d`.
-The topology masks, component positioning and complete overlay preparation
-must be recovered together; a group identity alone does not prove one ordinary
-field sprite per growth stage.
+### Rice paddy topology and the inactive base
+
+Rice197 has a separate base publisher at `0x4c2360`; it is not one of the six
+ordinary quantity images. The checked query `0x4c22c0` visits eight source-grid
+neighbors in this order: N, NE, E, SE, S, SW, W, NW. Their source-cell offsets
+are −228, −227, +1, +229, +228, +227, −1 and −229. Each neighbor must have a
+nonzero retained object ID whose actual manager object has signed model type197
+at `+0x14`. There is no same-Farm, quantity, staffing, operation, calendar or
+terrain test in this neighbor query. Thus adjacent Rice fields can join across
+Farm ownership or pause state. Rendering never grants that field or parent.
+
+The publisher passes the eight booleans, the actual nonnegative source-cell
+variation byte and a forward-search flag to `0x4bbdc0`. The source Rice selector
+at `0x84c098` consists of47 records of20 bytes. Startup `0x4b05c9` calls
+`0x4bc090` to compile the records' present/absent/wildcard predicates; the mask
+words in the file itself are zero. Every one of the256 neighbor masks matches
+exactly one record. View values0/2/4/6 select four orientations; their effect
+is rotation of the input mask by0/2/4/6 bits. Nonnegative source variation is
+reduced modulo the matched variation count. All records have count1 except the
+fully surrounded record, which has count2. Thus all views and variations reach
+offsets0–47 of group`0x42d`; canonical view0 and variation0 reach exactly0–46.
+
+`assets::rice_inactive_topology_offset` independently expresses these predicates
+as Boolean topology classes, without embedding the Original selector table.
+Bits0–7 follow the neighbor order above. Write B(i) for bit i modulo8 and let
+r range0–3, starting at N and turning clockwise through the cardinal directions:
+
+- No cardinal neighbors selects0; one cardinal at2r selects1+r.
+- Two opposite cardinals select13 for N/S or14 for E/W. Two adjacent cardinals
+  at2r and2r+2 select5+r, plus4 when their intervening diagonal B(2r+1) exists.
+- Three consecutive cardinals starting at2r use their two intervening diagonals
+  a=B(2r+1), b=B(2r+3). Select15+r when neither exists,19+r for a alone,23+r for
+  b alone, or42+r for both.
+- With all four cardinals, no diagonals selects27. One diagonal at2r+1 selects
+  30+(r+2 modulo4). Two opposite diagonals select28 for NE/SW or29 for SE/NW;
+  two adjacent diagonals starting at2r+1 select34+(r+3 modulo4). Three diagonals
+  with the r-th missing select38+(r+1 modulo4). All four diagonals select46
+  for canonical variation0; the alternative source variation selects47.
+
+A diagonal affects the result only when both adjacent cardinals are present.
+The private static proof independently evaluated the source predicates and
+checked all256 masks ×4 views ×256 source variation bytes:262,144 exact matches,
+with all47 canonical offsets reached. The receipt and bounded disassembly stay
+under ignored `.local/agri-02/rice-visual-proof/`; none is shipped or committed.
+
+The publisher resolves group`0x42d` and adds48 only if an actual matching Farm
+exists, its virtual`+0x1b4` returns nonzero, and the field is in a source growing
+slot or its source end slot. The checked Farm query `0x428ed0` computes integer
+`100*assigned/configured` from the actual assigned count and configured Employees,
+with a retained operation veto and a nonpositive-need refusal. This is not a
+full-staff test. The base publisher never queries field quantity. Consequently
+**quantity0 alone does not establish bank0**. Canonical bank0 is an explicitly
+selected inactive source-context representative, not a claim that current
+OpenEmperor staff, work or calendar state reproduces the Original bank decision.
+The unclosed production clock above remains unclosed.
+
+The separate draw routine `0x4c24d0` first queries quantity percentage and emits
+no overlay at percentage≤0. Positive overlays additionally require a retained
+base image at or beyond group`0x42d`+48, then choose `min(4,percent/20)` and up to
+nine smaller components from group`0x49d`. Quantity0 therefore supports absence
+of the overlay independently of the inactive-base choice. Positive overlay
+positioning, complete preparation and active-state reproduction remain unsupported.
+
+The pinned `China_General.sg3` header admits the entire96-image base range
+2506–2601; the canonical47 entries are2506–2552. Every checked entry is native
+width78, height40–46, Type30, base data length3200, animation count/offsets0,
+unmirrored, internal and without an alpha plane. The existing shared Type30
+ground anchor `(39,height−20)` is an **AUTHORED** projection convention; zero
+animation offsets do not prove an Original ground pivot. Native dimensions
+must be retained and complete production decoding must still succeed.
+The private proof pins SHA-256, size, mode and modification time before and
+after its read-only investigation for Emperor.exe, China_General.sg3 and its
+paired555. All guards are unchanged; the Original executable was not run.
 
 The separately prepared Cabbage198 and Soybean199 native metadata is checked
 against user-supplied `DATA/China_General.sg3`, SHA-256

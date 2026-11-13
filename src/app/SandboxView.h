@@ -275,6 +275,15 @@ public:
         std::array<std::uint64_t,assets::original_building_role_count> drawn_instances{},authored_fallbacks{};
     };
     OriginalBuildingDisplayStats original_building_display_stats() const;
+    struct OriginalRiceDisplayStats {
+        bool configured=false,active=false;
+        std::size_t prepared_fields=0,prepared_preview_cells=0;
+        std::uint64_t revision=UINT64_MAX;
+        std::optional<simulation::Cell> preview_cell;
+        std::optional<std::uint8_t> preview_mask;
+        std::optional<assets::AssetId> preview_asset;
+    };
+    OriginalRiceDisplayStats original_rice_display_stats() const;
     struct OriginalBuildingVisualDiagnostic {
         bool applicable=false,configured=false,active=false;
         assets::OriginalBuildingVisualRole role=assets::OriginalBuildingVisualRole::WaterWell;
@@ -286,6 +295,7 @@ public:
         scene::Point ground{},image_origin{};
         std::optional<simulation::BuildingId> field_farm;
         std::optional<std::uint8_t> field_stage;
+        std::optional<std::uint8_t> rice_neighbor_mask;
         int field_farm_progress=0;
         bool field_order_adjusted=false,field_order_ambiguous=false;
         std::optional<scene::WorldDrawKey> field_painter_key;
@@ -585,11 +595,14 @@ private:
         std::optional<simulation::BuildingId> farm;
         std::optional<std::uint8_t> stage;
         int progress=0;
+        std::optional<std::uint8_t> rice_neighbor_mask;
         const assets::BuildingVisualEntry* entry=nullptr;
     };
     OriginalFieldVisualSelection original_field_visual_selection(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
     void prepare_original_field_order(bool force=false);
+    std::uint8_t original_rice_neighbor_mask(simulation::Cell cell) const;
+    void prepare_original_rice_preview();
     const assets::BuildingVisualEntry* original_building_entry(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
     const assets::BuildingVisualEntry* resolved_building_entry(simulation::Cell cell,
@@ -841,6 +854,26 @@ private:
     std::array<OriginalFieldOrder,simulation::agriculture_field_limit+2> original_field_order_{};
     std::size_t original_field_order_count_=0;
     std::uint64_t original_field_order_revision_=UINT64_MAX;
+    // Inactive Rice topology is disposable presentation state. Only paid
+    // Rice objects join; no neighbor query or source decode occurs in render.
+    struct OriginalRiceVisual {
+        simulation::BuildingId id{},farm{};
+        simulation::Cell cell{};
+        std::uint8_t mask=0;
+    };
+    std::array<OriginalRiceVisual,simulation::agriculture_field_limit> original_rice_visuals_{};
+    std::size_t original_rice_visual_count_=0;
+    struct OriginalRicePreviewMask {
+        simulation::Cell cell{};
+        std::uint8_t mask=0;
+    };
+    // Each of the32 paid fields contributes at most eight possible preview
+    // neighbors. Every other cell necessarily has mask0, without a map scan.
+    std::array<OriginalRicePreviewMask,simulation::agriculture_field_limit*8> original_rice_preview_masks_{};
+    std::size_t original_rice_preview_mask_count_=0;
+    std::optional<simulation::Cell> original_rice_preview_cell_;
+    std::uint8_t original_rice_preview_mask_=0;
+    std::uint64_t original_rice_preview_revision_=UINT64_MAX;
     bool building_enabled_=true;
     std::array<std::uint64_t,assets::building_role_count> building_drawn_instances_{};
     std::array<std::uint64_t,assets::building_role_count> building_placeholder_fallbacks_{};

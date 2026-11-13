@@ -155,9 +155,12 @@ cannot grant quality or service. Inspection names these choices.
 
 Cabbage/Soy field groups and six quantity-based source stages are prepared in
 the separately selected schema5 visual profile. Quantity→stage selection in this
-adapter is authored. Rice's neighbor-dependent topology and quantity overlays
-are not yet fully prepared; its explicit authored fallback does not suggest
-verified native rice growth art. No original pixels enter the repository.
+adapter is authored. The separate schema6 supplement adds47 native Rice paddy
+bases with verified eight-neighbor topology and canonical variation0. They are
+explicit inactive/unworked representatives: Original staffed/seasonal bank
+selection and quantity overlays remain unavailable. Drawing supplies no clock,
+growth or harvest authority. Schemas1–5 retain their exact selections and Rice
+fallback. No original pixels or private selector tables enter the repository.
 
 Save/load, F5/F9 and Recovery require exact schema40, mode/catalog markers,
 full source/model identities, five-column records, complete paid identities,

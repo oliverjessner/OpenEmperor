@@ -83,6 +83,8 @@ inline constexpr std::array agriculture_field_roles{OriginalBuildingVisualRole::
 inline constexpr std::size_t original_all_field_role_count=original_field_role_count+agriculture_field_roles.size();
 inline constexpr std::size_t original_field_stage_count=6;
 inline constexpr const char* agriculture_field_selection_contract="source-quantity-canonical-no-variation-v1";
+inline constexpr const char* rice_inactive_field_selection_contract="source-inactive-rice-topology-canonical-0-v1";
+inline constexpr std::size_t rice_inactive_tile_count=47;
 inline constexpr const char* original_field_selection_contract="authored-farm-progress-six-canonical-0-v1";
 constexpr std::optional<std::size_t> original_field_role_index(OriginalBuildingVisualRole role) {
     for (std::size_t index=0;index<original_field_roles.size();++index)
@@ -147,6 +149,20 @@ struct BuildingVisualProfile {
     // Schema3 and later; distinct from historical static-body selection.
     bool original_field_prepared=false;
     std::array<std::array<std::optional<BuildingVisualEntry>,original_field_stage_count>,original_all_field_role_count> original_field_entries;
+    // Schema6's inactive, unworked representative only. This mask index is
+    // derived during asset preparation; no source table or work clock is saved.
+    bool original_rice_prepared=false;
+    std::array<std::optional<BuildingVisualEntry>,rice_inactive_tile_count> original_rice_entries{};
+    std::array<std::uint8_t,256> original_rice_mask_offsets{};
+    const BuildingVisualEntry* find_original_rice(std::uint8_t neighbor_mask,
+            std::uint8_t actual_side=1,std::uint32_t quantity=0) const {
+        if (!original_building_prepared || !original_rice_prepared || actual_side!=1 || quantity!=0)
+            return nullptr;
+        const auto offset=original_rice_mask_offsets[neighbor_mask];
+        if (offset>=original_rice_entries.size()) return nullptr;
+        const auto& entry=original_rice_entries[offset];
+        return entry && entry->footprint_side==actual_side ? &*entry:nullptr;
+    }
     const BuildingVisualEntry* find_original_field(OriginalBuildingVisualRole role,
             std::uint8_t actual_side,std::uint8_t stage) const {
         const auto index=original_field_role_index(role);

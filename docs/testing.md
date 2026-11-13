@@ -69,6 +69,11 @@ staff/pause/fire/calendar non-production and hostile production/quality authorit
 `original-agriculture-presentation` drives explicit SDL menu/tools/F5/F9 and
 verifies the visible production lock and pure rendering. These are automated
 checks, not native human acceptance or complete agriculture gameplay.
+Its Rice cases exercise prepared eight-neighbor connectivity, source sprites,
+placement/cancel, alpha picking, F4 comparison and F5/F9 without production.
+The building-profile tests qualify the separate schema6 inactive Rice atlas,
+all256 mask selections, native RGBA/anchors, atomic malformed-input refusal and
+the unchanged historical schemas1–5 and combined64 MiB budget.
 
 `food-batch-arithmetic` covers independently authored1/3/5/16-kind arithmetic,
 canonical physical portions, weighted scores and checked overflow. Historical
@@ -76,7 +81,7 @@ Food World/save, deadline Food, market, goods, housing, movement, Recovery and
 all-generation checks must still pass. Repeat focused checks in Debug and
 ASan/UBSan (disable unsupported macOS LeakSanitizer explicitly).
 
-The checked AGRI-02 foundation boundary passes 330/330 Release tests and eight
+The AGRI-02 foundation baseline passed 330/330 Release tests and eight
 focused unique cases in both Debug and ASan/UBSan, including targeted reruns
 after correcting a test iterator and adding historical-save overwrite refusal.
 LeakSanitizer is disabled on macOS. The unchanged core comparison passes 74/74
@@ -86,6 +91,12 @@ four indexes across schemas1–39 (3,184,025 literal bytes) against both protect
 reference sets. All 1,558 protected Original/earned inputs retain bytes, size,
 mode and mtime. These results establish the closed production boundary and
 historical controls; actual new crop production and human acceptance remain open.
+The Rice presentation refinement passes ten related Release graphics cases,
+the explicit Original-asset SDL scene run and two focused ASan/UBSan cases
+(LeakSanitizer disabled). Its five native 2× scene captures were opened and
+inspected. This uses authored map/model inputs and fingerprinted Original pixels;
+it is separate from a native human playtest. Simulation and persistence code,
+the schema5 resource and historical visual selections remain unchanged.
 
 Full CTest is separate from literal historical schema1–39 document comparisons
 and paid creator/restore continuations. Use small fresh ignored outputs and

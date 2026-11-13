@@ -1,6 +1,7 @@
 #include "assets/BuildingVisualProfile.h"
 #include "assets/OriginalVisualProfileInternal.h"
 #include "assets/Sg3ImageLoader.h"
+#include "assets/RiceFieldTopology.h"
 #include "maps/ResourceGroupLookup.h"
 #include <map>
 
@@ -62,11 +63,12 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
     if (fs::is_symlink(fs::symlink_status(manifest,error)) || error)
         reader.fail("metadata missing or linked");
     const auto json=reader.read_manifest(manifest);
-    const auto schema=reader.number(json,"schema_version",5);
-    if (schema>=5) reader.keys(json,{"schema_version","mode","selection","anchor_policy","field_selection","agriculture_field_selection","evidence","files","buildings"});
+    const auto schema=reader.number(json,"schema_version",6);
+    if (schema==6) reader.keys(json,{"schema_version","mode","selection","anchor_policy","field_selection","agriculture_field_selection","rice_selection","evidence","files","buildings"});
+    else if (schema>=5) reader.keys(json,{"schema_version","mode","selection","anchor_policy","field_selection","agriculture_field_selection","evidence","files","buildings"});
     else if (schema>=3) reader.keys(json,{"schema_version","mode","selection","anchor_policy","field_selection","evidence","files","buildings"});
     else reader.keys(json,{"schema_version","mode","selection","anchor_policy","evidence","files","buildings"});
-    if ((schema!=1 && schema!=2 && schema!=3 && schema!=4 && schema!=5) || reader.string(json,"mode")!="original_building_bases" ||
+    if ((schema!=1 && schema!=2 && schema!=3 && schema!=4 && schema!=5 && schema!=6) || reader.string(json,"mode")!="original_building_bases" ||
         reader.string(json,"selection")!="canonical_static_base" || reader.string(json,"anchor_policy")!="type30_front_cell")
         reader.fail("unsupported schema, selection or anchor policy");
     (void)reader.string(json,"evidence");
@@ -74,6 +76,8 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
         reader.fail("unsupported authored field selection");
     if (schema>=5 && reader.string(json,"agriculture_field_selection")!=agriculture_field_selection_contract)
         reader.fail("unsupported Agriculture field selection");
+    if (schema==6 && reader.string(json,"rice_selection")!=rice_inactive_field_selection_contract)
+        reader.fail("unsupported inactive Rice topology selection");
     if (!json.contains("files") || !json.at("files").is_array() || json.at("files").size()!=2)
         reader.fail("exactly two General asset fingerprints required");
     std::map<fs::path,fs::path> verified;
@@ -101,6 +105,8 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
     candidate.original_building_fallbacks={};
     candidate.original_field_entries={};
     candidate.original_field_prepared=false;
+    candidate.original_rice_prepared=false;
+    candidate.original_rice_entries={};candidate.original_rice_mask_offsets={};
     std::array<bool,original_building_role_count> seen{};
     // One source/layout/decoder path for historical bodies and explicit field
     // stages. Field offsets0..5 stay inside the existing group_variant bound.
@@ -126,7 +132,14 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
         entry.ground_x=static_cast<double>(40U*side-1U);entry.ground_y=static_cast<double>(height-20U);
         entry.footprint_side=static_cast<std::uint8_t>(side);entry.evidence=evidence;
         const auto resolution=maps::resolve_resource_group({static_cast<std::uint32_t>(group)},{{2,{&*layout}}});
-        const auto packed=resolution.packed_base ? maps::group_variant(*resolution.packed_base,offset):std::nullopt;
+        auto packed=resolution.packed_base ? maps::group_variant(*resolution.packed_base,offset):std::nullopt;
+        // Rice's verified47-member topology atlas is separate from the map
+        // writer's three-bit variation contract. Keep group_variant exact.
+        if (schema==6 && group==0x42dU && offset<rice_inactive_tile_count && resolution.packed_base) {
+            const auto packed_base_value=resolution.packed_base->value;
+            if (!(packed_base_value&0x80000000U) && (packed_base_value&0x3fffU)<=0x3fffU-offset && packed_base_value<=UINT32_MAX-offset)
+                packed=maps::PackedGraphicId{packed_base_value+offset};
+        }
         const auto resolved=packed ? layout->physical_record_for_local(packed->value & 0x3fffU):std::nullopt;
         if (resolution.status!=maps::GroupLookupStatus::Resolved || !resolved || *resolved!=physical)
             reader.fail("Original building physical record differs from registered group/selected offset");
@@ -170,6 +183,8 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
             if (!row.contains("native") || !row.at("native").is_boolean()) reader.fail("explicit native/fallback selection required");
             native=row.at("native").get<bool>();
             if (!native) reader.keys(row,{"model_type","original_side","native","fallback","evidence"});
+            else if (schema==6 && *role==OriginalBuildingVisualRole::RiceField)
+                reader.keys(row,{"model_type","original_side","native","fallback","archive","group_key","tiles","evidence"});
             else if (schema>=3 && field_index)
                 reader.keys(row,{"model_type","original_side","native","fallback","archive","group_key","stages","evidence"});
             else reader.keys(row,{"model_type","original_side","native","fallback","archive","image_index","width","height","base_bytes","ground_anchor","group_key","variant","evidence"});
@@ -179,6 +194,26 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
         candidate.original_building_fallbacks[index]=reader.string(row,"fallback");
         if (!native) {
             (void)reader.string(row,"evidence");
+            continue;
+        }
+        if (schema==6 && *role==OriginalBuildingVisualRole::RiceField) {
+            const auto group=reader.number(row,"group_key",0x7fffffffU);
+            if (group!=identity.group_key) reader.fail("Rice topology/group mismatch");
+            const auto archive_path=reader.relative(reader.string(row,"archive",4096));
+            const auto evidence=reader.string(row,"evidence");
+            if (!row.contains("tiles") || !row.at("tiles").is_array() || row.at("tiles").size()!=rice_inactive_tile_count)
+                reader.fail("exactly47 ordered inactive Rice topology tiles required");
+            for (std::size_t offset=0;offset<rice_inactive_tile_count;++offset) {
+                const auto& image=row.at("tiles")[offset];
+                reader.keys(image,{"offset","image_index","width","height","base_bytes","ground_anchor"});
+                if (reader.number(image,"offset",rice_inactive_tile_count-1)!=offset)
+                    reader.fail("inactive Rice tiles require canonical ordered offsets0..46");
+                candidate.original_rice_entries[offset]=read_entry(image,side,group,
+                    static_cast<std::uint32_t>(offset),archive_path,evidence,false);
+            }
+            for (std::size_t mask=0;mask<candidate.original_rice_mask_offsets.size();++mask)
+                candidate.original_rice_mask_offsets[mask]=rice_inactive_topology_offset(static_cast<std::uint8_t>(mask));
+            candidate.original_rice_prepared=true;
             continue;
         }
         if (schema>=3 && field_index) {
