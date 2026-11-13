@@ -1,5 +1,6 @@
 #include "AgricultureFixture.h"
 #include "persistence/RecoveryStore.h"
+#include "simulation/original/OriginalModelMapping.h"
 
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -8,6 +9,7 @@ namespace {
 namespace q=oe_agriculture_fixture;
 namespace f=oe_influence_fixture;
 namespace sim=openemperor::simulation;
+namespace orig=openemperor::original;
 namespace save=openemperor::persistence;
 namespace fs=std::filesystem;
 using Json=nlohmann::json;
@@ -35,6 +37,97 @@ std::string roundtrip(const q::Fixture& fixture,const sim::World& world,const fs
         check(restored.snapshot()==expected.snapshot(),"Schema40 construction/calendar/House replay diverged");
     }
     return bytes;
+}
+void raw_orchard_row_does_not_admit_a_building_or_fruit() {
+    q::Fixture fixture;
+    const auto baseline=orig::parse_model_data(q::authored_model());
+    check(static_cast<bool>(baseline) && !baseline.model->has_building({29}),
+          "Authored baseline unexpectedly contains model29");
+    const auto baseline_agriculture=fixture.model;
+    const auto baseline_production=save::prepare_original_production_rules_model(fixture.root.data);
+    auto text=q::authored_model();const auto section=text.find("HOUSE MODS\n");
+    check(section!=std::string::npos,"Authored model section missing");
+    // Independent synthetic metadata, deliberately unrelated to source prices
+    // and staffing. A retained raw label/column is not named gameplay authority.
+    text.insert(section,"29,Orchard Shed,{,137,0,0,0,0,7,0,0,0,0,0,0,0,},,,\n");
+    const auto model_path=fixture.root.data/"Model/EmperorBuildingModels.txt";
+    f::write_text(model_path,text);const auto raw=orig::load_model_data(fixture.root.data);
+    check(static_cast<bool>(raw) && raw.model->building_count()==baseline.model->building_count()+1 &&
+          raw.model->has_building({29}) && raw.model->building_label({29})=="Orchard Shed" &&
+          raw.model->building({29},orig::BuildingField::Cost)==137 &&
+          raw.model->building({29},orig::BuildingField::Employees)==7,
+          "Generic sparse model reader discarded or reinterpreted authored model29");
+    const auto production=save::prepare_original_production_rules_model(fixture.root.data);
+    fixture.model=save::prepare_original_agriculture_rules_model(fixture.root.data);
+    const auto unnamed=static_cast<orig::ModelBuilding>(29);
+    for(const auto& prepared:{production,fixture.model}) {
+        check(!prepared->supports_building(unnamed),"Raw model29 widened a prepared gameplay capability");
+        refuses([&]{(void)prepared->building_value(unnamed,orig::BuildingField::Cost);},
+                "Raw model29 acquired a named construction price");
+    }
+    refuses([&]{(void)orig::raw_building_value(*raw.model,unnamed,orig::BuildingField::Cost);},
+            "Generic raw model29 bypassed the named model schema");
+    const std::array bindings{
+        std::pair{sim::Object::OriginalTeaBush26,orig::ModelBuilding::TeaBush},
+        std::pair{sim::Object::OriginalLacquerTree27,orig::ModelBuilding::LacquerTree},
+        std::pair{sim::Object::OriginalMulberryTree28,orig::ModelBuilding::MulberryTree}};
+    for(const auto& [object,named]:bindings) {
+        const auto id=orig::model_id(named);
+        check(raw.model->building_label(id)==baseline.model->building_label(id) &&
+              orig::functional_model_candidate(object,24).candidate==named,
+              "Raw model29 changed an existing plant label or functional binding");
+        for(std::size_t column=0;column<orig::building_field_count;++column) {
+            const auto field=static_cast<orig::BuildingField>(column);
+            check(raw.model->building(id,field)==baseline.model->building(id,field) &&
+                  production->building_value(named,field)==baseline_production->building_value(named,field) &&
+                  fixture.model->building_value(named,field)==baseline_agriculture->building_value(named,field),
+                  "Raw model29 reinterpreted model26/27/28 source or prepared values");
+        }
+    }
+    check(sim::agriculture_crop_count==5 &&
+          std::string_view(sim::agriculture_catalog)=="wheat7-millet5-rice6-cabbage3-beancurd1-v1",
+          "A generic Orchard label widened the five-crop Food catalog");
+
+    auto world=fixture.world();const auto scene=q::build(world);
+    const auto path=fixture.root.path/"orchard-negative40.json";
+    const auto bytes=roundtrip(fixture,world,path);const auto canonical=Json::parse(bytes);
+    const auto before=world.snapshot();const auto source=f::read_text(fixture.root.data/f::map_relative);
+    const auto invalid=fixture.root.path/"fruit-hostile40.json";
+    const auto unchanged=[&] {
+        check(f::read_text(path)==bytes && world.snapshot()==before &&
+              f::read_text(model_path)==text && f::read_text(fixture.root.data/f::map_relative)==source,
+              "Refused Fruit authority changed save, World identities/funds or source bytes");
+    };
+    const auto reject_json=[&](auto edit) {
+        auto hostile=canonical;edit(hostile);const auto hostile_bytes=hostile.dump();
+        f::write_text(invalid,hostile_bytes);
+        refuses([&]{(void)save::read_save(invalid);},"Schema40 admitted a sixth or unknown Food category");
+        refuses([&]{save::write_save(invalid,fixture.document(world),fixture.root.data,fixture.mask());},
+                "Agriculture silently replaced a save with unsupported Food authority");
+        check(f::read_text(invalid)==hostile_bytes,"Refused overwrite changed hostile target bytes");
+        unchanged();
+    };
+    // Every stock column must retain its exact width; no sixth value may be
+    // truncated, converted into one of the five crops or accepted as Fruit.
+    for(const auto* column:{"amounts","received","departed","returned","consumed"})
+        reject_json([&](auto& json){json["world"]["agriculture"]["stocks"][0][column].push_back(1);});
+    reject_json([](auto& json){json["world"]["agriculture"]["fields"][0]["crop"]=5;});
+    reject_json([](auto& json){json["world"]["agriculture"]["fields"][0]["crop"]="Fruit";});
+    reject_json([](auto& json){json["world"]["agriculture"]["stocks"][0]["Fruit"]=1;});
+    reject_json([](auto& json){json["world"]["agriculture"]["catalog"]=
+        "wheat7-millet5-rice6-cabbage3-beancurd1-fruit29-v1";});
+    for(const auto crop:{static_cast<sim::AgricultureCrop>(5),sim::AgricultureCrop::Soybean}) {
+        auto malformed=fixture.document(world);malformed.world.agriculture->fields.front().crop=crop;
+        refuses([&]{(void)fixture.restore(malformed);},"Full restore admitted an unknown or relabelled crop");
+        refuses([&]{save::write_save(path,malformed,fixture.root.data,fixture.mask());},
+                "Unknown or relabelled crop reached atomic publication");
+        unchanged();
+    }
+    const auto restored=fixture.restore(save::read_save(path));
+    check(restored.snapshot()==before && q::field(restored,scene.cabbage_field).crop==sim::AgricultureCrop::Cabbage &&
+          q::field(restored,scene.soy_field).crop==sim::AgricultureCrop::Soybean &&
+          restored.original_production_state()->food==sim::OriginalFoodState{},
+          "Raw model29 or rejected Fruit input changed paid crop or historical Food identity");
 }
 void identity_and_canonical_hostile_json() {
     q::Fixture fixture;auto world=fixture.world();
@@ -165,6 +258,7 @@ void construction_clock_gate_recovery_and_atomic_refusals() {
 } // namespace
 int main() {
     try {
+        raw_orchard_row_does_not_admit_a_building_or_fruit();
         identity_and_canonical_hostile_json();construction_clock_gate_recovery_and_atomic_refusals();
         std::cout<<"Agriculture schema40 construction/proof-gate/source/recovery tests passed\n";return 0;
     }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}

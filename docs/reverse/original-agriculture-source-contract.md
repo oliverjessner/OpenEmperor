@@ -463,22 +463,93 @@ SHA-256, size, mode and mtime. Original execution, complete construction admissi
 World-time mapping, tonnage, all-season operation and live parity are not claimed.
 Raw disassembly, source bytes and intermediate queries remain private.
 
-### Orchard Shed29 is not a proven additional producer
+### Model29 is a submenu marker, not an Orchard producer
 
-**MODEL_OBSERVED:** row29 is named `Orchard Shed`; its model label and existing raw
-Cost/Employees observations remain available for inspection. **EXE_OBSERVED:**
-its registered initial side byte at `0x823598 + 24*29` is zero. The field-family
-predicate `0x4c11b0` resolves only194–199 and26–28 through its three helpers. The
-independent Farm/Orchard-hold predicate `0x4c2930` accepts192/193/237/238/239,
-not29; actual Farm/Orchard-hold creation is `0x51c6ad→0x4c2960`. This is not a
-complete classification of every caller or UI remapping of29.
+**MODEL_OBSERVED:** row29 is named `Orchard Shed`, with raw Cost30 and Employees10.
+Those text fields do not prove a purchasable producer, final price or footprint.
+The fresh bounded identity proof is retained under ignored
+`.local/agri-03/orchard-proof/`. It checks39 windows /2,673 decoded instruction
+lines /7,106 overlapping instruction bytes against the pinned EXE with zero
+mismatches. EXE, model and FarmConfig SHA-256, sizes, modes and modification times
+remain unchanged; the Original executable is not run.
 
-**UNKNOWN:** whether29 is a historical/menu/construction alias, how an original
-UI selection of29 becomes a concrete placed source, and any independent29
-footprint, crop, fruit commodity, yield or lifetime. It must not silently become a
-fourth equivalent of237/238/239. The existing concrete Tea/Lacquer/RawSilk sheds
-and their paid plant/actor-return contracts remain separate. No fruit food or
-new paid generic orchard is inferred from the English label.
+**EXE_OBSERVED:** the definition at `0x823598+24*29` has initial side0 and body
+group0. Its final definition field is97, also present for237/238/239, but that
+shared field does not alias the runtime type or supply those producers' bodies.
+The concrete237/238/239 definitions instead have side2 and distinct body groups.
+The shared initializer `0x428aa0` preserves the requested model type at object
+`+0x14` and copies the registered side into object`+0x07`; it contains no29-to237–239
+conversion. The model's `SZE` desirability column must not replace this side.
+
+**EXE_OBSERVED:** the UI submenu mapper`0x403c80` positively assigns29 to menu30:
+the type29 selector byte at`0x403db8+(29−24)` chooses the branch`0x403cad`,
+which returns30. The generic selection path loads its candidate tool type at
+`0x4046c7–0x4046d9`, calls that mapper at`0x404731`, and handles its nonnegative
+result by setting submenu30 at`0x40473d`, clearing the selected construction type
+at`0x40475a` and returning before producer selection. Menu30's concrete options1–3
+at`0x822064/0x822068/0x82206c` are238/239/237. This proves submenu semantics for29
+on this path; it does not convert29 into an independently placed Orchard or
+Fruit producer. The ordinary menu-table matches for the value29 lie in special
+trade categories7/19, whose values undergo partner lookup rather than literal
+building selection. They do not independently prove current ordinary-menu
+reachability of29. The fresh UI captures remain private under
+`.local/agri-03/orchard-visual-proof/`.
+
+For an explicitly supplied type29, the checked normal manager path
+`0x42d360→0x51c660` selects the broad Industrial family. Every specialized
+Industrial predicate rejects29, including the field-family predicate
+`0x4c11b0` and the Farm/Orchard predicate `0x4c2930`. The latter accepts exactly
+192/193/237/238/239, and its constructor `0x4c2960` also excludes29. The actual
+type29 path reaches the generic fallback `0x51c96f→0x51c9a0`, whose published
+vtable`0x7b65e4` is qualified by RTTI as `cIndustrialBldg`. Its update slot`+0x20`
+points to `0x428f00`, a literal false-returning no-op. The next RTTI table boundary
+is at`+0x25c`; this generic class has none of the Farm extension slots
+`+0x260/+0x264/+0x268`. Reading through that boundary as though29 were a Farm
+would incorrectly attribute another class's methods to it.
+
+The actual Orchard factory case for237/238/239 instead calls
+`0x4c2a19→0x4c5cc0`, publishing RTTI-qualified `cOrchardHold` at`0x7af95c`.
+It has update`+0x20→0x4c5310` and actual harvest-return receipt
+`+0x268→0x4c2e50`. These are distinct concrete objects, not aliases obtained
+by constructing29. Their existing Tea/Lacquer/RawSilk plant and physical-return
+contracts remain separate;26/27/28 must not be relabeled as fruit plants.
+
+**SOURCE_VERIFIED — shipped manual, printed pp.45–46:** the Orchard section
+describes Tea Curing Sheds with Tea Bushes, Lacquer Refineries with Lacquer Trees,
+and Silkworm Sheds with Mulberry Trees. Their products are tea, lacquer and raw
+silk; these pages describe no edible Fruit product. This independently
+corroborates the three material chains above, without establishing a purchasable
+model29 producer or any World-tick timing. The read-only `EmperorManual.pdf`
+is9,766,732 bytes, SHA-256
+`b785835967acafeca73162bc21e351ed8bb0ac5fcbe96fab405d8b3fb5174fad`;
+its size, mode and modification time remain unchanged during this check.
+
+**SOURCE_VERIFIED / EXE_OBSERVED:** an independent read-only commodity audit
+checks all29 name pointers at`0x872030` (IDs0–28) against all29 named
+`Model/Trade.txt` DefaultPrices rows. Neither catalog contains a Fruit resource.
+The actual field-output selector`0x4c18c0` maps26/27/28 to Tea13/Lacquer14/RawSilk12;
+the concrete Orchard update`0x4c5310` maps237/238/239 to the same three resources.
+These are typed commodity bindings, not evidence for edible fruit.
+
+The actual Food predicate`0x5db4c0` accepts resources1–9, including Salt8 and
+Spices9; it does not admit an additional unnamed fruit. The checked Market
+consumer`0x5469b3` uses this predicate and then rewrites the accepted Food category
+to Dinners28 at`0x5469bf`, before writing actual actor cargo at`0x546a1e`.
+The House/Market path`0x543878–0x5438ec` likewise uses28. These observations
+identify the source ingredient/category boundary, not a complete cooking recipe,
+conversion quantity or FoodShop lifecycle. The private independent receipt is
+`.local/agri-03/food-catalog-proof/verified-catalog.json`; its EXE, Trade and model
+SHA-256/size/mode/mtime guards remain unchanged. The bounded catalog absence is
+not a claim about every other game revision or an authorization to invent a
+new Original resource ID.
+
+**UNKNOWN:** a complete classification of external or exceptional callers, the
+historical reason for retaining29, and its current ordinary-menu reachability. Generic
+allocation or a side0 publication call does not establish successful player
+construction, a valid footprint or a fruit lifecycle. The static factory proof
+supports refusing to admit29 as an Original orchard producer; it does not prove
+that every use of the numeric ID is unreachable. No fruit food, crop, yield,
+calendar, worker lifecycle or paid generic orchard is inferred from its label.
 
 ### Fishing Quay31 has physical boat work and later cart delivery
 

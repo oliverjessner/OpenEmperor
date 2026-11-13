@@ -44,7 +44,9 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
-## Agriculture foundations (AGRI-01/02)
+<a id="agriculture-foundations-agri-01"></a>
+
+## Agriculture foundations and orchard identity (AGRI-01–03)
 
 Read the [Agriculture gate](original-economy/agriculture.md) and
 [source contract](reverse/original-agriculture-source-contract.md). Rule24 has
@@ -63,7 +65,13 @@ ctest --test-dir .local/agri-02/build-release --output-on-failure
 
 `original-agriculture-save` checks exact schema40/catalog/source identity,
 canonical five-kind widths, hostile JSON/duplicate/member refusal, no migration,
-Recovery and continuation. `original-agriculture-housing` checks paid complete
+Recovery and continuation. Its orchard cases use independently authored raw29
+metadata to prove that inspection does not grant a named Production/Agriculture
+capability, change26–28 or append Fruit to the five-kind catalog. Hostile sixth
+stock columns, crop/catalog relabels and Fruit keys must leave World, funds, IDs,
+source bytes and existing save bytes unchanged. These are negative authority
+checks, not a fruit growth/harvest implementation.
+`original-agriculture-housing` checks paid complete
 Farm/Field footprints, range/parent/cost and Rice fertility100, refused demolition,
 staff/pause/fire/calendar non-production and hostile production/quality authority.
 `original-agriculture-presentation` drives explicit SDL menu/tools/F5/F9 and
@@ -74,6 +82,19 @@ placement/cancel, alpha picking, F4 comparison and F5/F9 without production.
 The building-profile tests qualify the separate schema6 inactive Rice atlas,
 all256 mask selections, native RGBA/anchors, atomic malformed-input refusal and
 the unchanged historical schemas1–5 and combined64 MiB budget.
+The building-profile suite also explicitly refuses model29 as a World building
+body: its menu identity cannot qualify a generic orchard sprite. Existing
+`original-industry-world`, `original-industry-world-real` and
+`original-industry-save` remain the paid Tea/Lacquer/RawSilk regression controls;
+their authored timing is not Original orchard lifecycle proof.
+
+After building the corresponding targets in a configured tree, the focused
+identity, World, persistence and visual-profile checks are:
+
+```sh
+ctest --test-dir .local/agri-02/build-release --output-on-failure \
+  -R '^original-(agriculture-(save|housing)|industry-(world(-real)?|save)|building-visual-profile(-real)?)$'
+```
 
 `food-batch-arithmetic` covers independently authored1/3/5/16-kind arithmetic,
 canonical physical portions, weighted scores and checked overflow. Historical

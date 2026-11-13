@@ -16,9 +16,17 @@ complete original-game compatibility.
   It creates no Food and grants no FoodQuality: the complete Original Grower
   tending/harvest clock and yield transition are unproved, and an authored time
   substitute is not authorized. AGRI-02 functional production chains are not
-  complete. Irrigation202/203, Orchard29 and hunting/fishing also remain closed.
+  complete. Irrigation202/203 and hunting/fishing also remain closed.
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
+- **No Original edible-fruit orchard is established.** Model29 `Orchard Shed`
+  selects a submenu for Tea/Lacquer/RawSilk producers237–239 on the checked path;
+  it has no qualified standalone body or fruit lifecycle. The shipped manual
+  describes these material orchards, and the pinned resource/Trade catalogs
+  contain no Fruit commodity. AGRI-03 preserves this boundary with model, save
+  and visual rejection tests; it does not add playable fruit production.
+  Tea26, Lacquer27 and Mulberry28 remain separate from Food. See the
+  [source proof](docs/reverse/original-agriculture-source-contract.md#model29-is-a-submenu-marker-not-an-orchard-producer).
 - **Land trade is authored, finite and opt-in.** Rule21/schema37 uses classic
   Rule6 and two paid Warehouses, one explicitly bound boundary gateway and one
   real caravan. Only four-unit Pottery imports/exports at authored unit prices 6/3 are
