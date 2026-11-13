@@ -59,6 +59,66 @@ void click(oe::SandboxView& view,sim::Cell cell) {
     event.button.x=static_cast<float>(sx/count);event.button.y=static_cast<float>(sy/count);
     view.handle_event(event,running);event.type=SDL_EVENT_MOUSE_BUTTON_UP;view.handle_event(event,running);
 }
+void verify_storage_inspector(oe::SandboxView& view,sim::Cell cell) {
+    const auto before=view.world().snapshot();
+    const auto owner=view.world().building_owner_at(cell);
+    check(owner.has_value(),"Storage inspector scenario lost its paid building");
+    const auto id=*owner;
+    const bool warehouse=view.world().building(id).kind==sim::Object::Warehouse;
+    const auto capacity=warehouse ? 32:16;
+    view.set_tool(5);click(view,cell);
+    check(view.selected_building()==id,"Storage selection lost its actual BuildingId");
+    const auto lines=view.inspection_lines();
+    const auto layout=view.inspector_layout();
+    check(layout.detail_y<layout.list_y && layout.scroll==0,
+          "Selected storage inventory remains behind the full building list");
+    const auto footprint=std::find_if(lines.begin(),lines.end(),[](const auto& line) {
+        return line.starts_with("Footprint ");
+    });
+    const auto maintenance=std::find_if(lines.begin(),lines.end(),[](const auto& line) {
+        return line.starts_with("Maintenance:");
+    });
+    check(footprint!=lines.end() && maintenance!=lines.end(),"Storage inspector lost existing building details");
+    const auto assert_stock=[&](std::string_view name,std::int32_t amount) {
+        const auto expected=std::string(name)+" stock "+std::to_string(amount)+"/"+std::to_string(capacity);
+        const auto row=std::find(lines.begin(),lines.end(),expected);
+        check(row!=lines.end(),"Storage inspector omitted or misreported a local physical stock");
+        check(row<footprint && row<maintenance,"Stock is buried after technical building details");
+        return static_cast<std::size_t>(std::distance(lines.begin(),row));
+    };
+    const auto& goods=view.world().original_goods_state()->stocks;
+    const auto account=std::find_if(goods.begin(),goods.end(),[&](const auto& row){return row.building_id==id;});
+    check(account!=goods.end(),"Paid storage has no authoritative six-Goods account");
+    constexpr std::array goods_names{"Hemp","Ceramics","Tea","Silk","Bronzeware","Lacquerware"};
+    std::size_t first_stock=lines.size();
+    for(std::size_t good=0;good<goods_names.size();++good)
+        first_stock=std::min(first_stock,assert_stock(goods_names[good],account->amounts[good]));
+    check(layout.detail_row_rect(first_stock).h>0,"First stock row is absent from the initial storage viewport");
+    constexpr std::array material_names{"Wood","Bronze","RawSilk","Lacquer","Paper"};
+    if(warehouse) {
+        const auto& auxiliary=view.world().original_production_state()->industry.auxiliary;
+        const auto materials=std::find_if(auxiliary.begin(),auxiliary.end(),[&](const auto& row){return row.building_id==id;});
+        check(materials!=auxiliary.end(),"Paid Warehouse has no authoritative material account");
+        for(std::size_t material=0;material<material_names.size();++material)
+            assert_stock(material_names[material],materials->amounts[material]);
+        check(std::none_of(lines.begin(),lines.end(),[](const auto& line){return line.starts_with("Food ");}),
+              "Warehouse inspector invented an unsupported Food account");
+    } else {
+        for(const auto name:material_names)
+            check(std::none_of(lines.begin(),lines.end(),[&](const auto& line) {
+                return line.starts_with(std::string(name)+" stock ");
+            }),"Market inspector invented a material stock account");
+        const auto& food=view.world().original_production_state()->food.stocks;
+        const auto food_account=std::find_if(food.begin(),food.end(),[&](const auto& row){return row.building_id==id;});
+        check(food_account!=food.end(),"Paid Market has no authoritative Food account");
+        std::string details;
+        for(const auto& line:lines) details+=line+' ';
+        const auto expected="Food Wheat "+std::to_string(food_account->amounts[0])+
+            " / Millet "+std::to_string(food_account->amounts[1])+" (total cap16)";
+        check(details.find(expected)!=std::string::npos,"Market inspector lost its actual typed Food amounts/capacity");
+    }
+    check(view.world().snapshot()==before,"Storage selection or inventory inspection mutated World authority");
+}
 void hover(oe::SandboxView& view,sim::Cell cell) {
     double sx=0,sy=0;unsigned count=0;
     for(int y=80;y<660;y+=4)for(int x=8;x<1090;x+=4)
@@ -421,6 +481,7 @@ int main(int argc,char** argv) {
         const auto balance=view->world().original_goods_balance(orig::Goods::Ceramics);
         check(balance.supported && balance.conserved && balance.totals.produced>0 && balance.stock>0,
             "Actual warehouse arrival did not produce typed Ceramics");
+        verify_storage_inspector(*view,{114,104});
         key(*view,SDLK_0);check(view->tool()==0,"Market keyboard selection unavailable");
         click(*view,{118,104});
         check(view->world().object_at({118,104})==sim::Object::Market,"Paid Market mouse placement failed");
@@ -447,6 +508,8 @@ int main(int argc,char** argv) {
             for(const auto& house:view->world().original_economy_state()->houses) delivered|=house.house.ceramics>0;
         }
         check(delivered,"Actual Market arrival never updated the authoritative House stock");
+        verify_storage_inspector(*view,{118,104});
+        verify_storage_inspector(*view,{114,104});
         const auto funds_before=paid_checkpoint(view->world());
         for(const sim::Cell road:std::array{sim::Cell{120,104},sim::Cell{120,105},sim::Cell{120,106},
                 sim::Cell{119,106},sim::Cell{118,106}}) buy(sim::CommandType::PlaceRoad,road);

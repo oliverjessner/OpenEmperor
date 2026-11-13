@@ -161,6 +161,8 @@ const IndustryTool* industry_kind(simulation::Object kind) {
     for (const auto& tool:industry_tools) if (tool.kind==kind) return &tool;
     return nullptr;
 }
+constexpr std::array<const char*,original::goods_count> goods_names{
+    "Hemp","Ceramics","Tea","Silk","Bronzeware","Lacquerware"};
 constexpr std::array<const char*,5> aux_names{"Wood","Bronze","RawSilk","Lacquer","Paper"};
 // Eager constant template shared by authored Theatre drawing and picking.
 constexpr std::array<simulation::Cell,16> theatre_ground_offsets=[] {
@@ -5809,10 +5811,13 @@ bool SandboxView::industry_inspector_selected() const {
 }
 bool SandboxView::status_first_selected() const {
     const auto id=selected_building();
-    return (id && (world_->building(*id).kind==simulation::Object::Well ||
-        world_->building(*id).kind==simulation::Object::OriginalInfluenceSource)) ||
-        fire_watch_selected() || industry_inspector_selected() || (simulation::desirability_profile(rules_) && id &&
-        simulation::original_house_kind(world_->building(*id).kind));
+    if (!id) return false;
+    const auto kind=world_->building(*id).kind;
+    return kind==simulation::Object::Well || kind==simulation::Object::OriginalInfluenceSource ||
+        kind==simulation::Object::FireWatch || industry_inspector_selected() ||
+        (original_production_fixture() &&
+            (kind==simulation::Object::Warehouse || kind==simulation::Object::Market)) ||
+        (simulation::desirability_profile(rules_) && simulation::original_house_kind(kind));
 }
 std::vector<std::string> SandboxView::wrap_panel_lines(const std::vector<std::string>& lines) const {
     const auto columns=static_cast<std::size_t>(std::max(1,
@@ -6708,13 +6713,39 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("No original trader or venue parity claim.");
         return wrap_panel_lines(lines);
     }
-        if (world_->demolition_supported()) {
-            const auto status=world_->demolition_status(*id);
-            lines.push_back(status.reason);
-            if (!status.stored_goods_summary.empty()) lines.push_back("Stored: "+status.stored_goods_summary);
-        }
+    const bool original_storage=original_production_fixture() &&
+        (b.kind==simulation::Object::Warehouse || b.kind==simulation::Object::Market);
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
+    if (original_storage) {
+        const int capacity=b.kind==simulation::Object::Warehouse ? 32:16;
+        for (std::size_t good=0;good<goods_names.size();++good) {
+            lines.push_back(std::string(goods_names[good])+" stock "+
+                std::to_string(displayed_original_stock(*world_,*id,static_cast<original::Goods>(good)))+
+                "/"+std::to_string(capacity));
+        }
+        if (b.kind==simulation::Object::Warehouse) {
+            for (const auto& stock:world_->original_production_state()->industry.auxiliary) {
+                if (stock.building_id!=*id) continue;
+                for (std::size_t material=0;material<aux_names.size();++material)
+                    lines.push_back(std::string(aux_names[material])+" stock "+
+                        std::to_string(stock.amounts[material])+"/32");
+                break;
+            }
+        } else if (original_agriculture()) {
+            append_agriculture_stock_lines(*world_,*id,lines,capacity);
+        } else {
+            for (const auto& food:world_->original_production_state()->food.stocks)
+                if (food.building_id==*id)
+                    lines.push_back("Food Wheat "+std::to_string(food.amounts[0])+" / Millet "+
+                        std::to_string(food.amounts[1])+" (total cap16)");
+        }
+    }
+    if (world_->demolition_supported()) {
+        const auto status=world_->demolition_status(*id);
+        lines.push_back(status.reason);
+        if (!status.stored_goods_summary.empty()) lines.push_back("Stored: "+status.stored_goods_summary);
+    }
     add_connectivity();
     if (simulation::market_profile(rules_) && b.kind==simulation::Object::Household) add_house_income(*id);
     add_maintenance(*id);
@@ -6800,13 +6831,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         if (b.operating_enabled && !world_->building_on_fire(*id)) lines.push_back(b.active_recipe_clay>0 ? "Processing" :
             b.output>=simulation::Rules::pottery_output_capacity ? "Output full" :
             b.input_clay<simulation::Rules::pottery_recipe_clay ? "Awaiting input" : "Ready");
-    } else if (original_production_fixture() && (b.kind==simulation::Object::Warehouse || b.kind==simulation::Object::Market)) {
-        const int capacity=b.kind==simulation::Object::Warehouse ? 32:16;
-        lines.push_back("Ceramics stock "+std::to_string(displayed_original_stock(*world_,*id,original::Goods::Ceramics))+"/"+std::to_string(capacity));
-        lines.push_back("Hemp stock "+std::to_string(displayed_original_stock(*world_,*id,original::Goods::Hemp))+"/"+std::to_string(capacity));
-        if (original_agriculture()) append_agriculture_stock_lines(*world_,*id,lines,capacity);
-        else if (b.kind==simulation::Object::Market) for (const auto& food:world_->original_production_state()->food.stocks)
-            if (food.building_id==*id) lines.push_back("Food Wheat "+std::to_string(food.amounts[0])+" / Millet "+std::to_string(food.amounts[1])+" (total cap16)");
+    } else if (original_storage) {
         if (b.kind==simulation::Object::Warehouse) lines.push_back("Unconverted Pottery incoming "+std::to_string(b.reserved_incoming));
     } else if (original_agriculture() && b.kind==simulation::Object::OriginalFoodFarm) {
         append_agriculture_stock_lines(*world_,*id,lines,8);
@@ -7886,6 +7911,8 @@ bool SandboxView::draw_hud() {
         if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
         if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
                        industry_inspector_selected() ? "INDUSTRY INSPECTOR":
+                       original_production_fixture() && selected_building() && world_->building(*selected_building()).kind==simulation::Object::Warehouse ? "WAREHOUSE INSPECTOR":
+                       original_production_fixture() && selected_building() && world_->building(*selected_building()).kind==simulation::Object::Market ? "MARKET INSPECTOR":
                        selected_building() && world_->building(*selected_building()).kind==simulation::Object::Well ? "WELL INSPECTOR":
                        fire_watch_selected() ? "FIRE WATCH INSPECTOR":
                        status_first_selected() ? "HOUSE INSPECTOR":"BUILDINGS",
