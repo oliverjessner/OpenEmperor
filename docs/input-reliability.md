@@ -69,6 +69,13 @@ Drawing and press/release selection use the same complete-row rectangles;
 a clipped row has neither pixels nor a hitbox. Header, details, hints and fixed
 controls cannot select an obscured list entry.
 
+Original-economy Warehouse and Market selection puts the selected inventory
+before the building list and maintenance/geometry details. The Warehouse shows
+all six household Goods and five auxiliary materials from its own World
+accounts, with capacity32 per type. The Market shows all six Goods with
+capacity16 per type and its existing Food account. A new building selection
+resets the document scroll to its inventory.
+
 The wheel scrolls the list/detail area under the pointer. Demolition hints retain
 the historical two-line footer and can grow to four lines, bounded by one quarter
 of the panel height; longer text scrolls within that separate area. Both areas

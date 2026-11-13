@@ -701,6 +701,11 @@ cancellation with a 34-building World. Run these alongside the existing
 `sandbox-input-reliability`, `original-house-inspector-view`, operation/demolition,
 modal and save-view checks when changing inspector geometry.
 
+`original-production-view` selects paid Warehouses and Markets after physical
+Ceramics deliveries. It checks every displayed local Goods/material quantity,
+the existing Market Food account, inventory-first ordering and first-row
+visibility, and snapshot equality across selection and inspection.
+
 For the optional private OE41 reproduction, build
 `openemperor-system-playtest-acceptance` and run its `--inspector-layout` mode
 with DATA, RESOURCES, a fresh app root, a fresh capture directory and the explicit
