@@ -326,7 +326,28 @@ void functional_mapping_checks() {
           theatre.functional==Status::AuthoredFallback && theatre.mechanics_identity==Status::AuthoredFallback &&
           theatre.presentation_identity==Status::Unknown,
           "explicit Theatre model mapping does not claim original runtime or visual parity");
-    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalTheatre75) + 1U);
+    const std::array agriculture{
+        std::pair{Object::OriginalRiceField,ModelBuilding::RiceField},
+        std::pair{Object::OriginalCabbageField,ModelBuilding::CabbageField},
+        std::pair{Object::OriginalSoybeanField,ModelBuilding::SoybeanField}};
+    for (const auto& [kind,building]:agriculture) {
+        const auto implicit=original::functional_model_candidate(kind);
+        check(!implicit.candidate && implicit.functional==Status::Unknown &&
+              implicit.mechanics_identity==Status::Unknown && implicit.presentation_identity==Status::Unknown,
+              "Agriculture mapping requires an explicit rule generation");
+        for (std::uint32_t rule=1;rule<openemperor::simulation::kOriginalAgricultureRuleVersion;++rule) {
+            const auto historical=original::functional_model_candidate(kind,rule);
+            check(!historical.candidate && historical.functional==Status::Unknown &&
+                  historical.mechanics_identity==Status::Unknown && historical.presentation_identity==Status::Unknown,
+                  "Historical rules gained an Agriculture model candidate");
+        }
+        const auto active=original::functional_model_candidate(kind,openemperor::simulation::kOriginalAgricultureRuleVersion);
+        check(active.candidate==building && active.functional==Status::AuthoredFallback &&
+              active.mechanics_identity==Status::AuthoredFallback &&
+              active.presentation_identity==(kind==Object::OriginalRiceField ? Status::Unknown:Status::ReverseEngineered),
+              "Explicit Agriculture identity changed or claimed unsupported Original runtime evidence");
+    }
+    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalSoybeanField) + 1U);
     for (const auto bad : {first_invalid, static_cast<Object>(255)})
         expect_exception<std::out_of_range>([&] { (void)original::functional_model_candidate(bad); }, "invalid Object is not merely unmapped");
 }

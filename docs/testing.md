@@ -44,44 +44,67 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
-## Agriculture foundations (AGRI-01)
+## Agriculture foundations (AGRI-01/02)
 
-The [Agriculture architecture](original-economy/agriculture.md) and
-[source contract](reverse/original-agriculture-source-contract.md) describe
-inactive future systems, not an available Agriculture game mode. Use a single
-fresh ignored build tree and keep existing source/Save/Recovery evidence intact:
+Read the [Agriculture gate](original-economy/agriculture.md) and
+[source contract](reverse/original-agriculture-source-contract.md). Rule24 has
+paid verified construction and five-kind Food/save foundations, with production
+explicitly locked until Original tending/harvest timing is fully proved. Tests
+must establish that no calendar/staffing/UI/restore path bypasses the lock;
+positive growth/harvest/House-quality claims are not supported.
 
 ```sh
-cmake -S . -B .local/agri-01/build-release -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B .local/agri-02/build-release -DCMAKE_BUILD_TYPE=Release \
   -DOPENEMPEROR_USE_SYSTEM_SDL3=ON \
   -DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT="$PWD/.local/gog-extracted/app"
-cmake --build .local/agri-01/build-release --parallel 4
-ctest --test-dir .local/agri-01/build-release --output-on-failure
+cmake --build .local/agri-02/build-release --parallel 4
+ctest --test-dir .local/agri-02/build-release --output-on-failure
 ```
 
-`food-batch-arithmetic` checks synthetic1/3/5/16-kind volume, canonical physical
-loading/consumption, authored mixed loads, caller-supplied weighted scores,
-counter/quantity overflow and input preservation on rejection. Compile guards
-freeze the historical Wheat/Millet IDs, exact two-column amounts and counters.
-Run the existing Food World/save tests (including crop2/width3 rejection),
-deadline Food, production, market, housing, goods, movement and Recovery tests.
-Repeat those focused checks under Debug and ASan/UBSan; on macOS explicitly
-disable unsupported LeakSanitizer rather than claiming it was tested.
+`original-agriculture-save` checks exact schema40/catalog/source identity,
+canonical five-kind widths, hostile JSON/duplicate/member refusal, no migration,
+Recovery and continuation. `original-agriculture-housing` checks paid complete
+Farm/Field footprints, range/parent/cost and Rice fertility100, refused demolition,
+staff/pause/fire/calendar non-production and hostile production/quality authority.
+`original-agriculture-presentation` drives explicit SDL menu/tools/F5/F9 and
+verifies the visible production lock and pure rendering. These are automated
+checks, not native human acceptance or complete agriculture gameplay.
+Its Rice cases exercise prepared eight-neighbor connectivity, source sprites,
+placement/cancel, alpha picking, F4 comparison and F5/F9 without production.
+The building-profile tests qualify the separate schema6 inactive Rice atlas,
+all256 mask selections, native RGBA/anchors, atomic malformed-input refusal and
+the unchanged historical schemas1–5 and combined64 MiB budget.
 
-Full CTest regression is separate from literal pre-AGRI schema1–39 document
-comparisons and active paid creator/restore continuations. Generate fresh small
-comparison outputs; preserve the old originals, fixtures and baseline documents.
-Do not regenerate multi-gigabyte per-tick traces when complete canonical
-checkpoints and existing independent replay controls cover the arithmetic
-change. Record exactly which documents, ticks and histories were compared.
+`food-batch-arithmetic` covers independently authored1/3/5/16-kind arithmetic,
+canonical physical portions, weighted scores and checked overflow. Historical
+Food World/save, deadline Food, market, goods, housing, movement, Recovery and
+all-generation checks must still pass. Repeat focused checks in Debug and
+ASan/UBSan (disable unsupported macOS LeakSanitizer explicitly).
 
-Original research is read-only. Keep raw byte windows, disassembly, checkers,
-configuration/table extracts and SHA/size/mode/mtime guards private under
-`.local/agri-01/`. Source table identity, static callback proof, synthetic batch
-tests and existing paid gameplay are distinct evidence. No original EXE
-execution, new Agriculture gameplay or native/human acceptance follows from
-these checks. Existing optional OE52/OE61/OE62 visual checks retain their own
-explicit earned-save inputs and output paths below.
+The AGRI-02 foundation baseline passed 330/330 Release tests and eight
+focused unique cases in both Debug and ASan/UBSan, including targeted reruns
+after correcting a test iterator and adding historical-save overwrite refusal.
+LeakSanitizer is disabled on macOS. The unchanged core comparison passes 74/74
+classified cases; this is not Agriculture timing parity. Fresh current-header/
+current-library collectors match 123 complete SaveDocuments, 25 DTO controls and
+four indexes across schemas1–39 (3,184,025 literal bytes) against both protected
+reference sets. All 1,558 protected Original/earned inputs retain bytes, size,
+mode and mtime. These results establish the closed production boundary and
+historical controls; actual new crop production and human acceptance remain open.
+The Rice presentation refinement passes ten related Release graphics cases,
+the explicit Original-asset SDL scene run and two focused ASan/UBSan cases
+(LeakSanitizer disabled). Its five native 2× scene captures were opened and
+inspected. This uses authored map/model inputs and fingerprinted Original pixels;
+it is separate from a native human playtest. Simulation and persistence code,
+the schema5 resource and historical visual selections remain unchanged.
+
+Full CTest is separate from literal historical schema1–39 document comparisons
+and paid creator/restore continuations. Use small fresh ignored outputs and
+preserve protected originals/earned inputs; do not regenerate multi-gigabyte
+traces. Original research uses read-only `.local/gog-extracted/app`; raw windows,
+private checkers and diagnostic reports stay ignored under `.local/agri-02/`.
+Existing optional OE52/OE61/OE62 visual checks retain their feature-owned output
+roots and explicit earned-save inputs below.
 
 ## Original walker families and full cycles (OE62)
 

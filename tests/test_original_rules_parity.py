@@ -230,7 +230,7 @@ class HousingNamespaceControls(unittest.TestCase):
         reviewed = parity.validate_housing_world_api()
         self.assertEqual(reviewed, parity.REVIEWED_HOUSING_WORLD_API_GIT_BLOBS)
         self.assertEqual(set(reviewed), {"World.h", "OriginalTerrainFacts.h", "OriginalHousingDiagnosis.h",
-                                        "OriginalSafeDemolitionState.h", "SourceCellRamp.h", "AuthoredLandTrade.h", "OriginalCultureState.h"})
+                                        "OriginalSafeDemolitionState.h", "SourceCellRamp.h", "AuthoredLandTrade.h", "OriginalCultureState.h", "AgricultureState.h"})
         fingerprints = parity.current_source_hashes()
         for name in reviewed:
             self.assertIn("src/simulation/" + name, fingerprints)

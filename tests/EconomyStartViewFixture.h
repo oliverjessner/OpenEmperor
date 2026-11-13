@@ -45,7 +45,7 @@ Bytes sg3(bool tile) {
     }
     return b;
 }
-Bytes map_file(bool valid_manager=true,bool starter_space=true) {
+Bytes map_file(bool valid_manager=true,bool starter_space=true,bool agriculture_fertility=false) {
     using namespace openemperor::maps;
     Bytes raw(static_cast<std::size_t>(original_entities_logical_offset+6),0);
     // Complete empty authored manager for the rule-3 immutable map policy.
@@ -56,6 +56,7 @@ Bytes map_file(bool valid_manager=true,bool starter_space=true) {
         u32(raw,static_cast<std::size_t>(candidate_word_logical_offset)+4*i,0xc000);
         raw[static_cast<std::size_t>(candidate_byte_logical_offset)+i]=64;
         u32(raw,static_cast<std::size_t>(terrain_logical_offset)+4*i,0x80);
+        if (agriculture_fertility) raw[static_cast<std::size_t>(fertility_logical_offset)+i]=100;
         if (!starter_space)
             raw[static_cast<std::size_t>(landscape_height_offset)+i]=
                 static_cast<std::uint8_t>((i/228U+i%228U)%2U);

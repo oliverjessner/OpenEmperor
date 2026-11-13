@@ -19,7 +19,7 @@ struct FunctionalModelCandidate {
 // footprint, price, service timing or an original source identity for an Object.
 // Existing recovered Well/Herbalist image registrations are a separate fact.
 [[nodiscard]] inline FunctionalModelCandidate functional_model_candidate(
-    simulation::Object object) {
+    simulation::Object object,std::uint32_t rule_version=0) {
     using simulation::Object;
     switch (object) {
     case Object::ClaySource:
@@ -58,6 +58,14 @@ struct FunctionalModelCandidate {
     case Object::OriginalMilletField:
         return {ModelBuilding::MilletField, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};
+    case Object::OriginalRiceField:
+    case Object::OriginalCabbageField:
+    case Object::OriginalSoybeanField:
+        if (rule_version!=simulation::kOriginalAgricultureRuleVersion) return {};
+        return {object==Object::OriginalRiceField ? ModelBuilding::RiceField:
+                object==Object::OriginalCabbageField ? ModelBuilding::CabbageField:ModelBuilding::SoybeanField,
+                EvidenceStatus::AuthoredFallback,EvidenceStatus::AuthoredFallback,
+                object==Object::OriginalRiceField ? EvidenceStatus::Unknown:EvidenceStatus::ReverseEngineered};
     case Object::OriginalLoggingShed38:
         return {ModelBuilding::LoggingShed, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};

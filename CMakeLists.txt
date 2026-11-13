@@ -137,6 +137,8 @@ set(OPENEMPEROR_COMPATIBILITY_FILES
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-houses.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-buildings.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-agriculture-buildings.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-agriculture-rice-buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/roads.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire-inspector.json"
@@ -333,7 +335,7 @@ target_compile_definitions(openemperor-desirability-compare PRIVATE
     OPENEMPEROR_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 openemperor_enable_warnings(openemperor-desirability-compare)
 target_link_libraries(openemperor-maps PUBLIC openemperor-simulation)
-add_library(openemperor-persistence STATIC src/persistence/SandboxSave.cpp
+add_library(openemperor-persistence STATIC src/persistence/SandboxSave.cpp src/persistence/OriginalAgricultureTerrain.cpp
     src/platform/AtomicReplace.cpp)
 target_include_directories(openemperor-persistence PUBLIC src)
 target_link_libraries(openemperor-persistence PUBLIC openemperor-maps openemperor-simulation
@@ -631,6 +633,13 @@ if(BUILD_TESTING)
     set_tests_properties(menu-session-flow PROPERTIES TIMEOUT 30)
     get_target_property(original_menu_test_sources openemperor-menu-session-tests SOURCES)
     list(REMOVE_ITEM original_menu_test_sources tests/MenuSessionTests.cpp)
+    add_executable(openemperor-agriculture-presentation-tests
+        tests/AgriculturePresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-agriculture-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads)
+    openemperor_enable_warnings(openemperor-agriculture-presentation-tests)
+    add_test(NAME original-agriculture-presentation COMMAND openemperor-agriculture-presentation-tests)
+    set_tests_properties(original-agriculture-presentation PROPERTIES TIMEOUT 120)
     add_executable(openemperor-original-menu-session-tests
         tests/OriginalMenuSessionTests.cpp ${original_menu_test_sources})
     add_executable(openemperor-original-safe-demolition-menu-tests
@@ -1055,6 +1064,18 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-food-world-tests)
     add_test(NAME original-food-world COMMAND openemperor-original-food-world-tests)
     set_tests_properties(original-food-world PROPERTIES TIMEOUT 180)
+
+    add_executable(openemperor-agriculture-save-tests tests/AgricultureSaveTests.cpp)
+    target_link_libraries(openemperor-agriculture-save-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-agriculture-save-tests)
+    add_test(NAME original-agriculture-save COMMAND openemperor-agriculture-save-tests)
+    set_tests_properties(original-agriculture-save PROPERTIES TIMEOUT 240)
+
+    add_executable(openemperor-agriculture-housing-tests tests/OriginalAgricultureHousingTests.cpp)
+    target_link_libraries(openemperor-agriculture-housing-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-agriculture-housing-tests)
+    add_test(NAME original-agriculture-housing COMMAND openemperor-agriculture-housing-tests)
+    set_tests_properties(original-agriculture-housing PROPERTIES TIMEOUT 240)
 
     add_executable(openemperor-food-batch-arithmetic-tests tests/FoodBatchArithmeticTests.cpp)
     target_include_directories(openemperor-food-batch-arithmetic-tests PRIVATE src)

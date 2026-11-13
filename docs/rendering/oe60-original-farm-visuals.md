@@ -37,8 +37,8 @@ lifecycle and separate evidence classes. The pinned installation is unchanged:
 selection. `SOURCE_VERIFIED` identifies complete native Type30 records and the
 shared decoder's pixels/alpha. All18 field images are canonical bank0, offsets0–5.
 The separate source variation byte can choose a second bank; its general meaning
-remains unknown. Rice197, Cabbage198, Soybean199 and irrigation202/203 gain no
-presentation or gameplay admission.
+remains unknown. Historical schemas1–4 give Rice197, Cabbage198, Soybean199 and irrigation202/203
+no presentation or gameplay admission. Agriculture supplements are scoped below.
 
 The original field quantity callback uses signed own-info word`+0x04` and
 `0x408ba0` with10000, producing `Q=trunc(own_info_word/100)` toward zero.
@@ -267,3 +267,70 @@ remain under `.local/oe60-5/field-order-fix/`, including
 freeze. LeakSanitizer (`detect_leaks=0`), native/human acceptance, new timing,
 long paid-gameplay and historical-save replays were not run for this correction;
 the earlier broad results above remain historical.
+
+
+## Explicit Agriculture presentation
+
+Rule24/schema40 selects the separate Agriculture supplement only for built-in
+visuals. Native Rice topology uses visual schema6 in
+`original-agriculture-rice-buildings.json`; an older pack without that file retains
+`original-agriculture-buildings.json` schema5 and its explicit Rice fallback. A
+present invalid or linked schema6 supplement fails atomically. The historical
+schema4 resource and schemas1–5 keep their exact roles, physical image prefixes,
+field policy and fallbacks. New identities are Rice197, Cabbage198 and Soy199; presentation grants
+no construction, parent, crop quantity, harvest or Food authority.
+
+Cabbage uses General group0x42f physical2434–2439 and Soy group0x430
+physical2446–2451. All twelve records are complete native Type30 side1 rasters
+with base3200 bytes and no animation. The shared loader verifies fingerprints,
+registered groups, native geometry, containment, complete decode and the existing
+combined64 MiB budget atomically. No original pixels are stored in resources.
+The quantity selector uses the observed ordinary Food publication rule: integer
+percentage `quantity/100`, stage0 at zero percent, otherwise
+`min(5, percentage/20+1)`. Per-cell variation remains the canonical zero bank.
+World production is locked until Original tending and harvest timing are fully
+verified; native source images grant no quantity or harvest. Agriculture's Wheat/Millet visual selection also reads
+its separate actual field quantity; legacy modes retain their80-tick selector.
+
+Schema6 admits an **inactive, unworked Rice paddy representative**, with topology
+prepared from actual paid World Rice fields. Mask bits0–7 inspect logical-grid
+N, NE, E, SE, S, SW, W and NW neighbors. A neighbor qualifies by its actual Rice197
+kind, including fields owned by another Farmhouse or paused fields. Terrain,
+quantity, staffing and parent identity do not alter this connectivity query.
+The shared source-qualified selector resolves the prepared mask to one of47 eagerly
+decoded canonical-view0/variation0 base images: General group0x42d offsets0–46,
+physical2506–2552. These are Type30 side1 records, width78, height40–46,
+base3200 bytes, without animation, mirror or alpha payloads. The existing anchor
+`[39,height−20]` is an authored shared projection convention, not a recovered
+Original pivot. No original pixels or private selector
+tables are stored in Git.
+
+Quantity0 alone does not prove that the Original chooses its inactive bank: the
+source publisher can add48 from Farm work and seasonal state even at quantity0.
+OpenEmperor therefore labels this limited image as inactive paddy topology, with
+Original work/season-bank selection unavailable. Nonzero quantity remains
+unsupported. The separate growing bank and quantity overlays are not reproduced;
+Rice never substitutes the Cabbage/Soy six-stage bank. This image selects no clock,
+work, irrigation, growth, harvest, Food or FoodQuality behavior. Rule24 production
+stays locked.
+
+At each published World topology revision, at most32 paid Rice rows retain only
+BuildingId, parentId, cell and their eight-neighbor mask. At the same revision boundary, each field contributes its eight reverse neighbor
+bits to at most256 unique candidate cells; every other cell necessarily has
+mask0. Hover input looks up that prepared cache for its one preview, without
+reading World neighbors. The preview invalidates on tool, layout, focus, modal,
+gesture and topology boundaries. Drawing, painter selection and alpha picking
+consume the same prepared source entry; frame and hover paths perform no Rice neighbor search, source read, decode,
+upload, simulation command or tick. The metadata-independent
+cache owns no saved authority and changes no historical field selector.
+
+The disposable painter cache holds at most32 Agriculture fields and two inherited
+Hemp fields, within the unchanged82-body budget. It is prepared at World/layout
+revision boundaries and uses authoritative parent IDs and quantities. Frame and
+hover paths add no parsing, image decode, upload, map scan or gameplay command.
+`AgriculturePresentationTests` covers explicit menu selection, separate tools,
+keyboard actions, pure frames and F5/F9. The existing building-profile tests cover
+schema5 canonical fields and fallback, schema6 inactive Rice topology, hostile
+selectors and unchanged historical schemas; optional original-data checks decode
+the source rasters. Scripted SDL inspection remains distinct from native and
+human acceptance.

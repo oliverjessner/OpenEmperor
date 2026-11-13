@@ -2,6 +2,7 @@
 #include "assets/BuildingVisualProfile.h"
 #include "scene/WorldDrawOrder.h"
 #include "simulation/World.h"
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -10,6 +11,10 @@
 #include <tuple>
 
 namespace openemperor {
+// Source Rice selector order in logical cells, independent of screen axes.
+// Same-type objects qualify across Farm boundaries and operation states.
+inline constexpr std::array<simulation::Cell,8> original_rice_neighbor_offsets{{
+    {0,-1},{1,-1},{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1}}};
 enum class SandboxVisualKind : std::uint8_t { Road, Building, Walker };
 struct SandboxVisualKey {
     double depth=0; // Projected ground y, independent of image height.
@@ -121,6 +126,9 @@ inline std::optional<assets::OriginalBuildingVisualRole> original_building_visua
     case O::OriginalHempField:return R::HempField;
     case O::OriginalWheatField:return R::WheatField;
     case O::OriginalMilletField:return R::MilletField;
+    case O::OriginalRiceField:return R::RiceField;
+    case O::OriginalCabbageField:return R::CabbageField;
+    case O::OriginalSoybeanField:return R::SoybeanField;
     case O::OriginalLoggingShed38:return R::LoggingShed;
     case O::OriginalBronzeSmelter39:return R::BronzeSmelter;
     case O::OriginalBronzewareMaker42:return R::BronzewareMaker;

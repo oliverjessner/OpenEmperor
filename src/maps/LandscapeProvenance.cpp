@@ -214,7 +214,7 @@ void read_landscape_layers(StoredGraphicsPlan& plan, const EmperorContainer& con
     auto variation=container.read_range(part,auxiliary_byte_logical_offset,count);
     // Separate serialized operand read to VA e9f8e0 at 52eaa4. This is not
     // an inferred numerical interpretation of the terrain fertility bit.
-    auto fertility=container.read_range(part,937255,count);
+    auto fertility=container.read_range(part,fertility_logical_offset,count);
     plan.draw_properties=std::move(properties);
     plan.height_bytes=std::move(heights);
     plan.variation_bytes=std::move(variation);

@@ -59,9 +59,18 @@ std::shared_ptr<const original::OriginalRulesModel> prepare_original_production_
 std::shared_ptr<const original::OriginalRulesModel> prepare_original_culture_rules_model(
     const std::filesystem::path& data_root,
     original::Difficulty difficulty=original::Difficulty::Normal);
+// Rule24 separately prepares the five-crop model capability. Historical
+// production and culture factories retain their exact admitted model sets.
+std::shared_ptr<const original::OriginalRulesModel> prepare_original_agriculture_rules_model(
+    const std::filesystem::path& data_root,
+    original::Difficulty difficulty=original::Difficulty::Normal);
 // Complete supported original map, shared reader and full-file SHA binding.
 // Raw bit4 facts never substitute for MapPermissions or bridge eligibility.
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_terrain_facts(
+    const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
+// Rule24 additionally binds the complete serialized fertility lane through
+// the shared original-map reader; no saved fertility array grants authority.
+std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_agriculture_terrain_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
 std::shared_ptr<const simulation::LandTradeBoundaryFacts> prepare_land_trade_boundary_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
@@ -171,6 +180,14 @@ simulation::World restore_original_music_venues(
 // Schema39/Rule23 adds witnessed physical Venue-to-House Music visits. It never
 // relabels or migrates the separate Rule22/schema38 School-to-Venue contract.
 simulation::World restore_original_venue_house_service(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema40/Rule24 explicitly selects Agriculture revision28 and its exact
+// five-crop catalog. No historical Food state or save is automatically migrated.
+simulation::World restore_original_agriculture(
     const SaveDocument& document,const std::filesystem::path& data_root,
     std::vector<std::uint8_t> buildable,
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,

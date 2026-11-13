@@ -61,7 +61,7 @@ MapProbe probe_map_part(const EmperorContainer& container, std::size_t part) {
     return {PartProfile::Map, size_field, "signature, map size, and layer ranges match supported profile"};
 }
 
-ParsedEmperorMap read_emperor_map(const EmperorContainer& container, std::size_t part) {
+ParsedEmperorMap read_emperor_map(const EmperorContainer& container, std::size_t part,bool include_fertility) {
     const auto probe = probe_map_part(container, part);
     if (probe.profile != PartProfile::Map)
         throw UnsupportedMapProfile("part " + std::to_string(part) + ": " + probe.reason);
@@ -72,6 +72,15 @@ ParsedEmperorMap read_emperor_map(const EmperorContainer& container, std::size_t
     map.declared_map_size = probe.declared_map_size;
     map.terrain_raw = read_layer(bytes, terrain_logical_offset);
     map.objects_raw = read_layer(bytes, objects_logical_offset);
+    if (include_fertility) {
+        constexpr auto count=stored_grid_width*stored_grid_height;
+        if (fertility_logical_offset>bytes.size() || count>bytes.size()-fertility_logical_offset)
+            throw UnsupportedMapProfile("Agriculture requires a complete serialized fertility layer");
+        const auto start=bytes.begin()+static_cast<std::ptrdiff_t>(fertility_logical_offset);
+        map.fertility_bytes.assign(start,start+count);
+        if (std::any_of(map.fertility_bytes.begin(),map.fertility_bytes.end(),[](auto value){return value>100;}))
+            throw UnsupportedMapProfile("Agriculture fertility operand is outside0..100");
+    }
     return map;
 }
 

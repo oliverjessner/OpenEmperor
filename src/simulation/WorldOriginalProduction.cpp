@@ -129,6 +129,9 @@ std::uint64_t paid_cost(Object kind) {
     case Object::OriginalFoodFarm:
     case Object::OriginalWheatField:
     case Object::OriginalMilletField:
+    case Object::OriginalRiceField:
+    case Object::OriginalCabbageField:
+    case Object::OriginalSoybeanField:
     case Object::HealthPost:
     case Object::OriginalDaoistShrine215:
     case Object::OriginalBuddhistShrine217:
@@ -152,6 +155,9 @@ std::optional<original::ModelBuilding> model_priced(Object kind) {
     case Object::OriginalFoodFarm:return B::Farmhouse;
     case Object::OriginalWheatField:return B::WheatField;
     case Object::OriginalMilletField:return B::MilletField;
+    case Object::OriginalRiceField:return B::RiceField;
+    case Object::OriginalCabbageField:return B::CabbageField;
+    case Object::OriginalSoybeanField:return B::SoybeanField;
     case Object::HealthPost:return B::HerbalistsStall;
     case Object::ServicePost:return B::AcupuncturistsClinic;
     case Object::OriginalAncestorShrine214:return B::AncestralShrine;
@@ -191,7 +197,7 @@ template<class Buildings,class Bridges> std::uint64_t spending(const Buildings& 
 }
 template<class Building> void validate_neutral_fields(const Building& b) {
     BuildingSnapshot expected{b.id,b.kind,b.cell,true};expected.placed_tick=b.placed_tick;
-    const bool field=b.kind==Object::OriginalHempField || b.kind==Object::OriginalWheatField || b.kind==Object::OriginalMilletField;
+    const bool field=b.kind==Object::OriginalHempField || b.kind==Object::OriginalWheatField || b.kind==Object::OriginalMilletField || b.kind==Object::OriginalRiceField || b.kind==Object::OriginalCabbageField || b.kind==Object::OriginalSoybeanField;
     if (b.kind!=Object::OriginalInfluenceSource && !field) {
         expected.fire_risk=b.fire_risk;expected.fire_protection_until_tick=b.fire_protection_until_tick;
         expected.fire_until_tick=b.fire_until_tick;
@@ -394,6 +400,41 @@ World World::restore_original_deadline_food_dispatch(const WorldSnapshot& snapsh
     world.validate_original_services_model();world.validate_original_water_model();world.validate_original_housing_model();world.validate_original_industry_model();
     world.validate_original_finance_model();return world;
 }
+World World::create_original_agriculture(std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,
+    std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    if (!permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain)
+        invalid("original deadline food dispatch creation requires policy3, prepared model and immutable terrain facts");
+    const auto capacity=model->house_rules().row_capacity(original::ModelHouse::Shelter);
+    if (capacity<=0 || capacity>INT16_MAX) invalid("invalid original deadline food dispatch Shelter capacity");
+    const auto width=permissions->width(),height=permissions->height();auto mask=permissions->building_mask();
+    World world(width,height,std::move(mask),RulesProfile::CityV16,kOriginalAgricultureRuleVersion,
+        std::move(permissions),true,std::move(model),std::move(terrain));
+    world.original_production_->fire_protection.emplace();
+    world.validate_original_hemp_model();world.validate_agriculture_model();world.validate_original_consumption_model();
+    world.validate_original_services_model();world.validate_original_water_model();world.validate_original_housing_model();world.validate_original_industry_model();
+    world.validate_original_finance_model();world.rebuild_original_influence_cache();return world;
+}
+World World::restore_original_agriculture(const WorldSnapshot& snapshot,
+    std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,
+    std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    if (!simulation::original_agriculture_enabled(snapshot.profile,snapshot.rule_version) ||
+        !permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain)
+        invalid("original deadline food dispatch restore requires exact rule24, policy3, model and terrain facts");
+    const auto capacity=model->house_rules().row_capacity(original::ModelHouse::Shelter);
+    if (capacity<=0 || capacity>INT16_MAX) invalid("invalid original deadline food dispatch Shelter capacity");
+    validate_original_production_snapshot(snapshot);
+    if(!terrain->fertility_complete()) invalid("Agriculture restore requires complete live source fertility");
+    for(const auto& field:snapshot.agriculture->fields) if(field.crop==AgricultureCrop::Rice) {
+        const auto b=std::find_if(snapshot.buildings.begin(),snapshot.buildings.end(),[&](const auto& b){return b.id==field.field_id;});
+        if(b==snapshot.buildings.end() || terrain->fertility(b->cell)!=100) invalid("Rice restore fails source fertility100 prerequisite");
+    }
+    auto world=restore_impl(snapshot,{},std::move(permissions),true,std::move(model),std::move(terrain));
+    world.validate_original_hemp_model();world.validate_agriculture_model();world.validate_original_consumption_model();
+    world.validate_original_services_model();world.validate_original_water_model();world.validate_original_housing_model();world.validate_original_industry_model();
+    world.validate_original_finance_model();return world;
+}
 World World::create_original_safe_demolition(std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model,
     std::shared_ptr<const OriginalTerrainFacts> terrain) {
@@ -487,6 +528,7 @@ World World::restore_original_production_development(const WorldSnapshot& snapsh
 
 void World::validate_original_production_snapshot(const WorldSnapshot& s) {
     validate_original_music_venues_snapshot(s);
+    validate_original_agriculture_snapshot(s);
     if (!simulation::original_production_enabled(s.profile,s.rule_version)) {
         if (s.original_production) invalid("original production requires City-v16 rule10");
         return;
