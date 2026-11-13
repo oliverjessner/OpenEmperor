@@ -37,8 +37,13 @@ paths, and the pump/ditch connectivity path. It does **not** establish complete
 seasonal yields, real-time units, fertility, ecology or all transport admission.
 In particular, the observed Soybean199 selector resolves raw resource1
 `BeanCurd`; a new soybean commodity or fruit recipe must not be invented.
-Orchard29 is excluded by the examined farm/orchard admission predicate; its model
-label is not permission to reuse the existing237–239 producers as a fruit farm.
+Orchard29 opens submenu30 in the checked UI path; its concrete choices are
+Lacquer Refinery238, Silkworm Shed239 and Tea Curing Shed237. Its explicit factory
+path creates a generic non-producing Industrial object, with registered side0
+and body group0, rather than a Farm/Orchard. The shipped manual's Orchard Sheds
+section (pp45–46) describes the same three plant chains. The complete pinned
+resource-name table and Trade catalog contain no Fruit commodity. These bounded
+facts rule out implementing an Original fruit producer from the29 label.
 The observed Farmhouse return path selects one of five resource-tagged bins;
 that is neither today's two-column adapter nor a requirement that the complete
 Food catalog contain exactly five resources. Raw farm-cart400, hunter-return50,
@@ -318,21 +323,53 @@ closed. **No automatic or implicit migration** exists. An eventual manual
 conversion would be a separate explicitly requested design with a new output
 file, complete validation and preserved input; it is not part of AGRI-01–07.
 
+## Orchard identity boundary (AGRI-03)
+
+**The requested edible-fruit system is not implemented.** The checked sources
+provide no evidenced fruit output, suitable food-fruit plant, valid purchasable
+generic29 producer/body or fruit worker/sprite lifecycle. Tea Bush26, Lacquer
+Tree27 and Mulberry Tree28 remain bound to Tea13, Lacquer14 and RawSilk12 respectively. Neither these
+materials nor decorative flowering trees may become Agriculture Food.
+Food category1–9 and prepared Dinners28 are separate source identities; Dinners
+is not an additional raw crop. See the bounded UI/factory/catalog and manual
+[proof](../reverse/original-agriculture-source-contract.md#model29-is-a-submenu-marker-not-an-orchard-producer).
+
+The implementation boundary therefore stays Rule24/schema40 with exactly five
+Food kinds and its closed production clock. Generic raw model inspection may
+read29 but cannot confer a named model capability, purchase, field, Food column
+or building-body sprite. Tests explicitly preserve that distinction, the three
+existing plant bindings, exact roundtrips and atomic rejection of invented
+Fruit catalog/crop/stock fields. No new World producer, UI action, sprite
+substitution, version or migration is introduced.
+
+A concrete Original reference identifying an edible fruit plant/resource is
+needed to reopen this task as specified. A request to reconstruct the actual
+237–239 material orchards would instead have a different output/consumer scope:
+physical tending/harvest/return, growth state, yields and regrowth still require
+proof before a new explicit Agriculture contract can replace their current
+authored adapters. Their existing behavior remains unchanged. Seasonal integration
+belongs to AGRI-06; it cannot supply a missing commodity or bypass the timing gate.
+
 ## AGRI-02–07 dependency and acceptance plan
+
+The current task order puts orchard investigation in AGRI-03 and seasons in
+AGRI-06. This supersedes the earlier ordering; the AGRI-02 timing blocker remains
+an AGRI-02 prerequisite, rather than being deferred to a later milestone.
 
 | Work | Depends on | Concrete deliverable and gate |
 |---|---|---|
 | AGRI-02: crop chains (not complete) | AGRI-01 evidence, complete Original tending/harvest clock proof | Implemented: typed Food foundation, paid source-verified construction, Rice fertility and exact schema40/Recovery. Blocked: actual growth/harvest/earned Food delivery. No authored time substitute is authorized. |
-| AGRI-03: seasonal fidelity and wider acceptance | Completed AGRI-02 Original work/harvest proof and implementation | Extend proved seasonal/climate/yield behavior and calendar inspection, multi-season and native acceptance. AGRI-02 cannot defer its required working crop clock to this step. Any activated behavior needs a newly selected contract; Rule24 stays closed. |
-| AGRI-04: irrigation | AGRI-02, AGRI-03 | Paid202/203 claims, intake/orientation/height and connectivity, actual pump operation, proven field effects and deterministic reconstruction. Test dry/disconnected/unoperated pumps, network edits, boundary/fertility conflicts, actual output differences and unchanged source bytes. |
-| AGRI-05: orchard identity and physical harvesting | AGRI-02, shared field/work/calendar foundations in AGRI-03 | Resolve29's actual UI/factory/runtime role first; if not a standalone admitted producer, document that negative result and implement only proven applicable plant chains. Real harvesting work/return, output identity/units and proven depletion/regeneration. Do not invent a fruit resource to satisfy a label. Reuse existing237–239 ownership without changing their legacy contracts. |
-| AGRI-06: hunting and fishing | AGRI-02, shared work/return foundations from AGRI-05; relevant terrain/edge work from AGRI-04 | Paid31/33 geometry, source-bound179/183 origins, real prey/boat lifetimes, work routes, depletion and actual returned Fish/Meat units plus outgoing physical carts. Close ecology, replenishment, shore/return/staffing and target acceptance; no marker-based stock grant. |
+| AGRI-03: orchard identity and applicable plant chains (fruit request unsupported) | Verified Original plant/output identity; shared tending/harvest proof before activation | Proven:29 is a submenu on the checked UI path, concrete237–239 outputs are Tea/Lacquer/RawSilk, no Fruit commodity in the pinned catalogs. Guards preserve those boundaries. A playable edible-fruit lifecycle has no evidenced source identity. Actual material-orchard work/return, yield and regeneration remain separate implementation gaps requiring a clarified scope and a new contract. |
+| AGRI-04: irrigation | AGRI-02 field/work foundations and source-bound terrain | Paid202/203 claims, intake/orientation/height and connectivity, actual pump operation, proven field effects and deterministic reconstruction. Test dry/disconnected/unoperated pumps, network edits, boundary/fertility conflicts, actual output differences and unchanged source bytes. No dependence on an invented fruit chain. |
+| AGRI-05: hunting and fishing | AGRI-02 shared work/return foundations; relevant terrain/edge work from AGRI-04 | Paid31/33 geometry, source-bound179/183 origins, real prey/boat lifetimes, work routes, depletion and actual returned Fish/Meat units plus outgoing physical carts. Close ecology, replenishment, shore/return/staffing and target acceptance; no marker-based stock grant. |
+| AGRI-06: seasons and calendar | Completed Original work/harvest proofs for each admitted producer; AGRI-04/05 effect predicates | Extend proved seasonal/climate/yield behavior, calendar inspection and multi-season acceptance. Do not defer required AGRI-02 working crop timing to this step. Every activated change needs a new explicit contract; Rule24 stays closed. |
 | AGRI-07: integrated Agriculture activation | AGRI-02–06 complete evidence/implementation gates | One explicit generation with complete producer→store/Market→House paths, exact schema/create/restore/menu/CLI/Recovery, catalog-aware needs/consumption witnesses and production inspection/rendering. Paid multi-season multi-source city, independent creator/restore processes, complete-document/cargo/accounting equality, hostile-save refusal, historical Rule1–23/schema1–39 controls and measured budgets. Extend the one Agriculture lineage only after all additional required chains close; native/human acceptance stays separately reported. |
 
 The plan orders evidence and integration, not an unconditional promise to fill
 unknown mechanics with authored guesses. Required remaining decisions include
-the admitted29 role, raw yield/cargo units, original calendar mapping, climate/
-fertility/pump predicates, Food storage/processing/quality policy, ecology
+the requested orchard scope after29's submenu identity proof, raw yield/cargo
+units, original calendar mapping, climate/fertility/pump predicates,
+Food storage/processing/quality policy, ecology
 regeneration, clamped harvest overflow and unexplained source effects, and the
 final measured budget. Record each as `EXE_OBSERVED`, an
 approved `AUTHORED` choice, or an explicit activation blocker.

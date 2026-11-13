@@ -220,6 +220,7 @@ void synthetic() {
     auto bad=f.valid();bad["buildings"].erase(0);f.reject(bad,"missing role accepted");
     bad=f.valid();bad["buildings"][1]["model_type"]=72;f.reject(bad,"duplicate model accepted");
     bad=f.valid();bad["buildings"][0]["model_type"]=73;f.reject(bad,"unknown model accepted");
+    bad=f.valid();bad["buildings"][0]["model_type"]=29;f.reject(bad,"Orchard submenu marker accepted as building body");
     bad=f.valid();bad["buildings"][0]["group_key"]=0x485U;f.reject(bad,"coherent wrong same-side registration accepted");
     bad=f.valid();bad["buildings"][0]["image_index"]=203U;f.reject(bad,"same geometry wrong physical image accepted");
     bad=f.valid();bad["buildings"][0]["original_side"]=3U;f.reject(bad,"wrong side accepted");

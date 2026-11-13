@@ -61,7 +61,7 @@ from a nearby row or from `Resource=0`.
 | 26 | `Tea Bush` | 6 | 0 | 0 | E1; paid plant for237 |
 | 27 | `Lacquer Tree` | 5 | 0 | 0 | E1; paid plant for238 |
 | 28 | `Mulberry Tree` | 5 | 0 | 0 | E1; paid plant for239 |
-| 29 | `Orchard Shed` | 30 | 10 | 0 | U; not purchasable |
+| 29 | `Orchard Shed` | 30 | 10 | 0 | U; checked UI submenu for238/239/237 |
 | 31 | `Fishing Quay` | 50 | 10 | 0 | U; not purchasable |
 | 33 | `Hunter's Tent` | 32 | 15 | 0 | U; not purchasable |
 | 35 | `Clay Pit` | 75 | 14 | 0 | F2; native Clay source |
@@ -83,13 +83,13 @@ from a nearby row or from `Resource=0`.
 | 52 | `Carpenters' Guild` | 60 | 25 | 0 | U; not purchasable |
 | 53 | `Mill` | 85 | 16 | 0 | U; not purchasable |
 | 192 | `Hemp Farm` | 40 | 18 | 0 | E2; owned Hemp Field194 |
-| 193 | `Farmhouse` | 50 | 22 | 0 | E3; one Wheat195/Millet196 field |
+| 193 | `Farmhouse` | 50 | 22 | 0 | E3; historical Wheat/Millet; Rule24 paid multi-crop fields, production locked |
 | 194 | `Hemp Field` | 4 | 0 | 0 | E1; child of paid192 |
 | 195 | `Wheat Field` | 5 | 0 | 0 | E1; selected child of193 |
 | 196 | `Millet Field` | 4 | 0 | 0 | E1; selected child of193 |
-| 197 | `Rice Paddy` | 7 | 0 | 0 | U; not purchasable |
-| 198 | `Cabbage Field` | 5 | 0 | 0 | U; not purchasable |
-| 199 | `Soybean Field` | 5 | 0 | 0 | U; not purchasable |
+| 197 | `Rice Paddy` | 7 | 0 | 0 | Rule24 E1; paid field, production locked |
+| 198 | `Cabbage Field` | 5 | 0 | 0 | Rule24 E1; paid field, production locked |
+| 199 | `Soybean Field` | 5 | 0 | 0 | Rule24 E1; paid field, production locked |
 | 202 | `Irrigation Ditch` | 4 | 0 | 0 | U; not purchasable |
 | 203 | `Irrigation Pump` | 10 | 10 | 0 | U; not purchasable |
 | 226 | `Weaponsmith` | 60 | 8 | 0 | U; not purchasable |
@@ -98,14 +98,23 @@ from a nearby row or from `Resource=0`.
 | 239 | `Silkworm Shed` | 40 | 12 | 0 | E2; paid Tree28 |
 
 Rice Paddy197, Cabbage198 and Soybean199 are raw Field candidates, not new
-selections for the current Farmhouse. Orchard Shed29 is not a substitute for
-the already implemented specific237/238/239 producers. The raw Iron/Steel,
+selections for the historical Farmhouse; Rule24 separately admits their paid
+construction with production locked. The checked UI uses Orchard Shed29 as a
+submenu for238/239/237, not an independent fruit producer. The shipped manual
+likewise describes Tea/Lacquer/Mulberry orchards. Their outputs are
+Tea13/Lacquer14/RawSilk12, and the pinned resource-name and Trade catalogs contain
+no Fruit commodity. Registered side0/body group0 and the generic non-producing
+factory path give29 no supported standalone footprint or building-body sprite.
+It must not replace the already implemented specific237/238/239 producers or
+convert their plants to Food. The raw Iron/Steel,
 Stone/Salt/Jade, mint/printing and Weaponsmith names establish no material recipe
 or Funds operation.
 
 The freshly checked field resource selector maps197→6 `Rice`,198→3 `Cabbage`
 and199→1 `BeanCurd`;199's raw `Soybean Field` label does not establish a new
-soybean output commodity. The examined FarmHold/OrchardHold predicate excludes29.
+soybean output commodity. The examined FarmHold/OrchardHold predicate excludes29;
+the [agricultural source contract](../reverse/original-agriculture-source-contract.md#model29-is-a-submenu-marker-not-an-orchard-producer)
+records the separate UI/factory paths, catalog proof and remaining caller scope.
 Actual Farmhouse returns use resource-tagged bins and a separate cart spawn;
 hunting/fishing use actual work and return callbacks. Raw amounts, conditional
 cargo effects, clamped overflow, ecology and World calendar conversion still

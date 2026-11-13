@@ -10,6 +10,10 @@ five-kind state and source-bound fertility preserve Rule1–23/schema1–39.
 **Production is locked:** complete Original tending/harvest timing is unproved;
 no authored calendar substitute or Food origin is active. Functional AGRI-02
 chains and irrigation/orchard/ecology integration remain incomplete.
+AGRI-03 identifies Model29 as a submenu for237–239 on the checked UI path,
+with Tea/Lacquer/RawSilk outputs and no Fruit commodity in the pinned catalogs.
+It adds rejection guards and evidence, not an edible-fruit producer or a new
+version. See the [orchard boundary](agriculture.md#orchard-identity-boundary-agri-03).
 
 ## Versions and source preparation
 
