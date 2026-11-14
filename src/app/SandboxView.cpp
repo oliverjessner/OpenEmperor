@@ -5809,12 +5809,20 @@ bool SandboxView::industry_inspector_selected() const {
     const auto id=selected_building();
     return original_production_fixture() && id && industry_kind(world_->building(*id).kind);
 }
+bool SandboxView::agriculture_inspector_selected() const {
+    const auto id=selected_building();
+    if (!original_agriculture() || !id) return false;
+    const auto kind=world_->building(*id).kind;
+    return kind==simulation::Object::OriginalFoodFarm || kind==simulation::Object::OriginalWheatField ||
+        kind==simulation::Object::OriginalMilletField || kind==simulation::Object::OriginalRiceField ||
+        kind==simulation::Object::OriginalCabbageField || kind==simulation::Object::OriginalSoybeanField;
+}
 bool SandboxView::status_first_selected() const {
     const auto id=selected_building();
     if (!id) return false;
     const auto kind=world_->building(*id).kind;
     return kind==simulation::Object::Well || kind==simulation::Object::OriginalInfluenceSource ||
-        kind==simulation::Object::FireWatch || industry_inspector_selected() ||
+        kind==simulation::Object::FireWatch || industry_inspector_selected() || agriculture_inspector_selected() ||
         (original_production_fixture() &&
             (kind==simulation::Object::Warehouse || kind==simulation::Object::Market)) ||
         (simulation::desirability_profile(rules_) && simulation::original_house_kind(kind));
@@ -6842,12 +6850,11 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Nearest eligible paid Farmhouse owns each field");
         if (original_plantations()) {
             lines.push_back("Wheat/Millet harvest progress "+std::to_string(b.progress)+"/80 (AUTHORED)");
-            for (const auto& field:world_->original_agriculture_state()->fields) if (field.farm_id==*id &&
-                (field.crop==simulation::AgricultureCrop::Wheat || field.crop==simulation::AgricultureCrop::Millet))
-                lines.push_back(std::string(agriculture_food_names[static_cast<std::size_t>(field.crop)])+
-                    " field #"+std::to_string(static_cast<unsigned>(field.field_id))+"; harvested "+std::to_string(field.harvested));
             lines.push_back("One productive Wheat or Millet field per Farmhouse");
         }
+        for (const auto& field:world_->original_agriculture_state()->fields) if (field.farm_id==*id)
+            lines.push_back(std::string(agriculture_food_names[static_cast<std::size_t>(field.crop)])+
+                " field #"+std::to_string(static_cast<unsigned>(field.field_id))+"; harvested "+std::to_string(field.harvested));
         lines.push_back(agriculture_production_status(original_plantations()));
     } else if (original_agriculture() && (b.kind==simulation::Object::OriginalWheatField ||
         b.kind==simulation::Object::OriginalMilletField || b.kind==simulation::Object::OriginalRiceField ||
@@ -6855,6 +6862,19 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         for (const auto& field:world_->original_agriculture_state()->fields) if (field.field_id==*id) {
             lines.push_back(std::string("Output: ")+agriculture_food_names[static_cast<std::size_t>(field.crop)]);
             lines.push_back("Bound Farmhouse #"+std::to_string(static_cast<unsigned>(field.farm_id)));
+            lines.push_back("Farm workers "+std::to_string(world_->workers_assigned(field.farm_id))+"/"+
+                std::to_string(world_->workforce_required(field.farm_id)));
+            const auto& farm=world_->building(field.farm_id);
+            lines.push_back(world_->building_on_fire(field.farm_id) ? "Farm on fire":
+                !farm.operating_enabled ? "Farm paused":
+                !world_->building_staffed(field.farm_id) ? "Farm understaffed":"Farm staffed");
+            for (const auto& stock:world_->original_agriculture_state()->stocks) if (stock.building_id==field.farm_id) {
+                const auto crop=static_cast<std::size_t>(field.crop);
+                lines.push_back("Farm crop stock "+std::to_string(stock.amounts[crop])+"/8");
+                lines.push_back("Farm crop dispatched "+std::to_string(stock.departed[crop]));
+                break;
+            }
+            lines.push_back("Field Grower: unavailable");
             if (original_plantations() && (field.crop==simulation::AgricultureCrop::Wheat || field.crop==simulation::AgricultureCrop::Millet)) {
                 lines.push_back("Harvest progress "+std::to_string(world_->building(field.farm_id).progress)+"/80 productive ticks (AUTHORED)");
                 lines.push_back("Actually harvested "+std::to_string(field.harvested));
@@ -6864,7 +6884,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 lines.push_back("Productive events "+std::to_string(field.productive_events));
                 lines.push_back("Actually harvested "+std::to_string(field.harvested));
                 lines.push_back("Last harvest cycle "+std::to_string(field.last_harvest_cycle));
-                lines.push_back("Production locked: Original tending/harvest timing unverified");
+                lines.push_back("Harvest locked: Original worker/yield contract incomplete");
             }
             lines.push_back(agriculture_production_status(original_plantations()));
             if (field.crop==simulation::AgricultureCrop::Rice)
@@ -7911,6 +7931,7 @@ bool SandboxView::draw_hud() {
         if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
         if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
                        industry_inspector_selected() ? "INDUSTRY INSPECTOR":
+                       agriculture_inspector_selected() ? "AGRICULTURE INSPECTOR":
                        original_production_fixture() && selected_building() && world_->building(*selected_building()).kind==simulation::Object::Warehouse ? "WAREHOUSE INSPECTOR":
                        original_production_fixture() && selected_building() && world_->building(*selected_building()).kind==simulation::Object::Market ? "MARKET INSPECTOR":
                        selected_building() && world_->building(*selected_building()).kind==simulation::Object::Well ? "WELL INSPECTOR":

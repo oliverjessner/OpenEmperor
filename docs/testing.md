@@ -115,6 +115,45 @@ The following tests exercise the current contract:
   A Food-positive authored House model requires actual Food/Water/Ancestor
   input before the three plantation luxury chains reach consumption.
 
+AGRI-02B remains PARTIAL. `original-crop-rules` exercises326 bounded source-rule
+checks for the five model/resource/slot identities, the distinct growing-period
+query and end-slot growth veto, work-byte boundaries, tending flags, decay's
+0xc000 mask, quantity cap, raw base-yield division, runtime-fertility byte
+conversion and signed16-bit work waits. It links only the pure
+crop-rule library and grants no World production or saved state.
+`original-plantations-food-adapter` additionally builds all five field types
+within the unchanged three-Farm limit. Both Wheat and Millet reach actual
+House consumption while Tea/Silk/Lacquerware remain consumed. The paid,
+staffed Rice/Cabbage/Soy Farm retains the published no-origin contract. Its
+schema41 write/read and103-tick continuation preserve the complete snapshot.
+This is an AUTHORED-model compatibility control. Positive Rice/Cabbage/Soy
+Food/Grower and unchanged-native-model progression acceptance remain unavailable.
+`original-agriculture-presentation` checks the selected field's parent workers,
+actual crop stock/departures, explicit Grower/harvest lock and initial detail
+visibility without World mutation. Its private `rice-inspector.png` capture is
+available alongside the existing rice topology captures.
+
+```sh
+cmake --build .local/agri-01/build-release --parallel 4
+ctest --test-dir .local/agri-01/build-release --output-on-failure
+ctest --test-dir .local/agri-01/build-debug --output-on-failure \
+  -R '^(original-crop-rules|original-agriculture-(save|housing|presentation)|original-plantations-(world|save|food-adapter))$'
+ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 \
+UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+ctest --test-dir .local/agri-01/build-sanitize --output-on-failure \
+  -R '^(original-crop-rules|original-agriculture-(save|housing|presentation)|original-plantations-(world|save|food-adapter))$'
+```
+
+AGRI-02B validation passed the337-case Release suite after regenerating the
+public parity report from a fresh74-case comparison and rechecking its contract.
+The report adds only the two new crop-rule source fingerprints. Its existing
+case observations and classifications remain literal. Debug and ASan/UBSan
+each passed the seven selected regressions, followed by a rebuild and successful
+run of the final326-check pure target. The isolated real-Rice SDL test and both
+synthetic/native-asset inspector captures were also checked. These results
+cover the implemented arithmetic, preserved contracts and read-only inspection.
+Positive new-crop production and native human acceptance remain open.
+
 `PlantationsFixture.h` builds its full228×228 map and model independently.
 Every road, source, plant, processor, warehouse, Market and House is paid through
 World commands. The earlier authored lower-House Food0/Water0 positive controls

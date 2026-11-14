@@ -18,8 +18,12 @@ complete original-game compatibility.
   retains the existing authored80-tick Wheat/Millet adapter with actual physical
   Food deliveries and consumption. Rice/Cabbage/Soy remain locked in25; all Food
   remains locked in24. No Original seasonal clock is activated.
-  AGRI-02 functional Food chains are not
-  complete. Irrigation202/203 and hunting/fishing also remain closed.
+  AGRI-02B is PARTIAL. Its new bounded rules component covers proved crop
+  identities, ordinary zero initialization, relative clock observations and
+  work/wait/base-yield arithmetic. Complete post-purchase/restore effects,
+  worker tours, runtime yield inputs and
+  raw-to-Food units still prevent production activation. No Agriculture
+  successor is selectable yet. Irrigation202/203 and hunting/fishing also remain closed.
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Material plantations retain authored work rules.** Explicit Agriculture

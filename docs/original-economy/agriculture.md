@@ -424,6 +424,119 @@ model establishes native-model city progression, Original plantation parity
 or native human acceptance. The current automated checks pass in Release,
 Debug and ASan/UBSan; see the [validation scope](../testing.md#agriculture-foundations-agri-01).
 
+## AGRI-02B crop completion status
+
+**PARTIAL.** The additional source investigation closes the ordinary relative
+scheduler/Grower call chain and several exact field-work operations. It does
+not close the complete production contract required for Rice, Cabbage and
+Soybean to supply earned Food. Rule24/schema40 and Rule25/schema41 retain
+their published production and save contracts.
+
+The independent `original::CropRules` component implements the proved five
+field/resource/calendar identities, the separate growing-period query and
+growth callback, bounded quantity addition, tending bit updates, work decay,
+raw base-yield division, runtime-fertility byte conversion and signed-word
+work waits. The callback's end-slot veto is deliberately
+separate from the growing-period query. Work decay retains only flags0xc000
+and its decremented low byte. These are resolved-event arithmetic APIs. They
+own no actor, field, World clock, inventory or save state.
+
+The source parent invokes the scheduler and eligible actor update in the same
+ordinary iteration. The previously approved one-World-tick-per-phase mapping
+can therefore remain the inherited **AUTHORED** integration choice. Absolute
+Original wall-clock speed is a separate claim. The remaining production gate
+concerns post-purchase/restore effects, complete worker scheduling and yield effects, with
+the exact evidence in the [AGRI-02B audit](../reverse/original-agriculture-source-contract.md#agri-02b-bounded-clock-and-grower-audit).
+
+The Agriculture inspector now places the selected Farm/Field details before
+the building list, lists every bound field, and exposes actual parent workers,
+operation/fire state and per-crop Farm stock/departures. Field Growers are
+explicitly unavailable in the released generations. The bounded quantity and
+harvest counters remain read-only World observations. The existing inactive
+Rice bases and quantity-based Cabbage/Soy sprites keep their current source
+and lifecycle qualifications.
+
+| Feature | Gameplay | Original fidelity | Tests | Open blockers |
+|---|---|---|---|---|
+| Wheat195 / Millet196 | Rule25 production, real deliveries, House consumption and luxury support | Existing approved AUTHORED80-tick adapter, without Original field-worker parity | Paid Food-positive five-field city, physical arrivals, both crop consumption, Tea/Silk/Lacquerware consumption and schema41 replay | Original replacement requires the same complete work/yield contract as the other crops |
+| Rice197 / resource6 | PARTIAL paid fertility100 construction, binding, real Farm staffing and inactive art. Food origin remains locked | Ordinary constructor zeroes, relative clock, Food work/base-yield arithmetic and base-harvest irrigation branch are EXE_OBSERVED | Original crop-rule boundaries, paid five-field coexistence, negative production, inspector, visual and save/continuation controls | Post-purchase/restore effects, complete worker lifecycle, runtime yield modifiers, rounding and raw-to-Food unit contract |
+| Cabbage198 / resource3 | PARTIAL paid construction, binding, real Farm staffing and quantity-based art. Food origin remains locked | Source identity/calendar/work operations independently implemented | Same bounded rules, paid coexistence and historical no-origin controls | Same complete work, yield and unit contract |
+| Soybean199 / BeanCurd resource1 | PARTIAL paid construction, binding, real Farm staffing and quantity-based art. Food origin remains locked | BeanCurd identity retained without adding a processing building | Same bounded rules, paid coexistence and historical no-origin controls | Same complete work, yield and unit contract |
+| Grower Actor26 | Material plantation Growers remain playable. Food Growers remain unavailable | Actual source/field assignment, wait and return callback observations are bounded | Exact signed-word wait/bit operations plus existing plantation movement/save tests | Source quota configuration, candidate tours, failed destinations and interruption lifecycle |
+| Rice irrigation / AGRI-04 | Fertility100 admission retained | The checked false-irrigation branch continues base harvest. Successful Food irrigation adds a0.35 factor | Existing fertility/placement and rice-art controls | Runtime fertility preparation, irrigation topology/global veto and complete yield calculation |
+
+### Successor version boundary
+
+The version audit finds Rule26 and Schema42 unused. They are available for the
+next explicit Agriculture contract. This investigation adds no selectable
+successor or new save writer because the outstanding lifecycle and yield
+choices determine its saved authority. A second Rule25-equivalent menu entry
+would provide no new playable crop behavior. Existing menu/CLI entry points
+continue to expose paid Rice/Cabbage/Soy construction with their production
+lock, and existing saves restore in their own generation.
+
+The successor needs separate exact create/restore/menu/CLI/Recovery identity,
+an explicit marker, and work/cargo records distinct from plantation one-unit
+trips. It must inherit the six-Goods/five-Aux economy and sole five-kind Food
+ledger. Its field work, pending raw yield, Farm remainder and incoming/return
+reservations must reconcile before atomic save publication. The existing
+three-Farm,32-field,82-body and58-channel bounds need a complete channel budget
+before any new successful worker spawn is admitted. Adding a branch to the
+historical exact Rule25 predicate would reinterpret a published contract.
+
+### Decision for an independently authored successor
+
+The user's proof-only crop requirement remains in force. A separate authored
+adapter needs an explicit decision covering all of the following choices
+before it supplies Rice/Cabbage/BeanCurd Food.
+
+| Decision | Concrete integration choice to review | Required evidence or authorization |
+|---|---|---|
+| Clock | Retain the existing one-phase-per-World-tick mapping and51×16×12 calendar | Already AUTHORED in the inherited economy. Exceptional actor-only branches remain outside Original parity |
+| Workers | Reuse shared land navigation, preserve paid immutable field bindings, and define bounded Farm-owned tending/harvest channels and interruption policy | Original spawn quotas/tours and failed-target lifetime need closure, or this worker policy needs explicit authored approval |
+| Yield | Retain ordinary constructor zeroes, resolve complete post-purchase/restore effects, and provide runtime fertility modifiers, crop/region/global multipliers and final x87 rounding | Verified base-yield/fertility operations require explicit resolved inputs. Complete floating-point yield remains open |
+| Food units | Specify conversion and rounding from returned raw yield to the existing Food portions, with retained fractional remainder and reserved return space | Display division by100 and a raw400 cart do not independently establish a World portion conversion |
+| Conservation | Credit only actual Farm return, then use existing physical Farm→Market→House transfers and actual consumption | Retain existing no-duplication/accounting contracts. Define overflow handling before production |
+| Rice | Retain fertility100 placement and admit an unwatered base-yield path when its inputs are fully defined | A universal Pump or water-distance requirement is unsupported. AGRI-04 can later supply the separately proved bonus |
+
+A concrete **AUTHORED candidate**, requiring separate approval, would keep
+Rule25 Wheat/Millet unchanged inside the successor and add the following policy
+only for Rice/Cabbage/BeanCurd. These proposed values are unimplemented.
+
+- Start paid fields with quantity/work/countdown0. Reserve at most one Food
+  Grower channel per Farm inside the existing58-channel bound. Visit eligible
+  owned fields in stable field-ID rotation using shared five-tick land edges.
+- Admit tending only during the source start-inclusive/end-exclusive slot
+  interval. After physical arrival, wait51 eligible work invocations before
+  applying the proved tending effect. Run the proved growth callback at phase20
+  and decay after phase50, with explicit World operation/fire/staffing gates.
+- Mark the crop's end slot for harvest. At least1000 retained quantity admits
+  one proposed Food portion. A real Grower waits25 eligible invocations after
+  arrival, debits exactly1000 quantity per portion and carries at most four
+  portions within reserved Farm headroom. Retain unconverted quantity. Record
+  the new origin once at pickup and include the actual Grower cargo in the
+  sole Food conservation equation. Only physical return credits Farm stock.
+- A pause, fire, staff loss or road cut preserves begun movement and cargo.
+  Stop further productive work and use existing waiting/return repair rules.
+  Rice retains source fertility100 placement and receives no irrigation bonus
+  until AGRI-04 supplies its World-owned effect.
+
+Zero quantity/work/countdown agrees with the ordinary source constructor.
+The one-channel policy, candidate rotation, work admission,
+1000-quantity conversion and interruption choices are authored decisions.
+Approval would authorize a playable approximation with the existing FoodQuality
+scores and household logistics. It would not establish Original yield, actor
+quota, irrigation or full lifecycle parity. Continuing the proof-only approach
+instead requires closing the source blockers above before successor activation.
+
+The new paid coexistence control contains all five field types within three
+Farms, earns Wheat and Millet food and all three plantation luxury consumptions,
+and verifies exact schema41 restoration and continuation. Its independent
+Food-positive model is **AUTHORED**. It establishes preserved household supply
+with the released adapter. Rice/Cabbage/Soy production, unchanged-native-model
+higher-House progression and positive Food-Grower lifecycle acceptance remain
+unfulfilled completion criteria for AGRI-02B.
+
 ## AGRI-02–07 dependency and acceptance plan
 
 The current task order puts the three material plantations in AGRI-03 and seasons in

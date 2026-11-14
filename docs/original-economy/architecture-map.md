@@ -346,6 +346,16 @@ House at 0/7 boundaries and records real misses. Six-goods consumption uses the
 current model row independently per good: Bronze/Lacquer satisfy needs as OR,
 but both stocks are consumed. See [goods evidence](../reverse/original-goods-consumption-food-contract.md).
 
+AGRI-02B adds a separately linked pure `original::CropRules` component for the
+five field identities, source slot queries and bounded work/quantity/wait,
+base-yield and runtime-fertility operations. It owns no World or saved state.
+The ordinary relative actor clock
+is now source-observed. Complete field initialization, worker lifecycle and
+yield/unit inputs still gate playable Rice/Cabbage/Soy production. See the
+[PARTIAL completion matrix](agriculture.md#agri-02b-crop-completion-status).
+Rule26/schema42 are currently unused and available for the next explicit
+contract after those effects are defined.
+
 Nine services use paid 207/208/211/212/213/214/215/217/219 providers, real workers,
 operation/fire/road gates and actual walker arrival. Medicine/culture grant only
 their corresponding 96 timer; religions their own 40 timer. Availability or a

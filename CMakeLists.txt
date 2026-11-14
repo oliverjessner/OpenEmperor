@@ -306,6 +306,10 @@ add_library(openemperor-original-service-rules STATIC
 target_include_directories(openemperor-original-service-rules PUBLIC src)
 target_link_libraries(openemperor-original-service-rules PUBLIC openemperor-original-house-evolution)
 openemperor_enable_warnings(openemperor-original-service-rules)
+add_library(openemperor-original-crop-rules STATIC
+    src/simulation/original/CropRules.cpp)
+target_include_directories(openemperor-original-crop-rules PUBLIC src)
+openemperor_enable_warnings(openemperor-original-crop-rules)
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
     src/simulation/WorldPlantations.cpp
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
@@ -948,6 +952,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-scheduler-tests)
     add_test(NAME original-scheduler COMMAND openemperor-original-scheduler-tests)
     set_tests_properties(original-scheduler PROPERTIES TIMEOUT 30)
+
+    add_executable(openemperor-original-crop-rules-tests tests/OriginalCropRulesTests.cpp)
+    target_link_libraries(openemperor-original-crop-rules-tests PRIVATE openemperor-original-crop-rules)
+    openemperor_enable_warnings(openemperor-original-crop-rules-tests)
+    add_test(NAME original-crop-rules COMMAND openemperor-original-crop-rules-tests)
+    set_tests_properties(original-crop-rules PROPERTIES TIMEOUT 30)
 
     add_executable(openemperor-original-scheduler-world-tests tests/OriginalSchedulerWorldTests.cpp)
     target_link_libraries(openemperor-original-scheduler-world-tests PRIVATE openemperor-simulation)

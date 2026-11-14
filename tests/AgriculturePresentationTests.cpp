@@ -328,6 +328,23 @@ void rice_render_contract(SDL_Window* window,SDL_Renderer* renderer,const fs::pa
         {"field_order_adjusted",d.field_order_adjusted},{"field_order_ambiguous",d.field_order_ambiguous},{"attempts",alpha_attempts}}.dump(2));
     check(opaque&&hole,"Rice native glyph lacks source-alpha pick witnesses: visible="+std::to_string(visible_source)+
         " transparent="+std::to_string(transparent_source)+" opaque="+std::to_string(opaque.has_value())+" hole="+std::to_string(hole.has_value()));
+    const auto before_inspection=view.world().snapshot();
+    click(view,renderer,*opaque);
+    check(view.selected_building()==isolated,"Actual Rice selection lost its paid field identity");
+    std::string inspection;
+    for(const auto& line:view.inspection_lines())inspection+=line+' ';
+    const auto workers="Farm workers "+std::to_string(view.world().workers_assigned(farm_a))+"/"+
+        std::to_string(view.world().workforce_required(farm_a));
+    check(inspection.find(workers)!=std::string::npos && inspection.find("Farm crop stock 0/8")!=std::string::npos &&
+          inspection.find("Farm crop dispatched 0")!=std::string::npos &&
+          inspection.find("Field Grower: unavailable")!=std::string::npos &&
+          inspection.find("Harvest locked: Original worker/yield contract incomplete")!=std::string::npos,
+          "Rice inspector omitted actual Farm staffing/stock or its unavailable production contract");
+    const auto inspector=view.inspector_layout();
+    check(inspector.detail_y<inspector.list_y && inspector.scroll==0 && inspector.detail_row_rect(0).h>0,
+          "Selected Agriculture details remain hidden behind the complete building list");
+    check(view.world().snapshot()==before_inspection,"Field inspection changed authoritative crop state");
+    frame(view,renderer,output/"rice-inspector.png");
     view_key(view,SDLK_F4);const auto fallback_before=view.original_building_display_stats();
     auto fallback=frame(view,renderer,output/"rice-f4-fallback.png");const auto fallback_after=view.original_building_display_stats();
     const auto slot=static_cast<std::size_t>(oe::assets::OriginalBuildingVisualRole::RiceField);

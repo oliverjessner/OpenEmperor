@@ -3667,6 +3667,8 @@
       "src/simulation/PlantationsState.h": "df396a82e946d30fb31733b4c9655a097809e4bfd5a6d36d936f60b1be9265c3",
       "src/simulation/SourceCellRamp.h": "f3e394396925b3830957e3b7b674a06c3a956464d161c4e2a93008e79b1ec4d1",
       "src/simulation/World.h": "1b816b009668991772d6032c8b7ebeb6ed9bbc626b3f72027fa474b43e262655",
+      "src/simulation/original/CropRules.cpp": "269f56514ca9807e8ff4a6430181d1dacc267bfd8257499577b89cc1ef1e39b1",
+      "src/simulation/original/CropRules.h": "dff8f4fe529285ade69ab6762e16b8c1abe48d19ce55053fc0047003bba28187",
       "src/simulation/original/Desirability.cpp": "129b12fd5f009e3eeec33a1ab8ea80e5c79c0124c4fa8c7cf82cfa85d454e3fb",
       "src/simulation/original/Desirability.h": "781bd661e12bf14f6cfc49d1c9089654a2f517e4cf85044ddc10b120135f9eb7",
       "src/simulation/original/GoodsRules.cpp": "e937e825796dd921fa804779fc543c9c4a9fb88c43a5f2d37ba5cd01d0111f63",

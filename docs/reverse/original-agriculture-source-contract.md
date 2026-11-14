@@ -4,8 +4,9 @@ This is a maintained source contract for the agriculture preparation work. It
 extends the [production candidate register](../original-economy/oe55-production.md)
 and the earlier [farm/field presentation investigation](original-presentation-correction.md#farm-bodies-and-field-state-boundary).
 It does not admit a building, field, source marker, material, movement channel,
-growth rule or save generation to `World`. All historical Rules1–23/schemas1–39
-remain exact, including the authored Wheat/Millet contracts where supported.
+growth rule or save generation to `World`. Published Rules1–25/schemas1–41
+retain their separate contracts, including the authored Wheat/Millet and
+material-plantation adapters where supported.
 
 ## Sources and evidence
 
@@ -137,11 +138,23 @@ footprints. Zero field staff does not make an untended field productive.
 
 ## Quantity, work and the source calendar
 
-Original fields have their own state. The checked initializer `0x4c1860` clears
-twelve signed-word history slots at own-info `+0x06..+0x1d`, clears `+0x5c` and
-resets runtime counter `+0x150`; it does not directly initialize quantity word
-`+0x04`. Reset `0x4c1720` explicitly clears quantity and work flags. Complete
-accepted-purchase and restore initialization remain separate proof obligations.
+Fresh Food-field construction has explicit initial state. Constructor
+`0x4c2220→0x4bf410→0x4bf2f0→0x51c9a0` constructs own-info at field body`+0xc8`
+through`0x51c2e0`. That constructor writes quantity word`+0x04=0`
+at`0x51c2fa`, countdown byte`+0x63=0` at`0x51c347`, and work word`+0x6a=0`
+at`0x51c368`. Base-body clearing`0x426e60` also zeros the field-body assignment
+word`+0x2e`. These are explicit constructor writes with independent source-byte
+checks.
+
+The accepted purchase branch reaches manager`0x42d540`, actual concrete
+construction at`0x42d714`, and virtual`+0x94→0x428aa0` at`0x42d736`.
+Shared initialization invokes field virtual`+0x90→0x4c1860` at`0x428b25`.
+The field initializer separately clears twelve signed-word history slots at
+own-info`+0x06..+0x1d`, clears`+0x5c`, resets body counter`+0x150` and registers
+the actual field. Reset`0x4c1720` clears quantity and work flags. Fresh
+constructor quantity/countdown zeroing is therefore closed. Complete
+post-purchase effects, copied/restored objects and exceptional lifecycle paths
+retain separate proof boundaries.
 
 The phase dispatcher `0x4ac2b0`, using table `0x4ac4e8`, selects the field-growth
 driver at source phase20: `0x4ac3bf→0x51e4a0`. That driver first calls schedule
@@ -180,9 +193,15 @@ resets its phase and calls`0x4ac650`. That function increments subcounter
 including the ordinary subslot advances, rather than only to an outer-slot
 boundary. Field growth is visited at phase20 before that cycle's decay.
 
-The field branch reached through `0x51e50a→0x4c0f60` checks actual source state,
-decrements a retained countdown, invokes field callback`+0x25c`, adds its result
-to signed quantity`+0x04`, caps that quantity at10000 and republishes the field.
+The field branch reached through `0x51e50a→0x4c0f60` first skips source terrain
+flag`0x100`. A nonzero retained eight-bit countdown at own-info`+0x63` is
+decremented and returns before quantity work. Otherwise field callback`+0x25c`
+supplies the increment. The addition at`0x4c0fd7` writes a sixteen-bit word,
+followed by a signed comparison with10000 at`0x4c0fed`; a larger signed result
+is capped. Inputs in the supported physical domain0–10000 with increments0/79/157
+cannot overflow that word. Arbitrary signed-word inputs require a separate
+wrapping contract. A later per-model veto`0x4afd80` can clear quantity before
+the publisher at virtual`+0x260` runs.
 The ordinary Food field callback`0x4c2260` additionally reads schedule/work state;
 it returns0 in the last configured end slot (`0x4c16c0`), otherwise157 when
 the work flag's low byte exceeds32,79 when that byte is1–32 and0 when it is0.
@@ -190,9 +209,12 @@ It does not itself call the start-inclusive/end-exclusive growing-period query.
 That separate query's existence therefore does not establish a complete four-slot
 quantity-increment rule. Likewise neither this callback nor the calendar driver
 contains an automatic end-slot harvest or four-portion World stock credit.
-The actual work-completion callback`0x4c1d20` sets low-byte bit`0x40` and clears
-the field's worker reference. The separate decay helper`0x4c1bc0` decrements
-that low byte to a minimum of0 while preserving the high work/harvest bits.
+The actual work-completion callback`0x4c1d20` ORs low-byte bit`0x40` into the
+retained word and clears the field's worker reference and counter`+0x150`.
+The separate decay helper`0x4c1bc0` decrements the unsigned low byte to a minimum
+of0, retains high bits`0x4000`/`0x8000`, and clears bits8–13. Tending therefore
+preserves the existing word through its OR operation, while decay recomposes
+only those two high flags and the decremented low byte.
 These are quantity increments and retained work, not World tick counts or a
 license to make a merely staffed/proximate Farm grow arbitrary fields. The
 complete arrival/dispatch scheduling remains a separate boundary.
@@ -223,32 +245,47 @@ previous control word. In the checked initializer branches:
 |26/27/28 plant fields|204|204|
 
 These values apply only after the relevant field predicate accepts and retained
-field word`+0x2e` is nonzero. The alternate branches write0, and terrain
-flag`0x100` subsequently overrides either initialized wait with0. The meaning
-and complete writers of that retained field word are not inferred as staffing
-or productivity from its location. The waits count subsequent eligible actor
-state invocations; they do not measure World ticks, travel or a full crop season.
+field-body word`+0x2e` is nonzero. The fresh dispatch audit binds this word to an
+actual Grower assignment. Successful harvest/tending spawns write the returned
+ActorId at`0x4c392e`/`0x4c3bec`; completion clears it at`0x4c1d45`/`0x4c1f29`. Quota
+allocation can retain one actor identity on several selected fields. Complete
+concurrent commitments and exceptional writers remain open. These writes address
+the actual field body retained through the manager lookup or method receiver.
+The own-info pointer returned by virtual`+0x1e8` separately addresses work
+word`+0x6a`, quantity`+0x04` and countdown byte`+0x63`.
+
+The alternate wait branches write0, and terrain flag`0x100` subsequently
+overrides either initialized wait with0. Each eligible work-state invocation
+decrements the sixteen-bit word before its signed positive comparison. In the
+initialized domain,51 needs51 such invocations and25 needs25. An initialized0
+becomes−1 and permits completion on the next invocation. For arbitrary raw words,
+the native decrement wraps, so−32768 becomes32767 and remains positive. These
+are eligible actor invocation counts with separate movement and season state.
 
 The shared type dispatcher`0x4c7580` indexes behavior pointers at
 `0x84e784+40*actor_type`. Raw actor type26's entry`0x84eb94` points to
 `0x4cc670` (the Grower behavior). This raw actor type domain is separate from
-the plant-field type26 above. The registry binding does not close how often
-the actual actor reaches that dispatcher or the movement/state branches.
+the plant-field type26 above. The AGRI-02B common-parent audit below closes one
+behavior call per eligible live actor in the ordinary actor pass. Special-mode
+gates and complete movement-to-state timing retain their own proof boundaries.
 
-These observations close relative phase/subslot cadence and the immediate
-work/harvest wait gates, not the complete accepted field initialization,
-actor update rate, movement-to-state transitions or repeated
-field assignment/tending lifecycle. A fixed160-increment adapter, an assumed
-63-event ripening period or a fixed four-portion seasonal harvest is therefore
+These observations close relative phase/subslot cadence, the ordinary relative
+actor call chain and the immediate work/harvest wait gates. Complete post-purchase
+and exceptional field initialization, actor gates, movement-to-state transitions
+and repeated field assignment/tending lifecycle remain open. A fixed160-increment
+adapter, an assumed63-event ripening period or a fixed four-portion seasonal harvest is therefore
 **AUTHORED**, not a verified Original time rule. With the user's proof-only
 timing requirement, these unclosed production transitions remain unavailable;
 none may be activated as an Original seasonal chain.
 
-The original is not a single shared elapsed-time progress counter. The checked
-callback`0x4c1dd0` marks work state, gates yield on the schedule bit, reads the
-actual field quantity, includes source terrain fertility, irrigation, crop/region
+The checked callback`0x4c1dd0` marks work state, gates yield on the schedule bit,
+reads actual field quantity, applies runtime fertility, irrigation, crop/region
 and other global modifiers, records a calendar-indexed result, adds it to the
-actual worker's pending harvested amount and clears field quantity.
+actual worker's pending harvested amount and clears field quantity. Its fertility
+operand is runtime byte`0xeac3f0`, whose source preparation includes a transform
+from serialized fertility`0xe9f8e0` at`0x4c1c20`. The latter remains the exact
+Rice construction operand. Their distinct identities and preparation must be
+preserved when defining a future World yield context.
 
 The crop/region multiplier is read from `0x84c564` indexed by three times crop
 index plus the actual source region selector. A separate branch multiplies by
@@ -257,6 +294,44 @@ clock/year, event/technology and regional interpretation is not inferred from
 these instructions or from similarly named FarmConfig entries. The original
 x87 arithmetic and rounding require their own bounded differential controls
 before exact output quantities are implemented.
+
+### Bounded raw-yield and fertility arithmetic
+
+**EXE_OBSERVED:** for physical quantity Q in0–10000, the integer branches
+at`0x4c1e3a..0x4c1e78` compute base raw amount Q/100 or Q/50 with integer
+truncation. The larger branch requires both actual predicates
+`0x48e0f0` and`0x48e680(field_type)` to accept. Their event state and complete
+lifecycle remain external inputs to this arithmetic.
+
+Runtime fertility preparation`0x4c1c20`, particularly`0x4c1ca9..0x4c1ccc`,
+reads serialized byte S from`0xe9f8e0`, computes floor(55×S/100), adds the
+explicit global byte G at`0x84c560`, and retains the low byte in`0xeac3f0`.
+The resulting byte is `(floor(55×S/100)+G) mod256`. Parameter initialization
+`0x4bfc20` writes G=10 at`0x4bfc6f`, global multiplier float bits`0x3f933333`
+at`0x4bfc65`, and crop/region defaults. Complete later writers, load preparation
+and the source-file consumer for FarmConfig remain **UNKNOWN**. Future World
+callers must supply admitted source context for these values explicitly.
+
+The harvest multiplies that runtime byte by the retained float0.01 and stores
+the result as binary32 at`0x4c1e97`. A true irrigation query adds float0.35 for
+Food or0.2 for plant fields and stores binary32 again at`0x4c1ec2`. It then
+multiplies the integer base by the crop/region float and the stored fertility
+factor before conversion helper`0x7650fc`. The global`0xd623fc>−300` branch
+multiplies this already converted integer by`0x84c55c` and converts again.
+The intermediate stores and conversion order are part of the observed dataflow.
+
+The private receipt includes a bounded arithmetic example under an explicitly
+assumed nearest-even binary32 store. S=100 and G=10 produce runtime byte65.
+With base raw100, region factor1 and the base irrigation branch, the stored
+fertility factor is`0x3f266666`, approximately0.6499999761581421. Its product
+before integer truncation is approximately64.99999761581421, giving raw64.
+This is a controlled rounding example. Actual x87 precision/rounding during
+the multiplication and binary32 stores still requires its complete runtime
+contract before exact native yield reproduction is admitted.
+
+The native Farm inspector independently divides raw bin amounts by100 at
+`0x4c454d..0x4c4563` for presentation. That displayed unit leaves the World
+Food-portion, partial-return and overflow conversion contracts open.
 
 ### Rice paddy topology and the inactive base
 
@@ -372,6 +447,89 @@ an explicit implementation question. Strict World mass conservation and reserved
 return headroom must be documented as the new contract's authored guarantees,
 not attributed to this incompletely followed original return path.
 
+## AGRI-02B bounded clock and Grower audit
+
+**EXE_OBSERVED:** the fresh relative-clock receipt is
+`.local/agri-02b/clock/verified-relative-clock.json`. It checks9 bounded windows,
+2,198 overlapping decoded lines /5,916 decoded bytes and29 narrow assertions.
+The independent Grower receipt
+`.local/agri-02b/grower/verified-grower.json` checks16 bounded windows,
+4,404 overlapping decoded lines /12,770 decoded bytes and61 narrow instruction
+assertions, with additional vtable/table checks.
+
+The fresh-construction follow-up
+`.local/agri-02b/initialization/verified-field-initialization.json` checks31
+bounded windows,2,280 decoded lines /6,185 checked bytes and33 narrow instruction
+assertions with typed-vtable controls. It closes the explicit constructor
+quantity, countdown, work and assignment zero writes described above.
+The yield-parameter receipt
+`.local/agri-02b/clock-extra/verified-yield-parameters.json` checks8 bounded
+windows,384 decoded lines /1,224 checked bytes and31 narrow instruction
+assertions, plus20,002 bounded base-arithmetic identities and256 fertility
+identities. It records the conditional integer base, runtime fertility transform
+and retained float/conversion sequence with their remaining external inputs.
+
+All four receipts retain identical before and after SHA-256, size, mode and
+modification time for the pinned EXE, BuildingModels and FarmConfig. Original
+execution and personal-save inspection are absent from these static checks.
+The retained private receipts can be rechecked with the following commands.
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02b/clock/verify_clock.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02b/grower/verify_grower.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02b/initialization/verify_initialization.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02b/clock-extra/verify_yield_parameters.py
+```
+
+The ordinary common update parent`0x5371a0` invokes scheduler`0x4ac2b0`
+at`0x5371bf`, then actor pass`0x4e27e0` at`0x5371ce`. The actor pass checks
+the actual actor's active byte`+0x16` and retained gate`+0x13c`, then invokes
+virtual`+0x28` once on that eligible record at`0x4e2909`. Constructor-installed
+vtable`0x7afe60` binds that slot to`0x4c7580`; its raw-type26 entry`0x84eb94`
+reaches Grower`0x4cc670`. This closes the ordinary relative call chain between
+source phases and eligible actor work invocations. Global`0x88ec38` can skip
+scheduler advancement while the actor pass still runs. Its complete meaning,
+the actor`+0x13c` writers and exceptional branch relationships remain **UNKNOWN**.
+OpenEmperor's existing one-World-tick-per-source-phase adapter remains
+**AUTHORED**. Source seconds, named dates and unconditional special-mode parity
+require separate evidence.
+
+Farmhouse193 vtable`0x7af1e8` selects live update`0x4c4b90`. Its successful
+dispatch path requires actual access`0x4ba6f0`, the staffing-percentage result
+from`0x428ed0`, global type/resource veto checks and retained operation
+virtual`+0x78→0x4289f0`. The operation getter reads body byte`+0x90`.
+Dispatch`0x4c3550` applies percentage tiers100/75/50/25 to separately configured
+harvest/tending quotas and its attempt counter. It invokes
+virtual`+0x270→0x4c36a0` and`+0x274→0x4c3980`; those branches create actual
+Actor26 instances, retain their source ID at Actor`+0x62`, and write the actor
+identity into selected field bodies. Later target selection assigns the actor's
+actual field at`+0x68`. Quota configuration, candidate ranking, distance-grid
+preparation and concurrent tours still need their complete source contracts.
+
+The shared veto`0x4afd80` resolves the actual model type and tests its global
+byte at`0x10bc7e0+type`. The verified operand supports a per-type global veto.
+Its complete writers and gameplay meaning remain **UNKNOWN**. Assigning this
+gate object-local fire or staffing semantics would introduce an unsupported
+interpretation. Original pause, fire and workforce-loss effects on outstanding
+work require independent lifecycle observations.
+
+The Grower movement branches use actual actor outcome byte`+0x19`. Outcome8
+at`0x4cc8a0` admits the tending wait and state8; outcome8 at`0x4ccb53` admits
+the harvest wait and state12. The actual wait helpers reach field completion
+before returning to state6 or10. Later physical return outcome8 at`0x4ccca8`
+alone reaches the source's virtual`+0x268` receipt through`0x4cccbf`.
+Farmhouse193 binds this receipt to`0x4c4ee0`, while material-plantation sources
+bind`0x4c2e50`. Their storage paths retain their own typed inventories.
+
+These static transitions supply independently testable event arithmetic and
+binding observations. Production activation still requires complete
+post-purchase/exceptional initialization, movement/outcome and repeated-work
+lifecycles, admitted runtime fertility/global yield inputs with controlled
+rounding, and a conservative raw-yield/World-portion contract including bin overflow.
+Rice/Cabbage/Soy gameplay remains **PARTIAL** while those dependencies are open.
+Any separately proposed authored adapter must identify its selected clock,
+movement, work, yield, unit and interruption rules explicitly before activation.
+
 ## Irrigation has separate terrain and source authority
 
 ### Ditch202
@@ -420,14 +578,15 @@ bank. The meaning and full lifetime of that additional global condition remain
 unknown. Harvest and estimate callers use this result as one input; proximity
 alone is insufficient.
 
-The checked harvest callback queries irrigation after deriving the base yield
-and uses it to add a field-class-dependent fertility modifier. Together with Rice's
-separate100-fertility placement check, this does **not** prove that every
-Original Rice field requires a Pump or Ditch to be purchased or to harvest.
-An unresolved Rice watering restriction in a new World adapter must therefore
-be labelled as that adapter's conservative gate, with its missing source-bound
-fertility/irrigation proof stated explicitly; it must not be presented as a
-verified universal Original pump rule or bypassed with render/proximity data.
+The checked harvest callback queries irrigation after deriving the base yield.
+At`0x4c1ea3`, a false query continues directly to the existing calculation at
+`0x4c1ec6`. A true query adds a field-class-dependent runtime fertility modifier,
+float0.35 at`0x7ae7c4` for Food195–199 or0.2 at`0x7ae7c8` for plants26/27/28.
+The source therefore has a base harvest path when the irrigation query is false.
+Rice's separate serialized fertility100 construction predicate remains exact.
+A future integration must distinguish that construction operand from runtime
+fertility and admit only proved source-bound irrigation effects. A universal
+Rice pump or water-nearness restriction has no support in these observed branches.
 
 These source image-bank dependencies must not be copied into rendering as a new
 World authority. A future integrated Agriculture contract needs explicit
@@ -743,7 +902,8 @@ these gates independently:
 1. Complete accepted construction, purchase arithmetic, terrain/fertility and
    source-manager admission for each new type; ditch and pump are not ordinary
    field variants. Confirm exact footprint/intake/road-crossing geometry.
-2. Initial field quantity, complete tending/harvest state transitions, worker
+2. Complete post-purchase and exceptional field lifecycle following the verified
+   fresh Food-field constructor zeroes, tending/harvest transitions, worker
    assignment and concurrent-field commitments. Recover actual relationships;
    do not infer immutable ownership from adjacency or a returned field ID.
 3. Original calendar/date and event ordering, crop/region and all yield modifiers,

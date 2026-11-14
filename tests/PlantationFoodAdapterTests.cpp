@@ -243,27 +243,57 @@ void schema41_physical_food_recovery_and_hostile_relabels() {
 }
 void real_food_enables_all_three_luxury_consumers() {
     Fixture fixture(true);auto world=fixture.world();const auto scene=p::build(world);(void)foods(world,true);
+    for(int x=33;x<=38;++x)f::buy(world,{sim::CommandType::PlaceRoad,{x,20}});
+    const auto crop_farm=p::purchase(world,sim::CommandType::PlaceOriginalFoodFarm,{35,17});
+    const std::array additional_fields{
+        crop(world,crop_farm,sim::CommandType::PlaceOriginalRiceField,{38,17}),
+        crop(world,crop_farm,sim::CommandType::PlaceOriginalCabbageField,{38,18}),
+        crop(world,crop_farm,sim::CommandType::PlaceOriginalSoybeanField,{38,19})};
+    check(world.original_agriculture_state()->farms.size()==3 &&
+          world.original_agriculture_state()->fields.size()==5,
+          "Five-crop city did not pay for all fields within the historical Farm limit");
     constexpr std::array goods{orig::Goods::Tea,orig::Goods::Silk,orig::Goods::Lacquerware};
     std::array<bool,3> actual_arrivals{};
+    bool staffed_crop_farm=false;
+    sim::AgricultureCounters food_consumed{};
     for(int tick=0;tick<20000;++tick) {
         world.tick();
+        staffed_crop_farm|=world.building_staffed(crop_farm);
+        food_consumed={};
+        for(const auto& row:world.original_agriculture_state()->stocks)
+            for(std::size_t index=0;index<food_consumed.size();++index)
+                food_consumed[index]+=row.consumed[index];
         for(const auto& trip:world.original_goods_state()->reservations)
             if(trip.source==scene.market && trip.phase==sim::OriginalGoodsTransferPhase::Completed && trip.delivered>0 &&
                std::find(scene.homes.begin(),scene.homes.end(),trip.target)!=scene.homes.end())
                 for(std::size_t index=0;index<goods.size();++index)if(trip.good==goods[index])actual_arrivals[index]=true;
         bool done=std::all_of(actual_arrivals.begin(),actual_arrivals.end(),[](bool value){return value;});
         for(const auto good:goods)done&=world.original_goods_balance(good).totals.consumed>0;
+        done&=staffed_crop_farm && food_consumed[0]>0 && food_consumed[1]>0;
         if(done)break;
     }
     check(std::all_of(actual_arrivals.begin(),actual_arrivals.end(),[](bool value){return value;}),
           "Food-positive paid city never received all three real plantation luxuries");
     for(const auto good:goods)check(world.original_goods_balance(good).totals.consumed>0,
         "Real Food and plantations failed to reach actual luxury household consumption");
-    bool consumed_food=false;
-    for(const auto& row:world.original_agriculture_state()->stocks)consumed_food|=row.consumed[0]+row.consumed[1]>0;
-    check(consumed_food && fixture.model->house_rules().value(orig::ModelHouse::PlainCottage,orig::HouseField::FoodQuality)==1,
+    check(staffed_crop_farm && food_consumed[0]>0 && food_consumed[1]>0 &&
+          fixture.model->house_rules().value(orig::ModelHouse::PlainCottage,orig::HouseField::FoodQuality)==1,
           "Luxury consumption positive control bypassed its explicit positive Food requirement");
+    for(const auto field_id:additional_fields) {
+        const auto& field=a::field(world,field_id);
+        check(field.farm_id==crop_farm && !field.quantity && !field.productive_events && !field.harvested,
+              "A paid staffed Rice/Cabbage/Soy field bypassed the historical production gate");
+    }
     conserved(world);
+    const auto path=fixture.root.path/"five-crop41.json";
+    save::write_save(path,fixture.document(world),fixture.root.data,fixture.mask());
+    const auto document=save::read_save(path);
+    check(document.source_schema_version==41,"Five-crop city changed its historical save generation");
+    auto replay=fixture.restore(document);
+    check(replay.snapshot()==world.snapshot(),"Five-crop city did not restore its exact schema41 authority");
+    for(int tick=0;tick<103;++tick) {world.tick();replay.tick();}
+    check(replay.snapshot()==world.snapshot(),"Five-crop city replay changed Food or plantation authority");
+    conserved(world);conserved(replay);
 }
 } // namespace
 

@@ -498,6 +498,7 @@ private:
     std::optional<assets::BuildingVisualRole> visual_role(simulation::Cell cell,
         simulation::Object object,bool placement_preview=false) const;
     bool fire_watch_selected() const;
+    bool agriculture_inspector_selected() const;
     bool status_first_selected() const;
     std::vector<std::string> wrap_panel_lines(const std::vector<std::string>& lines) const;
     bool append_original_building_visual_diagnostic(std::vector<std::string>& lines,
