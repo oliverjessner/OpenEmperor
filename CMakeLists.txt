@@ -286,7 +286,7 @@ target_link_libraries(openemperor-original-model PRIVATE OpenSSL::Crypto)
 openemperor_enable_warnings(openemperor-original-model)
 add_executable(openemperor-model-inspect tools/model-inspector/main.cpp)
 target_link_libraries(openemperor-model-inspect PRIVATE
-    openemperor-original-model nlohmann_json::nlohmann_json)
+    nlohmann_json::nlohmann_json)
 openemperor_enable_warnings(openemperor-model-inspect)
 # Numerical house rules; Rule7 preparation validates immutable model values.
 # Active evolution/needs processing remains a later World contract.
@@ -315,6 +315,14 @@ add_library(openemperor-original-irrigation-rules STATIC
     src/simulation/original/IrrigationRules.cpp)
 target_include_directories(openemperor-original-irrigation-rules PUBLIC src)
 openemperor_enable_warnings(openemperor-original-irrigation-rules)
+add_library(openemperor-original-harvest-rules STATIC
+    src/simulation/original/HarvestRules.cpp
+    src/simulation/original/FishingRules.cpp)
+target_include_directories(openemperor-original-harvest-rules PUBLIC src)
+target_link_libraries(openemperor-original-harvest-rules PUBLIC
+    openemperor-original-model openemperor-original-irrigation-rules)
+openemperor_enable_warnings(openemperor-original-harvest-rules)
+target_link_libraries(openemperor-model-inspect PRIVATE openemperor-original-harvest-rules)
 target_link_libraries(openemperor-simulation PUBLIC openemperor-original-irrigation-rules)
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
     src/simulation/WorldPlantations.cpp
@@ -977,6 +985,16 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-irrigation-rules-tests)
     add_test(NAME original-irrigation-rules COMMAND openemperor-original-irrigation-rules-tests)
     set_tests_properties(original-irrigation-rules PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-original-harvest-rules-tests tests/OriginalHarvestRulesTests.cpp)
+    target_link_libraries(openemperor-original-harvest-rules-tests PRIVATE openemperor-original-harvest-rules)
+    openemperor_enable_warnings(openemperor-original-harvest-rules-tests)
+    add_test(NAME original-harvest-rules COMMAND openemperor-original-harvest-rules-tests)
+    set_tests_properties(original-harvest-rules PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-original-fishing-rules-tests tests/OriginalFishingRulesTests.cpp)
+    target_link_libraries(openemperor-original-fishing-rules-tests PRIVATE openemperor-original-harvest-rules)
+    openemperor_enable_warnings(openemperor-original-fishing-rules-tests)
+    add_test(NAME original-fishing-rules COMMAND openemperor-original-fishing-rules-tests)
+    set_tests_properties(original-fishing-rules PROPERTIES TIMEOUT 30)
 
     add_executable(openemperor-original-scheduler-world-tests tests/OriginalSchedulerWorldTests.cpp)
     target_link_libraries(openemperor-original-scheduler-world-tests PRIVATE openemperor-simulation)

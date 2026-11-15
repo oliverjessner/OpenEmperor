@@ -138,6 +138,10 @@ void synthetic() {
               active->building_value(kind,orig::BuildingField::Employees)==workers,
               "Named industry Cost/Employees not prepared");
     check(!active->supports_building(static_cast<orig::ModelBuilding>(4096)),"Undefined production model ID admitted");
+    for (const auto candidate:{orig::ModelBuilding::FishingQuay,orig::ModelBuilding::HuntersTent}) {
+        check(!active->supports_building(candidate),"Harvest observations granted production model capability");
+        refuses([&]{(void)active->building_value(candidate,orig::BuildingField::Cost);});
+    }
     refuses([&]{(void)active->building_value(extra[0],static_cast<orig::BuildingField>(13));});
     const auto pristine=f::read_text(path);
     for (const auto building:extra) {

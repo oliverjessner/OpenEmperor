@@ -23,7 +23,11 @@ complete original-game compatibility.
   work/wait/base-yield arithmetic. Complete post-purchase/restore effects,
   worker tours, runtime yield inputs and
   raw-to-Food units still prevent production activation. Rule26/schema42 adds
-  separately selected irrigation infrastructure. Hunting/fishing remain closed.
+  separately selected irrigation infrastructure. AGRI-05 adds tested raw
+  hunting/fishing state operations, complete Quay geometry and read-only
+  inspection. Playable hunting/fishing remains blocked by ecology, navigation,
+  callback eligibility, raw-to-Food conversion and complete quality/transport
+  contracts. See the [component matrix](docs/original-economy/agriculture.md#hunting-and-fishing-component-matrix-agri-05).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

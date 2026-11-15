@@ -587,7 +587,9 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
     if finance_blob != "4c42d35342a89c113b44965562635421efccecd1":
         raise ValueError("Original-finance ABI drift requires reviewed compatibility contract")
     model_header_blobs = {}
-    for name, expected in (("ModelSchema.h", "ce1d76ea20c3d10a74534693321d03faf0f5ffcf"),
+    # AGRI-05 adds named31/33 inspection identities only. Historical prepared
+    # model sets, DTO layouts and the fourth-module calls retain their contract.
+    for name, expected in (("ModelSchema.h", "c232baf4b249d7a800a8e241b66b517a7891a3ca"),
                            ("OriginalRulesModel.h", "d78170a92c167537beae4e3a90698e659ac33aa8")):
         header = ROOT / "src/simulation/original" / name
         actual = hashlib.sha1(b"blob " + str(header.stat().st_size).encode() + b"\0" + header.read_bytes()).hexdigest()

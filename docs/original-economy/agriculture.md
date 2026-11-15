@@ -639,6 +639,79 @@ Validation results are recorded in the maintained testing guide after the
 Release, Debug, sanitizer, literal-history and independent parity runs. Scripted
 SDL and private captures remain separate from native/human acceptance.
 
+## Hunting and fishing component matrix (AGRI-05)
+
+AGRI-05 is **PARTIAL**. `HarvestRules` and `FishingRules` implement bounded
+Original state operations and complete Quay geometry. The read-only model
+inspector consumes these components through `--harvest-source 31` and
+`--harvest-source 33` observations.
+Playable Hunter/Quay production requires the remaining source contracts below.
+The current gameplay generation is Rule26/schema42. Rule27/schema43 were checked
+as available. This change exposes read-only source components. Paid Agriculture,
+irrigation and typed Food accounts use their existing generation contracts.
+
+The two named source models are FishingQuay31 and HuntersTent33. Their raw model
+Cost/Employees are50/10 and32/15 in the pinned data. Executable selectors identify
+Fish2 and Meat4 independently of the raw model Resource column. The inspector
+reports both facts, their separate evidence classification and the pinned EXE
+identity. Modified synthetic model values exercise this distinction in tests.
+
+### Implemented source operations
+
+Quay geometry reuses the proved Pump shore geometry and adds its actual exterior
+dock. Four orientations retain all five occupied cells, eight water-context
+cells, two land cells and the complete eight-cell perimeter. Coordinate overflow
+and incomplete caller-supplied attribute planes are rejected. Source fishing
+origin flood excludes navigation bytesFE/FF. Boat distance preparation instead
+admitsFE with an extra raw4 and a separate deferred expansion, whileFF is blocked.
+These independent predicates consume explicitly resolved source operands. Full
+navigation-plane classification and the saved-header coordinate-to-map reader
+binding remain required before World routing or construction can use them.
+
+Hunter staffing tiers expose the observed attempt thresholds and active limits,
+with quota capped by `floor((400-stock)/100)`. The byte throttle increments before
+its strict comparison. Boat search and work helpers preserve signed-WORD wrap
+and their distinct comparison order. Dock comparison204 completes from zero on
+its205th eligible call. Every count refers to a resolved eligible Original
+callback. Exceptional scheduler states and actor suspension still qualify the
+relationship to current World execution.
+
+The source prey selector maps raw0 to Antelope77,1 to Pheasant76 and other WORD
+values to WildPig75. Seven initial attempts belong to each eligible source point.
+Positive coordinates, successful group allocation, a zero initialization-bypass
+flag, valid spawn placement and actual actor creation are separate prerequisites.
+The helper exposes selector facts and an attempt budget.
+Source replacement attempts have newly proved phase5/29 and missing-count
+counter behavior, while group lifetime/count ownership, RNG and recurring live
+state progression remain incomplete.
+
+Raw receipt operations preserve the actual difference between Hunter addition50
+and Quay assignment100. The Quay result exposes overwritten stock explicitly.
+The standalone Hunter helper supports nonnegative, capacity-safe operands and
+rejects unsupported over-capacity histories. Original performs uncapped WORD addition. The helper's admitted domain covers
+capacity-safe inputs. Ordinary successful cart debit moves100 raw units
+and requires the resolved external-effect byte to be zero. The nonzero branch
+can carry400 while debiting100 and retains an unresolved accounting contract.
+
+### Completion matrix
+
+| Feature | Gameplay | Original fidelity | Tests | Open blockers |
+|---|---|---|---|---|
+| Models, resource and worker identities | Read-only inspection implemented | Raw model facts and EXE selectors independently qualified | Named schema, CLI, modified synthetic values and real model query | Full paid admission and integrated producer capability |
+| Quay shore/dock shape | Complete pure geometry implemented | Verified five occupied cells and four orientations | All orientations, bounds, overflow and source-context immutability | Resolved source navigation plane, complete shore admission and World claims |
+| Fishing-origin and distance predicates | Pure resolved-input operations implemented | FE/FF domain distinction and raw extra4 verified | All256 byte values and perimeter limits | Header-to-map binding, full classification/rebuild and physical water routing |
+| Hunter quota and Boat work | Raw callback operations implemented | Exact quota, threshold and signed counter order | Staffing boundaries, stock headroom, counter wrap and completion boundaries | Actor lifetime, suspension, physical pursuit/return and full World-time binding |
+| Prey initialization and regeneration | Selector and attempt-budget components implemented | Conditional initial seven attempts and separate replacement path qualified | All65,536 selectors and explicit species identities | Group/count lifecycle, successful spawn, RNG, depletion and recurrence |
+| Raw receipts/cart debit | Bounded component implemented | Hunter ADD50, Quay assignment100 and ordinary debit100 | Capacity-safe raw conservation, replacement reporting and invalid-effect refusal | Live work/return admission, stock replacement conservation,400-effect and overflow histories |
+| Fish/Meat Farm/Market/House integration | UNSUPPORTED | Raw Actor19/Market/Actor25 boundaries documented | Existing Food and irrigation regressions, inactive-inspector assertions | Shared World unit conversion, complete FoodShop recipe/grade and actual delivery witnesses |
+| Buildings, workers and animal graphics | UNSUPPORTED for new World actors | Actor/model identities qualified | Existing visual profile regressions | Actual World lifetimes and verified animation/state bindings |
+| Save/Load/Recovery | Historical generation contracts preserved | Exact Rule26/schema42 and historical contracts | Full existing persistence and historical rule suite | Positive Hunter/Boat/cargo restore needs the remaining production contract |
+
+Complete source details and checked instruction sites are maintained in the
+[agricultural source contract](../reverse/original-agriculture-source-contract.md#agri-05-bounded-harvesting-rules-and-remaining-activation-gates).
+The remaining conversion and ecology gates prevent a complete playable chain.
+An authored replacement requires a concrete separately approved contract.
+
 ## AGRI-02–07 dependency and acceptance plan
 
 The current task order puts the three material plantations in AGRI-03 and seasons in

@@ -24,6 +24,12 @@ permissions, production bodies, workforce and route revision remain authoritativ
 wet/supplier caches are derived. Field queries expose nearby supplied water,
 while crop-specific yield effects remain PARTIAL and inactive. See the
 [irrigation matrix](agriculture.md#irrigation-infrastructure-and-completion-matrix-agri-04).
+AGRI-05 adds bounded `HarvestRules`/`FishingRules` and model-inspector
+observations. They expose source-proved raw counters, quotas, receipts, prey
+selectors and complete Quay geometry. Producer lifetimes, map navigation inputs,
+unit conversion and the full FoodShop quality/transport contract remain
+activation gates. Current World authority stays Rule26/schema42. See the
+[hunting/fishing component matrix](agriculture.md#hunting-and-fishing-component-matrix-agri-05).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 
