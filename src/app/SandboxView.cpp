@@ -17,6 +17,7 @@
 #include "assets/PlantationVisualProfile.h"
 #include "assets/IrrigationVisualProfile.h"
 #include "simulation/original/IrrigationRules.h"
+#include "simulation/original/SeasonRules.h"
 #include "core/Version.h"
 #include "simulation/CityStartGuidance.h"
 #include "simulation/OriginalEconomyStarter.h"
@@ -111,6 +112,22 @@ const char* agriculture_production_status(bool plantations) {
         "Production locked: Original tending/harvest timing unverified";
 }
 constexpr std::array agriculture_food_names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)"};
+bool agriculture_inspection_kind(simulation::Object kind) {
+    return kind==simulation::Object::OriginalFoodFarm || kind==simulation::Object::OriginalWheatField ||
+        kind==simulation::Object::OriginalMilletField || kind==simulation::Object::OriginalRiceField ||
+        kind==simulation::Object::OriginalCabbageField || kind==simulation::Object::OriginalSoybeanField ||
+        kind==simulation::Object::OriginalHempFarm || kind==simulation::Object::OriginalHempField ||
+        simulation::original_industry_plant(kind) || kind==simulation::Object::OriginalTeaCuringShed237 ||
+        kind==simulation::Object::OriginalLacquerRefinery238 || kind==simulation::Object::OriginalSilkwormShed239;
+}
+std::string reference_slots(const std::array<std::int8_t,4>& slots,std::uint8_t count) {
+    std::string text;
+    for(std::size_t index=0;index<count;++index) {
+        if(index)text+=",";
+        text+=std::to_string(static_cast<int>(slots[index]));
+    }
+    return text.empty() ? "none":text;
+}
 bool append_agriculture_stock_lines(const simulation::World& world,simulation::BuildingId id,
         std::vector<std::string>& lines,int capacity) {
     if (!world.original_agriculture_enabled()) return false;
@@ -2175,6 +2192,7 @@ void SandboxView::prepare_irrigation_visuals(bool force) {
 
 void SandboxView::prepare_original_field_order(bool force) {
     prepare_irrigation_visuals(force);
+    prepare_agriculture_inspection(force);
     if (!force && world_ && original_field_order_revision_==world_->road_revision()) return;
     original_field_order_count_=0;
     original_rice_visual_count_=0;
@@ -3904,6 +3922,7 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
     else if (action==A::Step) {
         try { clock_.step_once(*world_); }
         catch (const std::overflow_error& error) { if (!pause_for_original_fire_limit(error.what())) throw; }
+        prepare_original_field_order();
         clear_hidden_walker_selection();
     }
     else if (action==A::Speed1) clock_.set_speed(1);
@@ -6032,10 +6051,90 @@ bool SandboxView::industry_inspector_selected() const {
 bool SandboxView::agriculture_inspector_selected() const {
     const auto id=selected_building();
     if (!original_agriculture() || !id) return false;
-    const auto kind=world_->building(*id).kind;
-    return kind==simulation::Object::OriginalFoodFarm || kind==simulation::Object::OriginalWheatField ||
-        kind==simulation::Object::OriginalMilletField || kind==simulation::Object::OriginalRiceField ||
-        kind==simulation::Object::OriginalCabbageField || kind==simulation::Object::OriginalSoybeanField;
+    return agriculture_inspection_kind(world_->building(*id).kind);
+}
+void SandboxView::prepare_agriculture_inspection(bool force) {
+    if (!world_ || !original_agriculture()) {
+        agriculture_inspection_workers_.clear();
+        agriculture_calendar_lines_.clear();
+        agriculture_inspection_tick_=agriculture_inspection_sequence_=UINT64_MAX;
+        return;
+    }
+    if (!force && agriculture_inspection_tick_==world_->ticks() &&
+        agriculture_inspection_sequence_==world_->command_sequence()) return;
+    agriculture_inspection_workers_.clear();
+    agriculture_inspection_workers_.reserve(world_->buildings().size());
+    std::vector<simulation::AgricultureSeasonStatus> seasons;
+    for (const auto& body:world_->buildings()) {
+        agriculture_inspection_workers_.emplace_back(body.id,world_->workers_assigned(body.id));
+        if (const auto status=world_->agriculture_season_status(body.id)) seasons.push_back(*status);
+    }
+    const auto calendar=world_->agriculture_calendar();
+    if (!calendar) throw std::logic_error("Agriculture World lost its sole calendar observation");
+    const auto& position=calendar->position;
+    const std::vector<std::string> common{
+        "Elapsed cycle "+std::to_string(position.year)+" | Outer slot "+std::to_string(position.month),
+        "Subslot "+std::to_string(position.step)+" | Phase "+std::to_string(position.phase)+" (next dispatch)",
+        "AUTHORED World mapping v"+std::to_string(calendar->mapping_version)+" | Reference numeric slots"};
+    agriculture_calendar_lines_.clear();
+    for (const auto& body:world_->buildings()) {
+        if (!agriculture_inspection_kind(body.kind)) continue;
+        auto lines=common;
+        std::vector<original::ModelBuilding> models;
+        for (const auto& status:seasons) {
+            if (status.subject!=body.id && status.producer!=body.id) continue;
+            if (std::find(models.begin(),models.end(),status.model)!=models.end()) continue;
+            models.push_back(status.model);
+            if (status.subject==body.id) {
+                lines.push_back(status.authored_production_active ? "Actual AUTHORED adapter available":"Original productive quantity disabled");
+                const bool plant=simulation::original_industry_plant(body.kind);
+                if(status.productive_target)lines.push_back("Actual progress "+std::to_string(status.productive_progress)+"/"+
+                    std::to_string(status.productive_target)+(plant ? status.harvest_ready ? " | ready":" | not ready":
+                        " | automatic adapter harvest"));
+                lines.push_back(status.burning ? "Producer on fire":!status.operating ? "Producer paused":
+                    !status.staffed ? "Producer understaffed":!status.road_connected ? "Producer road entrance missing":
+                    "Producer staffed and operating");
+                if(original_irrigation())lines.push_back(std::string("Actual Ditch water ")+
+                    (status.water_available ? "available":"unavailable")+
+                    (status.yield_effect_active ? " | yield effect active":" | yield effect inactive"));
+            }
+            const auto& rule=original::season_rule(status.model);
+            const auto label="Reference Model"+std::to_string(static_cast<unsigned>(status.model));
+            lines.push_back(label+" starts "+reference_slots(rule.start_slots,rule.start_count)+
+                " | ends "+reference_slots(rule.end_slots,rule.end_count));
+            lines.push_back(std::string("Reference period ")+(status.reference_growing_period ? "inside":"outside")+
+                (status.reference_growth_suppressed ? " | quantity callback suppressed":" | quantity callback not season-vetoed"));
+            lines.push_back("Original seasonal production blocked by "+status.blocker);
+        }
+        if (models.empty()) lines.push_back("Paid field or plant required");
+        lines.push_back(calendar->next_source_growth_tick ? "Next reference callback growth20 at tick "+std::to_string(*calendar->next_source_growth_tick):
+            "Next reference growth20 unavailable");
+        lines.push_back(calendar->next_irrigation_update_tick ? "Next irrigation27 callback at tick "+std::to_string(*calendar->next_irrigation_update_tick):
+            "Irrigation callback inactive in this version");
+        agriculture_calendar_lines_.emplace_back(body.id,std::move(lines));
+    }
+    agriculture_inspection_tick_=world_->ticks();
+    agriculture_inspection_sequence_=world_->command_sequence();
+    ++agriculture_inspection_prepare_count_;
+}
+void SandboxView::append_agriculture_calendar_lines(std::vector<std::string>& lines,simulation::BuildingId id) const {
+    if (!original_agriculture()) return;
+    const auto row=std::lower_bound(agriculture_calendar_lines_.begin(),agriculture_calendar_lines_.end(),id,
+        [](const auto& value,auto wanted){return value.first<wanted;});
+    if (row!=agriculture_calendar_lines_.end() && row->first==id)
+        lines.insert(lines.end(),row->second.begin(),row->second.end());
+}
+int SandboxView::inspection_workers_assigned(simulation::BuildingId id) const {
+    if (!original_agriculture()) return world_->workers_assigned(id);
+    const auto row=std::lower_bound(agriculture_inspection_workers_.begin(),agriculture_inspection_workers_.end(),id,
+        [](const auto& value,auto wanted){return value.first<wanted;});
+    if (row==agriculture_inspection_workers_.end() || row->first!=id)
+        throw std::logic_error("Agriculture workforce display was not prepared after World publication");
+    return row->second;
+}
+bool SandboxView::inspection_building_staffed(simulation::BuildingId id) const {
+    return original_agriculture() ? inspection_workers_assigned(id)>=world_->workforce_required(id):
+        world_->building_staffed(id);
 }
 bool SandboxView::irrigation_inspector_selected() const {
     if (!world_ || !original_irrigation() || !selected_ || selected_walker_) return false;
@@ -6421,7 +6520,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Actual arrival grants 2400 ticks protection");
             add_fire_status(id);
         }
-        lines.push_back("Workers assigned "+std::to_string(world_->workers_assigned(id))+"/"+
+        lines.push_back("Workers assigned "+std::to_string(inspection_workers_assigned(id))+"/"+
             std::to_string(world_->workforce_required(id)));
         lines.push_back(std::string("Operation: ")+(b.operating_enabled ? "Running":"Paused"));
         lines.push_back(std::string("Priority: ")+simulation::workforce_priority_name(b.workforce_priority));
@@ -6456,8 +6555,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         const auto id=*house_id;const auto& body=world_->building(id);
         lines={std::string(info->name)+" #"+std::to_string(static_cast<unsigned>(id)),
             "Authored managed recipes",info->recipe,"80 productive ticks / unit",
-            "Workers "+std::to_string(world_->workers_assigned(id))+"/"+std::to_string(world_->workforce_required(id))+
+            "Workers "+std::to_string(inspection_workers_assigned(id))+"/"+std::to_string(world_->workforce_required(id))+
                 (body.operating_enabled ? " | Running":" | Paused")};
+        append_agriculture_calendar_lines(lines,id);
         const bool plantation=original_plantations() && (body.kind==simulation::Object::OriginalTeaCuringShed237 ||
             body.kind==simulation::Object::OriginalLacquerRefinery238 || body.kind==simulation::Object::OriginalSilkwormShed239 ||
             simulation::original_industry_plant(body.kind));
@@ -6483,7 +6583,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                     plant_line(plant);
                     const auto& source_body=world_->building(plant.source_id);
                     lines.push_back("Bound source #"+std::to_string(static_cast<unsigned>(plant.source_id)));
-                    lines.push_back("Source workers "+std::to_string(world_->workers_assigned(plant.source_id))+"/"+
+                    lines.push_back("Source workers "+std::to_string(inspection_workers_assigned(plant.source_id))+"/"+
                         std::to_string(world_->workforce_required(plant.source_id))+(source_body.operating_enabled ? " | Running":" | Paused"));
                 }
             } else {
@@ -6707,7 +6807,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back(std::string(theatre ? "Theatre75 #":"Music211 #")+
             std::to_string(static_cast<std::uint32_t>(id)));
         lines.push_back(theatre ? "Paid4x4; authored stage art":"Paid2x2; actual Actor34 route");
-        lines.push_back("Workers assigned "+std::to_string(world_->workers_assigned(id))+"/"+
+        lines.push_back("Workers assigned "+std::to_string(inspection_workers_assigned(id))+"/"+
             std::to_string(world_->workforce_required(id)));
         lines.push_back(std::string("Operation: ")+(body.operating_enabled ? "Running":"Paused"));
         if (theatre) {
@@ -6796,7 +6896,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             b.kind==simulation::Object::OriginalDramaSchool213 ? "Drama213 #":
             b.kind==simulation::Object::HealthPost ? "Herbalist207 #":"Acupuncture208 #")+
             std::to_string(static_cast<std::uint32_t>(id)));
-        lines.push_back("Workers assigned "+std::to_string(world_->workers_assigned(id))+"/"+
+        lines.push_back("Workers assigned "+std::to_string(inspection_workers_assigned(id))+"/"+
             std::to_string(world_->workforce_required(id)));
         lines.push_back(std::string("Operation: ")+(b.operating_enabled ? "Running":"Paused"));
         if (culture) lines.push_back("Experimental school-to-House");
@@ -6832,7 +6932,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         const auto id=*house_id;
         const auto& b=world_->building(id);
         lines.push_back("Health Post #"+std::to_string(static_cast<std::uint32_t>(id)));
-        lines.push_back("Workers assigned "+std::to_string(world_->workers_assigned(id))+"/2");
+        lines.push_back("Workers assigned "+std::to_string(inspection_workers_assigned(id))+"/2");
         lines.push_back(std::string("Operation: ")+(b.operating_enabled ? "Running":"Paused"));
         lines.push_back(std::string("Priority: ")+simulation::workforce_priority_name(b.workforce_priority));
         for (const auto& c:world_->couriers()) if (c.owner==id) {
@@ -6959,7 +7059,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             "External offer: import "+std::to_string(balance.import_offer_remaining)+" / export "+std::to_string(balance.export_offer_remaining),
             "External buyer budget $"+std::to_string(24-balance.exports_received),
             "Paid imports $"+std::to_string(balance.imports_paid)+"; received exports $"+std::to_string(balance.exports_received),
-            "Workers "+std::to_string(world_->workers_assigned(*id))+"/"+std::to_string(world_->workforce_required(*id)),
+            "Workers "+std::to_string(inspection_workers_assigned(*id))+"/"+std::to_string(world_->workforce_required(*id)),
             std::string("Operation: ")+(b.operating_enabled?"Running":"Paused")};
         if(!state.binding)lines.push_back("Unbound: select city Warehouse, then G.");
         else {
@@ -6985,6 +7085,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         (b.kind==simulation::Object::Warehouse || b.kind==simulation::Object::Market);
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
+    append_agriculture_calendar_lines(lines,*id);
     if (original_storage) {
         const int capacity=b.kind==simulation::Object::Warehouse ? 32:16;
         for (std::size_t good=0;good<goods_names.size();++good) {
@@ -7052,7 +7153,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                     simulation::Rules::household_workers));
         else {
             const auto required=world_->workforce_required(*id);
-            lines.push_back("Workers assigned "+std::to_string(world_->workers_assigned(*id))+
+            lines.push_back("Workers assigned "+std::to_string(inspection_workers_assigned(*id))+
                 "/"+std::to_string(required));
             if (world_->operation_controls_supported() &&
                 simulation::World::operation_controllable(b.kind)) {
@@ -7070,8 +7171,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                         });
                     lines.push_back(moving ? "Operation paused; current delivery is finishing.":
                                            "Paused by player; production and new dispatch stopped.");
-                } else if (!world_->building_staffed(*id)) lines.push_back("Status: Unstaffed");
-            } else if (!world_->building_staffed(*id)) lines.push_back("Status: Unstaffed");
+                } else if (!inspection_building_staffed(*id)) lines.push_back("Status: Unstaffed");
+            } else if (!inspection_building_staffed(*id)) lines.push_back("Status: Unstaffed");
         }
     }
     if (b.kind==simulation::Object::Workshop) {
@@ -7127,12 +7228,12 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         for (const auto& field:world_->original_agriculture_state()->fields) if (field.field_id==*id) {
             lines.push_back(std::string("Output: ")+agriculture_food_names[static_cast<std::size_t>(field.crop)]);
             lines.push_back("Bound Farmhouse #"+std::to_string(static_cast<unsigned>(field.farm_id)));
-            lines.push_back("Farm workers "+std::to_string(world_->workers_assigned(field.farm_id))+"/"+
+            lines.push_back("Farm workers "+std::to_string(inspection_workers_assigned(field.farm_id))+"/"+
                 std::to_string(world_->workforce_required(field.farm_id)));
             const auto& farm=world_->building(field.farm_id);
             lines.push_back(world_->building_on_fire(field.farm_id) ? "Farm on fire":
                 !farm.operating_enabled ? "Farm paused":
-                !world_->building_staffed(field.farm_id) ? "Farm understaffed":"Farm staffed");
+                !inspection_building_staffed(field.farm_id) ? "Farm understaffed":"Farm staffed");
             for (const auto& stock:world_->original_agriculture_state()->stocks) if (stock.building_id==field.farm_id) {
                 const auto crop=static_cast<std::size_t>(field.crop);
                 lines.push_back("Farm crop stock "+std::to_string(stock.amounts[crop])+"/8");
@@ -7153,7 +7254,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             }
             lines.push_back(agriculture_production_status(original_plantations()));
             if (field.crop==simulation::AgricultureCrop::Rice)
-                lines.push_back("Rice admitted by source fertility100; dynamic irrigation awaits AGRI-04");
+                lines.push_back(original_irrigation() ?
+                    "Rice fertility100 admission; irrigation does not prove harvest/yield inputs":
+                    "Rice fertility100 admission; dynamic irrigation unavailable in this version");
             break;
         }
     } else if (b.kind==simulation::Object::OriginalFoodFarm) {
@@ -7178,8 +7281,20 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Harvested "+std::to_string(farm.harvested));
         }
     } else if (b.kind==simulation::Object::OriginalHempField) {
-        for (const auto& farm:world_->original_production_state()->hemp_farms) if (farm.field_id==id)
+        for (const auto& farm:world_->original_production_state()->hemp_farms) if (farm.field_id==id) {
             lines.push_back("Bound Farm #"+std::to_string(static_cast<unsigned>(farm.farm_id)));
+            if (original_agriculture()) {
+                const auto& source=world_->building(farm.farm_id);
+                lines.push_back("Actual Hemp progress "+std::to_string(source.progress)+"/80 productive ticks (AUTHORED)");
+                lines.push_back("Actually harvested "+std::to_string(farm.harvested));
+                lines.push_back("Farm workers "+std::to_string(inspection_workers_assigned(farm.farm_id))+"/"+
+                    std::to_string(world_->workforce_required(farm.farm_id)));
+                lines.push_back(world_->building_on_fire(farm.farm_id) ? "Farm on fire":
+                    !source.operating_enabled ? "Farm paused":
+                    !inspection_building_staffed(farm.farm_id) ? "Farm understaffed":"Farm staffed");
+                lines.push_back("Actual Hemp uses the existing adapter; no Original quantity or seasonal yield grant");
+            }
+        }
     } else if (b.kind==simulation::Object::Warehouse) {
         const int stock=simulation::production_profile(rules_) ? b.pottery_stock :
             world_->warehouse_stock();
@@ -7252,7 +7367,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Produced total "+std::to_string(b.food_produced));
     } else if (b.kind==simulation::Object::Market) {
         if (b.operating_enabled && !world_->building_on_fire(*id)) lines.push_back(std::string("Market ")+
-            (world_->building_staffed(*id) ? "staffed":"unstaffed"));
+            (inspection_building_staffed(*id) ? "staffed":"unstaffed"));
         lines.push_back("Pottery stock "+std::to_string(b.pottery_stock)+"/16");
         lines.push_back("Pottery incoming "+std::to_string(b.reserved_incoming));
         lines.push_back("Food stock "+std::to_string(b.food_stock)+"/16");
@@ -7261,7 +7376,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back(original_fire_protection() ? "Authored Fire Watch | $80 | 2 workers":"Fire Watch - fireproof");
         if (original_fire_protection())
             lines.push_back("Inspector arrival grants 2400 ticks protection");
-        lines.push_back(std::string("Staffed ")+(world_->building_staffed(*id) ? "yes":"no"));
+        lines.push_back(std::string("Staffed ")+(inspection_building_staffed(*id) ? "yes":"no"));
         lines.push_back("Protected "+std::to_string(world_->protected_buildings())+"/"+
             std::to_string(world_->fire_eligible_buildings()));
         lines.push_back("Burning "+std::to_string(world_->burning_buildings()));

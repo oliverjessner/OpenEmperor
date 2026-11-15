@@ -341,6 +341,36 @@ Original binary-save graphics, original runtime variation and whole-scene
 parity remain separate from this fresh-purchase binding; no original EXE
 execution or native human acceptance follows from the scripted tests.
 
+## Agriculture calendar and season observations (AGRI-06)
+
+```sh
+cmake --build build --parallel 4 --target openemperor-original-season-rules-tests \
+  openemperor-agriculture-calendar-world-tests openemperor-season-calendar-presentation-tests
+ctest --test-dir build --output-on-failure \
+  -R '^original-(season-rules|agriculture-calendar-world|season-calendar-presentation)$'
+```
+
+Pure tests independently enumerate the nine reference plants' raw slot masks,
+callback suppression and work-byte boundaries, including Hemp's unsuppressed
+callback and Lacquer's unmatched end. Food delegates the existing `CropRules`.
+World and presentation tests exercise paid construction, multiple elapsed
+calendar cycles, boundary restores, pause/speed/step, operation and water facts,
+actual retained production, locked crops and deterministic continuation.
+Reference slot queries grant no crop work or harvest. Full seasonal production
+and native human acceptance remain separate completion conditions.
+
+AGRI-06 validation on2026-11-15 passed348/348 Release CTests with zero skips,
+plus13/13 focused checks in each Debug and ASan/UBSan configuration. macOS
+LeakSanitizer was excluded. The new pure rules passed4,200,456 checks. The paid
+mixed-city test completed19,584 ticks, two full cycles, with actual Food/House
+consumption, material Grower returns, water/pause/fire observations and exact
+disk/Recovery continuation. The scripted SDL test passed boundaries, input and
+pure frames. All nine1280/1600/1920 captures were opened and inspected. Fresh
+independent core parity passed74/74 cases with unchanged non-fingerprint public
+results. Of95 existing simulation/persistence paths,94 remain literal-equal to
+merged AGRI-05. `World.h` adds one include and two const observations. The fresh
+private Original-file guard passed66 source assertions across9 windows.
+
 ## Production evidence queries (OE55)
 
 ### Hunting and fishing components (AGRI-05)

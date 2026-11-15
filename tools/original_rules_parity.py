@@ -64,9 +64,13 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # The two model IDs and separately prepared rows extend capability explicitly.
 # Fresh matching archives and literal historical documents validate that ABI;
 # this review establishes no irrigation yield or crop clock parity.
+# AGRI-06 adds const, derived calendar/plant observations only. World layout,
+# saved DTOs and historical scheduling remain exact. The new included status
+# header is pinned separately and fresh matching archives remain mandatory.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "ffabd7a6f8138618ac64c3d200f3ec540805c5f8",
+    "World.h": "9bf6d83387b0d835b046269797fe274fea4d1a5d",
+    "AgricultureCalendar.h": "17455dad4bca5382ae8b2cb389bc2bf1099d642d",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "ee6b911adaa02d0951e4d4eadad23db0d57bd068",

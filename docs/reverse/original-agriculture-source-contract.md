@@ -4,7 +4,7 @@ This is a maintained source contract for the agriculture preparation work. It
 extends the [production candidate register](../original-economy/oe55-production.md)
 and the earlier [farm/field presentation investigation](original-presentation-correction.md#farm-bodies-and-field-state-boundary).
 It does not admit a building, field, source marker, material, movement channel,
-growth rule or save generation to `World`. Published Rules1–25/schemas1–41
+growth rule or save generation to `World`. Published Rules1–26/schemas1–42
 retain their separate contracts, including the authored Wheat/Millet and
 material-plantation adapters where supported.
 
@@ -1274,6 +1274,93 @@ Actor19 destination acceptance/reservations/overflow/return, and source byte70's
 Hunter stock addition must retain their distinct operations. The five existing
 Food columns, Rule26 irrigation, approved harvest adapters and schemas1–42 keep
 their contracts while these independently evidenced helpers are integrated.
+
+## AGRI-06 seasonal reference rules and common calendar
+
+The fresh private checker `.local/agri-06/seasons/verify_seasons.py` produces
+`verified-seasons.json` with66 explicit checks,9 byte-checked windows,414 decoded
+instruction lines and1,141 instruction bytes including overlaps. The pinned
+EXE, model and FarmConfig retain their SHA-256, size, mode and modification time.
+The Original is not executed and personal saves are not read. The receipt
+qualifies the fixed default EXE tables and concrete callbacks below. a selected
+model context or raw configuration label does not prove live calendar values,
+runtime table edits or complete climate/event binding.
+
+**EXE_OBSERVED**
+
+`0x4c0760` visits four matching positions in start table
+`0x7ae22c` and end table `0x7ae19c`. A position contributes only when both
+operands are nonnegative and `start<=current_slot<end`. It does not wrap an
+interval or pair an extra end with a different start. The descriptors retain
+all four positions, sentinel−1 and separate start/end counts. Lacquer's
+`[1,−1,−1,−1]` starts and `[6,7,−1,−1]` ends therefore describe one growing
+interval `[1,6)`. end7 is not a second growing interval.
+
+The quantity callback's suppression query is a different operation.
+`0x4c16c0` returns equality with the last configured end before sentinel−1,
+within four entries. `0x4c16f0` accepts equality with any configured end before
+that sentinel. Neither helper determines a successful harvest or a completed
+worker visit.
+
+| Model | Growing intervals in raw slots | Quantity suppression | Increment for low work byte>32 /1–32 /0 |
+|---|---|---|---|
+|Wheat195|[2,6)|6|157 /79 /0|
+|Millet196|[6,10)|10|157 /79 /0|
+|Rice197|[5,9)|9|157 /79 /0|
+|Cabbage198|[7,11)|11|157 /79 /0|
+|Soybean199 / BeanCurd1|[4,8)|8|157 /79 /0|
+|Hemp194 / Hemp19|[3,8)|None in its concrete quantity callback|125 /63 /0|
+|Tea26 / Tea13|[2,4),[5,7),[8,10)|Last end10 only|105 /53 /0|
+|Lacquer27 / Lacquer14|[1,6)|Any end6 or7|125 /63 /0|
+|Mulberry28 / RawSilk12|[3,5),[6,8)|Last end8 only|157 /79 /0|
+
+The Hemp-specific predicate `0x4c0630` admits194. concrete factory call
+`0x4c06e7→0x4c25e0` publishes vtable `0x7aecc8`. Its quantity callback
+`+0x25c→0x4c2600` reads only the actual own-info work low byte for the125/63/0
+choice. The complete bounded function contains no calendar read, growing-period
+query or end-slot suppression. Hemp's `[3,8)` query cannot be substituted as a
+veto for that callback. Food callback `0x4c2260` instead uses last-end query
+`0x4c16c0`. plant callback `0x4c2730` uses that query for Tea/Mulberry and
+any-end query `0x4c16f0` for Lacquer. Earlier Tea ends4/7 and Mulberry end5 thus
+remain unsuppressed by those quantity callbacks despite failing the separate
+growing-period query. High work flags or bits8–15 alone do not contribute work.
+
+`original::SeasonRules` implements these bounded reference descriptors and
+queries. Food195–199 forwards period and increment arithmetic to the existing
+`CropRules` functions. The helpers do not run the shared terrain/countdown/veto
+driver, assign workers, advance a clock, mark harvest readiness, consume a
+plant, credit cargo or convert raw amounts to World inventories.
+
+**AUTHORED integration**
+
+`AgricultureCalendarStatus` is a disposable projection
+of the existing World `completed_ticks` through the `OriginalScheduler` mapping of51 phases,
+16 subslots,12 outer slots, elapsed year0 and mapping version1. One World tick
+per phase and that epoch remain the established authored interpretation.
+No second advancing date, new saved season field, rule, schema or migration is
+introduced. Next phase20/27 observations identify the inherited schedule's
+next opportunities. phase27 is exposed only for the irrigation generation.
+They do not execute Original field growth or grant an
+irrigation yield. Pause, speed and restore continue to use the sole World tick
+authority. Raw slots have no newly assigned month names or historical dates.
+
+Per-building seasonal inspection keeps reference growing/suppression queries
+apart from actual World staff, operation, fire, roads, water, productive progress,
+ready state, current Grower and harvest/return accounting. The existing approved
+80-productive-tick Wheat/Millet, Hemp and material-plantation adapters retain
+their quantities and clocks. Their progress is not an Original work word;
+authored readiness is not proof of the Original harvest mark.
+
+**UNKNOWN / inactive**
+
+Open prerequisites include complete live climate/region inputs, exceptional
+calendar/event ordering, Grower targeting and interrupted returns, actual
+recurring seasonal readiness/regeneration, complete fertility/irrigation/global
+yield modifiers and rounding, source overflow, and raw-to-Food/material units.
+Rice/Cabbage/Soy production, Original seasonal replacement of the approved
+adapters, hunting/fishing activation and new seasonal sprites remain closed.
+AGRI-06 supplies a common derived calendar and tested reference queries. it does
+not establish a complete playable Original seasonal production cycle.
 
 ## Concrete proof gates before implementation
 
