@@ -25,6 +25,51 @@ AGRI-05 qualifies Hunter33/Quay31 identities, geometry and bounded raw-state
 operations through reusable rules and read-only inspection. Their playable
 production chains remain PARTIAL with explicit activation gates in the
 [component matrix](agriculture.md#hunting-and-fishing-component-matrix-agri-05).
+AGRI-06 exposes the existing sole World scheduler as disposable calendar and
+paid-plant observations. Reference slots and next phase20/27 opportunities do
+not activate Original growth or yield events. AGRI-02C extends the existing
+`openemperor-original-crop-rules` target with independently bounded dispatch,
+event predicate and raw transport operations. Rice/Cabbage/BeanCurd production
+remains **PARTIAL**; Rules1–26 and schemas1–42 retain their gameplay and saves.
+
+## AGRI-02C component boundary
+
+The source default Food quotas are five harvest and two tending slots, supplied
+from a separate runtime configuration object. The pure API takes the actual
+resolved limits explicitly and applies the observed staffing tiers and old-byte
+attempt comparison. For small supplied limits, partial staffing can retain a
+tending minimum while the harvest quota is zero. A due attempt creates no worker
+or eligible field.
+The retained source dispatch counters are not a proved exact census of living
+Growers. Neither these defaults nor several fields sharing an actual worker ID
+authorize the proposed single extra Farm channel or deterministic field rotation.
+
+The additional doubled-base predicate consumes explicit raw enable/state/crop
+selectors and feeds the existing bounded integer-base arithmetic. It does not
+name or schedule the underlying event, provide admitted runtime fertility,
+resolve a region/global multiplier or establish x87 output rounding.
+
+The raw Farm helpers preserve resource identity in five bins. The observed
+constructor capacity and Cart amount are each 400 raw units; actual capacity
+remains supplied separately. Credits report both accepted quantity and
+overflow. Debits report only the amount physically removed. The Cart receipt
+operation receives the target's actual accepted count, preserving residual cargo
+for reselection or choosing the source-return branch after full acceptance.
+It does not admit a target, reserve storage, move a cart or dispose of overflow.
+Raw400 has no verified conversion to World Food portions, and the proposed
+1000-to-one conversion has no approval or Original-unit proof.
+
+These are reusable source components, with no new World/UI/save authority or
+positive production for197–199. The existing paid 19,584-tick mixed-city test
+covers the authorized Wheat/Millet and material adapters, all five Food field
+identities, shared calendar, irrigation and exact continuation. Its Rice,
+Cabbage and Soybean quantities, harvests, transport and consumption remain zero.
+Native-model higher-House acceptance and complete new-crop production therefore
+remain separate unfinished requirements. Rule27/schema43 are available proposal
+numbers rather than an implemented generation. The remaining Grower, runtime
+yield, overflow, FoodShop/quality and raw-unit gates are maintained in the
+[source contract](../reverse/original-agriculture-source-contract.md) and
+[Agriculture guide](agriculture.md).
 
 ## What the sources establish
 

@@ -36,6 +36,13 @@ complete original-game compatibility.
   authored80-tick progress into Original work. Complete worker/yield/unit and
   live climate/region inputs remain open. No new rule, schema or migration is
   introduced. See the [seasonal matrix](docs/original-economy/agriculture.md#common-calendar-and-seasonal-reference-matrix-agri-06).
+  AGRI-02C adds verified quota/attempt arithmetic, the exact crop-qualified
+  doubled-base predicate and raw Farm/Cart bin/partial-receipt operations.
+  Complete active-worker lifetimes, live yield inputs/precision and the
+  raw-to-World Food contract still gate Rice/Cabbage/BeanCurd production.
+  The native Farm caller ignores returned overflow. The World conservation
+  policy and any authored successor require an explicit decision. See the
+  [crop completion matrix](docs/original-economy/agriculture.md#crop-completion-and-decision-boundary-agri-02c).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

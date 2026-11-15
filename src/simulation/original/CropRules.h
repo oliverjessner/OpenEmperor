@@ -41,6 +41,13 @@ struct CropRule {
 // It supplies neither a final harvest nor a conversion to World Food portions.
 [[nodiscard]] std::uint16_t raw_base_yield(std::uint16_t quantity, bool doubled_base);
 
+// Explicit raw event operands only; their identity, writers and lifecycle are
+// external. enabled!=0 and state3 additionally require selector0 for Wheat,
+// selector1 for Soybean, or selector2/4 for Millet. Other Food crops returnfalse.
+// This is not a World event/technology grant or a final harvest multiplier.
+[[nodiscard]] bool crop_doubled_base(ModelBuilding field,std::uint8_t event_enabled,
+    std::uint32_t event_state,std::uint32_t crop_selector);
+
 // One source runtime-fertility preparation operation, with the global modifier
 // supplied explicitly. Serialized and runtime fertility are distinct bytes.
 // The final byte conversion retains the observed modulo-256 addition.
@@ -75,5 +82,43 @@ struct CropWaitStep {
 // One raw signed-WORD decrement followed by a signed >0 test. Wrap is modeled
 // explicitly, including -32768 -> 32767. Due only describes the counter gate.
 [[nodiscard]] CropWaitStep advance_crop_work_wait(std::int16_t wait) noexcept;
+
+// Explicitly resolved nonnegative DWORD configuration, not model Employees or
+// a live FarmConfig reader. The pinned initializer's Food limits are5/2, but
+// complete later writers/load authority remain external to this operation.
+struct CropDispatchConfig {
+    std::int32_t harvest_limit=0;
+    std::int32_t tending_limit=0;
+    bool operator==(const CropDispatchConfig&) const = default;
+};
+
+struct CropDispatchRule {
+    bool staffed=false;
+    std::uint8_t attempt_threshold=0;
+    std::int32_t harvest_limit=0,tending_limit=0;
+    bool operator==(const CropDispatchRule&) const = default;
+};
+
+// One4c3550 staffing-tier calculation with supplied configuration. Percentages
+// 0..100 are the supported caller domain. Partial25/50/75 tiers round down and
+// retain a minimum tending limit1;1..24 have zero quotas. Negative configured
+// limits and partial-tier multiplication overflow are refused, without claiming
+// parity for Original's arbitrary signed-DWORD wrap histories. No quota implies
+// an actual actor, eligible field, assignment, road access or successful work.
+[[nodiscard]] CropDispatchRule crop_dispatch_rule(
+    std::uint8_t staff_percent,CropDispatchConfig configured);
+
+struct CropDispatchAttempt {
+    std::uint8_t counter=0;
+    bool attempt_due=false;
+    bool operator==(const CropDispatchAttempt&) const = default;
+};
+
+// The source compares the OLD unsigned byte against its selected threshold,
+// after retaining the incremented byte. A due attempt resets it to0. From0,
+// full staffing therefore needs2 calls, not1. Zero staffing preserves the byte.
+// This is one resolved source-update invocation, never a World-tick mapping.
+[[nodiscard]] CropDispatchAttempt advance_crop_dispatch_attempt(
+    std::uint8_t counter,std::uint8_t staff_percent,CropDispatchConfig configured);
 
 } // namespace openemperor::original

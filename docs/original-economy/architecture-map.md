@@ -38,6 +38,24 @@ Current operation, workers, road access, actual authored progress, readiness,
 Grower trips and water supply remain World observations. Original seasonal
 production, runtime fertility/yield inputs and harvest-unit binding remain
 incomplete. Rules1–26 and schemas1–42 retain their saved identities and behavior.
+AGRI-02C adds resolved-input Grower dispatch, crop-qualified base-yield and raw
+Farm-bin/Cart receipt operations to the existing
+`openemperor-original-crop-rules` target. The reference Food quota initializer
+contains five harvest and two tending slots; it does not establish one extra
+World Farm channel, a complete live-worker census or immutable runtime settings.
+The source byte throttle compares its old value before resetting a due attempt.
+Raw bin credits expose clamped overflow, and actual Cart acceptance leaves its
+residual cargo distinct from the accepted amount. These components create no
+World actor, inventory, field work, food, UI action or saved state.
+Runtime yield/rounding inputs, full Grower assignment/interruption/return
+lifecycles and raw-to-House Food/quality conversion remain activation gates.
+Rice/Cabbage/BeanCurd production is still **PARTIAL**. The paid mixed-city
+calendar test's 19,584 elapsed ticks exercise positive Wheat/Millet and material
+returns while all three locked Food columns remain zero. Rule27/schema43 remain
+available proposal numbers, with no new generation selected or saved by this
+work. Any authored replacement requires its own concrete approval and versioned
+contract. See the [AGRI-02C matrix](agriculture.md) and the
+[source contract](../reverse/original-agriculture-source-contract.md).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 

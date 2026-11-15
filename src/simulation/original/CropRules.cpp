@@ -91,4 +91,34 @@ CropWaitStep advance_crop_work_wait(std::int16_t wait) noexcept {
     return {next, next <= 0};
 }
 
+CropDispatchRule crop_dispatch_rule(std::uint8_t staff_percent,CropDispatchConfig configured) {
+    if(staff_percent>100)
+        throw std::out_of_range("crop dispatch staffing percentage is outside0..100");
+    if(configured.harvest_limit<0 || configured.tending_limit<0)
+        throw std::out_of_range("crop dispatch requires nonnegative configured limits");
+    if(staff_percent==0) return {};
+    if(staff_percent<25) return {true,32,0,0};
+    if(staff_percent>=100)
+        return {true,1,configured.harvest_limit,configured.tending_limit};
+    const auto scale=[&](std::int32_t limit) {
+        if(staff_percent>=75) {
+            if(limit>std::numeric_limits<std::int32_t>::max()/3)
+                throw std::overflow_error("crop dispatch three-quarter quota exceeds supported signed-DWORD multiplication");
+            return static_cast<std::int32_t>(limit*3/4);
+        }
+        return static_cast<std::int32_t>(limit/(staff_percent>=50 ? 2:4));
+    };
+    const auto threshold=static_cast<std::uint8_t>(staff_percent>=75 ? 4:staff_percent>=50 ? 8:16);
+    return {true,threshold,scale(configured.harvest_limit),std::max(std::int32_t{1},scale(configured.tending_limit))};
+}
+
+CropDispatchAttempt advance_crop_dispatch_attempt(
+    std::uint8_t counter,std::uint8_t staff_percent,CropDispatchConfig configured) {
+    const auto rule=crop_dispatch_rule(staff_percent,configured);
+    if(!rule.staffed) return {counter,false};
+    const auto next=static_cast<std::uint8_t>(static_cast<unsigned>(counter)+1U);
+    const bool due=counter>=rule.attempt_threshold;
+    return {due ? std::uint8_t{0}:next,due};
+}
+
 } // namespace openemperor::original
