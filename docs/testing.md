@@ -341,6 +341,57 @@ Original binary-save graphics, original runtime variation and whole-scene
 parity remain separate from this fresh-purchase binding; no original EXE
 execution or native human acceptance follows from the scripted tests.
 
+## Crop dispatch, yield inputs and raw transport (AGRI-02C)
+
+```sh
+cmake --build build --parallel 4 --target openemperor-original-crop-dispatch-tests \
+  openemperor-original-crop-yield-tests openemperor-original-crop-transport-tests
+ctest --test-dir build --output-on-failure \
+  -R '^original-crop-(rules|dispatch|yield|transport)$'
+```
+
+The additive dispatch tests check independent staffing-tier expectations,
+all256 old counter bytes, exact invocation boundaries, caller-supplied quotas
+and rejected signed-multiplication overflow. Yield-input tests enumerate the
+five typed fields, raw event bytes/states/selectors and every physical
+quantity0–10000 through shared integer-base arithmetic. Raw transport tests
+check all256 resource bytes, five-bin matching/empty order, explicit capacity,
+credit overflow, debit, retained/cleared identities and actual Cart accepted/
+residual quantities. The supported nonnegative word-safe API domain is explicit.
+Native Farm bin fields are DWORDs and their constructor starts with stock0.
+
+Run complete Release, Debug and ASan/UBSan suites, including persistence,
+historical profiles and the existing19,584-tick paid mixed Agriculture city.
+That city is a positive control for approved Wheat/Millet/material production
+and a zero-origin control for Rice/Cabbage/BeanCurd. Actual new-crop field work,
+harvest, FoodQuality, House progression and native Food Grower animations still
+depend on the [activation contract](original-economy/agriculture.md#crop-completion-and-decision-boundary-agri-02c).
+Keep AUTHORED World fixtures, Original-model/source assertions, scripted SDL
+and human acceptance explicit in the result.
+
+AGRI-02C validation on2026-11-15 passed351/351 Release tests,351/351 Debug
+tests and351/351 final ASan/UBSan tests, with zero skips. Debug coverage comprises
+the complete348-test initial configuration plus the three explicitly enabled
+earned-city visual cases. All three final configurations register the same351
+test names. ASan/UBSan used Debug assertions, `-g -O1`, leak detection disabled
+on macOS and immediate UBSan failure. The initial sanitizer suite passed350/351
+with a missing temporary data directory in `original-road-ground-pixels`.
+That case then passed20 isolated repetitions and the complete351-test rerun.
+Its transient filesystem cause remains unproven. All attempts used the same
+gameplay and fixture source.
+
+The new pure checks passed2,790 dispatch,282,074 yield-input and242,123 transport
+assertions. Three fresh private receipts passed281 source assertions over57
+byte-checked windows. Independent core parity passed74/74 with identical
+non-fingerprint public results. Of149 existing simulation/persistence/app paths,
+147 remain literal-equal to merged AGRI-06 and only additive `CropRules.h/.cpp`
+operations change the other two. Existing World, app and save paths remain exact.
+The paid two-cycle city, historical profiles, save/Recovery, Original-model and
+earned-city building/walker checks all ran. Meaningful Debug and sanitizer
+captures were opened. Scripted SDL inspection establishes its stated rendering
+scope. Native human acceptance remains pending. The six guarded Original/earned
+inputs retain their hashes, sizes, modes and modification times.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh

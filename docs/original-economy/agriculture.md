@@ -541,6 +541,110 @@ with the released adapter. Rice/Cabbage/Soy production, unchanged-native-model
 higher-House progression and positive Food-Grower lifecycle acceptance remain
 unfulfilled completion criteria for AGRI-02B.
 
+## Crop completion and decision boundary (AGRI-02C)
+
+**PARTIAL.** Rice197, Cabbage198 and Soybean199/BeanCurd1 still lack an admitted
+World production origin. The AGRI-02C investigation adds verified dispatch,
+event-qualified integer-base and raw transport operations to the existing
+`original::CropRules` component. World, navigation, paid construction, inventories,
+UI and save authority retain their released Rule26/schema42 behavior.
+
+### Implemented source operations
+
+- `crop_dispatch_rule` uses explicitly supplied nonnegative configured limits
+  and the actual staffing percentage. `advance_crop_dispatch_attempt` preserves
+  the old-byte comparison, including2/5/9/17/33 eligible-call cadences from0.
+  The pinned Food initializer supplies limits5/2 and field budgets4/10.
+  Those retained source counters have incomplete cleanup/census semantics.
+- `crop_doubled_base` resolves the enable byte, raw state3 and crop selector.
+  Selector0 admits Wheat,1 admits Soy,2/4 admit Millet. Rice and Cabbage use
+  ordinary base division in this checked event branch. Existing integer
+  `raw_base_yield` and fertility arithmetic remain shared.
+- `CropTransportRules` preserves five resource-tagged raw Farm bins, matching
+  before empty selection, explicit capacity-clamped credit and overflow,
+  floored debit, and actual Cart accepted-count/residual handling. The native
+  constructor initializes each bin's resource/stock to0 and capacity to400.
+  Later capacity writers remain external inputs. The API admits a documented
+  nonnegative word-safe subset of the native DWORD bin fields.
+
+All three operations consume caller-resolved facts and return bounded results.
+Their independent tests exercise hostile inputs, integer boundaries, crop
+identity, quotas, partial acceptance and complete arithmetic conservation.
+The helpers own no advancing worker, World stock, purchase or save state.
+
+### Fourteen production gates
+
+| Gate | Verified Original slice | Remaining integration dependency |
+|---|---|---|
+| Grower quotas | Default Food limits5/2, per-worker field budgets4/10, staffing tiers and old-counter attempt order | Mutable configuration/load binding, exact retained-counter lifecycle and successful bounded channel allocation |
+| Assignment and tours | Several fields can retain the same actual Actor26 identity, with distinct tending/harvest candidate scores | Complete source distance preparation, candidate admissibility, concurrent claims and repeated visits |
+| Worker states | Ordinary tending6→7→8→6 and harvest10→11→12→10, with actual eligible waits and return outcomes | Full movement/result inputs, exceptional states and every cleanup caller |
+| Failed targets | Exhaustion releases a retained source count and selects empty/cargo return branches | Complete retirement, repair and cargo disposition |
+| Interrupted work | Existing World adapters preserve their own paid pause/fire/path contracts | Original active Food Grower operation, fire, workforce and global-veto interactions |
+| Actual harvest | A completed eligible harvest wait reaches the real field callback, applies the mark and consumes quantity | Full readiness/assignment/driver eligibility and single-origin World publication |
+| Runtime fertility and climate | Serialized-to-runtime byte operation, default modifier and actual harvest operand | Complete writers, load preparation, climate/region provenance and admitted live values |
+| Crop/region factors | Source factor lookup and crop-qualified doubled-base predicate | Complete runtime region selector and mutable factor lifecycle |
+| Global yield factors | Conditional multiplier and conversion order | Actual global/year/event inputs and complete later writers |
+| x87 arithmetic | Conversion temporarily selects truncation and restores the control word | Preceding arithmetic/store precision and rounding. The same factor gives64 at53/64-bit precision and65 at24-bit precision |
+| Raw yield to Food | Grower→Farm→Cart retains raw resource identity and amounts, followed by FoodShop/Dinners processing | Complete recipe/grade/House binding and a defined mapping to the existing authored World Food portions |
+| Field/Farm overflow | Bounded quantity helper, initial five400-capacity bins, explicit clamp/debit results | Full native overflow disposition and an approved conservation-safe World integration |
+| Return and capacity | Actual Farm return offers cargo. Full Cart acceptance clears it, partial acceptance retains the remainder | Source/target reservations, path failure, final retirement and safe return headroom |
+| Active-work persistence | Existing schema42 restores actual released Food/material/water authority exactly | A new explicit generation must save typed Food Grower lifetimes, work, claims, cargo and reservations before those states become playable |
+
+The x87 conversion helper alone cannot choose the preceding precision. A fresh
+exact arithmetic differential uses the same stored binary32 fertility factor
+`0x3f266666` with base100 and obtains distinct64/65 results. The checked Farm
+caller also ignores the overflow returned by its capacity-clamped bin credit.
+These are concrete boundaries for a faithful and conservation-safe successor.
+
+### Current end-to-end acceptance
+
+The existing paid mixed-city test constructs all five Food fields, Hemp, Tea,
+Lacquer, Mulberry, irrigation, Market/Warehouse and20 paid House plots. Actual
+residents and staffing arise through subsequent World ticks. The test
+runs19,584 actual World ticks, with real Wheat/Millet harvest, physical Food
+delivery and House consumption, all three material return chains, water/fire/
+pause checks and exact save/Recovery replays. Rice/Cabbage/BeanCurd retain zero
+origin, cargo and consumption through both complete calendar cycles.
+The separate Food-positive plantation test covers actual FoodQuality and luxury
+consumption through the retained approved adapters. Both use explicitly
+AUTHORED map/model inputs. Original-model parsing and independent numerical
+parity remain separate tests. Positive new-crop production, higher-House
+progression from those crops, Food Grower animation and native human acceptance
+remain pending. AGRI-05 supplies verified hunting/fishing components with the
+same activation boundary described in its matrix.
+
+### Concrete successor requiring a decision
+
+The earlier AUTHORED candidate remains available for separate approval. It
+would extend the integrated Rule26 Agriculture lineage through the currently
+free Rule27/schema43 pair with an exact new contract marker, separate explicit
+selection, create/restore and Recovery. Its saved state would add typed monotone
+Food Grower lifetimes, shared movement channels, actual field jobs/work, cargo
+and incoming/return reservations. The sole five-kind Agriculture ledger and
+existing House receipt/consumption path would remain authoritative.
+
+The candidate deliberately chooses one Food Grower channel per paid Farm,
+stable owned-field rotation, the existing authored World clock, eligible
+tending/harvest waits51/25, end-slot harvesting, a1000-field-quantity-per-portion
+conversion and at most four physical portions per load. Source quota defaults
+5/2 and actual raw harvest yields are distinct evidence. The proposed unit
+conversion directly debits field quantity and requires an expressly authored
+yield policy. Existing Wheat/Millet and material adapters retain their contracts.
+Construction and dispatch must reserve their actual channel/headroom needs
+within82 bodies/58 channels, including all retained in-flight returns. Only
+pickup creates a counted origin, only actual Farm return credits stock, and
+actual House arrival controls FoodQuality. Rice retains fertility100 admission
+and a dry base path. A numeric irrigation bonus requires its own complete input
+contract.
+
+Approval must cover that full worker/time/yield/unit/interruption policy.
+Further Original reconstruction is the other available direction. Current
+code activates neither candidate production nor a new rule/schema. The
+[source contract](../reverse/original-agriculture-source-contract.md#agri-02c-crop-yield-inputs-and-conversion-boundary)
+records the new proofs, and the [testing guide](../testing.md) records actual
+validation results.
+
 ## Irrigation infrastructure and completion matrix (AGRI-04)
 
 Rule26/policy3/schema42 is an explicitly selected successor of Rule25. Its
@@ -736,8 +840,8 @@ The51×16×12 counts have bounded Original source observations. Advancing one
 phase per World tick and counting elapsed years from0 remain **AUTHORED**.
 Raw slots0–11 are displayed without invented month names or historical dates.
 There is no additional advancing clock, saved calendar epoch or mutable season
-state. Pausing advances no World tick. speed changes how quickly ticks run;
-save/restore reconstructs the same derived position from existing authority.
+state. Pausing advances no World tick. Speed changes how quickly ticks run.
+Save/restore reconstructs the same derived position from existing authority.
 A next opportunity does not invoke a callback, deliver goods or authorize
 production.
 
@@ -746,7 +850,7 @@ paid plant/source's actual World state. Reference growing-period and quantity
 suppression results are separate from operation, fire, staffing, roads, water,
 authored productive progress/readiness, current Grower activity and retained
 harvest/return accounts. The inspector's blocker remains explicit. An authored
-80-tick progress value is not passed off as an Original work word. an authored
+80-tick progress value is not passed off as an Original work word. An authored
 ready plant is not an Original harvest mark.
 
 ### Verified seasonal queries
@@ -786,10 +890,10 @@ actual worker lifecycle remain separate prerequisites.
 |---|---|---|---|---|
 | Common calendar | Derived World tick/phase/subslot/slot/year view and next opportunities | Observed relative counts. World tick mapping and epoch AUTHORED | Complete cycles, year boundaries, pause/speed and exact save continuation | Original wall-clock/date and exceptional event ordering |
 | Seasonal configuration | Nine typed reference descriptors with exact counts/sentinels | Pinned default source tables and concrete callback bindings | Independent12-slot masks and invalid models/slots | Live climate/region configuration and runtime table effects |
-| Work-conditioned quantity queries | Pure period, suppression and increment queries. historical Food delegation | Hemp has no calendar veto. distinct Tea/Mulberry/Lacquer end predicates | Work0/1/32/33/255, high flags and all65,536 Food work words | Actual Original work ownership and full shared-driver eligibility |
+| Work-conditioned quantity queries | Pure period, suppression and increment queries. Historical Food delegation | Hemp has no calendar veto. Distinct Tea/Mulberry/Lacquer end predicates | Work0/1/32/33/255, high flags and all65,536 Food work words | Actual Original work ownership and full shared-driver eligibility |
 | Paid Wheat/Millet, Hemp and plantations | Existing approved80-tick adapters and physical transport remain active | Adapter timing, units and readiness remain AUTHORED | Existing paid production, delivery, inventory and persistence regressions | Original Grower tours, yield inputs/rounding/units and recurring seasonal replacement |
 | Rice/Cabbage/Soy | Existing paid construction, inspector and lock retained | Bounded source identities/queries do not grant Food | Historical no-origin and existing construction/save controls | Complete worker, harvest, overflow and raw-to-Food contracts |
-| Irrigation/yields and hunting/fishing | Existing Rule26 water infrastructure and AGRI-05 source components retained | No additional yield or ecology authority | Irrigation, harvest helper and historical regressions | Complete fertility/Flood/global yield effects. source units, ecology and transport |
+| Irrigation/yields and hunting/fishing | Existing Rule26 water infrastructure and AGRI-05 source components retained | No additional yield or ecology authority | Irrigation, harvest helper and historical regressions | Complete fertility/Flood/global yield effects. Source units, ecology and transport |
 | Presentation | Slot/reference conditions and actual World status kept separate | Existing sprite mappings retain their original evidence limits | Inspector assertions and existing visual regressions | Native/human acceptance and Original seasonal animation bindings |
 
 The fresh static source receipt passes66 checks across9 byte-checked windows.
