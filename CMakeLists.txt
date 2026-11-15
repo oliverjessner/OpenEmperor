@@ -310,6 +310,9 @@ openemperor_enable_warnings(openemperor-original-service-rules)
 add_library(openemperor-original-crop-rules STATIC
     src/simulation/original/CropRules.cpp
     src/simulation/original/CropLifecycleRules.cpp
+    src/simulation/original/CropSelectionRules.cpp
+    src/simulation/original/CropGrowerRules.cpp
+    src/simulation/original/CropHarvestRules.cpp
     src/simulation/original/CropYieldRules.cpp
     src/simulation/original/CropTransportRules.cpp)
 target_include_directories(openemperor-original-crop-rules PUBLIC src)
@@ -1003,6 +1006,19 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-crop-lifecycle-tests)
     add_test(NAME original-crop-lifecycle COMMAND openemperor-original-crop-lifecycle-tests)
     set_tests_properties(original-crop-lifecycle PROPERTIES TIMEOUT 60)
+    foreach(component IN ITEMS Selection Grower Harvest)
+        string(TOLOWER "${component}" component_lower)
+        add_executable(openemperor-original-crop-${component_lower}-tests tests/OriginalCrop${component}Tests.cpp)
+        target_link_libraries(openemperor-original-crop-${component_lower}-tests PRIVATE openemperor-original-crop-rules)
+        openemperor_enable_warnings(openemperor-original-crop-${component_lower}-tests)
+        add_test(NAME original-crop-${component_lower} COMMAND openemperor-original-crop-${component_lower}-tests)
+        set_tests_properties(original-crop-${component_lower} PROPERTIES TIMEOUT 60)
+    endforeach()
+    add_executable(openemperor-original-crop-events-tests tests/OriginalCropEventTests.cpp)
+    target_link_libraries(openemperor-original-crop-events-tests PRIVATE openemperor-original-crop-rules)
+    openemperor_enable_warnings(openemperor-original-crop-events-tests)
+    add_test(NAME original-crop-events COMMAND openemperor-original-crop-events-tests)
+    set_tests_properties(original-crop-events PROPERTIES TIMEOUT 60)
     add_executable(openemperor-original-food-rules-tests tests/OriginalFoodRulesTests.cpp)
     target_link_libraries(openemperor-original-food-rules-tests PRIVATE openemperor-original-goods-rules)
     openemperor_enable_warnings(openemperor-original-food-rules-tests)

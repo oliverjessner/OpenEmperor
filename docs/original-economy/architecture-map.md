@@ -68,6 +68,14 @@ or save authority. Startup53-bit precision and persisted Farm-bin capacity are
 now observed, while actual harvest rounding and later runtime writers remain
 open. The selected direction is continued Original reconstruction; the authored
 successor is inactive. See the [component boundary](agriculture.md#further-original-reconstruction).
+AGRI-02D further qualifies initial candidate/queue/spawn arithmetic, resolved
+ordinary Actor26 callbacks and cleanup, complete field callback mutations and
+portable exact harvest arithmetic with explicitly supplied PC/RC. One actor
+WORD7c carries the accumulated raw amount; it is not two pending/cargo ledgers.
+Actual live operands, movement/interruption and temporal crop-identity/conservation
+proofs remain open. No new Original Food Grower generation or save contract exists. The
+[AGRI-02D matrix](agriculture.md#original-food-grower-reconstruction-agri-02d)
+defines concrete AGRI-02E prerequisites; Rule26/schema42 stays exact.
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 

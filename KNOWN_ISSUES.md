@@ -52,6 +52,13 @@ complete original-game compatibility.
   has unresolved native loss/overcommit conditions. These facts grant no new
   World Food or saved authority. The chosen direction remains Original
   reconstruction; an authored successor is inactive.
+  AGRI-02D implements resolved Actor26 selection/work/return/cleanup events,
+  exact context-supplied harvest rounding and field/history effects. One native
+  actor WORD carries raw yield; counter double-decrements, failed-return10 and
+  ignored bin overflow remain explicit. Full live parameter admission,
+  movement/interruption, exceptional states and temporal crop homogeneity still
+  prevent a complete raw Farm production mode. No new save authority is active.
+  See the [AGRI-02D/02E matrix](docs/original-economy/agriculture.md#original-food-grower-reconstruction-agri-02d).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

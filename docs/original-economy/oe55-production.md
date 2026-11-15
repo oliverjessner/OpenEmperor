@@ -39,6 +39,12 @@ bin capacity now have qualified callers. These closures leave actual worker
 lifetimes, harvest rounding, raw-to-World units and physical recipe delivery
 open. The [updated component matrix](agriculture.md#further-original-reconstruction)
 separates arithmetic results from successful production.
+AGRI-02D adds resolved candidate/queue/spawn, ordinary Actor26 work/movement/
+return/cleanup and exact PC/RC-supplied harvest operations. Source counter and
+WORD semantics remain distinct from accepted Farm stock. The full physical
+raw Farm cycle is still PARTIAL; live parameter, interruption, movement and
+resource-identity gates are enumerated in the
+[current matrix](agriculture.md#original-food-grower-reconstruction-agri-02d).
 
 ## AGRI-02C component boundary
 

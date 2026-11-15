@@ -444,6 +444,75 @@ scripted SDL checks. Fresh industry overview and consecutive walker-frame
 captures were opened. This validates their stated automated scope, not native
 human acceptance or positive production from the three locked crops.
 
+## Original Food Grower source events (AGRI-02D)
+
+```sh
+cmake -S . -B build
+cmake --build build --parallel 4 --target openemperor-original-crop-selection-tests \
+  openemperor-original-crop-grower-tests openemperor-original-crop-harvest-tests \
+  openemperor-original-crop-events-tests openemperor-original-crop-lifecycle-tests
+ctest --test-dir build --output-on-failure -R '^original-crop-'
+```
+
+The selection test checks exact independent gate tables, all physical quantities
+and Food work words, zero-quantity mark-clearing order, native cached-queue ties,
+the2000-node bound and only post-actual-success initialization/counter effects.
+The worker test checks all signed-WORD waits and yield words, movement/source
+status bytes, early status mutation, state4, ordinary6–13 callback slices,
+counter double-debits, active assignment cleanup and represented reset.
+Neither actual entity allocation nor physical movement is fabricated by these
+tests; those observations remain explicit API inputs.
+
+The harvest test covers32 literal rounding vectors, an independent8,192-case
+exact-rational differential, all PC/RC combinations, physical quantities,
+every work word for all five Food models, history-slot effects, one actor WORD,
+numeric-to-WORD narrowing, separate carry, repeated callback, expiration and
+host-FPU independence. Tending reuses the existing work operation and verifies
+complete assignment/counter clearing with quantity/history retained.
+
+The event test composes two distinct targets of the same crop,51/25 work waits,
+field growth/decay, actual marked callback effects, supplied route retry/return
+results, typed bin credit, full-bin overflow, failed return, cleanup and complete
+value replay. Each supplied movement event has its own begin/body/epilogue.
+It also exercises late callbacks after expiration and source-inactive body
+continuation. Its explicit fertility100/unit-region/PC53 operands and movement
+results are synthetic resolved controls, not admitted live city facts. The
+source Word retained after receipt is historical memory awaiting reset, not a
+second active cargo credit. Source bin/cart bookkeeping is not an accepted-stock
+authority.
+
+Run full Release, Debug and ASan/UBSan regression suites against the exact
+source tree and fresh matching archives; refresh independent core parity before
+its contract check. Preserve the Original/earned input hashes, sizes, modes and
+modification times. Existing World tests cover historical paid production,
+pause/fire/path behavior, canonical saves and Recovery. No new active Original
+Food Grower World mode/save is present: positive physical Farm work/return,
+new-worker pause/fire/path admission, active-work or loaded-worker save/load,
+hostile new-schema refusal and native human acceptance remain unperformed.
+They are listed as activation requirements in the
+[AGRI-02D/02E matrix](original-economy/agriculture.md#original-food-grower-reconstruction-agri-02d).
+
+Validation completed on2026-11-16:357/357 Release,357/357 Debug and357/357
+ASan/UBSan CTests, with zero skips. All configurations register the same357
+names. ASan/UBSan retains Debug assertions with `-g -O1`, macOS leak detection
+disabled and immediate UBSan failure. The final supported-domain header-comment
+clarification changed no executable behavior; the two affected selection/event
+cases and the refreshed parity-contract case then passed in each configuration.
+Fresh matching archives pass the independent74/74 core comparison, with all
+non-fingerprint public results unchanged from PR55.
+
+Five private source receipts pass524 assertions across65 qualified byte-checked
+windows. The harvest test additionally matches its independent8,192-case
+exact-rational reference. New executables pass560,787 selection,1,558,299 worker,
+1,919,104 harvest and1,931 composed-event assertions; the expanded lifecycle
+executable passes12,863,448. Of156 existing simulation/app/persistence files,
+154 remain literal-equal to `ea78b07`; the two existing lifecycle files only
+append the new growth-driver operation. World/app/save implementations and old
+rules/operations remain exact. All six guarded Original/earned inputs retain
+SHA-256, size, mode and modification time. Fresh Debug industry/walker captures
+were opened. Those are historical scripted SDL controls, not positive Original
+Food Grower World or native human acceptance.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh

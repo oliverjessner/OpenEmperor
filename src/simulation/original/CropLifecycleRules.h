@@ -39,4 +39,26 @@ struct CropFieldExpiration {
 [[nodiscard]] CropFieldExpiration expire_crop_completed_slot(ModelBuilding field,
     std::uint8_t completed_slot,bool active,CropFieldLifecycleInput input);
 
+struct CropFieldGrowthStep {
+    std::uint16_t quantity=0;
+    std::uint8_t countdown=0;
+    std::uint16_t added_quantity=0;
+    std::uint16_t veto_removed_quantity=0;
+    bool driver_accepted=false;
+    bool publish_visual=false;
+    bool operator==(const CropFieldGrowthStep&) const = default;
+};
+
+// One actual4c0f60 invocation after the caller's manager admission. Terrain100
+// skips it entirely. A nonzero countdown decrements and returns before growth,
+// the per-type veto or visual publication. Otherwise use the existing Food
+// increment/cap, then clear quantity if the resolved per-type veto applies,
+// and request publication even when no quantity was added. Input quantity is
+//0..10000; slots0..11. Work/countdown/terrain/veto are explicit source operands,
+// not inferred staffing, ownership, calendar cadence or World permission.
+// Added/removed amounts describe FIELD quantity only, never raw harvest/Food.
+[[nodiscard]] CropFieldGrowthStep advance_crop_field_growth(ModelBuilding field,
+    std::uint8_t slot,std::uint16_t work_word,std::uint16_t quantity,
+    std::uint8_t countdown,bool terrain_flag_100,bool type_veto);
+
 } // namespace openemperor::original
