@@ -19,6 +19,7 @@ constexpr std::array<ModelBuilding,24> production_buildings{
     ModelBuilding::LoggingShed, ModelBuilding::BronzeSmelter, ModelBuilding::BronzewareMaker, ModelBuilding::LacquerwareMaker, ModelBuilding::PaperMaker, ModelBuilding::Weaver, ModelBuilding::TeaCuringShed, ModelBuilding::LacquerRefinery, ModelBuilding::SilkwormShed, ModelBuilding::TeaBush, ModelBuilding::LacquerTree, ModelBuilding::MulberryTree};
 
 constexpr std::array agriculture_buildings{ModelBuilding::RiceField,ModelBuilding::CabbageField,ModelBuilding::SoybeanField};
+constexpr std::array irrigation_buildings{ModelBuilding::IrrigationDitch,ModelBuilding::IrrigationPump};
 
 ModelProvenance checked_provenance(const ModelData& model,Difficulty difficulty) {
     if (static_cast<std::size_t>(difficulty)>=difficulty_count)
@@ -96,15 +97,30 @@ std::optional<std::array<BuildingRow,3>> prepare_agriculture_buildings(
     return rows;
 }
 
+std::optional<std::array<BuildingRow,2>> prepare_irrigation_buildings(
+        const ModelData& model,Difficulty difficulty,bool enabled) {
+    if (!enabled) return std::nullopt;
+    std::array<BuildingRow,2> rows{};
+    for (std::size_t row=0;row<irrigation_buildings.size();++row) {
+        const auto building=irrigation_buildings[row];
+        if (!model.has_building(model_id(building)))
+            throw std::invalid_argument("Irrigation model is missing named building: "+std::string(model_label(building)));
+        for (std::size_t field=0;field<building_field_count;++field)
+            rows[row][field]=original::building_value(model,building,static_cast<BuildingField>(field),difficulty);
+    }
+    return rows;
+}
+
 } // namespace
 
-OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture,bool agriculture)
+OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture,bool agriculture,bool irrigation)
     : provenance_(checked_provenance(model,difficulty)),difficulty_(difficulty),
       house_rules_(model,difficulty),building_rows_(prepare_buildings(model,difficulty)),
       production_prepared_(production),
       production_rows_(prepare_production_buildings(model,difficulty,production)),
       culture_row_(prepare_culture_building(model,difficulty,culture)),
-      agriculture_rows_(prepare_agriculture_buildings(model,difficulty,agriculture)) {}
+      agriculture_rows_(prepare_agriculture_buildings(model,difficulty,agriculture)),
+      irrigation_rows_(prepare_irrigation_buildings(model,difficulty,irrigation)) {}
 
 std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare(ModelData model,Difficulty difficulty) {
     return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,false));
@@ -121,8 +137,13 @@ std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_culture(Mo
 std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_agriculture(ModelData model,Difficulty difficulty) {
     return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,true,false,true));
 }
+std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_irrigation(ModelData model,Difficulty difficulty) {
+    return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,true,false,true,true));
+}
 
 bool OriginalRulesModel::supports_building(ModelBuilding building) const noexcept {
+    if (std::find(irrigation_buildings.begin(),irrigation_buildings.end(),building)!=irrigation_buildings.end())
+        return irrigation_rows_.has_value();
     if (std::find(agriculture_buildings.begin(),agriculture_buildings.end(),building)!=agriculture_buildings.end())
         return agriculture_rows_.has_value();
     if (building==ModelBuilding::TheatrePavilion) return culture_row_.has_value();
@@ -134,6 +155,11 @@ bool OriginalRulesModel::supports_building(ModelBuilding building) const noexcep
 std::int32_t OriginalRulesModel::building_value(ModelBuilding building,BuildingField field) const {
     const auto column=static_cast<std::size_t>(field);
     if (column>=building_field_count) throw std::out_of_range("invalid prepared original building field");
+    const auto irrigation=std::find(irrigation_buildings.begin(),irrigation_buildings.end(),building);
+    if (irrigation!=irrigation_buildings.end()) {
+        if (!irrigation_rows_) throw std::out_of_range("Irrigation model was not explicitly prepared");
+        return irrigation_rows_->at(static_cast<std::size_t>(irrigation-irrigation_buildings.begin())).at(column);
+    }
     const auto agriculture=std::find(agriculture_buildings.begin(),agriculture_buildings.end(),building);
     if (agriculture!=agriculture_buildings.end()) {
         if (!agriculture_rows_) throw std::out_of_range("Agriculture model was not explicitly prepared");

@@ -346,8 +346,21 @@ void functional_mapping_checks() {
               active.mechanics_identity==Status::AuthoredFallback &&
               active.presentation_identity==(kind==Object::OriginalRiceField ? Status::Unknown:Status::ReverseEngineered),
               "Explicit Agriculture identity changed or claimed unsupported Original runtime evidence");
+        const auto irrigation=original::functional_model_candidate(kind,openemperor::simulation::kOriginalIrrigationRuleVersion);
+        check(irrigation.candidate==building && irrigation.functional==active.functional &&
+              irrigation.mechanics_identity==active.mechanics_identity &&
+              irrigation.presentation_identity==active.presentation_identity,
+              "Explicit irrigation successor lost its inherited field model identity");
     }
-    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalSoybeanField) + 1U);
+    for (std::uint32_t rule=0;rule<openemperor::simulation::kOriginalIrrigationRuleVersion;++rule)
+        check(!original::functional_model_candidate(Object::OriginalIrrigationPump,rule).candidate,
+              "Historical model mapping gained a Pump candidate");
+    const auto pump=original::functional_model_candidate(Object::OriginalIrrigationPump,
+        openemperor::simulation::kOriginalIrrigationRuleVersion);
+    check(pump.candidate==ModelBuilding::IrrigationPump && pump.functional==Status::AuthoredFallback &&
+          pump.mechanics_identity==Status::AuthoredFallback && pump.presentation_identity==Status::ReverseEngineered,
+          "Explicit Pump mapping lost its model or overstated Original runtime evidence");
+    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalIrrigationPump) + 1U);
     for (const auto bad : {first_invalid, static_cast<Object>(255)})
         expect_exception<std::out_of_range>([&] { (void)original::functional_model_candidate(bad); }, "invalid Object is not merely unmapped");
 }

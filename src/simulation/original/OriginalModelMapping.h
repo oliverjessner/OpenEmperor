@@ -61,7 +61,8 @@ struct FunctionalModelCandidate {
     case Object::OriginalRiceField:
     case Object::OriginalCabbageField:
     case Object::OriginalSoybeanField:
-        if (rule_version!=simulation::kOriginalAgricultureRuleVersion) return {};
+        if (rule_version!=simulation::kOriginalAgricultureRuleVersion &&
+            rule_version!=simulation::kOriginalIrrigationRuleVersion) return {};
         return {object==Object::OriginalRiceField ? ModelBuilding::RiceField:
                 object==Object::OriginalCabbageField ? ModelBuilding::CabbageField:ModelBuilding::SoybeanField,
                 EvidenceStatus::AuthoredFallback,EvidenceStatus::AuthoredFallback,
@@ -114,6 +115,10 @@ struct FunctionalModelCandidate {
     case Object::OriginalTheatre75:
         return {ModelBuilding::TheatrePavilion, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};
+    case Object::OriginalIrrigationPump:
+        if (rule_version!=simulation::kOriginalIrrigationRuleVersion) return {};
+        return {ModelBuilding::IrrigationPump, EvidenceStatus::AuthoredFallback,
+                EvidenceStatus::AuthoredFallback, EvidenceStatus::ReverseEngineered};
     case Object::OriginalDaoistShrine215:
         return {ModelBuilding::DaoistShrine, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};

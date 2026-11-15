@@ -17,6 +17,9 @@ three material plantations: authored finite growth and real worker pickup/return
 into the existing ledgers. It also expressly retains the authored Wheat/Millet
 Food adapter; Rice/Cabbage/Soy stay closed. Their completion matrix and current validation
 boundary are in [Agriculture](agriculture.md#material-plantations-and-completion-matrix-agri-03).
+AGRI-04's explicit Rule26/schema42 admits paid Ditch202/Pump203 infrastructure
+and actual connected water distribution. Crop yield modifiers remain PARTIAL
+and inactive. See the [irrigation matrix](agriculture.md#irrigation-infrastructure-and-completion-matrix-agri-04).
 Further activation remains subject to the AGRI-02–07 evidence gates.
 
 ## What the sources establish
@@ -95,8 +98,8 @@ from a nearby row or from `Resource=0`.
 | 197 | `Rice Paddy` | 7 | 0 | 0 | Rule24 E1; paid field, production locked |
 | 198 | `Cabbage Field` | 5 | 0 | 0 | Rule24 E1; paid field, production locked |
 | 199 | `Soybean Field` | 5 | 0 | 0 | Rule24 E1; paid field, production locked |
-| 202 | `Irrigation Ditch` | 4 | 0 | 0 | U; not purchasable |
-| 203 | `Irrigation Pump` | 10 | 10 | 0 | U; not purchasable |
+| 202 | `Irrigation Ditch` | 4 | 0 | 0 | Rule26 paid terrain network, supplied/dry state; crop modifiers inactive |
+| 203 | `Irrigation Pump` | 10 | 10 | 0 | Rule26 paid oriented shoreline body and staffed water source; crop modifiers inactive |
 | 226 | `Weaponsmith` | 60 | 8 | 0 | U; not purchasable |
 | 237 | `Tea Curing Shed` | 40 | 12 | 0 | E2; paid Bush26 |
 | 238 | `Lacquer Refinery` | 40 | 12 | 0 | E2; paid Tree27 |

@@ -138,7 +138,7 @@ InspectorLayout make_inspector_layout(Rect panel,int scale,std::size_t buildings
     return out;
 }
 
-Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health,bool income,bool service,bool bridges,bool ramps,bool original_production,bool industry_page,bool original_fire_protection,bool original_music_venues,bool original_agriculture) {
+Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health,bool income,bool service,bool bridges,bool ramps,bool original_production,bool industry_page,bool original_fire_protection,bool original_music_venues,bool original_agriculture,bool original_irrigation) {
     Layout out;
     out.scale=std::max(1,static_cast<int>(std::lround(std::min(
         width/static_cast<double>(std::max(1,window_width)),
@@ -175,6 +175,11 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
             Action::OriginalElitePlot,Action::ToggleIndustryPage};
     }
     if (original_music_venues) tools.push_back(Action::OriginalTheatre);
+    if (original_irrigation) {
+        tools.push_back(Action::IrrigationDitch);tools.push_back(Action::IrrigationPump);
+        tools.push_back(Action::RotateIrrigationPump);tools.push_back(Action::RemoveIrrigationDitch);
+        tools.push_back(Action::IrrigationOverlay);
+    }
     const int tool_count=static_cast<int>(tools.size());
     const int tool_columns=wrapped_tools ? (original_production ? 5:health ? 4:5):tool_count;
     const int tool_rows=wrapped_tools ? ((service || original_production) ? (tool_count+tool_columns-1)/tool_columns:

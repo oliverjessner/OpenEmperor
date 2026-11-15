@@ -17,6 +17,13 @@ land routing and regrowth remain expressly authored. Rule25 also retains the
 expressly authorized authored80-tick Wheat/Millet Food adapter, with real
 Market/House arrivals and consumption; Rice/Cabbage/Soy stay locked. No Original
 seasonal clock is activated.
+The separate Rule26/policy3/schema42 successor adds paid World-owned Ditch202
+networks and oriented shoreline Pump203 bodies. Actual operation/staff/fire
+eligibility and the observed phase27 control water distribution. Shared map
+permissions, production bodies, workforce and route revision remain authoritative;
+wet/supplier caches are derived. Field queries expose nearby supplied water,
+while crop-specific yield effects remain PARTIAL and inactive. See the
+[irrigation matrix](agriculture.md#irrigation-infrastructure-and-completion-matrix-agri-04).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 
@@ -41,6 +48,7 @@ Model29 is a submenu marker, with no Fruit commodity. See the
 | Rule23 / schema39 / revision27 | Explicit paid School→Performer→Theatre→VenueWalker→occupied House Music. Inherits Rule22 and the unchanged Rule18 economy. Real current-Music arrival alone assigns the existing House96 timer; cached targeted roundtrip, phase35 clock, typed lifetime IDs and strict JSON are authored. Rules1–22/schemas1–38 stay separate; Original roaming/clock/save parity and native human acceptance remain open. |
 | Rule24 / schema40 / Agriculture revision28 | Frozen paid source-bound five-kind Food foundations and Rice fertility100 admission. Food growth/harvest/quality remain locked; existing historical plant adapters and exact saves stay unchanged. |
 | Rule25 / schema41 / plantation revision1 | Current explicit Agriculture material plantations:32 paid matching plants, six sources within82 bodies/58 channels; authored80-tick finite readiness, actual Grower pickup/return and regrowth. Existing six Goods/five Aux ledgers remain sole authority. The expressly retained authored Wheat/Millet80-tick adapter uses the sole five-kind Food ledger and physical House deliveries/consumption; Rice/Cabbage/Soy stay locked. Exact marker/catalog, create/restore and Recovery; no migration or default change. Validation results are separately reported. |
+| Rule26 / schema42 / irrigation revision1 | Explicit Agriculture irrigation successor inheriting Rule25. Paid terrain ditches and four-orientation2x2 shoreline Pumps, phase27 cardinal water distribution, derived wet/supplier cache, field water queries and strict source-bound persistence. Existing harvest adapters continue unchanged; numeric irrigation yields remain inactive. Separate `--original-irrigation` selection and exact marker, without migration. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy
@@ -59,7 +67,7 @@ World object kinds, inventories or saves. The separately implemented Rule24/25
 contracts above own their admitted behavior; unsupported register rows stay
 closed. Rule18 and classic Rule21 retain their own authority and saves.
 
-Rules1–24 and schemas1–40 retain their identities and canonical bytes. City-v11
+Rules1–25 and schemas1–41 retain their identities and canonical bytes. City-v11
 Rule3 and City-v16 Rule4 defaults are unchanged; no automatic migration opts older
 saves into Original economy. Bridge/Ramp infrastructure retains its existing contracts.
 

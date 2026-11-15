@@ -199,6 +199,7 @@ add_library(openemperor-sg3 STATIC
     src/assets/OriginalHouseVisualProfile.cpp
     src/assets/OriginalBuildingVisualProfile.cpp
     src/assets/PlantationVisualProfile.cpp
+    src/assets/IrrigationVisualProfile.cpp
     src/assets/RoadVisualProfile.cpp
     src/assets/CompatibilityProfile.cpp
     src/assets/RgbaPngEncoder.cpp
@@ -310,8 +311,14 @@ add_library(openemperor-original-crop-rules STATIC
     src/simulation/original/CropRules.cpp)
 target_include_directories(openemperor-original-crop-rules PUBLIC src)
 openemperor_enable_warnings(openemperor-original-crop-rules)
+add_library(openemperor-original-irrigation-rules STATIC
+    src/simulation/original/IrrigationRules.cpp)
+target_include_directories(openemperor-original-irrigation-rules PUBLIC src)
+openemperor_enable_warnings(openemperor-original-irrigation-rules)
+target_link_libraries(openemperor-simulation PUBLIC openemperor-original-irrigation-rules)
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
     src/simulation/WorldPlantations.cpp
+    src/simulation/WorldIrrigation.cpp
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
     src/simulation/WorldOriginalServices.cpp
     src/simulation/WorldOriginalCulture.cpp
@@ -655,6 +662,13 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-plantation-presentation-tests)
     add_test(NAME original-plantations-presentation COMMAND openemperor-plantation-presentation-tests)
     set_tests_properties(original-plantations-presentation PROPERTIES TIMEOUT 180)
+    add_executable(openemperor-irrigation-presentation-tests
+        tests/IrrigationPresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-irrigation-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-irrigation-presentation-tests)
+    add_test(NAME original-irrigation-presentation COMMAND openemperor-irrigation-presentation-tests)
+    set_tests_properties(original-irrigation-presentation PROPERTIES TIMEOUT 180)
     add_executable(openemperor-original-menu-session-tests
         tests/OriginalMenuSessionTests.cpp ${original_menu_test_sources})
     add_executable(openemperor-original-safe-demolition-menu-tests
@@ -958,6 +972,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-crop-rules-tests)
     add_test(NAME original-crop-rules COMMAND openemperor-original-crop-rules-tests)
     set_tests_properties(original-crop-rules PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-original-irrigation-rules-tests tests/OriginalIrrigationRulesTests.cpp)
+    target_link_libraries(openemperor-original-irrigation-rules-tests PRIVATE openemperor-original-irrigation-rules)
+    openemperor_enable_warnings(openemperor-original-irrigation-rules-tests)
+    add_test(NAME original-irrigation-rules COMMAND openemperor-original-irrigation-rules-tests)
+    set_tests_properties(original-irrigation-rules PROPERTIES TIMEOUT 30)
 
     add_executable(openemperor-original-scheduler-world-tests tests/OriginalSchedulerWorldTests.cpp)
     target_link_libraries(openemperor-original-scheduler-world-tests PRIVATE openemperor-simulation)
@@ -1103,6 +1122,18 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-plantations-save-tests)
     add_test(NAME original-plantations-save COMMAND openemperor-plantations-save-tests)
     set_tests_properties(original-plantations-save PROPERTIES TIMEOUT 300)
+    foreach(irrigation_layer world save)
+        if(irrigation_layer STREQUAL "world")
+            set(irrigation_test_source tests/IrrigationWorldTests.cpp)
+        else()
+            set(irrigation_test_source tests/IrrigationSaveTests.cpp)
+        endif()
+        add_executable(openemperor-irrigation-${irrigation_layer}-tests ${irrigation_test_source})
+        target_link_libraries(openemperor-irrigation-${irrigation_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-irrigation-${irrigation_layer}-tests)
+        add_test(NAME original-irrigation-${irrigation_layer} COMMAND openemperor-irrigation-${irrigation_layer}-tests)
+        set_tests_properties(original-irrigation-${irrigation_layer} PROPERTIES TIMEOUT 300)
+    endforeach()
 
     add_executable(openemperor-plantation-food-adapter-tests tests/PlantationFoodAdapterTests.cpp)
     target_link_libraries(openemperor-plantation-food-adapter-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
@@ -1600,6 +1631,17 @@ if(BUILD_TESTING)
         set_tests_properties(plantation-visual-profile-real PROPERTIES TIMEOUT 120)
     endif()
     set_tests_properties(plantation-visual-profile-synthetic PROPERTIES TIMEOUT 120)
+    add_executable(openemperor-irrigation-visual-tests tests/IrrigationVisualProfileTests.cpp)
+    target_link_libraries(openemperor-irrigation-visual-tests PRIVATE openemperor-sg3 openemperor-maps OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-irrigation-visual-tests)
+    add_test(NAME irrigation-visual-profile-synthetic COMMAND openemperor-irrigation-visual-tests)
+    if(OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT)
+        add_test(NAME irrigation-visual-profile-real COMMAND openemperor-irrigation-visual-tests
+            "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}"
+            "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/irrigation.json")
+        set_tests_properties(irrigation-visual-profile-real PROPERTIES TIMEOUT 120)
+    endif()
+    set_tests_properties(irrigation-visual-profile-synthetic PROPERTIES TIMEOUT 120)
 
     add_executable(openemperor-road-topology-tests tests/RoadTopologyTests.cpp
         src/app/RoadTopology.cpp src/app/RoadDrag.cpp)
@@ -1608,7 +1650,7 @@ if(BUILD_TESTING)
     add_test(NAME road-topology-live-preview COMMAND openemperor-road-topology-tests)
 
     add_executable(openemperor-road-responsiveness-tests tests/RoadResponsivenessTests.cpp
-        src/app/RoadDrag.cpp)
+        src/app/RoadDrag.cpp src/app/RoadTopology.cpp)
     target_link_libraries(openemperor-road-responsiveness-tests PRIVATE openemperor-simulation)
     openemperor_enable_warnings(openemperor-road-responsiveness-tests)
     add_test(NAME road-responsive-preview-batch COMMAND openemperor-road-responsiveness-tests)

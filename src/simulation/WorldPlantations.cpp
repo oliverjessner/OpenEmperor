@@ -184,7 +184,7 @@ World World::create_original_plantations(std::shared_ptr<const MapPermissions> p
 }
 World World::restore_original_plantations(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
-    if(!simulation::original_plantations_enabled(s.profile,s.rule_version) || !permissions || !model || !terrain ||
+    if(s.profile!=RulesProfile::CityV16 || s.rule_version!=kOriginalPlantationsRuleVersion || !permissions || !model || !terrain ||
         permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !terrain->fertility_complete())
         invalid("plantation restore requires exact Rule25, policy3 and source-bound model/terrain");
     validate_original_production_snapshot(s);

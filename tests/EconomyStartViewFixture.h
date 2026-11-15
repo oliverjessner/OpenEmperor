@@ -17,6 +17,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string_view>
 #include <thread>
@@ -45,7 +46,8 @@ Bytes sg3(bool tile) {
     }
     return b;
 }
-Bytes map_file(bool valid_manager=true,bool starter_space=true,bool agriculture_fertility=false) {
+Bytes map_file(bool valid_manager=true,bool starter_space=true,bool agriculture_fertility=false,
+        std::span<const simulation::Cell> irrigation_water={}) {
     using namespace openemperor::maps;
     Bytes raw(static_cast<std::size_t>(original_entities_logical_offset+6),0);
     // Complete empty authored manager for the rule-3 immutable map policy.
@@ -62,6 +64,10 @@ Bytes map_file(bool valid_manager=true,bool starter_space=true,bool agriculture_
                 static_cast<std::uint8_t>((i/228U+i%228U)%2U);
     }
     u32(raw,static_cast<std::size_t>(terrain_logical_offset)+4*(110U*228U+110U),0xc0);
+    for (const auto cell:irrigation_water) {
+        check(cell.x>=0 && cell.y>=0 && cell.x<228 && cell.y<228,"Authored irrigation water outside fixture");
+        u32(raw,static_cast<std::size_t>(terrain_logical_offset)+4*(std::size_t(cell.y)*228U+std::size_t(cell.x)),4);
+    }
     Bytes file{0xaa,0xba,0xdc,0xfe};
     for (std::size_t at=0;at<raw.size();at+=32768) {
         const auto n=std::min<std::size_t>(32768,raw.size()-at);

@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <vector>
 
 namespace openemperor::simulation {
 
@@ -21,8 +22,14 @@ public:
                          std::string source_map_sha256);
     OriginalTerrainFacts(std::span<const std::uint32_t> raw_terrain,
                          std::span<const std::uint8_t> fertility,std::string source_map_sha256);
+    OriginalTerrainFacts(std::span<const std::uint32_t> raw_terrain,
+                         std::span<const std::uint8_t> fertility,std::string source_map_sha256,
+                         std::span<const std::uint8_t> irrigation_boundary);
     bool fertility_complete() const noexcept { return fertility_complete_; }
     std::uint8_t fertility(Cell cell) const;
+    bool irrigation_complete() const noexcept { return !irrigation_terrain_.empty(); }
+    std::uint32_t raw_terrain(Cell cell) const;
+    bool irrigation_boundary_allowed(Cell cell) const noexcept;
     const std::string& source_map_sha256() const noexcept { return source_map_sha256_; }
     bool supports_cardinal_footprint(Cell origin,int side) const noexcept;
     int cardinal_water_bonus(Cell origin,int side) const;
@@ -33,6 +40,8 @@ private:
     std::array<std::uint8_t,cell_count> fertility_{};
     // Separate recipient queries; neither mask changes the shared DES map.
     std::array<std::uint8_t,cell_count> side2_{},side4_{};
+    std::vector<std::uint32_t> irrigation_terrain_;
+    std::vector<std::uint8_t> irrigation_boundary_;
 };
 
 } // namespace openemperor::simulation

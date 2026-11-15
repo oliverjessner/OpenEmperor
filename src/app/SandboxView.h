@@ -126,6 +126,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule26/schema42 irrigation; Rule25 selection remains exact.
+    static std::unique_ptr<SandboxView> create_original_irrigation(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit authored Rule19/schema35; never changes historical demolition rights.
     static std::unique_ptr<SandboxView> create_original_safe_demolition(
         maps::StoredMapSession session,
@@ -389,6 +394,9 @@ public:
     RoadVisualDiagnostic road_visual_diagnostic(simulation::Cell cell) const;
     bool unified_depth() const { return unified_depth_; }
     bool building_visuals_active() const { return building_enabled_ && building_profile_.has_value(); }
+    bool irrigation_visuals_active() const {
+        return original_irrigation() && building_visuals_active() && building_profile_->irrigation_prepared;
+    }
     std::size_t building_texture_count() const { return building_sprite_ ? building_sprite_->texture_count():0; }
     struct BuildingDisplayStats {
         bool configured=false;
@@ -500,6 +508,7 @@ private:
     bool fire_watch_selected() const;
     bool agriculture_inspector_selected() const;
     bool status_first_selected() const;
+    bool irrigation_inspector_selected() const;
     std::vector<std::string> wrap_panel_lines(const std::vector<std::string>& lines) const;
     bool append_original_building_visual_diagnostic(std::vector<std::string>& lines,
         simulation::BuildingId id) const;
@@ -527,6 +536,8 @@ private:
         bool ramp_front=false;
         unsigned ramp_adjacency=0;
         const simulation::SourceCellRamp* source_cell_ramp=nullptr;
+        bool irrigation_ditch=false;
+        std::uint8_t irrigation_variant=15;
     };
     // Descriptors of the dynamic pixels actually submitted to the painter.
     // Image pixels remain in the eagerly loaded profiles; no hit mask is copied.
@@ -619,6 +630,8 @@ private:
     OriginalFieldVisualSelection original_field_visual_selection(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
     void prepare_original_field_order(bool force=false);
+    void prepare_irrigation_visuals(bool force=false);
+    bool draw_irrigation_overlay();
     std::uint8_t original_rice_neighbor_mask(simulation::Cell cell) const;
     void prepare_original_rice_preview();
     const assets::BuildingVisualEntry* original_building_entry(simulation::Cell cell,
@@ -691,6 +704,16 @@ private:
     std::optional<std::size_t> original_road_visual_index(simulation::Cell cell) const;
     bool original_road_dynamic(const OriginalRoadVisual& road) const;
     std::optional<simulation::Cell> road_start_;
+    std::optional<simulation::Cell> irrigation_start_;
+    sandbox_ui::IrrigationPlan irrigation_preview_;
+    std::uint8_t irrigation_orientation_=0;
+    bool irrigation_overlay_=false;
+    struct IrrigationVisual { simulation::Cell cell{};std::uint8_t variant=15; };
+    std::vector<IrrigationVisual> irrigation_visuals_;
+    std::vector<std::uint8_t> irrigation_visual_mask_;
+    std::vector<std::pair<simulation::BuildingId,simulation::IrrigationPumpStatus>> irrigation_pump_display_;
+    std::uint64_t irrigation_display_tick_=UINT64_MAX,irrigation_display_sequence_=UINT64_MAX;
+    std::uint64_t irrigation_visual_sequence_=UINT64_MAX,irrigation_visual_road_revision_=UINT64_MAX;
     bool authored_terrain_sides_enabled_=false; // Explicit preview; absent from saves/settings.
     AuthoredTerrainSides authored_terrain_sides_;
     RampTopology ramp_topology_;
@@ -780,6 +803,9 @@ private:
     }
     bool original_agriculture() const {
         return simulation::original_agriculture_family_enabled(rules_,requested_rule_version_);
+    }
+    bool original_irrigation() const {
+        return simulation::original_irrigation_enabled(rules_,requested_rule_version_);
     }
     bool original_plantations() const {
         return simulation::original_plantations_enabled(rules_,requested_rule_version_);

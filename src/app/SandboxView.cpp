@@ -15,6 +15,8 @@
 #include "app/WalkerPose.h"
 #include "app/SandboxVisualOrder.h"
 #include "assets/PlantationVisualProfile.h"
+#include "assets/IrrigationVisualProfile.h"
+#include "simulation/original/IrrigationRules.h"
 #include "core/Version.h"
 #include "simulation/CityStartGuidance.h"
 #include "simulation/OriginalEconomyStarter.h"
@@ -357,6 +359,9 @@ const char* tool_name(simulation::RulesProfile rules,int tool) {
         case 43: return "Rice Field: requires source fertility100 and an eligible paid Farmhouse";
         case 44: return "Cabbage Field: place within a paid Farmhouse work area";
         case 45: return "Soy Field: distinct Bean Curd food output; paid Farmhouse required";
+        case 46: return "Ditch202: drag connected paid cells; only an operating source supplies water";
+        case 47: return "Pump203: shoreline2x2; eight intake-water cells; rotate with R";
+        case 48: return "Remove installed Ditch; no refund; disconnected sections lose water";
         case 21: return "Ancestor Shrine: 2x2, staffed visitors grant Ancestor access";
         case 22: return "Water Well: 2x2, staffed actual visits supply water";
         case 23: return "Daoist: 2x2, staffed actual visits supply religion";
@@ -412,6 +417,7 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::OriginalMusicSchool211: return "Music School";
     case simulation::Object::OriginalAcrobatSchool212: return "Acrobat School";
     case simulation::Object::OriginalDramaSchool213: return "Drama School";
+    case simulation::Object::OriginalIrrigationPump: return "Irrigation Pump203";
     case simulation::Object::OriginalTheatre75: return "Theatre Pavilion75 (4x4)";
     case simulation::Object::OriginalLoggingShed38:
     case simulation::Object::OriginalBronzeSmelter39:
@@ -456,6 +462,9 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool,boo
         case 43: return simulation::CommandType::PlaceOriginalRiceField;
         case 44: return simulation::CommandType::PlaceOriginalCabbageField;
         case 45: return simulation::CommandType::PlaceOriginalSoybeanField;
+        case 46: return simulation::CommandType::PlaceIrrigationDitch;
+        case 47: return simulation::CommandType::PlaceIrrigationPump;
+        case 48: return simulation::CommandType::RemoveIrrigationDitch;
         case 21: return simulation::CommandType::PlaceOriginalAncestorShrine;
         case 22: return simulation::CommandType::PlaceOriginalWaterWell;
         case 23: return simulation::CommandType::PlaceOriginalDaoistShrine;
@@ -654,6 +663,17 @@ std::unique_ptr<SandboxView> SandboxView::create_original_plantations(
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_original_irrigation(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid original Irrigation difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule26 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kOriginalIrrigationRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;
+    return result;
+}
+
 std::unique_ptr<SandboxView> SandboxView::create_original_safe_demolition(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
     if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
@@ -780,7 +800,7 @@ persistence::SaveDocument SandboxView::capture_save_document() const {
 }
 
 bool SandboxView::recovery_safe_point() const {
-    return (!original_influence_fixture() || original_production_fixture()) && world_ && !budget_warning_ && !pending_demolition_ && !road_start_ && !bridge_start_ && !ramp_start_ && !map_pressed_ && !ui_pressed_ &&
+    return (!original_influence_fixture() || original_production_fixture()) && world_ && !budget_warning_ && !pending_demolition_ && !road_start_ && !irrigation_start_ && !bridge_start_ && !ramp_start_ && !map_pressed_ && !ui_pressed_ &&
         !pending_command_ && !pending_road_;
 }
 
@@ -812,7 +832,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : original_plantations() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : original_irrigation() ?
+        persistence::restore_original_irrigation(document,data_root_,buildable_mask_) : original_plantations() ?
         persistence::restore_original_plantations(document,data_root_,buildable_mask_) : original_agriculture() ?
         persistence::restore_original_agriculture(document,data_root_,buildable_mask_) : original_venue_house_service() ?
         persistence::restore_original_venue_house_service(document,data_root_,buildable_mask_) : original_music_venues() ?
@@ -922,7 +943,8 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
                 maps::map_rules_policy_version(rules_,active_version),expected_map_input_sha256_);
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain;
     if (original_agriculture()) {
-        terrain=persistence::prepare_original_agriculture_terrain_facts(data_root_,map_relative_);
+        terrain=original_irrigation() ? persistence::prepare_original_irrigation_terrain_facts(data_root_,map_relative_):
+            persistence::prepare_original_agriculture_terrain_facts(data_root_,map_relative_);
         if (terrain->source_map_sha256()!=expected_map_input_sha256_)
             throw std::runtime_error("Original map changed before Agriculture terrain preparation");
     }
@@ -935,7 +957,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : original_plantations() ?
+                std::move(permissions)) : original_irrigation() ?
+            persistence::restore_original_irrigation(*initial_save_,data_root_,
+                buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_plantations() ?
             persistence::restore_original_plantations(*initial_save_,data_root_,
                 buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : original_agriculture() ?
             persistence::restore_original_agriculture(*initial_save_,data_root_,
@@ -983,6 +1007,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (original_irrigation()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_original_irrigation(
+            std::move(permissions),persistence::prepare_original_irrigation_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_="Irrigation: paid pumps and ditch networks; yield bonuses PARTIAL; Rice/Cabbage/Soy locked.";
     } else if (original_plantations()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_plantations(
             std::move(permissions),persistence::prepare_original_agriculture_rules_model(data_root_,
@@ -1105,7 +1134,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(original_plantations())title+=" | save schema 41 | Agriculture plantations";
+    if(original_irrigation())title+=" | save schema 42 | Agriculture Irrigation";
+    else if(original_plantations())title+=" | save schema 41 | Agriculture plantations";
     else if(original_agriculture())title+=" | save schema 40 | Agriculture";
     else if(original_venue_house_service())title+=" | save schema 39 | physical Theatre to House Music";
     else if(original_music_venues())title+=" | save schema 38 | paid Music performer to Theatre";
@@ -1734,6 +1764,7 @@ assets::BuildingVisualProfile SandboxView::core_building_visual_profile() const 
     result.original_field_entries={};result.original_field_prepared=false;
     result.original_rice_entries={};result.original_rice_mask_offsets={};result.original_rice_prepared=false;
     result.plantation_entries={};result.plantation_prepared=false;
+    result.irrigation_ditch_entries={};result.irrigation_pump_entries={};result.irrigation_prepared=false;
     result.unique_images.resize(building_core_image_count_);
     return result;
 }
@@ -1862,10 +1893,16 @@ bool SandboxView::append_requested_original_building_visuals(assets::BuildingVis
             } catch (const std::exception& failure) {
                 // This independent optional tail retains every already prepared
                 // historical body. No partially decoded plant bank is published.
-                error=std::string("Plantation art fallback: ")+failure.what();reason=error;return true;
+                error=std::string("Plantation art fallback: ")+failure.what();reason=error;
             }
         }
-        reason.clear();return true;
+        if (original_irrigation() && source==VisualProfileSource::Builtin) {
+            try { assets::append_irrigation_visual_profile(data_root_,manifest.parent_path()/"irrigation.json",profile,*available); }
+            catch (const std::exception& failure) {
+                error=std::string("Irrigation art fallback: ")+failure.what();reason=error;return true;
+            }
+        }
+        if (error.empty()) reason.clear();return true;
     } catch(const std::exception& failure) {
         if (source==VisualProfileSource::Custom) throw;
         error=std::string("Original building preparation failed: ")+failure.what();reason=error;return false;
@@ -1887,6 +1924,7 @@ void SandboxView::set_original_building_visuals(const std::filesystem::path& man
     profile.original_field_entries={};profile.original_field_prepared=false;
     profile.original_rice_entries={};profile.original_rice_mask_offsets={};profile.original_rice_prepared=false;
     profile.plantation_entries={};profile.plantation_prepared=false;
+    profile.irrigation_ditch_entries={};profile.irrigation_pump_entries={};profile.irrigation_prepared=false;
     auto prefix=building_core_image_count_;
     for (const auto& entry:profile.original_house_entries) if (entry)
         prefix=std::max(prefix,entry->image_index+1);
@@ -2027,6 +2065,17 @@ SandboxView::OriginalFieldVisualSelection SandboxView::original_field_visual_sel
 const assets::BuildingVisualEntry* SandboxView::original_building_entry(simulation::Cell cell,
         simulation::Object kind,bool placement_preview) const {
     if (!world_ || !original_production_fixture() || !building_profile_) return nullptr;
+    if (original_irrigation() && kind==simulation::Object::OriginalIrrigationPump) {
+        auto orientation=irrigation_orientation_;
+        if (!placement_preview) {
+            const auto id=world_->building_owner_at(cell);if (!id || !world_->irrigation_state()) return nullptr;
+            const auto& pumps=world_->irrigation_state()->pumps;
+            const auto row=std::lower_bound(pumps.begin(),pumps.end(),*id,[](const auto& pump,auto wanted){return pump.building_id<wanted;});
+            if (row==pumps.end() || row->building_id!=*id) return nullptr;
+            orientation=row->orientation;
+        }
+        return assets::find_irrigation_pump_visual(*building_profile_,orientation);
+    }
     if (original_plantations() && simulation::original_industry_plant(kind)) {
         const auto model=static_cast<std::uint16_t>(26U+static_cast<unsigned>(kind)-static_cast<unsigned>(simulation::Object::OriginalTeaBush26));
         if (placement_preview) return assets::find_plantation_visual(*building_profile_,model,0);
@@ -2059,7 +2108,73 @@ void SandboxView::prepare_original_rice_preview() {
     original_rice_preview_mask_=original_rice_neighbor_mask(*hovered_);
     original_rice_preview_cell_=hovered_;original_rice_preview_revision_=world_->road_revision();
 }
+bool SandboxView::draw_irrigation_overlay() {
+    if (!original_irrigation() || !irrigation_overlay_) return true;
+    for (const auto& ditch:irrigation_visuals_) {
+        const auto ground=world_for({double(ditch.cell.x),double(ditch.cell.y)});
+        const bool wet=world_->irrigation_ditch_wet(ditch.cell);
+        if (!draw_diamond({ground.x,ground.y-20},wet ? 55:160,wet ? 175:115,wet ? 245:70,true,.38F)) return false;
+    }
+    for (const auto& body:world_->buildings()) {
+        const auto kind=body.kind;
+        const bool field=kind==simulation::Object::OriginalWheatField || kind==simulation::Object::OriginalMilletField ||
+            kind==simulation::Object::OriginalRiceField || kind==simulation::Object::OriginalCabbageField ||
+            kind==simulation::Object::OriginalSoybeanField || simulation::original_industry_plant(kind);
+        if (!body.placed || !field) continue;
+        const auto status=world_->irrigation_field_status(body.cell);
+        const auto ground=world_for({double(body.cell.x),double(body.cell.y)});
+        if (!draw_diamond({ground.x,ground.y-20},status.water_available ? 55:180,
+            status.water_available ? 210:130,status.water_available ? 245:70,false)) return false;
+    }
+    const int scale=layout_.scale;
+    const int width=std::max(0,layout_.map.w-16*scale);
+    if (width<160*scale || layout_.map.h<48*scale) return true;
+    const SDL_FRect box{float(layout_.map.x+4*scale),float(layout_.map.y+4*scale),float(width+8*scale),float(40*scale)};
+    if (!SDL_SetRenderDrawColor(renderer_,19,29,43,235) || !SDL_RenderFillRect(renderer_,&box) ||
+        !SDL_SetRenderDrawColor(renderer_,235,240,245,255)) return false;
+    // Both text origins and their bounded widths fit the map. draw_text changes
+    // render scale for glyphs, so retaining the unscaled map clip would crop
+    // the first line. Restore the caller's exact clip after this local legend.
+    const bool clipped=SDL_RenderClipEnabled(renderer_);
+    SDL_Rect clip{};
+    if ((clipped && !SDL_GetRenderClipRect(renderer_,&clip)) ||
+        !SDL_SetRenderClipRect(renderer_,nullptr)) return false;
+    struct RestoreLegendClip {
+        SDL_Renderer* renderer;
+        bool enabled;
+        SDL_Rect clip;
+        ~RestoreLegendClip() { (void)SDL_SetRenderClipRect(renderer,enabled ? &clip:nullptr); }
+    } restore_clip{renderer_,clipped,clip};
+    return
+        draw_text(layout_.map.x+8*scale,layout_.map.y+8*scale,"Irrigation: blue supplied / brown dry",width) &&
+        draw_text(layout_.map.x+8*scale,layout_.map.y+25*scale,"Yield bonuses PARTIAL; locked crops remain locked",width);
+}
+
+void SandboxView::prepare_irrigation_visuals(bool force) {
+    if (!world_ || !original_irrigation() || !world_->irrigation_state()) {
+        irrigation_visuals_.clear();irrigation_visual_mask_.clear();irrigation_pump_display_.clear();return;
+    }
+    // Status includes staffing allocation. Prepare once after an actual World
+    // tick/command/publication, never from sprite selection or inspector drawing.
+    if (force || irrigation_display_tick_!=world_->ticks() || irrigation_display_sequence_!=world_->command_sequence()) {
+        irrigation_pump_display_.clear();irrigation_pump_display_.reserve(world_->irrigation_state()->pumps.size());
+        for (const auto& pump:world_->irrigation_state()->pumps)
+            irrigation_pump_display_.emplace_back(pump.building_id,world_->irrigation_pump_status(pump.building_id));
+        irrigation_display_tick_=world_->ticks();irrigation_display_sequence_=world_->command_sequence();
+    }
+    if (!force && irrigation_visual_sequence_==world_->command_sequence() && irrigation_visual_road_revision_==world_->road_revision()) return;
+    irrigation_visual_mask_.assign(static_cast<std::size_t>(world_->width())*static_cast<std::size_t>(world_->height()),0);
+    irrigation_visuals_.clear();const auto& ditches=world_->irrigation_state()->ditches;
+    irrigation_visuals_.reserve(ditches.size());
+    for (const auto& ditch:ditches) {
+        irrigation_visual_mask_[static_cast<std::size_t>(ditch.cell.y)*static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(ditch.cell.x)]=1;
+        irrigation_visuals_.push_back({ditch.cell,sandbox_ui::irrigation_visual_variant(*world_,ditch.cell)});
+    }
+    irrigation_visual_sequence_=world_->command_sequence();irrigation_visual_road_revision_=world_->road_revision();
+}
+
 void SandboxView::prepare_original_field_order(bool force) {
+    prepare_irrigation_visuals(force);
     if (!force && world_ && original_field_order_revision_==world_->road_revision()) return;
     original_field_order_count_=0;
     original_rice_visual_count_=0;
@@ -2773,7 +2888,7 @@ void SandboxView::update_layout(bool preserve_center) {
         simulation::market_profile(rules_),simulation::service_profile(rules_),
         world_ ? world_->bridges_supported():simulation::bridges_rule_enabled(rules_,requested_rule_version_),
         world_ ? world_->ramps_supported():simulation::ramps_rule_enabled(rules_,requested_rule_version_),
-        original_production_fixture(),industry_page_,original_fire_protection(),original_music_venues(),original_agriculture());
+        original_production_fixture(),industry_page_,original_fire_protection(),original_music_venues(),original_agriculture(),original_irrigation());
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) {layout_=next;return;}
     // Panel toggles and resize change the clipped viewport before another
@@ -3141,6 +3256,7 @@ simulation::CommandResult SandboxView::preview(simulation::Cell cell) const {
 }
 simulation::Command SandboxView::placement_command(simulation::Cell cell) const {
     simulation::Command command{command_type(rules_,tool_,original_influence_fixture()),cell};
+    if (tool_==47) command.orientation=irrigation_orientation_;
     if (tool_==17 || (!original_agriculture() && (tool_==19 || tool_==20))) command.building_id=selected_building().value_or(simulation::BuildingId{});
     if (original_production_fixture() && tool_>=38 && tool_<=40) {
         if (original_plantations()) {
@@ -3195,6 +3311,9 @@ void SandboxView::set_tool(int tool) {
     case 43: action=sandbox_ui::Action::OriginalRiceField; break;
     case 44: action=sandbox_ui::Action::OriginalCabbageField; break;
     case 45: action=sandbox_ui::Action::OriginalSoybeanField; break;
+    case 46: action=sandbox_ui::Action::IrrigationDitch; break;
+    case 47: action=sandbox_ui::Action::IrrigationPump; break;
+    case 48: action=sandbox_ui::Action::RemoveIrrigationDitch; break;
     case 21: action=sandbox_ui::Action::OriginalAncestorShrine; break;
     case 22: action=sandbox_ui::Action::OriginalWaterWell; break;
     case 23: action=sandbox_ui::Action::OriginalDaoistShrine; break;
@@ -3211,6 +3330,11 @@ void SandboxView::set_tool(int tool) {
     if (action_enabled(action)) perform_action(action);
 }
 bool SandboxView::action_enabled(sandbox_ui::Action action) const {
+    using IA=sandbox_ui::Action;
+    if (action==IA::IrrigationDitch || action==IA::IrrigationPump || action==IA::RemoveIrrigationDitch ||
+        action==IA::RotateIrrigationPump || action==IA::IrrigationOverlay)
+        return world_ && original_irrigation() && !walker_diagnostic_open_;
+
     if (action==sandbox_ui::Action::OriginalTheatre) {
         if (!original_music_venues() || walker_diagnostic_open_) return false;
         const auto count=std::count_if(world_->buildings().begin(),world_->buildings().end(),[](const auto& b){
@@ -3503,7 +3627,7 @@ void SandboxView::cancel_gesture() {
     original_house_panel_pressed_=false;
     ui_pressed_=false;
     map_pressed_=false;
-    road_start_.reset();
+    road_start_.reset();irrigation_start_.reset();irrigation_preview_={};
     // Only rebuild (and invalidate the submitted frame) when ramp visuals exist to clear;
     // otherwise every click would discard the hit-test frame before the next render.
     const bool had_ramp_state=ramp_start_.has_value()||ramp_topology_.has_preview();
@@ -3609,6 +3733,9 @@ void SandboxView::request_demolition() {
     if (!id || !world_->demolition_supported()) return;
     const auto status=world_->demolition_status(*id);
     last_message_=status.reason;
+    if (!status.allowed && original_irrigation() &&
+        world_->building(*id).kind==simulation::Object::OriginalIrrigationPump)
+        last_message_="Pump demolition is unavailable in this irrigation version. Pause operation to stop supply.";
     if (!status.allowed) return;
     cancel_gesture(); pending_demolition_=id;
     demolition_button_pressed_.reset();
@@ -3653,6 +3780,22 @@ sandbox_ui::Rect SandboxView::menu_button_rect() const {
 void SandboxView::perform_action(sandbox_ui::Action action) {
     using A=sandbox_ui::Action;
     if (action==A::Save || action==A::Load) cancel_gesture();
+    if (original_irrigation() && action_enabled(action)) {
+        if (action==A::IrrigationDitch || action==A::IrrigationPump || action==A::RemoveIrrigationDitch) {
+            cancel_gesture();tool_=action==A::IrrigationDitch ? 46:action==A::IrrigationPump ? 47:48;
+            last_message_=tool_name(rules_,tool_);refresh_hover();return;
+        }
+        if (action==A::RotateIrrigationPump) {
+            cancel_gesture();irrigation_orientation_=static_cast<std::uint8_t>((irrigation_orientation_+1U)%4U);
+            last_message_="Pump orientation "+std::to_string(irrigation_orientation_)+" (water: low-y/high-x/high-y/low-x)";
+            refresh_hover();return;
+        }
+        if (action==A::IrrigationOverlay) {
+            cancel_gesture();irrigation_overlay_=!irrigation_overlay_;
+            last_message_=irrigation_overlay_ ? "Irrigation overlay: blue supplied, brown dry; yield bonus PARTIAL":"Irrigation overlay off";return;
+        }
+    }
+
     if (!action_enabled(action)) {
         std::optional<simulation::CommandType> command;
         if (action==A::Road) command=simulation::CommandType::PlaceRoad;
@@ -3835,6 +3978,19 @@ void SandboxView::refresh_hover(bool force_road_plan) {
     hovered_=pointer_ ? pick(*pointer_) : std::nullopt;
     hover_dirty_=false;
     prepare_original_rice_preview();
+    if (irrigation_start_) {
+        if (!hovered_) {irrigation_preview_={};return;}
+        const bool stale=force_road_plan || planned_start_!=irrigation_start_ || planned_end_!=hovered_ ||
+            planned_road_revision_!=world_->road_revision() || planned_command_sequence_!=world_->command_sequence() ||
+            planned_treasury_!=world_->treasury();
+        if (stale) {
+            irrigation_preview_=sandbox_ui::plan_irrigation(*world_,*irrigation_start_,*hovered_);
+            planned_start_=irrigation_start_;planned_end_=hovered_;planned_road_revision_=world_->road_revision();
+            planned_command_sequence_=world_->command_sequence();planned_treasury_=world_->treasury();
+            last_message_=irrigation_preview_.validation.reason+" | $"+std::to_string(irrigation_preview_.validation.total_cost);
+        }
+        return;
+    }
     if(ramp_start_) {
         if(!hovered_) {
             const bool clear_preview=ramp_topology_.has_preview();
@@ -3996,7 +4152,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
         if (event.key.key==SDLK_ESCAPE) {
             if (help_open_) { help_open_=false; last_message_="Help closed"; return; }
-            if (map_pressed_ || road_start_ || bridge_start_ || ramp_start_ || pressed_button_ || ui_pressed_ || menu_pressed_)
+            if (map_pressed_ || road_start_ || irrigation_start_ || bridge_start_ || ramp_start_ || pressed_button_ || ui_pressed_ || menu_pressed_)
                 cancel_gesture();
             else if (managed_) menu_requested_=true;
             else running=false;
@@ -4012,6 +4168,16 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                     (static_cast<unsigned>(original_house_section_)+offset)%4U));
                 return;
             }
+        }
+        if (original_irrigation() && !walker_diagnostic_open_) {
+            std::optional<sandbox_ui::Action> irrigation_action;
+            if (event.key.mod&SDL_KMOD_SHIFT) {
+                if (event.key.key==SDLK_D) irrigation_action=sandbox_ui::Action::IrrigationDitch;
+                else if (event.key.key==SDLK_P) irrigation_action=sandbox_ui::Action::IrrigationPump;
+                else if (event.key.key==SDLK_X) irrigation_action=sandbox_ui::Action::RemoveIrrigationDitch;
+                else if (event.key.key==SDLK_V) irrigation_action=sandbox_ui::Action::IrrigationOverlay;
+            } else if (event.key.key==SDLK_R && tool_==47) irrigation_action=sandbox_ui::Action::RotateIrrigationPump;
+            if (irrigation_action) {perform_action(*irrigation_action);return;}
         }
         if (event.key.key==SDLK_T && simulation::market_profile(rules_)) {
             perform_action(sandbox_ui::Action::ToggleIncome); return;
@@ -4270,6 +4436,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         map_pressed_=true;
         if(tool_==15 && cell) {ramp_start_=cell;refresh_hover(true);}
         if(tool_==14 && cell) {bridge_start_=cell;refresh_hover(true);}
+        if (tool_==46 && cell) {irrigation_start_=cell;refresh_hover(true);}
         if (tool_==1) {
             road_start_=cell;
             road_preview_=sandbox_ui::plan_road(*world_,*cell,*cell);
@@ -4351,6 +4518,10 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         } else if(cell && bridge_start_ && tool_==14) {
             (void)execute(simulation::place_bridge(*bridge_start_,*cell));
             clear_visual_selection();selected_=cell;
+        } else if (cell && irrigation_start_ && tool_==46) {
+            const auto result=world_->execute_irrigation_batch(irrigation_preview_.cells);
+            last_message_=result.reason;prepare_irrigation_visuals();
+            clear_visual_selection();selected_=cell;
         } else if (cell && road_start_ && tool_==1) {
             const auto plan=road_preview_;
             (void)request_road(plan);
@@ -4378,14 +4549,14 @@ void SandboxView::update(double seconds,PanKeyState keys) {
     performance::ScopedTimer timer(performance::Timing::SimulationUpdate);
     if (budget_warning_ || pending_demolition_) return;
     const double movement=400.0*std::clamp(seconds,0.0,0.05);
-    if (input_focused_ && !road_start_ && !bridge_start_ && !ramp_start_) {
+    if (input_focused_ && !road_start_ && !irrigation_start_ && !bridge_start_ && !ramp_start_) {
         if (keys.a || keys.left) camera_.offset.x+=movement;
         if ((!simulation::desirability_profile(rules_) && keys.d) || keys.right) camera_.offset.x-=movement;
         if (keys.w || keys.up) camera_.offset.y+=movement;
         if (keys.s || keys.down) camera_.offset.y-=movement;
         hover_dirty_=true;
     }
-    if (hover_dirty_ || road_start_ || bridge_start_ || ramp_start_) refresh_hover();
+    if (hover_dirty_ || road_start_ || irrigation_start_ || bridge_start_ || ramp_start_) refresh_hover();
     try { clock_.update(seconds,*world_); }
     catch (const std::overflow_error& error) { if (!pause_for_original_fire_limit(error.what())) throw; }
     prepare_original_field_order();
@@ -4565,6 +4736,7 @@ void SandboxView::clear_hidden_walker_selection() {
     }
 }
 void SandboxView::record_visual_hit(const DrawInstance& instance) {
+    if (instance.irrigation_ditch) return;
     if (instance.placement_preview || instance.object==simulation::Object::Road) return;
     const auto append=[&](const VisualHit& next) {
         const auto top=camera_.world_to_screen(next.origin);
@@ -4795,6 +4967,8 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         const auto object=world_->object_at(cell);
         if (object==simulation::Object::Empty) continue;
         if(object==simulation::Object::Road && world_->source_cell_ramp_source_at(cell))continue;
+        if(object==simulation::Object::Road && !irrigation_visual_mask_.empty() &&
+            irrigation_visual_mask_[static_cast<std::size_t>(y)*static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(x)]) continue;
         const auto owner=world_->building_owner_at(cell);
         simulation::Cell visual_cell=cell;
         if (object!=simulation::Object::Road && owner) {
@@ -4812,7 +4986,14 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             cell,object});
         if (!background_.elevated()) apply_original_field_order(instances.back());
     }
+    for (const auto& ditch:irrigation_visuals_) {
+        const auto ground=world_for({double(ditch.cell.x),double(ditch.cell.y)});
+        DrawInstance instance{{ground.y,ground.x,scene::WorldVisualLayer::SandboxRoad,
+            (std::uint64_t{1}<<32U)+static_cast<unsigned>(ditch.cell.y*world_->width()+ditch.cell.x)},ditch.cell,simulation::Object::Road};
+        instance.irrigation_ditch=true;instance.irrigation_variant=ditch.variant;instances.push_back(instance);
+    }
     for(const auto& road:original_road_visuals_)if(original_road_dynamic(road)) {
+        if (!irrigation_visual_mask_.empty() && irrigation_visual_mask_[static_cast<std::size_t>(road.cell.y)*static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(road.cell.x)]) continue;
         const auto ground=world_for({double(road.cell.x),double(road.cell.y)});
         const auto id=static_cast<unsigned>(road.cell.y*world_->width()+road.cell.x);
         instances.push_back({{ground.y,ground.x,scene::WorldVisualLayer::SandboxRoad,id},road.cell,simulation::Object::Road});
@@ -5246,7 +5427,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                               static_cast<std::uint32_t>(state.id)},{},
                              simulation::Object::Empty,state.id,*position});
     }
-    if (!road_start_ && !bridge_start_ && !ramp_start_ && hovered_ && tool_!=14 && tool_!=15 && tool_!=(simulation::production_profile(rules_) ? 5:4)) {
+    if (!road_start_ && !irrigation_start_ && !bridge_start_ && !ramp_start_ && hovered_ && tool_!=14 && tool_!=15 && tool_!=46 && tool_!=48 && tool_!=(simulation::production_profile(rules_) ? 5:4)) {
         const auto result=preview(*hovered_);
         const auto object=tool_==2 ? simulation::Object::ClaySource:
             tool_==3 ? simulation::Object::Pottery:
@@ -5262,6 +5443,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==43 ? simulation::Object::OriginalRiceField:
             tool_==44 ? simulation::Object::OriginalCabbageField:
             tool_==45 ? simulation::Object::OriginalSoybeanField:
+            tool_==47 ? simulation::Object::OriginalIrrigationPump:
             tool_==21 ? simulation::Object::OriginalAncestorShrine214:
             tool_==22 ? simulation::Object::OriginalWaterWell72:
             tool_==23 ? simulation::Object::OriginalDaoistShrine215:
@@ -5322,6 +5504,15 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     std::sort(spatial_begin,instances.end(),less);
     const auto draw_instance_body=[&](std::size_t index)->bool {
         const auto& instance=instances[index];
+        if (instance.irrigation_ditch) {
+            const bool wet=world_->irrigation_ditch_wet(instance.cell);
+            const auto ground=camera_.world_to_screen(world_for({double(instance.cell.x),double(instance.cell.y)}));
+            if (building_visuals_active() && building_profile_ && building_sprite_)
+                if (const auto* art=assets::find_irrigation_ditch_visual(*building_profile_,instance.irrigation_variant,wet))
+                    return building_sprite_->draw(ground,camera_.zoom,*building_profile_,*art);
+            const auto top=world_for({double(instance.cell.x),double(instance.cell.y)});
+            return draw_diamond({top.x,top.y-20},wet ? 50:150,wet ? 160:110,wet ? 230:65,true);
+        }
         if(instance.source_cell_ramp) {
             const auto tint=instance.placement_preview?(source_cell_ramp_preview_.accepted?BridgeTint::Valid:
                 source_cell_ramp_preview_.diagnostic.blocker==simulation::BuildBlocker::InsufficientFunds?
@@ -5444,6 +5635,34 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         painter_stats_.sandbox_items=instances.size();
         for (std::size_t i=0;i<instances.size();++i)
             if (!draw_instance(i)) return false;
+    }
+    if (original_irrigation()) {
+        if (!draw_irrigation_overlay()) return false;
+        if (irrigation_start_) {
+            for (std::size_t i=0;i<irrigation_preview_.cells.size();++i) {
+                const auto cell=irrigation_preview_.cells[i];const auto top=world_for({double(cell.x),double(cell.y)});
+                const bool valid=irrigation_preview_.validation.accepted;
+                if (valid && i<irrigation_preview_.variants.size() && building_visuals_active() && building_profile_ && building_sprite_)
+                    if (const auto* art=assets::find_irrigation_ditch_visual(*building_profile_,irrigation_preview_.variants[i],false))
+                        if (!building_sprite_->draw(camera_.world_to_screen(top),camera_.zoom,*building_profile_,*art,true)) return false;
+                if (!draw_diamond({top.x,top.y-20},valid ? 65:235,valid ? 220:70,90,false)) return false;
+            }
+        } else if (hovered_ && (tool_==46 || tool_==48)) {
+            const auto top=world_for({double(hovered_->x),double(hovered_->y)});
+            const auto allowed=preview(*hovered_).accepted;
+            if (!draw_diamond({top.x,top.y-20},allowed ? 65:235,allowed ? 220:70,90,false)) return false;
+        }
+        if (hovered_ && tool_==47) {
+            const auto shape=original::pump_geometry(*hovered_,irrigation_orientation_);
+            for (const auto cell:shape.water) {
+                const auto top=world_for({double(cell.x),double(cell.y)});
+                if (!draw_diamond({top.x,top.y-20},60,150,240,false)) return false;
+            }
+            for (const auto cell:shape.land) {
+                const auto top=world_for({double(cell.x),double(cell.y)});
+                if (!draw_diamond({top.x,top.y-20},220,190,90,false)) return false;
+            }
+        }
     }
     if (desirability_overlay_ && simulation::desirability_profile(rules_)) {
         SDL_BlendMode previous_blend=SDL_BLENDMODE_NONE;
@@ -5604,6 +5823,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==43 ? simulation::Object::OriginalRiceField:
             tool_==44 ? simulation::Object::OriginalCabbageField:
             tool_==45 ? simulation::Object::OriginalSoybeanField:
+            tool_==47 ? simulation::Object::OriginalIrrigationPump:
             tool_==21 ? simulation::Object::OriginalAncestorShrine214:
             tool_==22 ? simulation::Object::OriginalWaterWell72:
             tool_==23 ? simulation::Object::OriginalDaoistShrine215:
@@ -5817,7 +6037,15 @@ bool SandboxView::agriculture_inspector_selected() const {
         kind==simulation::Object::OriginalMilletField || kind==simulation::Object::OriginalRiceField ||
         kind==simulation::Object::OriginalCabbageField || kind==simulation::Object::OriginalSoybeanField;
 }
+bool SandboxView::irrigation_inspector_selected() const {
+    if (!world_ || !original_irrigation() || !selected_ || selected_walker_) return false;
+    if (const auto id=selected_building()) return world_->building(*id).kind==simulation::Object::OriginalIrrigationPump;
+    return selected_->x>=0 && selected_->y>=0 && selected_->x<world_->width() && selected_->y<world_->height() &&
+        !irrigation_visual_mask_.empty() && irrigation_visual_mask_[static_cast<std::size_t>(selected_->y)*
+            static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(selected_->x)]!=0;
+}
 bool SandboxView::status_first_selected() const {
+    if (irrigation_inspector_selected()) return true;
     const auto id=selected_building();
     if (!id) return false;
     const auto kind=world_->building(*id).kind;
@@ -5914,6 +6142,9 @@ std::vector<std::string> SandboxView::demolition_hint_lines() const {
     if (!id) return {};
     const auto status=world_->demolition_status(*id);
     std::string hint=status.allowed ? "Demolition gives no refund.":status.reason;
+    if (!status.allowed && original_irrigation() &&
+        world_->building(*id).kind==simulation::Object::OriginalIrrigationPump)
+        hint="Pump demolition is unavailable in this irrigation version. Pause operation to stop supply.";
     if (fire_watch_selected() && status.blocker==simulation::DemolitionBlocker::OwnedActiveCourier) {
         const auto found=std::find_if(world_->couriers().begin(),world_->couriers().end(),
             [&](const auto& c) { return c.owner==*id &&
@@ -5927,6 +6158,29 @@ std::vector<std::string> SandboxView::demolition_hint_lines() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
+    if (original_irrigation() && selected_ && !selected_walker_) {
+        if (const auto id=world_->building_owner_at(*selected_);
+            id && world_->building(*id).kind==simulation::Object::OriginalIrrigationPump) {
+            const auto row=std::lower_bound(irrigation_pump_display_.begin(),irrigation_pump_display_.end(),*id,
+                [](const auto& status,auto wanted){return status.first<wanted;});
+            if (row==irrigation_pump_display_.end() || row->first!=*id)
+                throw std::logic_error("Paid Pump display status was not prepared after World publication");
+            const auto& pump=row->second;
+            lines={"Irrigation Pump203 #"+std::to_string(static_cast<unsigned>(*id)),
+                pump.supplying ? "Supplying connected Ditches":"Not supplying: "+pump.reason,
+                "Workers "+std::to_string(pump.assigned_workers)+"/"+std::to_string(world_->workforce_required(*id)),
+                std::string("Intake: ")+(pump.intake_valid ? "eight water cells valid":"INVALID"),
+                "Orientation "+std::to_string(pump.orientation)+"; paid shoreline2x2",
+                "Water starts at the next scheduled irrigation update",
+                "Yield bonuses PARTIAL; Rice/Cabbage/Soy remain locked"};
+            if (!building_profile_ || !building_profile_->irrigation_prepared) lines.push_back("Original irrigation art unavailable; authored marker");
+            return wrap_panel_lines(lines);
+        }
+        const bool installed=selected_->x>=0 && selected_->y>=0 && selected_->x<world_->width() && selected_->y<world_->height() &&
+            !irrigation_visual_mask_.empty() && irrigation_visual_mask_[static_cast<std::size_t>(selected_->y)*static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(selected_->x)];
+        if (installed) return wrap_panel_lines({"Irrigation Ditch202",world_->irrigation_ditch_wet(*selected_) ? "WET: supplied by an eligible Pump":"DRY: no current supplied connection", "Shift-X removes installed Ditch; no refund", "Shift-V shows actual supplied state; yield bonuses PARTIAL"});
+    }
+
     if (selected_ && !selected_walker_ && world_->map_permissions()) {
         const auto& permissions=*world_->map_permissions();
         if(const auto* ramp=world_->source_cell_ramp_claim(*selected_))return wrap_panel_lines({
@@ -6209,6 +6463,12 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             simulation::original_industry_plant(body.kind));
         if (plantation && world_->plantations_state()) {
             lines[1]="Paid physical plantations (authored work clock)";
+            if (original_irrigation() && simulation::original_industry_plant(body.kind)) {
+                const auto status=world_->irrigation_field_status(body.cell);
+                lines.push_back(status.water_available ? "Irrigation: supplied Ditch within5 cells":"Irrigation: "+status.reason);
+                lines.push_back("Irrigation yield bonus: PARTIAL / inactive");
+            }
+
             lines[2]=simulation::original_industry_plant(body.kind) ?
                 "Bound paid source; work area -3..+4":"Paid plants -> physical returned harvest -> output";
             lines[3]="80 productive ticks / plant;1 unit / returned harvest";
@@ -6859,6 +7119,11 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     } else if (original_agriculture() && (b.kind==simulation::Object::OriginalWheatField ||
         b.kind==simulation::Object::OriginalMilletField || b.kind==simulation::Object::OriginalRiceField ||
         b.kind==simulation::Object::OriginalCabbageField || b.kind==simulation::Object::OriginalSoybeanField)) {
+        if (original_irrigation()) {
+            const auto status=world_->irrigation_field_status(b.cell);
+            lines.push_back(status.water_available ? "Irrigation: supplied Ditch within5 cells":"Irrigation: "+status.reason);
+            lines.push_back("Irrigation yield bonus: PARTIAL / inactive");
+        }
         for (const auto& field:world_->original_agriculture_state()->fields) if (field.field_id==*id) {
             lines.push_back(std::string("Output: ")+agriculture_food_names[static_cast<std::size_t>(field.crop)]);
             lines.push_back("Bound Farmhouse #"+std::to_string(static_cast<unsigned>(field.farm_id)));
@@ -7657,7 +7922,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(original_plantations())overview+=" | Policy3 | Save41 | Agriculture | AUTHORED Wheat/Millet | Other Food LOCKED";
+        if(original_irrigation())overview+=" | Policy3 | Save42 | Irrigation | Yield bonus PARTIAL";
+        else if(original_plantations())overview+=" | Policy3 | Save41 | Agriculture | AUTHORED Wheat/Millet | Other Food LOCKED";
         else if(original_agriculture())overview+=" | Policy 3 | Save 40 | Agriculture | Production LOCKED";
         else if(original_venue_house_service())overview+=" | Policy3 | Save39 | physical Venue to House Music";
         else if(original_music_venues())overview+=" | Policy3 | Save38 | Music to Theatre; no House effect";
@@ -7708,6 +7974,11 @@ bool SandboxView::draw_hud() {
         };
         if (const auto* industry=industry_action(action)) return std::string(industry->name)+" $"+std::to_string(world_->construction_cost(industry->command));
         switch (action) {
+        case A::IrrigationDitch: return "Shift-D Ditch $"+std::to_string(world_->construction_cost(simulation::CommandType::PlaceIrrigationDitch));
+        case A::IrrigationPump: return "Shift-P Pump $"+std::to_string(world_->construction_cost(simulation::CommandType::PlaceIrrigationPump));
+        case A::RemoveIrrigationDitch: return "Shift-X Remove Ditch";
+        case A::RotateIrrigationPump: return "R Rotate Pump: "+std::to_string(irrigation_orientation_);
+        case A::IrrigationOverlay: return irrigation_overlay_ ? "Shift-V Irrigation ON":"Shift-V Irrigation";
         case A::Select: return simulation::production_profile(rules_) ? "5 Select":"4 Select";
         case A::Road: return simulation::city_profile(rules_) ? "1 Road $2":"1 Road";
         case A::Clay: return original_production_fixture() ? "2 Clay $"+
@@ -7822,6 +8093,11 @@ bool SandboxView::draw_hud() {
     for (const auto& button:layout_.buttons) {
         bool active=false;
         switch (button.action) {
+        case A::IrrigationDitch: active=tool_==46; break;
+        case A::IrrigationPump: active=tool_==47; break;
+        case A::RemoveIrrigationDitch: active=tool_==48; break;
+        case A::RotateIrrigationPump: active=tool_==47; break;
+        case A::IrrigationOverlay: active=irrigation_overlay_; break;
         case A::Select: active=tool_==(simulation::production_profile(rules_) ? 5:4); break;
         case A::Road: active=tool_==1; break;
         case A::Clay: active=tool_==2; break;
@@ -7930,6 +8206,7 @@ bool SandboxView::draw_hud() {
     } else if (layout_.panel_open && !income_open_) {
         if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
         if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
+                       irrigation_inspector_selected() ? (selected_building() ? "PUMP INSPECTOR":"DITCH INSPECTOR"):
                        industry_inspector_selected() ? "INDUSTRY INSPECTOR":
                        agriculture_inspector_selected() ? "AGRICULTURE INSPECTOR":
                        original_production_fixture() && selected_building() && world_->building(*selected_building()).kind==simulation::Object::Warehouse ? "WAREHOUSE INSPECTOR":
@@ -8374,7 +8651,8 @@ bool SandboxView::draw_help_overlay() {
             original_music_venues() ? "E Music -> G Theatre75 (4x4)":"E Music | C Acrobat | A Drama",
             "O Food Farm | W Wheat | L Millet", original_agriculture() ?
                 "Shift-R Rice | Shift-C Cabbage | Shift-S Soy":"N Hemp Farm | M Hemp Field",
-            "J Herbalist | 9 Acupuncture", "0 Market | 5 Select | 1 Road",
+            original_irrigation() ? "Shift-D Ditch | Shift-P Pump":"J Herbalist | 9 Acupuncture",
+            original_irrigation() ? "R rotate | Shift-X remove Ditch | Shift-V water":"0 Market | 5 Select | 1 Road",
             "F5 Save | F9 Load | Space Pause", original_agriculture() ?
                 original_plantations() ? "AUTHORED Wheat/Millet; Rice/Cabbage/Soy locked":
                 "Production LOCKED: Original timing unverified":"Panel wheel scrolls; sources need workers",

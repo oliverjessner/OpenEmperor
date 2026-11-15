@@ -259,6 +259,7 @@ std::optional<Object> placed_object(CommandType type) {
     case CommandType::PlaceOriginalRiceField: return Object::OriginalRiceField;
     case CommandType::PlaceOriginalCabbageField: return Object::OriginalCabbageField;
     case CommandType::PlaceOriginalSoybeanField: return Object::OriginalSoybeanField;
+    case CommandType::PlaceIrrigationPump: return Object::OriginalIrrigationPump;
     case CommandType::PlaceOriginalAncestorShrine: return Object::OriginalAncestorShrine214;
     case CommandType::PlaceOriginalWaterWell: return Object::OriginalWaterWell72;
     case CommandType::PlaceOriginalDaoistShrine: return Object::OriginalDaoistShrine215;
@@ -310,6 +311,11 @@ bool courier_can_target(CourierRole role,const BuildingState& target,
 }
 
 BuildingFootprint building_footprint(RulesProfile profile,std::uint32_t rule_version,Object kind) {
+    if (kind==Object::OriginalIrrigationPump) {
+        if (!original_irrigation_enabled(profile,rule_version))
+            throw std::invalid_argument("Irrigation Pump requires explicit Rule26");
+        return {2,2};
+    }
     if (kind==Object::OriginalTheatre75) {
         if (!original_music_venues_enabled(profile,rule_version)) throw std::invalid_argument("Theatre75 requires Rule22 or explicit Rule23");
         return {4,4};
@@ -517,6 +523,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v23{23,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v24{24,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v25{25,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
+    if (original_irrigation_enabled(profile,version)) return city_v16_v26;
     if (original_plantations_enabled(profile,version)) return city_v16_v25;
     if (original_agriculture_enabled(profile,version)) return city_v16_v24;
     if (original_venue_house_service_enabled(profile,version)) return city_v16_v23;
@@ -599,6 +607,11 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         agriculture_.emplace();
     }
     if(original_plantations_enabled()) plantations_.emplace();
+    if(irrigation_enabled()) {
+        if (!original_terrain_facts_->irrigation_complete())
+            throw std::invalid_argument("Irrigation requires complete source-bound terrain and boundary facts");
+        validate_irrigation_model();irrigation_.emplace();
+    }
     if(authored_land_trade_enabled()) {land_trade_.emplace();land_trade_->model_source=original_model_source(*original_rules_model_);land_trade_->source_map_sha256=land_trade_boundary_->source_map_sha256();}
     treasury_=city_profile(profile) ? starting_treasury_for(profile,rule_version_):0;
     objects_.assign(buildable_.size(),Object::Empty);
@@ -815,6 +828,11 @@ CourierState& World::mutable_courier(CourierId id) {
 std::int64_t World::construction_cost(CommandType type) const {
     if (!city_profile(profile_)) return 0;
     switch (type) {
+    case CommandType::PlaceIrrigationDitch:
+    case CommandType::PlaceIrrigationPump:
+        return irrigation_enabled() ? original_rules_model_->building_value(
+            type==CommandType::PlaceIrrigationDitch ? original::ModelBuilding::IrrigationDitch:
+                original::ModelBuilding::IrrigationPump,original::BuildingField::Cost):0;
     case CommandType::PlaceOriginalLoggingShed:
     case CommandType::PlaceOriginalBronzeSmelter:
     case CommandType::PlaceOriginalBronzewareMaker:
@@ -905,6 +923,7 @@ std::int64_t World::construction_cost(CommandType type) const {
             original::ModelBuilding::HerbalistsStall,original::BuildingField::Cost):
             health_profile(profile_) ? Rules::health_post_cost:0;
     case CommandType::PlaceWorkshop:
+    case CommandType::RemoveIrrigationDitch:
     case CommandType::RemoveRoad:
     case CommandType::SetBuildingOperation:
     case CommandType::SetBuildingWorkforcePriority: return 0;
@@ -918,6 +937,9 @@ std::int64_t World::construction_cost(CommandType type) const {
 
 int World::workforce_required(BuildingId id) const {
     const auto& value=building(id);
+    if (value.kind==Object::OriginalIrrigationPump)
+        return irrigation_enabled() ? original_rules_model_->building_value(
+            original::ModelBuilding::IrrigationPump,original::BuildingField::Employees):0;
     if (!value.placed) return 0;
     switch (value.kind) {
     case Object::OriginalLoggingShed38:
@@ -969,7 +991,7 @@ int World::workforce_required(BuildingId id) const {
 }
 
 bool World::operation_controllable(Object kind) {
-    return kind==Object::OriginalTheatre75 || original_industry_source(kind) || kind==Object::OriginalMusicSchool211 || kind==Object::OriginalAcrobatSchool212 ||
+    return kind==Object::OriginalIrrigationPump || kind==Object::OriginalTheatre75 || original_industry_source(kind) || kind==Object::OriginalMusicSchool211 || kind==Object::OriginalAcrobatSchool212 ||
         kind==Object::OriginalDramaSchool213 || kind==Object::OriginalDaoistShrine215 || kind==Object::OriginalBuddhistShrine217 ||
         kind==Object::OriginalConfucianAcademy219 || kind==Object::OriginalWaterWell72 || kind==Object::OriginalAncestorShrine214 || kind==Object::OriginalFoodFarm || kind==Object::OriginalHempFarm || kind==Object::ClaySource || kind==Object::Pottery || kind==Object::Warehouse ||
         kind==Object::Farm || kind==Object::ServicePost || kind==Object::Market || kind==Object::FireWatch || kind==Object::HealthPost;
@@ -1448,6 +1470,12 @@ DemolitionStatus World::demolition_status(BuildingId id) const {
 }
 
 CommandResult World::validate(Command command) const {
+    return validate_impl(command,true);
+}
+
+CommandResult World::validate_impl(Command command,bool check_irrigation_crossings) const {
+    if (command.type==CommandType::PlaceIrrigationDitch || command.type==CommandType::RemoveIrrigationDitch ||
+        command.type==CommandType::PlaceIrrigationPump) return validate_irrigation_command(command);
     if(command.type==CommandType::ConfigureLandTrade||command.type==CommandType::ImportPottery||command.type==CommandType::ExportPottery)return validate_land_trade_command(command);
     if(command.type==CommandType::PlaceSourceCellRamp) {
         const auto checked=validate_source_cell_ramp(command.cell,command.ramp_end);
@@ -1456,6 +1484,12 @@ CommandResult World::validate(Command command) const {
     if(command.type==CommandType::DemolishBuilding&&land_trade_protected_building(command.building_id))
         return {false,false,"Bound trade Warehouses cannot be demolished",command_sequence_,ticks_};
     const auto construction=placed_object(command.type);
+    if (check_irrigation_crossings && irrigation_enabled() && command.type==CommandType::PlaceRoad &&
+        !irrigation_crossings_valid({},{},std::span<const Cell>(&command.cell,1)))
+        return {false,false,"Road would invalidate an irrigation crossing",command_sequence_,ticks_};
+    if (check_irrigation_crossings && irrigation_enabled() && command.type==CommandType::RemoveRoad &&
+        !irrigation_crossings_valid({},{},{},command.cell))
+        return {false,false,"Road removal would invalidate an irrigation crossing",command_sequence_,ticks_};
     if (command.type==CommandType::PlaceOriginalTheatre && !original_music_venues_enabled())
         return {false,false,"Theatre75 requires explicit Rule22 music venues",command_sequence_,ticks_};
     const bool industry_construction=construction && original_industry_model(*construction);
@@ -1641,6 +1675,9 @@ CommandResult World::validate(Command command) const {
                     permissions_ ? nullptr:"Building footprint is not sandbox-buildable");
             if (object_at(cell)!=Object::Empty)
                 return blocked(BuildBlocker::SandboxOccupied,cell,"Building footprint overlaps an occupied cell");
+            if (irrigation_enabled() && *kind!=Object::Road &&
+                std::any_of(irrigation_->ditches.begin(),irrigation_->ditches.end(),[&](const auto& ditch){return ditch.cell==cell;}))
+                return blocked(BuildBlocker::SandboxOccupied,cell,"Building footprint overlaps an installed irrigation ditch");
         }
     }
     if (command.type==CommandType::PlaceRoad ? !road_buildable(command.cell):!buildable(command.cell))
@@ -1815,6 +1852,9 @@ RoadBatchValidation World::validate_road_batch(std::span<const Cell> cells) cons
     RoadBatchValidation batch;
     if (cells.empty()) { batch.reason="Invalid road drag"; return batch; }
     if (cells.size()>256) { batch.reason="Road drag exceeds 256 cells"; return batch; }
+    if (irrigation_enabled() && !irrigation_crossings_valid({},{},cells)) {
+        batch.reason="Road batch would invalidate an irrigation crossing";return batch;
+    }
     std::vector<Cell> new_cells;
     new_cells.reserve(cells.size());
     const auto record_blocker=[&](BuildDiagnostic diagnostic,const std::string& reason) {
@@ -1827,7 +1867,7 @@ RoadBatchValidation World::validate_road_batch(std::span<const Cell> cells) cons
         const bool existing=object_at(cell)==Object::Road,passage=fixed_passage(cell),original=original_road(cell);
         const bool duplicate=std::find(new_cells.begin(),new_cells.end(),cell)!=new_cells.end();
         if (!permissions_ && (existing || duplicate)) continue;
-        auto result=validate({CommandType::PlaceRoad,cell});
+        auto result=validate_impl({CommandType::PlaceRoad,cell},false);
         // Aggregate funds are checked after every cell/edge, so a terrain
         // blocker remains distinct from a batch which only lacks money.
         const bool allowed=result.accepted || (permissions_ &&
@@ -1896,21 +1936,26 @@ CommandResult World::execute_road_batch(std::span<const Cell> cells) {
     CommandResult last;
     for (const auto cell:cells) {
         if (candidate.road_cell(cell) || candidate.fixed_passage(cell)) continue;
-        last=candidate.execute_impl({CommandType::PlaceRoad,cell},false);
+        last=candidate.execute_impl({CommandType::PlaceRoad,cell},false,false,true);
         if (!last.accepted || !last.changed)
             return {false,false,last.reason,command_sequence_+1,ticks_};
     }
     if (production_profile(candidate.profile_)) candidate.refresh_routes();
+    if (candidate.irrigation_enabled()) candidate.refresh_irrigation();
     *this=std::move(candidate);
     last.reason="Road placed";
     return last;
 }
 
 CommandResult World::execute(Command command) {
-    return execute_impl(command,true);
+    auto result=execute_impl(command,true);
+    if (irrigation_enabled() && result.accepted && result.changed) refresh_irrigation();
+    return result;
 }
 
-CommandResult World::execute_impl(Command command,bool refresh_after,bool influence_prepared) {
+CommandResult World::execute_impl(Command command,bool refresh_after,bool influence_prepared,bool irrigation_prepared) {
+    if (command.type==CommandType::PlaceIrrigationDitch || command.type==CommandType::RemoveIrrigationDitch ||
+        command.type==CommandType::PlaceIrrigationPump) return execute_irrigation_command(command);
     if(command.type==CommandType::ConfigureLandTrade||command.type==CommandType::ImportPottery||command.type==CommandType::ExportPottery)return execute_land_trade_command(command);
     if(command.type==CommandType::PlaceSourceCellRamp) {
         const auto checked=validate_source_cell_ramp(command.cell,command.ramp_end);
@@ -1931,10 +1976,10 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
     if (command.type==CommandType::PlaceOriginalElitePlot && !original_production_enabled())
         return validate(command);
     if (original_influence_enabled() && !influence_prepared) {
-        const auto checked=validate(command);
+        const auto checked=validate_impl(command,!irrigation_prepared);
         if (!checked.accepted || !checked.changed) return checked;
         World candidate=*this;
-        auto result=candidate.execute_impl(command,refresh_after,true);
+        auto result=candidate.execute_impl(command,refresh_after,true,irrigation_prepared);
         if (result.accepted && result.changed) *this=std::move(candidate);
         return result;
     }
@@ -1944,7 +1989,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         (original_influence_enabled() && command.type==CommandType::DemolishBuilding))
         return execute_original_influence_command(command,refresh_after);
     if (original_production_enabled()) {
-        const auto checked=validate(command);
+        const auto checked=validate_impl(command,!irrigation_prepared);
         if (!checked.accepted) return checked;
     }
     if (original_economy_enabled() && !original_production_enabled() && command.type!=CommandType::PlaceRoad &&
@@ -1973,7 +2018,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         cached_route_.reset();if(refresh_after)refresh_routes();
         return {true,true,"Bridge built. No upkeep; whole-span removal unavailable in V1",command_sequence_,ticks_};
     }
-    auto result=validate(command);
+    auto result=validate_impl(command,!irrigation_prepared);
     if ((city_profile(profile_) || command.type==CommandType::DemolishBuilding) && !result.accepted)
         return result;
     ++command_sequence_;
@@ -2051,6 +2096,10 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         couriers_.push_back(std::move(courier));
     };
     switch (command.type) {
+    case CommandType::PlaceIrrigationDitch:
+    case CommandType::RemoveIrrigationDitch:
+    case CommandType::PlaceIrrigationPump:
+        throw std::logic_error("Irrigation command bypassed its dedicated transaction");
     case CommandType::PlaceOriginalLoggingShed:
     case CommandType::PlaceOriginalBronzeSmelter:
     case CommandType::PlaceOriginalBronzewareMaker:
@@ -3760,6 +3809,9 @@ bool World::industry_balance_valid() const {
             case Object::OriginalTheatre75:
                 if (!original_music_venues_enabled()) return false;
                 break;
+            case Object::OriginalIrrigationPump:
+                if (!irrigation_enabled()) return false;
+                break;
             case Object::OriginalLoggingShed38:
             case Object::OriginalBronzeSmelter39:
             case Object::OriginalLacquerwareMaker44:
@@ -4789,6 +4841,7 @@ WorldSnapshot World::snapshot() const {
     s.original_production=original_production_;
     s.agriculture=agriculture_;
     s.plantations=plantations_;
+    s.irrigation=irrigation_;
     s.land_trade=land_trade_;
     for (int y=0;y<height_;++y) for (int x=0;x<width_;++x)
         if (object_at({x,y})==Object::Road) s.roads.push_back({x,y});
@@ -4834,6 +4887,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     performance::increment(performance::Counter::WorldRestores);
     validate_authored_land_trade_snapshot(s);
     validate_original_plantations_snapshot(s);
+    validate_irrigation_snapshot(s);
     if (!rule_version_supported(s.profile,s.rule_version))
         throw std::invalid_argument("unsupported sandbox rule version");
     validate_original_economy_snapshot(s);
@@ -4857,6 +4911,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.original_production_=s.original_production;
     w.agriculture_=s.agriculture;
     w.plantations_=s.plantations;
+    w.irrigation_=s.irrigation;
     w.land_trade_=s.land_trade;
     if (!maintenance_profile(s.profile) && s.maintenance_spent_total)
         throw std::invalid_argument("maintenance authority requires City-v16");
@@ -4887,8 +4942,10 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     const auto put=[&](Cell cell,Object object,BuildingId owner) {
         if(object!=Object::Road && (w.bridge_at(cell)||w.bridge_bank_at(cell)||w.ramp_endpoint(cell)))fail("saved building overlaps bridge span or bank");
         if(object!=Object::Road&&w.source_cell_ramp_claim(cell))fail("saved building overlaps source-cell ramp axial claim");
+        const bool pump_water=object==Object::OriginalIrrigationPump && w.irrigation_enabled() &&
+            w.permissions_ && w.permissions_->bridge_water(cell);
         if (object==Object::Road ? (!w.road_buildable(cell) || w.fixed_passage(cell) || w.original_road(cell)):
-            !w.buildable(cell)) fail(w.permissions_ ? "saved object outside permitted map cells":
+            (!w.buildable(cell) && !pump_water)) fail(w.permissions_ ? "saved object outside permitted map cells":
                 "saved object outside buildable mask");
         const auto i=w.index(cell);
         if (w.objects_[i]!=Object::Empty) fail("overlapping or duplicate saved objects");
@@ -4956,6 +5013,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                    b.kind==Object::OriginalDramaSchool213 || b.kind==Object::OriginalDaoistShrine215 || b.kind==Object::OriginalBuddhistShrine217 ||
                    b.kind==Object::OriginalConfucianAcademy219 || b.kind==Object::OriginalAncestorShrine214 || b.kind==Object::OriginalWaterWell72)) && !w.original_production_enabled()) ||
                 (b.kind==Object::OriginalTheatre75 && !w.original_music_venues_enabled()) ||
+                (b.kind==Object::OriginalIrrigationPump && !w.irrigation_enabled()) ||
                 (b.kind==Object::OriginalInfluenceSource && !w.original_influence_enabled()) || (b.kind==Object::Market && !market_profile(s.profile)) ||
                 (b.kind==Object::FireWatch && !fire_profile(s.profile)) ||
                 (b.kind==Object::Well && !water_profile(s.profile)) ||
@@ -5094,7 +5152,8 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
             s.road_revision-s.roads_placed_total<s.roads_removed_total ||
             s.road_revision-s.roads_placed_total-s.roads_removed_total!=
                 s.buildings.size()+2*s.demolition_history.buildings+s.bridges.size()+s.ramps.size()+s.source_cell_ramps.size()+
-                    (w.original_influence_enabled() ? 2*s.original_influence->removed_sources.size():0)+materialized+2*retired_count ||
+                    (w.original_influence_enabled() ? 2*s.original_influence->removed_sources.size():0)+materialized+2*retired_count+
+                    (s.irrigation ? s.irrigation->ditches_placed_total+s.irrigation->ditches_removed_total:0) ||
             (w.demolition_supported() && (s.demolition_history.buildings>=UINT32_MAX ||
                 s.buildings.size()+s.demolition_history.buildings+1+
                     (w.original_influence_enabled() ? s.original_influence->removed_sources.size():0)+retired_count!=s.next_building_id)))
@@ -5104,6 +5163,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
         w.treasury_=s.treasury;
         w.taxes_collected_total_=s.taxes_collected_total;
         w.construction_spent_total_=s.construction_spent_total;
+        if (w.irrigation_enabled()) {w.rebuild_irrigation_cache();w.validate_irrigation_state();}
         if (!w.health_state_valid() || !w.fire_state_valid() || !w.industry_balance_valid() || !w.navigation_valid() || !w.city_economy_valid() ||
             !w.service_state_valid() || !w.population_valid())
             fail("invalid City-v10 state or conservation totals");

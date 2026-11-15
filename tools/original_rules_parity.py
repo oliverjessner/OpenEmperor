@@ -24,7 +24,7 @@ HOUSING_EXPECTED = [35,43,54,59,193,72,207,1,0,3,3,4,4,1,1,3,4,1]
 HOUSING_FORK_MODULES = ("ModelData", "Desirability", "HouseEvolution", "OriginalHousingView")
 HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirability",
                                    "original-goods-ledger", "original-goods-rules",
-                                   "original-service-rules",
+                                   "original-service-rules", "original-irrigation-rules",
                                    "original-house-evolution", "original-model")
 # Reviewed Rules13-21 API: the actual fourth-module probe retains its
 # historical HouseholdV3/CityV7 calls. Rule19 adds explicit retirement factories,
@@ -58,14 +58,21 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # historical HouseholdV3/CityV7 calls. The new directly included DTO is pinned
 # independently, and fresh current libraries must match the reviewed layout.
 # This additive ABI review establishes no plantation or authored Food parity.
+# Rule26 adds a default-empty irrigation DTO and explicit commands/factories.
+# OriginalTerrainFacts retains optional raw terrain/boundary context only for
+# that generation. Historical predicates and fourth-module calls remain exact.
+# The two model IDs and separately prepared rows extend capability explicitly.
+# Fresh matching archives and literal historical documents validate that ABI;
+# this review establishes no irrigation yield or crop clock parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "804e70042dec464c43663658e070a371f195b6da",
+    "World.h": "ffabd7a6f8138618ac64c3d200f3ec540805c5f8",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
-    "OriginalTerrainFacts.h": "d49e7b513c9b1224ae567e2d013a97b66b60cdb8",
+    "OriginalTerrainFacts.h": "ee6b911adaa02d0951e4d4eadad23db0d57bd068",
     "AgricultureState.h": "eb2ae54814ad5bb0fcf720174974ef52cdfb25c1",
     "PlantationsState.h": "7fd4ceab82bc8c4442aa470c3cb3275983cb3e8a",
+    "IrrigationState.h": "4fdd1b69cf4572342da504f941c3b2e47f23011e",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",
     "OriginalSafeDemolitionState.h": "a4f27b05d422d004cc4bfcae49ccc5f67a6c6121",
 }
@@ -580,8 +587,8 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
     if finance_blob != "4c42d35342a89c113b44965562635421efccecd1":
         raise ValueError("Original-finance ABI drift requires reviewed compatibility contract")
     model_header_blobs = {}
-    for name, expected in (("ModelSchema.h", "e7c52955663996b72964ab10e36c72186250edf8"),
-                           ("OriginalRulesModel.h", "4fc98da6ed7693b03633e29ce89d8ba5188b7dca")):
+    for name, expected in (("ModelSchema.h", "ce1d76ea20c3d10a74534693321d03faf0f5ffcf"),
+                           ("OriginalRulesModel.h", "d78170a92c167537beae4e3a90698e659ac33aa8")):
         header = ROOT / "src/simulation/original" / name
         actual = hashlib.sha1(b"blob " + str(header.stat().st_size).encode() + b"\0" + header.read_bytes()).hexdigest()
         if actual != expected:

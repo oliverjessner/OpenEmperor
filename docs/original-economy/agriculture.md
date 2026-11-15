@@ -537,6 +537,108 @@ with the released adapter. Rice/Cabbage/Soy production, unchanged-native-model
 higher-House progression and positive Food-Grower lifecycle acceptance remain
 unfulfilled completion criteria for AGRI-02B.
 
+## Irrigation infrastructure and completion matrix (AGRI-04)
+
+Rule26/policy3/schema42 is an explicitly selected successor of Rule25. Its
+marker is `authored-agriculture-irrigation-v1`, irrigation revision1. Menu G and
+`--original-irrigation` select it. Ordinary Agriculture A and
+`--original-agriculture` retain25. It inherits the sole five-kind Food ledger,
+Wheat/Millet adapter, Tea/Lacquer/Mulberry work, physical transport, household
+consumption, workforce, services, fire and finance. Rules1–25/schemas1–41 keep
+their own create/restore paths and canonical saves. Automatic migration is absent.
+
+### Installed authority and update boundaries
+
+`IrrigationState` records sorted paid ditch cells, their placement tick/command
+sequence, lifetime placed/removed counts, exact construction spending, and typed
+Pump BuildingIds with orientation and eligibility epoch. Ditches are terrain
+overlays. Pumps are ordinary paid production bodies within the existing82-body
+budget and own no movement channel. Shared workforce and installed upkeep apply.
+The prepared model/difficulty prices each new cell and each Pump. A gesture of
+1–256 cells commits atomically, charging only its new cells. Ditch removal is
+free, has no refund, and retains lifetime payment/revision history.
+
+The immutable terrain context is prepared once through the shared map parser,
+full source-map SHA and policy3. It retains raw terrain and a source Diamond
+margin3 mask. Pump bodies claim all four2x2 cells, including their two water
+cells. Eight oriented water cells and two land cells form the intake context;
+the six external water cells remain context rather than occupancy. Existing
+policy3 water/source-manager/gate/marker checks remain mandatory. Unsupported
+Original objects and pre-existing Original ditch bits cannot acquire player
+payment authority. The source paths checked here contain no height predicate;
+the Pump-specific shoreline admission therefore permits different legal signed
+source heights without applying the ordinary flat-land-building shortcut.
+
+The shared road revision invalidates placement/navigation caches after complete
+transactions. Ditch/road edits revalidate perpendicular crossings, including
+neighboring topology, before publication. Existing navigator, edge safety and
+worker routes remain shared. Topology is computed outside rendering and hover.
+Only phase/eligibility/topology changes rebuild the bounded water cache.
+
+### Water and agricultural effects
+
+`EXE_OBSERVED` source phase27 clears and fills cardinal connected ditch cells
+from four orientation-specific seeds of eligible Pumps. The dispatcher decrements
+raw phase before its jump-table lookup. Raw27 therefore uses table slot26 and
+maps to completed World ticks28,79,130 and subsequent51-tick intervals. Dry
+networks have no implicit river or proximity source. Water traverses admitted
+perpendicular road crossings.
+
+The existing World allocator assigns full-or-zero staffing. Pump supply requires
+positive assigned workers, operation enabled, a valid intake and the inherited
+fire gate. Translating those existing operation/fire/workforce states into the
+source eligibility check is an explicit `AUTHORED` integration boundary. Loss of
+eligibility or a cut invalidates water immediately. New construction and restart
+wait for a later irrigation phase. The source phase is preserved, while exact
+Original status/fire latency remains `UNKNOWN`. No Pump-specific road-access
+requirement is inferred from the checked source path.
+
+The sole derived wet/supplier cache records the lowest eligible PumpId for a
+connected component. A field query visits the source square perimeters1–5,
+excluding the center, and reports actual supplied water and its Pump. This is
+water availability. The observed global active-Flood veto and numeric yield
+branches also exist in the Original. OpenEmperor has no corresponding Flood
+lifecycle. Fertility combination, complete runtime inputs and raw-yield-to-Food
+units remain unclosed. Every crop's `yield_effect_active` is false. Wheat, Millet,
+Tea, Lacquer and Mulberry keep their approved authored harvest quantities.
+Rice retains fertility100 construction admission and stays production-locked,
+as do Cabbage and Soy. Irrigation introduces no Food origin or crop substitution.
+
+### Persistence and presentation
+
+Schema42 requires exact inherited Agriculture/plantation markers, its own marker,
+model/difficulty and full source identity. Restore checks complete Pump geometry,
+source intake, staffing/operation/fire eligibility epochs, bounded chronology,
+unique paid cells/sequences, counters, accounting and road crossings before
+publication. Wet masks, supplier arrays and image selections are rebuilt and
+cannot be serialized as authority. Unknown keys, duplicate JSON keys, mismatched
+generations, spoofed goods/couriers, malformed orientation and altered source
+context are refused. Schema42 writes can replace only a schema42 target. Recovery
+retains exact generation and performs the same source-bound validation.
+
+The optional metadata-only compatibility supplement resolves18 wet and18 dry
+ditch poses plus four Pump orientations through existing source readers and the
+shared sprite pool. It adds762008 logical RGBA bytes before shared physical
+deduplication within the existing64MiB limit. Static Pump poses are verified;
+operating animation cadence remains `UNKNOWN`. Anchors follow the documented
+`AUTHORED` presentation convention. Toolbar, keys, rotations, cancelled/paid
+Ditch drag, inspectors and overlay consume actual World state. Sprites and the
+overlay create no wetness or field effect.
+
+| Feature | Gameplay | Original fidelity | Tests | Open blockers |
+|---|---|---|---|---|
+| Paid Ditch202 construction/removal | Implemented atomic gestures, unique cells, exact prepared charges and retained spending | Observed terrain masks, payment per accepted new cell, margin and crossing predicates; World transaction/removal history is AUTHORED | Rules, World, persistence, scripted SDL | Unsupported source objects and immutable Original ditches remain protected |
+| Pump203 body/intake/orientation | Implemented four orientations, full footprint and source-bound shore context | Observed2x2 body, eight water/two land context, four seed sets, model cost10/staff10; existing World workforce/fire adapter is AUTHORED | Four directions, missing water, height, occupation, workers, pause, fire | Exact Original status/fire latency and operating animation cadence |
+| Connected water distribution | Implemented supplied/dry sections, crossings and cut/restart behavior | Observed cardinal fill at phase27; immediate invalidation/restart epoch is AUTHORED | Connectivity, multiple Pumps, cuts, crossings, deterministic replay | Complete Original scheduler/environment lifecycle parity |
+| Field water availability | Implemented bounded World query with actual supplier | Observed square perimeter1–5; fresh World has no active Flood simulation | Center/range boundaries, all crop kinds, save continuation | Original Flood events and effect-input reconstruction |
+| Crop yield modifiers | PARTIAL, inactive for every crop | Bounded source branches documented separately | Unchanged adapter production and locked Rice/Cabbage/Soy controls | Fertility combination, complete yield inputs and common units |
+| Graphics and UI | Implemented wet/dry topology, four Pump poses, shared build actions, inspectors and overlay | Verified source selectors; static poses and authored anchors | Synthetic/real profile tests, scripted SDL and inspected captures | Original operating animation timing; native human acceptance |
+| Save/Load/Recovery | Implemented exact schema42, source-bound reconstruction and hostile-save rejection | OpenEmperor persistence contract is AUTHORED | Creator/restore/replay/Recovery, mutation and historical compatibility controls | Original Emperor save format is outside this contract |
+
+Validation results are recorded in the maintained testing guide after the
+Release, Debug, sanitizer, literal-history and independent parity runs. Scripted
+SDL and private captures remain separate from native/human acceptance.
+
 ## AGRI-02–07 dependency and acceptance plan
 
 The current task order puts the three material plantations in AGRI-03 and seasons in
@@ -547,7 +649,7 @@ an AGRI-02 prerequisite, rather than being deferred to a later milestone.
 |---|---|---|
 | AGRI-02: crop chains (not complete) | AGRI-01 evidence, complete Original tending/harvest clock proof | Implemented: typed Food foundation, paid source-verified construction, Rice fertility and exact schema40/Recovery. Blocked: actual Rice/Cabbage/Soy growth/harvest/earned Food delivery. No authored time substitute is authorized for those crops; the separately retained Rule25 Wheat/Millet adapter does not close this gate. |
 | AGRI-03: Tea/Lacquer/Mulberry plantations | Verified identities; expressly retained authored work/units and Wheat/Millet Food adapter; shared physical movement and ledgers | Rule25/schema41 implements bounded paid multi-plant readiness, Grower pickup/return, regrowth and existing processor/House paths. Wheat/Millet retain authored80-tick production and real Food delivery/consumption; Rice/Cabbage/Soy stay locked. Validation outcomes must be reported. Original cadence, yield and seasonal/irrigation parity remain AGRI-04/06 evidence gates. |
-| AGRI-04: irrigation | AGRI-02 field/work foundations and source-bound terrain | Paid202/203 claims, intake/orientation/height and connectivity, actual pump operation, proven field effects and deterministic reconstruction. Test dry/disconnected/unoperated pumps, network edits, boundary/fertility conflicts, actual output differences and unchanged source bytes. No dependence on an invented fruit chain. |
+| AGRI-04: irrigation | AGRI-02 field/work foundations and source-bound terrain | Rule26/schema42 implements paid202/203 infrastructure, oriented source intake, signed-height admission, actual staffed water networks, field water queries, graphics/UI and deterministic persistence. Crop yield modifiers remain PARTIAL and inactive pending complete fertility/Flood/runtime-input and unit proofs. Existing harvest quantities remain exact. See the irrigation completion matrix above. |
 | AGRI-05: hunting and fishing | AGRI-02 shared work/return foundations; relevant terrain/edge work from AGRI-04 | Paid31/33 geometry, source-bound179/183 origins, real prey/boat lifetimes, work routes, depletion and actual returned Fish/Meat units plus outgoing physical carts. Close ecology, replenishment, shore/return/staffing and target acceptance; no marker-based stock grant. |
 | AGRI-06: seasons and calendar | Completed Original work/harvest proofs for each admitted producer; AGRI-04/05 effect predicates | Extend proved seasonal/climate/yield behavior, calendar inspection and multi-season acceptance. Do not defer required AGRI-02 working crop timing to this step. Every activated change needs a new explicit contract; Rule24 stays closed. |
 | AGRI-07: integrated Agriculture activation | AGRI-02–06 complete evidence/implementation gates | One explicit generation with complete producer→store/Market→House paths, exact schema/create/restore/menu/CLI/Recovery, catalog-aware needs/consumption witnesses and production inspection/rendering. Paid multi-season multi-source city, independent creator/restore processes, complete-document/cargo/accounting equality, hostile-save refusal, historical Rule1–23/schema1–39 controls and measured budgets. Extend the one Agriculture lineage only after all additional required chains close; native/human acceptance stays separately reported. |

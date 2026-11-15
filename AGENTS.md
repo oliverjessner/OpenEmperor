@@ -163,6 +163,22 @@
   an existing schema41 target. Current Agriculture new games select25; general
   defaults remain unchanged. Original work cadence/yields/seasonal parity and
   native-model city acceptance remain separate evidence gates.
+- Irrigation extends that lineage through an explicit Rule26/policy3/schema42
+  selection, marker `authored-agriculture-irrigation-v1`, irrigation revision1.
+  Inherit Rule25's Food, plantations, workforce, movement and finance. Paid
+  Ditch202 overlays and oriented2x2 Pump203 bodies use immutable raw terrain,
+  policy3 admission, complete eight-water/two-land intake context and World
+  occupancy. The observed phase27 fills cardinal connected paid ditches from
+  four oriented Pump seeds. Positive staff, operation and inherited fire gate
+  supply; derived wet/supplier caches never enter saves. Construction/restart
+  waits for the next phase; loss of eligibility or a cut invalidates immediately
+  through the documented authored World adapter. Five-cell perimeter queries
+  expose actual water availability. Crop yield effects remain PARTIAL and
+  inactive, with Rice/Cabbage/Soy production locked. Schema42 requires exact
+  lineage markers, source/model identities and paid history; no migration or
+  historical overwrite. Rules1–25/schemas1–41 retain their contracts. The
+  separate menu/CLI selection is `--original-irrigation`; ordinary Agriculture
+  continues to select25. See [Agriculture](docs/original-economy/agriculture.md).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.
