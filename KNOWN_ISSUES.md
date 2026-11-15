@@ -17,7 +17,7 @@ complete original-game compatibility.
   tending/harvest clock and yield transition are unproved. Rule25 expressly
   retains the existing authored80-tick Wheat/Millet adapter with actual physical
   Food deliveries and consumption. Rice/Cabbage/Soy remain locked in25; all Food
-  remains locked in24. No Original seasonal clock is activated.
+  remains locked in24. No Original seasonal production clock is activated.
   AGRI-02B is PARTIAL. Its new bounded rules component covers proved crop
   identities, ordinary zero initialization, relative clock observations and
   work/wait/base-yield arithmetic. Complete post-purchase/restore effects,
@@ -28,6 +28,14 @@ complete original-game compatibility.
   inspection. Playable hunting/fishing remains blocked by ecology, navigation,
   callback eligibility, raw-to-Food conversion and complete quality/transport
   contracts. See the [component matrix](docs/original-economy/agriculture.md#hunting-and-fishing-component-matrix-agri-05).
+  AGRI-06 adds a derived view of the existing World51×16×12 clock and nine
+  verified seasonal reference queries. The one-tick-per-phase mapping and
+  elapsed-year epoch remain AUTHORED. Hemp has no direct calendar-growth veto;
+  Tea/Mulberry suppress only the last end, while Lacquer suppresses either end.
+  These queries do not activate Original seasonal production or convert
+  authored80-tick progress into Original work. Complete worker/yield/unit and
+  live climate/region inputs remain open. No new rule, schema or migration is
+  introduced. See the [seasonal matrix](docs/original-economy/agriculture.md#common-calendar-and-seasonal-reference-matrix-agri-06).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

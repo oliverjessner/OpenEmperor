@@ -12,6 +12,7 @@
 #include "simulation/AgricultureState.h"
 #include "simulation/PlantationsState.h"
 #include "simulation/IrrigationState.h"
+#include "simulation/AgricultureCalendar.h"
 #include "simulation/OriginalHousingDiagnosis.h"
 #include "simulation/original/Desirability.h"
 
@@ -787,6 +788,8 @@ public:
     const std::optional<OriginalGoodsState>& original_goods_state() const { return original_goods_; }
     const std::optional<OriginalProductionState>& original_production_state() const { return original_production_; }
     const std::optional<AgricultureState>& original_agriculture_state() const { return agriculture_; }
+    std::optional<AgricultureCalendarStatus> agriculture_calendar() const;
+    std::optional<AgricultureSeasonStatus> agriculture_season_status(BuildingId) const;
     const std::optional<PlantationsState>& plantations_state() const { return plantations_; }
     std::optional<BuildingId> plantation_source_for_plant(Object,Cell,std::optional<BuildingId> preferred={}) const;
     int plantation_grower_cargo(CourierId) const;

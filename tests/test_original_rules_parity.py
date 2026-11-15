@@ -229,8 +229,11 @@ class HousingNamespaceControls(unittest.TestCase):
     def test_reviewed_world_and_terrain_dto_headers_are_fingerprinted(self):
         reviewed = parity.validate_housing_world_api()
         self.assertEqual(reviewed, parity.REVIEWED_HOUSING_WORLD_API_GIT_BLOBS)
-        self.assertEqual(set(reviewed), {"World.h", "OriginalTerrainFacts.h", "OriginalHousingDiagnosis.h",
-                                        "OriginalSafeDemolitionState.h", "SourceCellRamp.h", "AuthoredLandTrade.h", "OriginalCultureState.h", "AgricultureState.h", "PlantationsState.h", "IrrigationState.h"})
+        self.assertEqual(set(reviewed), {
+            "World.h", "OriginalTerrainFacts.h", "OriginalHousingDiagnosis.h",
+            "OriginalSafeDemolitionState.h", "SourceCellRamp.h", "AuthoredLandTrade.h",
+            "OriginalCultureState.h", "AgricultureState.h", "PlantationsState.h",
+            "IrrigationState.h", "AgricultureCalendar.h"})
         fingerprints = parity.current_source_hashes()
         for name in reviewed:
             self.assertIn("src/simulation/" + name, fingerprints)

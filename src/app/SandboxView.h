@@ -457,6 +457,7 @@ public:
     int inspector_hint_scroll() const { return inspector_layout().hint_scroll; }
     std::optional<simulation::Cell> hovered_cell() const { return hovered_; }
     std::vector<std::string> inspection_lines() const;
+    std::uint64_t agriculture_inspection_prepare_count() const { return agriculture_inspection_prepare_count_; }
     using OriginalHouseSection=original_house_ui::Section;
     using OriginalHouseOverlay=original_house_ui::Overlay;
     // Rule10 presentation state only; neither choice enters a save.
@@ -507,6 +508,10 @@ private:
         simulation::Object object,bool placement_preview=false) const;
     bool fire_watch_selected() const;
     bool agriculture_inspector_selected() const;
+    void prepare_agriculture_inspection(bool force=false);
+    void append_agriculture_calendar_lines(std::vector<std::string>& lines,simulation::BuildingId id) const;
+    int inspection_workers_assigned(simulation::BuildingId id) const;
+    bool inspection_building_staffed(simulation::BuildingId id) const;
     bool status_first_selected() const;
     bool irrigation_inspector_selected() const;
     std::vector<std::string> wrap_panel_lines(const std::vector<std::string>& lines) const;
@@ -901,6 +906,12 @@ private:
     std::array<OriginalFieldOrder,simulation::agriculture_field_limit+2+simulation::plantation_plant_limit> original_field_order_{};
     std::size_t original_field_order_count_=0;
     std::uint64_t original_field_order_revision_=UINT64_MAX;
+    // Disposable Agriculture display values, prepared only at World publication
+    // boundaries. Render/hover never rebuild workforce allocation.
+    std::vector<std::pair<simulation::BuildingId,int>> agriculture_inspection_workers_;
+    std::vector<std::pair<simulation::BuildingId,std::vector<std::string>>> agriculture_calendar_lines_;
+    std::uint64_t agriculture_inspection_tick_=UINT64_MAX,agriculture_inspection_sequence_=UINT64_MAX;
+    std::uint64_t agriculture_inspection_prepare_count_=0;
     // Inactive Rice topology is disposable presentation state. Only paid
     // Rice objects join; no neighbor query or source decode occurs in render.
     struct OriginalRiceVisual {

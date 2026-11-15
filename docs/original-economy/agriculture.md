@@ -10,6 +10,9 @@ Wheat/Millet80-tick Food adapter; Rice/Cabbage/Soy and the unproved Original
 field clock stay closed. The recommended Rule18/policy3/schema34 and all
 historical Rules1–24 retain their own prices, quantities, identities and saves.
 Current plantation validation is reported separately from implementation.
+Rule26/schema42 remains the separately selected irrigation extension. AGRI-06
+adds a derived view of the shared World calendar and verified seasonal reference
+queries. It adds no rule, schema, independent clock or production activation.
 
 ## Evidence and scope
 
@@ -193,7 +196,7 @@ targets remain unique, and a CLI save target must be a separate schema40 file.
 | Work actors | Each actual successful spawn has a typed monotone lifetime ID, paid source binding and existing bounded movement channel. Work, outbound cargo, return, waiting and retirement are distinct. Only the actual evidenced work/return transition may create credited output; target selection, dispatch or a drawn figure creates none. |
 | Goods transport | Reuse World couriers, route caches, incoming/return reservations and the sole per-trip sequence. Preserve begun edges, waiting, cargo and reservations through source pause, fire, staff loss and road cuts. Batch arithmetic operates on the selected catalog; mass credit occurs once at accepted actual arrival. |
 | House consumption | Keep one House Food quantity/quality authority with exact per-kind receipt/consumption witnesses. Reuse the evidenced blend only in its proven domain. New food scores, processing/quality rules and consumption priority need explicit evidence or an approved authored contract; do not apply20/80 to additional foods. Embedded housing evaluations must use the new generation's complete catalog witnesses, not truncated legacy arrays. |
-| Calendar | One World clock. Define a versioned calendar projection only after scheduler/month/day and climate bindings are established. Existing51×16×12 elapsed mapping remains authored and frozen historically. Store non-reconstructible season/work state or deterministically derive it from saved authority; do not store an independently advancing second date. Specify pause, boundary ordering, save/restore, missed work and leap/wrap behavior. |
+| Calendar | One World clock. AGRI-06 derives the existing51×16×12 elapsed position from saved World ticks and retains mapping version1 as AUTHORED. This observation does not establish historical dates, climate or Original work authority. Future non-reconstructible season/work state requires an explicit saved contract; never add an independently advancing second date. Pause, speed and restore retain existing World ordering. |
 
 All mutable rows belong to `simulation::World`. Presentation, inspectors,
 model tools, original map objects and source-fact readers expose immutable
@@ -467,8 +470,9 @@ and lifecycle qualifications.
 
 ### Successor version boundary
 
-The version audit finds Rule26 and Schema42 unused. They are available for the
-next explicit Agriculture contract. This investigation adds no selectable
+At the AGRI-02B audit, Rule26 and Schema42 were unused. AGRI-04 subsequently
+assigned them to the explicit irrigation contract below. AGRI-06 adds no
+successor generation or schema. The AGRI-02B investigation added no selectable
 successor or new save writer because the outstanding lifecycle and yield
 choices determine its saved authority. A second Rule25-equivalent menu entry
 would provide no new playable crop behavior. Existing menu/CLI entry points
@@ -712,6 +716,93 @@ Complete source details and checked instruction sites are maintained in the
 The remaining conversion and ecology gates prevent a complete playable chain.
 An authored replacement requires a concrete separately approved contract.
 
+## Common calendar and seasonal reference matrix (AGRI-06)
+
+AGRI-06 is **PARTIAL** at the Original seasonal-production boundary. The common
+calendar observation and seasonal query components are implemented. Original
+crop work, final yields and recurring harvest lifecycles remain activation gates.
+No new rule or save schema is needed for these read-only derived observations.
+Rules1–26 and schemas1–42 keep their existing clocks, production and restore
+contracts. General defaults and Agriculture/irrigation selections remain exact.
+
+### One calendar, two evidence domains
+
+`World::agriculture_calendar()` derives `AgricultureCalendarStatus` from the
+actual completed World ticks and the existing `OriginalScheduler` mapping.
+It exposes phase, subslot, outer slot, elapsed year and mapping version1, plus
+the next reference phase20 growth opportunity when representable. The next
+phase27 irrigation opportunity is present only for the irrigation generation.
+The51×16×12 counts have bounded Original source observations. Advancing one
+phase per World tick and counting elapsed years from0 remain **AUTHORED**.
+Raw slots0–11 are displayed without invented month names or historical dates.
+There is no additional advancing clock, saved calendar epoch or mutable season
+state. Pausing advances no World tick. speed changes how quickly ticks run;
+save/restore reconstructs the same derived position from existing authority.
+A next opportunity does not invoke a callback, deliver goods or authorize
+production.
+
+`World::agriculture_season_status()` joins that observation with the selected
+paid plant/source's actual World state. Reference growing-period and quantity
+suppression results are separate from operation, fire, staffing, roads, water,
+authored productive progress/readiness, current Grower activity and retained
+harvest/return accounts. The inspector's blocker remains explicit. An authored
+80-tick progress value is not passed off as an Original work word. an authored
+ready plant is not an Original harvest mark.
+
+### Verified seasonal queries
+
+`original::SeasonRules` supplies nine typed plant descriptors with bounded
+four-entry raw start/end arrays, sentinel−1 and independent counts. These are
+the pinned default EXE configuration, not proof that a selected model context
+or arbitrary runtime configuration has those calendar values. Food195–199
+delegates the existing `CropRules` period/increment arithmetic unchanged.
+
+The Original growing-period query pairs positions and accepts
+`start<=slot<end` only when both entries exist. Quantity callbacks have separate
+predicates and inspect the actual low work byte in the three ranges0,1–32 and33–255. Neither a
+calendar match nor staffing alone substitutes for that work operand.
+
+| Plant | Reference growing intervals, raw slots | Quantity callback suppression | Raw increment, high/low work |
+|---|---|---|---|
+|Wheat195|[2,6)|End6|157 /79|
+|Millet196|[6,10)|End10|157 /79|
+|Rice197|[5,9)|End9|157 /79|
+|Cabbage198|[7,11)|End11|157 /79|
+|Soybean199 / BeanCurd1|[4,8)|End8|157 /79|
+|Hemp194|[3,8)|No calendar suppression in its concrete callback|125 /63|
+|Tea26|[2,4),[5,7),[8,10)|Last end10 only|105 /53|
+|Lacquer27|[1,6)|Both ends6 and7|125 /63|
+|Mulberry28|[3,5),[6,8)|Last end8 only|157 /79|
+
+All callbacks return0 with low work byte0. Lacquer's extra end7 does not create
+a second growing interval. Hemp end8, Tea ends4/7 and Mulberry end5 illustrate
+why a growing-period result cannot be substituted for the concrete callback's
+quantity suppression. The complete shared terrain/countdown/veto driver and
+actual worker lifecycle remain separate prerequisites.
+
+### Completion matrix
+
+| Feature | Implemented scope | Original fidelity | Validation scope | Open activation gates |
+|---|---|---|---|---|
+| Common calendar | Derived World tick/phase/subslot/slot/year view and next opportunities | Observed relative counts. World tick mapping and epoch AUTHORED | Complete cycles, year boundaries, pause/speed and exact save continuation | Original wall-clock/date and exceptional event ordering |
+| Seasonal configuration | Nine typed reference descriptors with exact counts/sentinels | Pinned default source tables and concrete callback bindings | Independent12-slot masks and invalid models/slots | Live climate/region configuration and runtime table effects |
+| Work-conditioned quantity queries | Pure period, suppression and increment queries. historical Food delegation | Hemp has no calendar veto. distinct Tea/Mulberry/Lacquer end predicates | Work0/1/32/33/255, high flags and all65,536 Food work words | Actual Original work ownership and full shared-driver eligibility |
+| Paid Wheat/Millet, Hemp and plantations | Existing approved80-tick adapters and physical transport remain active | Adapter timing, units and readiness remain AUTHORED | Existing paid production, delivery, inventory and persistence regressions | Original Grower tours, yield inputs/rounding/units and recurring seasonal replacement |
+| Rice/Cabbage/Soy | Existing paid construction, inspector and lock retained | Bounded source identities/queries do not grant Food | Historical no-origin and existing construction/save controls | Complete worker, harvest, overflow and raw-to-Food contracts |
+| Irrigation/yields and hunting/fishing | Existing Rule26 water infrastructure and AGRI-05 source components retained | No additional yield or ecology authority | Irrigation, harvest helper and historical regressions | Complete fertility/Flood/global yield effects. source units, ecology and transport |
+| Presentation | Slot/reference conditions and actual World status kept separate | Existing sprite mappings retain their original evidence limits | Inspector assertions and existing visual regressions | Native/human acceptance and Original seasonal animation bindings |
+
+The fresh static source receipt passes66 checks across9 byte-checked windows.
+Full check outcomes and automated versus native/human acceptance are recorded
+in the [maintained testing guide](../testing.md#agriculture-calendar-and-season-observations-agri-06).
+Exact addresses and outstanding proof gates remain in the
+[AGRI-06 source contract](../reverse/original-agriculture-source-contract.md#agri-06-seasonal-reference-rules-and-common-calendar).
+
+AGRI-06 does not activate an Original seasonal production cycle, reinterpret
+saved authored progress, introduce new goods, or change current harvest amounts.
+The next production generation still needs complete Grower/quantity/yield/unit
+authority and explicit save boundaries. No automatic migration is permitted.
+
 ## AGRI-02–07 dependency and acceptance plan
 
 The current task order puts the three material plantations in AGRI-03 and seasons in
@@ -724,7 +815,7 @@ an AGRI-02 prerequisite, rather than being deferred to a later milestone.
 | AGRI-03: Tea/Lacquer/Mulberry plantations | Verified identities; expressly retained authored work/units and Wheat/Millet Food adapter; shared physical movement and ledgers | Rule25/schema41 implements bounded paid multi-plant readiness, Grower pickup/return, regrowth and existing processor/House paths. Wheat/Millet retain authored80-tick production and real Food delivery/consumption; Rice/Cabbage/Soy stay locked. Validation outcomes must be reported. Original cadence, yield and seasonal/irrigation parity remain AGRI-04/06 evidence gates. |
 | AGRI-04: irrigation | AGRI-02 field/work foundations and source-bound terrain | Rule26/schema42 implements paid202/203 infrastructure, oriented source intake, signed-height admission, actual staffed water networks, field water queries, graphics/UI and deterministic persistence. Crop yield modifiers remain PARTIAL and inactive pending complete fertility/Flood/runtime-input and unit proofs. Existing harvest quantities remain exact. See the irrigation completion matrix above. |
 | AGRI-05: hunting and fishing | AGRI-02 shared work/return foundations; relevant terrain/edge work from AGRI-04 | Paid31/33 geometry, source-bound179/183 origins, real prey/boat lifetimes, work routes, depletion and actual returned Fish/Meat units plus outgoing physical carts. Close ecology, replenishment, shore/return/staffing and target acceptance; no marker-based stock grant. |
-| AGRI-06: seasons and calendar | Completed Original work/harvest proofs for each admitted producer; AGRI-04/05 effect predicates | Extend proved seasonal/climate/yield behavior, calendar inspection and multi-season acceptance. Do not defer required AGRI-02 working crop timing to this step. Every activated change needs a new explicit contract; Rule24 stays closed. |
+| AGRI-06: seasons and calendar (PARTIAL) | Existing common scheduler, CropRules and AGRI-04/05 source predicates | Implemented derived World calendar/status and nine verified reference descriptors/queries with historical adapters unchanged. Original seasonal production, live climate/yield inputs and complete multi-season Original acceptance remain blocked. See the completion matrix above; future activation requires an explicit contract and Rule24 stays closed. |
 | AGRI-07: integrated Agriculture activation | AGRI-02–06 complete evidence/implementation gates | One explicit generation with complete producer→store/Market→House paths, exact schema/create/restore/menu/CLI/Recovery, catalog-aware needs/consumption witnesses and production inspection/rendering. Paid multi-season multi-source city, independent creator/restore processes, complete-document/cargo/accounting equality, hostile-save refusal, historical Rule1–23/schema1–39 controls and measured budgets. Extend the one Agriculture lineage only after all additional required chains close; native/human acceptance stays separately reported. |
 
 The plan orders evidence and integration, not an unconditional promise to fill

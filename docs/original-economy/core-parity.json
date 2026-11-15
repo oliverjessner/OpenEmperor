@@ -3647,6 +3647,7 @@
   ],
   "current": {
     "files": {
+      "src/simulation/AgricultureCalendar.h": "1bc1b03480a4da522052b7f6248d2d2a4b7b80147d79fa51c48624bdd08471d1",
       "src/simulation/AgricultureState.h": "2dfe7c7f332c635287d1298b212ca90a60020d6c1a59d4a265314d34bb8c5780",
       "src/simulation/AuthoredLandTrade.h": "eb04573ac53e1ac07240f23b7e1c9c4c9ce8db5fba343e58744a9db71438accd",
       "src/simulation/IrrigationState.h": "3362f71fdc7502411be77fdb455b59df8e1b7bd52e4123a277869122cd277b06",
@@ -3667,7 +3668,7 @@
       "src/simulation/OriginalWaterState.h": "10f3b78644b432087fc4700c570e8b90ac82a7e3e2668fd52ea9d16ee152e914",
       "src/simulation/PlantationsState.h": "df396a82e946d30fb31733b4c9655a097809e4bfd5a6d36d936f60b1be9265c3",
       "src/simulation/SourceCellRamp.h": "f3e394396925b3830957e3b7b674a06c3a956464d161c4e2a93008e79b1ec4d1",
-      "src/simulation/World.h": "75f54a038f2d2b4d7d7e62fd5b39e9e7332473cd0fc89cb3e04519941de31201",
+      "src/simulation/World.h": "b7c9c108991f72959fcc0cfb3e73ec6ebad42873a0f9757db77d813b7bdd9aa5",
       "src/simulation/original/CropRules.cpp": "269f56514ca9807e8ff4a6430181d1dacc267bfd8257499577b89cc1ef1e39b1",
       "src/simulation/original/CropRules.h": "dff8f4fe529285ade69ab6762e16b8c1abe48d19ce55053fc0047003bba28187",
       "src/simulation/original/Desirability.cpp": "129b12fd5f009e3eeec33a1ab8ea80e5c79c0124c4fa8c7cf82cfa85d454e3fb",
@@ -3690,11 +3691,13 @@
       "src/simulation/original/OriginalRulesModel.cpp": "82c2bc9f1cccc7d6630e69e38551f9bd1229f6893525b6d05dad29c00570e6ae",
       "src/simulation/original/OriginalRulesModel.h": "48a7d491d2713763dec93aa8a25551a7ba7fa464d8cf374ac7ee29c72649846e",
       "src/simulation/original/OriginalScheduler.h": "8b35dbb4b57bbcf03f262d2228f3be53c19315d50c6ab75974dc6b976bc07573",
+      "src/simulation/original/SeasonRules.cpp": "913fc6294858b1bfd1dd2124957bc34b2eb20a519cf2f7e9d7fe5f9f551b8c06",
+      "src/simulation/original/SeasonRules.h": "89ef366722caa6b732cc1d016a06e666f7e746e09cfef5341145f2d7170d37b9",
       "src/simulation/original/ServiceRules.cpp": "687bb097d1fcdaed21d96f6022fd402016ce7a99b2722a241a17caa02c4960df",
       "src/simulation/original/ServiceRules.h": "4152e969bb95d5ba28f2400beef4032f8a3026ca225aed364deb0f7da805d944",
       "tools/original-rules-parity/HousingViewProbe.cpp": "d3efec7c21c7b361f96aa245c0a4929e48f3bebd0b51e02bed6be838ddc69d80",
       "tools/original-rules-parity/RuleProbe.cpp": "70f8e715f7be03d6c2ae4ec04afc5b69f13e90b05ba82174066ac208e8c8caa2",
-      "tools/original_rules_parity.py": "b7762c16ef9a34493896e488ee5236f3232d1b71cc8e98659277a7a4f519d27b"
+      "tools/original_rules_parity.py": "f7892ac1583f713ca36c4c2d7f8725d7d0b626d579d5dda46f53b6ecb1c1b984"
     }
   },
   "fork": {

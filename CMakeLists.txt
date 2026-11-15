@@ -311,6 +311,12 @@ add_library(openemperor-original-crop-rules STATIC
     src/simulation/original/CropRules.cpp)
 target_include_directories(openemperor-original-crop-rules PUBLIC src)
 openemperor_enable_warnings(openemperor-original-crop-rules)
+add_library(openemperor-original-season-rules STATIC
+    src/simulation/original/SeasonRules.cpp)
+target_include_directories(openemperor-original-season-rules PUBLIC src)
+target_link_libraries(openemperor-original-season-rules PUBLIC openemperor-original-crop-rules)
+openemperor_enable_warnings(openemperor-original-season-rules)
+target_link_libraries(openemperor-simulation PUBLIC openemperor-original-season-rules)
 add_library(openemperor-original-irrigation-rules STATIC
     src/simulation/original/IrrigationRules.cpp)
 target_include_directories(openemperor-original-irrigation-rules PUBLIC src)
@@ -327,6 +333,7 @@ target_link_libraries(openemperor-simulation PUBLIC openemperor-original-irrigat
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
     src/simulation/WorldPlantations.cpp
     src/simulation/WorldIrrigation.cpp
+    src/simulation/WorldAgricultureCalendar.cpp
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
     src/simulation/WorldOriginalServices.cpp
     src/simulation/WorldOriginalCulture.cpp
@@ -670,6 +677,13 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-plantation-presentation-tests)
     add_test(NAME original-plantations-presentation COMMAND openemperor-plantation-presentation-tests)
     set_tests_properties(original-plantations-presentation PROPERTIES TIMEOUT 180)
+    add_executable(openemperor-season-calendar-presentation-tests
+        tests/SeasonCalendarPresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-season-calendar-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-season-calendar-presentation-tests)
+    add_test(NAME original-season-calendar-presentation COMMAND openemperor-season-calendar-presentation-tests)
+    set_tests_properties(original-season-calendar-presentation PROPERTIES TIMEOUT 180)
     add_executable(openemperor-irrigation-presentation-tests
         tests/IrrigationPresentationTests.cpp ${original_menu_test_sources})
     target_link_libraries(openemperor-irrigation-presentation-tests PRIVATE
@@ -980,6 +994,16 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-crop-rules-tests)
     add_test(NAME original-crop-rules COMMAND openemperor-original-crop-rules-tests)
     set_tests_properties(original-crop-rules PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-original-season-rules-tests tests/OriginalSeasonRulesTests.cpp)
+    target_link_libraries(openemperor-original-season-rules-tests PRIVATE openemperor-original-season-rules)
+    openemperor_enable_warnings(openemperor-original-season-rules-tests)
+    add_test(NAME original-season-rules COMMAND openemperor-original-season-rules-tests)
+    set_tests_properties(original-season-rules PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-agriculture-calendar-world-tests tests/AgricultureCalendarWorldTests.cpp)
+    target_link_libraries(openemperor-agriculture-calendar-world-tests PRIVATE openemperor-recovery)
+    openemperor_enable_warnings(openemperor-agriculture-calendar-world-tests)
+    add_test(NAME original-agriculture-calendar-world COMMAND openemperor-agriculture-calendar-world-tests)
+    set_tests_properties(original-agriculture-calendar-world PROPERTIES TIMEOUT 900)
     add_executable(openemperor-original-irrigation-rules-tests tests/OriginalIrrigationRulesTests.cpp)
     target_link_libraries(openemperor-original-irrigation-rules-tests PRIVATE openemperor-original-irrigation-rules)
     openemperor_enable_warnings(openemperor-original-irrigation-rules-tests)

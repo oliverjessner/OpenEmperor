@@ -30,6 +30,14 @@ selectors and complete Quay geometry. Producer lifetimes, map navigation inputs,
 unit conversion and the full FoodShop quality/transport contract remain
 activation gates. Current World authority stays Rule26/schema42. See the
 [hunting/fishing component matrix](agriculture.md#hunting-and-fishing-component-matrix-agri-05).
+AGRI-06 exposes the existing sole World clock through a disposable Agriculture
+calendar and paid-plant observations. Reference slot queries for all nine plants
+reuse `CropRules` through `SeasonRules`. The next phase20 and phase27 opportunities
+are derived from completed ticks, with no additional saved clock or event grant.
+Current operation, workers, road access, actual authored progress, readiness,
+Grower trips and water supply remain World observations. Original seasonal
+production, runtime fertility/yield inputs and harvest-unit binding remain
+incomplete. Rules1–26 and schemas1–42 retain their saved identities and behavior.
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 
@@ -367,8 +375,8 @@ The ordinary relative actor clock
 is now source-observed. Complete field initialization, worker lifecycle and
 yield/unit inputs still gate playable Rice/Cabbage/Soy production. See the
 [PARTIAL completion matrix](agriculture.md#agri-02b-crop-completion-status).
-Rule26/schema42 are currently unused and available for the next explicit
-contract after those effects are defined.
+AGRI-04 subsequently assigned Rule26/schema42 to the explicit irrigation
+successor. Rule27/schema43 remain available for a separately defined contract.
 
 Nine services use paid 207/208/211/212/213/214/215/217/219 providers, real workers,
 operation/fire/road gates and actual walker arrival. Medicine/culture grant only
