@@ -175,6 +175,12 @@ void field_and_identity_checks() {
         check(original::model_id(b.model).value == b.id, "literal source building ID");
         check(original::model_label(b.model) == b.label, "literal source building label");
     }
+    for (const auto& b : std::array<BuildingIdentity, 2>{{
+             {ModelBuilding::FishingQuay, 31, "Fishing Quay"},
+             {ModelBuilding::HuntersTent, 33, "Hunter's Tent"}}}) {
+        check(original::model_id(b.model).value == b.id, "harvest source model identity");
+        check(original::model_label(b.model) == b.label, "harvest source model label");
+    }
     for (const auto& h : houses) {
         check(original::model_row(h.model).value == h.row, "literal source house row");
         check(original::model_label(h.model) == h.label, "literal source house label");

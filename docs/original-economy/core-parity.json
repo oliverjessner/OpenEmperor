@@ -3672,16 +3672,20 @@
       "src/simulation/original/CropRules.h": "dff8f4fe529285ade69ab6762e16b8c1abe48d19ce55053fc0047003bba28187",
       "src/simulation/original/Desirability.cpp": "129b12fd5f009e3eeec33a1ab8ea80e5c79c0124c4fa8c7cf82cfa85d454e3fb",
       "src/simulation/original/Desirability.h": "781bd661e12bf14f6cfc49d1c9089654a2f517e4cf85044ddc10b120135f9eb7",
+      "src/simulation/original/FishingRules.cpp": "29fad3615306be55cc2c4477e412fe0f5364c5225384524c4dc120cc26de5284",
+      "src/simulation/original/FishingRules.h": "d775bf567f0c1e15065f60a9f40c41a8c41b40293ff1d948927405b54bbfe582",
       "src/simulation/original/GoodsRules.cpp": "e937e825796dd921fa804779fc543c9c4a9fb88c43a5f2d37ba5cd01d0111f63",
       "src/simulation/original/GoodsRules.h": "84751cc7e8007feec64e8c014ec30d38e8a36079b5138be771ea6b85794d82f9",
+      "src/simulation/original/HarvestRules.cpp": "4819ce81483f7cf132f2b2eb79665983aa1ac61f46dfa98a43c8ef571e255896",
+      "src/simulation/original/HarvestRules.h": "b351aeedb98bddd51ccd1704717cc4b73e2f755ca9657b45477c5220d8ddd13a",
       "src/simulation/original/HouseEvolution.cpp": "9fb107d14fb91aa5959f9a1bed3ee893aaf080a376d0ca669493b44fc32e02fe",
       "src/simulation/original/HouseEvolution.h": "fca07a8dc7856eaa0540d1d7d0189f334537791ab00d53520c3f1fff30959a98",
       "src/simulation/original/IrrigationRules.cpp": "fa6e0149db25e9480f8fb3093a9b7a4d62d0c94a4143f077865407bf68f423b9",
       "src/simulation/original/IrrigationRules.h": "cbfacdd7625ce50aae48bb9f1529c2a00629a214de24855ec296ab8254692ef4",
       "src/simulation/original/ModelData.cpp": "40133ad4d729785344d72416eb469746ec7bba27b45281c16e32c87f75cbaf91",
       "src/simulation/original/ModelData.h": "3b40b06585b4a3d00c64db776d23b70dbe5639720b97dcf04b6945bd8162fc01",
-      "src/simulation/original/ModelSchema.cpp": "3d0c022d2d2f55beca97b6dd3b0547708a614e7a5b2eb3e2913b24584e4771e6",
-      "src/simulation/original/ModelSchema.h": "d1a7b9435e43b176802dd04cb54b966d907f9293d31462740eba1be421ee2336",
+      "src/simulation/original/ModelSchema.cpp": "ec057dc3157063185f978de36f2141c8aac937f2ae52b51a8ff216bfaa0b37ae",
+      "src/simulation/original/ModelSchema.h": "163c469c094d9c69ad2a3c9a006c8789e4a634a97fce0c35099bd963090de4b4",
       "src/simulation/original/OriginalModelMapping.h": "ddabf83e51405bdce7337c3900ca16ed3512921b1320a551fbe57fcc4c68442f",
       "src/simulation/original/OriginalRulesModel.cpp": "82c2bc9f1cccc7d6630e69e38551f9bd1229f6893525b6d05dad29c00570e6ae",
       "src/simulation/original/OriginalRulesModel.h": "48a7d491d2713763dec93aa8a25551a7ba7fa464d8cf374ac7ee29c72649846e",
@@ -3690,7 +3694,7 @@
       "src/simulation/original/ServiceRules.h": "4152e969bb95d5ba28f2400beef4032f8a3026ca225aed364deb0f7da805d944",
       "tools/original-rules-parity/HousingViewProbe.cpp": "d3efec7c21c7b361f96aa245c0a4929e48f3bebd0b51e02bed6be838ddc69d80",
       "tools/original-rules-parity/RuleProbe.cpp": "70f8e715f7be03d6c2ae4ec04afc5b69f13e90b05ba82174066ac208e8c8caa2",
-      "tools/original_rules_parity.py": "4c1f910acb2b57846c737bbbd95cb6d0ecb7adae596e9613ecb3ede058964066"
+      "tools/original_rules_parity.py": "b7762c16ef9a34493896e488ee5236f3232d1b71cc8e98659277a7a4f519d27b"
     }
   },
   "fork": {

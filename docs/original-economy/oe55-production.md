@@ -21,6 +21,10 @@ AGRI-04's explicit Rule26/schema42 admits paid Ditch202/Pump203 infrastructure
 and actual connected water distribution. Crop yield modifiers remain PARTIAL
 and inactive. See the [irrigation matrix](agriculture.md#irrigation-infrastructure-and-completion-matrix-agri-04).
 Further activation remains subject to the AGRI-02–07 evidence gates.
+AGRI-05 qualifies Hunter33/Quay31 identities, geometry and bounded raw-state
+operations through reusable rules and read-only inspection. Their playable
+production chains remain PARTIAL with explicit activation gates in the
+[component matrix](agriculture.md#hunting-and-fishing-component-matrix-agri-05).
 
 ## What the sources establish
 

@@ -343,6 +343,54 @@ execution or native human acceptance follows from the scripted tests.
 
 ## Production evidence queries (OE55)
 
+### Hunting and fishing components (AGRI-05)
+
+The read-only inspector exposes verified source rules alongside the selected
+model's raw columns through separate selectors.
+
+```sh
+cmake --build build --parallel 4 --target openemperor-model-inspect \
+  openemperor-original-harvest-rules-tests openemperor-original-fishing-rules-tests
+build/openemperor-model-inspect /path/to/emperor \
+  --harvest-source 31 --harvest-source 33
+ctest --test-dir build --output-on-failure \
+  -R '^original-(harvest-rules|fishing-rules|model-inspector-cli)$'
+```
+
+`OriginalHarvestRulesTests.cpp` checks exact identities, staffing tiers and
+capacity headroom, byte/signed-WORD counter order and wrap, supported raw receipt
+effects and ordinary cart debit. All65,536 source selector values exercise the
+proved initial-prey mapping. `OriginalFishingRulesTests.cpp` checks every Quay
+orientation and extra dock claim, coordinates/overflow, all256 navigation bytes,
+the distinct origin-flood and boat-distance predicates, exact caller-supplied
+attribute planes and perimeter membership. Source planes remain immutable.
+
+The inspector CLI suite uses independent model-only data with deliberately
+different costs, employees and raw Resource columns. It verifies atomic sparse
+queries, malformed/duplicate selectors, UTF-8 failure, all four Quay shapes,
+explicit source evidence and locked gameplay/conversion/clock flags. Existing
+default and `--building` JSON have literal expected controls. The new selector
+reads model data and reports facts from the documented pinned Original revision.
+
+Positive Hunter/Boat World-to-House acceptance remains blocked by the exact
+ecology, source navigation, eligible callback, unit and quality/transport gates
+in the [component matrix](original-economy/agriculture.md#hunting-and-fishing-component-matrix-agri-05).
+Run the complete Release suite plus focused Debug and ASan/UBSan checks. Keep
+their results distinct from real-asset rendering and native human acceptance.
+
+AGRI-05 validation on 2026-11-15 passed345/345 Release CTests with zero skips,
+and9/9 focused checks in each Debug and ASan/UBSan configuration. macOS
+LeakSanitizer was disabled. The new pure tests passed182,487 harvest checks and
+671 fishing checks. The inspector suite passed13 methods, and the real model
+query resolved both source types with their independent Fish/Meat bindings.
+Fresh independent core parity passed74/74 cases with all existing non-fingerprint
+public results literal-equal. A direct comparison with merged AGRI-04 confirmed
+121 gameplay, persistence and app source files byte-for-byte equal. Existing
+generation/save/irrigation/plantation tests ran in the complete Release suite.
+All five private investigation receipts passed their Original-file guards.
+Playable new Hunter/Boat chains and native human acceptance remain open in the
+completion matrix.
+
 The existing read-only model inspector accepts repeated sparse Building IDs:
 
 ```sh

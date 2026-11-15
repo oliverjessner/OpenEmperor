@@ -942,8 +942,9 @@ published vtable`0x7c0c68` as `cFishingQuay`. Its initial model side is2. This
 square alone is not the complete shore geometry: physical callback
 `+0x100→0x5f3c40` retains an orientation and issues a further1×1 owner write via
 `0x5f3cd7→0x4b72b0` at the orientation-derived shore/dock cell. The complete
-shore preflight, orientation, access, height and attachment lifecycle remain
-necessary before new paid placement can be admitted.
+AGRI-05 follow-up below closes the four oriented claimed-cell layouts and the
+bounded fishing-component preflight. Its navigation-byte inputs, full World
+admission and attachment lifecycle remain activation gates.
 
 Shared initializer`0x5f11f0` obtains output through virtual`+0x260` and stores it
 at source byte`+0x47`. This vtable selects`0x4fa3c0`, which returns resource2;
@@ -1041,6 +1042,238 @@ counter ownership, species inputs, random choices and scheduler cadence. Existin
 source records do not provide free prey, fixed yields or re-created NPCs on restore.
 No map-permission predicate, source admission or historical saved identity is
 changed by these observations.
+
+### AGRI-05 bounded harvesting rules and remaining activation gates
+
+The follow-up uses the same pinned EXE/model/FarmConfig identities. The private
+receipt `.local/agri-05/fishing/verified-fishing-source-report.json` checks 50
+assertions across 13 windows, 1,668 decoded instruction lines and 4,796 instruction
+bytes including overlaps. The expanded navigation/header/callback receipt
+`.local/agri-05/fishing/verified-fishing-followup-report.json` checks 124
+assertions across 20 windows, 2,580 lines and 8,672 bytes. The hunting/counter
+receipt `.local/agri-05/hunting/verified-hunting.json` checks 70 assertions
+across 16 windows, 1,631 lines and 4,941 bytes. The prey-lifecycle receipt
+`.local/agri-05/hunting/verified-prey-lifecycle.json` checks 81 assertions across
+13 windows, 1,513 lines and 5,086 bytes. The independent raw-unit receipt
+`.local/agri-05/units/verified-units-report.json` checks 43 assertions across 25
+windows, 4,990 lines and 13,583 bytes. Every recorded window has zero byte
+mismatches. Original execution and personal-save inspection remain unperformed.
+The three supplied files retain exact SHA-256, size, mode and modification time.
+
+**MODEL_OBSERVED:** Quay31 has raw Cost50/Employees10 and Hunter33 has raw
+Cost32/Employees15. The virtual output selectors independently identify
+Fish resource2 and Meat resource4. The model's raw Resource column is a separate
+operand. A modified label, cost, staffing value or Resource column does not
+establish a new runtime recipe, final purchase transaction or World Food unit.
+
+**EXE_OBSERVED, complete Quay claims:** actual purchase calls the31 predicate at
+`0x4b19ab→0x42b740`, then the shared shore validator at`0x4b19c5→0x4b8200`.
+Construction callback`0x5f3c40` calls that validator at`0x5f3c54`, resolves its
+orientation through`0x5f3c85→0x4b84b0`, and issues the additional1×1 owner claim
+at`0x5f3cd7→0x4b72b0`. The extra write uses mask`0x0400000c`. The four offsets
+come from table`0x875e00`. Each lies outside the ordinary2×2 body, giving five
+distinct occupied cells. Coordinates below are relative to the body origin.
+
+| Orientation | Extra occupied dock cell | Required eight-water context | Two land cells |
+|---|---|---|---|
+|0 |(0,−1) |x−1..2, y−1..0 |(0,1), (1,1) |
+|1 |(2,0) |x1..2, y−1..2 |(0,0), (0,1) |
+|2 |(1,2) |x−1..2, y1..2 |(0,0), (1,0) |
+|3 |(−1,1) |x−1..0, y−1..2 |(1,0), (1,1) |
+
+The shore contexts share the separately observed pump geometry. Two water cells
+belong to the base body and the exterior dock claims another water-context cell.
+The remaining context cells participate in admission. A prospective World
+building must retain the body and dock together for placement, occupancy,
+navigation endpoints, inspection and restore.
+
+**EXE_OBSERVED, fishing-component admission:** the purchase path obtains the
+attribute map through`0x4b19f5→0x5aca50` at global`0x1313018`, then calls
+`0x4b19fc→0x5acac0`. This helper requires bit2 at any of the body's eight
+cardinal perimeter cells. The table pairs at`0x820038/0x8204f0` order those cells
+N0,N1,E0,E1,S1,S0,W1,W0 and exclude corners. It checks access to a prepared
+fishing component.
+
+The attribute update`0x5acb80` clears that map, reads all eight signed
+FishingPoint179 coordinate pairs at`0xc5cd60/0xc5cd70`, and calls the flood helper
+at`0x5acc09→0x5accd0`. That helper traverses cardinal storage neighbors±228/±1,
+excludes navigation-plane bytes`0xff/0xfe` from`0x136beb0`, and writes bit2
+through`0x5acd28→0x5aca60`. This closes the bounded component operation for
+explicit navigation bytes and point operands.
+
+The separate navigation update `0x5ad970–0x5add50` requires raw water bit4 at
+the candidate cell and all eight neighbors. Further tests involve raw terrain
+bits, retained navigation values and another plane/helper. Model56 and210 have
+separate exclusion branches, and31 has its own handling. These are necessary
+conditions in that path, not a sufficient general boat-admission predicate.
+The full rebuild calls navigation preparation at `0x53d202` before component
+preparation at `0x53d249`. The boat-distance preparation `0x5b2c30` differs from
+the origin-component flood: `0xff` is blocked, but `0xfe` contributes an extra
+raw cost4 in each of the four cardinal-neighbor branches. Its distance plane is
+DWORD-sized and its deferral plane BYTE-sized. Reusing the component flood's
+`0xfe/0xff` exclusion as a complete boat route rule would be incorrect. The pure
+navigation helpers expose only these explicit byte/cost operands. Raw water
+bit4, a displayed shoreline or a parsed marker list cannot supply the unresolved
+production planes, route endpoints or mutable navigation history.
+
+The eight coordinate pairs come from distinct Original header fields at
+header `+0x280/+0x290`. Serializer `0x52cd90` writes each 16-byte array at
+`0x52cef2–0x52cf0d`; the checked header3/header6 load branches restore them at
+`0x52d326–0x52d341`. The standalone load caller at `0x52e9cc` is checked.
+Reset `0x53cec0` initializes all eight pairs to −1. This proves the checked
+header-field provenance, not reconstruction from source-manager179 objects.
+Other header versions and the complete relationship between manager markers,
+editor operations and the live arrays remain separate gates. Saved IDs,
+positions or labels grant no fishing origin or World construction authority.
+
+**EXE_OBSERVED, Hunter source throttling:** update`0x5f3730` chooses these
+staffing bands and maximum active-hunter counts. It increments the byte counter
+before the strict threshold comparison, then resets the counter before the
+subsequent cart/spawn checks. A passed throttle is an attempt boundary.
+
+| Minimum staffing percentage | Strict counter threshold | Active hunter cap |
+|---|---|---|
+|100 |1 |3 |
+|75 |4 |2 |
+|50 |16 |1 |
+|25 |32 |1 |
+|1 |64 |0 |
+
+The table gives the staffing cap before source headroom. The operative quota
+also takes the minimum with`floor((400−raw_stock)/100)` in the resolved
+nonnegative source-stock domain. A positive staffing percentage can therefore
+have zero permitted additional hunters. Source selection, a passed throttle
+and a positive quota still require actual eligible prey and successful creation.
+
+The source's stock-capacity callback`+0xe0→0x4f1520` returns raw400. The active
+source update consumes that result at`0x5f38fa` when checking stock headroom.
+Hunter material initialization`0x5f3a30` starts its retained material stock at
+zero. Its completed physical-return branch at`0x4d3404/0x4d3408` adds raw50.
+This observed raw source capacity is independent of World Food capacity.
+
+**EXE_OBSERVED, Boat work counters:** state8 increments its signed WORD before
+testing the selected fishing comparison. State10 tests the old dock-side WORD
+and increments it only when that comparison has not completed. A dock counter
+starting at zero therefore reaches its full-staff completion on invocation205.
+The completed state10 branch resets its counter and assigns raw100 to the
+Quay stock at`0x4cffec`.
+
+| Minimum staffing percentage | Fishing comparison | Dock comparison |
+|---|---|---|
+|100 |408 |204 |
+|75 |816 |408 |
+|50 |1224 |612 |
+|25 |1632 |816 |
+|1 |2040 |1020 |
+
+Zero staffing bypasses these work-counter/completion paths and invokes the
+separate interruption/global-override helper`0x4cfb70`. Its lifetime and global
+inputs still require a complete actor-state contract. These comparison counts
+retain their source callback units. Actor49's actual factory branch installs
+base vtable `0x7afe60`; virtual `+0x28→0x4c7580` reaches its registered Boat
+callback `0x4cfbc0`. The shared actor loop invokes that slot once per eligible
+record at `0x4e2909`, with the active/suspension gates described above. The
+ordinary parent calls the scheduler and actor pass in the same iteration, and
+the normal scheduler advances/reset phases0–50. This closes the relative
+ordinary callback path. Complete suspension/exception histories, seconds,
+months and a corresponding World-tick duration are not established here. The
+existing one-World-tick adapter remains **AUTHORED**.
+
+**EXE_OBSERVED, bounded huntable identities and initial attempts:** helper
+`0x59a6a0` admits actual Actor75 `FIG_WILD_PIG`,76 `FIG_PHEASANT` and77
+`FIG_ANTELOPE`. The initializer `0x4eb010`, called at `0x53d1df`, requires
+global `0x88ec38` to be zero. It visits the four positive PreyPoint183 coordinate
+pairs at `0xc5ce3c/0xc5ce4c`. Helper `0x59cad0` selects one properties row from
+raw WORD `0xc5cd58`: 0 selects Antelope77, 1 Pheasant76, every other value
+WildPig75. Each row has the observed desired-count field7. Successful group
+allocation through `0x54c4f0` permits seven actual creation attempts per valid
+point. Only successful `0x4eb348→0x4ea050` calls create actors. Those objects
+receive state19, a group ID, an ordinal and a wait value computed as the signed
+remainder of the actual random result divided by25. No uniform RNG range is
+proved, and seven attempts do not guarantee seven living animals.
+
+Existing-prey registration `0x59a330` enumerates already-created actors.
+Actual factory `0x4e1420` selects separate derived constructors for75/76/77;
+their virtual `+0x28` binds to `0x59f310`. The separately registered callback
+`0x59cf10` and candidate routine `0x59bdc0` therefore do not, by themselves,
+prove that an ordinary animal dispatch runs that candidate as a live birth
+step. Habitat lookup `0x59ebd0` and terrain predicate `0x59c780` remain separate
+operations.
+
+**EXE_OBSERVED, conditional replacement attempts:** actual raw scheduler phases5
+and29 select `0x54c6f0→0x4ea8e0`. The dispatcher first subtracts1, so their
+zero-based table entries are4 and28. For initializer-written group kind3, the
+replacement path requires active group byte1, zero retained gates `+0x42/+0x98`
+and retained count `+0x28` below the desired count7 at `+0x29`. It increments
+counter `+0x75`, checks strict greater-than26, and resets before candidate
+search. Starting at zero requires 27 eligible missing-count callbacks. Up to16
+candidate positions must pass further terrain/occupancy checks before the
+actual factory call `0x4eaa69→0x4ea050`. Successful replacements receive state19,
+the group ID, raw wait10 and raw field `+0x64=1800`. Failed creation grants no
+animal. The initializer requires `0x88ec38==0`; this replacement branch instead
+skips `0x88ec38==1`. The replacement function also has other group-kind paths
+outside this bounded kind3 support. Complete group allocation, candidate
+terrain/RNG, retained-count writers/recount, state19 lifetime, reservations,
+pursuit interruption and group retirement remain activation gates. Neither
+these relative phase calls nor source coordinates establish a World population
+ledger, seasonal respawn rule or recreated meat stock on restore.
+
+**EXE_OBSERVED, raw transport continuity and category boundaries:** Actor19's
+arrival branches at `0x4cc36b–0x4cc37d` and `0x4cc413–0x4cc425` pass the
+retained signed-WORD cargo and resource byte unchanged to the resolved target's
+virtual `+0x154`, after its current eligibility check. Market vtable `0x7b6f3c`
+binds that receipt to `0x543bc0`. Its accepted-count loop adds one raw unit at
+a time through `0x543d13→0x5d2790`, preserving the category. That slot helper
+clamps to its explicit capacity and returns the excess. No division by100 or
+conversion to World portions occurs in these checked slices. This is a
+conditional receipt path, not a complete proof of target selection, all
+reservations, overflow routing or return histories.
+
+The separately checked carrier helper `0x546960` removes `100×caller_count`
+from the source before checking resources1–9 and rewriting an admitted category
+to Dinners28. It then attempts that many Actor25 creations and retains the
+rewritten category on each successful object. These actors are vendor
+assistants, not Actor19 carts. Their callback has a literal100 branch calling
+target `+0x260` and a separately gated literal400 branch calling `+0x154`.
+The Food/Dinners boundary therefore contains real category changes and distinct
+objects; a raw100 source debit alone does not prove a World portion count or
+one final House dinner.
+
+The score consumer `0x541760` receives an external caller-supplied grade. In
+its Dinners28 branch, its stock blend includes `20×grade`, the old source score
+and actual retained stock, followed by a separate rounding helper and the score
+setter `0x545140`. This closes another raw arithmetic input, not the production
+of that grade or the complete shop/ingredient recipe. The downstream House
+FoodQuality blend remains the separately bounded
+[consumption/FoodQuality contract](original-goods-consumption-food-contract.md).
+Fish2 and Meat4 still have no proved standalone score or World-unit mapping.
+
+**Implementation boundary:** `HarvestRules` and `FishingRules` express bounded
+source arithmetic, identities, geometry and the fishing-component query with
+explicit supplied operands. The model-inspector's read-only `--harvest-source`
+selection reports raw model columns separately from those source observations,
+with inactive gameplay/conversion/clock flags and concrete blockers. The public
+CLI syntax uses `--harvest-source 31` or `--harvest-source 33`. It creates no new
+World, inventory, source population, work actor, route or save authority.
+Each source row identifies the fixed-rule evidence as `EXE_OBSERVED` and names
+the pinned EXE SHA-256. The inspector reads the selected model file; those static
+rule observations do not imply verification or execution of a selected EXE.
+
+The pure return helper supports Hunter stock0..350 so its added50 remains within
+the observed400 source capacity. The actual return instruction performs an
+uncapped WORD addition. Source over-capacity/wrap histories remain unsupported
+by the capacity-safe helper. The Quay helper supports nonnegative signed-WORD
+stock, assigns100 and retains the overwritten raw amount in its result. No
+operational Fish capacity is inferred. Ordinary cart-debit helpers require an
+explicitly resolved effect byte0; every nonzero effect remains refused.
+
+AGRI-05 remains **PARTIAL** at the playable-chain boundary. Both raw-to-Food
+conversions, FoodQuality inputs, complete work/lifetime and ecology contracts,
+Actor19 destination acceptance/reservations/overflow/return, and source byte70's
+400-cargo/100-debit effect remain unclosed. Source Quay stock assignment and
+Hunter stock addition must retain their distinct operations. The five existing
+Food columns, Rule26 irrigation, approved harvest adapters and schemas1–42 keep
+their contracts while these independently evidenced helpers are integrated.
 
 ## Concrete proof gates before implementation
 

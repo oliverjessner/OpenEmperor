@@ -86,6 +86,8 @@ std::string_view model_label(ModelBuilding building) {
     case ModelBuilding::SoybeanField: return "Soybean Field";
     case ModelBuilding::IrrigationDitch: return "Irrigation Ditch";
     case ModelBuilding::IrrigationPump: return "Irrigation Pump";
+    case ModelBuilding::FishingQuay: return "Fishing Quay";
+    case ModelBuilding::HuntersTent: return "Hunter's Tent";
     }
     throw std::out_of_range("invalid named original building ID");
 }
