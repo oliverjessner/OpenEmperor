@@ -309,6 +309,7 @@ target_link_libraries(openemperor-original-service-rules PUBLIC openemperor-orig
 openemperor_enable_warnings(openemperor-original-service-rules)
 add_library(openemperor-original-crop-rules STATIC
     src/simulation/original/CropRules.cpp
+    src/simulation/original/CropLifecycleRules.cpp
     src/simulation/original/CropYieldRules.cpp
     src/simulation/original/CropTransportRules.cpp)
 target_include_directories(openemperor-original-crop-rules PUBLIC src)
@@ -344,7 +345,8 @@ target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndust
 target_link_libraries(openemperor-simulation PUBLIC openemperor-original-service-rules)
 # Pure goods transfers/consumption/quality observations; no World/app linkage.
 add_library(openemperor-original-goods-rules STATIC
-    src/simulation/original/GoodsRules.cpp)
+    src/simulation/original/GoodsRules.cpp
+    src/simulation/original/FoodRules.cpp)
 target_include_directories(openemperor-original-goods-rules PUBLIC src)
 target_link_libraries(openemperor-original-goods-rules PUBLIC openemperor-original-house-evolution)
 openemperor_enable_warnings(openemperor-original-goods-rules)
@@ -996,6 +998,16 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-crop-rules-tests)
     add_test(NAME original-crop-rules COMMAND openemperor-original-crop-rules-tests)
     set_tests_properties(original-crop-rules PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-original-crop-lifecycle-tests tests/OriginalCropLifecycleTests.cpp)
+    target_link_libraries(openemperor-original-crop-lifecycle-tests PRIVATE openemperor-original-crop-rules)
+    openemperor_enable_warnings(openemperor-original-crop-lifecycle-tests)
+    add_test(NAME original-crop-lifecycle COMMAND openemperor-original-crop-lifecycle-tests)
+    set_tests_properties(original-crop-lifecycle PROPERTIES TIMEOUT 60)
+    add_executable(openemperor-original-food-rules-tests tests/OriginalFoodRulesTests.cpp)
+    target_link_libraries(openemperor-original-food-rules-tests PRIVATE openemperor-original-goods-rules)
+    openemperor_enable_warnings(openemperor-original-food-rules-tests)
+    add_test(NAME original-food-rules COMMAND openemperor-original-food-rules-tests)
+    set_tests_properties(original-food-rules PROPERTIES TIMEOUT 60)
     add_executable(openemperor-original-crop-dispatch-tests tests/OriginalCropDispatchTests.cpp)
     target_link_libraries(openemperor-original-crop-dispatch-tests PRIVATE openemperor-original-crop-rules)
     openemperor_enable_warnings(openemperor-original-crop-dispatch-tests)

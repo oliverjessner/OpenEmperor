@@ -1447,9 +1447,10 @@ and use the same proved truncating conversion. This is a controlled arithmetic
 differential and does not claim that the Original harvest uses any one of
 those three ambient precision modes.
 
-The actual source control word during every admitted harvest, its relevant
-startup and external-call restoration, exception masks and earlier store
-rounding remain unclosed. The new component therefore implements only the
+The later startup proof below establishes initial53-bit precision while
+preserving the preceding rounding bits. The actual source control word during
+every admitted harvest, reachable external-call restoration, exception masks
+and earlier store rounding remain unclosed. The component therefore implements only the
 proved integer-base input predicate. It supplies no native floating-point
 yield API, guessed precision default or production activation.
 
@@ -1678,6 +1679,192 @@ The independently tested dispatch, event and raw-transport components narrow
 these gaps. They do not activate Rice, Cabbage or BeanCurd production. A new
 World generation and any authored field rotation, calendar adaptation, overflow
 policy or raw-to-portion mapping still require their own explicit decision.
+
+## Further Original reconstruction: Food field marking and expiration
+
+The fresh private verifier
+`.local/agri-original-followup/grower/verify_lifecycle.py` produces
+`verified-field-lifecycle.json`: 92 assertions over 11 qualified byte-checked
+windows, 1,062 decoded instruction lines and 3,415 instruction bytes including
+overlaps. The pinned EXE, BuildingModels and FarmConfig retain their SHA-256,
+size, mode and modification time. Neither the Original executable nor personal
+saves are used as runtime inputs. Exploratory captures remain separate from the
+qualified receipt windows.
+
+### A schedule mark is separate from productive work and quantity
+
+**EXE_OBSERVED** the actual field driver calls schedule update at
+`0x51e4a2→0x4c1a90` before visiting eligible field growth at
+`0x51e50a→0x4c0f60`. Schedule update scans up to four configured end slots per
+crop, stopping at −1. A current-slot match reaches setter `0x4c1a20` only when
+the actual subslot `0xc82ef0` is 0. The setter visits retained fields whose active
+byte is exactly 1 and whose actual crop classification matches its argument.
+Its sole field-word effect at `0x4c1a6e` ORs high-byte bit `0x80`, or work-word
+bit `0x8000`. It has no quantity, staffing, assignment or terrain predicate.
+
+The five Food rows retain the single end slots already documented above:
+Wheat 6, Millet 10, Rice 9, Cabbage 11 and Soybean 8; each row's next three entries
+are −1. A zero-quantity field can therefore acquire this schedule mark. That fact
+does not prove harvest readiness, successful dispatch or a food origin. The
+initial harvest candidate path explicitly detects zero quantity at `0x4c020b`
+and clears the mark at `0x4c022f`. It does not use 1000 as a readiness threshold.
+
+The actual Food concrete vtable `0x7aea40` binds growth publisher `+0x260` to
+`0x4c2360`. Its complete checked method selects Rice topology or the ordinary
+crop image/quantity stage and reaches image publisher `0x4b72b0`. It does not
+write the field work word. Thus the publisher called after growth is not a
+second harvest-mark or productive-readiness writer.
+
+Actual harvest callback `0x4c1dd0` remains separate. Before testing the schedule
+mark it sets work bit `0x4000` and clears field-body counter `+0x150`. An unmarked
+call returns without consuming quantity or clearing assignment. A marked call
+consumes `0x8000`, computes the separately gated yield, writes the current history
+slot, adds the raw result WORD to the actual Grower's pending cargo and clears
+quantity/assignment. These operations retain their existing worker, live yield,
+rounding and pending-WORD overflow gates.
+
+### Completed old end slots expire unharvested field quantity
+
+**EXE_OBSERVED** parent `0x4ac650` increments the retained subslot before its
+comparison with 15. On an ordinary rollover, while the old outer slot is still
+current, slots 6–11 reach `0x4ac6fb→0x4bff20`. That manager visits active fields,
+derives each actual crop index and uses `0x4c16c0` to compare the supplied slot
+with the last nonsentinel configured end slot. Only matching fields reach reset
+`0x4c1720`.
+
+The complete reset clears the entire work/harvest word and quantity. When the
+field retains a nonzero assignment, it resolves that actual actor, clears its
+signed wait WORD `+0x3e` and then clears the field assignment WORD `+0x2e`.
+An unassigned field bypasses actor lookup and wait mutation. The method has no
+countdown, history or field-body `+0x150` store. It does not clear the actor's
+retained field reference, pending cargo or work state, retire that actor or
+reconcile the Farm's retained dispatch counters. Those later histories remain
+outside this reset observation.
+
+Only later does the parent clear the subslot at `0x4ac799`, increment the outer
+slot at `0x4ac79f` and publish it at `0x4ac7a3`, wrapping after 11. The checked
+ordinary path reaches work decay still later at `0x4acc28`. Other callbacks and
+exceptional parent paths remain external. The resulting bounded sequence is an
+end-slot/subslot 0 mark, its retained harvest window, then expiration before the
+next outer slot. Native unharvested field quantity expiration is distinct from
+conservation of already produced Food, Farm stock or physical actor cargo.
+
+### Stateless Food-only event operations
+
+`CropLifecycleRules` extends the existing crop-rules library without changing
+historical `CropRules.h`. It resolves Food identities through `crop_rule` and
+owns no scheduler, World actor, inventory or save state.
+`schedule_crop_harvest_mark` takes explicit slot 0–11, subslot 0–15, active-field
+fact and work word. `expire_crop_completed_slot` takes an explicitly resolved
+completed-old-slot event, active-field fact and only quantity/work/assignment
+presence. Its supported quantity is 0–10000. The result reports the updated
+fields, expired field quantity, whether reset applied and whether the caller
+must clear its actual assigned actor's wait. It does not resolve or admit an
+actor. Countdown/history/body-counter retention is source evidence, rather than
+additional mutable helper fields.
+
+Independent tests use literal crop/end-slot expectations, every 16-bit work
+word across all twelve slots, first/last subslots, inactive fields, assignment
+presence, zero quantity and boundaries around 1000. They preserve the observed
+mark-before-expiration order and reject unsupported models, calendar inputs and
+quantities. No invocation maps these events to World ticks or activates Original
+production. Full worker pause/fire/path/removal cleanup, restored commitments,
+yield inputs and Food units remain separate activation gates.
+
+## Further Original reconstruction: startup and persisted yield context
+
+The private startup receipt
+`.local/agri-original-followup/yield/verified-startup.json` records55 assertions
+over12 byte-checked windows,319 instruction lines and1,123 instruction bytes.
+The independent provenance receipt `verified-provenance.json` records55
+assertions over15 windows,1,302 lines and4,363 bytes. Both preserve the pinned
+EXE, BuildingModels and FarmConfig hashes, lengths, modes and modification times.
+Their verifiers are `verify_startup.py` and `verify_provenance.py` in the same
+ignored directory.
+
+### Actual startup precision and configuration
+
+**EXE_OBSERVED** the PE entry at`0x7688ba` reaches initializer driver`0x769f80`.
+Its fixed FPU initialization pointer at`0x88a914` selects`0x7650aa`, which invokes
+`0x76d3a7`. That path supplies control flags`0x10000` under mask`0x30000` through
+`0x773f3a→0x773f05`. The checked flag conversion selects raw x87 precision bits
+`0x0200`, establishing an initial53-bit precision setting. The selected mask
+preserves the preceding rounding-control bits. Their initial value remains a
+separate input to the subsequent arithmetic and binary32 stores.
+
+The actual constructor-array range`0x814000..0x815788` includes slot`0x8143ec`.
+It reaches`0x4bf100→0x4bf110→0x4bfc00→0x4bfc20`, qualifying the Crop parameter
+initializer as an executed startup dependency. Its modifier10, global float
+bits`0x3f933333` and crop/region default stores have startup consumers. Complete
+later indirect writes, configuration loading and restore ownership remain open.
+
+The ordinary WinMain loop reaches the actor pass synchronously on that entry
+thread through`0x475a4b→0x475b00→0x536fe0→0x536b20→0x5371a0→0x4e27e0`.
+This qualifies the ordinary call relationship. The loop also contains indirect
+and external calls. The finite instruction census includes control-word
+changes, temporary CRT restores and x87 environment saves. A linear candidate
+list alone leaves reachable writers, exception paths and restoration open.
+
+**REFERENCE_DERIVED** Microsoft's x86 calling convention describes control-word
+preservation as an ABI obligation. The verified Original import is
+`DirectDrawCreate`, with a thunk at`0x5fb4c0`. Microsoft's documented Direct3D
+FPU changes belong to a separate API contract. The startup proof and these
+references leave the actual PC/RC at an arbitrary harvest dependent on its
+admitted path and environment. [Microsoft x86 floating-point calling convention](https://learn.microsoft.com/en-us/cpp/cpp/floating-point-coprocessor-and-calling-conventions?view=msvc-170),
+[DirectDrawCreate](https://learn.microsoft.com/en-us/windows/win32/api/ddraw/nf-ddraw-directdrawcreate),
+[Direct3D floating-point issues](https://learn.microsoft.com/en-us/windows/win32/dxtecharts/top-issues-for-windows-titles).
+
+A concrete next proof is local control-word stability from first arithmetic
+`0x4c1e8d` to history store`0x4c1f14`, with an explicitly supplied starting
+PC/RC. The callback calls`0x4c15b0`, conditionally`0x4c0750`, then`0x4c1060`
+and the two restoring conversions. The transitive queries to qualify are
+`0x4c15b0→0x525610→{0x425260,0x425250,0x47f1b0,0x408170}`,
+`0x47f1b0→0x4f8210`, `0x408170→0x4081d0`,
+`0x4c0750→0x4c0640` and Food classification
+`0x4c1060→0x4c11b0→0x4c0600`, including their switch data. This is a
+proposed bounded qualification, not an issued complete transitive receipt.
+It could support resolved-context arithmetic while leaving admission of the
+actual live control word and production authority separate.
+
+### Source region operand from the supported map header
+
+**EXE_OBSERVED** startup slot`0x81477c` reaches the header object constructor
+`0x52e440` at`0x1158e18`. It installs vtable`0x7b6be8`, whose serialization slot
+selects`0x52e690`. Header schemas1/2 contain the object's DWORD`+8`. The existing
+standalone schema5/header2 profile places it at decompressed logical12. On the
+checked load path,`0x52eb52` copies its low WORD to the signed crop/region
+selector at`0xc5cd58`. The source factor index later uses that signed value.
+
+The bounded reader and raw/signed/index distinctions are documented in the
+[map contract](map-format.md). Numeric0–2 can index the checked factor table.
+Textual climate identity, every other header/save profile and complete later
+selector writes remain separate proof dependencies.
+
+### Farm bin capacity is a serialized native operand
+
+**EXE_OBSERVED** the Farmhouse vtable's slot`+8` selects`0x4c4e40`. After its
+parent archive call, the store branch and version1 load branch each traverse
+five bins starting at body`+0x158`, stride16, invoking each bin's own slot`+8`.
+The bin vtable`0x7af1d8` binds that slot to`0x4c43e0→0x5d26c0`.
+
+The bin archive writes resource`+4`, quantity`+8` and capacity`+0xc` as three
+separate4-byte operands through`0x780642`. Its signed-version1 load branch
+reads those same three DWORDs through`0x780533`. Archive direction getter
+`0x40cf90` returns the complement of the archive flag's low bit. The complete
+native stream framing and the other archive versions remain separate.
+
+This closes an actual capacity restore writer. A fresh constructor sets
+resource/quantity0 and capacity400. A restored capacity is an explicit native
+input, and the checked bin load retains its archived value. The existing
+`RawFarmBin` safe API consequently keeps capacity supplied by the caller.
+Native restored-value validation, later runtime writes and complete overflow
+disposition still require their own qualified context. World JSON identity,
+inventories and migration retain their current contracts.
+
+The private `verify_bins.py` checker emits
+`bins/verified-native-bin-archive.json` with42 assertions over4 complete
+byte-checked windows. It preserves the same three Original input identities.
+It reads executable bytes and constructs no Original save fixture or importer.
 
 ## Concrete proof gates before implementation
 

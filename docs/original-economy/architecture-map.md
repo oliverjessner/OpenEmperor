@@ -56,6 +56,18 @@ available proposal numbers, with no new generation selected or saved by this
 work. Any authored replacement requires its own concrete approval and versioned
 contract. See the [AGRI-02C matrix](agriculture.md) and the
 [source contract](../reverse/original-agriculture-source-contract.md).
+Further Original reconstruction adds pure `CropLifecycleRules` for the actual
+Food-field end-slot mark and completed-slot expiration, plus `FoodRules` for
+normal raw House consumption, Mill recipe-grade availability/selection and
+ingredient request arithmetic. Requests, partial results and native return
+values remain distinct from produced Food. The inspected Mill53→Actor25→
+FoodShop66/Market→House graph has unresolved allocation, movement and receipt
+boundaries. A separate read-only map-header query exposes the serialized region
+operand and its signed low-word table selector; it does not extend World terrain
+or save authority. Startup53-bit precision and persisted Farm-bin capacity are
+now observed, while actual harvest rounding and later runtime writers remain
+open. The selected direction is continued Original reconstruction; the authored
+successor is inactive. See the [component boundary](agriculture.md#further-original-reconstruction).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 

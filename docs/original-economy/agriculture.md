@@ -581,13 +581,13 @@ The helpers own no advancing worker, World stock, purchase or save state.
 | Worker states | Ordinary tending6→7→8→6 and harvest10→11→12→10, with actual eligible waits and return outcomes | Full movement/result inputs, exceptional states and every cleanup caller |
 | Failed targets | Exhaustion releases a retained source count and selects empty/cargo return branches | Complete retirement, repair and cargo disposition |
 | Interrupted work | Existing World adapters preserve their own paid pause/fire/path contracts | Original active Food Grower operation, fire, workforce and global-veto interactions |
-| Actual harvest | A completed eligible harvest wait reaches the real field callback, applies the mark and consumes quantity | Full readiness/assignment/driver eligibility and single-origin World publication |
+| Actual harvest | End-slot/subslot0 setter marks an active Food field. Completed old end-slot expiration clears field quantity/work/assignment. A completed eligible harvest wait reaches the distinct yield callback | Full readiness/assignment/driver eligibility, actual actor cleanup and single-origin World publication |
 | Runtime fertility and climate | Serialized-to-runtime byte operation, default modifier and actual harvest operand | Complete writers, load preparation, climate/region provenance and admitted live values |
-| Crop/region factors | Source factor lookup and crop-qualified doubled-base predicate | Complete runtime region selector and mutable factor lifecycle |
+| Crop/region factors | Source factor lookup, crop-qualified doubled-base predicate and supported standalone-map header's signed low-word selector | Textual region identity, other profiles, complete later selector writers and mutable factor lifecycle |
 | Global yield factors | Conditional multiplier and conversion order | Actual global/year/event inputs and complete later writers |
-| x87 arithmetic | Conversion temporarily selects truncation and restores the control word | Preceding arithmetic/store precision and rounding. The same factor gives64 at53/64-bit precision and65 at24-bit precision |
-| Raw yield to Food | Grower→Farm→Cart retains raw resource identity and amounts, followed by FoodShop/Dinners processing | Complete recipe/grade/House binding and a defined mapping to the existing authored World Food portions |
-| Field/Farm overflow | Bounded quantity helper, initial five400-capacity bins, explicit clamp/debit results | Full native overflow disposition and an approved conservation-safe World integration |
+| x87 arithmetic | Startup selects53-bit precision; conversion temporarily selects truncation and restores the control word | Actual harvest PC/RC, preceding store rounding and reachable environment changes. The same factor gives64 at53/64-bit precision and65 at24-bit precision |
+| Raw yield to Food | Grower→Farm→Cart raw identity, normal House debit and Mill recipe arithmetic; a concrete Mill53→Actor25→FoodShop66/Market→House graph | Complete admission/physical arrival/grade blending and a defined mapping to existing authored World Food portions |
+| Field/Farm overflow | Bounded quantity helper, initial five400-capacity bins, native archive capacity writer, explicit clamp/debit results | Valid restored capacities, later writers, full overflow disposition and an approved conservation-safe World integration |
 | Return and capacity | Actual Farm return offers cargo. Full Cart acceptance clears it, partial acceptance retains the remainder | Source/target reservations, path failure, final retirement and safe return headroom |
 | Active-work persistence | Existing schema42 restores actual released Food/material/water authority exactly | A new explicit generation must save typed Food Grower lifetimes, work, claims, cargo and reservations before those states become playable |
 
@@ -614,7 +614,7 @@ progression from those crops, Food Grower animation and native human acceptance
 remain pending. AGRI-05 supplies verified hunting/fishing components with the
 same activation boundary described in its matrix.
 
-### Concrete successor requiring a decision
+### Inactive authored alternative
 
 The earlier AUTHORED candidate remains available for separate approval. It
 would extend the integrated Rule26 Agriculture lineage through the currently
@@ -638,12 +638,54 @@ actual House arrival controls FoodQuality. Rice retains fertility100 admission
 and a dry base path. A numeric irrigation bonus requires its own complete input
 contract.
 
-Approval must cover that full worker/time/yield/unit/interruption policy.
-Further Original reconstruction is the other available direction. Current
-code activates neither candidate production nor a new rule/schema. The
+The selected direction is further Original reconstruction. This alternative
+has no approval for its worker/time/yield/unit/interruption policy and remains
+inactive. Current code activates neither candidate production nor a new rule/schema. The
 [source contract](../reverse/original-agriculture-source-contract.md#agri-02c-crop-yield-inputs-and-conversion-boundary)
 records the new proofs, and the [testing guide](../testing.md) records actual
 validation results.
+
+## Further Original reconstruction
+
+The new components close specific source operations while Rice, Cabbage and
+Soybean production remains **PARTIAL**. They reuse the existing Original rules
+libraries and shared map/container reader. `simulation::World` retains sole
+gameplay authority; no new profile, clock, migration, goods origin or saved
+state is introduced. Rule27/schema43 remain unused.
+
+| Component | Verified and implemented boundary | Remaining activation dependency |
+|---|---|---|
+| Food-field seasonal lifecycle | Active end-slot/subslot0 marking and explicit completed-old-slot expiration. Preserve all other work bits until expiration; report expired field quantity separately from Food/cargo | Full Grower claim, wait, movement, interruption and retirement lifecycle; active source facts and clock binding |
+| Yield context | Actual startup53-bit precision, executed parameter initializer, supported map-header region getter and native three-DWORD Farm-bin archive fields | Actual harvest rounding control and reachable environment changes; later parameter writers, restored-value admission and textual region identities |
+| Normal House Food event | Status1 and positive FoodQuality requirement consume up to floor(population/4) raw Dinners. An eligible empty result clears quality; nonzero native stock-grant bypass is refused | Native event admission and mapping from raw Dinners to the existing World portions and receipt histories |
+| Mill recipe arithmetic | Nine aggregated commodity quantities, separate base vetoes, grade1–5 availability, bounded grade choice and six ingredient-request slots. Mill has eight physical bins | Real bin ownership, source debits, assistant allocation, physical arrivals, exceptional returns and complete quality blending |
+
+Mill base ingredients are resource IDs1–7; Salt8 and Spices9 are supplements.
+Grade5 tries four bases plus Spices, then three bases plus both supplements.
+It has no four-base-plus-Salt alternative. Availability uses ranked enabled
+base stocks and ordered supplement branches. The request builder instead
+chooses qualifying bases in resource order, rounds each to100-unit blocks and
+does not consult those vetoes. Thus two50-unit base stocks can advertise100
+grade2 availability while the selected100-unit request builds no ingredients.
+Partial outputs and positive native return values are preserved as observations,
+not success or produced-food flags.
+
+The inspected physical graph binds Mill53, Actor25 grade/category payloads,
+FoodShop66 and its actual parent Market, followed by a raw House credit/debit.
+Common Market59 starts with grade bounds1–3; Grand Market60 starts1–5. Later
+policy/load writers and the complete movement/receipt predicates remain open.
+This path does not establish that every Farm Cart must visit a Mill. The
+assistant helper debits before allocation and has a local failed-allocation
+branch without refund; its planner still records the requested incoming amount.
+Whether upstream admission excludes that branch remains unproved. A future
+World integration needs an explicit conservation contract for those conditions.
+
+The [field/yield source contract](../reverse/original-agriculture-source-contract.md#further-original-reconstruction-food-field-marking-and-expiration),
+[Food contract](../reverse/original-goods-consumption-food-contract.md) and
+[map contract](../reverse/map-format.md) retain qualified addresses, evidence
+domains and unresolved inputs. Private disassembly and source captures stay
+under ignored `.local/`. See [validation](../testing.md#further-original-agriculture-reconstruction)
+for executed checks and their limits.
 
 ## Irrigation infrastructure and completion matrix (AGRI-04)
 

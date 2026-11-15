@@ -1,4 +1,5 @@
 #include "maps/EmperorMap.h"
+#include "maps/MapRegionOperand.h"
 
 #include <algorithm>
 #include <array>
@@ -82,6 +83,14 @@ ParsedEmperorMap read_emperor_map(const EmperorContainer& container, std::size_t
             throw UnsupportedMapProfile("Agriculture fertility operand is outside0..100");
     }
     return map;
+}
+
+MapRegionOperand read_crop_region_operand(const EmperorContainer& container, std::size_t part) {
+    const auto probe = probe_map_part(container, part);
+    if (probe.profile != PartProfile::Map)
+        throw UnsupportedMapProfile("crop region operand requires the supported map profile: " + probe.reason);
+    const auto bytes = container.read_range(part, crop_region_logical_offset, 4);
+    return {le32(bytes, 0)};
 }
 
 std::uint32_t ParsedEmperorMap::terrain_at(std::uint32_t x, std::uint32_t y) const {

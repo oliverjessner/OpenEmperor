@@ -392,6 +392,58 @@ captures were opened. Scripted SDL inspection establishes its stated rendering
 scope. Native human acceptance remains pending. The six guarded Original/earned
 inputs retain their hashes, sizes, modes and modification times.
 
+## Further Original Agriculture reconstruction
+
+```sh
+cmake --build build --parallel 4 --target openemperor-original-crop-lifecycle-tests \
+  openemperor-original-food-rules-tests openemperor-map-tests
+ctest --test-dir build --output-on-failure \
+  -R '^(original-crop-(rules|lifecycle|dispatch|yield|transport)|original-food-rules|original-goods-rules-(synthetic|real)|emperor-map-reader)$'
+```
+
+The lifecycle test checks all65,536 work words for each Food field, literal
+end slots/subslots, inactive fields, zero and boundary quantities, retained
+assignment/wait intent and completed-old-slot ordering. These are explicit
+events, not an independently advancing clock or successful actor/harvest.
+The map test reuses synthetic container fixtures to exercise the bounded
+header query, signed low-word selectors, unknown values, multipart/profile
+refusal, compressed-block boundaries and input immutability. It grants no
+complete-map loadability, textual climate identity or World terrain authority.
+
+The Food test covers exact normal House event gates and finite consumption,
+all nonnegative signed-WORD populations, raw score boundaries, recipe grade
+selection and nine-category Mill arithmetic. Literal ingredient/availability
+vectors cover resource order, separate vetoes, Salt-before-Spices clipping,
+grade5's actual alternatives,100-unit rounding, partial/zero outputs and
+positive opaque native returns. All128 base-veto combinations, supplement
+overflow boundaries and a composed positive-availability/empty-request case
+exercise the source boundaries without claiming produced Food.
+
+Run the complete Release suite and the affected Debug/ASan/UBSan crop, Food,
+goods and map cases. Refresh the independent core-parity report against fresh
+matching archives; compare its non-fingerprint results to the protected
+baseline. Keep every pre-existing simulation/app/persistence file literal and
+retain original source hashes, lengths, modes and modification times. These
+pure/read-only changes require no new visual or human acceptance claim.
+
+Validation on2026-11-15 passed353/353 Release CTests with zero skips, plus
+9/9 affected cases in each of Debug and ASan/UBSan. The sanitizer configuration
+retains Debug assertions with `-g -O1`, disables leak detection on macOS and
+halts on UBSan failure. The new lifecycle and Food executables respectively
+pass12,791,315 and1,746,768 independent assertions. The independent core
+comparison passes74/74; all public results except the four new source-file
+fingerprints remain identical to merged AGRI-02C.
+
+Eight fresh private receipts pass590 assertions across154 overlapping
+byte-checked windows. All152 pre-existing simulation/app/persistence files
+remain literal-equal to baseline `0a3901d`; the separate map query is additive
+and leaves the historical parsed-map DTO untouched. The six guarded Original/
+earned inputs retain SHA-256, size, mode and modification time. The complete
+Release suite includes historical save/Recovery, paid mixed-city and existing
+scripted SDL checks. Fresh industry overview and consecutive walker-frame
+captures were opened. This validates their stated automated scope, not native
+human acceptance or positive production from the three locked crops.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh
