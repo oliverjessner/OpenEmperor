@@ -43,6 +43,15 @@ complete original-game compatibility.
   The native Farm caller ignores returned overflow. The World conservation
   policy and any authored successor require an explicit decision. See the
   [crop completion matrix](docs/original-economy/agriculture.md#crop-completion-and-decision-boundary-agri-02c).
+  Further Original reconstruction implements field end-slot marking/expiration,
+  normal raw House consumption and Mill recipe arithmetic as pure operations.
+  Initial53-bit precision, a numeric map-region operand and archived bin capacity
+  are now observed. Recipe availability can disagree with rounded ingredient
+  requests; retained partial requests and a positive native return do not prove
+  successful production. The inspected debit-before-assistant-allocation path
+  has unresolved native loss/overcommit conditions. These facts grant no new
+  World Food or saved authority. The chosen direction remains Original
+  reconstruction; an authored successor is inactive.
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

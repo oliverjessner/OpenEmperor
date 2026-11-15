@@ -31,6 +31,14 @@ not activate Original growth or yield events. AGRI-02C extends the existing
 `openemperor-original-crop-rules` target with independently bounded dispatch,
 event predicate and raw transport operations. Rice/Cabbage/BeanCurd production
 remains **PARTIAL**; Rules1–26 and schemas1–42 retain their gameplay and saves.
+Further Original reconstruction adds tested field marking/expiration, normal
+raw House consumption and Mill recipe arithmetic as pure source components.
+It also exposes the supported map header's numeric region operand without
+changing existing map/save types. Initial53-bit precision and native archived
+bin capacity now have qualified callers. These closures leave actual worker
+lifetimes, harvest rounding, raw-to-World units and physical recipe delivery
+open. The [updated component matrix](agriculture.md#further-original-reconstruction)
+separates arithmetic results from successful production.
 
 ## AGRI-02C component boundary
 

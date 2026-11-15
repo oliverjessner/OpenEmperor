@@ -44,11 +44,54 @@ The reference map reader checks an eight-byte prefix `05 00 FE CA 00 00 02 00`, 
 | Read value | Logical offset in selected part | Type/count | Ordering and evidence |
 | --- | ---: | --- | --- |
 | Map signature | 0 | 8 raw bytes | reference header check; confirmed locally |
+| Optional numeric crop-region operand | 12 | one `uint32_le` | EXE-observed schema5/header2 path described below; separate read-only query |
 | Declared map size | 84 | one `uint32_le` | reference field; local values 84, 112, 140, 170, 226 |
 | Terrain raw grid | 261,455 | 51,984 `uint32_le` = 207,936 bytes | reference 228×228 grid; `gamefile.cpp`/`grid.h` index rows by `y*228+x`; local complete range and spatial patterns |
 | Objects raw grid | 469,391 | 51,984 `uint32_le` = 207,936 bytes | same stored row order; local complete range and spatial patterns |
 
-The terrain grid ends exactly where the object grid begins; the object grid ends at logical offset 677,327. Other bytes and layers are not interpreted. The `uint32_t` words are exposed unchanged, including unknown bits. A terrain word is **not** assumed to be an SG3 image index; an object word is **not** assumed to be a building ID. The map-size word is kept separately from the 228×228 stored dimensions. We do not know the active-cell mask, playable extent, orientation in the original game, or logical/isometric coordinate transform. `active=unknown` applies to every displayed storage cell. A `0x13 00` prefix is identified as a possible savegame part from the reference and rejected for this reader.
+The terrain grid ends exactly where the object grid begins; the object grid ends at logical offset 677,327. Apart from the explicit optional operands and landscape ranges documented here, other bytes and layers are not interpreted. The `uint32_t` words are exposed unchanged, including unknown bits. A terrain word is **not** assumed to be an SG3 image index; an object word is **not** assumed to be a building ID. The map-size word is kept separately from the 228×228 stored dimensions. We do not know the active-cell mask, playable extent, orientation in the original game, or logical/isometric coordinate transform. `active=unknown` applies to every displayed storage cell. A `0x13 00` prefix is identified as a possible savegame part from the reference and rejected for this reader.
+
+### Optional numeric crop-region observation
+
+**EXE-OBSERVED:** the qualified standalone serializer `0x52e7c0` reads the
+map-schema WORD, the following `0xcafe` DWORD and, for map schemas greater
+than 2, the header object's virtual serializer at `0x52e99c`. The actual
+startup constructor slot `0x81477c` binds object `0x1158e18` through
+`0x52c1a0→0x52c1b0→0x52e440` to vtable `0x7b6be8`. Its virtual0 is
+`0x52e690`. Header schema2 reads its own schema WORD, three DWORDs at
+object offsets `+4/+8/+12`, an opaque 32-byte range and the trailing DWORD at `+48`.
+The existing supported map-schema5/header-schema2 prefix therefore places
+the second header DWORD at logical offset **12** in the selected
+decompressed part.
+
+After loading, `0x52eb49→0x4f8200` reads that object's full `+8` DWORD.
+`0x52eb52` copies its low WORD to `0xc5cd58`, which the crop-yield code
+later reads as signed16. This proves the numeric operand's source and
+truncation, not named climates, a valid live harvest or every later writer.
+
+**VERIFIED REPRODUCTION:** `read_crop_region_operand` in
+`src/maps/MapRegionOperand.h` exposes the serialized DWORD separately from
+its portably sign-extended low-WORD selector. Its optional numeric factor
+index exists only for selector 0, 1 or 2. Unknown values remain observable,
+including negative low-WORD selectors and nonzero high WORDs. They neither
+widen nor restrict the historical map probe or ordinary map reader.
+The query reuses `probe_map_part`, the existing bounded container
+`read_range` and the existing little-endian word reader. It adds no parser,
+`ParsedEmperorMap` field, climate name, World state or save authority.
+Other header/map versions and Original save profiles remain outside this API.
+The query validates its profile and requested header blocks, not every later
+compressed payload. A successful observation does not establish complete-map
+loadability or source admission.
+
+Synthetic tests exercise the three numeric indices, unknown positive and
+negative selectors, nonzero high WORDs, selected multipart boundaries,
+unsupported signatures/header versions, truncation and a DWORD split
+across two compressed blocks. Successful reads and rejected decompression
+preserve the supplied compressed bytes. The private source receipt checks
+55 assertions across 15 byte-checked windows with 1,302 instruction lines
+and 4,363 bytes. The pinned EXE, BuildingModels and FarmConfig retain their
+hashes, lengths, modes and modification times. The Original executable was
+not run and personal saves were not read for this observation.
 
 ### Skipped-region diagnostic split, not a verified layout
 

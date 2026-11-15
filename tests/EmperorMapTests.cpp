@@ -1,5 +1,6 @@
 #include "maps/EmperorContainer.h"
 #include "maps/EmperorMap.h"
+#include "maps/MapRegionOperand.h"
 #include "maps/MapGraphicCandidates.h"
 #include "maps/MapCatalog.h"
 #include "maps/DirectGraphicCandidate.h"
@@ -13,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -160,6 +162,10 @@ int main() {
         write(file, single(data));
         container = maps::EmperorContainer::open(file);
         check(maps::probe_map_part(container, 0).profile == maps::PartProfile::Map, "map profile probe");
+        check(maps::read_crop_region_operand(container, 0).serialized == 0 &&
+              maps::read_crop_region_operand(container, 0).native_selector() == 0,
+              "numeric region operand uses the existing supported profile");
+        rejects([&] { (void)maps::read_crop_region_operand(container, 1); });
         const auto parsed = maps::read_emperor_map(container, 0);
         check(parsed.stored_width == 228 && parsed.declared_map_size == 112 &&
               parsed.terrain_raw.values.size() == 51984 && parsed.objects_raw.values.size() == 51984,
@@ -219,6 +225,64 @@ int main() {
         check(crossed.word_at(0,0) == 0x12345678U &&
               crossed.word_at(3,2) == 0xfedcba98U && crossed.byte_at(3,2) == 0x5a,
               "candidate reads across compressed block boundaries");
+
+        struct RegionCase {
+            std::uint32_t serialized;
+            std::int32_t selector;
+            std::optional<std::uint8_t> index;
+        };
+        const std::array region_cases{
+            RegionCase{0, 0, 0}, RegionCase{1, 1, 1}, RegionCase{2, 2, 2},
+            RegionCase{3, 3, std::nullopt},
+            RegionCase{0x7fffU, 32767, std::nullopt},
+            RegionCase{0x8000U, -32768, std::nullopt},
+            RegionCase{0xffffU, -1, std::nullopt},
+            RegionCase{0xffff0000U, 0, 0},
+            RegionCase{0x12340001U, 1, 1},
+            RegionCase{0x80000002U, 2, 2},
+            RegionCase{0x00010003U, 3, std::nullopt},
+            RegionCase{0xffffffffU, -1, std::nullopt},
+        };
+        for (const auto& item : region_cases) {
+            auto region_data = data;
+            u32(region_data, 12, item.serialized);
+            const auto encoded = single(region_data);
+            write(file, encoded);
+            const auto region_container = maps::EmperorContainer::open(file);
+            const auto value = maps::read_crop_region_operand(region_container, 0);
+            check(value.serialized == item.serialized &&
+                  value.native_selector() == item.selector &&
+                  value.numeric_factor_index() == item.index,
+                  "region keeps the full DWORD and sign-extends only its low WORD");
+            check(maps::probe_map_part(region_container, 0).profile == maps::PartProfile::Map &&
+                  maps::read_emperor_map(region_container, 0).terrain_at(1,0) == 0x12345678U,
+                  "unknown numeric region values do not alter historical map admission or layers");
+            check(std::equal(region_container.physical_bytes().begin(),
+                             region_container.physical_bytes().end(), encoded.begin(), encoded.end()) &&
+                  region_container.read_part(0) == region_data,
+                  "region observation preserves compressed and decompressed input bytes");
+        }
+
+        auto region_data = data;
+        u32(region_data, 12, 0x12340002U);
+        Bytes split_region; append_u32(split_region, 0xfedcbaaaU);
+        const auto first_region_block = block(Bytes(region_data.begin(), region_data.begin() + 14));
+        const auto remaining_region_blocks = part(Bytes(region_data.begin() + 14, region_data.end()));
+        split_region.insert(split_region.end(), first_region_block.begin(), first_region_block.end());
+        split_region.insert(split_region.end(), remaining_region_blocks.begin(), remaining_region_blocks.end());
+        write(file, split_region);
+        container = maps::EmperorContainer::open(file);
+        check(container.parts()[0].blocks.front().uncompressed_size == 14 &&
+              maps::read_crop_region_operand(container, 0).serialized == 0x12340002U &&
+              maps::read_crop_region_operand(container, 0).numeric_factor_index() == 2,
+              "region DWORD crosses a compressed block boundary without truncation");
+        auto corrupt_region = split_region; corrupt_region[16] ^= 0xffU;
+        write(file, corrupt_region);
+        container = maps::EmperorContainer::open(file);
+        rejects([&] { (void)maps::read_crop_region_operand(container, 0); });
+        check(std::equal(container.physical_bytes().begin(), container.physical_bytes().end(),
+                         corrupt_region.begin(), corrupt_region.end()),
+              "failed region decompression preserves supplied input bytes");
         rejects([&] { parsed.terrain_at(228,0); });
         rejects([&] { parsed.object_at(0,228); });
 
@@ -230,6 +294,10 @@ int main() {
               maps::read_emperor_map(multi, 1).terrain_at(1,0) == 0x12345678U,
               "selected multipart map profile");
         rejects([&] { maps::read_emperor_map(multi, 0); });
+        rejects([&] { (void)maps::read_crop_region_operand(multi, 0); });
+        rejects([&] { (void)maps::read_crop_region_operand(multi, 2); });
+        check(maps::read_crop_region_operand(multi, 1).serialized == 0,
+              "numeric region reads only the explicitly selected supported part");
         auto broken_table = multipart(Bytes{'x'}, Bytes{'y'});
         u32(broken_table, broken_table.size() - 60, 3); // Part start before first physical block.
         write(multi_file, broken_table);
@@ -240,14 +308,30 @@ int main() {
         container = maps::EmperorContainer::open(file);
         rejects([&] { maps::read_emperor_map(container, 0); });
         rejects([&] { maps::read_map_graphic_candidates(container, 0); });
+        rejects([&] { (void)maps::read_crop_region_operand(container, 0); });
         auto invalid_signature = data; invalid_signature[0] = 0;
         write(file, single(invalid_signature));
         container = maps::EmperorContainer::open(file);
         rejects([&] { maps::read_emperor_map(container, 0); });
+        rejects([&] { (void)maps::read_crop_region_operand(container, 0); });
+        auto unsupported_header = data; unsupported_header[6] = 1;
+        write(file, single(unsupported_header));
+        container = maps::EmperorContainer::open(file);
+        rejects([&] { (void)maps::read_crop_region_operand(container, 0); });
+        write(file, single(Bytes{0x13, 0}));
+        container = maps::EmperorContainer::open(file);
+        check(maps::probe_map_part(container, 0).profile == maps::PartProfile::SavedGame,
+              "original save profile remains outside numeric region support");
+        rejects([&] { (void)maps::read_crop_region_operand(container, 0); });
+        auto short_header = data; short_header.resize(15);
+        write(file, single(short_header));
+        container = maps::EmperorContainer::open(file);
+        rejects([&] { (void)maps::read_crop_region_operand(container, 0); });
         auto short_map = data; short_map.resize(500000);
         write(file, single(short_map));
         container = maps::EmperorContainer::open(file);
         rejects([&] { maps::read_emperor_map(container, 0); });
+        rejects([&] { (void)maps::read_crop_region_operand(container, 0); });
 
         auto truncated = single(Bytes{'a','b'});
         truncated.resize(14); write(file, truncated);
