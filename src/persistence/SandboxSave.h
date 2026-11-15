@@ -64,6 +64,9 @@ std::shared_ptr<const original::OriginalRulesModel> prepare_original_culture_rul
 std::shared_ptr<const original::OriginalRulesModel> prepare_original_agriculture_rules_model(
     const std::filesystem::path& data_root,
     original::Difficulty difficulty=original::Difficulty::Normal);
+std::shared_ptr<const original::OriginalRulesModel> prepare_original_irrigation_rules_model(
+    const std::filesystem::path& data_root,
+    original::Difficulty difficulty=original::Difficulty::Normal);
 // Complete supported original map, shared reader and full-file SHA binding.
 // Raw bit4 facts never substitute for MapPermissions or bridge eligibility.
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_terrain_facts(
@@ -71,6 +74,8 @@ std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_terrain
 // Rule24 additionally binds the complete serialized fertility lane through
 // the shared original-map reader; no saved fertility array grants authority.
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_agriculture_terrain_facts(
+    const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
+std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_irrigation_terrain_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
 std::shared_ptr<const simulation::LandTradeBoundaryFacts> prepare_land_trade_boundary_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
@@ -196,6 +201,12 @@ simulation::World restore_original_agriculture(
 // Schema41/Rule25 adds physical plantation work without reinterpreting the
 // frozen Rule24/schema40 crop contract or changing commodity dimensions.
 simulation::World restore_original_plantations(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+simulation::World restore_original_irrigation(
     const SaveDocument& document,const std::filesystem::path& data_root,
     std::vector<std::uint8_t> buildable,
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,

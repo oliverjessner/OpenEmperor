@@ -114,6 +114,8 @@ std::vector<std::optional<AssetId>> physical_ids(const BuildingVisualProfile& pr
     collect(profile.original_building_entries);
     for (const auto& stages:profile.original_field_entries) collect(stages);
     collect(profile.original_rice_entries);
+    collect(profile.irrigation_ditch_entries);
+    collect(profile.irrigation_pump_entries);
     for (const auto& stages:profile.plantation_entries) collect(stages);
     return ids;
 }

@@ -19,6 +19,17 @@ struct RoadPlan {
     std::vector<simulation::RoadCellDiagnostic> cell_diagnostics;
 };
 
+struct IrrigationPlan {
+    std::vector<simulation::Cell> cells;
+    simulation::IrrigationBatchValidation validation;
+    std::vector<std::uint8_t> variants;
+};
+// Pure source-sprite topology only; never water or construction authority.
+std::uint8_t irrigation_visual_variant(const simulation::World& world,simulation::Cell cell,
+    std::span<const simulation::Cell> planned={});
+IrrigationPlan plan_irrigation(const simulation::World& world,simulation::Cell start,
+    simulation::Cell end);
+
 RoadPlan plan_road(const simulation::World& world,simulation::Cell start,
                    simulation::Cell end);
 bool commit_road(simulation::World& world,const RoadPlan& plan,std::string& reason);

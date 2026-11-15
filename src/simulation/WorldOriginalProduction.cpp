@@ -132,6 +132,7 @@ std::uint64_t paid_cost(Object kind) {
     case Object::OriginalRiceField:
     case Object::OriginalCabbageField:
     case Object::OriginalSoybeanField:
+    case Object::OriginalIrrigationPump:
     case Object::HealthPost:
     case Object::OriginalDaoistShrine215:
     case Object::OriginalBuddhistShrine217:
@@ -158,6 +159,7 @@ std::optional<original::ModelBuilding> model_priced(Object kind) {
     case Object::OriginalRiceField:return B::RiceField;
     case Object::OriginalCabbageField:return B::CabbageField;
     case Object::OriginalSoybeanField:return B::SoybeanField;
+    case Object::OriginalIrrigationPump:return B::IrrigationPump;
     case Object::HealthPost:return B::HerbalistsStall;
     case Object::ServicePost:return B::AcupuncturistsClinic;
     case Object::OriginalAncestorShrine214:return B::AncestralShrine;
@@ -710,7 +712,8 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
     if (s.next_building_id!=s.buildings.size()+removed.size()+retired_count+1)
         invalid("invalid original production next building identity");
     for (std::uint32_t id=1;id<s.next_building_id;++id) if (!seen[id]) invalid("missing paid original production purchase");
-    const auto spent=spending(s.buildings,s.bridges,s.ramps.size(),s.roads_placed_total,removed.size())+retired_spending(*s.original_production);
+    const auto spent=spending(s.buildings,s.bridges,s.ramps.size(),s.roads_placed_total,removed.size())+retired_spending(*s.original_production)+
+        (s.irrigation ? s.irrigation->ditch_construction_spent:0);
     const auto model_priced_count=std::count_if(s.buildings.begin(),s.buildings.end(),[](const auto& body){return model_priced(body.kind).has_value();});
     const auto materialized=static_cast<std::uint64_t>(std::count_if(s.buildings.begin(),s.buildings.end(),
         [](const auto& b){return b.kind==Object::OriginalEliteHouse;}));
@@ -718,7 +721,8 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         (!model_priced_count && spent!=s.construction_spent_total) ||
         !original_finance_accounting_valid(s.treasury,s.taxes_collected_total,s.construction_spent_total,s.maintenance_spent_total) ||
         s.roads_removed_total>s.roads_placed_total || s.roads_placed_total-s.roads_removed_total!=s.roads.size() ||
-        s.road_revision!=s.roads_placed_total+s.roads_removed_total+s.buildings.size()+2*removed.size()+2*retired_count+s.bridges.size()+s.ramps.size()+materialized)
+        s.road_revision!=s.roads_placed_total+s.roads_removed_total+s.buildings.size()+2*removed.size()+2*retired_count+s.bridges.size()+s.ramps.size()+materialized+
+            (s.irrigation ? s.irrigation->ditches_placed_total+s.irrigation->ditches_removed_total:0))
         invalid("original production finances or placement revision mismatch");
     validate_original_hemp_snapshot(s);
     validate_original_food_snapshot(s);
@@ -769,7 +773,8 @@ bool World::original_production_finance_valid() const {
     if (!original_production_ || !original_influence_ || !original_economy_ || !original_goods_ ||
         !original_rules_model_ || demolition_history_!=DemolitionHistory{}) return false;
     try {
-        const auto spent=spending(buildings_,bridges_,ramps_.size(),roads_placed_total_,original_influence_->removed_sources.size(),original_rules_model_.get())+retired_spending(*original_production_);
+        const auto spent=spending(buildings_,bridges_,ramps_.size(),roads_placed_total_,original_influence_->removed_sources.size(),original_rules_model_.get())+retired_spending(*original_production_)+
+            (irrigation_ ? irrigation_->ditch_construction_spent:0);
         return construction_spent_total_==spent && original_finance_history_valid();
     } catch (const std::invalid_argument&) {return false;}
 }
@@ -932,6 +937,7 @@ void World::tick_original_production() {
     if (dispatch.service_countdown) {decay_original_services();decay_original_water();decay_original_music_venues();}
     if (dispatch.evolution) evaluate_original_houses();
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
+    if (irrigation_enabled()) refresh_irrigation();
     validate_original_food_state();validate_original_industry_state();
     validate_plantations_state();
     validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();validate_original_venue_house_service_state();

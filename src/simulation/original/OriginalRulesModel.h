@@ -26,6 +26,8 @@ public:
     // Separate Rule24 crop capability; historical factories never require these rows.
     [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_agriculture(
         ModelData model,Difficulty difficulty);
+    [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_irrigation(
+        ModelData model,Difficulty difficulty);
     OriginalRulesModel(const OriginalRulesModel&)=delete;
     OriginalRulesModel(OriginalRulesModel&&)=delete;
     OriginalRulesModel& operator=(const OriginalRulesModel&)=delete;
@@ -39,7 +41,8 @@ public:
     [[nodiscard]] bool supports_building(ModelBuilding building) const noexcept;
 
 private:
-    OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture=false,bool agriculture=false);
+    OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture=false,bool agriculture=false,
+        bool irrigation=false);
     const ModelProvenance provenance_;
     const Difficulty difficulty_;
     const HouseEvolutionRules house_rules_;
@@ -48,6 +51,7 @@ private:
     const std::array<BuildingRow,24> production_rows_;
     const std::optional<BuildingRow> culture_row_;
     const std::optional<std::array<BuildingRow,3>> agriculture_rows_;
+    const std::optional<std::array<BuildingRow,2>> irrigation_rows_;
 };
 
 } // namespace openemperor::original

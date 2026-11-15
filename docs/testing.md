@@ -819,3 +819,97 @@ Report exact steps, expected/actual behavior, the recorded version domains and
 terminal errors. An affected OpenEmperor JSON save can make a failure reproducible.
 Never attach original maps, SG3/.555 files, installers or decoded game images.
 Review [known issues](../KNOWN_ISSUES.md) before interpreting a new result.
+
+## AGRI-04 irrigation graphics and UI
+
+Rule26/schema42 must be selected explicitly. The regular menu offers
+**G Agriculture Irrigation (rule26)**. The historical A Agriculture choice and
+`--original-agriculture` retain Rule25/schema41. An equivalent explicit launch is:
+
+```sh
+build/openemperor --data "$PWD/.local/gog-extracted/app" \
+  --sandbox Cities/Xia.map --sandbox-rules sandbox-city-v16 \
+  --original-irrigation
+```
+
+Use the map's actual relative path if the installation uses a different filename.
+A fresh Rule26 save has its own generated target; no schema40/41 target may be
+silently overwritten or migrated. Test exact42 manual save/load and Recovery,
+as well as refusal of old/mismatched contracts.
+
+Build the irrigation targets in the configured Release, Debug and sanitizer
+trees, then run their registered checks.
+
+```sh
+cmake --build build --parallel 2 --target \
+  openemperor-original-irrigation-rules-tests \
+  openemperor-irrigation-world-tests openemperor-irrigation-save-tests \
+  openemperor-irrigation-visual-tests openemperor-irrigation-presentation-tests
+ctest --test-dir build --output-on-failure -R 'irrigation'
+```
+
+`IrrigationVisualProfileTests.cpp` uses independently authored SG3/555 pixels.
+It checks the complete36-Ditch/four-Pump static atlas, distinct wet/dry identities,
+four physical orientation bindings, native geometry and anchors, bad pins and
+paths, missing/duplicate/direction errors, budget refusal, physical deduplication
+and atomic retention of the prior image pool. Repeated prepared selection must
+perform zero file/decode/upload/World/navigation work. Its optional Original-data
+check uses the production loader and requires exactly40 unique records totaling
+762,008 logical RGBA bytes within the unchanged combined64 MiB budget:
+
+```sh
+build/openemperor-irrigation-visual-tests \
+  "$PWD/.local/gog-extracted/app" \
+  resources/compatibility/gog-derived-2.0.0.2-en-assetset-1/irrigation.json
+build/openemperor-irrigation-presentation-tests --real \
+  "$PWD/.local/gog-extracted/app"
+```
+
+`IrrigationPresentationTests.cpp` drives ordinary SDL actions against independent
+source geography and positive paid model inputs. It checks visible action/hit
+agreement at800×600,1280×800 and1920×1080; all four shared Pump rotations; actual
+paid pointer construction; cancellation and actual-release commit of a bounded
+Ditch drag; staffing-dependent supplied water; Pump inspection; wet/dry overlay;
+physical Ditch removal and disconnected drying; exact42 F5/F9; and20 repeated
+render frames with an unchanged World and zero resource/navigation counters.
+Its Original-asset option changes only the two General files used for pixels.
+Those read-only inputs are copied into a temporary fixture under ignored
+`.local/agri-04/presentation/`, then removed. Captures remain there; **open and
+inspect** the dry, wet-overlay and cut images. Source-image selection, scripted
+SDL delivery, native delivery and human acceptance are separate results.
+
+For a human playtest: choose the explicit irrigation mode, build a Pump with
+Shift-P, rotate with R, and inspect the blue intake-cell outline. A missing
+required water cell must refuse construction. Build a connected Ditch with
+Shift-D and earn real workers from paid, road-connected Houses with actual
+House/Water service routes. Pump supply uses the verified intake, assigned
+workers, operation and fire state; check that only supplied sections become
+wet after the scheduled update. Shift-V displays water status;
+select the Pump or a field for concrete blockers. Pause the Pump, cut a Ditch
+with Shift-X, restore the connection and exercise F5/F9. A restored or newly
+eligible Pump must respect its scheduled supply boundary. Irrigation must never
+unlock Rice/Cabbage/Soy or alter the existing Wheat/Millet and material-plantation
+harvest adapters. Yield bonuses remain **PARTIAL / inactive**. Repeat historical
+Rule24/25 production/save and earlier schema regressions independently.
+
+### AGRI-04 validated scope, 2026-11-15
+
+| Check | Result |
+|---|---|
+| Complete Release build and CTest |343/343 passed with configured Original inputs, zero skips |
+| Focused Debug |14 distinct tests passed, with final irrigation and version-boundary reruns |
+| ASan/UBSan |14 distinct tests passed, with final irrigation and version-boundary reruns; macOS LeakSanitizer disabled |
+| Pure irrigation helpers |822 geometry, terrain, crossing and field-range checks |
+| Historical schemas1–39 |123 complete SaveDocuments,25 DTO controls and four indexes compared byte-for-byte with protected references, totaling3,184,025 compared bytes |
+| Historical schemas40–41 |15 complete SaveDocument pairs compared with frozen main8cee0fe, totaling3,030,744 document bytes; independent creator/restore processes cover growth, actual picked cargo, pause, returns, Wheat/Millet harvest and physical Food delivery |
+| Independent core parity |74/74 cases passed; all existing non-fingerprint public fields and classifications remained literal-equal |
+| Scripted SDL and Original sprites |Synthetic and real-asset runs passed through normal G/preflight/Loading/Playing startup, paid construction, water distribution, inspectors, overlay, removal and F5/F9; final2× captures opened |
+| Original input protection |EXE, model, FarmConfig and both General asset files retained exact SHA-256, size, mode and modification time |
+| Native human acceptance |Pending |
+
+The first full run exposed five latest-version assertions that still reserved26
+as unknown. Their revised controls admit the explicit26 lineage, keep historical
+expectations and reject27. The final complete Release run passed after those
+test-boundary updates. Pump presentation uses static verified poses. Immediate
+eligibility/cut invalidation is the documented authored World adapter; numerical
+crop irrigation effects and Original flood lifecycle remain PARTIAL/inactive.

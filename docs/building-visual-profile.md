@@ -134,3 +134,66 @@ The bounded Housing audit and native comparisons are recorded in [the research l
 Picking all four footprint cells resolves the same House ID at every stage. All stages use the same front-cell `WorldDrawKey` and whole-image depth ordering; taller images receive no special layer. The existing translucent desirability overlay leaves the artwork visible. Only reachable score/level combinations are tested: Poor permits Level 0 only, Neutral at most Level 1, Good any historically earned level. No impossible Poor/Level-2 World is fabricated. Fire overlays the current effective stage, and normal fire/demand may subsequently change it. Safe demolition uses the existing shared World query without a stage branch.
 
 No visual stage is stored. Ordinary manual load and older autosave/recovery checkpoints derive the then-effective stage from their restored World. Synthetic SDL tests cover genuine supplied 0→1→2 development, 100 paid-command-driven reversals, exact snapshot stability while rendering/F4, zero additional render work, all-cell picking, overlay, burning-House safety, legacy/partial/absent-stage fallbacks, and failed replacement. Simulation, schemas, rule versions, economy and original data remain unchanged.
+
+## Explicit Agriculture irrigation supplement
+
+Rule26/schema42 independently selects the optional metadata-only
+`irrigation.json` supplement. Rule24/25 and all historical visual-role/schema
+selections remain unchanged. `--original-agriculture` and the A Agriculture
+menu entry still select Rule25; `--original-irrigation` and the regular
+G Agriculture Irrigation menu entry select Rule26. Presentation never upgrades
+a save or enables irrigation in an older World.
+
+`append_irrigation_visual_profile` uses the existing General archive registration,
+resource-group resolver, SG3/555 decoder and deduplicated `BuildingVisualProfile`
+image pool. Both complete General SHA-256 pins must match before publication.
+Unknown/duplicate metadata, unsafe or linked paths, wrong group/orientation,
+missing atlas members, non-native geometry, mismatched pixels and budget overflow
+fail atomically. The existing combined64 MiB logical RGBA budget is unchanged;
+there is no independent texture allowance for irrigation.
+
+| Role | Source selection | Physical records | Geometry |
+| --- | --- | --- | --- |
+| Ditch202 wet | group`0x435`, offsets0–17 |672–689|Type30 side1,78×40/41/46|
+| Ditch202 dry | same group, offsets18–35 |690–707|Same canonical variants in the separate dry bank|
+| Pump203 orientation0 | group`0x439` |761|Type30 side2,158×110|
+| Pump203 orientation1 | group`0x4b6` |745|Type30 side2,158×133|
+| Pump203 orientation2 | group`0x4b7` |729|Type30 side2,158×131|
+| Pump203 orientation3 | group`0x436` |777|Type30 side2,158×107|
+
+The four physical orientations put water on the low-y row, high-x column,
+high-y row and low-x column respectively. These are storage coordinates, not
+new compass labels. The fixed camera uses source view0; no mirroring or runtime
+rotation is introduced. Ditch cardinal N/E/S/W bits1/2/4/8 select source offsets
+`15,6,7,2,8,1,3,10,9,5,0,13,4,12,11,14`; legal road crossings use16/17.
+The independently interpreted selector and bank observations are documented in
+[the agriculture source contract](reverse/original-agriculture-source-contract.md).
+No original binary table or pixels are included in the supplement.
+
+The40 complete static images consume **762,008 RGBA bytes**, before renderer
+object overhead. Every image is prepared and uploaded outside drawing and hover.
+The shared native front-cell anchor policy remains **AUTHORED presentation**:
+`[39,height−20]` for Ditches and`[79,height−20]` for Pumps. Source animation
+metadata associates15 following sprites with each Pump base, but cadence and
+operating animation selection remain unproved. This supplement draws the static
+base only and makes no Original animation or whole-scene parity claim.
+
+Paid Ditch topology is prepared at World publication/command/road-revision
+boundaries; a discarded view cache grants no construction or water authority.
+The existing RoadDrag axial path builder supplies at most256 candidate cells
+and delegates each batch to World. Hover/drag previews remain pure, coalesce
+unchanged endpoints and revalidate the actual release. Valid Ditch previews use
+the dry bank; preview pixels never imply existing supplied water. Pump previews
+show the full2×2 body, eight required intake-water cells and two land cells.
+Toolbar buttons and Shift-D/Shift-P/Shift-X/Shift-V/R keys share their action
+path. Focus, UI release, Escape, right-click and layout/modal transitions cancel
+the pending gesture through the existing input boundary.
+
+Only `World::irrigation_ditch_wet` selects the wet bank. The overlay shows actual
+supplied Ditches in blue and dry Ditches in brown; field outlines query the
+bounded World irrigation status. Pump inspectors show staffing, intake,
+operation/fire blockers and current supply. Crop/plant inspectors explicitly
+identify inactive yield bonuses. Missing verified art retains a named authored
+marker without fabricating supply. Source-image wetness does not become World,
+Food, harvest, yield, staffing, occupancy or save authority. Native/human visual
+acceptance remains separate from the scripted/direct-render tests.

@@ -42,6 +42,27 @@ std::uint8_t OriginalTerrainFacts::fertility(Cell cell) const {
     return fertility_[std::size_t(cell.y)*width+std::size_t(cell.x)];
 }
 
+OriginalTerrainFacts::OriginalTerrainFacts(std::span<const std::uint32_t> terrain,
+    std::span<const std::uint8_t> fertility,std::string sha,
+    std::span<const std::uint8_t> boundary)
+    : OriginalTerrainFacts(terrain,fertility,std::move(sha)) {
+    if (boundary.size()!=cell_count || std::any_of(boundary.begin(),boundary.end(),[](auto value){return value>1;}))
+        throw std::invalid_argument("Irrigation requires a complete checked source Diamond boundary mask");
+    irrigation_terrain_.assign(terrain.begin(),terrain.end());
+    irrigation_boundary_.assign(boundary.begin(),boundary.end());
+}
+
+std::uint32_t OriginalTerrainFacts::raw_terrain(Cell cell) const {
+    if (!irrigation_complete() || cell.x<0 || cell.y<0 || cell.x>=width || cell.y>=height)
+        throw std::invalid_argument("Irrigation raw terrain has no complete bound source cell");
+    return irrigation_terrain_[std::size_t(cell.y)*width+std::size_t(cell.x)];
+}
+
+bool OriginalTerrainFacts::irrigation_boundary_allowed(Cell cell) const noexcept {
+    return irrigation_complete() && cell.x>=0 && cell.y>=0 && cell.x<width && cell.y<height &&
+        irrigation_boundary_[std::size_t(cell.y)*width+std::size_t(cell.x)]!=0;
+}
+
 bool OriginalTerrainFacts::supports_cardinal_footprint(Cell origin,int side) const noexcept {
     return (side==2 || side==4) && origin.x>=1 && origin.y>=1 &&
         origin.x<width-side && origin.y<height-side;

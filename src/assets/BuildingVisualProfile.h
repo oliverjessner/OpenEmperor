@@ -152,6 +152,10 @@ struct BuildingVisualProfile {
     // Independent Rule25 supplement; historical Original role/schema tables stay exact.
     bool plantation_prepared=false;
     std::array<std::array<std::optional<BuildingVisualEntry>,6>,3> plantation_entries{};
+    // Rule26 optional supplement. World owns water; these are prepared static pixels.
+    bool irrigation_prepared=false;
+    std::array<std::optional<BuildingVisualEntry>,36> irrigation_ditch_entries{};
+    std::array<std::optional<BuildingVisualEntry>,4> irrigation_pump_entries{};
     // Schema6's inactive, unworked representative only. This mask index is
     // derived during asset preparation; no source table or work clock is saved.
     bool original_rice_prepared=false;

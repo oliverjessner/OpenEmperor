@@ -5,6 +5,7 @@
 namespace openemperor::simulation {
 
 bool fire_eligible(Object kind) {
+    if (kind==Object::OriginalIrrigationPump) return true;
     if (original_elite_house_kind(kind)) return true;
     return original_industry_source(kind) || kind==Object::OriginalMusicSchool211 || kind==Object::OriginalAcrobatSchool212 ||
         kind==Object::OriginalDramaSchool213 || kind==Object::OriginalDaoistShrine215 ||

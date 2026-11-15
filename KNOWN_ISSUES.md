@@ -22,10 +22,19 @@ complete original-game compatibility.
   identities, ordinary zero initialization, relative clock observations and
   work/wait/base-yield arithmetic. Complete post-purchase/restore effects,
   worker tours, runtime yield inputs and
-  raw-to-Food units still prevent production activation. No Agriculture
-  successor is selectable yet. Irrigation202/203 and hunting/fishing also remain closed.
+  raw-to-Food units still prevent production activation. Rule26/schema42 adds
+  separately selected irrigation infrastructure. Hunting/fishing remain closed.
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
+- **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid
+  Ditch202/Pump203 construction, four orientations, source-bound shoreline
+  admission, staffed water distribution, wet/dry graphics, field water queries,
+  UI and persistence. Numeric crop modifiers, Original fertility/yield unit
+  conversion and flood-event lifecycle remain inactive. The inherited authored
+  Wheat/Millet and plantation harvest adapters keep their own quantities.
+  Pump poses are static because their operating animation cadence is unproved.
+  Existing immutable Original ditches and unsupported source objects cannot
+  become paid player networks. See the [irrigation matrix](docs/original-economy/agriculture.md#irrigation-infrastructure-and-completion-matrix-agri-04).
 - **Material plantations retain authored work rules.** Explicit Agriculture
   Rule25/schema41 adds paid Tea26/237, Lacquer27/238 and Mulberry28/239 plant
   readiness, actual Grower pickup/return and regrowth into the existing typed

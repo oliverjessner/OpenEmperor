@@ -534,49 +534,167 @@ movement, work, yield, unit and interruption rules explicitly before activation.
 
 ### Ditch202
 
-The purchase dispatcher has an exact202 branch at `0x4b1739`; it invokes
-`0x5248c0` and charges according to the actual accepted-cell counter. The reached
-cell operation `0x524ce0` toggles source terrain bit`0x800`, updates retained
-cell state and refreshes nearby source topology. This is a chained terrain
-operation. The generic registration's initial side1 does not establish a
-standalone industrial building, actor or saved body for every ditch cell.
+**SOURCE_VERIFIED:** BuildingModels row202 names Irrigation Ditch, gives base
+cost4 per accepted cell and employee count0. The model file's column legend
+independently identifies those operands. Difficulty arithmetic remains the
+existing model contract.
 
-Geometry, permission, road crossing, height, removal and complete transaction
-rollback predicates remain required. Neither a raw map irrigation flag nor
-visible ditch artwork authorizes paid construction or an irrigation effect.
+**EXE_OBSERVED:** the exact202 purchase branch at `0x4b1739` first reaches the
+shared construction veto through `0x59c770→0x59c8a0`, then invokes `0x5248c0`
+at `0x4b1773`. The success path multiplies the actual accepted-cell counter
+`0x101c514` by the prepared unit cost at `0x4b1792–0x4b179f`. Cell mutation
+`0x524ce0` checks source coordinates through `0x408cb0`, rejects terrain40000,
+increments that counter only when bit800 was previously absent, then sets or
+clears bit800. Its bounded3×3 refresh reaches `0x524e90`. Ditches therefore have
+chained terrain-operation identity. The registered side1 remains separate
+from the actual per-cell mutation and payment path.
+
+The two gesture endpoints reject mask`0x87375227` and terrain4000. The endpoint
+at `0x524963` additionally rejects400. The reached cell predicate `0x525750`
+first accepts an existing800 flag. Otherwise it rejects mask`0x87375227`,
+requires an exact203 Pump or126 RoadBlock for an occupied terrain8 cell,
+applies the road-crossing predicate when required, rejects manager-word mask
+`0x01eb` at `0x13789c0`, and finally rejects terrain mask`0x90060201`.
+Predicate `0x408ce0`, used in that occupied-cell branch, independently compares
+the actual model to203. The manager word and runtime owner grid are distinct
+from serialized raw map terrain and object lanes.
+
+The route builder `0x5b1f40` uses that predicate and rejects the shared boundary
+test `0x416c20(x,y,3)`. This wrapper translates local coordinates into the fixed
+228-stride source grid and calls `0x4b0800`. The latter first checks Diamond
+membership through `0x4b0770` and then tests its three-cell edge strip. Setup
+`0x4b05f0` derives the extrema and midpoints from the actual declared dimensions.
+Across every stored cell for supported sizes84/112/140/170/226, this accepted
+interior equals shared `MapGeometry::contains(cell)` together with its four
+axial probes at offsets`(−3,0),(3,0),(0,−3),(0,3)`. The private comparison covers
+259,920 cells. The prepared-distance path driver `0x5b2470` selects mode4,
+performs real cell mutations and has a400-attempt bound at `0x5b26c8`.
+
+Road crossing predicate `0x524ab0` accepts the axial straight/end road variants
+0/1/2/3/8/9/10/11 and rejects corner variants4–7 or an offset above11. In physical
+view0, even accepted variants have a north/south road axis and exclude parallel
+north/south ditch neighbors. Odd accepted variants have an east/west road axis
+and exclude parallel east/west ditch neighbors. View directions2/6 exchange the
+display axes. The RoadBlock126 branch independently requires at least one road
+neighbor from a single axial family. Reciprocal road-over-ditch validation at
+`0x524c20` first normalizes the eighteen-record wet/dry bank, then rejects
+unsupported ditch topology and parallel road neighbors. Complete source
+permissions, occupancy and shared edge legality remain separate inputs.
 
 ### Pump203
 
-Predicate `0x408ce0` accepts exactly203. The Industrial factory uses that
+**SOURCE_VERIFIED:** BuildingModels row203 names Irrigation Pump, gives base
+cost10 and employee count10.
+
+**EXE_OBSERVED:** predicate `0x408ce0` accepts exactly203. The Industrial factory uses that
 predicate at `0x51c872` and calls constructor`0x51e5e0` at`0x51c89e`.
 The constructor installs `0x7b6844`, independently bound through its RTTI complete
 object locator to `cIrrigationPump`. Its inherited`+0x94→0x428aa0` obtains initial
-side2; concrete initializer`+0x90→0x5243b0` registers the source with the actual
+side2. Concrete initializer`+0x90→0x5243b0` registers the source with the actual
 pump collection through`0x525840`. Placement`+0x100→0x5245a0` uses the
 orientation-selected publisher`0x4b84b0` and stores orientation in own-info`+0x60`.
-Initial side2 is not proof that the complete shoreline/body/intake shape is a
-simple unconstrained2×2 square. Callback`+0x178→0x524620` is inspector UI and
-does not prove a gameplay update.
+Actual purchase and preview reach shared shoreline predicate`0x4b8200`, also
+reached from actual placement at`0x5245c6`. Its body is the complete2×2 rectangle
+`(0,0),(1,0),(0,1),(1,1)`. Two body cells require water context and two require
+land context. Six additional cells supply the surrounding intake-water strip.
+Relative coordinates below use the retained physical orientation and body origin.
 
-Source scheduler phase27 selects `0x4ac40a→0x5253a0`. That pass first marks
-eligible ditch imagery with the separate eighteen-record dry-bank offset,
-then iterates registered Pumps with positive actual worker word`+0x44`. For each
-pump it uses stored orientation and four source-derived seed cells. The reached
-cardinal traversal`0x525470` requires ditch bit`0x800`, rejects source bit`0x80000`
-and water bit4, respects bounded object exceptions, records visited cells and
-changes connected qualifying ditch imagery back to its wet bank. Its complete
-intake-water, fire/operation, height and shoreline-lifetime predicates have not
-been closed by this bounded pass.
+| Physical orientation | Eight water-context cells | Two body land cells | Four exterior ditch seeds |
+| --- | --- | --- | --- |
+|0|`x=−1..2, y=−1..0`|`(0,1),(1,1)`|`(0,2),(1,2),(−1,1),(2,1)`|
+|1|`x=1..2, y=−1..2`|`(0,0),(0,1)`|`(−1,0),(−1,1),(0,−1),(0,2)`|
+|2|`x=−1..2, y=1..2`|`(0,0),(1,0)`|`(0,−1),(1,−1),(2,0),(−1,0)`|
+|3|`x=−1..0, y=−1..2`|`(1,0),(1,1)`|`(2,0),(2,1),(1,−1),(1,2)`|
 
-### Field irrigation query
+The shoreline body pattern uses table`0x84bdf8`. The six exterior context
+operands come from tables`0x84be38/0x84be58/0x84be78`. The four seed tables are
+`0x820ce0/0x820cf0/0x820d00/0x820d10`. Ordinary unoccupied water cells use bit4.
+The land branch rejects road40, mask`0x87375a67` and occupied terrain8. Shared
+predicate`0x416bb0` separately reads a runtime cell-object pointer and its byte18.
+Some shared shoreline branches admit that runtime context or terrain10000 under
+their explicit mode. Their remaining class/state meaning stays **UNKNOWN**.
 
-`0x4c15b0` examines square perimeters at distance1 through5 around the actual
-field, at most120 candidate cells. It requires ditch bit`0x800`, rejects
-bit`0x80000` and calls `0x525610`. That helper additionally checks global state
-through `0x425260→0x425250`, retained object identity and the source wet/dry image
-bank. The meaning and full lifetime of that additional global condition remain
-unknown. Harvest and estimate callers use this result as one input; proximity
-alone is insufficient.
+Source preflight explicitly bounds the2×2 body. Exterior reads use the original
+padded228-stride addressing. OpenEmperor checks every body, water-context and
+seed coordinate against its own complete source context before lookup. The
+normal Pump203 mode tests the six exterior cells for water bit4 at
+`0x4b83ab/0x4b83e2/0x4b841a`. These branches consult water context without applying
+the body's ownership veto. The exclusive occupied footprint remains the four
+body cells. The current World subset requires immutable exact policy3 normal
+water for all eight water-context cells and applies existing land/owner
+permissions to the complete body. It allows an independently valid paid bridge
+on the six exterior water-context cells. It retains complete manager and source
+identity checks. The shared runtime-object branch provides no general map-source
+exemption.
+
+Inherited operation getter`0x4289f0` reads body byte90. Eligibility
+`0x4271d0` reaches that operation virtual and the status predicate`0x426d10`,
+which accepts status1/3. Workforce allocator`0x51e310` clears assigned worker
+word44 when its actual eligibility fails. The irrigation pass itself requires
+assigned workers strictly greater than zero. It contains no full-staff ratio
+test or road-entrance query. Retained field`+0x3c` and exact fire/status update
+latency remain **UNKNOWN**. Existing World workforce, pause and fire integration
+supplies the explicitly **AUTHORED** lifecycle adapter.
+
+No explicit signed-height-plane read occurs in the checked shoreline predicate,
+ditch admission, cardinal water traversal or field-range query. Their terrain
+masks and source permissions still apply. A separate flat-height or hydraulic
+height-difference condition has no evidence in these checked branches.
+
+### Scheduler and connected wet state
+
+**EXE_OBSERVED:** dispatcher`0x4ac2b0` loads raw phase`0xc82ef8` at`0x4ac2e4`,
+decrements its temporary table index at`0x4ac2e9`, then dispatches through
+`0x4ac4e8`. Table slot26 selects`0x4ac40a→0x5253a0`, so the actual raw phase
+is27. Table slot27 selects`0x4ac414`, the following raw phase28. After the callback,
+`0x4ac4cd` increments the raw phase, compares51 and resets it to0 before the
+completed-cycle callback. With the existing World scheduler's dispatch-before-
+increment position0–50, the irrigation opportunity is completed tick28 and then
+every51 ticks. Wall-clock speed remains governed by the existing authored mapping.
+
+Pass`0x5253a0` first invokes dry reset`0x525540`, then visits the actual registered
+Pump collection. It gates each Pump on signed worker word44 greater than zero,
+reads physical orientation from own-info60, clears visited state and traverses
+the four exterior seeds above. This pass supplies its network through eligible
+Pumps. Direct river adjacency has no seed branch in the checked pass.
+
+Cardinal traversal`0x525470` requires actual ditch800, rejects source80000 and
+water4, and permits an occupying object only when its actual type is126
+RoadBlock. A Pump203 body stops this traversal. Qualifying unoccupied ditch
+images move from the dry bank to the wet bank by subtracting18. A RoadBlock
+conducts traversal while retaining its own image. The visited marker bounds
+revisits across north/east/south/west edges. Dry reset also retains the original
+runtime flag80 and occupied-cell image exceptions. Those raw rendering/runtime
+flags remain source observations.
+
+Group`0x435` contains eighteen wet variants followed by eighteen dry variants.
+Topology publisher`0x524e90` preserves the selected bank, and`0x524f50` derives
+road-crossing variants16/17. Physical view0 uses variant16 for a legal north/south
+road axis and17 for east/west. These source sprite selectors describe presentation.
+World derives presentation from its retained installations and supplied-water cache.
+
+### Flood veto and field query
+
+**EXE_OBSERVED:** `0x4c15b0` examines square perimeters at Chebyshev distance1
+through5 around the actual field. The perimeter counts8/16/24/32/40 give at
+most120 candidates and exclude the field cell itself. Each candidate needs
+ditch800, lacks source80000, and passes wet query`0x525610`.
+
+That query's additional global condition is now bound to **cFlood**.
+Accessor`0x425260` returns the global at`0x10af4e0`, and`0x425250` reads its
+active byte8. Constructor`0x4ed240` installs vtable`0x7b2bb8`. Its complete-object
+locator`0x7d22d8` binds type descriptor`0x84fb78`, whose RTTI name is
+`.?AVcFlood@@`. Constructor reset`0x4ed290` clears byte8 at`0x4ed2a6`, activation
+sets it at`0x4ed36b`, and termination clears it at`0x4ed419`. An active flag
+suppresses wet-query success. Broader Flood event admission, timing, geography
+and saved-state lifetime remain **UNKNOWN**.
+
+For an ordinary unoccupied ditch, wet query uses its retained image's offset
+below18. For actual RoadBlock126, it checks the four cardinal neighboring
+images. Other occupying types refuse. The original query also initializes a
+zero image lazily and uses signed offset comparisons. These image dependencies
+stay within Original source observation and inspection. Rule26 uses actual
+World-supplied ditch state for the field query.
 
 The checked harvest callback queries irrigation after deriving the base yield.
 At`0x4c1ea3`, a false query continues directly to the existing calculation at
@@ -584,16 +702,47 @@ At`0x4c1ea3`, a false query continues directly to the existing calculation at
 float0.35 at`0x7ae7c4` for Food195–199 or0.2 at`0x7ae7c8` for plants26/27/28.
 The source therefore has a base harvest path when the irrigation query is false.
 Rice's separate serialized fertility100 construction predicate remains exact.
-A future integration must distinguish that construction operand from runtime
-fertility and admit only proved source-bound irrigation effects. A universal
-Rice pump or water-nearness restriction has no support in these observed branches.
+The construction operand and runtime fertility occupy separate domains. The
+observed harvest branches provide no universal Rice Pump prerequisite. Final
+crop work, yield conversion and Original harvest-clock activation retain their
+existing evidence gates.
 
-These source image-bank dependencies must not be copied into rendering as a new
-World authority. A future integrated Agriculture contract needs explicit
-World-owned, source-bound irrigation topology and supplied-water state, with
-cached render material derived from it. Its reconstruction must cover pump
-staff/operation changes, cuts, crossings, removal and restore before the effect
-is admitted. Existing map readers and texture selection cannot grant irrigation.
+### Integrated Rule26 boundary
+
+**AUTHORED:** Rule26/policy3/schema42 uses marker
+`authored-agriculture-irrigation-v1` and irrigation revision1. Its immutable
+source dependency extends the existing `OriginalTerrainFacts` with full raw
+terrain and the independently checked Diamond-margin mask. It retains the
+same shared map reader and complete map SHA-256. Existing model factories keep
+their historical capabilities. The separate irrigation factory prepares202/203.
+
+World owns paid ditch cell identities, placement ticks/sequences, Pump bodies
+and orientations, eligibility epochs and construction/removal accounting.
+Mutable wet/supplier caches are derived from the most recent phase27 opportunity,
+eligible Pumps, retained installation times and legal cardinal connectivity.
+Current pause, staffing, fire and cuts invalidate supply through the World
+adapter. Original raw ditch flags and image banks remain source inputs.
+The bounded256-cell gesture is the existing OpenEmperor interaction budget.
+Atomic command validation and per-cell paid identities define its transaction.
+
+Schema42 stores both inherited Agriculture and Plantation ledgers together with
+the explicit irrigation installation state. It regenerates wet/supplier caches
+after exact source-bound restore. Its own writer requires a schema42 target,
+and explicit historical restore paths keep their exact generation checks.
+Historical Rules1–25 and schemas1–41 retain their original contracts.
+
+Numeric irrigation yield effects remain **PARTIAL / INACTIVE** in this generation.
+Rule26 retains the approved authored Wheat/Millet Food adapter and material
+plantation cycles. The observed0.35/0.2 runtime-fertility operands require the
+remaining final-yield and work-clock contracts before activation. Rice/Cabbage/
+Soy production retains its existing locked state.
+
+The pinned inputs at the start of this contract cover these observations.
+Ignored private Ditch receipts contain111 byte-backed assertions across34 bounded
+windows, including dispatcher indexing and Flood RTTI, and the separate Pump
+receipts cover shoreline/factory/workforce evidence. Original execution remains
+unperformed. Full original rollback/removal history, shared runtime-object
+shoreline variants, Flood lifecycle and Pump animation cadence remain open.
 
 ## FarmConfig is not an activation contract
 
