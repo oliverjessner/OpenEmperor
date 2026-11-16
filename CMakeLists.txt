@@ -1217,6 +1217,12 @@ if(BUILD_TESTING)
     add_test(NAME original-autonomous-food-grower-world COMMAND openemperor-autonomous-food-grower-world-tests)
     set_tests_properties(original-autonomous-food-grower-world PROPERTIES TIMEOUT 300)
 
+    add_executable(openemperor-autonomous-food-grower-field-cycle-tests tests/AutonomousFoodGrowerFieldCycleTests.cpp)
+    target_link_libraries(openemperor-autonomous-food-grower-field-cycle-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-autonomous-food-grower-field-cycle-tests)
+    add_test(NAME original-autonomous-food-grower-field-cycle COMMAND openemperor-autonomous-food-grower-field-cycle-tests)
+    set_tests_properties(original-autonomous-food-grower-field-cycle PROPERTIES TIMEOUT 300)
+
     add_executable(openemperor-plantations-world-tests tests/PlantationsWorldTests.cpp)
     target_link_libraries(openemperor-plantations-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
     openemperor_enable_warnings(openemperor-plantations-world-tests)

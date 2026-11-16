@@ -86,6 +86,16 @@ complete original-game compatibility.
   context. Session work never becomes historical field state, harvest or Food;
   no normal menu/CLI game activates it. See the
   [autonomous tending matrix](docs/original-economy/agriculture.md#autonomous-tending-acceptance-agri-02e3).
+  AGRI-02E4 adds a separately selected transient single-field cycle: actual
+  tending, phase20 growth, end-slot mark, autonomous harvest selection and
+  movement through wait25. It remains **PARTIAL**: the actual harvest callback
+  is blocked before mutation because the incoming normal FP context and other
+  live yield owners remain unbound. Empty cancellation at the field is not a
+  harvested return; no cargo or Farm credit is created. Unharvested quantity
+  expires through the shared calendar. The ordinary map's post-load runtime
+  fertility recompute and a dry-irrigation source branch are now qualified;
+  neither supplies a complete live yield context. See the
+  [first-harvest matrix](docs/original-economy/agriculture.md#first-physical-harvest-boundary-agri-02e4).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

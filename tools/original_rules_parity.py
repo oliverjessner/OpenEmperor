@@ -76,11 +76,15 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # AGRI-02E3 adds an explicit transient autonomous tending controller. The
 # reviewed ABI includes its sealed source operand and actor/work DTOs; ordinary
 # historical probe calls enable neither session. This is not harvest parity.
+# AGRI-02E4 appends a distinct transient single-field policy and field/callback
+# observations to that DTO. Default-disabled historical World/JSON behavior and
+# the probe's actual calls remain exact. These reviewed fresh-library ABI pins
+# do not establish a positive raw harvest or active-worker persistence.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "99aa080c263057de481f1077b856d606ed56f8c8",
+    "World.h": "b0881b0f2f9610658e673d91e07bc7f8bd752e93",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
-    "GrowerLifecycleState.h": "7dc3cd6ef65cf6715641742a6b65ea20fe5dc048",
+    "GrowerLifecycleState.h": "09963bc0768e503bd5145e653965030d9f36d634",
     "GrowerSourceFacts.h": "1aa4b971397f7c97187ea1b388d9b7287ea7aac1",
     "AgricultureCalendar.h": "17455dad4bca5382ae8b2cb389bc2bf1099d642d",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
