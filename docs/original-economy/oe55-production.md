@@ -45,6 +45,14 @@ WORD semantics remain distinct from accepted Farm stock. The full physical
 raw Farm cycle is still PARTIAL; live parameter, interruption, movement and
 resource-identity gates are enumerated in the
 [current matrix](agriculture.md#original-food-grower-reconstruction-agri-02d).
+AGRI-02E qualifies the actual mode17 distance/route/20-phase graph,
+linked State5 and carrier-owned suspension13c, actual field unregister and
+numeric slot reuse, and further live yield load/update owners. None provides
+complete World routing/context/temporal resource admission. The new paid
+five-field World/save test is explicitly a negative historical admission
+control, not a positive Grower cycle. Rule27/schema43 remain unused; no raw
+Farm origin, new active Grower save or second Food authority is added. See the
+[physical integration matrix](agriculture.md#physical-food-grower-integration-and-completion-matrix-agri-02e).
 
 ## AGRI-02C component boundary
 

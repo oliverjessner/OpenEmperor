@@ -513,6 +513,70 @@ SHA-256, size, mode and modification time. Fresh Debug industry/walker captures
 were opened. Those are historical scripted SDL controls, not positive Original
 Food Grower World or native human acceptance.
 
+## Physical Food Grower integration audit (AGRI-02E)
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DOPENEMPEROR_USE_SYSTEM_SDL3=ON
+cmake --build build --parallel 4 --target openemperor-original-grower-admission-tests
+ctest --test-dir build --output-on-failure -R '^original-grower-admission$'
+```
+
+`original-grower-admission` is a **negative World/save control**. Independently
+authored map/model fixtures pay for three Farmhouses and all five distinct Food
+fields in each of Rules24/25/26. Real World ticks, canonical read/full restore
+and deterministic continuation run without supplying synthetic movement8.
+The test refuses nonzero Original quantity/work/cycle state for each crop via
+full restore and atomic writer, unknown raw Grower/cargo/bin/counter/assignment/
+history JSON, and the still unused Rule27/schema43 pair. Rejection preserves
+World identities/funds, source bytes, canonical save and hostile overwrite target.
+The historical two-kind Food state stays empty beside the sole Agriculture
+ledger. There is no settlement in this control: it proves neither staffing nor
+physical Original work, harvest, fire/path interruption or Farm-bin credit.
+
+Current World, app, persistence, source rules, assets and tools retain their
+exact baseline bytes; only the new test and its CMake registration are executable
+changes. Run the complete registered Release, Debug and ASan/UBSan suites,
+including historical Save/Recovery and the existing paid Food/material/water
+controls. Keep Debug assertions active under sanitizers, with macOS leak
+detection disabled and immediate UBSan failure. Reuse the existing build caches
+and guarded output roots; serialize suite runs because some SDL controls share
+fixed capture destinations. Do not infer an active Grower save from historical
+F5/F9 or supplied-result component replay.
+
+The private source checks are separate:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02e/spawn/verify_spawn.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02e/routing/verify.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02e/identity/verify_identity.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02e/yield/verify_live.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02e/yield/verify_date.py
+```
+
+Their five receipts qualify733 assertions over87 bounded byte-checked windows
+including overlaps. These are static source observations, not execution of the
+Original binary or a positive World Grower test. The Original EXE, models/config
+and explicitly supplied earned regression saves must retain hashes, sizes,
+modes and modification times. Original files and private disassembly/reports
+stay outside Git.
+
+The [completion matrix](original-economy/agriculture.md#physical-food-grower-integration-and-completion-matrix-agri-02e)
+lists every still-unimplemented positive World acceptance case. No Original
+Actor26 World spawn, physical tending/harvest/return, accepted raw-bin credit,
+active/loaded-Grower F5/F9/Recovery or native human acceptance is claimed.
+Mill/FoodShop conversion is separate from these raw-chain gaps.
+
+Validation completed on2026-11-16:358/358 Release,358/358 Debug and358/358
+ASan/UBSan CTests, with identical registered names and zero skips. The new
+five-field/three-generation admission control passes in all configurations.
+The fresh independent core comparison passes74/74; its entire public report,
+including source fingerprints, remains unchanged. All455 tracked production
+source/resource/tool files are byte-identical to baseline `9880bfe`. Seven
+guarded Original/earned inputs retain SHA-256, size, mode and modification time.
+Fresh historical Debug field and walker captures were opened. These are
+historical scripted/render controls, not Original Food Grower World or human
+acceptance. AGRI-02E remains PARTIAL under the completion matrix above.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh
