@@ -118,21 +118,77 @@ void independent_year_ordering_and_quantity_boundaries() {
     }
 }
 
+void growth_driver_order_and_balance() {
+    for(const auto season:seasons)
+        for(const auto quantity:std::array<std::uint16_t,7>{0,1,9843,9921,9999,10000,4321})
+            for(unsigned countdown=0;countdown<=255;++countdown)
+                for(const bool terrain:{false,true})
+                    for(const bool veto:{false,true}) {
+                        const auto actual=original::advance_crop_field_growth(season.field,0,0x8040,
+                            quantity,static_cast<std::uint8_t>(countdown),terrain,veto);
+                        if(terrain) {
+                            check(actual==original::CropFieldGrowthStep{quantity,static_cast<std::uint8_t>(countdown),0,0,false,false},
+                                "Terrain skip must precede countdown, veto and publication");
+                        } else if(countdown) {
+                            check(actual==original::CropFieldGrowthStep{quantity,static_cast<std::uint8_t>(countdown-1),0,0,true,false},
+                                "Countdown must return before growth, veto and publication");
+                        } else {
+                            const auto expected=static_cast<std::uint16_t>(quantity>9843 ? 10000:quantity+157);
+                            check(actual==original::CropFieldGrowthStep{
+                                    static_cast<std::uint16_t>(veto ? 0:expected),0,
+                                    static_cast<std::uint16_t>(expected-quantity),
+                                    static_cast<std::uint16_t>(veto ? expected:0),true,true},
+                                "Quantity cap must precede actual type veto and publication");
+                        }
+                        check(static_cast<unsigned>(quantity)+actual.added_quantity==
+                                static_cast<unsigned>(actual.quantity)+actual.veto_removed_quantity,
+                            "Field growth/veto lost its own quantity balance");
+                    }
+    for(const auto season:seasons)
+        for(std::uint8_t slot=0;slot<12;++slot)
+            for(const auto word:std::array<std::uint16_t,7>{0,1,32,33,0x4000,0x8000,0xffff}) {
+                const auto low=word&255U;
+                const auto increment=slot==season.end || !low ? 0U:low>32 ? 157U:79U;
+                const auto event=original::advance_crop_field_growth(season.field,slot,word,1000,0,false,false);
+                check(event.quantity==1000+increment && event.added_quantity==increment &&
+                    event.publish_visual && event.driver_accepted && !event.veto_removed_quantity,
+                    "Literal source work bands/end slot changed the complete growth event");
+            }
+    // Field phase20 precedes the actor pass. Tending in that later pass cannot
+    // retroactively grow a field already visited; only its next event can grow.
+    const auto before=original::advance_crop_field_growth(ModelBuilding::RiceField,5,0,0,0,false,false);
+    const auto tended=original::complete_crop_tending(0);
+    check(before.quantity==0 && tended==0x40 &&
+        original::advance_crop_field_growth(ModelBuilding::RiceField,5,tended,before.quantity,0,false,false).quantity==157,
+        "Actor tending completion must remain separate from its preceding field visit");
+    const auto mark=original::schedule_crop_harvest_mark(ModelBuilding::RiceField,9,0,true,0);
+    const auto marked=original::advance_crop_field_growth(ModelBuilding::RiceField,9,mark,1000,0,false,false);
+    check(marked.quantity==1000 && !marked.added_quantity && mark==0x8000,
+        "A scheduled harvest mark must not generate or harvest quantity");
+    check(original::expire_crop_completed_slot(ModelBuilding::RiceField,9,true,{marked.quantity,mark,true})==
+        original::CropFieldExpiration{{0,0,false},1000,true,true},
+        "Completed old end-slot expiration must retain its actual unharvested amount");
+}
+
 void invalid_inputs() {
     for(const auto season:seasons) {
         for(const auto slot:std::array<std::uint8_t,2>{12,255}) {
             rejected([&]{(void)original::schedule_crop_harvest_mark(season.field,slot,0,false,0);});
             rejected([&]{(void)original::expire_crop_completed_slot(season.field,slot,false,{});});
+            rejected([&]{(void)original::advance_crop_field_growth(season.field,slot,0,0,1,true,true);});
         }
         for(const auto subslot:std::array<std::uint8_t,2>{16,255})
             rejected([&]{(void)original::schedule_crop_harvest_mark(season.field,0,subslot,false,0);});
         for(const auto quantity:std::array<std::uint16_t,3>{10001,32767,65535})
             rejected([&]{(void)original::expire_crop_completed_slot(season.field,0,false,{quantity,0,false});});
+        for(const auto quantity:std::array<std::uint16_t,3>{10001,32767,65535})
+            rejected([&]{(void)original::advance_crop_field_growth(season.field,0,0,quantity,1,true,true);});
     }
     for(const auto field:{ModelBuilding::Farmhouse,ModelBuilding::HempField,
             ModelBuilding::TeaBush,static_cast<ModelBuilding>(0),static_cast<ModelBuilding>(65535)}) {
         rejected([&]{(void)original::schedule_crop_harvest_mark(field,0,0,false,0);});
         rejected([&]{(void)original::expire_crop_completed_slot(field,0,false,{});});
+        rejected([&]{(void)original::advance_crop_field_growth(field,0,0,0,1,true,true);});
     }
 }
 
@@ -142,6 +198,7 @@ int main() {
     try {
         all_slots_and_subslots();all_work_words_and_completed_slots();
         independent_year_ordering_and_quantity_boundaries();invalid_inputs();
+        growth_driver_order_and_balance();
         std::cout<<"Original crop lifecycle PASS: "<<checks<<" independent checks\n";
         return 0;
     } catch(const std::exception& error) {

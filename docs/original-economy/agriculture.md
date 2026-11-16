@@ -687,6 +687,111 @@ domains and unresolved inputs. Private disassembly and source captures stay
 under ignored `.local/`. See [validation](../testing.md#further-original-agriculture-reconstruction)
 for executed checks and their limits.
 
+## Original Food Grower reconstruction (AGRI-02D)
+
+**PARTIAL.** AGRI-02D implements independently qualified source-event operations
+for Wheat195, Millet196, Rice197, Cabbage198 and Soybean199. The complete paid
+World chain from Farmhouse through physical Grower work/return to raw Farm stock
+is not activated. Current Rule26/schema42 and all historical generations retain
+their behavior. Rule27/schema43 were rechecked as unused and remain unused;
+there is no additional saved mutable authority or automatic migration.
+
+| Boundary | Implemented verified operation | World activation requirement |
+|---|---|---|
+| Initial candidate selection | Food-specific gates, zero-quantity mark clearing, distance/work/fertility scores and exact fresh cached-insertion queue ties | Actual prepared distances, source scan/range admission and complete allocation/distribution context |
+| Successful spawn | Only a supplied actual factory success increments its retained counter and initializes role/state/stagger | Real bounded entity/channel allocation, field commitments and identity lifetime |
+| Ordinary worker | Begin→body→epilogue ordering, states6–13,51/25 waits, actual target results and distinct movement8/9/10 outcomes | Shared Navigator/result binding, all suspension/operation/fire/staffing histories and exceptional states |
+| Field events | Full tending effects, terrain/countdown/growth/veto/publication order, existing marking/decay/expiration and complete marked-harvest mutations | Actual eligible caller, source calendar/actor ordering and retained references |
+| Raw yield | Exact portable resolved-context PC24/53/64 and all RC modes, both fertility stores, both truncations and crop-qualified modifiers | Admitted live control word/normal FP state and all runtime fertility/region/event/date/global owners |
+| Return and cleanup | Outcome8 requests source receipt;10 retires without it. Exact counter debits, every active matching field assignment clear and represented actor reset | Complete source receiver/conservation, missing-target/source histories, generic route/link cleanup and restored identities |
+| Persistence | Historical Rule26 and older save/Recovery contracts retained; deterministic resolved-event replay tests | A new explicit World generation before active Grower/claim/cargo/raw-bin saves exist |
+
+`CropSelectionRules`, `CropGrowerRules` and `CropHarvestRules` extend the existing
+Original crop-rules library. They reuse `CropRules`, `CropLifecycleRules` and
+`CropTransportRules`; they create no second scheduler, route finder, actor
+registry or inventory. Their inputs are explicit source observations, not
+model-label or rendering-based admission. State4's independently proved WORD
+wait arithmetic is separate. State5's shared helper and exceptional14–16 have
+qualified branch descriptions but remain outside the supported body API.
+
+The Farm's retained harvest/tending counters are demonstrably not exact live
+worker counts: a failed selection decrements its counter, and retirement later
+decrements it again. Source inactivity marks the actor retiring **before** its
+body, which can still request field work or a source receipt; an invented early
+rollback would change this behavior. Complete source/pause/fire/road-cut meanings
+cannot be inherited from the existing authored plantation adapter by analogy.
+
+### Resource balance and event order
+
+Field quantity is distinct from numeric raw yield. Numeric yield is narrowed
+to a WORD for history and added modulo65536 to the actual actor WORD7c. That
+same word travels with the Grower. There is no proved separate pending-stock
+to physical-cargo copy and no license to count it twice. Numerical WORD narrowing,
+actor-word carry, signed-positive return selection, bin-accepted amount and
+overflow remain explicit separate observations. Reset alone proves neither
+successful receipt nor cargo loss, because a successful source receipt also
+leaves the native actor word retained until reset.
+
+The same-crop resolved-event test composes two tending targets, growth/decay,
+end-slot marks, two harvests on one actor, retry/return outcomes, typed bin
+acceptance and reset for each of the five fields. With its explicitly supplied
+fertility100/unit-region/PC53 context,64 growth events produce field7552 and
+each marked callback yields75 raw units; the one actor carries150 and the bin
+accepts150. Those are synthetic resolved operands, not admitted native city
+parameters or World timing. Full-bin and failed-return branches expose
+unaccepted amounts without an invented refund or stock grant. Complete result
+replay compares fields, actor reset, counters and typed bins. No Original Food Grower
+save/load or physical route acceptance is claimed by this test.
+
+Expiration clears field work/quantity/assignment and the assigned actor's wait,
+but does not itself clear that actor's retained field reference or work state.
+A later compatible harvest callback is unmarked and cannot produce yield.
+A later tending callback can restore work40; the growth callback has only its
+last-end-slot veto, not a general growing-period gate. These composed source
+events must not be mistaken for a proved reachable ordinary off-season tour.
+
+Initial/repeated selection contains no explicit commodity partition, and Farm
+return derives resource identity from the last retained field. Distinct end
+slots and expiration may constrain ordinary tours to one crop, but inactive/
+reactivated fields, retained assignments and identity reuse still need a full
+temporal proof. Existing typed World Food must not accept an unproved pooled
+multi-crop amount. The downstream Mill/FoodShop and Food-portion mapping remain
+separate work; they are not prerequisites used to excuse an unproved raw Farm
+cycle in this task.
+
+### Required AGRI-02E closure
+
+1. Bind complete initial allocation/distribution, repeated target admission,
+   prepared distance data and shared movement outcomes to actual Navigator
+   routes and typed entities. Close source/target deletion, suspension13c,
+   global88ec38, source status, operation, staff and fire relationships.
+2. Qualify state5's `4e6280`, exceptional14–16 entry/link histories and shared
+   callees, plus every generic route/link cleanup needed by those paths.
+3. Admit the actual PC/RC and normal FP environment at `4c1e8d`; bind live
+   runtime fertility, factor-table/region, event, date and global operands to
+   checked source/load/update owners. Resolved numerical parity alone is not
+   this admission.
+4. Prove crop homogeneity across active/inactive/expiration/restore/identity
+   histories, or keep that context unsupported. Resolve native WORD narrowing,
+   failed-return and full-bin dispositions in an explicit resource balance;
+   do not infer accepted stock from raw source bookkeeping counters.
+5. Only after those gates close, implement one explicit successor with World
+   actor/field claims, one carried raw amount, physical source return, typed
+   Farm bins and exact create/restore/Recovery. Save every non-reconstructible
+   wait/route/reference/counter/reservation and reject inconsistent saves before
+   publication. The same field must not also run its authored Food origin while
+   producing native raw yield; a second production account or an invented
+   raw-to-Food conversion cannot keep households supplied. Existing adapters
+   remain exact in Rule26/schema42 and older generations.
+6. Exercise paid World work and return for all five crops, full bins, staffing,
+   pause/fire/path failures, active-work and loaded-actor save/load, resource
+   balance and independent replay. Keep the later Food conversion separate.
+
+Qualified addresses, state tables and concrete exclusions are in the
+[source contract](../reverse/original-agriculture-source-contract.md#agri-02d-implementation-boundary).
+Executed tests and remaining native/World acceptance are maintained in
+[testing](../testing.md#original-food-grower-source-events-agri-02d).
+
 ## Irrigation infrastructure and completion matrix (AGRI-04)
 
 Rule26/policy3/schema42 is an explicitly selected successor of Rule25. Its

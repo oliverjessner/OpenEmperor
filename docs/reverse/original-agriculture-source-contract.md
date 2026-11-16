@@ -1450,9 +1450,10 @@ those three ambient precision modes.
 The later startup proof below establishes initial53-bit precision while
 preserving the preceding rounding bits. The actual source control word during
 every admitted harvest, reachable external-call restoration, exception masks
-and earlier store rounding remain unclosed. The component therefore implements only the
-proved integer-base input predicate. It supplies no native floating-point
-yield API, guessed precision default or production activation.
+and earlier store rounding remain unclosed at the live-admission boundary.
+AGRI-02D below adds exact resolved-context arithmetic after closing the local
+transitive call graph. It supplies no guessed live precision default or
+production activation.
 
 ### Retained harvest effects and remaining inputs
 
@@ -1556,7 +1557,8 @@ harvest mark, exact assignment identity and prepared distance context. Zero
 quantity clears the mark rather than yielding food. Its bounded candidate score
 includes prepared distance plus half of100 minus quantity percentage. Initial
 tending selector`0x4c0380` separately requires a growing-period query, exact
-assignment, absence of the harvest mark and its work/countdown/distance inputs.
+assignment, absence of the harvest mark and its work, runtime-fertility-query
+and distance inputs. See the corrected AGRI-02D score qualification below.
 These reference operands do not initialize an independent World route engine.
 
 The role distinction is important. Harvest selection state10 calls
@@ -1821,10 +1823,10 @@ and the two restoring conversions. The transitive queries to qualify are
 `0x4c15b0→0x525610→{0x425260,0x425250,0x47f1b0,0x408170}`,
 `0x47f1b0→0x4f8210`, `0x408170→0x4081d0`,
 `0x4c0750→0x4c0640` and Food classification
-`0x4c1060→0x4c11b0→0x4c0600`, including their switch data. This is a
-proposed bounded qualification, not an issued complete transitive receipt.
-It could support resolved-context arithmetic while leaving admission of the
-actual live control word and production authority separate.
+`0x4c1060→0x4c11b0→0x4c0600`, including their switch data. The AGRI-02D receipt
+below now qualifies this bounded transitive graph and
+supports resolved-context arithmetic. Admission of the actual live control word
+and production authority remain separate.
 
 ### Source region operand from the supported map header
 
@@ -1865,6 +1867,515 @@ The private `verify_bins.py` checker emits
 `bins/verified-native-bin-archive.json` with42 assertions over4 complete
 byte-checked windows. It preserves the same three Original input identities.
 It reads executable bytes and constructs no Original save fixture or importer.
+
+## AGRI-02D implementation boundary
+
+**PARTIAL at World activation.** The following sections qualify additional
+source events for five Food fields and Actor26. They close resolved candidate,
+spawn-commit, ordinary worker, field and numerical harvest operations, with
+explicit native counter/WORD/receipt distinctions. They do not create a parallel
+navigator, actor registry, calendar, inventory or save authority. Source callback
+composition is not evidence of an admitted physical World route.
+
+The current Rule26/schema42 remains exact. Rule27/schema43 were rechecked as
+unused; no placeholder mode or automatic migration is introduced. Mill/FoodShop
+and household portions are downstream of this task's Farm raw-stock boundary.
+The absence of their conversion is not used to claim that a complete admitted
+raw Farm cycle has already been achieved.
+
+
+### Field driver ordering and quantity balance
+
+**EXE_OBSERVED:** the fresh private verifier
+`.local/agri-02d/field/verify.py` passes32 semantic assertions across five
+byte-checked complete function windows,215 decoded lines and642 instruction
+bytes. The pinned EXE, BuildingModels and FarmConfig retain their SHA-256,
+length, mode and modification time. No Original execution or personal-save
+inspection occurs.
+
+Actual Food-field driver `0x4c0f60..0x4c1033` first qualifies the field type,
+then skips terrain bit100. After actual own-info resolution, a nonzero countdown
+byte63 decrements and returns at `0x4c0fb9`. It does not invoke the increment,
+per-type veto or visual publisher on that branch. With countdown0, callback25c
+supplies the increment; a nonzero result adds to quantity WORD04 and caps signed
+results above10000. The supported physical domain0..10000 and Food deltas0/79/157
+cannot wrap. The per-type query `0x4afd80` follows this addition even when the
+increment was0. A true query clears quantity. Publisher260 runs after that
+query even when quantity remains0.
+
+`advance_crop_field_growth` composes the existing `crop_growth_increment` and
+`apply_crop_growth` operations in this order. It reports actual quantity added
+and quantity removed by the resolved type veto. Thus initial field quantity
+plus added quantity equals final field quantity plus veto-removed quantity.
+These quantities belong to the field plane, not raw harvested units, actor
+cargo, Farm stocks or household portions. Terrain skip and countdown return
+leave this balance unchanged. The function owns no clock, field registration,
+actor or World permission.
+
+Manager `0x51e4a0` performs schedule marking before field traversal. Its actual
+object query, retained resource byte and field-classification result precede
+the driver call at `0x51e50a`. The ordinary common parent `0x5371a0` invokes the
+scheduler at `0x5371bf`, then the actor pass at `0x5371ce`; global88ec38 can skip
+that scheduler while the actor pass remains. A tending completion in the later
+actor pass cannot retroactively grow a field already visited by that scheduler.
+The actual tending callback `0x4c1d20` ORs work40, clears field assignment2e and
+clears body counter150. Seasonal expiration and actor cleanup remain distinct
+events. Neither a harvest mark nor a visual publication creates harvested stock.
+
+The fresh driver tests cover every countdown byte, terrain/veto precedence,
+zero-work publication, growth bands, end slots, saturation, explicit tending
+then next-growth ordering and unharvested end-slot expiration. Existing complete
+work-word/slot tests remain in the same executable.
+
+### AGRI-02D initial candidate selection and successful-spawn arithmetic
+
+**EXE_OBSERVED:** private verifier
+`.local/agri-02d/spawn/verify_selection.py` issues `verified-selection.json`:
+145 source/arithmetic assertions across23 qualified byte-checked windows,
+1,686 instruction lines and5,020 instruction bytes including overlaps. The
+EXE, BuildingModels and FarmConfig retain hashes, sizes, modes and modification
+times. No Original executable or personal save was run/read. Exploratory
+captures, including misaligned data regions, are excluded from this receipt.
+
+The complete initial selectors are `0x4c0130..0x4c02f6` for harvest and
+`0x4c0380..0x4c055e` for tending. Both require actual active status1, the typed
+source/field-family match, nonzero prepared distance, actual source-range
+callback and matching retained assignment. Farm193's checked classifier entry
+at`0x4c0885` selects `0x4c0841→0x4c0600`, accepting all five Food195–199 models.
+
+Harvest additionally checks the field resource's global veto and operation
+callback before its harvest mark. After the nonzero-distance gate within the
+supported nonnegative domain, zero field quantity
+clears only bit8000 at`0x4c022f`, before the range and assignment tests. Thus
+an ineligible zero-quantity field can still lose its harvest mark on this path.
+Positive quantity's score is prepared distance plus
+`floor((100−floor(quantity/100))/2)` in the supported0–10000 domain. The
+percentage helper is actual signed integer arithmetic, not a floating estimate.
+
+Initial tending checks growing-period success and absence of bit8000. It has
+no resource-veto or operation callback in this initial-selector body; allocation
+rechecks those facts later. Food-field score is prepared distance plus half the
+low work byte plus100 minus the explicitly resolved query`0x4c1af0`. That query
+reads runtime fertility bytes through `0x4c1b30`, or a separately resolved global
+override, then caps at100. It is not a countdown percentage or the serialized
+construction-fertility byte. Material plants have a separate score branch and
+are outside this Food-only operation. Current distance-plane preparation,
+source-range admission, live global/configuration writers and callback eligibility
+remain explicit source inputs.
+
+The queue is a fresh native score queue. `0x4c5740` clears its retained insertion
+cache and node count. `0x4c5780` reuses the last inserted node, chooses direction
+with signed<= and walks with strict< or>. Iterator`0x4c5940/0x4c5950` starts at
+the smallest head and follows larger neighbors. Equal-score order therefore
+depends on earlier insertions: scores10,10,0,10 yield input-index order2,3,0,1,
+while10,10,20,10 yield0,1,3,2. A stable sort would change the first result.
+Node allocation`0x4c5980` checks count2000 and returns0 at that exact bound.
+The pure operation refuses larger input queues rather than claiming the native
+caller's unchecked allocation-failure behavior. This native research bound does
+not enlarge World's82-body/58-channel budgets.
+
+The complete allocation loops consume at most one selected entry per iteration
+and contain one actor-creation call site each. Harvest's stable-frame selected
+count/index are retained at`0x4c3736/0x4c3785`; its shared tail advances the
+index and entry pointer at`0x4c394b/0x4c394c` before the sole backedge
+`0x4c3959`. Tending has the analogous stores`0x4c3a16/0x4c3a63`, advances
+`0x4c3c28/0x4c3c29` and backedge`0x4c3c36`. Actual successful-spawn ordinal
+starts at0 and increments only on success at`0x4c38f9` or`0x4c3bc3`. Shared
+assignment, candidate rejection and failed creation converge on that same entry
+advance. A larger quota, zero harvest grouping or negative tending attachment
+count cannot multiply creation attempts within an entry. Thus local successful
+spawn count cannot exceed the retained selected-entry count.
+
+The API's ordinal0–1999 is conditional support for successfully populated
+selections with at most2000 entries. It is not a universal native ordinal limit.
+Initial harvest increments its accepted-candidate count immediately after the
+queue call at`0x4c0286→0x4c028b`; tending loads and increments its accepted
+count at`0x4c04cf/0x4c04d7` after insertion`0x4c04ca`. Neither tests the
+returned node first. Capacity-failure, corrupted-count or wrapped histories can
+therefore separate selected-count accounting from actual inserted nodes and
+remain unsupported. No broader successful-allocation guarantee is inferred.
+
+Actual allocation calls shared actor factory`0x4ea050→0x4e1420`. Its slot search
+pops at mostfive candidate IDs and requires a positive ID and an actual inactive
+slot. Raw type26 takes the generic actor constructor. A nonzero returned ID
+alone enters the Farm's commit branch: harvest writes state10/role2, tending
+state6/role1; both set wait10 times the prior successful-spawn ordinal, retain
+the actual source ID and increment only their own retained source counter.
+Failed creation skips these assignment/counter writes. Shared fields can retain
+the same returned actor ID. Harvest allocation separately checks the Farm's
+signed WORD`+0x40<400`; this operand is not proved as Grower cargo or bin capacity.
+Full native allocation/distribution, runtime slot lifetime and actual World
+admission are not implemented by the post-success arithmetic query.
+
+**VERIFIED REPRODUCTION:** `CropSelectionRules` supplies a Food-only candidate
+evaluation, exact fresh-queue index ordering and resolved successful-spawn
+initialization/counter arithmetic. Quantity, runtime-query and score domains are
+explicit; reached signed-DWORD score/counter overflow is refused. These queries
+create no ID, route, claim, work, cargo or stock and grant no World/save authority.
+Tests include every physical quantity, every Food work word, independent gate
+truth tables, zero-quantity side-effect ordering,13 literal queue vectors,
+all2,187 seven-item ternary score sequences for ordering/permutation invariants,
+full2000-node bounds and all supported spawn ordinals.
+
+Neither complete selector nor initial Farm allocation contains a per-resource
+partition: fields match Farm193's complete Food family and test their own global
+resource veto. Repeated selector`0x4c0060` likewise checks the actual actor
+assignment without comparing crop resources. The Grower can accumulate pending
+raw yield and the Farm return labels it from the last retained field. This is a
+missing lifecycle invariant, not proof that ordinary active play mixes crops:
+distinct end slots and active-field expiration may constrain eligible tours to
+one crop. AGRI-02E must close that temporal homogeneity and exceptional inactive/
+reactivation/expiration history, or keep mixed-crop returns unadmitted. No silent
+commodity conversion or invented ownership rule follows from this research.
+
+## AGRI-02D: resolved Food Grower callbacks and manager cleanup
+
+**EXE_OBSERVED:** the private verifier
+`.local/agri-02d/actor/verify_actor.py` emits
+`verified-food-grower-lifecycle.json`:139 assertions over20 qualified,
+byte-checked windows,2,169 decoded instruction lines and7,477 instruction
+bytes including overlaps. It qualifies complete callback/helper boundaries
+and the actual state, behavior and cleanup selector data separately. The
+pinned EXE, BuildingModels and FarmConfig retain their SHA-256, length, mode
+and modification time. No Original execution or personal-save inspection occurs.
+
+### Actual dispatch and callback ordering
+
+The shared actor constructor`0x4c71d0` installs vtable`0x7afe60` and invokes
+reset`0x4c72b0`. Its behavior slot`+0x28→0x4c7580` indexes40-byte raw-type
+descriptors. Actual Actor26's entry`0x84eb94` selects`0x4cc670`.
+That callback resolves the retained source WORD`+0x62`, tests exact source
+status byte`+4==1`, and otherwise sets actor status`+0x16=2` at`0x4cc711`.
+It **continues into the body**: source inactivity is not an early body return.
+The callback also clears raw flag`+0x6f` before dispatch. Its other rendering
+prefix effects do not grant gameplay.
+
+`begin_crop_grower_callback` exposes this early status/flag operation before
+any resolved work or movement body. Movement and field observations must apply
+to that post-begin actor, including status2 where set. A caller must not first
+compute a status1 movement outcome and retroactively mark it retiring. The
+separate epilogue follows the actual body and any actual target-result operation.
+
+Raw state table`0x4cd1b8` has the following complete4–16 dispatch bindings:
+
+| Raw state | Actual branch | Qualified behavior |
+|---:|---|---|
+|4|`0x4cc7bb→0x4e6470`|Separate signed-WORD wait operation below|
+|5|`0x4cc7a7→0x4e6280`|Delegates a larger shared actor helper; not admitted as ordinary Food work|
+|6|`0x4cc7ce`|Tending selection wait, then actual Farm selector|
+|7|`0x4cc832`|Shared movement toward tending target|
+|8|`0x4cc966→0x4c2dc0`|Tending wait and compatible-field callback|
+|9|`0x4cc97a`|Source return without receipt; retained WORD may be nonpositive|
+|10|`0x4cca1f`|Harvest selection wait, then actual Farm selector|
+|11|`0x4cca82`|Shared movement toward harvest target|
+|12|`0x4ccc10→0x4c2fd0`|Harvest wait and compatible-field callback|
+|13|`0x4ccc24`|Raw-yield source return and actual source receipt|
+|14|`0x4cccca`|Exceptional movement/coordinate-query branch|
+|15|`0x4ccdf2`|Exceptional signed-WORD increment/100-bound branch|
+|16|`0x4cce30`|Exceptional linked-actor checks and shared operation|
+
+`CropGrowerRules` implements ordinary6–13 resolved events and the independent
+state4 arithmetic. State5 and14–16 remain explicitly excluded from its
+ordinary body API. The callback's default branch retires other raw states;
+accepting every arbitrary state would not reconstruct their external entry or
+shared behavior.
+
+### Actual wait, selection and movement events
+
+Selection states6/10 set raw flag`+0x6f=1`, decrement the same signed wait
+WORD`+0x3e`, and remain while it is positive. When due, they reset that WORD to0
+before calling `0x4c2c70`/`0x4c2b20`. Work states8/12 instead retain the
+**decremented** WORD, invoke field slot`+0x264`/`+0x268` only when its actual
+compatibility query succeeds, and move to6/10 even if compatibility fails.
+Their completion helpers do not compare the field assignment with the current
+actor, require nonzero assignment, inspect quantity or require a harvest mark.
+Those distinct field effects and yield gates stay in `CropRules` and
+`CropHarvestRules`. Seasonal expiration can therefore clear the assignment and
+set the actor wait to0; a later compatible work invocation decrements to−1 and
+still calls the field, whose cleared harvest mark then prevents raw yield.
+
+`apply_crop_grower_target` consumes an actual resolved selector result. It does
+not rank fields or prepare a route. Every attempt calls shared route release
+`0x4e8a30`. Tending additionally rechecks the selected field's growing-period
+query; successful results set actual target coordinates, retain the selected
+field WORD`+0x68` and select movement7/11. Failure targets the source's retained
+return coordinates and **keeps the last field reference**. Failed tending
+selects9 and decrements source counter`+0x154`. Failed harvest compares the
+signed WORD`+0x7c`: positive selects13, while zero or negative selects9, then
+decrements counter`+0x150`. Both counters floor negative results at0.
+
+The movement operations consume an already resolved shared-movement result;
+they do not create a physical route or infer arrival from proximity:
+
+| Current states | Result9 | Result10 | Result8 |
+|---|---|---|---|
+|7/11, target travel|Release route; retain state|Set raw flag6f and retiring status2; no work|Enter8/12; initialize the existing Food wait51/25, subject to actual compatibility, nonzero assignment and terrain100 override|
+|9, no-receipt return|Release route; retain state|Retire without source receipt|Set raw flag6f and retire without source receipt|
+|13, carried raw-yield return|Release route; retain state|Retire **without source receipt**|Call the actual source slot`+0x268` at`0x4cccbf`, then retire|
+
+All other movement results retain the state. Both work-wait initializers remain
+shared with `initial_crop_work_wait`; wait decrement/wrap remains shared with
+`advance_crop_work_wait`. No authored World edge time is inferred from the
+source waits or result bytes.
+
+### Counter epilogue and actual reference cleanup
+
+After any supported callback body, actual actor status2 selects the retirement
+counter debit. Native role byte`+0x89==2` calls`0x4d6be0` for harvest; the other
+ordinary role1 calls`0x4d6c00` for tending. Each floors at0. This is **in
+addition to** the failed-selection debit above. A failed harvest selection can
+therefore decrement5→4, and its eventual retirement decrements4→3. These
+retained counters cannot be treated as an exact census of live Growers or
+repaired into one without changing semantics. The safe API admits the proved
+ordinary roles1/2 and nonnegative signed-DWORD counters; other roles and native
+signed-overflow histories remain unsupported.
+
+The ordinary actor pass tests status2 after behavior at`0x4e291b` and invokes
+removal`0x4e292d→0x4ea080→0x4e1fa0`. Manager removal passes the actual actor ID
+to its virtual slot`+0x158`, bound to`0x4c8b70`. Its exact raw-type26 selector
+`0x4c9110+(26−1)` is2 and selects`0x4c8bfa`. That branch resolves the field
+manager through`0x4bfdb0` and calls`0x4bfdc0`. The pass visits the complete
+registered collection and clears **every** field with status1 and retained
+actor WORD`+0x2e` equal to the removed actor ID. It does not clear inactive
+fields, another actor's assignment, work words, field quantities or field-body
+counters. The bounded `clear_crop_grower_assignments` operation preserves those
+exact represented distinctions; it grants no claim or actor identity.
+
+Shared route release, additional generic links and rendering hooks remain
+outside that value operation. Following cleanup, actual manager slot`+0xe8`
+selects`0x4c72b0`, which resets actor status, source/field references, wait,
+role, target coordinates and the same raw-yield WORD`+0x7c`. The pure reset
+reports the cleared word without labeling it automatically lost cargo or a
+refund: successful source receipt leaves that word retained until reset too.
+A failed return10 followed by reset, in contrast, has no checked source receipt.
+The actual bin-accepted amount, ignored overflow and other accounting effects
+require their separate source operations before a conserved World transfer can
+be claimed.
+
+### Separate state4 arithmetic and excluded exceptional states
+
+The complete state4 helper`0x4e6470..0x4e64a4` first sets negative wait to0,
+then increments the WORD. A signed result at least128 is replaced by127 and
+sets status2. Its16-bit increment means32767 wraps to−32768 before the signed
+comparison; it is not pre-clamped. `advance_crop_grower_state4_wait` implements
+this operation alone, preserving raw flag6f and every other represented field
+apart from wait/status. The separate begin operation owns flag clearing. It does
+not identify why another subsystem entered4.
+
+The qualified exceptional branches remain specific rather than being collapsed
+into ordinary Food return. State14 runs shared movement. Result8 clears wait,
+calls the separate coordinate query`0x5b2730`, retains its result and enters15;
+result10 or9 enters16. State15 increments its WORD and enters16 only after the
+signed value exceeds100. State16 resolves linked actor WORD`+0x72`; a nonactive
+linked actor retires the Grower. An active actor of raw type55 must additionally
+have raw state38/39/40; other states retire. An eligible linked record reaches
+`0x4e7460`. The complete entry writers, missing-link/identity history and shared
+callee semantics remain unclosed. No World interruption/combat meaning is
+assigned to these states by name.
+
+### Explicit remaining activation dependencies
+
+The existing scheduler precedes the actor pass, but complete original user
+pause/suspension semantics remain external: actor field`+0x13c` skips behavior,
+its complete writers are not closed, and global`0x88ec38` can skip scheduler
+advancement while actor behavior still runs. Actor26 has no independently proved
+object-local fire or current staffing gate equivalent to existing authored
+World adapters. Source-status, per-type veto, operation, spawn/target admission
+and native movement outcomes must retain their actual meanings and histories.
+No source inactive-status check may be replaced by an invented early rollback.
+
+Actor`+0x7c` is one carried raw word, not an independently accumulating pending
+stock plus another physical cargo ledger. Farm return derives its resource
+from the last retained field identity. Initial/repeated selection has no newly
+inferred resource partition; the complete temporal homogeneity of assignments
+across distinct Food end slots, inactive/reactivated fields, expiration and
+restored claims must be proved separately. No multi-crop word may silently be
+retyped by a test or World adapter.
+
+The new APIs remain source-event arithmetic with caller-resolved observations.
+They own no Navigator, advancing actor registry, saved state, raw stock or World
+production. Original movement/result binding, all active actor gates, live yield
+context, simultaneous-assignment admission, source overflow and conservative
+raw-resource ownership still gate a new explicit version. Rule26/schema42 and
+all older gameplay retain their current authority. Supplied movement8 events
+in component tests establish arithmetic composition, not actual World arrival
+or a completed paid agriculture chain.
+
+## AGRI-02D resolved Food harvest arithmetic and callback effects
+
+The private checker `.local/agri-02d/yield/verify.py` emits
+`verified-harvest-context.json`:189 assertions across16 complete byte-checked
+windows,477 decoded instruction lines and1,375 instruction bytes. Jump tables
+are qualified separately as raw data, never decoded as instructions. The pinned
+EXE, BuildingModels and FarmConfig retain SHA-256, length, mode and modification
+time. The Original executable is not run and personal saves are not read.
+
+### Local control-word stability is now qualified
+
+**EXE_OBSERVED:** the nonfaulting arithmetic interval begins with first integer
+load`0x4c1e8d` and ends at result publication`0x4c1f14`. Its direct calls are
+`0x4c15b0`, optionally`0x4c0750`, `0x4c1060` and the two conversions at
+`0x4c1eee`/`0x4c1f0f`. The complete checked transitive query graph is:
+
+- `0x4c15b0→0x525610`;
+- `0x525610→0x425260,0x425250,0x47f1b0,0x408170`;
+- `0x47f1b0→0x4f8210` and`0x408170→0x4081d0`;
+- `0x4c0750→0x4c0640`;
+- `0x4c1060→0x4c11b0→0x4c0600,0x4c0630,0x4c0640`.
+
+Every query helper is integer-only and has no further external/indirect call.
+The irrigation perimeter query's only indirect branch is its bounded four-way
+switch at`0x4c15f6`, backed by four checked addresses at`0x4c16ac`. Crop indexing
+uses its checked model bounds, byte selectors and ten-entry jump table. Each
+Food195–199 selector reaches its actual index0–4. For those five inputs the
+field classifier succeeds at the first Food predicate; the additional Hemp and
+plant leaves are also covered by the finite graph.
+
+Only conversion helper`0x7650fc` changes the control word in that graph. It
+saves the supplied word, installs its temporary truncation RC, performs signed
+64-bit`FISTP`, and restores the saved word before returning. Thus one resolved
+PC/RC at the first arithmetic instruction governs this local calculation.
+This closes the proposed bounded transitive proof from the preceding section.
+It does **not** establish the actual live control word before that first load,
+preexisting exception/stack state, fault paths, or all preceding calls. The
+pre-arithmetic virtual/event predicates remain outside this local interval.
+
+### Exact resolved arithmetic, with explicit support boundaries
+
+**REFERENCE_DERIVED — instruction semantics:** Intel's
+[SDM Volume1, sections8.1.5.2–3](https://cdrdv2-public.intel.com/843827/253665-sdm-vol-1-dec-24.pdf)
+defines the PC24/53/64 encodings and applies precision control to arithmetic
+including FADD/FMUL; RC supplies the rounding direction. Its
+[Volume2A FST/FSTP reference](https://www.intel.la/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-2a-manual.pdf)
+separately specifies destination-width rounding for binary32 stores under RC.
+These architectural references support the decoded instruction semantics;
+they do not establish the game's live control word or replace its source proof.
+
+**VERIFIED REPRODUCTION:** `CropHarvestRules` reuses `crop_rule`,
+`crop_doubled_base` and `raw_base_yield`. Its `CropHarvestContext` requires the
+actual runtime fertility byte, resolved irrigation result, selected raw binary32
+region factor, raw date operand, conditional global factor, control word and
+crop-event inputs. It does not infer them from construction, names, a calendar
+slot, startup defaults or FarmConfig text.
+
+The independent integer implementation represents exact values as a uint64
+significand and power-of-two exponent. It rounds at each source arithmetic
+instruction according to explicit PC24/53/64 and RC nearest-even/down/up/toward
+zero. It performs no host floating-point operations and does not modify the host
+FPU. The supported chain has at most56 product-significand bits: the integer
+base is at most200, raw binary32 factors have at most24 bits, and the later
+reload is explicitly signed-int32-safe. Both fertility stores are normal
+binary32 values in their actual byte/irrigation domain.
+
+The implemented order is:
+
+1. Derive the typed crop-qualified integer base from quantity0–10000 and the
+   explicit event operands; Rice/Cabbage cannot acquire the doubled branch.
+2. Multiply runtime fertility by source binary32`0x3c23d70a` (0.01), round at
+   supplied PC/RC, then store binary32 with that RC.
+3. When the actual irrigation query succeeds, add Food binary32`0x3eb33333`
+   (0.35), round and store binary32 again. The other plants'0.2 is outside this
+   Food-only component.
+4. Multiply the integer base by the selected region binary32 factor, round,
+   multiply by the stored fertility binary32 factor, then round and truncate
+   toward zero through the qualified conversion.
+5. Only when signed raw date`0xd623fc > -300`, reload the first integer result,
+   multiply by the selected global binary32 factor, round and truncate again.
+   The global factor is not decoded or restricted when this branch is absent.
+
+Factors actually read must be finite and nonnegative; both signs of zero are
+supported, as are positive binary32 subnormals. All six FP exception masks must
+be present in the explicit control word, and reserved PC01 is refused. Reached
+conversions must yield0–INT32_MAX. The native conversion itself is signed64 and
+the caller consumes its low DWORD/WORD; this API refuses histories outside its
+nonwrapping signed32 support domain rather than claiming native clamping.
+
+`CropHarvestYield` keeps the integer base, stored fertility bits, first integer
+result and final numeric yield separate. Its `retained_yield_word` exposes the
+source's low16-bit history/pending operand. For example, numeric65536 retains
+WORD0. That narrowing is not a safe cargo/storage capacity or a Food portion
+conversion.
+
+The independent exact-rational controls retain the prior64/65 counterexample:
+quantity10000, fertility65, region1 and no irrigation/global branch give65 at
+PC24 nearest-even,64 at PC53/64 nearest-even. A second control includes the
+actual irrigation store and global reload: fertility65 with irrigation stores1
+at nearest-even, then global factor`0x3f933333` gives115 at PC24 and114 at
+PC53/64. This distinguishes both binary32 stores and both integer truncations.
+Tests include32 literal vectors, all PC/RC combinations, every quantity for the
+literal fertility100/unit-region case, and an independent8,192-case rational
+reference checksum over authored inputs. They make no claim of admitted live
+World parameters.
+
+### Actual callback field/history and one actor WORD
+
+**EXE_OBSERVED:** `0x4c1df3` ORs work`0x4000` and clears body DWORD`+0x150`
+before the mark test. An unmarked callback returns without changing field
+quantity, assignment, history or the actual actor's yield word. A marked
+callback consumes`0x8000` at`0x4c1e14`, computes the resolved amount, writes AX
+to current history WORD at`0x4c1f1a`, adds AX to the same actual actor WORD
+`+0x7c` at`0x4c1f1f`, then clears field quantity and body assignment at
+`0x4c1f25`/`0x4c1f29`. No assignment-equality check exists in this callback.
+Its actual caller eligibility and resolved actor identity remain separate.
+
+**VERIFIED REPRODUCTION:** `apply_crop_harvest_callback` takes the current
+12-slot history, bounded quantity, full work word, body counter and raw
+assignment WORD plus the actual actor's one retained yield WORD. It returns
+those effects as values, with an optional numeric calculation only when a mark
+was present. It reports numeric-to-WORD narrowing and separate actor-add carry.
+The latter is modeled modulo65536 exactly; it creates no second pending/cargo
+inventory, Farm stock or safe capacity. Unsupported arithmetic publishes no
+partial result and leaves the supplied inputs unchanged.
+
+An expired field with cleared mark can still reach a later callback through
+its retained worker path. That unmarked callback sets the work flag and clears
+the body counter, but cannot recreate the expired quantity, history receipt or
+actor amount. Tests enumerate all65,536 work words for every Food field, check
+history-slot preservation, repeat-callback refusal of a second yield, expiration
+composition, numeric65536→WORD0, and actor65535+1→WORD0 as distinct outcomes.
+
+### Remaining AGRI-02E admission dependencies
+
+This closes resolved local arithmetic and the represented callback mutations.
+Before World activation, qualify the actual control word and normal FP stack/
+exception state at`0x4c1e8d`; bind every accepted runtime fertility, region,
+event, date and global operand to its source/load/update owners; and complete
+actual worker movement, interruption, return and Farm-bin conservation. Native
+history/pending WORD narrowing and full-bin loss must not silently become
+successful World stock or an invented refund. A new explicit rule/schema is
+still required for any additional mutable gameplay, with no migration of
+Rule26/schema42. No raw-yield-to-Food-portion conversion is supplied here.
+
+The separately qualified full tending function`0x4c1d20..0x4c1d54` in the
+root's field-event receipt supports `apply_crop_tending_callback` over the
+same resolved field value. It delegates the existing `complete_crop_tending`
+work rule, ORs low work bit`0x40`, clears assignment/body counter, and preserves
+quantity and every history WORD. It adds no mark, yield or actor inventory.
+Independent tests enumerate all65,536 work words for each Food field, repeated
+callbacks, quantity0/10000 boundaries and unsupported-model/quantity refusal.
+
+### Farm-return bookkeeping is not accepted-stock authority
+
+The separately qualified full Farm return `0x4c4ee0..0x4c5088` derives its
+resource from the actor's last retained field, sign-extends that same actor
+WORD7c and offers it to a selected compatible bin. A missing bin skips both
+credit and the common bookkeeping footer. Bin overflow is ignored by the
+native caller. A stock of at least400 can trigger actual source-access checks
+and a separate Actor19 allocation; only successful Cart creation reaches the
+400 debit. This later Cart uses WORD82, not the Grower's WORD7c.
+
+There is a further identity caveat in the common footer. ESI initially contains
+the Grower ID, but `0x4c4f9e` replaces it with the Cart factory result, including
+zero on failure. Footer `0x4c5069` resolves that current ESI and reads WORD7c at
+`0x4c5077` for the per-resource DWORD addition at `0x4c507b`. It cannot generally
+be labeled a count of the Grower's offered or bin-accepted amount. The semantic
+owner of that bookkeeping and the null-slot context remain separate. Neither
+this counter nor the still-retained Grower word becomes a second physical stock.
+
+Private `field/verify_return.py` passes19 source assertions over one complete
+byte-checked window,134 lines and425 bytes, with the same three input guards
+unchanged. It introduces no World counter, Cart, refund or inferred loss policy.
+
 
 ## Concrete proof gates before implementation
 

@@ -26,4 +26,25 @@ CropFieldExpiration expire_crop_completed_slot(ModelBuilding field,
     return {{0,0,false},input.quantity,true,input.assignment_present};
 }
 
+CropFieldGrowthStep advance_crop_field_growth(ModelBuilding field,
+    std::uint8_t slot,std::uint16_t work_word,std::uint16_t quantity,
+    std::uint8_t countdown,bool terrain_flag_100,bool type_veto) {
+    (void)crop_rule(field);
+    if(slot>11 || quantity>10000)
+        throw std::out_of_range("crop growth event requires slot0..11 and quantity0..10000");
+    CropFieldGrowthStep result{quantity,countdown,0,0,false,false};
+    if(terrain_flag_100) return result;
+    result.driver_accepted=true;
+    if(countdown) {
+        --result.countdown;
+        return result;
+    }
+    const auto grown=apply_crop_growth(quantity,crop_growth_increment(field,slot,work_word));
+    result.added_quantity=static_cast<std::uint16_t>(grown-quantity);
+    result.veto_removed_quantity=type_veto ? grown:0;
+    result.quantity=type_veto ? 0:grown;
+    result.publish_visual=true;
+    return result;
+}
+
 } // namespace openemperor::original
