@@ -84,6 +84,14 @@ five-field World/save test is explicitly a negative historical admission
 control, not a positive Grower cycle. Rule27/schema43 remain unused; no raw
 Farm origin, new active Grower save or second Food authority is added. See the
 [physical integration matrix](agriculture.md#physical-food-grower-integration-and-completion-matrix-agri-02e).
+AGRI-02E2 adds a bounded motion-only World session using that same navigator:
+qualified flat predicates, cardinal flood/eight-direction ties, native20-phase
+cell commits and computed8/9/10, with unsupported contexts kept distinct.
+The one-microstep-per-World-tick binding is AUTHORED and does not activate native
+Actor26 speed, creation, crop work or inventory. Existing5-tick couriers and
+plantations remain exact. Session publication guards and terminal cleanup leave
+historical saves unchanged; Rule27/schema43 remain unused. See the
+[bounded navigation matrix](agriculture.md#bounded-world-grower-navigation-agri-02e2).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 

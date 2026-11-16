@@ -67,9 +67,15 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # AGRI-06 adds const, derived calendar/plant observations only. World layout,
 # saved DTOs and historical scheduling remain exact. The new included status
 # header is pinned separately and fresh matching archives remain mandatory.
+# AGRI-02E2 adds an explicit non-production World navigation session and a
+# default-false, nonserialized snapshot publication guard. Historical courier
+# DTOs, timing, selectors and JSON field sets remain exact; old probe calls use
+# no session. Review covers the additive native ABI, not complete Actor26
+# gameplay. Fresh matching archives and the included session DTO are required.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "9bf6d83387b0d835b046269797fe274fea4d1a5d",
+    "World.h": "401bd61a8e84a23313fab686508e560a9c26d8a0",
+    "GrowerNavigationState.h": "e739b3b9cbdd2ec797950a2e523f6b2bec348eea",
     "AgricultureCalendar.h": "17455dad4bca5382ae8b2cb389bc2bf1099d642d",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
@@ -488,6 +494,8 @@ def current_source_hashes() -> dict[str,str]:
     sources = list(module.glob("*.h")) + list(module.glob("*.cpp"))
     sources += list((ROOT / "tools/original-rules-parity").glob("*.cpp")) + [Path(__file__).resolve(), ROOT / "src/simulation/OriginalEconomyState.h", ROOT / "src/simulation/OriginalInfluenceState.h", ROOT / "src/simulation/OriginalGoodsState.h", ROOT / "src/simulation/OriginalProductionState.h", ROOT / "src/simulation/OriginalFoodState.h", ROOT / "src/simulation/OriginalServicesState.h", ROOT / "src/simulation/OriginalWaterState.h", ROOT / "src/simulation/OriginalHousingState.h", ROOT / "src/simulation/OriginalIndustryState.h", ROOT / "src/simulation/OriginalFinanceState.h"]
     sources.append(ROOT / "src/simulation/OriginalFireProtectionState.h")
+    sources += [ROOT / "src/simulation" / name for name in (
+        "World.cpp", "WorldGrowerNavigation.cpp", "WorldOriginalProduction.cpp", "WorldIrrigation.cpp")]
     sources += [ROOT / "src/simulation" / name for name in REVIEWED_HOUSING_WORLD_API_GIT_BLOBS]
     return {str(path.relative_to(ROOT)):sha256(path) for path in sorted(sources)}
 

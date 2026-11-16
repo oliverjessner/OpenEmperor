@@ -577,6 +577,68 @@ Fresh historical Debug field and walker captures were opened. These are
 historical scripted/render controls, not Original Food Grower World or human
 acceptance. AGRI-02E remains PARTIAL under the completion matrix above.
 
+## Bounded World Grower navigation (AGRI-02E2)
+
+```sh
+cmake -S . -B .local/agri-02e2/build-debug -DCMAKE_BUILD_TYPE=Debug \
+  -DOPENEMPEROR_USE_SYSTEM_SDL3=ON
+cmake --build .local/agri-02e2/build-debug --parallel 4 \
+  --target openemperor-original-grower-navigation-world-tests
+ctest --test-dir .local/agri-02e2/build-debug --output-on-failure \
+  -R '^original-grower-navigation-world$'
+```
+
+This test uses actual paid Rule26 Worlds with authored map/model fixtures and
+real `World::tick` motion through the shared navigator. No movement8 is supplied.
+It checks every Food field identity, the literal two-edge41-microstep trace,
+actual phase10 cell commits, exact-equality and physical endpoint8, an independent
+six-edge Farm-obstacle tie ending at121, full3x3 Farm exclusion, typed external
+return endpoints, unknown source/occupancy/height/boundary refusal, and all
+explicit unsupported-interaction requests. The mode17 policy's one-microstep
+per World-tick binding is AUTHORED; this does not establish native Actor26 speed.
+
+Current/begun claims refuse overlapping paid fields and irrigation atomically.
+Actual future Farm geometry causes9→shared reroute→8, while a newly blocked
+return endpoint causes committed-cell→9→10. Unknown future occupancy causes
+9→Unsupported11. Source pause during the first or final begun edge preserves
+its real cell commit and stops11 instead of granting8. Concurrent disjoint
+motions compare complete state against independently restored/ticked Worlds.
+Terminal equality tracks fill the shared58-channel budget without gameplay
+IDs, stock or field work; overflow and new-courier construction are refused
+atomically, and session IDs stay monotone across cleanup.
+
+The transient snapshot guard is intentionally not a historical JSON field.
+Active/retained sessions are refused by document creation, writer and restore;
+existing save bytes remain unchanged. After terminal cleanup, schema42 bytes
+and complete snapshots equal an independently ticked ordinary World. All five
+fields retain zero Original work/quantity/harvest/Food authority. Keep
+`original-grower-admission` as the unchanged historical24/25/26 no-origin control.
+No new persistent Actor26, crop generation or Schema43 is admitted.
+
+Run the complete Release, Debug and ASan/UBSan suites in **separate** task-owned
+build/output roots. Use the supplied Original-data regression inputs read-only,
+retain Debug assertions under `-g -O1`, and serialize suite runs because some
+SDL capture destinations are shared. Refresh the independent74-case core
+comparison with fresh matching archives after the reviewed additive World ABI
+and new header pins. Confirm all non-fingerprint results remain exact.
+
+The three private source verifiers are additional evidence, not World tests:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02e2/predicates/verify.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02e2/predicates/verify_region_absence.py
+PYTHONDONTWRITEBYTECODE=1 python3 .local/agri-02e2/predicates/verify_movement.py
+```
+
+Their132 assertions cover28 bounded byte-checked windows including overlaps;
+empty-land mapping additionally requires the qualified region-absence context.
+An all-zero native height header is not an absence proof. The actual
+[World acceptance matrix](original-economy/agriculture.md#bounded-world-grower-navigation-agri-02e2)
+separates the implemented motion from unsupported native actor lifetimes,
+regions/heights, interactions, autonomous spawn/work, raw return and native
+human acceptance. Current menu/CLI games do not enable the C++ acceptance
+session automatically. There is no new playable Food-production test command.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh

@@ -233,6 +233,9 @@ IrrigationBatchValidation World::validate_irrigation_batch(std::span<const Cell>
     if(cells.empty() || cells.size()>irrigation_gesture_limit) {result.reason="Irrigation gesture requires1..256 cells";return result;}
     std::vector<Cell> added;added.reserve(cells.size());
     for(const auto cell:cells) {
+        if(!has_ditch(*irrigation_,cell) && grower_navigation_cell_claimed(cell)) {
+            result.reason="Ditch overlaps navigation experiment or its begun edge";return result;
+        }
         if(!ditch_context(*this,cell)) {
             result.reason="Ditch requires permitted empty land or a supported road crossing";
             result.diagnostic={in_bounds(cell) ? BuildBlocker::UnsupportedTerrain:BuildBlocker::OutsideMap,cell,{}};return result;
@@ -285,6 +288,9 @@ CommandResult World::validate_irrigation_command(Command command) const {
     }
     if(command_sequence_>=UINT64_MAX-1) {result.reason="Irrigation command counter exhausted";return result;}
     if(command.type==CommandType::RemoveIrrigationDitch) {
+        if(grower_navigation_cell_claimed(command.cell)) {
+            result.reason="Ditch occupied by navigation experiment or its begun edge";return result;
+        }
         if(!has_ditch(*irrigation_,command.cell)) {result.reason="Only an installed paid World ditch can be removed";return result;}
         if(irrigation_->ditches_removed_total==UINT64_MAX || road_revision_==UINT64_MAX || !irrigation_crossings_valid({},command.cell)) {
             result.reason="Ditch removal would invalidate a supported road crossing";return result;
@@ -298,6 +304,9 @@ CommandResult World::validate_irrigation_command(Command command) const {
         result.reason="Pump geometry exceeds coordinate bounds";return result;
     }
     if(!pump_context(*this,shape)) {result.reason="Pump requires its complete empty shoreline body and eight intake-water cells";return result;}
+    for(const auto cell:shape.footprint) if(grower_navigation_cell_claimed(cell)) {
+        result.reason="Pump overlaps navigation experiment or its begun edge";return result;
+    }
     if(buildings_.size()>=Rules::original_production_building_limit || !next_building_id_ || next_building_id_==UINT32_MAX ||
         road_revision_==UINT64_MAX) {result.reason="Pump paid building capacity or revision exhausted";return result;}
     for(const auto cell:shape.footprint) for(const auto& c:couriers_)

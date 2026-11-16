@@ -839,6 +839,7 @@ OriginalEliteMaterializationStatus World::original_elite_materialization_status(
     for (int y=0;y<4;++y) for (int x=0;x<4;++x) {
         const Cell cell{b.cell.x+x,b.cell.y+y};
         if (!in_bounds(cell)) return blocked(BuildBlocker::OutsideMap,cell);
+        if(grower_navigation_cell_claimed(cell)) return blocked(BuildBlocker::SandboxOccupied,cell);
         if (bridge_at(cell) || bridge_bank_at(cell)) return blocked(BuildBlocker::ProtectedBridge,cell);
         if (ramp_endpoint(cell)) return blocked(BuildBlocker::SandboxOccupied,cell);
         if (fixed_passage(cell)) return blocked(BuildBlocker::ProtectedGatePassage,cell);

@@ -925,6 +925,62 @@ The next dependency order is concrete:
    implement the15 requested positive World scenarios across all five crops.
    Raw-to-Mill/FoodShop conversion follows independently.
 
+## Bounded World Grower navigation (AGRI-02E2)
+
+The flat mode17 movement kernel is now integrated into the **existing shared
+World navigator**, with actual World tick-driven cell movement. This is an
+explicit non-production acceptance session, not an autonomous Food Grower or
+new gameplay/save generation. Raw harvest, Mill/FoodShop and FoodQuality are
+outside this task; no new crop work, inventory or resource credit is activated.
+
+| Acceptance boundary | Status | Evidence / limit |
+|---|---|---|
+| A. Original routing source | PARTIAL | Prepared WORD predicates, ordinary region absence, cardinal flood/eight-way gradient, ties and20-phase ordering qualified for the flat ordinary subset. Full source/actor/speed/exceptional contexts remain outside admission |
+| B. Shared Navigator integration | PASS | One existing `World::find_road_route` queue/storage, an explicit policy branch, original direction/tie order and499-direction maximum; historical branch retained |
+| C. Actual World cell movement | PASS | Paid3x3 Farm and all five typed1x1 fields; actual commits at microsteps11/31, endpoint at41. Literal Farm-obstacle tie takes six real edges and finishes at121 |
+| D. Endpoint/retry/failure | PASS | Actual endpoint8, future obstruction9 with shared re-preparation, proved blocked return endpoint10 and unsupported-context11. No injected result8 |
+| E. Unsupported actor interactions | BLOCKED | Peer/state5, suspension13c, Ferry48, linked66/72,14–16 and global88ec38 are explicit refusals; no successful fallback or pause substitution |
+
+`GrowerNavigationPolicy::Mode17MicrostepV1` is selected explicitly through the
+World API. It advances **one native microstep per World tick**, an AUTHORED
+clock binding. It does not claim Original actor speed, eligible-call cadence or
+source/statistical body side effects. Existing5-tick couriers and plantation
+movement keep their contracts. The actual requests identify paid Farm/field
+bodies and caller-explicit external Farm endpoints; no native spawn or WORD2a/2c
+return identity is inferred.
+
+Initial admission requires Rule26's complete immutable raw-source/boundary/SHA
+context, signed height0, and no raw10000 region marker anywhere. This stronger
+restriction prepares the proved ordinary region-absent counterpart once; no
+native region operation is admitted. Known empty/road/Food cells are combined
+with World's complete paid footprints, ownership and existing policy. The Farm
+body is blocked, including its origin. Unknown predicates refuse the whole
+route query instead of masquerading as walls. Native saved/runtime regions,
+height transitions, bridges, ramps, ditches and other body classes stay outside
+the initial supported domain. See the exact
+[source binding](../reverse/original-agriculture-source-contract.md#world-mode17-motion-binding-agri-02e2).
+
+The session shares the existing58-channel bound with ordinary couriers. Current
+cells and begun segments are protected from overlapping construction, road or
+irrigation changes and Elite expansion. Future geometry is rechecked at the
+next boundary, with real9→reroute→8 or9→10/11 histories. Unsupported context
+arising on the final edge cannot become8 after the real cell commit.
+
+No Rule27/schema43 is allocated. Session state has no Actor26/Crop authority and
+is not serialized; a transient default-false snapshot guard blocks save/restore
+publication until terminal cleanup. Historical snapshots, gameplay IDs, source
+bytes and schema42 JSON then match an independently ticked control exactly.
+Rules1–26/schemas1–42 retain their ordinary semantics and defaults. The earlier
+[raw Grower completion matrix](#physical-food-grower-integration-and-completion-matrix-agri-02e)
+still applies to autonomous spawn, tending, live harvest and Farm-bin credit.
+
+Remaining integration order: admit native speed/cadence and source/target lifetime;
+close peer/Ferry/link/exceptional/global histories; widen proved terrain/region
+contexts; only then bind real Actor26 work/cargo and a complete new saved
+contract. Native/human and unrestricted Original-map movement acceptance remain
+separate from the actual authored-World motion tests. Executed validation is in
+[the testing guide](../testing.md#bounded-world-grower-navigation-agri-02e2).
+
 ## Irrigation infrastructure and completion matrix (AGRI-04)
 
 Rule26/policy3/schema42 is an explicitly selected successor of Rule25. Its

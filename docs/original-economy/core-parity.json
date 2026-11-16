@@ -3650,6 +3650,7 @@
       "src/simulation/AgricultureCalendar.h": "1bc1b03480a4da522052b7f6248d2d2a4b7b80147d79fa51c48624bdd08471d1",
       "src/simulation/AgricultureState.h": "2dfe7c7f332c635287d1298b212ca90a60020d6c1a59d4a265314d34bb8c5780",
       "src/simulation/AuthoredLandTrade.h": "eb04573ac53e1ac07240f23b7e1c9c4c9ce8db5fba343e58744a9db71438accd",
+      "src/simulation/GrowerNavigationState.h": "15c065c6ca89666acf8493d866a51e33425d7b592309868e99f38272c315649c",
       "src/simulation/IrrigationState.h": "3362f71fdc7502411be77fdb455b59df8e1b7bd52e4123a277869122cd277b06",
       "src/simulation/OriginalCultureState.h": "70948c63591ab550d557a377e684a3988c683c63f0ba07c24d1764e5c0f06dfe",
       "src/simulation/OriginalEconomyState.h": "213f8b02abd2e50115356d367b843b94f82867684d08dc8809eaea3dae923ca7",
@@ -3668,7 +3669,11 @@
       "src/simulation/OriginalWaterState.h": "10f3b78644b432087fc4700c570e8b90ac82a7e3e2668fd52ea9d16ee152e914",
       "src/simulation/PlantationsState.h": "df396a82e946d30fb31733b4c9655a097809e4bfd5a6d36d936f60b1be9265c3",
       "src/simulation/SourceCellRamp.h": "f3e394396925b3830957e3b7b674a06c3a956464d161c4e2a93008e79b1ec4d1",
-      "src/simulation/World.h": "b7c9c108991f72959fcc0cfb3e73ec6ebad42873a0f9757db77d813b7bdd9aa5",
+      "src/simulation/World.cpp": "d9af970cfc6a379e59ddc878ccbd72e6e7e9d1832b4896fc4ea4ef629f0c7e51",
+      "src/simulation/World.h": "37471e736d3a67527cf1cdfada472bd94e8d8a683ca4a4057c641a40d3528be5",
+      "src/simulation/WorldGrowerNavigation.cpp": "e8189677105be2d293cd6e7ead6923cee1acc1ad375e3efbb6c74f35967849e2",
+      "src/simulation/WorldIrrigation.cpp": "be4470d01fa216dc700259eb7c71eaad7435465ae4393683aae977cbb6bc68d2",
+      "src/simulation/WorldOriginalProduction.cpp": "035d5e67acc4f868891b32db7be21938378d5086bc57b92d59c8b96354f26608",
       "src/simulation/original/CropGrowerRules.cpp": "cf129c9f5068a0f270d32493f1afea238023bb3116dbc3757bc29ec0a4b76c6c",
       "src/simulation/original/CropGrowerRules.h": "d977e220486380d0e0dc8622b43726b9e2783301673268955bc826c2eb1fbbb2",
       "src/simulation/original/CropHarvestRules.cpp": "fcf4a411b4813981b8c3e792a9edb481367371990ce3ce1de5d7009295aa7b3f",
@@ -3710,7 +3715,7 @@
       "src/simulation/original/ServiceRules.h": "4152e969bb95d5ba28f2400beef4032f8a3026ca225aed364deb0f7da805d944",
       "tools/original-rules-parity/HousingViewProbe.cpp": "d3efec7c21c7b361f96aa245c0a4929e48f3bebd0b51e02bed6be838ddc69d80",
       "tools/original-rules-parity/RuleProbe.cpp": "70f8e715f7be03d6c2ae4ec04afc5b69f13e90b05ba82174066ac208e8c8caa2",
-      "tools/original_rules_parity.py": "f7892ac1583f713ca36c4c2d7f8725d7d0b626d579d5dda46f53b6ecb1c1b984"
+      "tools/original_rules_parity.py": "a9a1d7da079e791dfdc22b01b021c5ee7115e700af7495bb07807377a7b245f9"
     }
   },
   "fork": {

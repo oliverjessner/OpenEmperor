@@ -179,6 +179,17 @@
   historical overwrite. Rules1–25/schemas1–41 retain their contracts. The
   separate menu/CLI selection is `--original-irrigation`; ordinary Agriculture
   continues to select25. See [Agriculture](docs/original-economy/agriculture.md).
+- Bounded Grower navigation is an explicit non-production C++ World session,
+  `GrowerNavigationPolicy::Mode17MicrostepV1`, not Rule27/schema43 or an Actor26
+  production grant. It uses the existing shared navigator and58-channel budget,
+  qualified region-absent/flat source facts, complete paid footprints and native
+  direction/phase semantics. One World tick per microstep is AUTHORED; historical
+  5-tick courier/plantation movement stays exact. No field work, raw cargo or Food
+  is created. Unknown predicates reject the whole query; unsupported peers,
+  suspension/Ferry/links/exceptional/global contexts never become arrival8.
+  Preserve current/begun cells. The nonserialized snapshot guard refuses session
+  save/restore publication until terminal cleanup; old schemas/defaults do not
+  migrate. See [Grower navigation](docs/original-economy/agriculture.md#bounded-world-grower-navigation-agri-02e2).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

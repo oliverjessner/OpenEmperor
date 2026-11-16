@@ -69,6 +69,14 @@ complete original-game compatibility.
   all five fields in24/25/26. No physical Original Food Grower, raw Farm stock,
   active/loaded Grower save or new Rule27/schema43 exists. See the
   [physical integration matrix](docs/original-economy/agriculture.md#physical-food-grower-integration-and-completion-matrix-agri-02e).
+  AGRI-02E2 now integrates a bounded flat mode17 motion policy through the
+  shared World navigator, including actual cell commits and8/9/10 outcomes.
+  It is an explicit non-production C++ acceptance session: no Actor26 entity,
+  work/cargo/receipt or saved generation is activated. One World tick per native
+  microstep is AUTHORED; actual speed/cadence and peer/Ferry/link/global/exceptional
+  lifetimes remain unsupported. Transient sessions must be detached before
+  historical save/restore publication. See the
+  [navigation matrix](docs/original-economy/agriculture.md#bounded-world-grower-navigation-agri-02e2).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

@@ -2767,6 +2767,7 @@ SaveDocument parse_document(const json& j,SnapshotSyntax syntax) {
 
 SaveDocument make_document(const fs::path& root,const fs::path& relative,
                            const std::vector<std::uint8_t>& mask,const simulation::World& world) {
+    require(!world.has_grower_navigation_session(),"Detach transient grower navigation before saving");
     safe_relative(relative);
     const auto map=maps::resolve_map_path(root,relative);
     SaveDocument d;
@@ -3532,6 +3533,7 @@ void validate_save_target(const fs::path& path,const fs::path& root) {
 }
 void write_save(const fs::path& path,const SaveDocument& d,const fs::path& root,
                 const std::vector<std::uint8_t>& mask,WriteFault fault) {
+    require(!d.world.navigation_session_present,"Transient grower navigation has no save schema");
     performance::increment(performance::Counter::FileWrites);
     validate_save_target(path,root);
     if (simulation::original_agriculture_enabled(d.world.profile,d.world.rule_version) && fs::exists(path)) {
