@@ -59,6 +59,16 @@ complete original-game compatibility.
   movement/interruption, exceptional states and temporal crop homogeneity still
   prevent a complete raw Farm production mode. No new save authority is active.
   See the [AGRI-02D/02E matrix](docs/original-economy/agriculture.md#original-food-grower-reconstruction-agri-02d).
+  AGRI-02E remains PARTIAL: actual mode17 routing, native20-phase movement,
+  linked State5 interactions and Actor48 carrier-owned suspension13c are now
+  qualified, but not bound to the shared World Navigator. Regular field
+  deactivation unregisters the field; retained last-field references and native
+  slot reuse still require a temporal resource-identity proof. Runtime fertility
+  is separately loaded from construction fertility; startup defaults do not
+  supply admitted live yield operands. Negative paid World/save controls cover
+  all five fields in24/25/26. No physical Original Food Grower, raw Farm stock,
+  active/loaded Grower save or new Rule27/schema43 exists. See the
+  [physical integration matrix](docs/original-economy/agriculture.md#physical-food-grower-integration-and-completion-matrix-agri-02e).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

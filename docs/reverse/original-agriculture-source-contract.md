@@ -2377,6 +2377,382 @@ byte-checked window,134 lines and425 bytes, with the same three input guards
 unchanged. It introduces no World counter, Cart, refund or inferred loss policy.
 
 
+## AGRI-02E physical World integration audit
+
+**PARTIAL.** The source investigations below close additional concrete paths,
+not the paid World Grower chain. All existing `CropRules`, `CropSelectionRules`,
+`CropGrowerRules`, `CropHarvestRules`, `CropLifecycleRules` and
+`CropTransportRules` were checked against these boundaries. No source operation
+is reimplemented merely to claim integration. Rules1–26/schemas1–42 stay exact;
+Rule27/schema43 were rechecked as unused and remain unallocated. There is no
+new create/restore/menu/CLI selection, raw inventory or Food origin.
+
+### AGRI-02E source-distance preparation and dispatch inputs
+
+**EXE_OBSERVED.** `spawn/verify_spawn.py` re-extracts12 complete bounded
+windows, validates51 address/vtable/dataflow checks and checks426 decoded
+instruction lines /1,133 instruction bytes. The pinned EXE, BuildingModels and
+FarmConfig retain SHA-256, size, mode and modification time. No live World or
+Original executable is run by this source verifier.
+
+A due `0x4c3550` dispatch clears its old-byte throttle, reads actual Farm
+return coordinates WORD2a/2c and calls `0x5aea60` at`0x4c366a` with literal
+target coordinates−2/−2. The return value is not tested before the source's
+harvest slot270 and then tending slot274. Both initial selectors consume the
+same prepared DWORD plane `0x1391fe0`; neither distance is a new World BFS or a
+nearest-road approximation.
+
+The complete flood `0x5aea60..0x5aeb51` calls `0x521140` to clear51,984 DWORDs,
+seeds its source distance to1, and uses a bounded ring queue with indices0..51983.
+`0x5aeb60` expands neighbors in order−228,+1,+228,−1. `0x5aebb0` skips already
+visited cells and requires a nonzero intersection of the prepared terrain WORD
+at`0x13789c0` with mask13d. Terrain DWORD bit10000000 additionally requires
+`0x4c11b0`'s field-family predicate on the resolved body. Accepted edges get
+predecessor-distance+1 and enter the queue. The shared helper `0x4fa3d0` is
+literally constanttrue; its call is **not** an independent coordinate/bounds
+proof. The flood can stop at its target or at queue exhaustion. Source seed1
+must not be silently replaced by a zero-distance World origin.
+
+Farm193's actual operation slot78 binds `0x4289f0`, which reads body byte90;
+the generic toggle `0x428a00` writes it and invokes shared invalidation. Its
+staff-percentage slot1b4 binds `0x428ed0`: nonpositive required staff returns0;
+otherwise the native integer query computes100×actual signed-WORD44 divided by
+required staff. Slot1b0 (`0x428eb0`) returns0 while raw byte6e is set, otherwise
+queries model property5. These are actual dispatch inputs, not proof that every
+fire/pause/staff change cancels an already spawned Grower. The previously
+qualified source operation/type/resource gates and retained-counter allocation
+remain distinct from the actor callback's early source-status check.
+
+**UNKNOWN / UNSUPPORTED:** complete prepared-plane creation/update/restore
+provenance, all boundary and occupancy predicates, mutable quota/configuration
+owners, raw Farm WORD40's harvest-allocation gate, and their mapping into shared
+World limits/edge legality. The source range query's actual vtable binding is
+qualified, but no new immutable ownership rule is inferred. This closes the
+local distance preparation and staffing/operation operand path, not bounded
+World entity allocation, physical work or raw stock authority.
+
+### AGRI-02E shared physical routing and actor gates
+
+**EXE_OBSERVED, not World activation.** Private
+`.local/agri-02e/routing/verify.py` re-extracts25 complete code windows with
+switch/descriptor data qualified separately, verifies their instruction bytes
+against the pinned PE, and emits `verified-routing.json`:160 assertions,
+4,752 instruction lines and15,486 instruction bytes including overlaps. The
+EXE, BuildingModels, FarmConfig and FigureModels retain SHA-256, length, mode
+and modification time; no Original executable or personal save is opened for
+execution. This qualifies these functions and direct bindings, not every
+transitive global/model writer or a paid World arrival.
+
+Actor26 overwrites native traversal mode byte`+0x80=17` on **every callback**
+at`0x4cc6a1`. Its states7/9/11/13/14 all call shared`0x4e47a0`; their movement
+result is not an arbitrary caller-assigned arrival flag in the Original.
+The actual vtable property query at`0x4eb9da` binds to`0x4c9310`, which indexes
+the mutable actor property table by raw type and requested property8. The
+source FigureModels row26 has speed-column8, but its load/update provenance
+is not thereby admitted permanently. For a resolved returned speed value of8, the shared cadence
+switch retains byte`+0x170` and supplies1,1,2 microsteps cyclically when starting
+from0. That is not a five-tick World edge rule.
+
+`0x4e7eb0` prepares a route when WORD`+0x42<=0`, queries its direction, then
+validates the next edge. It increments native byte`+0x41` per microstep,
+commits the real cell through`0x4e9100` at phase10 and advances route cursor
+WORD`+0x44` at phase20. The cell commit updates current coordinates, retains
+old coordinates`+0x20/+0x22`, updates the spatial chain and invokes shared
+interaction`0x4e57a0`. This transitive interaction can enter raw state5; legal
+movement therefore cannot replace state5 with an invented no-op.
+
+The complete preparation switch`0x4e89cc` maps traversal17 to`0x4e88db`.
+That branch's helper`0x4fa3d0` is constanttrue, then the target's prepared
+terrain WORD must intersect`0x0b3c`. It calls the separately qualified cardinal
+`0x5aea60` flood. On success the initial BL=1 takes the ordinary extraction
+branch with argument8 into`0x5b18b0`. The extractor consumes that flood plane,
+walks descending distances backward from the target, excludes the previous
+reverse direction, and prefers the direct coordinate direction on an equal
+minimum; otherwise it preserves the first equal candidate. Argument8 scans
+all eight directions; argument4 scans0/2/4/6. It reverses scratch directions
+into the actual route slot and refuses a count at least500. Successful paths
+therefore have fewer than500 stored direction bytes. This distinct traversal
+and tie policy is not proof that a nearest current World road route is the
+Original route.
+
+Actual route-slot allocation`0x4e25a0` reclaims a matching prior slot or scans
+slots1..999. It repairs specific stale ownership/actor-status states and fails
+with outputslot0 when exhausted. This route registry bound is separate from
+native actor bounds and OpenEmperor's existing body/courier budgets. Successful
+preparation records actual actor ownership, route slot, length and phase20.
+Shared route release`0x4e8a30` clears the registry owner only when it matches
+the current actor, then clears that actor's retained slot word.
+
+`0x4e8b40` establishes the exact terminal outcomes:
+
+- With a positive route and cursor at least its retained length, release the
+  route and write8. This branch does not independently compare the final cell
+  with the target; its arrival meaning depends on valid route/endpoint history.
+- Without a positive route, call the complete coordinate-direction helper
+  `0x5b2730`. It returns8 only for equal current/target coordinates. Unequal
+  coordinates are overwritten to10 by`0x4e8b7f`.
+- A live route reads the direction byte at its actual slot/cursor. Separate
+  `0x4e8bc0` next-edge checks can replace a0..7 direction with retry9. They
+  inspect prepared runtime terrain, occupancy, links and per-type context;
+  these planes are not granted by visual/raw terrain similarity.
+
+The existing World plantation path uses cardinal `plantation_edge_allowed`,
+paid source/plant ownership and shared source-aware routes; five-tick movement,
+source staffing/operation/fire gates and output headroom are authored there.
+It is a reusable engine, but no exact mode17 predicate/phase/outcome mapping
+has yet been proved. No second navigator is warranted. A future World binding
+must prepare source-bound legal edges in the shared navigator, preserve begun
+edges and prove route/cell/cursor/endpoint invariants before invoking work.
+
+#### Suspension and carrier lifetime
+
+The actor pass`0x4e27e0` reads DWORD`+0x13c` at`0x4e2899`. A nonzero value
+branches past both behavior **and** the ordinary post-behavior status2 removal.
+A specifically proved writer is transport, not a user-pause assumption:
+`0x4e8bc0`'s gated special-link branch allocates raw Actor48 at`0x4e8e02`.
+Only successful allocation writes that actual carrier ID into the passenger's
+`+0x13c` at`0x4e8eae`, sets its flag6f and releases its route. It follows the
+passenger's positive WORD`+0x66` chain and applies the same suspension to each
+member at`0x4e8f06`. Failed allocation performs no such write.
+
+The exact raw Actor48 descriptor`0x84ef04→0x4cf5f0` selects the carrier body.
+Invalid source handling marks the passenger and linked members status2 and
+clears13c (`0x4cf730/0x4cf752`). Its disembark path restores passenger physical
+coordinates/spatial-chain state, clears13c (`0x4cf8c1/0x4cf945`), and retains
+native edge phase20 for the first passenger or10/retry9 for linked members.
+The source FigureModels48 label is `Ferry Sampan`; that label supplements this
+observed actor-link behavior, not a complete ferry geometry/admission proof.
+All remaining carrier/source/linked-chain identity writers and failure cleanup
+must close before this path can become a World interruption rule.
+
+Global`0x88ec38` has multiple recorded writers. The qualified menu dispatcher
+`0x42e430` writes0 in one branch and1 in another; these values are not an
+unconditional runtime constant. Parent`0x5371a0` skips source scheduler and
+later dispatch when the global is nonzero, but still invokes the actor pass
+at`0x5371ce`. Its complete semantic ownership remains unadmitted: treating this
+as the normal World pause flag would change the observed ordering.
+
+#### State5 and exceptional14–16
+
+The complete interaction initializer`0x4e54e0` preserves the actor's prior raw
+state in`+0x18`, enters5, binds actual peer words`+0x9e/+0x9a`, selects linked
+mode`+0x99=1`, and can place the other actor in5 too. An already linked peer can
+add a second word`+0x9c` and mode2. State5's`0x4e6280` follows the retained
+mode, peer activity/types/states and shared predicates, updates phase/counter
+bytes, and can call the distinct shared operation`0x4e5a60` after its separate
+24-attempt counter. Exit`0x4e65e0` for Actor26 restores the prior state from byte`+0x18`,
+clears mode99/peer words9e/9a/9c and releases the route. It does not itself grant
+a Farm receipt or counter rollback. The full peer/model/RNG/damage/reentry
+context remains unclosed; source staffing/fire may not be substituted for it.
+
+The state14 arrival's`0x5b2730` is now qualified as a direction query from the
+actual current cell to retained WORDs38/3a; state15 increments its signed wait
+until greater than100. State16's actual linked helper`0x4e7460` compares saved
+34/36 and linked current cells, runs its own20-phase movement toward the linked
+actor's **previous**20/22 cell, and commits through the same`0x4e9100` at10.
+Actor26 calls it with step argument1 at`0x4ccecb`. It does not return to ordinary
+Farm work by an inferred animation completion. Complete state14 entry writers,
+linked72 lifetime/missing-link history and every transitive shared effect still
+prevent admitting14–16 as supported World states.
+
+### AGRI-02E: repeated targets, deactivation and raw identity
+
+**EXE_OBSERVED.** Complete repeated harvest selector `0x4c0060..0x4c0129`
+walks the current registered field vector in collection order. An optional
+nonzero preceding field ID acts as a cursor; ordinary caller `0x4c2b20` supplies
+zero, so each ordinary attempt restarts at the beginning. It requires status1,
+Farm-compatible field family, the candidate resource's global enable flag,
+actual operation query, type veto and exact retained actor assignment. This
+local selector performs no quantity, harvest-mark, calendar, distance or
+carried-resource-homogeneity query. Initial harvest admission retains its
+separate mark/quantity/distance gates; the repeated selector must not be
+replaced by that queue or by a new nearest-field search. Successful selection
+updates Actor WORD68 to this actual target. The harvest completion callback
+clears that field's assignment before state10 reselects.
+
+One ordinary lifecycle concern is now narrower. The actual Food vtable
+`0x7aea40` binds `+ac→0x428e70`, `+b0→0x4c17d0`, `+b4→0x4c1840` and
+`+c0→0x4c1770`. Concrete field cell-removal `0x4c17a0` calls `+ac` after its
+map-cell callback. `0x428e70` marks body status0 and invokes subtype cleanup.
+That cleanup delegates `0x51cb50→0x428e10→+b4`; Food `0x4c1840` removes the
+actual field pointer from manager `0x1031460` through pointer erasure
+`0x5f4f20`. Only after that unregister, the local Food cleanup resolves its
+assigned actor, clears that actor's wait WORD3e, and clears its own assignment
+WORD2e. Its local body does not clear Actor68 or Actor7c. Thus ordinary bound
+deactivation removes the field from repeated scans; a blanket claim that all
+ordinary deleted fields simply remain as inactive rows in that vector would be
+incorrect. Exceptional direct status writers and restored collection admission
+remain external.
+
+This still does not prove the returning raw amount's identity. Farm return
+`0x4c4ee0` reads retained Actor68, uses `0x47f1b0` to index the current building
+vector, reads that slot's current model14 and maps it through `0x4c18c0`.
+The complete getter has no status, generation or identity-history check. The
+complete generic building factory `0x42d540..0x42d781` explicitly accepts an
+eligible inactive chosen slot or scans eligible inactive slots (including
+reservation/history veto `0x5ef4f0`), destroys its old concrete object,
+replaces the vector pointer and assigns the same numeric body IDb4 to the new
+object. The complete admission/order of deletion and rebuilding while a loaded
+Grower retains68 must therefore be proved before native numeric references can
+be mapped to World monotone identities. This is a missing temporal proof, not
+proof of a reachable ordinary mixed-crop bug.
+
+Initial active harvest marks may ordinarily constrain one tour to one crop,
+because the five Food end slots differ. However, none of the checked repeated
+selector, harvest callback or Farm-return body compares an accumulated amount's
+resource with each later field. No pooled multi-crop amount can be silently
+accepted as the last field's resource without the complete initial/temporal
+invariant. Maintaining a second per-crop cargo copy would also change the one
+native WORD's authority.
+
+### AGRI-02E: explicit resource equations
+
+For a supported nonnegative numeric yield `N`, let `H=N mod65536` and incoming
+actor raw WORD `C`. History records `H`, and the same actor word becomes
+`C'=(C+H) mod65536`. The independent narrowing and carry amounts are
+`N-H` and `C+H-C'`; they are not additional Farm credits or retained cargo.
+Signed-positive selection of C' is a separate gate: WORD32768..65535 selects
+state9, which returns without a source receipt, just like zero. The actual
+source return sign-extends its actor word; negative source offers are outside
+the checked nonnegative Farm-bin API domain and must remain unsupported.
+
+For an actual same-resource source receipt in the checked bin API domain
+0≤B≤K≤32767 and0≤O≤32767 (no signed-DWORD wrapping), `A=min(O,K-B)` and `X=O-A`, so
+`O=A+X` and `B'=B+A`. Original credit returns X, but Farm does not inspect it.
+If actual access and stock>=400 permit a Cart attempt, failed factory creation
+performs no bin debit and supplies no refund. Only successful creation performs
+`B''=B'-400` and initializes the separate Cart WORD82 to400, preserving
+`B''+400=B'` for that handoff. This Cart word is not a copy of Grower WORD7c.
+A failed Grower return10 has no source receipt: its retained word is unreceived
+terminal cargo. After a receipt, the offered word remains historical memory;
+A was credited and X was unaccepted. Reset must neither credit that word nor
+count all of it as another loss. Partial acceptance does not make X accepted
+stock; account for X once, without an invented refund.
+
+The Farm footer remains a bookkeeping caveat: ESI is replaced with the Cart
+factory result, including0 on failure, before it resolves an actor and reads
+WORD7c for resource-indexed DWORD addition. This counter cannot stand in for
+O or A. The unchecked slot getter also means that the identity0 record's
+initialization/load provenance must be established before claiming that branch's
+bookkeeping value. No extra World resource counter is introduced for it.
+
+Private `identity/verify_identity.py` independently recaptures complete bounded
+bodies and validates 91 address/branch/vtable assertions over22 byte-checked
+windows, with the three guarded input files unchanged in SHA-256, length, mode
+and mtime. It executes no Original binary and reads no personal save. This is
+source evidence, not a physical World test or proof that an adversarial combined
+field history is reachable in an ordinary original city.
+
+### AGRI-02E live operand provenance
+
+**EXE_OBSERVED / PARTIAL.** The private checks
+`.local/agri-02e/yield/verify_live.py` and `verify_date.py` qualify additional
+entry, serializer, update and switch-table paths. Their independent receipts
+`verified-live-provenance.json` and `verified-date-factor-provenance.json` record
+180 and251 checks,15 and13 byte-checked windows,1,652 and5,459 decoded
+instructions, and5,536 and20,070 instruction bytes respectively. Original EXE,
+BuildingModels and FarmConfig hashes, sizes, modes and modification times remain
+unchanged. No Original executable was executed and no personal save was inspected. Complete code
+ranges are qualified independently from private exploratory snippets; raw switch
+entries are not decoded as executable instructions.
+
+Runtime fertility has an actual archive provenance distinct from construction
+fertility. Standalone map archive `0x52e7c0` writes the51,984-byte
+`0xeac3f0` runtime plane at `0x52e8df` and separately writes the
+`0xe9f8e0` construction plane at `0x52e901`; corresponding reads are
+`0x52ea84` and `0x52eaa6`. Its header-only argument can skip both planes.
+The complete checked archive has no direct call to the fertility preparation
+functions. This does not prove that its later callers leave runtime fertility
+unchanged. The rectangle update `0x4c1c20` and all-map wrapper `0x4c1d00`
+remain real mutating operations. Reset block `0x4b08d3` independently zeroes the
+runtime plane. Native session archive `0x52fda0` likewise stores runtime
+fertility at `0x53035a`, and its checked current-version19 read branch loads
+it at `0x530b5a`. A future World may not always replace that input with the
+construction byte plus startup modifier10; it needs a proved initialization and
+update ordering for its admitted source profile.
+
+The actual event getter `0x48df30` returns singleton `0xc701d8`.
+Its constructor `0x48df40` installs vtable `0x7adb88`; slot+8 selects
+`0x48ed30`. The archive's writer retains enable byte+50, state DWORD+54
+and selector DWORD+58 separately. Load versions3/4 read those fields; versions1/2
+omit them. Its version upgrade sets4. Runtime operation `0x48f820` copies an
+actual argument into+58 and sets+54=3. `0x48fcb0`'s bounded four-way
+dispatch reaches this operation through `0x48fd23→0x48df30` and
+`0x48fd2a→0x48f820`. The conditional `0x48ea40` path sets singleton+50=1
+and+54=0; `0x48eb90` clears both. These owners and writes qualify real operands,
+not a permanently disabled event or a default event state. Native session
+archive explicitly calls this singleton's actual slot+8 on store and current19
+load. Complete command admission, enable lifetime and mode-dependent source
+operands remain separate.
+
+The raw date operand also has a separate owner and epoch. Reset `0x4ac240`
+selects month1 through exact getter `0x4f8d50` and writes temporary rawdate2098.
+Configuration preparation `0x53d470` separately sign-extends the native
+configuration's first WORD `0xc5cae0` into `0xd623fc` at `0x53d5ca`.
+Within complete calendar driver `0x4ac650..0x4acc35`, month wraps after11,
+but raw date increments when the resulting month equals1, through
+`0x4ac7d0..0x4ac7ea`. Current native session store/load retain raw date
+DWORD separately from the month at `0x52feac`/`0x5306ac` and
+`0x52feba`/`0x5306ba`. The existing World calendar explicitly counts authored
+elapsed zero-origin periods. Its elapsed year is not this native date, and
+its11→0 wrap is not sufficient proof of the native rawdate update.
+
+The event's date selectors are now bounded operations: when the separate
+mode predicate is false, `0x52ca40` computes signed remainders from
+`rawdate+10017` modulo12, and `0x52caa0` arithmetic-shifts that adjusted
+operand right once before signed remainder modulo5. Getter `0x408ac0` selects actual singleton `0x10bc348`, and predicate
+`0x4fae50` tests its DWORD+10 for nonzero. The true branches
+instead read `0x854f98` and `0x115d508`/`0x115d50c`. Those additional runtime
+owners, integer domains and command ordering still need admission. Their zodiac,
+element or event names are not inferred from these numeric operations.
+
+New-map entry `0x53cec0` copies an actual supplied argument's low WORD into
+region selector `0xc5cd58` at `0x53cf01`, then stores that argument through
+the actual header's+8 setter. This entry has no scalar0..2 range test before
+the store. Editor `0x5f5360` is a different entry with an upper-bound<=2 test
+and a conditional all-map fertility recomputation. The finite exact-address
+census across `.text`, `.rdata` and `.data` for `0x84c550..0x84c5cf`
+qualifies39 direct operand occurrences: the parameter initializer's stores and
+the identified read sites. It identifies no later exact absolute store in that
+range. This finite result does not establish a general indirect-write invariant
+or a FarmConfig loader. Numeric factor rows remain source initial values;
+matching FarmConfig labels do not prove names for region0/1/2 or live constants.
+
+Three earlier floating-point-control candidates can now be removed from the
+writer list. Bytes at `0x6fdef9`, `0x6fdefd` and `0x702708` belong to the
+bounded25-entry and7-entry jump tables selected at `0x6fd7f0` and
+`0x7025d2`. Their complete enclosing switch functions contain no FP-control
+operation; every table destination and direct branch remains in actual code.
+These data bytes do not execute `FLDCW`/`FLDENV`. Actual CRT control-word updates
+and restores still exist. Eliminating false candidates does not establish live
+PC/RC, normal FP stack or exception state at the first harvest arithmetic.
+
+The existing Rule26 wet-ditch query remains an explicitly authored World adapter.
+The Original harvest's `0x4c15b0→0x525610` graph additionally queries actual
+Flood state and native per-cell timestamps/cached supplier histories. Matching
+five-cell query reach alone cannot substitute Rule26's operation/staff/fire
+eligibility and eager invalidation history for that entire Original query.
+
+**Remaining live activation prerequisites:**
+
+1. Bind admitted raw source/save context to runtime-fertility initialization,
+   rectangle/all-map rewrites, numeric region validation and the native rawdate
+   epoch/update order. Do not substitute immutable construction fertility,
+   elapsed World year or a startup default.
+2. Close the event singleton's complete enable/update/old-load lifecycle and
+   accepted selector/date/mode domains; retain one owner for each operand.
+3. Prove the selected parameter/configuration lifetime, including any accepted
+   indirect writes and load behavior. Treat the39 exact-reference result as a
+   bounded census, not a proof over every alias or a FarmConfig import contract.
+4. Qualify actual harvest entry PC/RC and FP stack/exception state across reachable
+   native/external/indirect calls. Existing local stability and startupPC53 are
+   insufficient for that admission.
+5. Bind actual water/Flood/supplier/timestamp histories to the accepted field
+   query without silently replacing them with Rule26's authored cache contract.
+6. Complete the separate physical Actor26 routing, source/target lifetime and
+   strict crop-identity/WORD/bin resource balance before any source callbacks
+   create World stock.
+
 ## Concrete proof gates before implementation
 
 The [runtime architecture](../original-economy/architecture-map.md) remains the

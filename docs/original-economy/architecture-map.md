@@ -76,6 +76,14 @@ Actual live operands, movement/interruption and temporal crop-identity/conservat
 proofs remain open. No new Original Food Grower generation or save contract exists. The
 [AGRI-02D matrix](agriculture.md#original-food-grower-reconstruction-agri-02d)
 defines concrete AGRI-02E prerequisites; Rule26/schema42 stays exact.
+AGRI-02E qualifies the actual mode17 distance/route/20-phase graph,
+linked State5 and carrier-owned suspension13c, actual field unregister and
+numeric slot reuse, and further live yield load/update owners. None provides
+complete World routing/context/temporal resource admission. The new paid
+five-field World/save test is explicitly a negative historical admission
+control, not a positive Grower cycle. Rule27/schema43 remain unused; no raw
+Farm origin, new active Grower save or second Food authority is added. See the
+[physical integration matrix](agriculture.md#physical-food-grower-integration-and-completion-matrix-agri-02e).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 

@@ -1198,6 +1198,12 @@ if(BUILD_TESTING)
     add_test(NAME original-agriculture-save COMMAND openemperor-agriculture-save-tests)
     set_tests_properties(original-agriculture-save PROPERTIES TIMEOUT 240)
 
+    add_executable(openemperor-original-grower-admission-tests tests/OriginalGrowerAdmissionTests.cpp)
+    target_link_libraries(openemperor-original-grower-admission-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-original-grower-admission-tests)
+    add_test(NAME original-grower-admission COMMAND openemperor-original-grower-admission-tests)
+    set_tests_properties(original-grower-admission PROPERTIES TIMEOUT 180)
+
     add_executable(openemperor-plantations-world-tests tests/PlantationsWorldTests.cpp)
     target_link_libraries(openemperor-plantations-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
     openemperor_enable_warnings(openemperor-plantations-world-tests)
