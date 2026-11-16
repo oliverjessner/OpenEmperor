@@ -2938,6 +2938,275 @@ accepted-direction cursor, phase/current/previous cells, work/waits, raw cargo,
 reservations and source counters. Recheck any proposed Rule27/schema43 pair;
 no such generation or automatic migration is activated here.
 
+## Autonomous transient tending binding (AGRI-02E3)
+
+This extends the explicit movement experiment with World-owned FoodGrower26
+dispatch, actual field selection, physical tending and retirement under
+`GrowerLifecyclePolicy::AutonomousTendingV1`. It is a transient, tending-only
+acceptance policy. It does not select Rule27/schema43 or activate Original crop
+growth, harvest, cargo, Farm receipts or Food production. Rules1–26 and
+schemas1–42 retain their existing behavior and defaults. The implementation and
+static source qualification below do not claim completed World/full QA or human
+acceptance; those checks remain separate.
+
+### Source dispatch, staffing and allocation
+
+**EXE_OBSERVED, bounded fresh-session interpretation.** Native scheduler
+`0x4ac2b0` reads phase `0xc82ef8`, subtracts one and indexes `0x4ac4e8`.
+Phase31's slot30 selects `0x4ac43c→0x416d20`. Its complete registered-building
+pass checks actual live bodies and calls virtual slot20 at `0x416eba`;
+Farm193's `0x7af1e8+20` binds `0x4c4b90`. Phase35 is not this Farm update's
+cadence. The Farm checks actual access, staffing, the separate type-global and
+Food-resource vetoes, and operation before entering the dispatcher.
+
+Actual eligible dispatch calls advance retained BYTE36. The due comparison
+uses its old unsigned value after storing the increment. Full staffing's
+threshold1 therefore attempts on the second eligible call from0, resetting
+the byte0 when due. Other qualified staffing tiers retain their separate
+thresholds and quota arithmetic; zero staffing does not advance the byte.
+Actual operation slot78 reads body BYTE90. Actual staff percentage is integer
+`100*assigned/required` through signed-WORD44 and the required-staff/model
+query, with nonpositive requirement returning0. These source operands do not
+by themselves prove that every native staff/fire change cancels a live actor.
+
+The fresh configuration initializer supplies Food harvest/tending quotas5/2
+and harvest/tending field budgets4/10. These are qualified defaults, not a
+completed mutable FarmConfig import or native restore contract. Tending
+allocation subtracts retained DWORD154 from the requested quota; its selected
+field budget uses10 times the requested quota, rather than the remainder.
+World's supported counter domain is nonnegative with positive remaining quota.
+Initial selection and native allocation-time resource, type-global veto and
+operation checks remain separate.
+
+For the admitted single-candidate case, requested2/retained0/selected1 gives
+remaining quota2 and computed grouping `floor(1/2)-1=-1`. That grouping is
+distinct from actual extra-assignment count: `0x4c3a56` initializes stack+10
+to0, while `0x4c3a6a` writes the computed group to stack+20. The first entry
+tests actual0 at `0x4c3ae2`, reaches `0x4c3b0c` and calls Actor26 factory
+`0x4c3b36` exactly once after the real gates. It does not attach to actor0.
+Only success later copies the group into the actual attachment count; the sole
+entry then ends without another iteration. Failure publishes no identity,
+assignment or counter increment. Private `verify_single_candidate.py` adds33
+assertions over the complete allocation window,214 instruction lines and721
+byte-checked bytes, with independent success/failure traces and input guards.
+
+Factory failure consumes its selected entry without creating an actor,
+assignment, counter increment or successful ordinal. Actual success alone
+creates state6/role1, wait `10*prior-successful-ordinal`, actual source62 and
+initial field68=0, then increments the retained counter and assigns the actual
+actor ID to the selected field. Initial commitments are not yet the actor's
+current task. Retained counters are not active-worker counts: failed state6
+selection debits tending before physical return, and actual retirement debits
+it again with a floor at0. Occupied movement channels must remain independent
+of those counters.
+
+The initial selector `0x4c0380` invokes Farm slot26c, bound to `0x4c3c60`.
+It reads source model width3 and Farm slot260→`0x4c31f0`; exact Food193
+family `0x4c3350` selects global `0x84c554`, initialized3 at `0x4bfc7e`.
+For field-origin minus Farm-origin `(dx,dy)`, the predicate is
+`(abs(dx)<=3 || abs(dx-2)<=3) && (abs(dy)<=3 || abs(dy-2)<=3)`, equivalently
+`-3<=dx<=5 && -3<=dy<=5` in this fresh width/radius profile. It uses the
+complete Farm footprint's origin and extent, not a radius around its external
+road or the authored field-parent binding.
+
+**PARTIAL runtime score, positive single-candidate result.** Initial tending
+score calls `0x4c1af0→0x4c1b30`, using runtime fertility bytes or a separately
+resolved global override. Runtime and serialized construction fertility remain
+different operands. Standalone runtime-plane reads do not close subsequent
+reset/recompute/global ordering, and accepting Properties6 does not authorize
+a live score. The supported World scope has exactly one initially eligible
+candidate: eligibility is independent of fertility, and the sole queue element
+cannot change its selected identity or allocation with that unresolved score.
+Only this winner independence is established; no numeric score is admitted.
+Multiple initial candidates remain unsupported, without substituting
+construction fertility100 or an invented tie order.
+
+### Native entry and external Farm coordinates
+
+**EXE_OBSERVED.** Actual Farm193 construction installs vtable `0x7af1e8`.
+Its access-refresh slot84 binds `0x51ce50→0x426df0`. Manager `0x4acfc0`
+sign-extends actual EntryX/Y `0xc5cdfc/0xc5cdfe`, prepares distances through
+`0x5ae140` with target `(-2,-2)`, clears active sources' WORD2a/2c and calls
+their actual slot84. Shared `0x426df0` passes source signed X/Y and full side
+to `0x4baf40..0x4bb156`; success alone copies selector outputs
+`0x10c72ac/0x10c72a8` into source WORD2a/2c. Failure creates no nearby point.
+Those retained coordinates feed the actual Grower factory, source-distance
+preparation and exhausted tending selection's return target. The Farm origin
+is not a passable substitute.
+
+Entry words belong to MapProperties owner `0xc5cae0` at offsets31c/31e.
+For outer Map5/Header2 and Properties3 or6, selector slots0/3 both reach read
+branch `0x52d1fc`. Its packed body entry offsets are792/794; native structure
+padding is not serialized. Map WORD2 + cafe DWORD4 + Header WORD2 + Header2
+body48 + Properties WORD2 gives body base58. Signed EntryX/Y are therefore
+logical WORDs850/852. Complete afterload `0x52c9c0..0x52ca3f` copies separate
+preserved fields without overwriting either entry word. Other properties
+versions are outside this source adapter.
+
+Native coordinate preparation `0x53ce60` selects actual Header+4 context
+through `0x52e7b0→0x4f8210`. Table `0x856c64` supplies sizes
+56,84,112,140,170,226 and linear base `border*229`, where
+`border=(228-size)/2`. The admitted shared geometry supports84,112,140,170,226.
+Header context index at logical DWORD8 must agree with the separately
+serialized MapProperties size at logical84 before entry translation
+`(x+border,y+border)` and playable-geometry containment. No map name, coordinate
+exemption or visual road supplies this fact.
+
+Native `0x5ae140` clears51,984 DWORD distances at `0x1391fe0` through
+`0x521140`, seeds the exact source distance1 unconditionally and uses one
+51,984-cell ring queue. Sole helper `0x5ae240` expands unvisited destinations
+with nonzero `preparedWORD & 0x0b7c`, north(-228), east(+1), south(+228),
+west(-1), writing parent distance+1. This mask admits ordinary empty-land
+WORD10 and road WORD04; Farm WORD02 fails. It differs from mode17's flood13d
+and is not road-only navigation. A real target can stop it when popped; queue
+exhaustion also ends it. Manager's local sentinel(-2,-2) lies outside playable
+geometry, but its converted storage index need not be negative after adding
+the border. No sentinel arrival or exact reconstruction of the whole mutable
+native manager plane is inferred by the World witness below.
+
+For side3, actual table `0x820038+96*3` contains twelve cardinal perimeter
+offsets, clockwise from the northern row: (0,-1),(1,-1),(2,-1),(3,0),(3,1),
+(3,2),(2,3),(1,3),(0,3),(-1,2),(-1,1),(-1,0), followed by twelve zero entries.
+Preferred selection requires runtime Road40 without special bit4, a positive
+distance and road-region `0xec5a10` against mutable priority table `0x1312588`.
+Strictly better priority replaces the candidate; ties retain the first.
+Occupied contexts may invoke actual body slotd0 and are not assumed ordinary
+unoccupied Roads. The fallback separately chooses the least positive perimeter
+distance, retaining the first tie, without repeating the Road predicate.
+A unique positive ordinary perimeter Road avoids that priority ambiguity and
+fallback; adjacency alone does not prove the positive distance.
+
+### Native tending, return and cleanup
+
+The qualified ordinary tending lifecycle is6→7→8→6, followed by no-receipt
+return9 when selection fails. State6 decrements wait and clears it when due
+before calling the source selector. Actual tending caller `0x4c2c70` pushes
+literal previous-ID0 at `0x4c2c7f` before `0x4c2c8b→0x4bff80`. Each tending
+scan therefore starts at the registered collection's beginning. It requires
+status1, raw terrain100 exclusion, actual field family, resource/operation/veto
+operands and assignment equality to the actual actor. The first selected result
+is separately rechecked for growing period. Repeated tending has no additional
+source-range query and does not use repeated harvest's retained-last-field
+cursor.
+
+Success stores the actual field reference/coordinates and enters7. Failure
+retains the last field reference, targets actual source WORD2a/2c, enters9 and
+separately debits retained tending. Actual shared movement8 admits work state8
+and Food wait51. After51 eligible state8 callbacks, compatibility alone gates
+field slot264; the completion helper adds no assignment-equality, quantity,
+staffing or harvest-mark gate. Actual `0x4c1d20` ORs work40, clears assignment2e
+and body counter150, and preserves quantity, history and sole actor cargo7c.
+The actor re-enters6 even if compatibility failed. Field callback compatibility
+and the stricter supported World domain must not be conflated.
+
+Return9 movement8 or10 retires without a Farm resource receipt. Retirement's
+role1 counter debit is additional to any failed-selection debit and floors at0.
+Actual manager removal cleans assignments before reset: every active registered
+field assigned to that actor is cleared; inactive fields and another actor's
+assignments are unchanged. Reset clears source, last field, wait, role and the
+same cargo word. Route, link and peer cleanup remain engine responsibilities.
+
+**E4 remains separate.** A role1 tending actor with cargo7c=0 reaches no Farm
+stock receipt. Native tending can visit different typed Food fields without
+converting a resource, but this does not prove mixed-crop harvest. Repeated
+harvest can overwrite Actor68 while adding into the same7c; Farm return derives
+resource from the current last-field model. Food deactivation unregisters the
+field, clears its assigned actor wait and assignment, but locally retains
+Actor68/7c. Reusable native slots have no generation check in the return getter.
+E4 still needs a same-resource temporal invariant, source/field lifetimes and
+explicit narrowed/carry/accepted/overflow accounting. No second per-crop cargo
+copy or relabeled last-field return is established.
+
+### Explicit World binding and unchanged historical authority
+
+**AUTHORED driver and conservative World domain.**
+`WorldGrowerLifecycle.cpp` owns the controller, typed monotone FoodGrower IDs,
+actual fields, assignments, work observations, source counters and movement
+channels. Explicit start requires the Rule26 prepared context, complete paid
+Farm193 and typed Food footprints in the fresh native range, and sealed
+`GrowerSourceFacts`. Its sole factory uses the shared path resolver,
+`EmperorContainer`, bounded `read_range`, map probe and `MapGeometry`; it binds
+the retained complete source SHA, coherent Map5/Header2/Properties3or6 operands
+and contained storage entry, then rechecks the source SHA. Callers cannot
+construct or restore an entry grant or supply a movement/creation result.
+
+World requires one ordinary Farm perimeter Road and a supported ordinary entry
+Road. Its existing shared `find_road_route` prepares a positive cardinal b7c
+witness from that exact entry to the unique port, reusing its queue/storage.
+The witness can stop at the port and does not claim the complete native manager
+plane. Supported empty land can participate; a road-only route is not
+substituted. The qualified unique-road predicate determines the source endpoint
+without native road-region priority or fallback guesses. Access is refreshed
+against actual World topology revisions, rather than supplied as a spawn point.
+
+Source dispatch uses phase31 of the existing scheduler and actual workforce
+captured before the ordinary tick's population changes. The retained fresh
+configuration5/2 and tending fieldbudget10 define this explicitly bounded
+session; they do not establish arbitrary native mutable configuration parity.
+The single-candidate check retains only eligibility at fertility extrema0/100,
+discards both numeric scores and rejects multiple candidates. Only actual
+accepted World allocation consumes a FoodGrower ID, commits the field
+assignment and increments the native retained counter. One live actor at a
+time is an explicit conservative peer fence, **not** an Original quota or
+worker-limit finding. Actual occupied channels remain separate from counters,
+including the interval after failed selection but before physical retirement.
+The existing58-channel budget and bounded eight-record actor audit are retained.
+
+One World tick drives one supported actor callback and the shared mode17
+microstep when movement is needed. This clock remains AUTHORED, not a native
+Actor26 speed claim. The actor selects its assigned field in state6, moves its
+actual committed cell through7, receives wait51 only at the exact real endpoint,
+then applies the tending callback through8. Its cleared assignment allows the
+next actual scan to fail, debit the counter and prepare return9. Natural return
+uses real shared motion to the retained external source cell before retirement,
+the second counter debit, assignment cleanup and reference/channel reset. No
+caller-triggered worker body, supplied arrival8, proximity or rendering grants
+work.
+The value-operation adapter normalizes copy-only target/reference operands to
+checked World IDs and storage-cell coordinates. Those slots are not imported
+native actor IDs/local-coordinate WORDs and are never raw saved authority.
+All physical navigation operands use the same frame; the source reader applies
+the verified local-entry border translation.
+
+The session owns separate transient field work/assignment state. It does not
+advance native growth, quantity or harvest history; create harvest cargo;
+credit Farm bins or Food; or replace the existing historical Agriculture
+accounting. Inherited authored Wheat/Millet production remains its historical
+contract and is not evidence of this tending path. Field-parent membership is
+a supported World fence, not an inferred immutable native ownership rule.
+
+Source/access, staffing, operation/fire, peers, the admitted raw month slot and
+field membership bound the session. A newly introduced in-range field or an
+unqualified context conservatively stops further work. State5, suspension13c,
+Ferry48, linked66/72, exceptional14–16 and global88ec38 remain unsupported.
+Actual native source-status failure marks retirement and continues its body;
+World's stricter stop policy is not relabeled as that native behavior. Stop
+preserves a begun physical edge, then retires without another work callback or
+invented successful return. Current/begun actor claims remain protected through
+this drain. Clear is refused while an actor remains live.
+
+The existing `WorldSnapshot::navigation_session_present` publication guard also
+covers a retained controller with zero actors. It is not a historical JSON
+field. Save-document preparation, publication and restore refuse that transient
+context until explicit cleanup; no actor, assignment, shadow work or source
+counter is serialized into schemas1–42. Historical snapshots, rules and schema
+markers remain unchanged. Rule27/schema43 remains unused, and persistence or
+full native production needs its own later explicit contract.
+
+### Reproducible static evidence and remaining acceptance
+
+Private read-only dispatch verifiers freshly recapture PE windows:
+`verify_dispatch.py` records90 assertions/13 windows/877 decoded instructions/
+2,790 bytes; `verify_entry.py` records80/17/960/3,199; `verify_range.py`
+records28/6/398/1,387 plus4,225 bounded range identities. Independent
+`lifecycle/verify_lifecycle.py` records76 assertions/15 windows/1,650 decoded
+instructions/5,622 bytes, including overlaps. Guarded Original EXE, model,
+configuration and supplied-map inputs retain their SHA-256, length, mode and
+mtime, as applicable. No Original executable runs and no personal save is read.
+These receipts qualify source behavior; they are not World/full QA, native
+delivery or human acceptance. Physical World verification, historical
+noninterference and persistence refusal checks remain separate acceptance work.
+
 ## Concrete proof gates before implementation
 
 The [runtime architecture](../original-economy/architecture-map.md) remains the

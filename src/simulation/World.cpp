@@ -2514,16 +2514,21 @@ std::vector<BuildingEntrance> World::building_entrances(BuildingId id) const {
 
 std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
     std::optional<BuildingId> plantation_source,std::optional<BuildingId> plantation_plant,
-    bool original_grower_mode17,GrowerNavigationResult* grower_result) const {
+    bool original_grower_mode17,GrowerNavigationResult* grower_result,
+    std::int32_t* prepared_distance,bool original_entry_preparation) const {
     if(grower_result) *grower_result=GrowerNavigationResult::Failed;
+    if(prepared_distance) *prepared_distance=0;
     constexpr std::array<Cell,8> mode17_directions{{
         {0,-1},{1,-1},{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1}}};
-    const bool land=!original_grower_mode17 && original_plantations_enabled() &&
+    const bool original_preparation=original_grower_mode17 || original_entry_preparation;
+    const auto preparation_mask=original_entry_preparation ? 0x0b7cU:0x013dU;
+    const auto target_preparation_mask=original_entry_preparation ? 0x0b7cU:0x0b3cU;
+    const bool land=!original_preparation && original_plantations_enabled() &&
         plantation_source && plantation_plant;
     if (!in_bounds(start) || !in_bounds(goal) ||
-        (!original_grower_mode17 && !land &&
+        (!original_preparation && !land &&
          (!transport_cell(start) || !transport_cell(goal)))) return std::nullopt;
-    if (original_grower_mode17) {
+    if (original_preparation) {
         const auto source_mask=original_grower_navigation_mask(start);
         const auto target_mask=original_grower_navigation_mask(goal);
         if(!source_mask || !target_mask) {
@@ -2533,42 +2538,45 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
         // The admitted World subset starts outside the blocked Farm body.
         // Original preparation seeds distance1 independently of the source
         // mask; that does not authorize a World Farm-footprint exemption.
-        if (!source_mask || !(*source_mask&0x013dU) || !target_mask ||
-            !(*target_mask&0x0b3cU)) return std::nullopt;
+        if (!(*source_mask&preparation_mask) || !(*target_mask&target_preparation_mask))
+            return std::nullopt;
     }
-    if (start==goal) return std::vector<Cell>{start};
+    if (start==goal) {
+        if(prepared_distance) *prepared_distance=1;
+        return std::vector<Cell>{start};
+    }
     const auto start_index=index(start);
     // Reuse the shared traversal storage and queue: historical paths retain
     // predecessors; mode17 retains the Original cardinal distance plane.
-    const auto unvisited=original_grower_mode17 ? std::size_t{0}:objects_.size();
+    const auto unvisited=original_preparation ? std::size_t{0}:objects_.size();
     std::vector<std::size_t> previous(objects_.size(),unvisited);
     std::deque<Cell> queue;
     BfsDiagnostics diagnostics;
-    previous[start_index]=original_grower_mode17 ? 1:start_index;
+    previous[start_index]=original_preparation ? 1:start_index;
     queue.push_back(start);
     while (!queue.empty()) {
         ++diagnostics.visited;
         const auto current=queue.front(); queue.pop_front();
         // Mode17 stops on the target's queue removal, before expanding it.
         // Historical navigation continues to finish at first discovery.
-        if (original_grower_mode17 && current==goal) break;
+        if (original_preparation && current==goal) break;
         for (std::size_t direction=0;direction<neighbors.size();++direction) {
-            const auto delta=original_grower_mode17 ?
+            const auto delta=original_preparation ?
                 mode17_directions[direction*2]:neighbors[direction];
             const auto next=add(current,delta);
-            if (original_grower_mode17) {
+            if (original_preparation) {
                 if (!in_bounds(next)) continue;
                 const auto mask=original_grower_navigation_mask(next);
                 if (!mask) {
                     if(grower_result) *grower_result=GrowerNavigationResult::Unsupported;
                     return std::nullopt;
                 }
-                if (!(*mask&0x013dU)) continue;
+                if (!(*mask&preparation_mask)) continue;
             } else if (!(land ? plantation_edge_allowed(current,next,*plantation_source,*plantation_plant):
                                transport_edge_allowed(current,next))) continue;
             if (previous[index(next)]!=unvisited) continue;
-            previous[index(next)]=original_grower_mode17 ? previous[index(current)]+1:index(current);
-            if (!original_grower_mode17 && next==goal) {
+            previous[index(next)]=original_preparation ? previous[index(current)]+1:index(current);
+            if (!original_preparation && next==goal) {
                 std::vector<Cell> route;
                 auto at=index(goal);
                 while (at!=start_index) {
@@ -2578,18 +2586,24 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
                 }
                 route.push_back(start);
                 std::reverse(route.begin(),route.end());
+                if(prepared_distance) *prepared_distance=static_cast<std::int32_t>(route.size());
                 return route;
             }
             queue.push_back(next);
         }
     }
-    if (!original_grower_mode17 || previous[index(goal)]==0) return std::nullopt;
+    if (!original_preparation || previous[index(goal)]==0) return std::nullopt;
+    if(prepared_distance) *prepared_distance=static_cast<std::int32_t>(previous[index(goal)]);
 
     // Extract the exact eight-direction gradient backward. Runtime movement
     // legality must not filter these candidates: that would select a different
-    // route instead of refusing an unsupported Original winner.
+    // route instead of refusing an unsupported Original winner. An entry
+    // preparation returns only a cardinal reachability witness from its own
+    // mask/plane, not an Actor route or a global manager rebuild.
+    const auto direction_step=original_entry_preparation ? std::size_t{2}:std::size_t{1};
+    const auto route_cell_limit=original_entry_preparation ? objects_.size():std::size_t{500};
     std::vector<Cell> route{goal};
-    route.reserve(std::min<std::size_t>(previous[index(goal)],500));
+    route.reserve(std::min(previous[index(goal)],route_cell_limit));
     auto at=goal;
     int excluded=-1;
     while (previous[index(at)]>1) {
@@ -2599,7 +2613,7 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
             if (mode17_directions[direction]==direct) preferred=static_cast<int>(direction);
         auto minimum=previous[index(at)];
         int chosen=-1;
-        for (std::size_t direction=0;direction<mode17_directions.size();++direction) {
+        for (std::size_t direction=0;direction<mode17_directions.size();direction+=direction_step) {
             if (static_cast<int>(direction)==excluded) continue;
             const auto candidate=add(at,mode17_directions[direction]);
             if (!in_bounds(candidate)) continue;
@@ -2610,18 +2624,19 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
                 chosen=static_cast<int>(direction);
             }
         }
-        if (chosen<0 || minimum>=previous[index(at)] || route.size()>=500) return std::nullopt;
+        if (chosen<0 || minimum>=previous[index(at)] || route.size()>=route_cell_limit) return std::nullopt;
         at=add(at,mode17_directions[static_cast<std::size_t>(chosen)]);
         route.push_back(at);
         excluded=(chosen+4)%8;
     }
     if (at!=start) return std::nullopt;
     std::reverse(route.begin(),route.end());
-    for (std::size_t i=1;i<route.size();++i)
-        if (!original_grower_navigation_edge_allowed(route[i-1],route[i])) {
-            if(grower_result) *grower_result=GrowerNavigationResult::Unsupported;
-            return std::nullopt;
-        }
+    if(!original_entry_preparation)
+        for (std::size_t i=1;i<route.size();++i)
+            if (!original_grower_navigation_edge_allowed(route[i-1],route[i])) {
+                if(grower_result) *grower_result=GrowerNavigationResult::Unsupported;
+                return std::nullopt;
+            }
     return route;
 }
 
@@ -3626,8 +3641,10 @@ void World::move_courier() {
 void World::tick() {
     if (original_production_enabled()) {
         performance::increment(performance::Counter::SimulationTicks);
+        if(grower_lifecycle_) capture_grower_lifecycle_staffing();
         tick_original_production();
         if(has_grower_navigation_session()) advance_grower_navigation();
+        if(grower_lifecycle_) advance_grower_lifecycle();
         return;
     }
     if (original_economy_enabled()) {

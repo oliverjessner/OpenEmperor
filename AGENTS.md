@@ -190,6 +190,21 @@
   Preserve current/begun cells. The nonserialized snapshot guard refuses session
   save/restore publication until terminal cleanup; old schemas/defaults do not
   migrate. See [Grower navigation](docs/original-economy/agriculture.md#bounded-world-grower-navigation-agri-02e2).
+- Autonomous tending is a separately selected, transient C++ World session,
+  `GrowerLifecyclePolicy::AutonomousTendingV1`. Actual pre-tick Farm staffing,
+  phase31 source attempts and a sealed SHA/header-bound entry operand gate
+  typed monotone Actor26 allocation. Reuse the shared movement channel through
+  actual arrival,51 callback invocations, tending, empty return and retirement.
+  Keep native retained counters separate from live occupancy. The initial
+  candidate must be unique: runtime-fertility scores are not admitted. One live
+  actor and one raw slot are conservative context fences, not Original quotas
+  or lifetimes. Actor callbacks/microsteps per World tick remain AUTHORED.
+  World owns transient field assignments/work; never mutate historical field
+  authority or grant growth, harvest, cargo or Food. Save/restore stays blocked
+  even for a controller with no actor. Drain begun sections before cleanup;
+  preserve historical continuation and monotone lifetime IDs. Rules1–26,
+  schemas1–42 and defaults stay exact; Rule27/schema43 remain unallocated. See
+  [autonomous tending](docs/original-economy/agriculture.md#autonomous-tending-acceptance-agri-02e3).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

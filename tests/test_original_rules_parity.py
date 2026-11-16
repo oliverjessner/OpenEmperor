@@ -233,7 +233,8 @@ class HousingNamespaceControls(unittest.TestCase):
             "World.h", "OriginalTerrainFacts.h", "OriginalHousingDiagnosis.h",
             "OriginalSafeDemolitionState.h", "SourceCellRamp.h", "AuthoredLandTrade.h",
             "OriginalCultureState.h", "AgricultureState.h", "PlantationsState.h",
-            "IrrigationState.h", "AgricultureCalendar.h", "GrowerNavigationState.h"})
+            "IrrigationState.h", "AgricultureCalendar.h", "GrowerNavigationState.h",
+            "GrowerLifecycleState.h", "GrowerSourceFacts.h"})
         fingerprints = parity.current_source_hashes()
         for name in reviewed:
             self.assertIn("src/simulation/" + name, fingerprints)

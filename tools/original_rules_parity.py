@@ -25,6 +25,7 @@ HOUSING_FORK_MODULES = ("ModelData", "Desirability", "HouseEvolution", "Original
 HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirability",
                                    "original-goods-ledger", "original-goods-rules",
                                    "original-service-rules", "original-irrigation-rules",
+                                   "original-season-rules", "original-crop-rules",
                                    "original-house-evolution", "original-model")
 # Reviewed Rules13-21 API: the actual fourth-module probe retains its
 # historical HouseholdV3/CityV7 calls. Rule19 adds explicit retirement factories,
@@ -72,10 +73,15 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # DTOs, timing, selectors and JSON field sets remain exact; old probe calls use
 # no session. Review covers the additive native ABI, not complete Actor26
 # gameplay. Fresh matching archives and the included session DTO are required.
+# AGRI-02E3 adds an explicit transient autonomous tending controller. The
+# reviewed ABI includes its sealed source operand and actor/work DTOs; ordinary
+# historical probe calls enable neither session. This is not harvest parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "401bd61a8e84a23313fab686508e560a9c26d8a0",
-    "GrowerNavigationState.h": "e739b3b9cbdd2ec797950a2e523f6b2bec348eea",
+    "World.h": "99aa080c263057de481f1077b856d606ed56f8c8",
+    "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
+    "GrowerLifecycleState.h": "7dc3cd6ef65cf6715641742a6b65ea20fe5dc048",
+    "GrowerSourceFacts.h": "1aa4b971397f7c97187ea1b388d9b7287ea7aac1",
     "AgricultureCalendar.h": "17455dad4bca5382ae8b2cb389bc2bf1099d642d",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
@@ -495,7 +501,8 @@ def current_source_hashes() -> dict[str,str]:
     sources += list((ROOT / "tools/original-rules-parity").glob("*.cpp")) + [Path(__file__).resolve(), ROOT / "src/simulation/OriginalEconomyState.h", ROOT / "src/simulation/OriginalInfluenceState.h", ROOT / "src/simulation/OriginalGoodsState.h", ROOT / "src/simulation/OriginalProductionState.h", ROOT / "src/simulation/OriginalFoodState.h", ROOT / "src/simulation/OriginalServicesState.h", ROOT / "src/simulation/OriginalWaterState.h", ROOT / "src/simulation/OriginalHousingState.h", ROOT / "src/simulation/OriginalIndustryState.h", ROOT / "src/simulation/OriginalFinanceState.h"]
     sources.append(ROOT / "src/simulation/OriginalFireProtectionState.h")
     sources += [ROOT / "src/simulation" / name for name in (
-        "World.cpp", "WorldGrowerNavigation.cpp", "WorldOriginalProduction.cpp", "WorldIrrigation.cpp")]
+        "World.cpp", "WorldGrowerNavigation.cpp", "WorldGrowerLifecycle.cpp", "WorldOriginalProduction.cpp", "WorldIrrigation.cpp")]
+    sources.append(ROOT / "src/persistence/OriginalGrowerContext.cpp")
     sources += [ROOT / "src/simulation" / name for name in REVIEWED_HOUSING_WORLD_API_GIT_BLOBS]
     return {str(path.relative_to(ROOT)):sha256(path) for path in sorted(sources)}
 

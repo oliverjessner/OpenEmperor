@@ -897,7 +897,7 @@ positive active/loaded-Grower tests after this binding exists.
 | World check | Wheat195 | Millet196 | Rice197 | Cabbage198 | Soy199→BeanCurd1 |
 |---|---|---|---|---|---|
 | Paid typed Farm/field; negative raw/save admission in24/25/26 | PASS | PASS | PASS | PASS | PASS |
-| Actual Original Actor26 spawn, physical outward route and completed tending | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED |
+| Persistent raw-production Actor26 spawn/work | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED |
 | Live-context growth/mark/harvest and physical Farm-bin credit | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED | NOT IMPLEMENTED |
 | Repeated cycles, blocked paths, pause/fire/staff loss and full raw bins | NOT RUN: no active raw mode | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
 | Active/loaded Original Grower F5/F9, Recovery and independent World replay | NOT RUN: no raw schema | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
@@ -907,6 +907,9 @@ remain controls for their own contracts. Supplied movement-result component
 replay is not promoted to World acceptance. No new Original Grower native or
 human playtest is claimed; executed checks are recorded in the
 [testing guide](../testing.md#physical-food-grower-integration-audit-agri-02e).
+The later [AGRI-02E3 session](#autonomous-tending-acceptance-agri-02e3) separately
+proves actual autonomous tending/return for all five fields; it is transient
+and does not activate this table's persistent raw-production mode.
 
 The next dependency order is concrete:
 
@@ -980,6 +983,80 @@ contexts; only then bind real Actor26 work/cargo and a complete new saved
 contract. Native/human and unrestricted Original-map movement acceptance remain
 separate from the actual authored-World motion tests. Executed validation is in
 [the testing guide](../testing.md#bounded-world-grower-navigation-agri-02e2).
+
+## Autonomous tending acceptance (AGRI-02E3)
+
+**PARTIAL, with positive autonomous World acceptance.** An explicitly selected
+`GrowerLifecyclePolicy::AutonomousTendingV1` session now owns a real source-driven
+Actor26 lifecycle. Paid Farm193 and Food-field identities, actual residents and
+assigned workers lead to source dispatch, field assignment, shared mode17
+movement, actual arrival,51 eligible work callbacks, tending, physical empty
+return and retirement. Tests never call `start_grower_navigation` or supply a
+movement8. This remains a non-production C++ acceptance session; ordinary games
+do not enable it and no harvest, raw cargo or Food is created.
+
+| Boundary | Status | Actual implementation / remaining limit |
+|---|---|---|
+| Paid autonomous source dispatch | PASS in bounded context | Farm callback at source phase31; actual pre-tick workforce, operation and proved access; old-byte attempt comparison; successful World allocation alone publishes a typed monotone lifetime and field assignment |
+| World work/return for all five fields | PASS | Separate Wheat195, Millet196, Rice197, Cabbage198 and Soy199 scenes physically reach fields, complete tending51 and return to the real external Farm point |
+| Repeated cycles and counter meaning | PASS | Two complete lifetimes in one continuously enabled controller; failed allocation during real return preserves IDs/assignments; retained tending0 can coexist with live occupancy1 |
+| Multiple initial candidates and assignments | BLOCKED | Their runtime-fertility query/override and rewrite epoch are not bound. No construction-fertility substitution or invented numeric score. Exactly one eligible candidate has the same winner for every admissible score |
+| Concurrency and exceptional lifetimes | BLOCKED | One live actor is an explicit peer-free fence, not Original quota1. State5,13c,Ferry48,links66/72,14–16 and global88ec38 remain unsupported |
+| Interruptions, geometry and identity | PASS within fence | Real future Farm geometry causes shared retry/replan. Pause, staff loss, fire, field-manager changes or raw-slot transition stop further work, preserve begun motion and release claims/channels without ID reuse |
+| Persistence | PARTIAL: transient only | Controller presence blocks historical document/writer/restore publication even before an actor exists; cleanup preserves exact historical continuation and schema42 bytes. No active-worker schema is claimed |
+| Growth, harvest and production | INACTIVE | Work/assignment rows are transient World state. No Original quantity/history/cargo/receipt or additional Food/FoodQuality authority; historical Wheat/Millet and plantation/irrigation contracts stay exact |
+
+The sealed `prepare_original_grower_source_facts` provider reuses the shared map
+container/layout, requires coherent Map5/Header2/Properties3-or6 and maps the
+actual signed local entry operands into storage coordinates with the verified
+border. Full source SHA must match World's immutable terrain facts. A unique
+ordinary road on the Farm's actual twelve-cell perimeter must have positive
+entry-distance through the shared b7c preparation. That mask admits ordinary
+land too: a removed road spur is not automatically a failed native access path.
+The target-bounded positive witness does not pretend to reproduce the entire
+native manager rebuild. Unknown predicates still fail closed.
+
+The source uses the explicitly bounded fresh initializer profile (harvest5,
+tending2, candidate budgets4/10 and footprint radius3). Mutable native
+configuration/restore histories are not imported or declared immutable. The
+single-candidate path avoids unresolved score ordering and harvest grouping.
+Failed selection debits its native counter before actual return; retirement
+debits it again, floored at0. Separate live occupancy and the existing58-channel
+bound control actual allocation. The controller retains at most eight retired
+audit rows; lifetime IDs remain monotone across cleanup.
+
+State6 tending selection starts at native cursor0. Actual movement8 changes7
+to8 and initializes wait51; only51 subsequent eligible actor callbacks invoke
+the existing tending operation. It sets work0x40, clears the actual transient
+assignment/body counter and preserves quantity/history/cargo. State6 then finds
+no further owned assignment, selects9 and the proved source-return point.
+Actual return8 or route failure10 retires; no source receipt occurs with role1
+and cargo0. One actor callback/microstep per World tick and its placement after
+ordinary World work remain **AUTHORED**, not Original speed/cadence parity.
+No second clock, navigator, resource ledger or independently advancing simulator
+is introduced. The copy-only callback target/reference operands are normalized
+to checked World IDs and the World storage-cell frame. They are not imported
+native local-coordinate WORDs or raw saved actor slots. All navigation operands
+share that frame; the source reader performs the verified border conversion.
+
+Source/staff/fire and peer changes outside admission are conservative session
+cancellations, not invented Original exceptional transitions. Likewise, the
+same-raw-slot fence avoids claiming an unclosed combined field-growth,
+expiration and actor ordering. Global user pause simply supplies no World tick;
+it is not suspension13c. Complete positive persistence would require a new
+explicit contract for actor/cursor/phase/wait, work/claims, source counters,
+source/configuration identity and exceptional lifetimes. Rule27/schema43 were
+rechecked as unused and remain unused; no migration or default changes occur.
+
+The next concrete AGRI-02E4 dependency is runtime-fertility query/override and
+rewrite-epoch admission, followed by real multi-candidate allocation/groups and
+peer-safe tours. Before harvest cargo, prove retained-last-field resource
+identity through every field/slot lifetime, native WORD accumulation, failure
+and full-bin disposition. A tending actor's cargo0 proves no mixed-harvest
+conversion. Keep yield inputs, raw transport, Food conversion and a complete
+new save generation behind their separate evidence gates. Exact sources are in
+the [source contract](../reverse/original-agriculture-source-contract.md#autonomous-transient-tending-binding-agri-02e3);
+executed checks are in the [testing guide](../testing.md#autonomous-food-grower-world-acceptance-agri-02e3).
 
 ## Irrigation infrastructure and completion matrix (AGRI-04)
 

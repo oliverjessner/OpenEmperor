@@ -46,6 +46,9 @@ struct GrowerNavigationTrack {
     std::uint8_t phase=20;
     bool edge_started=false;
     bool unsupported_context_seen=false;
+    // An autonomous acceptance lifecycle owns and reuses this one channel;
+    // the ordinary explicit-session wrapper must not advance it a second time.
+    bool lifecycle_owned=false;
     GrowerNavigationResult result=GrowerNavigationResult::Moving;
     std::uint64_t route_revision=0,microsteps=0,reroutes=0;
     std::string blocker;

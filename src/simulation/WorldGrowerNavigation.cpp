@@ -84,7 +84,7 @@ bool World::original_grower_navigation_edge_allowed(Cell from,Cell to) const {
 
 bool World::grower_navigation_cell_claimed(Cell cell,std::optional<GrowerNavigationId> except) const {
     for(const auto& track:grower_navigation_tracks_) {
-        if((except && track.id==*except) || terminal(track)) continue;
+        if((except && track.id==*except) || (!track.lifecycle_owned && terminal(track))) continue;
         if(track.current==cell) return true;
         if(track.edge_started && track.cursor && track.cursor<track.path.size() &&
             (track.path[track.cursor-1]==cell || track.path[track.cursor]==cell)) return true;
@@ -96,6 +96,7 @@ GrowerNavigationAdmission World::start_grower_navigation(const GrowerNavigationR
     const auto deny=[](GrowerNavigationResult result,const char* reason) {
         return GrowerNavigationAdmission{false,{},result,reason};
     };
+    if(grower_lifecycle_) return deny(GrowerNavigationResult::Unsupported,"Autonomous lifecycle owns its movement channels");
     if(request.policy!=GrowerNavigationPolicy::Mode17MicrostepV1 ||
         request.interaction!=GrowerNavigationInteraction::None)
         return deny(GrowerNavigationResult::Unsupported,"Native peer, suspension, ferry, link and exceptional/global contexts are unsupported");
@@ -137,62 +138,66 @@ const GrowerNavigationTrack& World::grower_navigation(GrowerNavigationId id) con
     return *found;
 }
 bool World::clear_grower_navigation() {
+    if(grower_lifecycle_) return false;
     if(std::any_of(grower_navigation_tracks_.begin(),grower_navigation_tracks_.end(),[](const auto& row){return !terminal(row);})) return false;
     grower_navigation_tracks_.clear();return true;
 }
 
 void World::advance_grower_navigation() {
-    for(auto& track:grower_navigation_tracks_) {
-        if(terminal(track)) continue;
-        const auto stop=[&](GrowerNavigationResult result,const char* reason) {track.result=result;track.blocker=reason;};
-        const auto current_mask=original_grower_navigation_mask(track.current);
-        if(!current_mask || !(*current_mask&0x13dU)) track.unsupported_context_seen=true;
-        if(track.edge_started) {
-            const auto destination_mask=original_grower_navigation_mask(track.path.at(track.cursor));
-            if(!destination_mask || !(*destination_mask&0x13dU)) track.unsupported_context_seen=true;
-        }
-        const auto& farm=building(track.request.farm_id);const auto& field=building(track.request.field_id);
-        if(!farm.placed || !field.placed || !farm.operating_enabled || !field.operating_enabled ||
-            building_on_fire(farm.id) || building_on_fire(field.id) ||
-            std::any_of(couriers_.begin(),couriers_.end(),[](const auto& c){return c.enabled && c.phase!=CourierPhase::IdleAtWorkshop;}))
-            track.unsupported_context_seen=true;
-        if(track.unsupported_context_seen && !track.edge_started) {
-            stop(GrowerNavigationResult::Unsupported,"Actor/source interaction outside admitted motion policy");continue;
-        }
-        if(track.result==GrowerNavigationResult::Retry) {
-            // A real direction9 releases the old route. Rebuild from the actual
-            // committed cell; no supplied movement8 or target proximity grant.
-            auto outcome=GrowerNavigationResult::Failed;
-            auto route=find_road_route(track.current,track.request.target,{},{},true,&outcome);
-            ++track.reroutes;track.route_revision=road_revision_;
-            if(!route) {stop(outcome,"Retry has no complete supported route");continue;}
-            track.path=std::move(*route);track.cursor=0;track.phase=20;track.edge_started=false;
-            track.result=GrowerNavigationResult::Moving;track.blocker.clear();
-        }
-        ++track.microsteps;
-        if(track.phase<19) {
-            ++track.phase;
-            if(track.phase==10) track.current=track.path.at(track.cursor);
-            continue;
-        }
-        // Phase20 is a boundary, including preparation's initial phase20.
-        track.phase=20;track.edge_started=false;
-        if(track.unsupported_context_seen) {
-            stop(GrowerNavigationResult::Unsupported,"Actor/source interaction outside admitted motion policy");continue;
-        }
-        if(track.cursor+1>=track.path.size()) {
-            stop(track.current==track.request.target ? GrowerNavigationResult::Arrived:GrowerNavigationResult::Failed,
-                 track.current==track.request.target ? "Endpoint reached by actual cell movement":"Route endpoint mismatch");
-            continue;
-        }
-        const auto next=track.path.at(track.cursor+1);
-        if(grower_navigation_cell_claimed(next,track.id)) {
-            stop(GrowerNavigationResult::Unsupported,"Peer interaction is unsupported");continue;
-        }
-        if(!original_grower_navigation_edge_allowed(track.current,next)) {
-            stop(GrowerNavigationResult::Retry,"Direction9: next edge invalidated");continue;
-        }
-        ++track.cursor;track.phase=0;track.edge_started=true;track.route_revision=road_revision_;
+    for(auto& track:grower_navigation_tracks_)
+        if(!track.lifecycle_owned) advance_grower_navigation_track(track);
+}
+
+void World::advance_grower_navigation_track(GrowerNavigationTrack& track) {
+    if(terminal(track)) return;
+    const auto stop=[&](GrowerNavigationResult result,const char* reason) {track.result=result;track.blocker=reason;};
+    const auto current_mask=original_grower_navigation_mask(track.current);
+    if(!current_mask || !(*current_mask&0x13dU)) track.unsupported_context_seen=true;
+    if(track.edge_started) {
+        const auto destination_mask=original_grower_navigation_mask(track.path.at(track.cursor));
+        if(!destination_mask || !(*destination_mask&0x13dU)) track.unsupported_context_seen=true;
     }
+    const auto& farm=building(track.request.farm_id);const auto& field=building(track.request.field_id);
+    if(!farm.placed || !field.placed || !farm.operating_enabled || !field.operating_enabled ||
+        building_on_fire(farm.id) || building_on_fire(field.id) ||
+        std::any_of(couriers_.begin(),couriers_.end(),[](const auto& c){return c.enabled && c.phase!=CourierPhase::IdleAtWorkshop;}))
+        track.unsupported_context_seen=true;
+    if(track.unsupported_context_seen && !track.edge_started) {
+        stop(GrowerNavigationResult::Unsupported,"Actor/source interaction outside admitted motion policy");return;
+    }
+    if(track.result==GrowerNavigationResult::Retry) {
+        // A real direction9 releases the old route. Rebuild from the actual
+        // committed cell; no supplied movement8 or target proximity grant.
+        auto outcome=GrowerNavigationResult::Failed;
+        auto route=find_road_route(track.current,track.request.target,{},{},true,&outcome);
+        ++track.reroutes;track.route_revision=road_revision_;
+        if(!route) {stop(outcome,"Retry has no complete supported route");return;}
+        track.path=std::move(*route);track.cursor=0;track.phase=20;track.edge_started=false;
+        track.result=GrowerNavigationResult::Moving;track.blocker.clear();
+    }
+    ++track.microsteps;
+    if(track.phase<19) {
+        ++track.phase;
+        if(track.phase==10) track.current=track.path.at(track.cursor);
+        return;
+    }
+    // Phase20 is a boundary, including preparation's initial phase20.
+    track.phase=20;track.edge_started=false;
+    if(track.unsupported_context_seen) {
+        stop(GrowerNavigationResult::Unsupported,"Actor/source interaction outside admitted motion policy");return;
+    }
+    if(track.cursor+1>=track.path.size()) {
+        stop(track.current==track.request.target ? GrowerNavigationResult::Arrived:GrowerNavigationResult::Failed,
+             track.current==track.request.target ? "Endpoint reached by actual cell movement":"Route endpoint mismatch");
+        return;
+    }
+    const auto next=track.path.at(track.cursor+1);
+    if(grower_navigation_cell_claimed(next,track.id)) {
+        stop(GrowerNavigationResult::Unsupported,"Peer interaction is unsupported");return;
+    }
+    if(!original_grower_navigation_edge_allowed(track.current,next)) {
+        stop(GrowerNavigationResult::Retry,"Direction9: next edge invalidated");return;
+    }
+    ++track.cursor;track.phase=0;track.edge_started=true;track.route_revision=road_revision_;
 }
 } // namespace openemperor::simulation

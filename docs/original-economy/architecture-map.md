@@ -92,6 +92,16 @@ Actor26 speed, creation, crop work or inventory. Existing5-tick couriers and
 plantations remain exact. Session publication guards and terminal cleanup leave
 historical saves unchanged; Rule27/schema43 remain unused. See the
 [bounded navigation matrix](agriculture.md#bounded-world-grower-navigation-agri-02e2).
+AGRI-02E3 binds that motion to actual autonomous, typed Actor26 lifetimes in a
+separately enabled transient World session. Phase31 source attempts use actual
+pre-tick paid workforce and a sealed source-entry/unique-perimeter-road witness.
+The sole initial candidate needs no invented runtime-fertility score. Actual
+arrival begins51 work callbacks; tending changes only World-owned transient
+work/assignment state, followed by a real empty return and identity cleanup.
+Native source counters remain distinct from the one-live-actor context fence.
+Controller-only states also block historical save publication. There is no
+harvest/cargo/Food origin, new saved generation or automatic activation. See the
+[autonomous tending matrix](agriculture.md#autonomous-tending-acceptance-agri-02e3).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 
