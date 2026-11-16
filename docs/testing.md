@@ -566,6 +566,17 @@ Actor26 World spawn, physical tending/harvest/return, accepted raw-bin credit,
 active/loaded-Grower F5/F9/Recovery or native human acceptance is claimed.
 Mill/FoodShop conversion is separate from these raw-chain gaps.
 
+Validation completed on2026-11-16:358/358 Release,358/358 Debug and358/358
+ASan/UBSan CTests, with identical registered names and zero skips. The new
+five-field/three-generation admission control passes in all configurations.
+The fresh independent core comparison passes74/74; its entire public report,
+including source fingerprints, remains unchanged. All455 tracked production
+source/resource/tool files are byte-identical to baseline `9880bfe`. Seven
+guarded Original/earned inputs retain SHA-256, size, mode and modification time.
+Fresh historical Debug field and walker captures were opened. These are
+historical scripted/render controls, not Original Food Grower World or human
+acceptance. AGRI-02E remains PARTIAL under the completion matrix above.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh
