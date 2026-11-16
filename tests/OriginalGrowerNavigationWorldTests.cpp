@@ -148,6 +148,44 @@ void actual_route_phase_cell_and_return() {
           "Real external return granted work, source stock or divergent historical state");
 }
 
+void paid_road_movement_and_removal_claims() {
+    q::Fixture fixture;auto world=fixture.world();const auto scene=build(world);
+    const std::array<sim::Cell,2> roads{{scene.start,{94,98}}};
+    for(const auto cell:roads) {
+        check(fixture.terrain->raw_terrain(cell)==0x80U,
+              "Paid-road acceptance did not use independently known raw80 land");
+        f::buy(world,{sim::CommandType::PlaceRoad,cell});
+        check(world.object_at(cell)==sim::Object::Road &&
+              world.validate({sim::CommandType::RemoveRoad,cell}).accepted,
+              "Paid-road fixture did not create a real otherwise removable World road");
+    }
+    auto control=fixture.restore(world.snapshot());const auto id=start(world,request(scene));
+    check(world.grower_navigation(id).path==
+              std::vector<sim::Cell>{{93,97},{94,98},{95,99}},
+          "Mode17 did not route through the actual paid Road04 cells");
+    tick(world,&control);const auto begun=world.grower_navigation(id);
+    check(begun.edge_started && begun.current==roads[0] && begun.path.at(begun.cursor)==roads[1],
+          "Paid-road removal control did not begin the actual road-to-road section");
+    for(const auto cell:roads) {
+        const auto before=world.snapshot();
+        const auto result=world.execute({sim::CommandType::RemoveRoad,cell});
+        check(!result.accepted && !result.changed && world.object_at(cell)==sim::Object::Road &&
+              world.snapshot()==before && world.grower_navigation(id)==begun,
+              "Road removal changed an actual current or begun movement section");
+    }
+    for(int step=2;step<=41;++step) {
+        tick(world,&control);const auto& track=world.grower_navigation(id);
+        if(step==11)check(track.current==roads[1],"World movement never committed the paid Road04 cell");
+        if(step==31)check(track.current==scene.target,"Paid-road route never committed its actual field endpoint");
+        if(step<41)check(track.result==Result::Moving,"Paid-road route reported8 before completing its real sections");
+    }
+    check(world.grower_navigation(id).result==Result::Arrived &&
+          world.grower_navigation(id).current==scene.target &&
+          world.grower_navigation(id).microsteps==41 && world.clear_grower_navigation() &&
+          world.snapshot()==control.snapshot(),
+          "Actual paid-road movement failed endpoint8 or changed historical road/accounting authority");
+}
+
 void literal_obstacle_tie_and_all_five_paid_fields() {
     q::Fixture fixture;auto world=fixture.world();
     const auto scene=build(world,{90,95},{93,96},{89,96});
@@ -491,6 +529,7 @@ void simultaneous_independent_replay_and_historical_save() {
 int main() {
     try {
         actual_route_phase_cell_and_return();
+        paid_road_movement_and_removal_claims();
         literal_obstacle_tie_and_all_five_paid_fields();
         equality_identity_and_unsupported_interactions();
         shared_channel_budget_and_monotone_session_identity();

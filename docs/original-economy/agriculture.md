@@ -937,7 +937,7 @@ outside this task; no new crop work, inventory or resource credit is activated.
 |---|---|---|
 | A. Original routing source | PARTIAL | Prepared WORD predicates, ordinary region absence, cardinal flood/eight-way gradient, ties and20-phase ordering qualified for the flat ordinary subset. Full source/actor/speed/exceptional contexts remain outside admission |
 | B. Shared Navigator integration | PASS | One existing `World::find_road_route` queue/storage, an explicit policy branch, original direction/tie order and499-direction maximum; historical branch retained |
-| C. Actual World cell movement | PASS | Paid3x3 Farm and all five typed1x1 fields; actual commits at microsteps11/31, endpoint at41. Literal Farm-obstacle tie takes six real edges and finishes at121 |
+| C. Actual World cell movement | PASS | Paid3x3 Farm, paid Road04 cells and all five typed1x1 fields; actual commits at microsteps11/31, endpoint at41. Literal Farm-obstacle tie takes six real edges and finishes at121 |
 | D. Endpoint/retry/failure | PASS | Actual endpoint8, future obstruction9 with shared re-preparation, proved blocked return endpoint10 and unsupported-context11. No injected result8 |
 | E. Unsupported actor interactions | BLOCKED | Peer/state5, suspension13c, Ferry48, linked66/72,14–16 and global88ec38 are explicit refusals; no successful fallback or pause substitution |
 

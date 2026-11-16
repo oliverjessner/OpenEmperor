@@ -592,7 +592,8 @@ This test uses actual paid Rule26 Worlds with authored map/model fixtures and
 real `World::tick` motion through the shared navigator. No movement8 is supplied.
 It checks every Food field identity, the literal two-edge41-microstep trace,
 actual phase10 cell commits, exact-equality and physical endpoint8, an independent
-six-edge Farm-obstacle tie ending at121, full3x3 Farm exclusion, typed external
+six-edge Farm-obstacle tie ending at121, paid Road04 cells with atomic current/
+begun-edge road-removal refusal, full3x3 Farm exclusion, typed external
 return endpoints, unknown source/occupancy/height/boundary refusal, and all
 explicit unsupported-interaction requests. The mode17 policy's one-microstep
 per World-tick binding is AUTHORED; this does not establish native Actor26 speed.
@@ -638,6 +639,20 @@ separates the implemented motion from unsupported native actor lifetimes,
 regions/heights, interactions, autonomous spawn/work, raw return and native
 human acceptance. Current menu/CLI games do not enable the C++ acceptance
 session automatically. There is no new playable Food-production test command.
+
+Executed on 2026-11-16 in the three task-owned build roots: Release 359/359 and
+ASan/UBSan 359/359 passed without skips. The complete Debug run passed 358 cases;
+its sole failure was the reviewed-header inventory test's missing new state
+header. Adding that reviewed header preserved the drift/missing/symlink guards,
+and the targeted contract rerun passed. All 359 unique Debug cases therefore
+pass; the extended paid-road navigation case also passed a fresh Debug run.
+Sanitizer Debug retained assertions with `-g -O1`, `detect_leaks=0` on macOS and
+`UBSAN_OPTIONS=halt_on_error=1`. Fresh Debug and Release independent comparisons
+each passed 74/74, with identical public reports and unchanged non-fingerprint
+baseline fields. Seven supplied Original/earned-fixture inputs retained exact
+SHA-256, size, mode and mtime. Fresh Farm and productive-walker captures were
+opened for historical visual regression; they do not establish native Actor26
+or human acceptance.
 
 ## Agriculture calendar and season observations (AGRI-06)
 
