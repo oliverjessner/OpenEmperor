@@ -77,6 +77,15 @@ complete original-game compatibility.
   lifetimes remain unsupported. Transient sessions must be detached before
   historical save/restore publication. See the
   [navigation matrix](docs/original-economy/agriculture.md#bounded-world-grower-navigation-agri-02e2).
+  AGRI-02E3 adds actual autonomous Actor26 tending in an explicitly selected
+  transient C++ World session: paid/staffed Farm dispatch, real field movement,
+  51 work callbacks, empty source return and retirement. It is **PARTIAL**:
+  multi-candidate runtime-fertility scores, concurrent peer lifetimes, unrestricted
+  source histories and positive actor persistence remain unproved. One live
+  actor, a unique initial candidate and one raw slot bound the acceptance
+  context. Session work never becomes historical field state, harvest or Food;
+  no normal menu/CLI game activates it. See the
+  [autonomous tending matrix](docs/original-economy/agriculture.md#autonomous-tending-acceptance-agri-02e3).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

@@ -1,12 +1,14 @@
 #include "assets/IrrigationVisualProfile.h"
 #include "core/PerformanceDiagnostics.h"
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <openssl/evp.h>
 #include <sstream>
+#include <system_error>
 
 namespace {
 namespace a = openemperor::assets;
@@ -50,11 +52,25 @@ void write(const fs::path &p, const J &j) {
   write(p, Bytes(text.begin(), text.end()));
 }
 struct Fixture {
-  fs::path root =
-      fs::temp_directory_path() /
-      ("oe-irrigation-art-" +
-       std::to_string(
-           std::chrono::steady_clock::now().time_since_epoch().count()));
+  static fs::path reserve_root() {
+    const auto parent = fs::canonical(fs::temp_directory_path());
+    const auto stamp = std::to_string(
+        std::chrono::steady_clock::now().time_since_epoch().count());
+    for (unsigned attempt = 0; attempt < 64; ++attempt) {
+      const auto candidate =
+          parent / ("oe-irrigation-art-" + stamp + "-" + std::to_string(attempt));
+      std::error_code error;
+      // Both registered tests run this fixture. Clock values may collide;
+      // only an atomically created directory grants cleanup ownership.
+      if (fs::create_directory(candidate, error))
+        return candidate;
+      if (error && error != std::errc::file_exists)
+        throw fs::filesystem_error("Cannot reserve irrigation fixture directory",
+                                   candidate, error);
+    }
+    throw std::runtime_error("Cannot reserve unique irrigation fixture directory");
+  }
+  fs::path root = reserve_root();
   fs::path data = root / "data", manifest = root / "irrigation.json";
   Bytes sg3 = Bytes(40680 + 241 * 64), pixels;
   J metadata;
@@ -129,6 +145,8 @@ struct Fixture {
     std::error_code ec;
     fs::remove_all(root, ec);
   }
+  Fixture(const Fixture &) = delete;
+  Fixture &operator=(const Fixture &) = delete;
 };
 void synthetic() {
   Fixture f;

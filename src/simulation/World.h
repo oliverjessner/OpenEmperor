@@ -14,6 +14,7 @@
 #include "simulation/IrrigationState.h"
 #include "simulation/AgricultureCalendar.h"
 #include "simulation/GrowerNavigationState.h"
+#include "simulation/GrowerLifecycleState.h"
 #include "simulation/OriginalHousingDiagnosis.h"
 #include "simulation/original/Desirability.h"
 
@@ -730,8 +731,8 @@ struct WorldSnapshot {
     std::optional<PlantationsState> plantations;
     std::optional<AuthoredLandTradeState> land_trade;
     std::optional<IrrigationState> irrigation;
-    // Publication guard only, never encoded in historical JSON. A transient
-    // navigation experiment must be detached before save/restore publication.
+    // Publication guard only, never encoded in historical JSON. Transient
+    // navigation/lifecycle controllers must be detached before publication.
     bool navigation_session_present=false;
     bool operator==(const WorldSnapshot&) const = default;
 };
@@ -1096,7 +1097,12 @@ public:
     std::span<const GrowerNavigationTrack> grower_navigation_tracks() const { return grower_navigation_tracks_; }
     const GrowerNavigationTrack& grower_navigation(GrowerNavigationId) const;
     bool clear_grower_navigation();
-    bool has_grower_navigation_session() const { return !grower_navigation_tracks_.empty(); }
+    bool has_grower_navigation_session() const { return !grower_navigation_tracks_.empty() || grower_lifecycle_.has_value(); }
+    GrowerLifecycleAdmission start_grower_lifecycle(const GrowerLifecycleRequest&);
+    const std::optional<GrowerLifecycleState>& grower_lifecycle() const { return grower_lifecycle_; }
+    void stop_grower_lifecycle();
+    bool clear_grower_lifecycle();
+    std::uint64_t next_food_grower_id() const { return next_food_grower_id_; }
     std::optional<std::vector<Cell>> find_route() const;
     std::optional<std::vector<Cell>> find_route(Cell start,Cell goal) const;
     std::vector<BuildingEntrance> building_entrances(BuildingId id) const;
@@ -1155,12 +1161,21 @@ private:
           std::shared_ptr<const LandTradeBoundaryFacts> trade_boundary=nullptr);
     std::optional<std::vector<Cell>> find_road_route(Cell start,Cell goal,
         std::optional<BuildingId> plantation_source={},std::optional<BuildingId> plantation_plant={},
-        bool original_grower_mode17=false,GrowerNavigationResult* grower_result=nullptr) const;
+        bool original_grower_mode17=false,GrowerNavigationResult* grower_result=nullptr,
+        std::int32_t* prepared_distance=nullptr,bool original_entry_preparation=false) const;
     std::optional<std::uint16_t> original_grower_navigation_mask(Cell) const;
     bool original_grower_navigation_edge_allowed(Cell,Cell) const;
     bool grower_navigation_cell_claimed(Cell,std::optional<GrowerNavigationId> except={}) const;
     void advance_grower_navigation();
+    void advance_grower_navigation_track(GrowerNavigationTrack&);
     bool prepare_grower_navigation_source();
+    void capture_grower_lifecycle_staffing();
+    void advance_grower_lifecycle();
+    std::optional<Cell> grower_lifecycle_source_cell();
+    void dispatch_food_grower();
+    void advance_food_grower(FoodGrowerActor&);
+    void retire_food_grower(FoodGrowerActor&);
+    bool prepare_food_grower_route(FoodGrowerActor&,BuildingId,Cell,bool);
     bool plantation_edge_allowed(Cell,Cell,BuildingId,BuildingId) const;
     bool plantation_cell_allowed(Cell,BuildingId,BuildingId) const;
     std::optional<std::vector<Cell>> plantation_route(Cell,BuildingId,BuildingId,bool returning) const;
@@ -1343,6 +1358,11 @@ private:
     std::vector<BuildingState> buildings_;
     std::vector<CourierState> couriers_;
     std::vector<GrowerNavigationTrack> grower_navigation_tracks_;
+    std::optional<GrowerLifecycleState> grower_lifecycle_;
+    std::shared_ptr<const GrowerSourceFacts> grower_lifecycle_source_;
+    std::uint64_t next_food_grower_id_=1;
+    std::uint8_t grower_lifecycle_tick_staff_percent_=0;
+    std::optional<std::uint64_t> grower_lifecycle_access_revision_;
     std::uint64_t next_grower_navigation_id_=1;
     bool grower_navigation_source_prepared_=false,grower_navigation_no_regions_=false;
     std::vector<BridgeSpan> bridges_;

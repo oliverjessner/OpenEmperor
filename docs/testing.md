@@ -654,6 +654,71 @@ SHA-256, size, mode and mtime. Fresh Farm and productive-walker captures were
 opened for historical visual regression; they do not establish native Actor26
 or human acceptance.
 
+## Autonomous Food Grower World acceptance (AGRI-02E3)
+
+```sh
+cmake -S . -B .local/agri-02e3/build-debug -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_FLAGS_DEBUG='-g1 -O1' -DOPENEMPEROR_USE_SYSTEM_SDL3=ON
+cmake --build .local/agri-02e3/build-debug --parallel 4 \
+  --target openemperor-autonomous-food-grower-world-tests
+ctest --test-dir .local/agri-02e3/build-debug --output-on-failure \
+  -R '^original-autonomous-food-grower-world$'
+```
+
+This is an actual paid Rule26 World acceptance scene with independent authored
+map/model inputs. The shared source reader checks Map5/Header2, context5,
+Properties6 and the source entry operands; no Original fixture bytes are copied.
+Four paid houses earn24 residents and the Farm receives12 actual workers.
+Every tested worker is dispatched by `World::tick` at due source phase31;
+the test never calls `start_grower_navigation`, injects movement8 or assigns work.
+
+Separate scenes cover all five Food types in their own growing slots, actual
+cell commits, exact wait51, work0x40 and assignment clearing, actual empty
+source return and complete actor/channel cleanup. A continuously enabled
+controller completes two worker lifetimes. A longer physical return observes
+native retainedCounter0/live1 and a real bounded-allocation refusal without
+consuming another ID. An independent restored World replays complete actor,
+assignment, work and navigation state against a third ordinary control.
+
+Access tests remove/repair the actual unique Farm road; ordinary b7c distance
+preparation admits land, so a removed road spur alone is not a failed access
+proof. Real future Farm geometry causes retry/shared rerouting. Source pause,
+paid workforce-priority loss, natural fire and new field-manager entries stop
+work and drain claims safely. Multiple unresolved initial candidates and all
+explicit exceptional-interaction requests refuse without invented scores or
+actors. Sealed source mismatches, controller-only document/writer/restore guards
+and exact post-cleanup schema42 bytes are checked. Historical Wheat/Millet
+Food stays equal to the ordinary control; Cabbage controls remain Food0.
+
+The focused Debug test passes. Full validation uses separate task-owned Debug,
+Release and ASan/UBSan roots with supplied Original-data inputs read-only and
+serialized SDL suites. Debug and sanitizer retain assertions under `-g1 -O1`;
+this does not change gameplay. Refresh matching independent core comparisons
+after the additive World ABI and source/provider fingerprints. Private source
+receipts qualify307 assertions over52 byte-checked windows including overlaps;
+they are source evidence, not physical movement or human acceptance.
+
+Executed on 2026-11-16: Release and ASan/UBSan each passed 360/360 cases without
+skips. The full Debug run passed 358 cases; its two irrigation visual-profile
+failures exposed a timestamp-only fixture directory collision between parallel
+processes. The test now reserves its directory atomically and owns only that
+directory's cleanup. Both affected cases passed their parallel rerun, so all
+360 unique Debug cases pass. This QA fix changes no asset or gameplay code.
+Fresh matching Debug and Release independent core comparisons each passed
+74/74; their public reports are identical, and all non-fingerprint baseline
+fields/classifications remain unchanged. Seven supplied Original/earned-fixture
+inputs retained exact SHA-256, size, mode and mtime. Fresh historical Farm and
+productive-walker captures were opened and inspected separately from autonomous
+Actor26/native/human visual acceptance. Leak detection remains disabled on
+macOS; UBSan runs with `halt_on_error=1` and assertions remain active.
+
+The [completion matrix](original-economy/agriculture.md#autonomous-tending-acceptance-agri-02e3)
+keeps the unique-candidate/one-live-actor/same-slot context separate from native
+concurrency, score/configuration lifetime and positive worker persistence.
+Actor callbacks/microsteps per World tick remain AUTHORED. No normal game
+enables the controller automatically; there is no harvest/Food-production or
+native/human Grower visual acceptance claim.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh

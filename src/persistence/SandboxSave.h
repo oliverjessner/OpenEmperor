@@ -2,6 +2,7 @@
 
 #include "simulation/World.h"
 #include "simulation/OriginalTerrainFacts.h"
+#include "simulation/GrowerSourceFacts.h"
 #include "simulation/original/OriginalRulesModel.h"
 #include "platform/AtomicReplace.h"
 
@@ -76,6 +77,10 @@ std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_terrain
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_agriculture_terrain_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_irrigation_terrain_facts(
+    const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
+// Transient Grower session input only. The source-bound native entry operand
+// grants no spawn, path, field claim, production or saved authority.
+std::shared_ptr<const simulation::GrowerSourceFacts> prepare_original_grower_source_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
 std::shared_ptr<const simulation::LandTradeBoundaryFacts> prepare_land_trade_boundary_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);

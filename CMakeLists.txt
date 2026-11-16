@@ -339,6 +339,7 @@ target_link_libraries(openemperor-simulation PUBLIC openemperor-original-irrigat
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
     src/simulation/WorldPlantations.cpp
     src/simulation/WorldGrowerNavigation.cpp
+    src/simulation/WorldGrowerLifecycle.cpp
     src/simulation/WorldIrrigation.cpp
     src/simulation/WorldAgricultureCalendar.cpp
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
@@ -372,7 +373,7 @@ target_compile_definitions(openemperor-desirability-compare PRIVATE
     OPENEMPEROR_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 openemperor_enable_warnings(openemperor-desirability-compare)
 target_link_libraries(openemperor-maps PUBLIC openemperor-simulation)
-add_library(openemperor-persistence STATIC src/persistence/SandboxSave.cpp src/persistence/OriginalAgricultureTerrain.cpp
+add_library(openemperor-persistence STATIC src/persistence/SandboxSave.cpp src/persistence/OriginalAgricultureTerrain.cpp src/persistence/OriginalGrowerContext.cpp
     src/platform/AtomicReplace.cpp)
 target_include_directories(openemperor-persistence PUBLIC src)
 target_link_libraries(openemperor-persistence PUBLIC openemperor-maps openemperor-simulation
@@ -1210,6 +1211,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-grower-navigation-world-tests)
     add_test(NAME original-grower-navigation-world COMMAND openemperor-original-grower-navigation-world-tests)
     set_tests_properties(original-grower-navigation-world PROPERTIES TIMEOUT 300)
+    add_executable(openemperor-autonomous-food-grower-world-tests tests/AutonomousFoodGrowerWorldTests.cpp)
+    target_link_libraries(openemperor-autonomous-food-grower-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-autonomous-food-grower-world-tests)
+    add_test(NAME original-autonomous-food-grower-world COMMAND openemperor-autonomous-food-grower-world-tests)
+    set_tests_properties(original-autonomous-food-grower-world PROPERTIES TIMEOUT 300)
 
     add_executable(openemperor-plantations-world-tests tests/PlantationsWorldTests.cpp)
     target_link_libraries(openemperor-plantations-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
