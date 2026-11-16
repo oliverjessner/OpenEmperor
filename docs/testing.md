@@ -698,6 +698,20 @@ after the additive World ABI and source/provider fingerprints. Private source
 receipts qualify307 assertions over52 byte-checked windows including overlaps;
 they are source evidence, not physical movement or human acceptance.
 
+Executed on 2026-11-16: Release and ASan/UBSan each passed 360/360 cases without
+skips. The full Debug run passed 358 cases; its two irrigation visual-profile
+failures exposed a timestamp-only fixture directory collision between parallel
+processes. The test now reserves its directory atomically and owns only that
+directory's cleanup. Both affected cases passed their parallel rerun, so all
+360 unique Debug cases pass. This QA fix changes no asset or gameplay code.
+Fresh matching Debug and Release independent core comparisons each passed
+74/74; their public reports are identical, and all non-fingerprint baseline
+fields/classifications remain unchanged. Seven supplied Original/earned-fixture
+inputs retained exact SHA-256, size, mode and mtime. Fresh historical Farm and
+productive-walker captures were opened and inspected separately from autonomous
+Actor26/native/human visual acceptance. Leak detection remains disabled on
+macOS; UBSan runs with `halt_on_error=1` and assertions remain active.
+
 The [completion matrix](original-economy/agriculture.md#autonomous-tending-acceptance-agri-02e3)
 keeps the unique-candidate/one-live-actor/same-slot context separate from native
 concurrency, score/configuration lifetime and positive worker persistence.

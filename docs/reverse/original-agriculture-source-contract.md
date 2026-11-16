@@ -2946,8 +2946,8 @@ dispatch, actual field selection, physical tending and retirement under
 acceptance policy. It does not select Rule27/schema43 or activate Original crop
 growth, harvest, cargo, Farm receipts or Food production. Rules1–26 and
 schemas1–42 retain their existing behavior and defaults. The implementation and
-static source qualification below do not claim completed World/full QA or human
-acceptance; those checks remain separate.
+static source qualification below are distinct from the executed World/full QA
+recorded in the testing guide and from native/human acceptance.
 
 ### Source dispatch, staffing and allocation
 
