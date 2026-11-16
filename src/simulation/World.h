@@ -1171,6 +1171,7 @@ private:
     bool prepare_grower_navigation_source();
     void capture_grower_lifecycle_staffing();
     void advance_grower_lifecycle();
+    void advance_grower_fields();
     std::optional<Cell> grower_lifecycle_source_cell();
     void dispatch_food_grower();
     void advance_food_grower(FoodGrowerActor&);

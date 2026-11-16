@@ -147,7 +147,7 @@ void source_identity_and_unsupported_admission() {
     auto bad=request;bad.source=other.source;reject(bad); // Real factory, different authored source bytes.
     bad=request;bad.source.reset();reject(bad);
     bad=request;bad.farm_id=scene.field;reject(bad);
-    bad=request;bad.policy=static_cast<sim::GrowerLifecyclePolicy>(2);reject(bad);
+    bad=request;bad.policy=static_cast<sim::GrowerLifecyclePolicy>(255);reject(bad);
     for(const auto interaction:{sim::GrowerNavigationInteraction::PeerState5,
             sim::GrowerNavigationInteraction::Suspension13c,sim::GrowerNavigationInteraction::Ferry48,
             sim::GrowerNavigationInteraction::Linked66,sim::GrowerNavigationInteraction::Exceptional14,

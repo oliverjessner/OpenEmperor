@@ -719,6 +719,70 @@ Actor callbacks/microsteps per World tick remain AUTHORED. No normal game
 enables the controller automatically; there is no harvest/Food-production or
 native/human Grower visual acceptance claim.
 
+## Autonomous field-cycle acceptance (AGRI-02E4)
+
+```sh
+cmake -S . -B .local/agri-02e4/build-debug -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_FLAGS_DEBUG='-g1 -O1' -DOPENEMPEROR_USE_SYSTEM_SDL3=ON
+cmake --build .local/agri-02e4/build-debug --parallel 4 \
+  --target openemperor-autonomous-food-grower-world-tests \
+  openemperor-autonomous-food-grower-field-cycle-tests
+ctest --test-dir .local/agri-02e4/build-debug --output-on-failure \
+  -R '^original-autonomous-food-grower-(world|field-cycle)$'
+```
+
+The explicit transient `AutonomousFieldCycleV1` test uses the shared controller,
+source reader, World calendar and navigator. Independent authored map/model
+fixtures supply paid Farm/field/house commands. Empty World ticks reach the
+required slot; only then are the city and fields purchased. Regular immigration
+earns24 residents and actual Farm staffing12. No actor, route result, field work,
+harvest context, quantity or stock is injected.
+
+Separate Wheat, Millet, Rice, Cabbage and Soy scenes prove quantity0 before real
+tending51; literal work64→63 decay; first phase20 quantity157; actual end-slot /
+subslot0 marks; due autonomous role2 allocation; actual shared cell movement and
+field arrival; and25 subsequent eligible work invocations. The marked callback
+then remains **BLOCKED** before mutation. Empty cancellation at the field is
+explicitly not Return13, positive cargo or Farm credit. First-block latching
+prevents further harvest allocation in that session while the field clock
+continues to actual expiration. Counts retain field-quantity conservation;
+history and actor cargo remain0. Ordinary historical Food/accounts stay exactly
+equal to independent controls, including the unchanged Wheat/Millet adapter.
+
+An independently restored second World replays complete transient state,
+routes/cursors/waits/IDs against a third ordinary control. An actual source-road
+cut during a begun harvest edge preserves and finishes that section before
+cleanup; actor claims reject construction atomically. Source pause, paid
+staff-priority loss and natural fire cannot substitute for completed work.
+Multiple fields refuse admission, and the original tending policy retains its
+same-slot fence. Active positive field quantity is refused by document creation,
+writer, restore and Recovery without changing existing bytes/history metadata.
+After cleanup, canonical schema42 and Recovery continuation match the ordinary
+control exactly. Rule27/schema43 remain unused. Positive raw yield/Return13,
+full-bin receipt/overflow and active-worker Save/Load remain **BLOCKED**, not
+passing World cases; exact arithmetic/component tests are a separate tier.
+
+Private source verifiers qualify the fresh Farm-WORD40 and single-candidate
+harvest-factory trace, field/scheduler order, type/resource-veto distinction,
+ordinary-map fertility recompute and dry120-cell irrigation branch. Actual
+incoming PC/RC/normal FP state and other runtime numeric owners remain open.
+Source evidence is distinct from paid World acceptance and native/human play.
+The World tick/actor mapping, enabled-Food World scope and conservative
+cancellation retain their explicit AUTHORED classification.
+
+Executed on 2026-11-16 against the final field-cycle code: Debug, Release and
+ASan/UBSan each passed361/361 cases without skips (213s,157s and709s). Debug
+and sanitizer retain assertions with `-g1 -O1`; macOS leak detection is disabled
+and UBSan uses `halt_on_error=1`. Both final independent core comparisons passed
+74/74 and produce the same public report; all non-fingerprint historical
+results/classifications remain unchanged. Seven supplied Original/earned-save
+inputs retain exact SHA-256, size, mode and mtime. The two private source
+verifiers qualify201 assertions over53 byte-checked windows including overlaps.
+Fresh historical Farm and productive-walker regression captures were opened
+and inspected; they do not establish new Actor26/native/human visual acceptance.
+The positive raw-harvest definition of done remains BLOCKED/PARTIAL despite the
+passing independent component and bounded World tests.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh

@@ -102,6 +102,14 @@ Native source counters remain distinct from the one-live-actor context fence.
 Controller-only states also block historical save publication. There is no
 harvest/cargo/Food origin, new saved generation or automatic activation. See the
 [autonomous tending matrix](agriculture.md#autonomous-tending-acceptance-agri-02e3).
+AGRI-02E4 adds `AutonomousFieldCycleV1` to the same transient controller:
+one field/crop, actual tending, phase20 quantity/mark, calendar decay/expiration
+and autonomous physical harvest movement with wait25. Incoming normal FP
+context and the remaining live yield operands are not admitted. The entire
+harvest callback is therefore blocked; explicit empty cancellation creates no
+raw cargo, Farm receipt or historical stock. There is no Rule27/schema43 or
+active-worker save authority. See the
+[first-harvest boundary](agriculture.md#first-physical-harvest-boundary-agri-02e4).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 

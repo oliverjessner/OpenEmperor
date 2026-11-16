@@ -3086,8 +3086,10 @@ scan therefore starts at the registered collection's beginning. It requires
 status1, raw terrain100 exclusion, actual field family, resource/operation/veto
 operands and assignment equality to the actual actor. The first selected result
 is separately rechecked for growing period. Repeated tending has no additional
-source-range query and does not use repeated harvest's retained-last-field
-cursor.
+source-range query. Ordinary harvest caller `0x4c2b20` likewise supplies
+literal0 at `0x4c2b2e` before `0x4c2b38→0x4c0060`; its helper's optional
+nonzero preceding-ID cursor is not the ordinary caller's policy. Both ordinary
+scans restart at the registered collection's beginning.
 
 Success stores the actual field reference/coordinates and enters7. Failure
 retains the last field reference, targets actual source WORD2a/2c, enters9 and
@@ -3235,3 +3237,177 @@ these gates independently:
 AGRI-01 establishes preparation evidence and reusable identities only. These
 gates are not replaced by a synthetic test, a successful parse, a visible native
 sprite, a model label or the existing authored80-tick harvest loop.
+
+
+## First physical harvest boundary (AGRI-02E4)
+
+**PARTIAL at positive World harvest.** An explicitly transient single-field
+World policy now binds actual field development and harvest movement through
+wait25. The marked callback remains blocked before any field/yield mutation;
+empty cancellation at the field is not a physical Farm return or receipt.
+Rules1–26/schemas1–42 remain exact. No positive saved generation is activated.
+
+The private lifecycle verifier qualifies128 assertions over37 byte-checked
+windows,3,387 decoded instruction lines and11,306 bytes including overlaps,
+with separate single-candidate factory-success/failure traces. Source inputs
+remain read-only. These static proofs and resolved traces are separate from
+the paid World observations recorded in the testing guide.
+
+### First fresh Farm193 WORD40 gate
+
+Farm193 constructor4c5b80 calls4c5c20, then51c9a0,426c90 and426e60. Base clear zeroes45DWORDs startingbody+4, endingbody+b7 inclusive; therefore signedWORD40 starts0. The actual Farm193 vtable is7af1e8. Its initializer+90 is4c30f0, not an imported body/archive copy. Generic base-init428c10's optional virtual150 branch is skipped because the Farm binding413a00 returnsfalse. Industrial initialization keeps its separately allocated scene object; Farm initializer clears owninfo5c and counters150/154, then registers the source. These operations do not supply a nonzero stockWORD40.
+
+Actual Farm source+20 is4c4b90 and dispatch4c3550. Actual Farm receipt+268 is4c4ee0. Both actual Farm transport bodies work through five separate bins atbody+158; neither writes FarmWORD40. Empty bins begin resourceDWORD0/stockDWORD0/capacity400 via4c43b0. Before the first supported harvest-yield completion, the bounded fresh trace has tending work on actual FIELD bodies, source counters, shared navigation and no raw credit/Cart. Generic return4c2e50 DOES update inherited sourceWORD40, but it is not Farm193+268. Other +40 stock/cart bodies4c5100/4c5300 are not this Farm vtable's +20 or +268. The permitted fresh first-allocation trace therefore retains FarmWORD40=0 and passes the signed<400 comparison4c37ec..4c37f2.
+
+This is a first-fresh-trace invariant, not a semantic name forWORD40, not a Farm-bin-capacity proxy, and not closure of arbitrary Native restore or externally edited body state. World must own the fresh0 counterpart and keep Native archive/import/general stock writers outside this policy. A later positive yield/receipt would require its own explicit lifetime audit.
+
+### Harvest N1/K5 factory branch
+
+For actual selectedN1, requestedquota5 and retainedharvestcounter0, K=5. Harvest4c377f divides1/5→0, decrements→-1, then4c378a..4c3790 clamps the computed group to0. This differs from the separate tending body's uncapped group-1. Actual extra-attach stack+10 was independently initialized0 at4c3781; computed grouping is stack+20. K5 skips the K1 override. First iteration reads actual0 at4c3818 and takes4c3842. With retained0<requested5, actual Actor26 factory call4c386c is reached once.
+
+Factory0 goes straight to entry-tail without assignments/counter/actor commit. Actual success alone initializes state10,role2,wait10*prior-successful-ordinal (0 here), source reference, increments150, and assigns the actual actor to the sole selected field. It does not preselect Actor68. After either result, selectedentry ordinal becomes1 and the N1 backedge is not taken. Verifier has separate interpreted success/failure cases; these cases do not themselves count as live allocation witnesses.
+
+### Field callback order and admitted statuses
+
+Actual phase20 jump-table index19 binds4ac3bf→51e4a0. That function first calls mark-schedule4c1a90, THEN traverses live bodies. Common active-query426d10 accepts1 or3; resourceBYTE47 must be nonzero, actualfield-family test must pass, then51e50a calls4c0f60. Field initializer4c189c writes resource47 from actual field-model classification: Food195..199 maps7/5/6/3/1, all nonzero. Complete freshly paid World fields can bind the narrower status1 domain; this is not evidence that native status3 receives mark/expiration.
+
+Mark setter4c1a20 requires actualstatus1 and matching crop, and ORs8000 at endslot/subslot0. Quantity, staff, assignment and terrain do not gate this setter. Food ends are6,10,9,11,8; starts2,6,5,7,4. The driver4c0f60 skips everything on effective terrain100. Otherwise positive countdown63 decrements once and returns before growth/veto/publication. Fresh owninfo constructor51c2e0 sets countdown0, Q0 and workword0. Zero countdown calls concrete increment+25c, adds WORD Q and clamps signed-above10000, THEN evaluates type-veto4afd80 and clears Q if true, THEN publisher+260. Zero delta still reaches veto/publisher. Food delta is0 at last endslot; otherwise worklowbyte>32 gives157,1..32 gives79,0 gives0. It does not directly require growing-period membership.
+
+At completion of each51-phase cycle,4ac650 advances the subcounter. For oldsubslot15, it processes the still-current completed outer slot6..11 through4bff20 before publishing newsubslot0/newoutermonth. Status1 fields matching their last endslot reset Q, entirework and assignment; a real assigned actor's wait3e becomes0 first. Countdown/history/body150 are untouched. The later unconditional calendar tail4acc28→4c0570 visits active status1 fields for4c1bc0 work decay every cycle, including nonrollover cycles. Decay decrements unsignedlowbyte floor0, preserves onlyc000 highflags, clearsbits8..13. Expiration therefore precedes that cycle's decay. Growthphase20 precedes its cycle's decay.
+
+Common parent5371a0 calls scheduler5371bf BEFORE actual actorpass5371ce. Thus phase50 expiration/waitclear and decay precede the actor callback; that actor may already see the new outer slot after rollover. World `advance_grower_fields` using oldposition=ticks-1 atphase20/50 and runningbeforeactor matches this ordering. Actual later tending cannot retroactively affect a field already visited atphase20.
+
+### Type/resource veto separation
+
+4afd80 resolves actual body modelWORD14 and returns BYTE[10bc7e0+type]>0. It is not a staff/fire/operation alias. Actual fresh after-load/reset5355f0 contains5356f4..535711 clearing all269 bytes (67DWORDs+1BYTE) to0. Native archives separately serialize/load this table. Explicit World fresh-session scope with no Native global restore/edit writers can bind this zeroepoch; an imported unknown table cannot silently usefalse. World actual operating/fire checks are additional AUTHORED domain restrictions.
+
+Resource-veto is a DIFFERENT global signedWORD table1312014[resource], with zero permitting resource. Initial harvest, allocation and repeated selectors query it. UI40d320 toggles0/1;4ae3a0 can deactivate Farm193 when any Food resource1/3/5/6/7 is disabled. Operationtrue alone does not prove resource-veto0. The existing fresh E3 World domain uses enabledFood resources without importing Native globals; keep that explicitly scoped/authored. This E4 proof closes fresh TYPE-veto epoch, not every resource-table Native initialization/archive writer. Field growth itself uses only type-veto, so no resource-veto assumption is needed to apply safe independent growth.
+
+### Exact harvest boundary and cargo identity
+
+Native ordinary state10 selects→11, actualmovement8→12 with Foodwait25; due state12 calls actual field+268→4c1dd0 then returns10. Repeated target failure retains lastField68 and uses actual source2a/2c; cargo7c interpreted signedpositive selects13, otherwise9. State13 movement8 alone reaches Farm+268 receipt; movement10 retires without receipt. Native role2 retained-counter debit on failed selection and actual retirement are separate and floor0. Cleanup clears actual assignments before resetting same7c/lastField/source/role.
+
+4c1dd0 FIRST setswork4000 and bodycounter150=0, BEFORE testing8000. Marked path consumes8000, evaluates live yield, writes currenthistoryWORD H, adds H modulo65536 into sole actorWORD7c C, clears Q and assignment. A LiveYieldContext block must happen before entering4c1dd0, including its unmarked-prefix mutations. A World physical state10→11→12/Wait25 witness followed by explicit AUTHORED no-cargo cancel/retirement is possible without claiming native harvest completion, physical return13, raw yield, bin credit or Food. Keep blocked Q/mark/history until their actual expiration event; only real cleanup clears assignment.
+
+One field, one stable WorldID/NativeWORD mapping, one crop and one live actor protect Actor68/resource identity until cancellation. Native repeated harvest itself lacks that same-resource invariant, and native return dereferences retained68's CURRENT type, without generation proof. Do not generalize this scope to mixed crops, slot reuse/deletion or imported actor references.
+
+### Ordinary harvest selection starts at cursor0
+
+
+Fresh byte qualification adds complete actual caller4c2b20..4c2c65 and helper4c0060..4c0129. Ordinary state10 dispatch calls4c2b20 at4cca7b. That source caller pushes source-model family, literal previous-ID0 at4c2b2e, and actualActorID separately at4c2b30, then invokes4c0060 at4c2b38. ActorWORD68 is NOT supplied as the search cursor.
+
+The helper reads its previous-ID argument at4c0061 and tests it at4c0068. Zero sets its local search-enabled flag at4c006d;4c0092 then jumps directly to candidate status/family checks at4c00a9. Every ordinary invocation consequently restarts from the first registered field. The same helper supports an OPTIONAL nonzero preceding-ID argument: only that path compares each actual bodyID with the supplied priorID, sets search-enabled on the matching entry, skips that matched entry itself, and begins testing following collection entries. This optional helper behavior is not the ordinary caller policy and is not a numeric fieldID-greater comparison.
+
+World uses literal cursor0 for both state6 and10. Its one admitted field remains safe because completed native harvest clears assignment, and the E4 gate cancels before callback/any reselection; Actor68 remains the retained identity for work and potential return labeling, not an ordinary repeat-search cursor. After the first live-yield block, the session refuses further harvest allocation while field expiration continues.
+
+### AGRI-02E4: qualified live-yield boundaries, production still blocked
+
+**EXE_OBSERVED / PARTIAL.** Fresh private
+`.local/agri-02e4/yield/verify_live_boundary.py` independently recaptures16
+bounded PE windows and verifies73 address/call/graph assertions,953 decoded
+instructions and3,545 instruction bytes, including overlaps. Its receipt
+`verified-live-boundary.json` includes65,536 source/modifier-byte arithmetic
+identities, the exact120-cell dry-query walk and12 explicit PC/RC arithmetic
+interpretations. EXE, BuildingModels and FarmConfig retain SHA-256, size, mode
+and mtime. The Original program is never executed and no personal save is read.
+This is static source evidence, not a positive World harvest or yield grant.
+
+**A concrete ordinary-map fertility epoch is now qualified.** In the complete
+actual `43abf0..43aea4` caller, EBX is zeroed at43ac56. Its successful
+standalone-map branch passes header-only0 and reaches43ad9e→52e7c0. The
+actual archive reads the runtime plane eac3f0 at52ea84 and the distinct
+construction plane e9f8e0 at52eaa6. The same successful caller then reaches
+43ae05→53d100→53d1e4→5355f0→5356bc→4c1d00→4c1c20. Thus this particular
+ordinary initialization performs a later all-map runtime-fertility recompute;
+its archived runtime bytes are not the final post-recompute values.
+
+The real rectangle writer reads construction bytes at e9f8e0 and actual
+modifier BYTE84c560, then stores
+`(floor(55*constructionByte/100)+modifierByte) mod256` in eac3f0. It does not
+read an immediate10. Modifier10 is separately qualified as an executed startup
+initializer value; selecting it for a World epoch still needs the admitted
+fresh configuration lifetime. The formula is exact for every byte pair. The
+all-map wrapper uses the selected native map width/height and coordinate base.
+This closes the ordinary recompute epoch and conversion, not arbitrary saved-
+game, editor, reload or subsequent update semantics. Existing4b5b2b rectangle
+updates, editor5f539d and the additional all-map callers remain distinct real
+operations. A World may not turn the existence of this path into a universal
+construction-fertility substitution for live harvests.
+
+**A useful dry-irrigation branch is independent of the unresolved wet owners.**
+Complete4c15b0..4c16ab walks square perimeters1..5, excluding the field center:
+8+16+24+32+40=120 unique cells. For each reached in-bounds cell it reads actual
+runtime terrain f6a9e0, skips it when bit800 is absent at4c164c/4c164f, and
+also excludes off-map80000 before calling525610. When every tested cell lacks
+800, the full query returnsfalse at4c169a without invoking525610. Flood state,
+RoadBlock126 neighbors, supplier histories and timestamps in the latter helper
+are then unqueried operands; no guessed values are needed for those branches.
+
+A World dry admission must bind that actual **effective runtime-terrain**
+predicate at every queried cell, not merely inspect immutable raw terrain or
+read Rule26's derived wet cache. At minimum, use the complete source SHA-bound
+map and actual World footprints/overlays: source raw0/80 and supported ordinary
+roads plus the already qualified Farm/Food effective8/88 overlays cannot supply
+800. A paid Ditch202 in the query area must be refused even if its World cache
+currently says dry. Pump203 footprints and other unqualified overlays must be
+excluded until their effective marker/write lifetime is admitted; source-native
+800 markers also refuse. Require complete supported bounds/source/occupancy
+for the whole query neighborhood, and invalidate on relevant construction or
+source changes. A conservative query can require all120 cells be supported;
+it need not invent off-map, Flood or wet-history behavior. This is a proved
+`irrigated=false` subset only. It does not equate current Rule26 water caches
+with the Original wet query or close a positive irrigation bonus.
+
+**The smallest independent live numeric blocker remains incoming FP context.**
+The actual marked field callback4c1dd0 resolves its actor and Food own-info
+pointer (Food slot1e8→416b50), reads actual event singleton state through
+48e0f0→608620, conditionally classifies the crop through48e680, and reads the
+runtime fertility byte at4c1e81 before first FP load4c1e8d. Its immediate
+integer predicates do not establish a new x87 environment. The first scaling
+multiply4c1e91 and binary32 store4c1e97 consume the incoming PC/RC. There is
+no local control-word, stack or exception reset before them. The already
+qualified local arithmetic graph preserves the supplied control word and its
+converters restore it; neither fact supplies its actual live value or proves
+normal incoming stack/exception state. The ordinary actor-pass parent5371a0
+also contains no such entry reset. Startup76d3a7 selects53-bit precision under
+a precision-only mask; it is not a complete harvest-entry CW/FP-state proof.
+
+The distinction changes physical yield. With separately supplied conditional
+Rice197 operands quantity10000, runtime fertility65, dry irrigation,
+region-factor bits3f800000 and raw date-300 (global stage unqueried), the
+existing exact arithmetic produces65 for supplied CW007f and64 for027f.
+Across the12 supported normal PC24/53/64 and RC choices the result still spans
+64/65. These are explicit arithmetic counterexamples, not a claim that either
+control word or the whole tuple is admitted in an actual World. A host-default
+or startup53 substitute cannot establish which amount an Original harvest
+would carry. Single-candidate winner independence from E3 does not remove this
+numeric dependency.
+
+**Region, event/date and factors remain separate owners.** The admitted
+standalone Header+8 region operand is logicalDWORD12; actual52eb52 publishes
+its low WORD to signed c5cd58. Validate the actual admitted0..2 numeric domain
+and prevent unadmitted region/editor changes; the unrelated map-size context
+index is logicalDWORD8. Actual harvest4c1ed0 uses that signed region,4c1ef3
+uses raw date d623fc, and date>-300 reaches actual global factor84c55c. Native
+configuration preparation53d5ca supplies a signed source WORD to raw date;
+calendar4ac7d0..4ac7ea increments it at resulting month1. The existing elapsed
+World year is not that native epoch. Actual event enable BYTE50, state DWORD54
+and selector DWORD58 have startup/archive/command/update owners; standalone
+map entry facts do not bind their live values. Source factor initializer bits
+and the finite39-reference census likewise do not establish every later
+configuration/alias lifetime. The new fertility epoch and dry branch must not
+silently fill any of these operands with defaults.
+
+**World activation consequence:** these proofs can support an explicitly
+bounded source-epoch/dry predicate and improve the refusal diagnostic. They
+do not authorize an actual CropHarvestContext or a positive Raw yield. Without
+actual incoming CW (PC/RC and all exception masks), normal FP stack/exception
+state, and the remaining admitted runtime numeric owners, stop at the harvest
+boundary before applying the context-dependent callback. Do not consume the
+mark/quantity, add cargo/history or credit a Farm bin from invented inputs.
+Independent paid growth, mark, movement and wait observations can progress;
+positive Original Raw production and any new persistent generation remain
+blocked. The next precise proof is the native actor/field callback entry
+postcondition on its actual admitted execution path, together with the source
+initialization/update fence for the remaining live operands. Passing an
+arbitrary context DTO or rational arithmetic test cannot satisfy that gate.

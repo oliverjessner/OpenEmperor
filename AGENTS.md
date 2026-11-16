@@ -205,6 +205,21 @@
   preserve historical continuation and monotone lifetime IDs. Rules1–26,
   schemas1–42 and defaults stay exact; Rule27/schema43 remain unallocated. See
   [autonomous tending](docs/original-economy/agriculture.md#autonomous-tending-acceptance-agri-02e3).
+- Transient field cycles are a separate `AutonomousFieldCycleV1` selection in
+  that same World controller. Admit exactly one complete Food field, one crop,
+  one live actor and the bounded fresh native configuration/veto/base-constructor
+  context. The enabled-Food resource inputs retain E3's AUTHORED World scope;
+  they are not a proved native resource-table import. Real tending alone
+  establishes work; shared phase20 marks/grows the
+  field and completed-cycle expiration/decay precedes actor work. Actual harvest
+  selection/allocation/movement starts wait25. Without admitted live yield and
+  normal incoming FP context, stop before the entire harvest callback, then use
+  explicit empty transient cancellation. This is no completed harvest, physical
+  cargo return or Farm receipt. Keep quantity/history/mark and cargo distinct;
+  no raw bin or Food origin, saved generation, default or migration is activated.
+  The existing session publication guard applies even with no live actor.
+  Rules1–26/schemas1–42 and `AutonomousTendingV1` remain exact. See
+  [first-harvest boundary](docs/original-economy/agriculture.md#first-physical-harvest-boundary-agri-02e4).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

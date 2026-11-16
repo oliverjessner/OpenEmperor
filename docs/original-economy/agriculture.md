@@ -1048,15 +1048,99 @@ explicit contract for actor/cursor/phase/wait, work/claims, source counters,
 source/configuration identity and exceptional lifetimes. Rule27/schema43 were
 rechecked as unused and remain unused; no migration or default changes occur.
 
-The next concrete AGRI-02E4 dependency is runtime-fertility query/override and
-rewrite-epoch admission, followed by real multi-candidate allocation/groups and
-peer-safe tours. Before harvest cargo, prove retained-last-field resource
+The separate AGRI-02E4 policy below keeps a single field and advances through
+growth and physical harvest work without resolving a numeric tending score.
+Wider tours still require runtime-fertility query/override and rewrite-epoch
+admission, multi-candidate allocation/groups and peer-safe lifetimes. Before
+harvest cargo, prove retained-last-field resource
 identity through every field/slot lifetime, native WORD accumulation, failure
 and full-bin disposition. A tending actor's cargo0 proves no mixed-harvest
 conversion. Keep yield inputs, raw transport, Food conversion and a complete
 new save generation behind their separate evidence gates. Exact sources are in
 the [source contract](../reverse/original-agriculture-source-contract.md#autonomous-transient-tending-binding-agri-02e3);
 executed checks are in the [testing guide](../testing.md#autonomous-food-grower-world-acceptance-agri-02e3).
+
+## First physical harvest boundary (AGRI-02E4)
+
+**PARTIAL. The positive-harvest definition of done is not met.** The separately
+selected transient `AutonomousFieldCycleV1` policy extends the existing World
+controller and shared navigator. Paid Farm193, one paid Food field, real
+immigration/staffing, actual tending51, field quantity, an end-slot harvest mark
+and an autonomously allocated harvest Actor26 now reach a real field arrival
+and wait25. The entire marked harvest callback remains blocked before mutation.
+No positive raw yield, carried harvest, State13 return or Farm receipt is claimed.
+Ordinary games and the older `AutonomousTendingV1` policy keep their contracts.
+
+| Completion boundary | Status | Actual result / remaining condition |
+|---|---|---|
+| Paid Farm/field, regular residents and workers | PASS | Independent paid scenes earn24 residents and assign12 Farm workers; no injected arrivals, staffing or callbacks |
+| Autonomous tending and field development | PASS | Actual arrival and51 actor invocations establish work40; phase20 later develops quantity, with countdown, cap and cycle decay through existing crop rules |
+| Calendar mark and expiration | PASS | Phase20/end-slot/subslot0 marks; completed old end-slot expiration clears quantity/work/assignment and the actual assigned actor wait before decay/actor work |
+| Harvest source dispatch/allocation | PASS in fresh single-field context | Real phase31 attempt, eligible positive marked candidate, quota and actual allocation; native Farm WORD40 is bound to fresh0 before any raw receipt/cart |
+| Physical harvest work entrance | PASS | Same shared channel moves role2 through11 to12; actual arrival starts25 eligible invocations |
+| Actual marked harvest callback and numeric yield | BLOCKED | Incoming PC/RC, masks and normal FP state plus the remaining live region/event/date/factor owners are unbound; no caller-supplied context can bypass the gate |
+| Positive cargo, return13, accepted bin credit/overflow | BLOCKED | No raw yield exists. Empty cancellation at the field releases assignments/channels; it is not an Original completed harvest or Farm return |
+| Single crop identity | PASS within admitted scope | Exactly one bound field, checked complete footprint, monotone lifetime IDs and manager-change cancellation; mixed fields/tours remain refused |
+| Persistence | PARTIAL: transient only | Active controller/field quantity cannot enter document, writer, restore or Recovery. Cleanup restores exact historical continuation; no active-worker save contract |
+| Historical compatibility | Preserved | Rules1–26/schemas1–42, existing Wheat/Millet Food and all defaults remain exact. Rule27/schema43 remain unused; no automatic migration |
+
+The cycle uses the existing51×16×12 World calendar. The one-tick-per-phase
+mapping, elapsed-year epoch and one actor callback/microstep per World tick
+remain **AUTHORED**. Phase20 marks before growth, before the actor pass; completed
+cycle expiration/decay likewise precede that pass. A tending completion cannot
+retroactively change an earlier growth callback. Calendar movement and staffing
+alone leave fresh quantity0. Growth queries have no invented80/160-tick harvest
+or fixed yield. Source operation, staffing, fire, peer and unsupported geometry
+changes use conservative transient cancellation, not reconstructed Original
+exceptional-state behavior.
+
+The explicit context is the fresh native initializer/base-constructor/type-veto
+profile, with no imported native archive, editor/global changes, raw receipts or
+carts. Status1 paid fields and qualified flat ordinary terrain form a strict
+subset of the source manager. Fields start with zero quantity/work/countdown;
+the fresh type-veto table is0. No operation flag is substituted for that native
+global table. Source resource-enabled inputs retain E3's explicitly authored
+fresh enabled-Food World scope; native resource-table import/update lifetimes
+remain unproved, and operationtrue is no substitute. All state lives in
+`simulation::World`; there is no second clock,
+independent navigator or Food ledger. Transient field quantity never becomes
+historical Agriculture quantity or an Original raw origin. In particular the
+unchanged authored Wheat/Millet adapter receives no second resource credit.
+
+The real blocked work invocation records its tick and retires the empty actor
+at its current field cell using explicit session cleanup. It does not call
+`apply_crop_harvest_callback`, even its pre-yield work4000/body-counter stores.
+Quantity, harvest mark and history remain unharvested until calendar expiration;
+ordinary work decay may still change the low byte. Further marked candidates
+cannot allocate another harvest actor after this session's first live-yield
+block; field expiration continues. The gate conservatively also refuses an unmarked
+state12; it does not claim that the Original unmarked callback queries yield.
+
+Resource accounting keeps Q (field quantity), N (numeric raw yield), H (narrowed
+yield/history WORD), C (the sole actor cargo WORD), B (accepted Farm stock) and
+X (unaccepted overflow) distinct. In the executed blocked path,
+`quantity_added = Q + quantity_expired + quantity_vetoed`; N/H/X are uncomputed,
+history and C stay0, and no raw-bin account or B credit is published. There is
+no pending-stock copy or speculative reservation. Synthetic WORD-narrowing,
+carry, Return10 and full-bin arithmetic tests remain separate from the blocked
+physical World cases. They cannot establish a successful harvest or receipt.
+
+New **EXE_OBSERVED** evidence closes a concrete ordinary full-map load followed
+by runtime-fertility recomputation and the dry120-cell irrigation branch. It
+does not bind every later numeric owner. The smallest independent blocker is
+the actual normal incoming x87 environment: even one conditional resolved Rice
+tuple yields64 or65 under different supported PC/RC contexts. Startup53-bit
+precision does not establish that harvest-entry state. The precise next step is
+to qualify the admitted actor/field entry's PC/RC, exception masks, stack and
+pending-exception postcondition, then seal the remaining live fertility,
+region, event/date and factor lifetimes. Only such a provider can authorize the
+existing exact harvest callback. Then bind its sole actor WORD to actual
+return13/8, last-field resource identity, accepted bin credit and explicit excess
+accounting before proposing positive persistence. No authored substitute is
+approved or activated. Source proofs are maintained in the
+[source contract](../reverse/original-agriculture-source-contract.md#first-physical-harvest-boundary-agri-02e4);
+executed tests are recorded in the
+[testing guide](../testing.md#autonomous-field-cycle-acceptance-agri-02e4).
 
 ## Irrigation infrastructure and completion matrix (AGRI-04)
 
