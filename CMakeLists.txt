@@ -338,6 +338,7 @@ target_link_libraries(openemperor-model-inspect PRIVATE openemperor-original-har
 target_link_libraries(openemperor-simulation PUBLIC openemperor-original-irrigation-rules)
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
     src/simulation/WorldPlantations.cpp
+    src/simulation/WorldGrowerNavigation.cpp
     src/simulation/WorldIrrigation.cpp
     src/simulation/WorldAgricultureCalendar.cpp
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
@@ -1203,6 +1204,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-original-grower-admission-tests)
     add_test(NAME original-grower-admission COMMAND openemperor-original-grower-admission-tests)
     set_tests_properties(original-grower-admission PROPERTIES TIMEOUT 180)
+
+    add_executable(openemperor-original-grower-navigation-world-tests tests/OriginalGrowerNavigationWorldTests.cpp)
+    target_link_libraries(openemperor-original-grower-navigation-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-original-grower-navigation-world-tests)
+    add_test(NAME original-grower-navigation-world COMMAND openemperor-original-grower-navigation-world-tests)
+    set_tests_properties(original-grower-navigation-world PROPERTIES TIMEOUT 300)
 
     add_executable(openemperor-plantations-world-tests tests/PlantationsWorldTests.cpp)
     target_link_libraries(openemperor-plantations-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)

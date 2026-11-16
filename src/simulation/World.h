@@ -13,6 +13,7 @@
 #include "simulation/PlantationsState.h"
 #include "simulation/IrrigationState.h"
 #include "simulation/AgricultureCalendar.h"
+#include "simulation/GrowerNavigationState.h"
 #include "simulation/OriginalHousingDiagnosis.h"
 #include "simulation/original/Desirability.h"
 
@@ -729,6 +730,9 @@ struct WorldSnapshot {
     std::optional<PlantationsState> plantations;
     std::optional<AuthoredLandTradeState> land_trade;
     std::optional<IrrigationState> irrigation;
+    // Publication guard only, never encoded in historical JSON. A transient
+    // navigation experiment must be detached before save/restore publication.
+    bool navigation_session_present=false;
     bool operator==(const WorldSnapshot&) const = default;
 };
 struct ResourceInventory {
@@ -1086,6 +1090,13 @@ public:
     RoadBatchValidation validate_road_batch(std::span<const Cell> cells) const;
     CommandResult execute_road_batch(std::span<const Cell> cells);
     void tick();
+    // Explicit non-production navigation acceptance session; historical
+    // couriers, field work, inventory and saved generations stay unchanged.
+    GrowerNavigationAdmission start_grower_navigation(const GrowerNavigationRequest&);
+    std::span<const GrowerNavigationTrack> grower_navigation_tracks() const { return grower_navigation_tracks_; }
+    const GrowerNavigationTrack& grower_navigation(GrowerNavigationId) const;
+    bool clear_grower_navigation();
+    bool has_grower_navigation_session() const { return !grower_navigation_tracks_.empty(); }
     std::optional<std::vector<Cell>> find_route() const;
     std::optional<std::vector<Cell>> find_route(Cell start,Cell goal) const;
     std::vector<BuildingEntrance> building_entrances(BuildingId id) const;
@@ -1143,7 +1154,13 @@ private:
                               std::shared_ptr<const OriginalTerrainFacts> terrain=nullptr,
           std::shared_ptr<const LandTradeBoundaryFacts> trade_boundary=nullptr);
     std::optional<std::vector<Cell>> find_road_route(Cell start,Cell goal,
-        std::optional<BuildingId> plantation_source={},std::optional<BuildingId> plantation_plant={}) const;
+        std::optional<BuildingId> plantation_source={},std::optional<BuildingId> plantation_plant={},
+        bool original_grower_mode17=false,GrowerNavigationResult* grower_result=nullptr) const;
+    std::optional<std::uint16_t> original_grower_navigation_mask(Cell) const;
+    bool original_grower_navigation_edge_allowed(Cell,Cell) const;
+    bool grower_navigation_cell_claimed(Cell,std::optional<GrowerNavigationId> except={}) const;
+    void advance_grower_navigation();
+    bool prepare_grower_navigation_source();
     bool plantation_edge_allowed(Cell,Cell,BuildingId,BuildingId) const;
     bool plantation_cell_allowed(Cell,BuildingId,BuildingId) const;
     std::optional<std::vector<Cell>> plantation_route(Cell,BuildingId,BuildingId,bool returning) const;
@@ -1325,6 +1342,9 @@ private:
     std::vector<std::uint32_t> owners_;
     std::vector<BuildingState> buildings_;
     std::vector<CourierState> couriers_;
+    std::vector<GrowerNavigationTrack> grower_navigation_tracks_;
+    std::uint64_t next_grower_navigation_id_=1;
+    bool grower_navigation_source_prepared_=false,grower_navigation_no_regions_=false;
     std::vector<BridgeSpan> bridges_;
     std::uint32_t next_bridge_id_=1;
     std::vector<RampLink> ramps_;

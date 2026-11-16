@@ -2753,6 +2753,191 @@ eligibility and eager invalidation history for that entire Original query.
    strict crop-identity/WORD/bin resource balance before any source callbacks
    create World stock.
 
+## World mode17 motion binding (AGRI-02E2)
+
+This closes a bounded **movement-only** integration. `World::find_road_route`
+now has an explicit mode17 policy within its existing queue/storage/diagnostics;
+there is no second navigator. `WorldGrowerNavigation.cpp` owns transient World
+motion tracks and actual committed cells. This creates no native Actor26,
+field assignment/work, raw cargo, Farm receipt or Food origin.
+
+### Narrow ordinary-land mode17 predicate (AGRI-02E2)
+
+**EXE_OBSERVED / bounded interpretation.** The pinned PE's actual prepared
+WORD writer `0x5ad440..0x5ad8eb`, whole-grid caller `0x5ad8f0` and clearing
+function `0x5ad920` close the relevant ordinary-land branches. The clear writes
+25,992 DWORDs, exactly51,984 WORD entries. The writer consumes runtime terrain
+DWORDs at `0xf6a9e0`; its occupancy branch resolves the signed owner WORD at
+`0xfc3750` through the actual body manager. It is not a raw-map-only bit mask.
+
+| Restricted effective cell facts | Prepared WORD | Flood13d | Targetb3c | Runtime nextedge |
+|---|---:|---|---|---|
+| Unoccupied ordinary raw0/80 with absent native region object890210 or its byte18 nonzero |10|accept|accept|accept|
+| Flat ordinary road40/c0 |04|accept|accept|accept|
+| Complete Food field195..199 body over raw0/80, effective8/88 |10|accept|accept|accept through actual field-family|
+| Complete Farm193 body over raw0/80, effective8/88 |02|refuse|refuse|retry9|
+
+The prepared writer explicitly masks80 in its ordinary branch, accepts zero
+remaining terrain at`0x5ad826`, and writes10 at`0x5ad82a`. Road40 is handled
+earlier at`0x5ad578` and writes04. Body footprint-pass query`+0xcc` is actual:
+the verified Farm and Food constructors install vtables7af1e8/7aea40, both
+binding that slot to literalfalse416a50. Food fields then pass the separately
+qualified4c11b0 family (195..199,194,26..28); Farm193 doesnot. The narrower
+World binding admits only typed paid Food195..199. The native10000000 marker
+can independently produce20, with an extra family check in the flood, but its
+creation/update is not needed or inferred by this binding.
+
+The empty-land branch additionally reads the native per-cell region-object grid
+at890210. If an object exists with byte18 zero, the historical61b ground-image
+offset can instead produce prepared1/10/2. Raw terrain0/80 and raw objects0 are
+therefore **not by themselves proof** of native prepared10. This region owner
+contains30 bounded28-byte records, publisher41f820, and a36-byte standalone
+header read at52e906..e915. Complete source-region/height-object recreation is
+unclosed for arbitrary region states. A positive local absence predicate is now
+qualified separately: ordinary postload535683 calls41f400, which starts by
+clearing all51,984 native pointer entries through41f3b0. Its only observed direct
+publisher41f820 is called at41f5af, and only for cells whose own terrain10000 or
+one of the complete eight neighboring10000 flags is nonzero. The exact neighbor
+counter4b4520 uses offsets−228,−227,+1,+229,+228,+227,−1,−229. Rebuild terrain
+writes only mask the old value and add80; they cannot create10000 in a clean
+ring. Therefore a complete in-bounds3x3 raw terrain neighborhood with no10000
+closes the no-region counterpart after this qualified ordinary rebuild.
+
+World can prepare this local absence predicate once from immutable source facts
+and require it alongside the flat/source/occupancy gates. World admits no native
+region operation or later native terrain normalization. No extra source parser or
+invented all-zero-header meaning is necessary. An all-zero36-byte header is **not**
+proof of zero region records. Road and typed-field branches bypass this branch.
+
+`.local/agri-02e2/predicates/verify_region_absence.py` separately bytequalifies
+the header getter, actual standalone read, ordinary reset/rebuild, publisher and
+eight-neighbor counter. Its receipt records41 assertions across8 windows and
+10 clean/one-flag negative-control interpretations, with original EXE unchanged.
+
+The same raw family is checked by the actual ordinary runtime nextedge at
+4e8f99. Plain land and road have no blocking low4,1000,100 flags, road4+40
+link combination or prepared0200 ferry state. Mode17 uses ordinary domain84=0;
+unsupported domains, special contexts and peers must be refused explicitly.
+Native peer prefilter4e2560 excludes Actor26, but the actual cell-commit
+interaction still traverses the real actor chain: empty/self-only chains can
+exit without entering state5; no general peer no-op is inferred.
+
+**World admission / AUTHORED restriction:** derive the effective facts only
+from an immutable full-map-SHA-bound raw source context plus World's actual
+complete paid footprints and roads. Retain map policy, original occupancy,
+objects, bounds, exact source identity and flat signed-height checks as separate
+gates; unsupported source combinations fail closed. Farm193's whole3x3 body
+is a blocker, including the origin. Native return WORD2a/2c must not be replaced
+by the Farm origin or a convenient visual-nearby cell. This task can admit a
+supported external endpoint and a real paid field endpoint without granting
+Farm receipt authority.
+
+This closes a reusable positive cell subset. It doesnot close every alias
+writer of the native mutable plane, native height transitions, peers/state5,
+Ferry48, suspension13c, linked66/72, exceptional14..16, global88ec38 semantics,
+autonomous Actor26 creation, work, harvest or Food production. Routes must
+preserve the original cardinal flood and eight-way gradient winner; adding a
+movement-edge filter during tie selection would change that route. Reject an
+unsupported extracted winner rather than silently choosing another route.
+
+Private read-only verifier `.local/agri-02e2/predicates/verify.py` freshly
+extracts and byte-checks13 windows,60 assertions,1,193 instruction lines and4,002
+instruction bytes;`verified-predicates.json` retains source before/after SHA,
+size, mode andmtime, all unchanged.
+It interprets16 bounded cases. It runs neither the original program nor a World
+and is not a substitute for actual shared-navigation movement acceptance.
+
+### Exact phase progression and its World driver
+
+The separately qualified `verify_movement.py` receipt has31 address assertions
+across7 byte-checked windows,1,146 instruction lines and3,470 bytes. A newly
+prepared route has phase20/cursor0. On its first microstep, the current direction
+is read and checked **before** the cursor increments; phase becomes0. There is
+no dummy direction. Cursor counts accepted directions, not completed edges.
+
+| Microstep | Two-edge route observation |
+|---:|---|
+|0|Prepared phase20, cursor0, actual source cell|
+|1|First direction accepted, cursor1, phase0; cell unchanged|
+|11|Phase10 commits path cell1|
+|20|Phase19; no next-edge check|
+|21|Next boundary accepts direction1, cursor2, phase0|
+|31|Phase10 commits path cell2|
+|41|Native phase20 sees exhausted route→8; World additionally requires actual target equality|
+
+The initial preparation also checks its first direction before entering the
+ordinary microstep loop. Begun phases1..19 do not revalidate the next edge;
+cell commit at10 therefore preserves the begun section. At a phase20 denial,
+result9 retains cursor/current cell and phase20. The next eligible preparation
+uses the actual committed cell. The native helper `0x4eacd0` additionally has
+source/statistical side effects; this movement-only policy does not reproduce
+or grant those effects.
+
+`GrowerNavigationPolicy::Mode17MicrostepV1` binds **one existing World tick to
+one native microstep**. That driver binding is AUTHORED and explicit, not proof
+of Original Actor26 property8 lifetime,1/1/2 cadence, original scheduler/global
+gate ordering or real-time speed. Historical courier/plantation five-tick edges
+remain unchanged. No separate calendar or advancing external simulation exists.
+
+### Admitted World context and conservative refusals
+
+The first explicit request prepares the immutable source context outside normal
+tick/frame work. The initial contract requires complete Rule26 raw terrain,
+source SHA, boundary/policy and a complete plane without bit10000 **anywhere**.
+That is deliberately stricter than the proved local3x3 absence predicate. The
+World then models the qualified ordinary rebuilt, region-absent context and
+admits no native region operations. It neither imports native save state nor
+uses an all-zero-header shortcut. Signed height must be0. Bridges, ramps,
+ditches, unknown source combinations and unsupported occupancy are excluded.
+
+Current World roads and complete paid Food footprints supply the effective
+source facts; images, distances and names do not. A paid Farm193's entire3x3
+footprint is blocked. Both the outward source and returning destination use a
+caller-explicit supported external cell cardinally adjacent to that complete
+Farm; they are not inferred native WORD2a/2c. The field endpoint is the actual
+paid typed field belonging to the requested Farm. This is a motion request,
+not a source spawn, target-selection or Farm-return proof.
+
+Unknown prepared predicates are distinct from proved blockers: encountering an
+unknown cell during the cardinal flood refuses the **whole** query. It is not
+turned into a wall that might change the native gradient winner. Known outside
+World boundary/Farm cells stay blocked. Extract first with original ties, then
+refuse an unsupported winning edge; never select an invented alternate winner.
+The eight-direction extractor retains fewer than500 direction bytes. Combined
+ordinary couriers and transient tracks stay within the existing58 channels.
+
+Real current/begun track cells are protected from overlapping paid construction,
+road removal, irrigation changes and Elite materialization. Future unbegun
+geometry may change. A failed next edge produces9; actual shared re-preparation
+then produces a new route, failure10 for proved unreachability, or a separate
+Unsupported11 for unqualified context. Exact endpoint equality is required for8,
+including an exhausted route; proximity or a supplied result is insufficient.
+An unsupported source/actor/terrain context seen during a begun section is
+retained, lets that section finish physically, then stops without an arrival8.
+
+State5, suspension13c, Ferry48, linked66/72, exceptional14–16 and global88ec38
+remain unsupported interactions. Explicit requests for them are rejected before
+publication. Real peer claims block the next section; ordinary active courier
+contexts are conservatively excluded. No pause flag stands in for13c, no peer
+no-op is inferred, and no interrupted motion grants field work, cargo or stock.
+
+### Persistence boundary
+
+Tracks are explicit non-production sessions, not a Rule27/schema43 generation.
+`WorldSnapshot::navigation_session_present` is a default-false publication guard,
+never a historical JSON field. Internal snapshot/invariant observations remain
+available. Save-document creation, writer and full restore refuse a snapshot
+carrying a session; an active or retained experiment must be cleared first.
+Cleanup cannot discard an active/begun track. After terminal cleanup, ordinary
+historical snapshots/JSON and independent continuation remain exact. Session IDs
+are monotone within the World lifetime and never consume/reuse gameplay IDs.
+
+A future persistent Actor26 contract must separately admit native actor identity,
+source/field claims, speed/cadence and ordinary/exceptional lifetimes, route owner,
+accepted-direction cursor, phase/current/previous cells, work/waits, raw cargo,
+reservations and source counters. Recheck any proposed Rule27/schema43 pair;
+no such generation or automatic migration is activated here.
+
 ## Concrete proof gates before implementation
 
 The [runtime architecture](../original-economy/architecture-map.md) remains the
