@@ -783,6 +783,80 @@ and inspected; they do not establish new Actor26/native/human visual acceptance.
 The positive raw-harvest definition of done remains BLOCKED/PARTIAL despite the
 passing independent component and bounded World tests.
 
+## Live harvest context tests (AGRI-02E5)
+
+```sh
+cmake -S . -B .local/agri-02e5/build-debug -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_FLAGS_DEBUG='-g1 -O1' -DOPENEMPEROR_USE_SYSTEM_SDL3=ON
+cmake --build .local/agri-02e5/build-debug --parallel 4 \
+  --target openemperor-original-harvest-admission-tests \
+  openemperor-autonomous-food-grower-field-cycle-tests \
+  openemperor-autonomous-food-grower-world-tests
+ctest --test-dir .local/agri-02e5/build-debug --output-on-failure \
+  -R '^(original-harvest-context-admission|original-autonomous-food-grower-(world|field-cycle))$'
+```
+
+The new admission test uses the existing actual paid scene and the unchanged
+autonomous tending/growth/mark/harvest movement pipeline. Each of the five
+Food models reaches a real field arrival,24 later worker invocations and wait1,
+then the actual25th invocation. Read-only preparation returns immutable
+bindings and precise current refusal domains. Repeated inspection leaves
+World, field, native actor, movement and IDs exact. The actual refusal audit
+survives retirement; field quantity/work/history and cargo receive no harvest
+mutation. A later retired-lifetime query cannot acquire another context.
+
+Compile-time checks reject public/default/aggregate construction and assignment
+of the sealed result, including construction from a free Pure-Rule context.
+Source tests read the actual signed lowWORD of Header+8, including ignored
+highWORD and negative controls. Separate real sealed map identities exercise
+SHA mismatch, and historical model-source mismatch is refused by restore.
+Due work checks model hash/difficulty, Farm/field/crop/assignment, actual
+arrived track, Source region, construction fertility, Q/work/C and exact120-cell
+dry observations. Missing FP control/state, fertility epoch, region/factor,
+date/global/resource and arithmetic domain are reported individually.
+Rice/Cabbage's event predicatefalse does not populate invented Event values.
+
+Actual paid dry-query cases place a Ditch at the last radius5 corner, where119
+supported cells precede refusal, and outside radius6, where120 cells remain
+dry. A source-native800 cell and unsupported source regions3/-1 refuse with
+the actual offending coordinate/value. A paid Pump overlay is tested after a
+dry control whose intake water lies outside the120-cell neighborhood. Worker
+stop at actual wait1 and a newly paid field revoke work before a callback.
+Another actual scene cuts its free Farm port after the first natural tending
+return and repairs it in end-slot/subslot14. The real subslot15 harvest dispatch
+starts its two-edge route before expiration, then arrives after phase50 has
+cleared the mark/quantity/assignment. The resulting actual state12/wait0 returns
+`MissingHarvestMark`; its next invocation records the refusal without4000,
+history or cargo. No callback, movement result, calendar or wait is injected.
+Independent replay preserves the complete transient failure audit and exact
+historical controls. Document/writer/restore/Recovery rejection retains existing
+bytes; after cleanup schema42 and Recovery continuation match the ordinary
+World. Existing pure marks/repeated-callback/narrowing/carry/overflow vectors
+remain separate from actual World resource acceptance.
+
+The source receipts qualify the complete ordinary native Actor26 prefix after
+the last timing call, actual startup/save/restore FP groups, Properties
+preservation and later Play reload, date seed/update, fertility and region
+owners, and Rice/Cabbage event vetoes. The precise remaining RC/FP capture plan
+is maintained in the [source contract](reverse/original-agriculture-source-contract.md#live-harvest-context-admission-agri-02e5).
+That hardware-breakpoint plan has not been executed. No Original process,
+current FP environment or positive native harvest is inferred from these static
+checks. Positive World callback/history/C remain BLOCKED/PARTIAL until actual
+live numeric admission is available.
+
+Executed on 2026-11-17: complete Debug, Release and ASan/UBSan suites each
+passed362/362 cases without skips (160s,149s,703s). Debug/sanitizer retain
+assertions with `-g1 -O1`; sanitizer uses `detect_leaks=0` on macOS and
+`UBSAN_OPTIONS=halt_on_error=1`. Final independent Debug and Release core
+comparisons each passed74/74, produce identical public reports and retain every
+non-fingerprint baseline result/classification. The reviewed additive ABI now
+pins15 headers and74 source fingerprints. Seven supplied Original/earned-save
+inputs retained exact SHA-256, size, mode and mtime. Static source receipts
+qualify238 assertions over86 byte-checked windows including overlaps. Fresh
+historical Farm and productive-walker captures were opened and inspected.
+Those regressions do not establish native/human Harvest acceptance. The full
+positive-context/callback/Cargo definition of done remains BLOCKED/PARTIAL.
+
 ## Agriculture calendar and season observations (AGRI-06)
 
 ```sh

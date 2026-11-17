@@ -79,8 +79,11 @@ std::shared_ptr<const simulation::GrowerSourceFacts> prepare_original_grower_sou
     // recheck the live source through the same bounded shared input owner.
     if (maps::map_input_sha256(maps::EmperorContainer::open(path))!=source_hash)
         throw std::runtime_error("original map changed while preparing Grower source facts");
+    // Actual52eb52 publishes the low WORD of Header+8 as a signed region.
+    // Preserve every source value here; only harvest admission restricts0..2.
+    const auto region=static_cast<std::int16_t>(signed16(static_cast<std::uint16_t>(le32(prefix,12))));
     return std::shared_ptr<const simulation::GrowerSourceFacts>(new simulation::GrowerSourceFacts(source_hash,
-        simulation::Cell{static_cast<int>(storage.x),static_cast<int>(storage.y)}));
+        simulation::Cell{static_cast<int>(storage.x),static_cast<int>(storage.y)},region));
 }
 
 } // namespace openemperor::persistence

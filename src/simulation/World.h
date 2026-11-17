@@ -15,6 +15,7 @@
 #include "simulation/AgricultureCalendar.h"
 #include "simulation/GrowerNavigationState.h"
 #include "simulation/GrowerLifecycleState.h"
+#include "simulation/HarvestContextAdmission.h"
 #include "simulation/OriginalHousingDiagnosis.h"
 #include "simulation/original/Desirability.h"
 
@@ -1100,6 +1101,7 @@ public:
     bool has_grower_navigation_session() const { return !grower_navigation_tracks_.empty() || grower_lifecycle_.has_value(); }
     GrowerLifecycleAdmission start_grower_lifecycle(const GrowerLifecycleRequest&);
     const std::optional<GrowerLifecycleState>& grower_lifecycle() const { return grower_lifecycle_; }
+    HarvestContextAdmission prepare_grower_harvest_context(FoodGrowerId) const;
     void stop_grower_lifecycle();
     bool clear_grower_lifecycle();
     std::uint64_t next_food_grower_id() const { return next_food_grower_id_; }

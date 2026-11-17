@@ -1,6 +1,7 @@
 #include "simulation/World.h"
 #include "simulation/original/CropLifecycleRules.h"
 #include "simulation/original/CropSelectionRules.h"
+#include "simulation/original/OriginalRulesModel.h"
 
 #include <algorithm>
 #include <array>
@@ -40,6 +41,170 @@ std::size_t live(const GrowerLifecycleState& state) {
     return static_cast<std::size_t>(std::count_if(state.actors.begin(),state.actors.end(),[](const auto& row){return !row.retired;}));
 }
 } // namespace
+
+std::string_view harvest_context_failure_message(HarvestContextFailure failure) noexcept {
+    switch(failure) {
+    case HarvestContextFailure::NoSession:return "No active Grower field-cycle session";
+    case HarvestContextFailure::UnsupportedPolicy:return "Harvest context requires the explicit field-cycle policy";
+    case HarvestContextFailure::UnknownActor:return "Unknown Grower lifetime";
+    case HarvestContextFailure::WorkerInactive:return "Grower lifetime has already retired";
+    case HarvestContextFailure::WorkerCancelled:return "Worker or source work eligibility has been cancelled";
+    case HarvestContextFailure::SourceIdentity:return "Complete matching source-map facts are required";
+    case HarvestContextFailure::ModelIdentity:return "Current model identity does not match the World source";
+    case HarvestContextFailure::FieldIdentity:return "Actual Farm, field, assignment or arrived worker identity is invalid";
+    case HarvestContextFailure::WorkNotDue:return "Actual harvest arrival and wait completion are required";
+    case HarvestContextFailure::MissingHarvestMark:return "Actual field has no harvest mark";
+    case HarvestContextFailure::QuantityDomain:return "Actual field quantity exceeds the verified domain";
+    case HarvestContextFailure::RegionDomain:return "Source region is outside the numeric0..2 domain";
+    case HarvestContextFailure::UnsupportedIrrigationTerrain:return "Complete effective terrain for all120 irrigation-query cells is required";
+    case HarvestContextFailure::X87PrecisionUnverified:return "Incoming native x87 precision has no admitted live epoch";
+    case HarvestContextFailure::X87RoundingUnverified:return "Incoming native x87 rounding bits are unproved";
+    case HarvestContextFailure::X87MasksUnverified:return "Incoming native x87 exception masks are unproved";
+    case HarvestContextFailure::X87StackUnverified:return "Incoming native x87 stack and tags are unproved";
+    case HarvestContextFailure::X87ExceptionsUnverified:return "Incoming native x87 pending-exception postcondition is unproved";
+    case HarvestContextFailure::RuntimeFertilityEpochUnverified:return "Live fertility modifier and recompute epoch are unbound";
+    case HarvestContextFailure::RegionLifetimeUnverified:return "Native region lifetime is not bound to this World epoch";
+    case HarvestContextFailure::CropRegionFactorUnverified:return "Live crop-region factor is unbound";
+    case HarvestContextFailure::EventStateUnverified:return "Live event enable, state and selector are unbound";
+    case HarvestContextFailure::NativeDateEpochUnverified:return "Preserved native date seed and start epoch are unbound";
+    case HarvestContextFailure::GlobalFactorUnverified:return "Native date branch and global factor are unbound";
+    case HarvestContextFailure::ResourceVetoUnverified:return "Native resource-enable lifetime is unbound";
+    case HarvestContextFailure::YieldDomainUnverified:return "Complete numeric operands are required to validate yield and WORD limits";
+    }
+    return "Unsupported harvest-context failure";
+}
+
+HarvestContextAdmission World::prepare_grower_harvest_context(FoodGrowerId actor_id) const {
+    HarvestContextBindings bindings;
+    bindings.actor_id=actor_id;
+    bindings.tick=ticks_;
+    bindings.road_revision=road_revision_;
+    const auto refuse=[&](HarvestContextFailure failure) {
+        return HarvestContextAdmission(bindings,{failure});
+    };
+    if(!grower_lifecycle_) return refuse(HarvestContextFailure::NoSession);
+    const auto& session=*grower_lifecycle_;
+    bindings.farm_id=session.farm_id;
+    if(session.policy!=GrowerLifecyclePolicy::AutonomousFieldCycleV1)
+        return refuse(HarvestContextFailure::UnsupportedPolicy);
+    const auto found=std::find_if(session.actors.begin(),session.actors.end(),[&](const auto& actor) {
+        return actor.id==actor_id;
+    });
+    if(found==session.actors.end()) return refuse(HarvestContextFailure::UnknownActor);
+    const auto& actor=*found;
+    if(actor.retired) return refuse(HarvestContextFailure::WorkerInactive);
+    if(session.stop_requested || actor.cancel_requested)
+        return refuse(HarvestContextFailure::WorkerCancelled);
+    if(!grower_lifecycle_source_ || !original_terrain_facts_ ||
+       !original_terrain_facts_->fertility_complete() || !original_terrain_facts_->irrigation_complete() ||
+       grower_lifecycle_source_->source_map_sha256()!=original_terrain_facts_->source_map_sha256())
+        return refuse(HarvestContextFailure::SourceIdentity);
+    bindings.source_map_sha256=grower_lifecycle_source_->source_map_sha256();
+    bindings.source_region_operand=grower_lifecycle_source_->source_region_operand();
+    if(!original_rules_model_ || !original_economy_ || !original_economy_->model_source)
+        return refuse(HarvestContextFailure::ModelIdentity);
+    const auto& model_source=*original_economy_->model_source;
+    const auto& provenance=original_rules_model_->provenance();
+    if(model_source.sha256!=provenance.sha256 || model_source.byte_count!=provenance.byte_count ||
+       model_source.format_version!=provenance.format_version ||
+       model_source.difficulty!=original_rules_model_->difficulty())
+        return refuse(HarvestContextFailure::ModelIdentity);
+    bindings.model_sha256=provenance.sha256;
+    bindings.difficulty=original_rules_model_->difficulty();
+    if(!agriculture_ || session.fields.size()!=1 || !actor.last_field_id)
+        return refuse(HarvestContextFailure::FieldIdentity);
+    const auto& field=session.fields.front();
+    bindings.field_id=field.field_id;
+    const auto farm=std::find_if(buildings_.begin(),buildings_.end(),[&](const auto& body) {
+        return body.id==session.farm_id;
+    });
+    const auto body=std::find_if(buildings_.begin(),buildings_.end(),[&](const auto& candidate) {
+        return candidate.id==field.field_id;
+    });
+    const auto registered=std::find_if(agriculture_->fields.begin(),agriculture_->fields.end(),[&](const auto& row) {
+        return row.field_id==field.field_id && row.farm_id==session.farm_id;
+    });
+    if(farm==buildings_.end() || body==buildings_.end() || registered==agriculture_->fields.end() ||
+       farm->kind!=Object::OriginalFoodFarm || !food(body->kind) ||
+       !complete(*this,*farm) || !complete(*this,*body) ||
+       actor.farm_id!=farm->id || actor.last_field_id!=field.field_id ||
+       static_cast<std::uint32_t>(farm->id)>32767 || static_cast<std::uint32_t>(field.field_id)>32767 ||
+       actor.native.raw_source_word!=static_cast<std::uint16_t>(farm->id) ||
+       actor.native.raw_field_word!=static_cast<std::uint16_t>(field.field_id))
+        return refuse(HarvestContextFailure::FieldIdentity);
+    bindings.crop=model(body->kind);
+    if(static_cast<std::uint8_t>(registered->crop)!=original::crop_rule(*bindings.crop).crop_index)
+        return refuse(HarvestContextFailure::FieldIdentity);
+    for(const auto& other:agriculture_->fields) {
+        if(other.field_id!=field.field_id && in_range(farm->cell,building(other.field_id).cell))
+            return refuse(HarvestContextFailure::FieldIdentity);
+    }
+    bindings.slot=agriculture_calendar()->position.month;
+    bindings.quantity=field.state.quantity;
+    bindings.work_word=field.state.work_word;
+    bindings.carried_word=actor.native.raw_yield_word;
+    bindings.construction_fertility=original_terrain_facts_->fertility(body->cell);
+    if(!farm->operating_enabled || !body->operating_enabled || building_on_fire(farm->id) ||
+       building_on_fire(body->id) || workers_assigned(farm->id)<=0)
+        return refuse(HarvestContextFailure::WorkerCancelled);
+    const auto track=std::find_if(grower_navigation_tracks_.begin(),grower_navigation_tracks_.end(),[&](const auto& row) {
+        return row.id==actor.navigation_id;
+    });
+    if(actor.native.raw_status!=1 || actor.native.raw_role!=2 || actor.native.raw_state!=12 ||
+       !original::advance_crop_work_wait(actor.native.wait).callback_due)
+        return refuse(HarvestContextFailure::WorkNotDue);
+    if(actor.current!=body->cell || track==grower_navigation_tracks_.end() || !track->lifecycle_owned ||
+       track->current!=body->cell || track->edge_started || track->result!=GrowerNavigationResult::Arrived ||
+       track->request.farm_id!=farm->id || track->request.field_id!=body->id)
+        return refuse(HarvestContextFailure::FieldIdentity);
+    if(!(field.state.work_word&0x8000U)) return refuse(HarvestContextFailure::MissingHarvestMark);
+    if(field.state.assigned_actor_word!=actor.id.value)
+        return refuse(HarvestContextFailure::FieldIdentity);
+    if(field.state.quantity>10000) return refuse(HarvestContextFailure::QuantityDomain);
+    if(*bindings.source_region_operand<0 || *bindings.source_region_operand>2)
+        return refuse(HarvestContextFailure::RegionDomain);
+
+    // Reuse the qualified effective-cell preparation for the entire native
+    // square query, including its corners. All supported masks imply no800.
+    // A ditch, pump, unknown overlay or unsupported boundary refuses even if
+    // Rule26's separate wet cache currently reports dry.
+    for(int radius=1;radius<=5;++radius) {
+        for(int y=-radius;y<=radius;++y) {
+            for(int x=-radius;x<=radius;++x) {
+                if(x!=-radius && x!=radius && y!=-radius && y!=radius) continue;
+                const Cell cell{body->cell.x+x,body->cell.y+y};
+                const auto mask=original_grower_navigation_mask(cell);
+                if(!mask || (*mask!=0x02U && *mask!=0x04U && *mask!=0x10U)) {
+                    bindings.unsupported_terrain_cell=cell;
+                    return refuse(HarvestContextFailure::UnsupportedIrrigationTerrain);
+                }
+                ++bindings.checked_irrigation_cells;
+            }
+        }
+    }
+    bindings.irrigated=false;
+    // Food197/198 have a proved crop veto for every event selector. This
+    // observes the predicate's result without inventing event-object values.
+    const bool event_independent=*bindings.crop==original::ModelBuilding::RiceField ||
+        *bindings.crop==original::ModelBuilding::CabbageField;
+    if(event_independent) bindings.event_doubling=false;
+    std::vector<HarvestContextFailure> failures{
+        HarvestContextFailure::X87RoundingUnverified,
+        HarvestContextFailure::X87PrecisionUnverified,
+        HarvestContextFailure::X87MasksUnverified,
+        HarvestContextFailure::X87StackUnverified,
+        HarvestContextFailure::X87ExceptionsUnverified,
+        HarvestContextFailure::RuntimeFertilityEpochUnverified,
+        HarvestContextFailure::RegionLifetimeUnverified,
+        HarvestContextFailure::CropRegionFactorUnverified
+    };
+    if(!event_independent) failures.push_back(HarvestContextFailure::EventStateUnverified);
+    failures.push_back(HarvestContextFailure::NativeDateEpochUnverified);
+    failures.push_back(HarvestContextFailure::GlobalFactorUnverified);
+    failures.push_back(HarvestContextFailure::ResourceVetoUnverified);
+    failures.push_back(HarvestContextFailure::YieldDomainUnverified);
+    return HarvestContextAdmission(std::move(bindings),std::move(failures));
+}
 
 GrowerLifecycleAdmission World::start_grower_lifecycle(const GrowerLifecycleRequest& request) {
     if((request.policy!=GrowerLifecyclePolicy::AutonomousTendingV1 &&
@@ -284,10 +449,13 @@ void World::advance_food_grower(FoodGrowerActor& actor) {
             // The real worker arrived and its25 invocations are due. Do NOT
             // invoke4c1dd0, even its pre-yield4000/body-counter stores, without
             // admitted live fertility/region/event/date/global/FP operands.
+            const auto admission=prepare_grower_harvest_context(actor.id);
+            actor.harvest_context_failures=admission.failures();
             actor.harvest_callback_blocked_tick=ticks_;++state.harvest_callback_blocks;
             state.harvest_blocker=GrowerHarvestBlocker::LiveYieldContext;
             state.status=GrowerLifecycleStatus::HarvestBlocked;
-            state.blocker="Actual harvest wait is due; live yield inputs and incoming normal FP context are unproved";
+            state.blocker=admission.failures().empty() ? "No qualified live harvest context is available":
+                std::string(harvest_context_failure_message(admission.failures().front()));
             // Explicit transient cancellation, not an Original completed
             // harvest or a successful Farm return. There is no raw cargo.
             actor.cancel_requested=true;retire_food_grower(actor);return;

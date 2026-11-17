@@ -19,6 +19,16 @@ enum class GrowerLifecycleStatus : std::uint8_t {
     WaitingForStaff,WaitingForAccess,WaitingForSeason,Running,Unsupported,Draining,Stopped,HarvestBlocked
 };
 enum class GrowerHarvestBlocker : std::uint8_t { None,FarmAllocationOperand,LiveYieldContext };
+enum class HarvestContextFailure : std::uint8_t {
+    NoSession,UnsupportedPolicy,UnknownActor,WorkerInactive,WorkerCancelled,
+    SourceIdentity,ModelIdentity,FieldIdentity,WorkNotDue,MissingHarvestMark,
+    QuantityDomain,RegionDomain,UnsupportedIrrigationTerrain,
+    X87PrecisionUnverified,X87RoundingUnverified,X87MasksUnverified,
+    X87StackUnverified,X87ExceptionsUnverified,RuntimeFertilityEpochUnverified,
+    RegionLifetimeUnverified,CropRegionFactorUnverified,EventStateUnverified,
+    NativeDateEpochUnverified,GlobalFactorUnverified,ResourceVetoUnverified,
+    YieldDomainUnverified
+};
 struct FoodGrowerId {
     std::uint64_t value=0;
     auto operator<=>(const FoodGrowerId&) const = default;
@@ -52,6 +62,7 @@ struct FoodGrowerActor {
     bool retired=false,cancel_requested=false;
     std::uint64_t spawned_tick=0,arrived_tick=0,work_started_tick=0;
     std::uint64_t tending_callbacks=0,retired_tick=0,harvest_callback_blocked_tick=0;
+    std::vector<HarvestContextFailure> harvest_context_failures;
     bool operator==(const FoodGrowerActor&) const = default;
 };
 struct GrowerLifecycleState {

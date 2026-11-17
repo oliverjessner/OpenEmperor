@@ -110,6 +110,14 @@ harvest callback is therefore blocked; explicit empty cancellation creates no
 raw cargo, Farm receipt or historical stock. There is no Rule27/schema43 or
 active-worker save authority. See the
 [first-harvest boundary](agriculture.md#first-physical-harvest-boundary-agri-02e4).
+AGRI-02E5 gives that exact Wait25 boundary a shared, immutable World admission
+result. Actual identities, source Header+8 region and effective dry120 cells
+are checked before precise FP/numeric-epoch refusals. The sealed result admits
+no numeric profile. Its actual actor audit preserves the reason after cleanup.
+The ordinary native integer prefix preserves incoming FP state; RC and other
+live owners remain unbound. The initial Properties preservation and later
+Play reload/date seed prevent a file-year shortcut. See the
+[live-context matrix](agriculture.md#live-harvest-context-admission-agri-02e5).
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 

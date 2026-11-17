@@ -220,6 +220,18 @@
   The existing session publication guard applies even with no live actor.
   Rules1–26/schemas1–42 and `AutonomousTendingV1` remain exact. See
   [first-harvest boundary](docs/original-economy/agriculture.md#first-physical-harvest-boundary-agri-02e4).
+- Harvest context preparation is a read-only World operation returning an
+  immutable, privately constructed `HarvestContextAdmission`. Bind actual
+  source/model identities, signed Header+8 region, field/actor/assignment,
+  due work and all120 dry-query cells through the shared effective-cell rules.
+  Keep construction fertility separate from a live derived epoch. Rice/Cabbage
+  have an event-doubling crop veto, without assigning event-object values.
+  Current preparation returns typed refusals for unbound live FP/numeric epochs;
+  no numeric profile is admitted. The real Wait25 boundary retains these reasons
+  before empty cancellation. Startup PC53 and preserved FP state do not establish
+  the current RC bits. Initial Standalone Properties preservation and the later
+  Play reload/date seed are distinct authorities. See
+  [live context admission](docs/original-economy/agriculture.md#live-harvest-context-admission-agri-02e5).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

@@ -1142,6 +1142,88 @@ approved or activated. Source proofs are maintained in the
 executed tests are recorded in the
 [testing guide](../testing.md#autonomous-field-cycle-acceptance-agri-02e4).
 
+## Live harvest context admission (AGRI-02E5)
+
+**PARTIAL. Positive Harvest-cargo acceptance is BLOCKED.** The existing real
+Wait25 trigger now calls `World::prepare_grower_harvest_context`. This shared
+read-only preparation returns an immutable `HarvestContextAdmission` with
+actual bindings and typed failures. Its private constructor and const members
+prevent a caller from turning the freely constructed Pure-Rule context into
+verified World authority. This revision has no admitted numeric profile.
+`context()` therefore remains empty and the existing empty transient cleanup
+follows the recorded refusal. Field quantity, work4000, history and actor cargo
+receive no harvest mutation.
+
+| Context boundary | Result | Provenance / remaining condition |
+|---|---|---|
+| Actual callback entrance | Qualified static native path | Actor pass, actual descriptor26/4cc670, state12, wait decrement, real Food receiver and integer prefix through firstFILD are byte-checked |
+| World/Source binding | Implemented and tested | Source SHA, model hash/format/length/difficulty, paid complete Farm/field, registered crop, lifetime/assignment, actual arrived channel and due work |
+| Sealed source region | Implemented and tested | Actual Header+8/logicalDWORD12 low signedWORD; retain source values and refuse negative or>=3 at harvest preparation |
+| Runtime fertility | PARTIAL | Actual ordinary Standalone post-load recompute and formula are qualified; current modifier/recompute epoch is unbound |
+| Region and factors | PARTIAL | Source numeric0..2 and literal startup tables are known; current region/factor lifetime remains unbound |
+| Event doubling | Qualified crop reduction | Rice197/Cabbage198 givefalse for all actual enable/state/selector inputs; the other three crops require the current event owners |
+| Native date/global stage | PARTIAL | Fresh Properties-2500, Standalone preservation, later Play reload and separate53d530 seed are qualified; current start/archive/mode and date lifetime remain unbound |
+| Dry irrigation | Implemented and tested | All120 square-perimeter cells use shared current effective-cell support; a paid Ditch, Pump, native800 marker, unknown overlay or boundary refuses |
+| FP arithmetic entrance | BLOCKED | Live PC/RC/masks, stack/tags and pending-exception postcondition have no admitted World epoch |
+| Marked callback and positive C | BLOCKED | The complete numeric context and safe yield/WORD domain cannot be established; no callback or positive Raw amount is published |
+| Persistence | Transient only | Controller-wide historical publication guard applies throughout preparation, refusal and cleanup; Rule27/schema43 remain unused |
+
+The smallest independent numeric FP blocker is the actual **RC bits0c00** at
+the first multiplication/store. The whole immediate normal native path from
+the last timing-import return to4c1e8d is now qualified as preserving incoming
+FP state. Startup's PC53-only mask does not set RC. Even granting PC53 and all
+six exception masks, one conditional Rice vector yields64 with CW027f and65
+with CW0a7f. Neither value is an observed live CW. Stack/tags and pending
+unmasked exceptions remain separate postconditions; masked sticky flags alone
+do not require a zero status word. The next concrete proof is the actual
+same-thread RC/FP state at that bounded callback, followed by the identified
+numeric-owner epoch bindings. The reproducible hardware-breakpoint plan is in
+the [source contract](../reverse/original-agriculture-source-contract.md#live-harvest-context-admission-agri-02e5).
+
+`HarvestContextBindings` contains observations only. It captures typed actual
+Actor/Farm/field IDs, tick/slot and road revision, source/model SHA and difficulty,
+source region, construction fertility, Q/work/C, counted supported query cells
+and the first unsupported cell. A fully checked dry query records
+`irrigated=false`; failure leaves it unknown. The separate World wet cache
+cannot supply this result. Rice/Cabbage may record the proved event-doubling
+predicatefalse without manufacturing event enable/state/selector0. No
+construction byte is relabeled runtime fertility and no authored elapsed year
+is relabeled native raw date.
+
+Inspection accepts only an actual Grower lifetime ID. It offers no numeric
+operand, callback, grant or apply setter. Cancelled/retired workers, missing
+marks, identity changes and unready work return explicit refusals. The real
+25th eligible invocation stores those typed failures in the existing bounded
+actor audit, then uses E4's empty cancellation. Source SHA mismatch and model
+identity restore rejection retain their existing atomic boundaries. Current
+numeric failures enumerate rounding, precision, masks, stack, exceptions,
+runtime-fertility epoch, region lifetime/factor, native date/global factor,
+resource-enable lifetime and yield domain, with event-state admission required
+only for crops lacking the universal veto. These are current missing owners,
+without guessed numeric defaults.
+
+The important date distinction is concrete. Standalone52e7c0 snapshots the
+pre-load Properties WORD and restores it over the file's year. A fresh global
+constructor supplies-2500, while calendar reset separately supplies temporary
+2098. Later actual Play406410 calls prelude406870 before seed53d530; one real
+prelude branch reloads Properties from an archive without the Standalone
+preservation wrapper. A file year can become the seed only after that actual
+branch/archive/start epoch is bound. The source reader intentionally captures
+no supposed current native date from logicalWORD58.
+
+Resource conservation retains E4's separate domains. Actual tests conserve
+`quantity_added = Q + quantity_expired + quantity_vetoed`, with history/C0.
+N/H are uncomputed; no Farm inventory or accepted stock exists for this path.
+Pure arithmetic tests for marks, repeated callbacks, narrowing/carry and
+overflow remain independent of positive World acceptance. Rules1–26 and
+schemas1–42 retain their existing Food, save and default contracts. This
+read-only boundary introduces no Food conversion, second inventory or
+automatic migration. A future complete numeric profile must supply actual
+owners before any positive callback; positive C would then need retention
+through a separately qualified return/bin contract, without empty retirement
+discarding it. Executed checks are recorded in the
+[testing guide](../testing.md#live-harvest-context-tests-agri-02e5).
+
 ## Irrigation infrastructure and completion matrix (AGRI-04)
 
 Rule26/policy3/schema42 is an explicitly selected successor of Rule25. Its
