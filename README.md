@@ -35,6 +35,12 @@ Each paid Farm supports one productive field; Rice needs fertility100 ground.
 This mode also includes the existing plantations and irrigation infrastructure.
 See the [agriculture guide](docs/original-economy/agriculture.md#playable-agriculture-agri-mac01).
 
+**F Playable Fishing** starts the separate successor with Fish production:
+a paid shore Quay launches real boats to finite fishing areas, returns and
+unloads Fish, then supplies Markets and Houses through physical deliveries.
+It also retains the five crops, plantations and irrigation. See the
+[fishing guide](docs/original-economy/agriculture.md#playable-fishing-agri-mac02).
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

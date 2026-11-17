@@ -1,4 +1,5 @@
 #include "simulation/World.h"
+#include "simulation/original/FishingRules.h"
 #include "simulation/OriginalIndustryGoodsContext.h"
 #include "simulation/original/OriginalScheduler.h"
 #include "simulation/original/OriginalRulesModel.h"
@@ -7,6 +8,7 @@
 #endif
 
 #include <algorithm>
+#include <type_traits>
 #include <array>
 #include <cmath>
 #include <deque>
@@ -104,6 +106,7 @@ std::size_t building_limit(RulesProfile profile,Object kind) {
     case Object::OriginalLacquerTree27:
     case Object::OriginalMulberryTree28:
         return 2;
+    case Object::OriginalFishingQuay:
     case Object::OriginalFoodFarm:
     case Object::OriginalWheatField:
     case Object::OriginalMilletField: return 2;
@@ -260,6 +263,7 @@ std::optional<Object> placed_object(CommandType type) {
     case CommandType::PlaceOriginalCabbageField: return Object::OriginalCabbageField;
     case CommandType::PlaceOriginalSoybeanField: return Object::OriginalSoybeanField;
     case CommandType::PlaceIrrigationPump: return Object::OriginalIrrigationPump;
+    case CommandType::PlaceOriginalFishingQuay: return Object::OriginalFishingQuay;
     case CommandType::PlaceOriginalAncestorShrine: return Object::OriginalAncestorShrine214;
     case CommandType::PlaceOriginalWaterWell: return Object::OriginalWaterWell72;
     case CommandType::PlaceOriginalDaoistShrine: return Object::OriginalDaoistShrine215;
@@ -311,6 +315,10 @@ bool courier_can_target(CourierRole role,const BuildingState& target,
 }
 
 BuildingFootprint building_footprint(RulesProfile profile,std::uint32_t rule_version,Object kind) {
+    if (kind==Object::OriginalFishingQuay) {
+        if (!playable_fishing_enabled(profile,rule_version)) throw std::invalid_argument("Fishing Quay requires explicit Rule28");
+        return {2,2};
+    }
     if (kind==Object::OriginalIrrigationPump) {
         if (!original_irrigation_enabled(profile,rule_version))
             throw std::invalid_argument("Irrigation Pump requires explicit Rule26");
@@ -525,6 +533,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v25{25,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v28{28,32,64,32,5,800};
+    if (playable_fishing_enabled(profile,version)) return city_v16_v28;
     if (playable_agriculture_enabled(profile,version)) return city_v16_v27;
     if (original_irrigation_enabled(profile,version)) return city_v16_v26;
     if (original_plantations_enabled(profile,version)) return city_v16_v25;
@@ -606,7 +616,8 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     if (original_production_enabled()) original_production_.emplace();
     if (original_agriculture_enabled()) {
         if(!original_terrain_facts_->fertility_complete()) throw std::invalid_argument("Agriculture requires complete source-bound fertility");
-        agriculture_.emplace();
+        if (playable_fishing_enabled()) {fishing_food_.emplace();fishing_.emplace();}
+        else agriculture_.emplace();
     }
     if(original_plantations_enabled()) plantations_.emplace();
     if(irrigation_enabled()) {
@@ -830,6 +841,8 @@ CourierState& World::mutable_courier(CourierId id) {
 std::int64_t World::construction_cost(CommandType type) const {
     if (!city_profile(profile_)) return 0;
     switch (type) {
+    case CommandType::PlaceOriginalFishingQuay:
+        return playable_fishing_enabled() ? original_rules_model_->building_value(original::ModelBuilding::FishingQuay,original::BuildingField::Cost):0;
     case CommandType::PlaceIrrigationDitch:
     case CommandType::PlaceIrrigationPump:
         return irrigation_enabled() ? original_rules_model_->building_value(
@@ -939,6 +952,8 @@ std::int64_t World::construction_cost(CommandType type) const {
 
 int World::workforce_required(BuildingId id) const {
     const auto& value=building(id);
+    if (value.kind==Object::OriginalFishingQuay)
+        return playable_fishing_enabled() ? original_rules_model_->building_value(original::ModelBuilding::FishingQuay,original::BuildingField::Employees):0;
     if (value.kind==Object::OriginalIrrigationPump)
         return irrigation_enabled() ? original_rules_model_->building_value(
             original::ModelBuilding::IrrigationPump,original::BuildingField::Employees):0;
@@ -993,7 +1008,7 @@ int World::workforce_required(BuildingId id) const {
 }
 
 bool World::operation_controllable(Object kind) {
-    return kind==Object::OriginalIrrigationPump || kind==Object::OriginalTheatre75 || original_industry_source(kind) || kind==Object::OriginalMusicSchool211 || kind==Object::OriginalAcrobatSchool212 ||
+    return kind==Object::OriginalFishingQuay || kind==Object::OriginalIrrigationPump || kind==Object::OriginalTheatre75 || original_industry_source(kind) || kind==Object::OriginalMusicSchool211 || kind==Object::OriginalAcrobatSchool212 ||
         kind==Object::OriginalDramaSchool213 || kind==Object::OriginalDaoistShrine215 || kind==Object::OriginalBuddhistShrine217 ||
         kind==Object::OriginalConfucianAcademy219 || kind==Object::OriginalWaterWell72 || kind==Object::OriginalAncestorShrine214 || kind==Object::OriginalFoodFarm || kind==Object::OriginalHempFarm || kind==Object::ClaySource || kind==Object::Pottery || kind==Object::Warehouse ||
         kind==Object::Farm || kind==Object::ServicePost || kind==Object::Market || kind==Object::FireWatch || kind==Object::HealthPost;
@@ -1476,6 +1491,7 @@ CommandResult World::validate(Command command) const {
 }
 
 CommandResult World::validate_impl(Command command,bool check_irrigation_crossings) const {
+    if (command.type==CommandType::PlaceOriginalFishingQuay) return validate_fishing_command(command);
     if (command.type==CommandType::PlaceIrrigationDitch || command.type==CommandType::RemoveIrrigationDitch ||
         command.type==CommandType::PlaceIrrigationPump) return validate_irrigation_command(command);
     if(command.type==CommandType::ConfigureLandTrade||command.type==CommandType::ImportPottery||command.type==CommandType::ExportPottery)return validate_land_trade_command(command);
@@ -1635,7 +1651,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
     if (!in_bounds(command.cell)) return blocked(BuildBlocker::OutsideMap,command.cell);
     if(bridge_at(command.cell))return blocked(BuildBlocker::ProtectedBridge,command.cell);
     if (command.type==CommandType::RemoveRoad) {
-        if(grower_navigation_cell_claimed(command.cell)) {
+        if(grower_navigation_cell_claimed(command.cell) || fishing_boat_cell_claimed(command.cell)) {
             result.reason="Road occupied by navigation experiment or its begun edge";return result;
         }
         if (original_road(command.cell))
@@ -1801,7 +1817,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
     if (cost>treasury_) return blocked(BuildBlocker::InsufficientFunds,command.cell);
     if(construction && *construction!=Object::Road && has_grower_navigation_session()) {
         for(const auto cell:building_footprint_cells(profile_,rule_version_,*construction,command.cell))
-            if(grower_navigation_cell_claimed(cell)) {
+            if(grower_navigation_cell_claimed(cell) || fishing_boat_cell_claimed(cell)) {
                 result.reason="Construction overlaps navigation experiment or its begun edge";return result;
             }
     }
@@ -1847,7 +1863,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
         const bool plantation=original_plantations_enabled() && (command.type==CommandType::PlaceOriginalTeaCuringShed || command.type==CommandType::PlaceOriginalLacquerRefinery || command.type==CommandType::PlaceOriginalSilkwormShed);
         const std::size_t needed=(plantation || command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceWarehouse) ? 2U:creates_courier ? 1U:0U;
         const auto capacity=Rules::original_production_courier_limit;
-        if (needed>capacity || couriers_.size()+retired_couriers+grower_navigation_tracks_.size()>capacity-needed ||
+        if (needed>capacity || couriers_.size()+retired_couriers+grower_navigation_tracks_.size()+(fishing_ ? fishing_->quays.size():0)>capacity-needed ||
             (original_safe_demolition_enabled() && (!next_courier_id_ || next_courier_id_-1>capacity-needed))) {
             result.reason="Original production courier capacity reached";return result;
         }
@@ -1965,6 +1981,7 @@ CommandResult World::execute(Command command) {
 }
 
 CommandResult World::execute_impl(Command command,bool refresh_after,bool influence_prepared,bool irrigation_prepared) {
+    if (command.type==CommandType::PlaceOriginalFishingQuay) return execute_fishing_command(command);
     if (command.type==CommandType::PlaceIrrigationDitch || command.type==CommandType::RemoveIrrigationDitch ||
         command.type==CommandType::PlaceIrrigationPump) return execute_irrigation_command(command);
     if(command.type==CommandType::ConfigureLandTrade||command.type==CommandType::ImportPottery||command.type==CommandType::ExportPottery)return execute_land_trade_command(command);
@@ -2206,7 +2223,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
     }
     case CommandType::PlaceOriginalFoodFarm: {
         auto& farm=add_v10_building(Object::OriginalFoodFarm);farm.placed_tick=ticks_;
-        if(original_agriculture_enabled()) {agriculture_->farms.push_back({farm.id});agriculture_->stocks.push_back(AgricultureStock{farm.id});}
+        if(original_agriculture_enabled()) with_agriculture_food([&](auto& food){food.farms.push_back({farm.id});using Stock=typename std::remove_cvref_t<decltype(food.stocks)>::value_type;food.stocks.push_back(Stock{farm.id});});
         else {original_production_->food.farms.push_back({farm.id,std::nullopt,OriginalFoodCrop::Wheat,0});
             original_production_->food.stocks.push_back(OriginalFoodStock{farm.id});}
         add_v10_courier(farm.id,CourierRole::OriginalFoodToMarket,Good::Food);break;
@@ -2224,7 +2241,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
                 command.type==CommandType::PlaceOriginalMilletField ? AgricultureCrop::Millet:
                 command.type==CommandType::PlaceOriginalRiceField ? AgricultureCrop::Rice:
                 command.type==CommandType::PlaceOriginalCabbageField ? AgricultureCrop::Cabbage:AgricultureCrop::Soybean;
-            agriculture_->fields.push_back({field.id,*parent,crop});break;
+            with_agriculture_food([&](auto& food){food.fields.push_back({field.id,*parent,crop});});break;
         }
         const auto farm=std::find_if(original_production_->food.farms.begin(),original_production_->food.farms.end(),
             [&](const auto& row){return row.farm_id==command.building_id;});
@@ -2335,7 +2352,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
                 OriginalHousingHouse housing;housing.building_id=b.id;original_production_->housing.houses.push_back(housing);
                 OriginalFinanceHouse finance;finance.building_id=b.id;original_production_->finance.houses.push_back(finance);
                 OriginalWaterHouseState water;water.building_id=b.id;original_production_->water.houses.push_back(water);
-                if(original_agriculture_enabled()) agriculture_->stocks.push_back(AgricultureStock{b.id});
+                if(original_agriculture_enabled()) with_agriculture_food([&](auto& food){using Stock=typename std::remove_cvref_t<decltype(food.stocks)>::value_type;food.stocks.push_back(Stock{b.id});});
                 else original_production_->food.stocks.push_back(OriginalFoodStock{b.id});
             }
             break;
@@ -2408,7 +2425,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         add_v10_courier(id,CourierRole::MarketPotteryDistribution,Good::Pottery);
         if (original_production_enabled()) {
             original_goods_->stocks.push_back({id,{}});
-            if(original_agriculture_enabled()) agriculture_->stocks.push_back(AgricultureStock{id});
+            if(original_agriculture_enabled()) with_agriculture_food([&](auto& food){using Stock=typename std::remove_cvref_t<decltype(food.stocks)>::value_type;food.stocks.push_back(Stock{id});});
             else original_production_->food.stocks.push_back(OriginalFoodStock{id});
             add_v10_courier(id,CourierRole::OriginalFoodToHouse,Good::Food);
         }
@@ -2496,11 +2513,39 @@ std::optional<std::vector<Cell>> World::find_route(Cell start,Cell goal) const {
     return std::nullopt;
 }
 
+bool building_footprint_contains(const WorldSnapshot& state,BuildingId id,Cell cell) {
+    const auto body=std::lower_bound(state.buildings.begin(),state.buildings.end(),id,
+        [](const auto& b,BuildingId key){return b.id<key;});
+    if(body==state.buildings.end() || body->id!=id) return false;
+    if(body->kind==Object::OriginalFishingQuay) {
+        if(!simulation::playable_fishing_enabled(state.profile,state.rule_version) || !state.fishing) return false;
+        const auto quay=std::find_if(state.fishing->quays.begin(),state.fishing->quays.end(),[&](const auto& q){return q.quay_id==id;});
+        if(quay==state.fishing->quays.end()) return false;
+        const auto shape=original::fishing_quay_geometry(body->cell,quay->orientation);
+        return std::find(shape.occupied.begin(),shape.occupied.end(),cell)!=shape.occupied.end();
+    }
+    return building_footprint_contains(state.profile,state.rule_version,body->kind,body->cell,cell);
+}
+bool World::building_contains(BuildingId id,Cell cell) const {
+    const auto& body=building(id);
+    if(body.kind==Object::OriginalFishingQuay) {
+        if(!fishing_) return false;
+        const auto quay=std::find_if(fishing_->quays.begin(),fishing_->quays.end(),[&](const auto& q){return q.quay_id==id;});
+        if(quay==fishing_->quays.end()) return false;
+        const auto shape=original::fishing_quay_geometry(body.cell,quay->orientation);
+        return std::find(shape.occupied.begin(),shape.occupied.end(),cell)!=shape.occupied.end();
+    }
+    return building_footprint_contains(profile_,rule_version_,body.kind,body.cell,cell);
+}
+std::vector<Cell> World::building_cells(BuildingId id) const {
+    const auto& b=building(id);
+    return b.kind==Object::OriginalFishingQuay ? fishing_quay_cells(id):building_footprint_cells(profile_,rule_version_,b.kind,b.cell);
+}
 std::vector<BuildingEntrance> World::building_entrances(BuildingId id) const {
     const auto& value=building(id);
     std::vector<BuildingEntrance> result;
     if (!value.placed) return result;
-    for (const auto building_cell:building_footprint_cells(profile_,rule_version_,value.kind,value.cell))
+    for (const auto building_cell:building_cells(id))
         for (const auto delta:neighbors) {
             const auto road_cell=add(building_cell,delta);
             if (this->road_cell(road_cell) && permission_edge_allowed(building_cell,road_cell))
@@ -2517,7 +2562,7 @@ std::vector<BuildingEntrance> World::building_entrances(BuildingId id) const {
 std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
     std::optional<BuildingId> plantation_source,std::optional<BuildingId> plantation_plant,
     bool original_grower_mode17,GrowerNavigationResult* grower_result,
-    std::int32_t* prepared_distance,bool original_entry_preparation) const {
+    std::int32_t* prepared_distance,bool original_entry_preparation,std::optional<BuildingId> boat_source) const {
     if(grower_result) *grower_result=GrowerNavigationResult::Failed;
     if(prepared_distance) *prepared_distance=0;
     constexpr std::array<Cell,8> mode17_directions{{
@@ -2525,11 +2570,13 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
     const bool original_preparation=original_grower_mode17 || original_entry_preparation;
     const auto preparation_mask=original_entry_preparation ? 0x0b7cU:0x013dU;
     const auto target_preparation_mask=original_entry_preparation ? 0x0b7cU:0x0b3cU;
-    const bool land=!original_preparation && original_plantations_enabled() &&
+    const bool boat=boat_source.has_value();
+    if (boat && (!playable_fishing_enabled() || original_preparation || plantation_source || plantation_plant)) return std::nullopt;
+    const bool land=!boat && !original_preparation && original_plantations_enabled() &&
         plantation_source && plantation_plant;
     if (!in_bounds(start) || !in_bounds(goal) ||
-        (!original_preparation && !land &&
-         (!transport_cell(start) || !transport_cell(goal)))) return std::nullopt;
+        (boat ? !fishing_boat_cell_allowed(start,*boat_source) || !fishing_boat_cell_allowed(goal,*boat_source):
+         (!original_preparation && !land && (!transport_cell(start) || !transport_cell(goal))))) return std::nullopt;
     if (original_preparation) {
         const auto source_mask=original_grower_navigation_mask(start);
         const auto target_mask=original_grower_navigation_mask(goal);
@@ -2574,7 +2621,8 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
                     return std::nullopt;
                 }
                 if (!(*mask&preparation_mask)) continue;
-            } else if (!(land ? plantation_edge_allowed(current,next,*plantation_source,*plantation_plant):
+            } else if (!(boat ? fishing_boat_edge_allowed(current,next,*boat_source):
+                          land ? plantation_edge_allowed(current,next,*plantation_source,*plantation_plant):
                                transport_edge_allowed(current,next))) continue;
             if (previous[index(next)]!=unvisited) continue;
             previous[index(next)]=original_preparation ? previous[index(current)]+1:index(current);
@@ -3509,17 +3557,17 @@ bool World::valid_return_path(const CourierState& courier) const {
     const auto& target=building(courier.target);
     if(courier.role==CourierRole::OriginalPlantationGrower) {
         if(!original_plantations_enabled() || courier.path.size()<2 ||
-            !building_footprint_contains(profile_,rule_version_,source.kind,source.cell,courier.path.front()) ||
+            !building_contains(source.id,courier.path.front()) ||
             courier.path.back()!=target.cell) return false;
         for(std::size_t i=1;i<courier.path.size();++i)
             if(!plantation_edge_allowed(courier.path[i-1],courier.path[i],source.id,target.id)) return false;
         return true;
     }
     const bool source_endpoint=scalable(profile_) ?
-        building_footprint_contains(profile_,rule_version_,source.kind,source.cell,courier.path.front()):
+        building_contains(source.id,courier.path.front()):
         courier.path.front()==source.cell;
     const bool target_endpoint=scalable(profile_) ?
-        building_footprint_contains(profile_,rule_version_,target.kind,target.cell,courier.path.back()):
+        building_contains(target.id,courier.path.back()):
         courier.path.back()==target.cell;
     if (courier.path.size()<3 || !source_endpoint || !target_endpoint) return false;
     for (std::size_t i=1;i+1<courier.path.size();++i)
@@ -3820,7 +3868,7 @@ bool World::industry_balance_valid() const {
         const auto& rules=active_rules();
         const auto building_cap=original_production_enabled() ? Rules::original_production_building_limit:building_collection_limit(profile_);
         const auto courier_cap=original_production_enabled() ? Rules::original_production_courier_limit:courier_collection_limit(profile_);
-        if (buildings_.size()>building_cap || couriers_.size()>courier_cap || next_building_id_==0 ||
+        if (buildings_.size()>building_cap || couriers_.size()+(fishing_ ? fishing_->quays.size():0)>courier_cap || next_building_id_==0 ||
             next_courier_id_==0 || (!buildings_.empty() &&
              next_building_id_<=static_cast<std::uint32_t>(buildings_.back().id)) ||
             (!couriers_.empty() && next_courier_id_<=static_cast<std::uint32_t>(couriers_.back().id)))
@@ -3851,7 +3899,7 @@ bool World::industry_balance_valid() const {
             if (!b.placed || static_cast<std::uint32_t>(b.id)==0 ||
                 (i && !(buildings_[i-1].id<b.id)) || b.placed_tick>ticks_ ||
                 b.reserved_incoming<0 || b.reserved_food_incoming<0) return false;
-            for (const auto cell:building_footprint_cells(profile_,rule_version_,b.kind,b.cell))
+            for (const auto cell:building_cells(b.id))
                 if (!in_bounds(cell) || object_at(cell)!=b.kind ||
                     building_owner_at(cell)!=b.id) return false;
             pottery_reservations.emplace_back(b.id,0); food_reservations.emplace_back(b.id,0);
@@ -3911,6 +3959,9 @@ bool World::industry_balance_valid() const {
             }
             case Object::OriginalTheatre75:
                 if (!original_music_venues_enabled()) return false;
+                break;
+            case Object::OriginalFishingQuay:
+                if (!playable_fishing_enabled()) return false;
                 break;
             case Object::OriginalIrrigationPump:
                 if (!irrigation_enabled()) return false;
@@ -4002,7 +4053,7 @@ bool World::industry_balance_valid() const {
                 c.role==CourierRole::OriginalAuxSupplier && original_production_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalLuxuryToWarehouse && original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalAuxToWarehouse && original_production_enabled() && original_industry_source(owner.kind) && !original_industry_goods::output(owner.kind) ? owner.kind:
-                c.role==CourierRole::OriginalFoodToMarket ? Object::OriginalFoodFarm:
+                c.role==CourierRole::OriginalFoodToMarket ? (playable_fishing_enabled() && owner.kind==Object::OriginalFishingQuay ? Object::OriginalFishingQuay:Object::OriginalFoodFarm):
                 c.role==CourierRole::OriginalFoodToHouse ? Object::Market:
                 c.role==CourierRole::OriginalHempToWarehouse ? Object::OriginalHempFarm:
                 c.role==CourierRole::OriginalWater ? Object::OriginalWaterWell72:
@@ -4088,7 +4139,7 @@ bool World::industry_balance_valid() const {
             if ((original_industry_source(b.kind) && owned(original_industry_goods::output(b.kind) ? CourierRole::OriginalLuxuryToWarehouse:CourierRole::OriginalAuxToWarehouse)!=1) ||
                 (original_production_enabled() && b.kind==Object::Warehouse && owned(CourierRole::OriginalAuxSupplier)!=1) ||
                 (b.kind==Object::ClaySource && owned(CourierRole::Clay)!=1) ||
-                (b.kind==Object::OriginalFoodFarm && owned(CourierRole::OriginalFoodToMarket)!=1) ||
+                ((b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay) && owned(CourierRole::OriginalFoodToMarket)!=1) ||
                 (b.kind==Object::Pottery && owned(CourierRole::Pottery)!=1) ||
                 (b.kind==Object::Warehouse && owned(market_profile(profile_) ?
                     CourierRole::MarketPotteryInbound:CourierRole::Household)!=1) ||
@@ -4458,8 +4509,7 @@ bool World::navigation_valid() const {
                 (c.edge_progress>0 && c.route_checked_revision)) return false;
         } else if (c.path.size()<2 || c.path_vertex+1>=c.path.size() ||
                    (scalable(profile_) ?
-                    !building_footprint_contains(profile_,rule_version_,destination.kind,destination.cell,
-                                                 c.path.back()):
+                    !building_contains(destination.id,c.path.back()):
                     c.path.back()!=destination.cell) || c.route_checked_revision) return false;
         std::vector<std::uint8_t> visited(objects_.size(),0);
         for (std::size_t i=0;i<c.path.size();++i) {
@@ -4480,18 +4530,18 @@ bool World::navigation_valid() const {
                 !permission_edge_allowed(c.path[i-1],point)) return false;
             if (i==c.path_vertex) {
                 if (!transport_cell(point) && (scalable(profile_) ?
-                    !building_footprint_contains(profile_,rule_version_,source.kind,source.cell,point) &&
+                    !building_contains(source.id,point) &&
                     !((original_market_courier(c.role) || original_food_courier(c.role) || original_auxiliary_courier(c.role)) && c.phase==CourierPhase::Returning &&
                       original_courier_cargo(c.id)>0 && building_footprint_contains(profile_,rule_version_,
                         building(c.owner).kind,building(c.owner).cell,point)):
                     point!=source.cell)) return false;
             } else if (c.route_pending) {
                 if (!transport_cell(point) && (scalable(profile_) ?
-                    !building_footprint_contains(profile_,rule_version_,destination.kind,destination.cell,point):
+                    !building_contains(destination.id,point):
                     point!=destination.cell)) return false;
             } else if (i+1==c.path.size()) {
                 if (scalable(profile_) ?
-                    !building_footprint_contains(profile_,rule_version_,destination.kind,destination.cell,point):
+                    !building_contains(destination.id,point):
                     point!=destination.cell) return false;
             } else if (!transport_cell(point)) return false;
         }
@@ -4554,6 +4604,7 @@ std::string World::canonical_state() const {
         }
     }
     if(source_cell_ramps_supported())out<<authored_source_cell_ramp_contract<<":20|";
+    if(playable_fishing_enabled()) out<<playable_fishing_contract<<':'<<playable_fishing_revision<<'|';
     if(playable_agriculture_enabled()) out<<playable_agriculture_contract<<':'<<playable_agriculture_revision<<'|';
     if(original_agriculture_enabled()) out<<(original_plantations_enabled() ? original_plantations_contract:original_agriculture_contract)<<':'<<rule_version_<<':'<<original_terrain_facts_->source_map_sha256()<<'|';
     if (original_venue_house_service_enabled()) out<<original_venue_house_service_contract<<":23:"<<original_terrain_facts_->source_map_sha256()<<'|';
@@ -4741,6 +4792,25 @@ std::string World::canonical_state() const {
         for(const auto& row:agriculture_->stocks) {out<<"|as:"<<static_cast<std::uint32_t>(row.building_id)<<','<<row.missed_demands;amounts(row.amounts);amounts(row.received);amounts(row.departed);amounts(row.returned);amounts(row.consumed);witness(row.quality_witness);}
         for(const auto& t:agriculture_->trips) {out<<"|at:"<<static_cast<std::uint32_t>(t.transfer.courier_id)<<','<<t.transfer.sequence<<','<<static_cast<std::uint32_t>(t.source)<<','<<static_cast<std::uint32_t>(t.target)<<','<<int(t.phase);amounts(t.loaded);amounts(t.delivered);amounts(t.returned);}
         for(const auto& e:agriculture_->housing_evaluations){out<<"|ah:"<<static_cast<std::uint32_t>(e.building_id)<<','<<e.tick;amounts(e.received);amounts(e.consumed);witness(e.quality_witness);}
+    }
+    if(fishing_food_) {
+        out<<"|fishing-food:"<<playable_fishing_revision<<','<<fishing_food_catalog;
+        for(const auto& f:fishing_food_->farms) out<<"|af:"<<static_cast<std::uint32_t>(f.farm_id);
+        for(const auto& f:fishing_food_->fields) out<<"|ac:"<<static_cast<std::uint32_t>(f.field_id)<<','<<static_cast<std::uint32_t>(f.farm_id)<<','<<int(f.crop)<<','<<f.quantity<<','<<f.productive_events<<','<<f.harvested<<','<<f.last_harvest_cycle;
+        const auto amounts=[&](const auto& a){for(auto n:a) out<<','<<n;};
+        const auto witness=[&](const auto& w){out<<','<<bool(w);if(w){out<<','<<static_cast<std::uint32_t>(w->transfer.courier_id)<<','<<w->transfer.sequence<<','<<w->tick<<','<<int(w->previous_quality);amounts(w->accepted);amounts(w->consumed_before);}};
+        for(const auto& row:fishing_food_->stocks) {out<<"|as:"<<static_cast<std::uint32_t>(row.building_id)<<','<<row.missed_demands;amounts(row.amounts);amounts(row.received);amounts(row.departed);amounts(row.returned);amounts(row.consumed);witness(row.quality_witness);}
+        for(const auto& t:fishing_food_->trips) {out<<"|at:"<<static_cast<std::uint32_t>(t.transfer.courier_id)<<','<<t.transfer.sequence<<','<<static_cast<std::uint32_t>(t.source)<<','<<static_cast<std::uint32_t>(t.target)<<','<<int(t.phase);amounts(t.loaded);amounts(t.delivered);amounts(t.returned);}
+        for(const auto& e:fishing_food_->housing_evaluations){out<<"|ah:"<<static_cast<std::uint32_t>(e.building_id)<<','<<e.tick;amounts(e.received);amounts(e.consumed);witness(e.quality_witness);}
+    }
+    if(fishing_) {
+        out<<"|fishing:"<<fishing_->next_boat_id<<','<<fishing_->launched<<','<<fishing_->retired;
+        for(const auto& q:fishing_->quays)out<<"|fq:"<<static_cast<std::uint32_t>(q.quay_id)<<','<<unsigned(q.orientation)<<','<<q.unloaded<<','<<(q.boat ? q.boat->value:0);
+        for(const auto& f:fishing_->sites)out<<"|fs:"<<f.cell.x<<','<<f.cell.y<<','<<f.stock<<','<<f.regeneration_progress<<','<<f.regenerated<<','<<f.caught<<','<<f.source_marker;
+        for(const auto& v:fishing_->boats) {
+            out<<"|fb:"<<v.id.value<<','<<v.launched_tick<<','<<static_cast<std::uint32_t>(v.quay_id)<<','<<v.site_index<<','<<unsigned(v.phase)<<','<<unsigned(v.movement)<<','<<v.current.x<<','<<v.current.y<<','<<v.path_vertex<<','<<unsigned(v.edge_progress)<<','<<v.work_progress<<','<<v.cargo<<','<<v.reserved<<','<<v.route_revision<<','<<v.return_requested;
+            for(const auto cell:v.path)out<<','<<cell.x<<','<<cell.y;
+        }
     }
     if (original_production_) for (const auto& farm:original_production_->hemp_farms)
         out<<"|original-hemp:"<<static_cast<std::uint32_t>(farm.farm_id)<<','
@@ -4945,6 +5015,7 @@ WorldSnapshot World::snapshot() const {
     s.original_goods=original_goods_;
     s.original_production=original_production_;
     s.agriculture=agriculture_;
+    s.fishing_food=fishing_food_;s.fishing=fishing_;
     s.plantations=plantations_;
     s.irrigation=irrigation_;
     s.land_trade=land_trade_;
@@ -4995,6 +5066,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     validate_authored_land_trade_snapshot(s);
     validate_original_plantations_snapshot(s);
     validate_irrigation_snapshot(s);
+    validate_fishing_snapshot(s);
     if (!rule_version_supported(s.profile,s.rule_version))
         throw std::invalid_argument("unsupported sandbox rule version");
     validate_original_economy_snapshot(s);
@@ -5017,6 +5089,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.original_goods_=s.original_goods;
     w.original_production_=s.original_production;
     w.agriculture_=s.agriculture;
+    w.fishing_food_=s.fishing_food;w.fishing_=s.fishing;
     w.plantations_=s.plantations;
     w.irrigation_=s.irrigation;
     w.land_trade_=s.land_trade;
@@ -5049,7 +5122,8 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     const auto put=[&](Cell cell,Object object,BuildingId owner) {
         if(object!=Object::Road && (w.bridge_at(cell)||w.bridge_bank_at(cell)||w.ramp_endpoint(cell)))fail("saved building overlaps bridge span or bank");
         if(object!=Object::Road&&w.source_cell_ramp_claim(cell))fail("saved building overlaps source-cell ramp axial claim");
-        const bool pump_water=object==Object::OriginalIrrigationPump && w.irrigation_enabled() &&
+        const bool pump_water=((object==Object::OriginalIrrigationPump && w.irrigation_enabled()) ||
+            (object==Object::OriginalFishingQuay && w.playable_fishing_enabled())) &&
             w.permissions_ && w.permissions_->bridge_water(cell);
         if (object==Object::Road ? (!w.road_buildable(cell) || w.fixed_passage(cell) || w.original_road(cell)):
             (!w.buildable(cell) && !pump_water)) fail(w.permissions_ ? "saved object outside permitted map cells":
@@ -5106,7 +5180,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     if (scalable(s.profile)) {
         const auto building_cap=w.original_production_enabled() ? Rules::original_production_building_limit:building_collection_limit(s.profile);
         const auto courier_cap=w.original_production_enabled() ? Rules::original_production_courier_limit:courier_collection_limit(s.profile);
-        if (s.buildings.size()>building_cap || s.couriers.size()>courier_cap || s.next_building_id==0 ||
+        if (s.buildings.size()>building_cap || s.couriers.size()+(s.fishing ? s.fishing->quays.size():0)>courier_cap || s.next_building_id==0 ||
             s.next_courier_id==0) fail("invalid City-v10 entity counts or next IDs");
         for (std::size_t i=0;i<s.buildings.size();++i) {
             const auto& b=s.buildings[i];
@@ -5121,6 +5195,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                    b.kind==Object::OriginalConfucianAcademy219 || b.kind==Object::OriginalAncestorShrine214 || b.kind==Object::OriginalWaterWell72)) && !w.original_production_enabled()) ||
                 (b.kind==Object::OriginalTheatre75 && !w.original_music_venues_enabled()) ||
                 (b.kind==Object::OriginalIrrigationPump && !w.irrigation_enabled()) ||
+                (b.kind==Object::OriginalFishingQuay && !w.playable_fishing_enabled()) ||
                 (b.kind==Object::OriginalInfluenceSource && !w.original_influence_enabled()) || (b.kind==Object::Market && !market_profile(s.profile)) ||
                 (b.kind==Object::FireWatch && !fire_profile(s.profile)) ||
                 (b.kind==Object::Well && !water_profile(s.profile)) ||
@@ -5144,6 +5219,12 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                     w.permissions_->cell_height(cell)!=w.permissions_->cell_height(b.cell))
                     fail("saved materialized Elite House has a nonlevel foundation");
                 put(cell,b.kind,b.id);
+            }
+            if (b.kind==Object::OriginalFishingQuay) {
+                const auto q=std::find_if(s.fishing->quays.begin(),s.fishing->quays.end(),[&](const auto& row){return row.quay_id==b.id;});
+                if(q==s.fishing->quays.end()) fail("Saved Quay lost orientation");
+                const auto shape=original::fishing_quay_geometry(b.cell,q->orientation);
+                put(shape.dock,b.kind,b.id);
             }
             w.buildings_.push_back({b.id,b.kind,b.cell,b.placed,b.input_clay,b.output,
                 b.pottery_stock,b.reserved_incoming,b.progress,b.active_recipe_clay,
@@ -5183,7 +5264,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 c.role==CourierRole::OriginalAuxSupplier && w.original_production_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalLuxuryToWarehouse && w.original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalAuxToWarehouse && w.original_production_enabled() && original_industry_source(owner.kind) && !original_industry_goods::output(owner.kind) ? owner.kind:
-                c.role==CourierRole::OriginalFoodToMarket && w.original_production_enabled() ? Object::OriginalFoodFarm:
+                c.role==CourierRole::OriginalFoodToMarket && w.original_production_enabled() ? (w.playable_fishing_enabled() && owner.kind==Object::OriginalFishingQuay ? Object::OriginalFishingQuay:Object::OriginalFoodFarm):
                 c.role==CourierRole::OriginalFoodToHouse && w.original_production_enabled() ? Object::Market:
                 c.role==CourierRole::OriginalHempToWarehouse && w.original_production_enabled() ? Object::OriginalHempFarm:
                 c.role==CourierRole::OriginalWater && w.original_production_enabled() ? Object::OriginalWaterWell72:
@@ -5228,8 +5309,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
             if (c.phase!=CourierPhase::IdleAtWorkshop && !c.route_pending && !c.path.empty()) {
                 const auto& route_source=c.phase==CourierPhase::ToWarehouse ? owner:target;
                 const auto& route_target=c.phase==CourierPhase::ToWarehouse ? target:owner;
-                const bool building_origin=building_footprint_contains(s.profile,s.rule_version,
-                    route_source.kind,route_source.cell,c.path.front());
+                const bool building_origin=w.building_contains(route_source.id,c.path.front());
                 // A resumed rule-3 route begins at its actual transport cell.
                 // A road behind the current vertex may subsequently have been
                 // removed; current/future graph and progress are validated below.
@@ -5238,8 +5318,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 const bool grower_origin=c.role==CourierRole::OriginalPlantationGrower && w.original_plantations_enabled() &&
                     w.plantation_cell_allowed(c.path.front(),owner.id,target.id);
                 if ((!building_origin && !resumed_origin && !grower_origin) ||
-                    !building_footprint_contains(s.profile,s.rule_version,route_target.kind,route_target.cell,
-                                                 c.path.back()))
+                    !w.building_contains(route_target.id,c.path.back()))
                     fail("invalid City-v10 route footprint endpoints");
             }
             route(c.path,c.path_vertex,c.edge_progress,c.phase,
@@ -5271,6 +5350,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
         w.taxes_collected_total_=s.taxes_collected_total;
         w.construction_spent_total_=s.construction_spent_total;
         if (w.irrigation_enabled()) {w.rebuild_irrigation_cache();w.validate_irrigation_state();}
+        if(w.playable_fishing_enabled()) w.validate_fishing_context();
         if (!w.health_state_valid() || !w.fire_state_valid() || !w.industry_balance_valid() || !w.navigation_valid() || !w.city_economy_valid() ||
             !w.service_state_valid() || !w.population_valid())
             fail("invalid City-v10 state or conservation totals");

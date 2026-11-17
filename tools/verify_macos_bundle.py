@@ -15,7 +15,9 @@ RESOURCE_FILES = {"BuildInfo.json", "LICENSE-SDL.txt", "LICENSE-OpenSSL.txt",
 COMPATIBILITY_ID = "gog-derived-2.0.0.2-en-assetset-1"
 COMPATIBILITY_FILES = {"manifest.json", "walkers.json", "buildings.json", "roads.json", "fire.json",
                        "fire-inspector.json", "market-walkers.json", "service-walker.json",
-                       "health-walker.json", "original-houses.json"}
+                       "health-walker.json", "original-houses.json", "original-buildings.json",
+                       "original-agriculture-buildings.json", "original-agriculture-rice-buildings.json",
+                       "plantations.json", "irrigation.json", "fishing.json", "walker-animations.json"}
 FORBIDDEN_COMPATIBILITY_SUFFIXES = {".sg3", ".555", ".map", ".pak", ".exe", ".png",
                                     ".jpg", ".jpeg", ".bmp", ".rgba", ".raw"}
 MAX_COMPATIBILITY_JSON_BYTES = 256 * 1024

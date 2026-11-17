@@ -140,6 +140,8 @@ set(OPENEMPEROR_COMPATIBILITY_FILES
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-agriculture-buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/original-agriculture-rice-buildings.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/plantations.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/irrigation.json"
+    "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fishing.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/roads.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire.json"
     "${CMAKE_SOURCE_DIR}/resources/compatibility/${OPENEMPEROR_COMPATIBILITY_PACK_ID}/fire-inspector.json"
@@ -335,12 +337,13 @@ target_link_libraries(openemperor-original-harvest-rules PUBLIC
     openemperor-original-model openemperor-original-irrigation-rules)
 openemperor_enable_warnings(openemperor-original-harvest-rules)
 target_link_libraries(openemperor-model-inspect PRIVATE openemperor-original-harvest-rules)
-target_link_libraries(openemperor-simulation PUBLIC openemperor-original-irrigation-rules)
+target_link_libraries(openemperor-simulation PUBLIC openemperor-original-irrigation-rules openemperor-original-harvest-rules)
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
     src/simulation/WorldPlantations.cpp
     src/simulation/WorldGrowerNavigation.cpp
     src/simulation/WorldGrowerLifecycle.cpp
     src/simulation/WorldIrrigation.cpp
+    src/simulation/WorldFishing.cpp
     src/simulation/WorldAgricultureCalendar.cpp
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
     src/simulation/WorldOriginalServices.cpp
@@ -707,6 +710,18 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-playable-agriculture-presentation-tests)
     add_test(NAME playable-agriculture-presentation COMMAND openemperor-playable-agriculture-presentation-tests)
     set_tests_properties(playable-agriculture-presentation PROPERTIES TIMEOUT 180)
+    add_executable(openemperor-fishing-presentation-tests
+        tests/FishingPresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-fishing-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-fishing-presentation-tests)
+    add_test(NAME playable-fishing-presentation COMMAND openemperor-fishing-presentation-tests)
+    set_tests_properties(playable-fishing-presentation PROPERTIES TIMEOUT 240)
+    add_executable(openemperor-fishing-native-playtest EXCLUDE_FROM_ALL
+        tools/FishingNativePlaytest.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-fishing-native-playtest PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-fishing-native-playtest)
     add_executable(openemperor-original-menu-session-tests
         tests/OriginalMenuSessionTests.cpp ${original_menu_test_sources})
     add_executable(openemperor-original-safe-demolition-menu-tests
@@ -1273,6 +1288,18 @@ if(BUILD_TESTING)
         set_tests_properties(playable-agriculture-${playable_layer} PROPERTIES TIMEOUT 300)
     endforeach()
 
+    foreach(fishing_layer world save)
+        if(fishing_layer STREQUAL "world")
+            set(fishing_test_source tests/FishingWorldTests.cpp)
+        else()
+            set(fishing_test_source tests/FishingSaveTests.cpp)
+        endif()
+        add_executable(openemperor-fishing-${fishing_layer}-tests ${fishing_test_source})
+        target_link_libraries(openemperor-fishing-${fishing_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-fishing-${fishing_layer}-tests)
+        add_test(NAME playable-fishing-${fishing_layer} COMMAND openemperor-fishing-${fishing_layer}-tests)
+        set_tests_properties(playable-fishing-${fishing_layer} PROPERTIES TIMEOUT 600)
+    endforeach()
     add_executable(openemperor-plantation-food-adapter-tests tests/PlantationFoodAdapterTests.cpp)
     target_link_libraries(openemperor-plantation-food-adapter-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
     openemperor_enable_warnings(openemperor-plantation-food-adapter-tests)
@@ -1446,6 +1473,9 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME playable-fishing-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/FishingCliTests.py $<TARGET_FILE:openemperor>)
+        set_tests_properties(playable-fishing-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME playable-agriculture-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/PlayableAgricultureCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(playable-agriculture-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")

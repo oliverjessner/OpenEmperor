@@ -16,6 +16,16 @@ and Windows/x87 research do not gate this separate gameplay contract. See
 References below to formerly unused27/43 are historical research status;
 that pair is now allocated exclusively to this AUTHORED mode.
 
+**Playable Fishing** is the explicit Rule28/policy3/schema44 successor,
+`authored-playable-fishing-v1`, revision1, selected by regular F or
+`--playable-fishing`. One new six-kind typed Food authority includes Fish2 and
+reuses the existing FoodBatch/cart/Market/House operations. World owns paid
+five-cell oriented Quays, finite ecology, typed real boats, shared water routes,
+actual catches, dock returns/unloads and household consumption. Timing, portions,
+regeneration and water policy are AUTHORED; source models and geometry remain
+separate evidence. Rule27/schema43 and older generations stay exact without
+migration. See [Playable Fishing](agriculture.md#playable-fishing-agri-mac02).
+
 The [Agriculture architecture](agriculture.md) defines the explicit Rule24/
 policy3/schema40 construction/Food foundations added during AGRI-02. Its separate
 five-kind state and source-bound fertility preserve Rule1–23/schema1–39.
@@ -40,7 +50,8 @@ AGRI-05 adds bounded `HarvestRules`/`FishingRules` and model-inspector
 observations. They expose source-proved raw counters, quotas, receipts, prey
 selectors and complete Quay geometry. Producer lifetimes, map navigation inputs,
 unit conversion and the full FoodShop quality/transport contract remain
-activation gates. Current World authority stays Rule26/schema42. See the
+activation gates for Original reproduction. The AUTHORED fishing successor
+above is a separate Rule28/schema44 World contract. See the
 [hunting/fishing component matrix](agriculture.md#hunting-and-fishing-component-matrix-agri-05).
 AGRI-06 exposes the existing sole World clock through a disposable Agriculture
 calendar and paid-plant observations. Reference slot queries for all nine plants

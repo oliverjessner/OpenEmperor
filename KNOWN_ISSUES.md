@@ -22,6 +22,15 @@ complete original-game compatibility.
   harvest timing, raw-yield units or x87 runtime parity. The following Original
   research limitations remain applicable to their historical/research contracts,
   not as a lock on Rule27. See [the playable contract](docs/original-economy/agriculture.md#playable-agriculture-agri-mac01).
+- **Playable Fishing is a separate authored mode.** Explicit Rule28/schema44
+  adds Fish2 to one six-kind Food authority, real boats, finite fishing areas,
+  regeneration and physical Quay/Market/House supply. Movement, work, portions,
+  ecology and quality are authored; they do not reproduce the unclosed Original
+  runtime. Quays need complete flat normal-water shore context. Original Quay
+  pixels use curated static pose/anchor selection; boats use a labelled authored
+  fallback because their animation registration is not qualified. Historical
+  Original hunting/fishing research remains separate. See the
+  [fishing contract](docs/original-economy/agriculture.md#playable-fishing-agri-mac02).
 - **Original Agriculture timing is incomplete.** Frozen Rule24/schema40 provides typed
   Rice/Cabbage/Soy (source output BeanCurd), paid source-verified Farm/Field
   construction, Rice fertility100, Food accounting foundations and exact saves.

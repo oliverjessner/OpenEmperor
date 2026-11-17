@@ -26,6 +26,7 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
                                    "original-goods-ledger", "original-goods-rules",
                                    "original-service-rules", "original-irrigation-rules",
                                    "original-season-rules", "original-crop-rules",
+                                   "original-harvest-rules",
                                    "original-house-evolution", "original-model")
 # Reviewed Rules13-21 API: the actual fourth-module probe retains its
 # historical HouseholdV3/CityV7 calls. Rule19 adds explicit retirement factories,
@@ -87,9 +88,13 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # AGRI-MAC01 adds explicit authored Rule27 factories and crop capability gates.
 # Historical1–26 probe calls/DTO layout remain exact; all-five Food gameplay
 # is an authored successor and supplies no new Original numerical parity.
+# AGRI-MAC02 appends explicit Rule28 APIs and optional six-column Food/boat
+# authority. Historical probe calls retain their five-column/default-empty
+# states. Fresh matching archives and these additive ABI pins establish only
+# the unchanged historical observations, not Original fishing parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "ebc7d1542b8c23709bb810f2208e8a0522f06b2b",
+    "World.h": "74462d4a93aab5b6bfcc856198faa08a62f3860e",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
@@ -97,8 +102,9 @@ REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "AgricultureCalendar.h": "17455dad4bca5382ae8b2cb389bc2bf1099d642d",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
-    "OriginalTerrainFacts.h": "ee6b911adaa02d0951e4d4eadad23db0d57bd068",
-    "AgricultureState.h": "eb2ae54814ad5bb0fcf720174974ef52cdfb25c1",
+    "OriginalTerrainFacts.h": "7219c3c34eeeb5229ad81f64e0f2b18d5fb84e50",
+    "AgricultureState.h": "844d282aab9af4c0cc9ba9d565200bf6dcbec455",
+    "FishingState.h": "034e7e5aeb9ca095d7d07f3216b77e007076a7ae",
     "PlantationsState.h": "7fd4ceab82bc8c4442aa470c3cb3275983cb3e8a",
     "IrrigationState.h": "4fdd1b69cf4572342da504f941c3b2e47f23011e",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",
@@ -618,10 +624,10 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
     if finance_blob != "4c42d35342a89c113b44965562635421efccecd1":
         raise ValueError("Original-finance ABI drift requires reviewed compatibility contract")
     model_header_blobs = {}
-    # AGRI-05 adds named31/33 inspection identities only. Historical prepared
-    # model sets, DTO layouts and the fourth-module calls retain their contract.
+    # AGRI-MAC02 adds an explicit Quay31 preparation factory. Historical
+    # prepared model sets and the fourth-module calls retain their contract.
     for name, expected in (("ModelSchema.h", "c232baf4b249d7a800a8e241b66b517a7891a3ca"),
-                           ("OriginalRulesModel.h", "d78170a92c167537beae4e3a90698e659ac33aa8")):
+                           ("OriginalRulesModel.h", "ebf84b78894a77ebaaa9cf090bdf3ea78e985c83")):
         header = ROOT / "src/simulation/original" / name
         actual = hashlib.sha1(b"blob " + str(header.stat().st_size).encode() + b"\0" + header.read_bytes()).hexdigest()
         if actual != expected:

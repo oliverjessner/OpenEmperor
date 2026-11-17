@@ -28,9 +28,10 @@ std::optional<AgricultureSeasonStatus> World::agriculture_season_status(Building
     AgricultureSeasonStatus result;
     result.subject=id;
     result.calendar=*calendar;
-    const auto field=std::find_if(agriculture_->fields.begin(),agriculture_->fields.end(),
+    const auto fields=agriculture_fields();
+    const auto field=std::find_if(fields.begin(),fields.end(),
         [id](const auto& row){return row.field_id==id;});
-    if(field!=agriculture_->fields.end()) {
+    if(field!=fields.end()) {
         result.producer=field->farm_id;
         result.model=static_cast<original::ModelBuilding>(195+static_cast<unsigned>(field->crop));
         result.authored_production_active=authored_agriculture_crop_enabled(profile_,rule_version_,field->crop);

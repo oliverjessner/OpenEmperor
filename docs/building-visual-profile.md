@@ -7,6 +7,46 @@ sources and Ancestor214; the core schema1 and all historical supplements retain
 their exact roles and geometry. Animation and stock/lifecycle variants remain
 unreconstructed.
 
+## Playable Fishing static quay presentation (Rule28)
+
+The explicit Rule28 mode appends the independent `fishing.json` supplement only
+when built-in Original building art is selected. Historical building-profile
+schemas and role numbers remain exact. The supplement refers to four authentic
+`DATA/China_General.sg3` / `.555` rasters from `China_Husbandry.bmp`; no pixels
+are bundled. All four images were decoded using the shared asset inspector and
+opened for inspection. They depict the fishing-quay structure and dock in four
+poses. **Their association, orientation order and anchors are AUTHORED static
+presentation choices.** A native Model31 graphics selector, operating animation,
+boat sprite family and whole-scene Original reproduction are not proved.
+
+| World shore orientation | Physical record | Size | Authored front-cell anchor |
+|---|---|---|---|
+|0|724|158×120|79,100|
+|1|721|158×107|79,87|
+|2|722|158×121|79,101|
+|3|723|158×134|79,114|
+
+The shared bounded metadata reader checks both complete file SHA-256 values,
+contained non-symlink paths, exact four ordered poses, unmirrored native Type30
+side2/base12800 metadata, complete decoded geometry and authored front anchors
+before atomic publication. The four images join the same eagerly deduplicated
+physical pool and unchanged combined64-MiB budget. Invalid/missing metadata
+retains the existing prepared art and a named Quay marker; custom building
+profiles suppress this automatic supplement. F4 remains presentation only.
+
+World owns the actual four body cells plus exterior dock, paid identity, boat
+route, cargo and dock receipts. Selection outlines all five occupied cells.
+The selected Quay shows its actual next route edges (bounded to256), current
+fishing ground, dock, staffing, work, six-kind stock and delivery history. Route
+segments and paid geometry are prepared after actual World publications/ticks;
+rendering performs no path search. Hover water/land/dock outlines are prospective
+geometry and never authorize purchase. Boat49 has no qualified clip in this
+supplement: a clearly labelled authored hull marker uses the actual World boat
+position and cargo, participates in the existing painter and selects its paid
+owner. No visual choice grants Fish, arrival, staffing, occupancy or save authority.
+Native scene/zoom and human acceptance remain separate from these static-image
+observations and scripted SDL tests; see [testing](testing.md).
+
 ## Original-production static bases (OE52)
 
 An independent optional metadata supplement supplies ten source-registered static
