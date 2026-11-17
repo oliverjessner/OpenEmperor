@@ -39,7 +39,7 @@ bool World::prepare_grower_navigation_source() {
     // Explicit request-time preparation, never a normal tick/frame scan. This
     // strict domain proves an empty region grid after the qualified native
     // rebuild. It admits neither imported native saves nor height regions.
-    if(!irrigation_enabled() || !original_terrain_facts_ || !original_terrain_facts_->irrigation_complete() ||
+    if(rule_version_!=kOriginalIrrigationRuleVersion || !irrigation_enabled() || !original_terrain_facts_ || !original_terrain_facts_->irrigation_complete() ||
         !permissions_ || width_!=OriginalTerrainFacts::width || height_!=OriginalTerrainFacts::height) return false;
     bool none=true;
     for(int y=0;y<height_;++y) for(int x=0;x<width_;++x)

@@ -139,11 +139,19 @@ void validate_retained_irrigation(const Snapshot& s) {
 
 World World::create_original_irrigation(std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    return create_irrigation_generation(kOriginalIrrigationRuleVersion,std::move(permissions),std::move(model),std::move(terrain));
+}
+World World::create_playable_agriculture(std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    return create_irrigation_generation(kPlayableAgricultureRuleVersion,std::move(permissions),std::move(model),std::move(terrain));
+}
+World World::create_irrigation_generation(std::uint32_t version,std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
     if(!permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain ||
         !terrain->irrigation_complete() || !terrain->fertility_complete())
         invalid("Irrigation creation requires policy3 and complete source-bound model/terrain facts");
     const auto width=permissions->width(),height=permissions->height();auto mask=permissions->building_mask();
-    World world(width,height,std::move(mask),RulesProfile::CityV16,kOriginalIrrigationRuleVersion,
+    World world(width,height,std::move(mask),RulesProfile::CityV16,version,
         std::move(permissions),true,std::move(model),std::move(terrain));
     world.original_production_->fire_protection.emplace();
     world.validate_original_hemp_model();world.validate_agriculture_model();world.validate_original_consumption_model();
@@ -153,9 +161,17 @@ World World::create_original_irrigation(std::shared_ptr<const MapPermissions> pe
 }
 World World::restore_original_irrigation(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
-    if(!simulation::original_irrigation_enabled(s.profile,s.rule_version) || !permissions || !model || !terrain ||
+    return restore_irrigation_generation(kOriginalIrrigationRuleVersion,s,std::move(permissions),std::move(model),std::move(terrain));
+}
+World World::restore_playable_agriculture(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    return restore_irrigation_generation(kPlayableAgricultureRuleVersion,s,std::move(permissions),std::move(model),std::move(terrain));
+}
+World World::restore_irrigation_generation(std::uint32_t version,const WorldSnapshot& s,std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    if(s.profile!=RulesProfile::CityV16 || s.rule_version!=version || !permissions || !model || !terrain ||
         permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !terrain->fertility_complete() || !terrain->irrigation_complete())
-        invalid("Irrigation restore requires exact Rule26, policy3 and complete source-bound model/terrain");
+        invalid("Irrigation restore requires its exact generation, policy3 and complete source-bound model/terrain");
     validate_original_production_snapshot(s);validate_irrigation_snapshot(s);
     for(const auto& row:s.agriculture->fields) if(row.crop==AgricultureCrop::Rice) {
         const auto at=std::find_if(s.buildings.begin(),s.buildings.end(),[&](const auto& b){return b.id==row.field_id;});
@@ -410,7 +426,8 @@ IrrigationFieldStatus World::irrigation_field_status(Cell field) const {
         if(irrigation_ditch_wet(at) && original::field_in_irrigation_range(field,at)) {
             result.water_available=true;result.wet_ditch=at;
             result.supplying_pump=irrigation_supplier_[index(at)];
-            result.reason="Water supplied by an active paid Pump; numeric crop effect remains locked";return result;
+            result.reason=playable_agriculture_enabled() ? "Water supplied by an active paid Pump; AUTHORED base yield has no irrigation bonus":
+                "Water supplied by an active paid Pump; numeric crop effect remains locked";return result;
         }
     }
     result.reason="No currently supplied paid ditch within the observed five-cell query range";return result;

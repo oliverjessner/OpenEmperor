@@ -22,7 +22,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     CancelDeleteRecovery, GreatWallChoice, RecheckMap, BridgesChoice, RampsChoice,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
     OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice, AuthoredLandTradeNewGame,
-    OriginalMusicVenuesNewGame, OriginalVenueHouseServiceNewGame, StarterEmptyCity, StarterChooseMap, OriginalAgricultureNewGame, OriginalIrrigationNewGame,
+    OriginalMusicVenuesNewGame, OriginalVenueHouseServiceNewGame, StarterEmptyCity, StarterChooseMap, OriginalAgricultureNewGame, OriginalIrrigationNewGame, PlayableAgricultureNewGame,
     MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
@@ -33,6 +33,7 @@ struct OriginalChoice {
     const char* detail;
 };
 constexpr OriginalChoice original_choices[]={
+    {PlayableAgricultureNewGame,simulation::kPlayableAgricultureRuleVersion,SDLK_P,"P Playable Agriculture (rule 27)","Five crops | AUTHORED80-tick harvests | Physical Food deliveries"},
     {OriginalIrrigationNewGame,simulation::kOriginalIrrigationRuleVersion,SDLK_G,"G Agriculture Irrigation (26)","Paid pumps and ditch networks; unchanged harvest adapters; yield bonuses PARTIAL"},
     {OriginalAgricultureNewGame,simulation::kOriginalPlantationsRuleVersion,SDLK_A,"A Agriculture (rule 25)","Paid plantations; AUTHORED Wheat/Millet; Rice/Cabbage/Soy locked"},
     {OriginalVenueHouseServiceNewGame,simulation::kOriginalVenueHouseServiceRuleVersion,SDLK_K,"K Venue House music (23)","Paid School to Theatre to physical House Music visits"},
@@ -331,6 +332,9 @@ void MenuSession::finish_loading() {
         auto view=version==simulation::kAuthoredLandTradeRuleVersion ?
             SandboxView::create_authored_land_trade(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_}) :
+            simulation::playable_agriculture_enabled(profile,version) ?
+            SandboxView::create_playable_agriculture(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
             simulation::original_irrigation_enabled(profile,version) ?
             SandboxView::create_original_irrigation(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
@@ -916,6 +920,7 @@ void MenuSession::rebuild_buttons() {
             add(ToggleAutosave,settings_.autosave_enabled?"Autosave: ON":"Autosave: OFF",40,208+offset,230);
             if (settings_reset_required_) add(ResetSettings,"Reset preferences",280,208+offset,280);
             add(OriginalIrrigationNewGame,"G Agriculture Irrigation (rule 26)",40,244+offset,520);
+            add(PlayableAgricultureNewGame,"P Playable Agriculture (rule 27)",40,280+offset,520);
             return;
         }
         add(AdvancedModes,"Back to main menu",280,40,280);
@@ -927,7 +932,7 @@ void MenuSession::rebuild_buttons() {
         buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,left_y,210);left_y+=34;
         for (const auto& choice:original_choices) {
-            if (choice.action==OriginalIrrigationNewGame) continue; // Also available directly from the regular main menu.
+            if (choice.action==OriginalIrrigationNewGame || choice.action==PlayableAgricultureNewGame) continue; // Also available directly from the regular main menu.
             if (choice.action==OriginalAgricultureNewGame) {
                 add(choice.action,choice.label,40,40,230,28);
                 continue;
@@ -1084,7 +1089,7 @@ bool MenuSession::render() {
     };
     const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?(advanced_modes_open_?"Advanced / Legacy":"OpenEmperor"):state_==State::NewSandbox?
-            (authored_land_trade_new_game_ ? "New authored land trade":original_setup() ? "New Original economy":"New sandbox"):
+            (authored_land_trade_new_game_ ? "New authored land trade":playable_agriculture_setup() ? "New Playable Agriculture":original_setup() ? "New Original economy":"New sandbox"):
         state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
         state_==State::StarterUnavailable?"Paid starter unavailable":
         state_==State::ConfirmUpgrade?(upgrade_target_version_==4 ? "Enable demolition in a copy":"Enable operation controls in a copy"):
@@ -1103,8 +1108,8 @@ bool MenuSession::render() {
                 "Experimental sandbox using your own Emperor game data")) return false;
         if (advanced_modes_open_ && !label(280,79,"Original data: Ready")) return false;
         if (!advanced_modes_open_ &&
-            (!label(40,286,"Recommended, experimental | new paid city or empty start") ||
-             !label(40,304,"Original campaigns and Emperor saves unsupported."))) return false;
+            (!label(40,324+(sandbox_ ? 36:0),"Recommended, experimental | new paid city or empty start") ||
+             !label(40,342+(sandbox_ ? 36:0),"Original campaigns and Emperor saves unsupported."))) return false;
         if (sandbox_ && !label(40,advanced_modes_open_ ? 79:88,"Retained tick "+std::to_string(sandbox_->world().ticks())+
             (sandbox_->dirty()?" (unsaved)":" (saved)"))) return false;
     } else if (state_==State::NewSandbox && authored_land_trade_new_game_ && map_index_<catalog_.entries.size()) {
@@ -1228,7 +1233,8 @@ bool MenuSession::render() {
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
             if (e.error.empty() && simulation::original_production_enabled(
                     simulation::RulesProfile::CityV16,e.rule_version) &&
-                e.schema==(e.rule_version==simulation::kOriginalIrrigationRuleVersion ? 42U:
+                e.schema==(e.rule_version==simulation::kPlayableAgricultureRuleVersion ? 43U:
+                    e.rule_version==simulation::kOriginalIrrigationRuleVersion ? 42U:
                     e.rule_version==simulation::kOriginalPlantationsRuleVersion ? 41U:
                     e.rule_version==simulation::kOriginalAgricultureRuleVersion ? 40U:
                     e.rule_version==simulation::kOriginalVenueHouseServiceRuleVersion ? 39U:

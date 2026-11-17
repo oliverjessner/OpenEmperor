@@ -14,6 +14,79 @@ Rule26/schema42 remains the separately selected irrigation extension. AGRI-06
 adds a derived view of the shared World calendar and verified seasonal reference
 queries. It adds no rule, schema, independent clock or production activation.
 
+## Playable Agriculture (AGRI-MAC01)
+
+**Explicit AUTHORED macOS gameplay: Rule27/policy3/schema43.** Select
+`Playable Agriculture` (P) in the regular menu or `--playable-agriculture`.
+This is a successor of Rule26, with the exact marker
+`authored-playable-agriculture-v1` and revision1. General defaults, historical
+Agriculture/irrigation selections, Rules1–26 and schemas1–42 stay unchanged.
+No original executable, Windows runtime, debugger or x87 capture is required.
+Original reconstruction remains a separate research goal.
+
+The one `AgricultureState` remains the sole five-kind Food authority. At most
+five paid Farmhouse193 bodies each own one paid productive Field in their
+existing source work area. The nearest available Farm is selected
+canonically when no parent is selected. Complete footprints, source model
+costs/employees, Rice source-fertility100 admission and existing construction
+rules remain authoritative. Global82-body/58-channel limits are unchanged;
+only Rule27's Farm/cart bound rises from three to five.
+
+| Paid field | Sole Food output | AUTHORED quality score |
+|---|---|---|
+| Wheat195 | Wheat7 |20|
+| Millet196 | Millet5 |80|
+| Rice197 | Rice6 |60|
+| Cabbage198 | Cabbage3 |70|
+| Soybean199 | BeanCurd1 |90|
+
+All five use the existing **AUTHORED80-productive-tick** adapter: full assigned
+Farm workforce, enabled/unburned Farm and Field and a real Farm road entrance
+are required. Pauses, fire or missing staff/access do not advance work. Full
+reserved inventory resets progress as in the retained adapter. Each completed
+cycle adds exactly one portion to that Farm's matching typed account and its
+Field's cumulative harvest. This is abstract productive field work; it creates
+no Original Actor26, quantity/work/history words or inferred native raw yield.
+There is no universal Rice Pump requirement, seasonal veto or additional
+irrigation yield bonus. Rule26's Pump/Ditch operation and wet/dry presentation
+continue independently without changing its historical crop values.
+
+Farm capacity8, Market16, House8 and carts4 retain their shared finite-volume
+bounds. A dispatch debits physical source stock and reserves real incoming/
+return headroom; only actual movement/arrival credits the recipient. No food is
+created by construction, rendering, restore or proximity. All five columns stay
+distinct across stocks, reservations, cargo, actual returns and consumption.
+Per-crop conservation is `harvest = held stock + remaining cargo + consumed`;
+physical departures equal arrivals plus returns plus remaining cargo.
+
+House FoodQuality uses the existing quantity-weighted batch algorithm and the
+AUTHORED scores above, only from an actual accepted Market-to-House delivery
+with its retained witness. Actual consumption removes one canonical typed
+portion at the existing demand phases; empty stock clears quality. The existing
+housing needs/evolution, immigration, workforce, finance, Tea/Lacquer/Mulberry,
+Tea/Silk manufacture and physical luxury supply remain inherited.
+
+Schema43 retains the complete existing Agriculture, plantation, irrigation,
+production and moving-trip state plus exact lineage and new marker/revision.
+Progress and earned harvest bounds, paid origins, typed account equations,
+quality witnesses, source/model/terrain identities, reservations and paths are
+validated before atomic publication. Recovery selects43 exactly. No automatic
+migration, schema40/41/42 reinterpretation or historical-target overwrite is
+admitted. Original research policies remain restricted to their old transient
+Rule26 context and cannot inject a numeric harvest into Rule27.
+
+Presentation reuses the already verified source profiles. Cabbage/Soy use
+the actual Farm progress for their available growth stages. Rice retains the
+verified static bank0 paddy topology: an active bank48/growth overlay has not
+been qualified. Its inspector exposes actual progress and harvest; the static
+Rice image does not imply a production lock or verified Original animation.
+
+The following historical research sections describe what their respective
+steps proved at the time. Their former references to a free Rule27/schema43
+pair are superseded by this allocation; a future Original Harvest generation
+needs another explicitly checked free pair. Gameplay tests and macOS acceptance
+are recorded in [testing](../testing.md#playable-agriculture-agri-mac01).
+
 ## Evidence and scope
 
 Read the [agricultural source contract](../reverse/original-agriculture-source-contract.md),
@@ -618,7 +691,7 @@ same activation boundary described in its matrix.
 
 The earlier AUTHORED candidate remains available for separate approval. It
 would extend the integrated Rule26 Agriculture lineage through the currently
-free Rule27/schema43 pair with an exact new contract marker, separate explicit
+separately rechecked future rule/schema pair (27/43 now belong to Playable Agriculture) with an exact new contract marker, separate explicit
 selection, create/restore and Recovery. Its saved state would add typed monotone
 Food Grower lifetimes, shared movement channels, actual field jobs/work, cargo
 and incoming/return reservations. The sole five-kind Agriculture ledger and
@@ -651,7 +724,7 @@ The new components close specific source operations while Rice, Cabbage and
 Soybean production remains **PARTIAL**. They reuse the existing Original rules
 libraries and shared map/container reader. `simulation::World` retains sole
 gameplay authority; no new profile, clock, migration, goods origin or saved
-state is introduced. Rule27/schema43 remain unused.
+state is introduced. This research step allocates no saved generation; Rule27/schema43 now belong to Playable Agriculture.
 
 | Component | Verified and implemented boundary | Remaining activation dependency |
 |---|---|---|
@@ -693,7 +766,7 @@ for executed checks and their limits.
 for Wheat195, Millet196, Rice197, Cabbage198 and Soybean199. The complete paid
 World chain from Farmhouse through physical Grower work/return to raw Farm stock
 is not activated. Current Rule26/schema42 and all historical generations retain
-their behavior. Rule27/schema43 were rechecked as unused and remain unused;
+their behavior. At that research stage no successor was allocated; Rule27/schema43 now belong to Playable Agriculture;
 there is no additional saved mutable authority or automatic migration.
 
 | Boundary | Implemented verified operation | World activation requirement |
@@ -807,7 +880,7 @@ pure-rule implementation or a parallel simulation. The new C++ change is a
 negative World/persistence regression using real paid Farm/field commands for
 all five identities in each of Rules24,25,26. It verifies rejection of unproved
 raw field state, native-looking cargo/assignment/bin/counter JSON and the still
-unused Rule27/schema43 pair, preserving World/save/source bytes on refusal.
+separately rechecked future rule/schema pair, preserving World/save/source bytes on refusal.
 Canonical restoration and deterministic continuation remain exact. Its empty
 settlement deliberately provides no positive staffing or Grower movement proof.
 
@@ -833,7 +906,7 @@ The local source-distance plane is separate from mode17's actual route; neither
 can be replaced by the material plantation's approved authored five-tick travel
 and staffing/fire gates by analogy. There is no second Navigator, inventory,
 Food account or scheduler. Rules1–26/schemas1–42 and defaults remain unchanged;
-Rule27/schema43 were rechecked and remain unused. Wheat/Millet retain only their
+No Original Grower generation is allocated by this research; Rule27/schema43 now belong to Playable Agriculture. Wheat/Millet retain only their
 approved processed-Food origin in25/26; no Original raw origin runs beside it.
 
 ### Raw resource equations
@@ -885,7 +958,7 @@ prove an immutable quota. Keep the existing82-body/58-courier budgets.
 | Existing SandboxSave / `RecoveryStore` | Exact new schema/marker/source identities; save active state/waits, typed assignments, routes/phases, histories, single raw word, bins, retained counters, reservations/headroom and all indispensable context. Reject inconsistent/unknown authority before atomic publication; retain independent replay |
 | Existing Agriculture inspector / walker presentation | Render actual World cells, actor states and inventory receipts; show unsupported status explicitly. Neither rendering nor an inspector can assign work or stock |
 
-Rule27/schema43 are provisional candidates, still unallocated. Before a future
+The previously provisional Rule27/schema43 pair is now allocated to Playable Agriculture, so an Original successor requires a different checked pair. Before a future
 implementation uses them, recheck availability and define the complete marker,
 source profile, FP/context domain, terminal accounting and explicit menu/CLI
 selection together. Rules1–26, old save targets and the existing general defaults
@@ -969,7 +1042,7 @@ irrigation changes and Elite expansion. Future geometry is rechecked at the
 next boundary, with real9→reroute→8 or9→10/11 histories. Unsupported context
 arising on the final edge cannot become8 after the real cell commit.
 
-No Rule27/schema43 is allocated. Session state has no Actor26/Crop authority and
+This motion-only policy allocates no saved generation; it does not use the independent Playable Agriculture Rule27/schema43 contract. Session state has no Actor26/Crop authority and
 is not serialized; a transient default-false snapshot guard blocks save/restore
 publication until terminal cleanup. Historical snapshots, gameplay IDs, source
 bytes and schema42 JSON then match an independently ticked control exactly.
@@ -1045,8 +1118,9 @@ same-raw-slot fence avoids claiming an unclosed combined field-growth,
 expiration and actor ordering. Global user pause simply supplies no World tick;
 it is not suspension13c. Complete positive persistence would require a new
 explicit contract for actor/cursor/phase/wait, work/claims, source counters,
-source/configuration identity and exceptional lifetimes. Rule27/schema43 were
-rechecked as unused and remain unused; no migration or default changes occur.
+source/configuration identity and exceptional lifetimes. This research step
+allocated no saved generation. Rule27/schema43 now belong to the separate
+Playable Agriculture mode; no historical migration or default changes occur.
 
 The separate AGRI-02E4 policy below keeps a single field and advances through
 growth and physical harvest work without resolving a numeric tending score.
@@ -1082,7 +1156,7 @@ Ordinary games and the older `AutonomousTendingV1` policy keep their contracts.
 | Positive cargo, return13, accepted bin credit/overflow | BLOCKED | No raw yield exists. Empty cancellation at the field releases assignments/channels; it is not an Original completed harvest or Farm return |
 | Single crop identity | PASS within admitted scope | Exactly one bound field, checked complete footprint, monotone lifetime IDs and manager-change cancellation; mixed fields/tours remain refused |
 | Persistence | PARTIAL: transient only | Active controller/field quantity cannot enter document, writer, restore or Recovery. Cleanup restores exact historical continuation; no active-worker save contract |
-| Historical compatibility | Preserved | Rules1–26/schemas1–42, existing Wheat/Millet Food and all defaults remain exact. Rule27/schema43 remain unused; no automatic migration |
+| Historical compatibility | Preserved | Rules1–26/schemas1–42, existing Wheat/Millet Food and all defaults remain exact. Original research allocates no successor; Playable Agriculture owns27/43; no automatic migration |
 
 The cycle uses the existing51×16×12 World calendar. The one-tick-per-phase
 mapping, elapsed-year epoch and one actor callback/microstep per World tick
@@ -1166,7 +1240,7 @@ receive no harvest mutation.
 | Dry irrigation | Implemented and tested | All120 square-perimeter cells use shared current effective-cell support; a paid Ditch, Pump, native800 marker, unknown overlay or boundary refuses |
 | FP arithmetic entrance | BLOCKED | Live PC/RC/masks, stack/tags and pending-exception postcondition have no admitted World epoch |
 | Marked callback and positive C | BLOCKED | The complete numeric context and safe yield/WORD domain cannot be established; no callback or positive Raw amount is published |
-| Persistence | Transient only | Controller-wide historical publication guard applies throughout preparation, refusal and cleanup; Rule27/schema43 remain unused |
+| Persistence | Transient only | Controller-wide historical publication guard applies throughout preparation, refusal and cleanup; Original research allocates no successor; Playable Agriculture owns27/43 |
 
 The smallest independent numeric FP blocker is the actual **RC bits0c00** at
 the first multiplication/store. The whole immediate normal native path from
@@ -1333,7 +1407,7 @@ Original state operations and complete Quay geometry. The read-only model
 inspector consumes these components through `--harvest-source 31` and
 `--harvest-source 33` observations.
 Playable Hunter/Quay production requires the remaining source contracts below.
-The current gameplay generation is Rule26/schema42. Rule27/schema43 were checked
+The research baseline gameplay generation is Rule26/schema42. Before AGRI-MAC01, Rule27/schema43 were checked
 as available. This change exposes read-only source components. Paid Agriculture,
 irrigation and typed Food accounts use their existing generation contracts.
 

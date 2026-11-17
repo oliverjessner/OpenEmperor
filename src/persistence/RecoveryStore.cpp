@@ -274,7 +274,8 @@ void validate_policy_readback(const SaveDocument& saved,const SaveDocument& sour
         return;
     }
     if (simulation::original_production_enabled(source.world.profile,source.world.rule_version)) {
-        require(saved.source_schema_version==(simulation::original_irrigation_enabled(source.world.profile,source.world.rule_version) ? 42U:
+        require(saved.source_schema_version==(simulation::playable_agriculture_enabled(source.world.profile,source.world.rule_version) ? 43U:
+                simulation::original_irrigation_enabled(source.world.profile,source.world.rule_version) ? 42U:
                 simulation::original_plantations_enabled(source.world.profile,source.world.rule_version) ? 41U:
                 simulation::original_agriculture_enabled(source.world.profile,source.world.rule_version) ? 40U:
                 simulation::original_venue_house_service_enabled(source.world.profile,source.world.rule_version) ? 39U:
@@ -320,7 +321,8 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
             simulation::original_production_enabled(document.world.profile,document.world.rule_version),
             "schema23 development saves are unavailable in normal recovery histories");
     require((document.source_schema_version==0 || document.source_schema_version==
-                (simulation::original_irrigation_enabled(document.world.profile,document.world.rule_version) ? 42U:
+                (simulation::playable_agriculture_enabled(document.world.profile,document.world.rule_version) ? 43U:
+                simulation::original_irrigation_enabled(document.world.profile,document.world.rule_version) ? 42U:
                 simulation::original_plantations_enabled(document.world.profile,document.world.rule_version) ? 41U:
                 simulation::original_agriculture_enabled(document.world.profile,document.world.rule_version) ? 40U:
                 simulation::original_venue_house_service_enabled(document.world.profile,document.world.rule_version) ? 39U:

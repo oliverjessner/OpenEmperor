@@ -700,6 +700,13 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-irrigation-presentation-tests)
     add_test(NAME original-irrigation-presentation COMMAND openemperor-irrigation-presentation-tests)
     set_tests_properties(original-irrigation-presentation PROPERTIES TIMEOUT 180)
+    add_executable(openemperor-playable-agriculture-presentation-tests
+        tests/PlayableAgriculturePresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-playable-agriculture-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-playable-agriculture-presentation-tests)
+    add_test(NAME playable-agriculture-presentation COMMAND openemperor-playable-agriculture-presentation-tests)
+    set_tests_properties(playable-agriculture-presentation PROPERTIES TIMEOUT 180)
     add_executable(openemperor-original-menu-session-tests
         tests/OriginalMenuSessionTests.cpp ${original_menu_test_sources})
     add_executable(openemperor-original-safe-demolition-menu-tests
@@ -1253,6 +1260,19 @@ if(BUILD_TESTING)
         set_tests_properties(original-irrigation-${irrigation_layer} PROPERTIES TIMEOUT 300)
     endforeach()
 
+    foreach(playable_layer world save)
+        if(playable_layer STREQUAL "world")
+            set(playable_test_source tests/PlayableAgricultureWorldTests.cpp)
+        else()
+            set(playable_test_source tests/PlayableAgricultureSaveTests.cpp)
+        endif()
+        add_executable(openemperor-playable-agriculture-${playable_layer}-tests ${playable_test_source})
+        target_link_libraries(openemperor-playable-agriculture-${playable_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-playable-agriculture-${playable_layer}-tests)
+        add_test(NAME playable-agriculture-${playable_layer} COMMAND openemperor-playable-agriculture-${playable_layer}-tests)
+        set_tests_properties(playable-agriculture-${playable_layer} PROPERTIES TIMEOUT 300)
+    endforeach()
+
     add_executable(openemperor-plantation-food-adapter-tests tests/PlantationFoodAdapterTests.cpp)
     target_link_libraries(openemperor-plantation-food-adapter-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
     openemperor_enable_warnings(openemperor-plantation-food-adapter-tests)
@@ -1425,6 +1445,11 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-alpha-endurance PRIVATE openemperor-persistence)
     openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME playable-agriculture-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/PlayableAgricultureCliTests.py $<TARGET_FILE:openemperor>)
+        set_tests_properties(playable-agriculture-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+    endif()
     if(Python3_Interpreter_FOUND)
         add_test(NAME original-model-inspector-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_model_inspector_cli.py

@@ -8,6 +8,15 @@ growth rule or save generation to `World`. Published Rules1–26/schemas1–42
 retain their separate contracts, including the authored Wheat/Millet and
 material-plantation adapters where supported.
 
+The separate [Playable Agriculture Rule27/schema43 contract](../original-economy/agriculture.md#playable-agriculture-agri-mac01)
+uses explicitly AUTHORED production rules on native macOS. It does not claim
+the unresolved Original raw-yield/FP lifecycle described here. The Original
+runtime investigation is not a prerequisite for that new gameplay mode;
+historical references below to unused27/43 describe their earlier research
+stage. AGRI-MAC01 executes no Original binary and supplies no new live x87
+observation. This document retains the static evidence and unknown Original
+inputs without treating authored Food portions as native raw Harvest units.
+
 ## Sources and evidence
 
 The fresh read-only investigation uses the installed PE32/i386 `Emperor.exe`,
@@ -1877,8 +1886,9 @@ explicit native counter/WORD/receipt distinctions. They do not create a parallel
 navigator, actor registry, calendar, inventory or save authority. Source callback
 composition is not evidence of an admitted physical World route.
 
-The current Rule26/schema42 remains exact. Rule27/schema43 were rechecked as
-unused; no placeholder mode or automatic migration is introduced. Mill/FoodShop
+Historical Rule26/schema42 remains exact. This research step allocated no saved
+generation; Rule27/schema43 now belong to the separate Playable Agriculture
+mode. No automatic migration is introduced. Mill/FoodShop
 and household portions are downstream of this task's Farm raw-stock boundary.
 The absence of their conversion is not used to claim that a complete admitted
 raw Farm cycle has already been achieved.
@@ -2384,8 +2394,9 @@ not the paid World Grower chain. All existing `CropRules`, `CropSelectionRules`,
 `CropGrowerRules`, `CropHarvestRules`, `CropLifecycleRules` and
 `CropTransportRules` were checked against these boundaries. No source operation
 is reimplemented merely to claim integration. Rules1–26/schemas1–42 stay exact;
-Rule27/schema43 were rechecked as unused and remain unallocated. There is no
-new create/restore/menu/CLI selection, raw inventory or Food origin.
+This research step allocated no saved generation, create/restore/menu/CLI
+selection, raw inventory or Food origin. Rule27/schema43 now belong to the
+separate Playable Agriculture mode.
 
 ### AGRI-02E source-distance preparation and dispatch inputs
 
@@ -2935,8 +2946,9 @@ are monotone within the World lifetime and never consume/reuse gameplay IDs.
 A future persistent Actor26 contract must separately admit native actor identity,
 source/field claims, speed/cadence and ordinary/exceptional lifetimes, route owner,
 accepted-direction cursor, phase/current/previous cells, work/waits, raw cargo,
-reservations and source counters. Recheck any proposed Rule27/schema43 pair;
-no such generation or automatic migration is activated here.
+reservations and source counters. It needs a separately checked free rule/schema
+pair: Rule27/schema43 now belong to Playable Agriculture. No Original Grower
+generation or automatic migration is activated here.
 
 ## Autonomous transient tending binding (AGRI-02E3)
 
@@ -3192,8 +3204,9 @@ covers a retained controller with zero actors. It is not a historical JSON
 field. Save-document preparation, publication and restore refuse that transient
 context until explicit cleanup; no actor, assignment, shadow work or source
 counter is serialized into schemas1–42. Historical snapshots, rules and schema
-markers remain unchanged. Rule27/schema43 remains unused, and persistence or
-full native production needs its own later explicit contract.
+markers remain unchanged. This research step allocated no saved generation;
+Rule27/schema43 now belong to Playable Agriculture. Persistent Original actors
+or full native production still need a separate explicit contract.
 
 ### Reproducible static evidence and remaining acceptance
 

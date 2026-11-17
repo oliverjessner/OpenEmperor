@@ -29,6 +29,12 @@ Rule18 economy; its measured city still has five House fires. The
 [player guide](docs/original-economy/player-handoff.md) covers production,
 development, saving and the remaining limits.
 
+**P Playable Agriculture** starts the separate authored farming mode: Wheat,
+Millet, Rice, Cabbage and Soy-to-BeanCurd feed the existing Market/House supply.
+Each paid Farm supports one productive field; Rice needs fertility100 ground.
+This mode also includes the existing plantations and irrigation infrastructure.
+See the [agriculture guide](docs/original-economy/agriculture.md#playable-agriculture-agri-mac01).
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

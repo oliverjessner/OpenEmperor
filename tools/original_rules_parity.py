@@ -84,9 +84,12 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # and typed transient refusal audit. No numeric profile is admitted. Ordinary
 # historical calls enable no session and retain their exact JSON/state. The
 # additive API/DTO pins require matching fresh archives, not harvest parity.
+# AGRI-MAC01 adds explicit authored Rule27 factories and crop capability gates.
+# Historical1–26 probe calls/DTO layout remain exact; all-five Food gameplay
+# is an authored successor and supplies no new Original numerical parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "16b6b3235980b813b1793ebfbceb8713c338e3f5",
+    "World.h": "ebc7d1542b8c23709bb810f2208e8a0522f06b2b",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",

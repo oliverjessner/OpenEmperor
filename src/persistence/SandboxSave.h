@@ -217,6 +217,14 @@ simulation::World restore_original_irrigation(
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
     std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema43/Rule27 is the explicitly AUTHORED five-crop playable successor.
+// Its exact contract never migrates or reinterprets Rule26/schema42 saves.
+simulation::World restore_playable_agriculture(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
 // Schema36 is an explicit authored classic Rule6 successor. It does not
 // inherit Original-economy rules or migrate an existing transport save.
 simulation::World restore_authored_source_cell_ramps(

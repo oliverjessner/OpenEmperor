@@ -111,10 +111,10 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
                 (i && !(food.farms[i-1].farm_id<row.farm_id)))
                 invalid("Agriculture Farm identity/progress invalid");
             const auto productive=std::count_if(food.fields.begin(),food.fields.end(),[&](const auto& field) {
-                return field.farm_id==row.farm_id && (field.crop==AgricultureCrop::Wheat || field.crop==AgricultureCrop::Millet);
+                return field.farm_id==row.farm_id && authored_agriculture_crop_enabled(profile,rule,field.crop);
             });
             if(authored_food && (productive>1 || (!productive && b.progress)))
-                invalid("authored Wheat/Millet adapter requires one paid productive Field per Farm");
+                invalid("AUTHORED adapter requires one paid productive Field per Farm");
         }
         for(std::size_t i=0;i<food.fields.size();++i) {
             const auto& field=food.fields[i];const auto& b=body(buildings,field.field_id);const auto& farm=body(buildings,field.farm_id);
@@ -124,14 +124,14 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
                 (i && !(food.fields[i-1].field_id<field.field_id)) ||
                 std::none_of(food.farms.begin(),food.farms.end(),[&](const auto& f){return f.farm_id==farm.id;}))
                 invalid("Agriculture field lost its paid compatible Farm or work area");
-            const bool productive=authored_food && g<2;
+            const bool productive=authored_agriculture_crop_enabled(profile,rule,field.crop);
             if(field.quantity || field.productive_events || (!productive && field.harvested) || field.last_harvest_cycle)
                 invalid("Agriculture production requires fully verified Original tending/harvest timing");
             if(productive) {
                 const auto age=ticks-b.placed_tick;
                 if(field.harvested>age/80 || (check_progress && field.harvested==age/80 &&
                     static_cast<std::uint64_t>(farm.progress)>age%80))
-                    invalid("authored Wheat/Millet harvest exceeds its paid80-tick opportunities");
+                    invalid("AUTHORED harvest exceeds its paid80-tick opportunities");
             }
             add(harvest[g],field.harvested);
         }
@@ -399,12 +399,18 @@ int World::original_food_headroom(BuildingId owner) const {
 void World::advance_original_food() {
     if(original_plantations_enabled()) {
         // Explicit retained AUTHORED adapter, not Original Grower/calendar
-        // reconstruction. Only Wheat/Millet have an admitted80-tick origin.
+        // reconstruction. Rule25/26 retain Wheat/Millet only; Rule27 admits
+        // all five typed crops under a separate explicit contract.
         for(auto& record:agriculture_->fields) {
-            const auto g=static_cast<std::size_t>(record.crop);if(g>=2) continue;
+            const auto g=static_cast<std::size_t>(record.crop);
+            if(!authored_agriculture_crop_enabled(profile_,rule_version_,record.crop)) continue;
             auto& farm=mutable_building(record.farm_id);
             if(!farm.operating_enabled || building_on_fire(farm.id) || !building_staffed_for_tick(farm.id) ||
                 building_entrances(farm.id).empty()) continue;
+            if(playable_agriculture_enabled()) {
+                const auto& field=building(record.field_id);
+                if(!field.placed || !field.operating_enabled || building_on_fire(field.id)) continue;
+            }
             if(original_food_headroom(farm.id)<=0) {farm.progress=0;continue;}
             if(farm.progress<79) {++farm.progress;continue;}
             add(record.harvested,1);++account(agriculture_->stocks,farm.id).amounts[g];farm.progress=0;
@@ -652,6 +658,10 @@ std::optional<BuildingId> World::agriculture_farm_for_field(Cell cell,BuildingId
     for(const auto& row:agriculture_->farms) {
         const auto& farm=building(row.farm_id);
         if((static_cast<std::uint32_t>(selected) && selected!=farm.id) || !work_area(farm.cell,cell)) continue;
+        if(playable_agriculture_enabled() && !static_cast<std::uint32_t>(selected) &&
+            std::any_of(agriculture_->fields.begin(),agriculture_->fields.end(),[&](const auto& field) {
+                return field.farm_id==farm.id;
+            })) continue;
         const auto d=std::abs(std::int64_t(cell.x)-farm.cell.x-1)+std::abs(std::int64_t(cell.y)-farm.cell.y-1);
         if(d<distance) {result=farm.id;distance=d;}
     }
@@ -666,10 +676,11 @@ CommandResult World::validate_agriculture_command(Command command) const {
         if(agriculture_->fields.size()>=agriculture_field_limit) {result.reason="Agriculture field limit reached";return result;}
         const auto parent=agriculture_farm_for_field(command.cell,command.building_id);
         if(!parent) {result.reason="Field requires an existing paid Farmhouse within its source work area";return result;}
-        if(original_plantations_enabled() && (command.type==CommandType::PlaceOriginalWheatField || command.type==CommandType::PlaceOriginalMilletField) &&
+        if(original_plantations_enabled() && (playable_agriculture_enabled() || command.type==CommandType::PlaceOriginalWheatField || command.type==CommandType::PlaceOriginalMilletField) &&
             std::any_of(agriculture_->fields.begin(),agriculture_->fields.end(),[&](const auto& f) {
-                return f.farm_id==*parent && (f.crop==AgricultureCrop::Wheat || f.crop==AgricultureCrop::Millet);
-            })) {result.reason="AUTHORED Wheat/Millet adapter permits one productive Field per Farm";return result;}
+                return f.farm_id==*parent && authored_agriculture_crop_enabled(profile_,rule_version_,f.crop);
+            })) {result.reason=playable_agriculture_enabled() ? "AUTHORED adapter permits one productive Field per Farm":
+                "AUTHORED Wheat/Millet adapter permits one productive Field per Farm";return result;}
         if(command.type==CommandType::PlaceOriginalRiceField && original_terrain_facts_->fertility(command.cell)!=100) {
             result.reason="Rice requires source fertility100; irrigation cannot bypass this prerequisite";return result;
         }

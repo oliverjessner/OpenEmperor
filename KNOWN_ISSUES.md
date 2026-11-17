@@ -10,6 +10,18 @@ complete original-game compatibility.
   crop, mining, fishing or seasonal behavior. OE55 adds no new crop, World rule,
   save schema or playable production chain. See the
   [production evidence boundary](docs/original-economy/oe55-production.md).
+- **Playable Agriculture is expressly authored.** The separate Rule27/schema43
+  `Playable Agriculture` selection enables Wheat, Millet, Rice, Cabbage and
+  Soy-to-BeanCurd through the shared80-productive-tick Food adapter, physical
+  Farm/Market/House delivery and consumption. It inherits Rule26 irrigation and
+  material plantations; Rice still requires source fertility100 but not a Pump.
+  There is no irrigation yield bonus. Rice uses the verified static paddy art;
+  an active growth overlay remains unqualified. Native menu selection was
+  observed; a manual native city playtest remains outstanding. This gameplay
+  does not establish Original
+  harvest timing, raw-yield units or x87 runtime parity. The following Original
+  research limitations remain applicable to their historical/research contracts,
+  not as a lock on Rule27. See [the playable contract](docs/original-economy/agriculture.md#playable-agriculture-agri-mac01).
 - **Original Agriculture timing is incomplete.** Frozen Rule24/schema40 provides typed
   Rice/Cabbage/Soy (source output BeanCurd), paid source-verified Farm/Field
   construction, Rice fertility100, Food accounting foundations and exact saves.
@@ -67,7 +79,7 @@ complete original-game compatibility.
   is separately loaded from construction fertility; startup defaults do not
   supply admitted live yield operands. Negative paid World/save controls cover
   all five fields in24/25/26. No physical Original Food Grower, raw Farm stock,
-  active/loaded Grower save or new Rule27/schema43 exists. See the
+  active/loaded Original Grower save exists. The independent AUTHORED Rule27/schema43 mode uses no such worker authority. See the
   [physical integration matrix](docs/original-economy/agriculture.md#physical-food-grower-integration-and-completion-matrix-agri-02e).
   AGRI-02E2 now integrates a bounded flat mode17 motion policy through the
   shared World navigator, including actual cell commits and8/9/10 outcomes.
