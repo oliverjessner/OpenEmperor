@@ -524,6 +524,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v24{24,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v25{25,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
+    if (playable_agriculture_enabled(profile,version)) return city_v16_v27;
     if (original_irrigation_enabled(profile,version)) return city_v16_v26;
     if (original_plantations_enabled(profile,version)) return city_v16_v25;
     if (original_agriculture_enabled(profile,version)) return city_v16_v24;
@@ -4552,6 +4554,7 @@ std::string World::canonical_state() const {
         }
     }
     if(source_cell_ramps_supported())out<<authored_source_cell_ramp_contract<<":20|";
+    if(playable_agriculture_enabled()) out<<playable_agriculture_contract<<':'<<playable_agriculture_revision<<'|';
     if(original_agriculture_enabled()) out<<(original_plantations_enabled() ? original_plantations_contract:original_agriculture_contract)<<':'<<rule_version_<<':'<<original_terrain_facts_->source_map_sha256()<<'|';
     if (original_venue_house_service_enabled()) out<<original_venue_house_service_contract<<":23:"<<original_terrain_facts_->source_map_sha256()<<'|';
     else if (original_music_venues_enabled()) out<<original_music_venues_contract<<":22:"

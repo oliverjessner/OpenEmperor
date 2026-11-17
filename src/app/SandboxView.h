@@ -131,6 +131,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule27/schema43: AUTHORED five-crop food production and physical supply.
+    static std::unique_ptr<SandboxView> create_playable_agriculture(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit authored Rule19/schema35; never changes historical demolition rights.
     static std::unique_ptr<SandboxView> create_original_safe_demolition(
         maps::StoredMapSession session,
@@ -808,6 +813,9 @@ private:
     }
     bool original_agriculture() const {
         return simulation::original_agriculture_family_enabled(rules_,requested_rule_version_);
+    }
+    bool playable_agriculture() const {
+        return simulation::playable_agriculture_enabled(rules_,requested_rule_version_);
     }
     bool original_irrigation() const {
         return simulation::original_irrigation_enabled(rules_,requested_rule_version_);

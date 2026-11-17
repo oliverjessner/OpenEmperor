@@ -203,7 +203,7 @@
   authority or grant growth, harvest, cargo or Food. Save/restore stays blocked
   even for a controller with no actor. Drain begun sections before cleanup;
   preserve historical continuation and monotone lifetime IDs. Rules1–26,
-  schemas1–42 and defaults stay exact; Rule27/schema43 remain unallocated. See
+  schemas1–42 and defaults stay exact; this research policy allocates no saved generation. See
   [autonomous tending](docs/original-economy/agriculture.md#autonomous-tending-acceptance-agri-02e3).
 - Transient field cycles are a separate `AutonomousFieldCycleV1` selection in
   that same World controller. Admit exactly one complete Food field, one crop,
@@ -232,6 +232,23 @@
   the current RC bits. Initial Standalone Properties preservation and the later
   Play reload/date seed are distinct authorities. See
   [live context admission](docs/original-economy/agriculture.md#live-harvest-context-admission-agri-02e5).
+- Playable Agriculture is a separate explicit Rule27/policy3/schema43 mode,
+  `authored-playable-agriculture-v1`, revision1, selected by the regular P menu
+  and `--playable-agriculture`. It inherits Rule26 and activates all five typed
+  Food crops through the shared AUTHORED80-productive-tick adapter. Each of at
+  most five paid Farms owns one productive Field, within the same82-body and
+  58-channel budgets. Full Farm staffing, operation, fire and road access gate
+  work; a paused/burning Field also blocks work. One completed cycle creates
+  one portion in the sole five-kind Farm account. Actual cart4 movement,
+  reservations, Market/House arrival, quality witnesses and consumption retain
+  the existing authority. Soy199 yields BeanCurd1; Rice retains source
+  fertility100 construction and has no universal Pump requirement or irrigation
+  yield bonus. Timing/yield/scores are expressly authored, not Original raw
+  Harvest acceptance. No Original EXE, Windows VM/debugger, Wine or live x87
+  values are prerequisites for27. Historical Rules1–26/schemas1–42, defaults,
+  Original research sessions and their refusal domains remain exact; no
+  automatic migration or cross-schema overwrite. See
+  [Playable Agriculture](docs/original-economy/agriculture.md#playable-agriculture-agri-mac01).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

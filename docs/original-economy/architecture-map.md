@@ -4,6 +4,18 @@ The optional **City-v16 Rule10 / schema26 / policy3 / development revision27**
 has paid production, transport, House evolution, taxes and recovery. Full original
 parity remains partial; see [the play guide](player-handoff.md) and [Known Issues](../../KNOWN_ISSUES.md).
 
+**Playable Agriculture** is the explicit macOS successor Rule27/policy3/schema43,
+marker `authored-playable-agriculture-v1`, revision1. It inherits Rule26 and
+activates all five existing Food fields through the shared AUTHORED80-tick
+adapter, with actual typed Farm→Market→House cargo, quality and consumption.
+Up to five one-field Farms fit the unchanged82-body/58-channel budget. Rice
+retains source fertility100; no Pump requirement or extra water yield is added.
+Historical Rules1–26/schemas1–42 and defaults remain exact. Original raw Harvest
+and Windows/x87 research do not gate this separate gameplay contract. See
+[Playable Agriculture](agriculture.md#playable-agriculture-agri-mac01).
+References below to formerly unused27/43 are historical research status;
+that pair is now allocated exclusively to this AUTHORED mode.
+
 The [Agriculture architecture](agriculture.md) defines the explicit Rule24/
 policy3/schema40 construction/Food foundations added during AGRI-02. Its separate
 five-kind state and source-bound fertility preserve Rule1–23/schema1–39.
@@ -143,6 +155,7 @@ Model29 is a submenu marker, with no Fruit commodity. See the
 | Rule24 / schema40 / Agriculture revision28 | Frozen paid source-bound five-kind Food foundations and Rice fertility100 admission. Food growth/harvest/quality remain locked; existing historical plant adapters and exact saves stay unchanged. |
 | Rule25 / schema41 / plantation revision1 | Current explicit Agriculture material plantations:32 paid matching plants, six sources within82 bodies/58 channels; authored80-tick finite readiness, actual Grower pickup/return and regrowth. Existing six Goods/five Aux ledgers remain sole authority. The expressly retained authored Wheat/Millet80-tick adapter uses the sole five-kind Food ledger and physical House deliveries/consumption; Rice/Cabbage/Soy stay locked. Exact marker/catalog, create/restore and Recovery; no migration or default change. Validation results are separately reported. |
 | Rule26 / schema42 / irrigation revision1 | Explicit Agriculture irrigation successor inheriting Rule25. Paid terrain ditches and four-orientation2x2 shoreline Pumps, phase27 cardinal water distribution, derived wet/supplier cache, field water queries and strict source-bound persistence. Existing harvest adapters continue unchanged; numeric irrigation yields remain inactive. Separate `--original-irrigation` selection and exact marker, without migration. |
+| Rule27 / schema43 / playable revision1 | Explicit Playable Agriculture; inherits Rule26, shared80-tick authored production for all five existing crops, five paid one-field Farms, actual typed delivery/quality/consumption and exact Save/Recovery. Original raw-yield research remains separate; no migration, historical overwrite, Windows dependency or default change. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy
@@ -456,7 +469,7 @@ is now source-observed. Complete field initialization, worker lifecycle and
 yield/unit inputs still gate playable Rice/Cabbage/Soy production. See the
 [PARTIAL completion matrix](agriculture.md#agri-02b-crop-completion-status).
 AGRI-04 subsequently assigned Rule26/schema42 to the explicit irrigation
-successor. Rule27/schema43 remain available for a separately defined contract.
+successor. AGRI-MAC01 subsequently allocates Rule27/schema43 to the explicit Playable Agriculture contract.
 
 Nine services use paid 207/208/211/212/213/214/215/217/219 providers, real workers,
 operation/fire/road gates and actual walker arrival. Medicine/culture grant only

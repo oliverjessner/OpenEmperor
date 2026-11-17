@@ -44,6 +44,80 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Playable Agriculture (AGRI-MAC01)
+
+The explicit Rule27/schema43 mode is AUTHORED macOS gameplay. The
+Original executable and all Windows runtime analysis remain unexecuted and
+are not dependencies of this mode. Historical tests below keep their own
+Original evidence boundaries.
+
+Use new isolated arm64 paths and native parallel2 builds:
+
+```sh
+cmake -S . -B .local/agri-mac01/build-release -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DOPENEMPEROR_USE_SYSTEM_SDL3=ON
+cmake --build .local/agri-mac01/build-release --parallel 2
+ctest --test-dir .local/agri-mac01/build-release --output-on-failure
+python3 tools/alpha_check.py --system-sdl --jobs 2 \
+  --build-dir .local/agri-mac01/alpha-final-debug \
+  --release-build-dir .local/agri-mac01/alpha-final-release \
+  --sanitize-build-dir .local/agri-mac01/alpha-final-sanitize \
+  --report .local/agri-mac01/alpha-final-check.json \
+  --data "$PWD/.local/gog-extracted/app"
+```
+
+The data argument names the user's own exact supplied installation; change it
+explicitly if needed. Never overwrite an existing evidence path. The alpha
+runner configures arm64 Debug/Release/ASan-UBSan builds and records actual
+registered test results, endurance/JSON roundtrips and rendering/session checks.
+
+`playable-agriculture-world` earns actual residents/staff and all five typed
+harvests, Farm/Market/House movement, quality witnesses and consumption in paid
+Worlds. It checks crop-specific conservation, finite/full stocks, pause, routes,
+staff loss, fire, multiple producers, long continuation and inherited Tea/Silk.
+`playable-agriculture-save` checks schema43 moving cargo/progress, deterministic
+continuation, Recovery, source/hostile input refusal, atomic writes and frozen
+schema40/41/42 separation. `playable-agriculture-presentation` drives regular P
+menu/map admission, paid tools, real World ticks, inspectors and F5/F9 under
+isolated scripted SDL; it does not itself prove native/human acceptance.
+`playable-agriculture-cli` checks explicit selection and invalid/conflicting
+arguments without launching gameplay or touching source/settings files.
+
+Native application/Original-asset checks and actually opened screenshots are
+reported separately from these authored-data tests. On the local arm64 macOS
+host, the native application rendered its regular menu, accepted P and opened
+Playable Agriculture setup. The supplied Original directory and
+`Cities/ASSR-Baoji.map` passed preflight. Desktop automation stopped when the
+computer-use tool reported a user change; native city-scene/human gameplay
+acceptance is **NOT_RUN**, not inferred from scripted SDL. The native binary
+uses SDL3, system zlib, libcrypto, libc++ and libSystem; no Windows runtime or
+external debugger is required. Rice uses the verified static paddy art; no
+unqualified growth overlay is enabled. Exact Original harvest, hunting/fishing
+and native raw-to-Food processing remain outside this PR.
+
+Local macOS arm64 validation completed **363/363 registered tests in each of
+Debug, Release and ASan/UBSan**, with zero failures/skips. The Agriculture
+tests include all five crops saved during actual cargo movement on both
+delivery legs and a 12,000-tick deterministic paid-city continuation with
+Tea/Silk. The additional general-profile alpha checks passed 100,000 ticks
+and 12 real JSON roundtrips per build, 3,000 render frames in Debug and
+ASan/UBSan, and 100 menu lifecycles. Independent Debug/Release core parity
+remains 74/74 with unchanged case results and classifications.
+The alpha Original-data check verified nine used files unchanged; the five
+explicit source guards also preserved SHA-256, size, mode and mtime.
+
+The private final report is `.local/agri-mac01/alpha-verified-check.json`,
+with actual inventories/JUnit under the three `alpha-final-*` builds.
+Initial reports are preserved: the sanitizer compiler exceeded the 1800s
+build-command limit, and the first Debug suite exposed an incorrectly
+configured private visual output root. The same isolated builds were
+continued with unchanged alpha runner components, a 3600s compiler allowance
+and fresh visual subdirectories under `.local/oe61/agri-mac01-alpha-*`.
+The earlier Debug results were archived before rerunning all three suites.
+No test deadline or assertion was relaxed. Debug and sanitizer builds used
+`-g1 -O1` with assertions enabled; Release used its normal flags. Package
+publication/notarization was not requested or validated.
+
 <a id="agriculture-foundations-agri-01"></a>
 
 ## Agriculture foundations and material plantations (AGRI-01–03)

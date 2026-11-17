@@ -33,13 +33,13 @@ std::optional<AgricultureSeasonStatus> World::agriculture_season_status(Building
     if(field!=agriculture_->fields.end()) {
         result.producer=field->farm_id;
         result.model=static_cast<original::ModelBuilding>(195+static_cast<unsigned>(field->crop));
-        result.authored_production_active=original_plantations_enabled() &&
-            (field->crop==AgricultureCrop::Wheat || field->crop==AgricultureCrop::Millet);
+        result.authored_production_active=authored_agriculture_crop_enabled(profile_,rule_version_,field->crop);
         if(result.authored_production_active)
             result.productive_progress=static_cast<std::uint32_t>(building(field->farm_id).progress);
         result.productive_target=result.authored_production_active ? 80:0;
         result.harvested=field->harvested;
-        result.blocker="Original Grower lifecycle, runtime yield inputs and raw-to-Food units unresolved";
+        result.blocker=playable_agriculture_enabled() ? "AUTHORED80-tick Food adapter; Original harvest reconstruction is separate":
+            "Original Grower lifecycle, runtime yield inputs and raw-to-Food units unresolved";
     } else {
         const auto hemp=std::find_if(original_production_->hemp_farms.begin(),original_production_->hemp_farms.end(),
             [id](const auto& row){return row.field_id && *row.field_id==id;});
@@ -81,7 +81,7 @@ std::optional<AgricultureSeasonStatus> World::agriculture_season_status(Building
     result.reference_growth_suppressed=original::season_growth_suppressed(result.model,slot);
     const auto& producer=building(result.producer);
     result.operating=producer.operating_enabled && building(id).operating_enabled;
-    result.burning=building_on_fire(result.producer);
+    result.burning=building_on_fire(result.producer) || (playable_agriculture_enabled() && building_on_fire(id));
     result.assigned_workers=workers_assigned(result.producer);
     result.required_workers=workforce_required(result.producer);
     result.staffed=building_staffed(result.producer);
