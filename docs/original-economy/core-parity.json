@@ -3647,13 +3647,14 @@
   ],
   "current": {
     "files": {
-      "src/persistence/OriginalGrowerContext.cpp": "08ae99b1ad4237d2df88cf135845b9c20f9a58913684f75b3a53f3b15331df67",
+      "src/persistence/OriginalGrowerContext.cpp": "8c99daac32e74dd7bc7ba8cf7d55ee55cde27e1d7ff6a79e0d3f8681fcabfc89",
       "src/simulation/AgricultureCalendar.h": "1bc1b03480a4da522052b7f6248d2d2a4b7b80147d79fa51c48624bdd08471d1",
       "src/simulation/AgricultureState.h": "2dfe7c7f332c635287d1298b212ca90a60020d6c1a59d4a265314d34bb8c5780",
       "src/simulation/AuthoredLandTrade.h": "eb04573ac53e1ac07240f23b7e1c9c4c9ce8db5fba343e58744a9db71438accd",
-      "src/simulation/GrowerLifecycleState.h": "f2e76908e47cac94f85c4b2a6652e883602195bf9f902cbd622afd0830f57904",
+      "src/simulation/GrowerLifecycleState.h": "ebf5719aee521dc0a63fc6b3eb7e23e3e190d4978e7c7a2d7ebb636011d5a8c0",
       "src/simulation/GrowerNavigationState.h": "48dec584838ec82cf3043f56fc5966c2e7ec4a4f775d20929cf79ba985d5b767",
-      "src/simulation/GrowerSourceFacts.h": "9d94cb2e6a14b9e40b23fc53b8b38e10334cd2e8fbaaefcdcd89449dd8d411f6",
+      "src/simulation/GrowerSourceFacts.h": "9462888f2fbaff2db1196f48e681e13a139d85b8341cd6f760ebb84056f51282",
+      "src/simulation/HarvestContextAdmission.h": "117ea119b0ab321ef0c4d1db43800eadc23455d8e88d1836f21a90818f65e0ab",
       "src/simulation/IrrigationState.h": "3362f71fdc7502411be77fdb455b59df8e1b7bd52e4123a277869122cd277b06",
       "src/simulation/OriginalCultureState.h": "70948c63591ab550d557a377e684a3988c683c63f0ba07c24d1764e5c0f06dfe",
       "src/simulation/OriginalEconomyState.h": "213f8b02abd2e50115356d367b843b94f82867684d08dc8809eaea3dae923ca7",
@@ -3673,8 +3674,8 @@
       "src/simulation/PlantationsState.h": "df396a82e946d30fb31733b4c9655a097809e4bfd5a6d36d936f60b1be9265c3",
       "src/simulation/SourceCellRamp.h": "f3e394396925b3830957e3b7b674a06c3a956464d161c4e2a93008e79b1ec4d1",
       "src/simulation/World.cpp": "aa5c7d7e0c4bef45cb6f6c567ad4f56a18db1f17e102953d9637da98df0d7be1",
-      "src/simulation/World.h": "6ffb28a09d2371d7495b62063fb25dab69693381033906127d8217d3b0d4ee16",
-      "src/simulation/WorldGrowerLifecycle.cpp": "ab070e96ecf26c3d20816467ef35038defd504dc7de0830fd39995e0291a0128",
+      "src/simulation/World.h": "6359694d134d3affcf714128656c9c359eea2471868c64fd80b971b19ebd2ff5",
+      "src/simulation/WorldGrowerLifecycle.cpp": "4bf355afa1ad4b3ec0a7d48a34959fd09b85756b8bbe2201b5071dd39e495909",
       "src/simulation/WorldGrowerNavigation.cpp": "c35c2642d441d23d1e335159fa471dc8d8e8c89c9f392bc743ab07cbf2ca41f2",
       "src/simulation/WorldIrrigation.cpp": "be4470d01fa216dc700259eb7c71eaad7435465ae4393683aae977cbb6bc68d2",
       "src/simulation/WorldOriginalProduction.cpp": "035d5e67acc4f868891b32db7be21938378d5086bc57b92d59c8b96354f26608",
@@ -3719,7 +3720,7 @@
       "src/simulation/original/ServiceRules.h": "4152e969bb95d5ba28f2400beef4032f8a3026ca225aed364deb0f7da805d944",
       "tools/original-rules-parity/HousingViewProbe.cpp": "d3efec7c21c7b361f96aa245c0a4929e48f3bebd0b51e02bed6be838ddc69d80",
       "tools/original-rules-parity/RuleProbe.cpp": "70f8e715f7be03d6c2ae4ec04afc5b69f13e90b05ba82174066ac208e8c8caa2",
-      "tools/original_rules_parity.py": "5e233a2a3ea360797a182238d16f7f9bf421a71e6a8782c80e9b5124eb9a75bb"
+      "tools/original_rules_parity.py": "97198d3b4f8b08d43d9be97136abd9a47c17a82dec61a7507e82b33569e1e6e7"
     }
   },
   "fork": {

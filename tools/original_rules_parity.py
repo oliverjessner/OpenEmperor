@@ -80,12 +80,17 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # observations to that DTO. Default-disabled historical World/JSON behavior and
 # the probe's actual calls remain exact. These reviewed fresh-library ABI pins
 # do not establish a positive raw harvest or active-worker persistence.
+# AGRI-02E5 adds a read-only sealed admission result, source-region observation
+# and typed transient refusal audit. No numeric profile is admitted. Ordinary
+# historical calls enable no session and retain their exact JSON/state. The
+# additive API/DTO pins require matching fresh archives, not harvest parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "b0881b0f2f9610658e673d91e07bc7f8bd752e93",
+    "World.h": "16b6b3235980b813b1793ebfbceb8713c338e3f5",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
-    "GrowerLifecycleState.h": "09963bc0768e503bd5145e653965030d9f36d634",
-    "GrowerSourceFacts.h": "1aa4b971397f7c97187ea1b388d9b7287ea7aac1",
+    "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
+    "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
+    "HarvestContextAdmission.h": "bcc00678f5ed87458a64df2e4d2ce99e319cb2e4",
     "AgricultureCalendar.h": "17455dad4bca5382ae8b2cb389bc2bf1099d642d",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",

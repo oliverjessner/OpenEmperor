@@ -96,6 +96,16 @@ complete original-game compatibility.
   fertility recompute and a dry-irrigation source branch are now qualified;
   neither supplies a complete live yield context. See the
   [first-harvest matrix](docs/original-economy/agriculture.md#first-physical-harvest-boundary-agri-02e4).
+  AGRI-02E5 adds immutable World harvest-context preparation and typed actual
+  Wait25 refusals, including source/model/actor/field identities, signed region
+  and the full dry120-cell query. Rice/Cabbage's event-result veto is qualified.
+  The complete immediate native Actor26 path preserves its incoming FP state;
+  actual RC alone still changes a conditional PC53 yield64/65. Native start/date,
+  modifier/factor and FP epochs remain unbound. The initial Standalone load
+  preserves the pre-load Properties year, while the later Play prelude can
+  reload it before the separate date seed. E5 remains **PARTIAL**, with no
+  admitted numeric context, marked callback or Raw-cargo grant. See the
+  [live-context matrix](docs/original-economy/agriculture.md#live-harvest-context-admission-agri-02e5).
   Menu/inspectors show the lock. See the
   [Agriculture contract](docs/original-economy/agriculture.md).
 - **Irrigation yield effects remain PARTIAL.** Explicit Rule26/schema42 has paid

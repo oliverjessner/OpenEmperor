@@ -3411,3 +3411,356 @@ blocked. The next precise proof is the native actor/field callback entry
 postcondition on its actual admitted execution path, together with the source
 initialization/update fence for the remaining live operands. Passing an
 arbitrary context DTO or rational arithmetic test cannot satisfy that gate.
+
+
+## Live harvest context admission (AGRI-02E5)
+
+**PARTIAL, with no admitted numeric context or positive World Raw cargo.**
+The actual E4 Wait25 worker invocation now consumes shared read-only World
+preparation. A private constructor and const bindings/failures/context prevent
+a freely supplied Pure-Rule DTO from asserting live authority. Current
+preparation reports actual identity, region, dry-query and missing numeric
+provenance. Its context is empty. The first marked callback mutation remains
+behind this boundary. Rules1–26/schemas1–42 and their defaults retain their
+contracts.
+
+Two private static receipts preserve the supplied Original input identities:
+`fp/verify_normal_entry.py` qualifies121 assertions over43 byte-checked windows,
+824 instruction lines and2,721 bytes; `operands/verify_operands.py` qualifies117
+assertions over43 windows,1,944 instruction lines and7,295 bytes, including
+overlaps, with9 Properties-preservation cases. Neither runs the Original or
+reads personal saves. The native source facts, reference-derived ABI evidence,
+conditional arithmetic and actual World tests have distinct claims below.
+
+### Complete ordinary callback prefix and incoming FP authority
+
+The pinned Original now has a byte-qualified ordinary Actor callback path, not
+only a direct invocation of the harvest Pure Rules. The ordinary frame invokes
+`0x4e27e0`; the actual Actor vtable slot `+0x28` binds to `0x4c7580`, whose
+40-byte descriptor26 entry is **`0x4cc670`**. The latter first performs the
+actual property8 query (`0x4eb9c0`, Actor `+0x114` -> integer reader
+`0x4c9310`), resolves the actual source/field objects and dispatches raw
+state12 through `0x4ccc10` to `0x4c2fd0`. A current waitWORD1 is decremented
+to0. The actual retained Food field accepts class-4 through its `+0xc8`
+predicate, so the helper invokes that field's `+0x268` -> `0x4c1dd0`.
+The field harvest mark8000 must be present to reach arithmetic. Its absence
+returns without any FP operation.
+
+Every direct helper and concrete indirect edge from the return of the last
+timing import through that marked entry to `0x4c1e8d` has been qualified. The
+object-array accessors, Actor property query, concrete field-resource switch,
+field-compatibility predicate, own-info accessor and all event-enable/crop
+classification branches in this interval are integer-only. They neither load
+an FP value nor alter/control/initialize an FP environment. The first FP
+operations remain `FILD` at `0x4c1e8d`, `FMUL binary32` at `0x4c1e91` and
+`FSTP binary32` at `0x4c1e97`. Consequently this complete immediate native
+prefix **preserves** the incoming CW, tag/TOP and exception status; it does
+not establish a particular numeric live CW or a fresh FP state.
+
+The timing calls are concrete, rather than unnamed external unknowns.
+`0x4e26c9` unconditionally invokes the actual PE import
+`KERNEL32.dll!GetTickCount`; only afterward does the actual flag
+`0x10aeef4` select an optional `QueryPerformanceCounter` call at
+`0x4e26e2`. That flag is initialized from the actual
+`QueryPerformanceFrequency` result, so zero is not assumed. The bounded
+slot1 sole eligible Actor26, with other array entries valid status0 objects,
+valid retained objects, bounded age, no linked actors and no suspension, has
+integer-only Actor-pass setup before this timing wrapper.
+This excludes an earlier Actor callback in that same pass, not previous
+frames or the ordinary frame's preceding scheduler. The timing-finish body
+after a prior callback can perform floating division and set sticky status.
+
+Microsoft's documented x86 convention requires an ordinary callee to preserve
+the FP control word and clean its FP stack except for an FP return. This is
+REFERENCE_DERIVED ABI evidence for normal integer-returning timing calls;
+it does not assign RC/masks or prove that a particular runtime frame supplied
+those values. It is not evidence that `GetTickCount` corrupts FP state, nor a
+requirement to prove every hypothetical external exception path.
+([Microsoft x86 FP calling convention](https://learn.microsoft.com/en-us/cpp/cpp/floating-point-coprocessor-and-calling-conventions?view=msvc-170))
+
+The actual startup initializer `0x7650aa` calls processor-feature detection
+(`IsProcessorFeaturePresent` when available, otherwise a balanced arithmetic
+probe), issues only the PC mask request through `0x76d3a7`, then performs
+`FNCLEX`. The request selects nativePC0200/53 significand bits while retaining
+recognized incoming RC and exception-mask flags. The startup routine has no
+`FNINIT`, complete-CW constant or stack-tag initialization. Its `FNCLEX`
+clears startup exception status, not an arbitrarily later harvest's status.
+The marked-harvest conversion helper `0x7650fc` temporarily selects truncate
+and restores its saved incoming CW; its first invocation follows the first
+fertility multiplication/store and supplies no authority for their earlier
+rounding. Examined ordinary CRT math-control groups likewise save/temporarily
+change/restore a caller environment. This is not an exhaustive all-program
+writer proof or a numeric harvest epoch.
+
+The smallest concrete remaining numeric FP gate is the actual later **RC
+bits0c00 and low-six exception masks003f**. The startup PC-only request does
+not determine them. PC53 still needs the admitted later preservation epoch;
+actual empty stack tags/TOP and no pending unmasked exception need a separate
+entry postcondition. Masked sticky flags alone are not an error or a demand
+for an entirely zero status word. No current sealed map/source context owns
+these live native FP facts. Therefore normal-prefix qualification does not
+authorize a numeric live yield, host defaults, a freely supplied context or
+automatic selection of CW027f. Unknown FP authority still rejects the whole
+harvest-context preparation before the actual marked callback mutates a
+field, cargo or quantities. Pure-Rule tests with explicit CW controls remain
+conditional arithmetic evidence.
+
+The RC gap is material even if PC53 and all six masks are granted
+conditionally: Rice197,quantity10000,runtime-fertility65,dry,region-factor
+bits3f800000,raw-date-300 yields64 with suppliedCW027f and65 with supplied
+CW0a7f. This is the same PC53 in both cases; upward rounding alone changes the
+result. These are conditional arithmetic controls, not observed live CWs or
+a current World harvest acceptance case.
+
+Private reproducible receipt: `python3 .local/agri-02e5/fp/verify_normal_entry.py`:
+121 assertions;43 byte-qualified windows;824 instruction lines;2721 instruction
+bytes including overlapping windows. EXE, Models and FarmConfig bytes, mode
+and timestamps were unchanged. This is static EXE observation, with no
+Original execution, build, gameplay QA or native harvest acceptance claim.
+
+
+### Actual numeric startup owners
+
+The executed CRT range includes three concrete pointer slots:
+
+| Slot | Target | Owned global constructor |
+| --- | --- | --- |
+| `8142f4` | `480040` | Properties (`c5cae0`) |
+| `8143ec` | `4bf100` | Farm configuration (`1031418`, plus scalar parameter bank) |
+| `81437c` | `48dea0` | Event singleton (`c701d8`) |
+
+The Properties chain is `480040 -> 480050 -> 52c990 -> 52cb80`.
+The reset writes signed WORD **-2500** to the actual first WORD of the global
+Properties object at `52cb8a`. This is a proved fresh constructor value, not a
+general map-file date or a guarantee about a later mission/editor/load epoch.
+
+The farm chain is `4bf100 -> 4bf110 -> 4bfc00 -> 4bfc20`. The actual scalar
+initializer writes modifier DWORD **10** to `84c560` at `4bfc6f`, global factor
+bits **0x3f933333** to `84c55c` at `4bfc65`, and the per-crop regional float bit
+rows below. The object `1031418` is separate from this absolute parameter bank;
+calling the object a configuration owner does not establish a text-file loader.
+
+| Actual crop type | Region 0 | Region 1 | Region 2 |
+| --- | --- | --- | --- |
+| Wheat 195 | `3f333333` | `3f4ccccd` | `3f266666` |
+| Millet 196 | `3f333333` | `3f4ccccd` | `3f266666` |
+| Rice 197 | `3ee66666` | `3f266666` | `3f800000` |
+| Cabbage 198 | `3f19999a` | `3f4ccccd` | `3f266666` |
+| Soy 199 | `3f333333` | `3f4ccccd` | `3f266666` |
+
+The current exact absolute-address census finds 39 parameter references, all
+identified initializer stores or reads. This is an address census, not a proof
+that arbitrary aliases or all later native configuration contexts cannot write
+them. A current context must bind a qualified initialization/configuration epoch;
+it must not merely copy values from an independently supplied DTO or text file.
+
+### Properties preservation and raw date
+
+Standalone archive reading snapshots the **pre-load** global Properties object:
+`52e9bd` supplies `c5cae0`, `52e9c6 -> 52ebb0` snapshots it,
+`52e9d1 -> 52cd90` reads file Properties, and `52e9e0 -> 52c9c0` restores the
+preserved subset. The first WORD is copied at `52ebb8/52ebbc` and restored at
+`52c9cc/52c9cf`. The file's first Properties WORD is therefore overwritten by the
+pre-load WORD. Entry coordinate WORDs `31c/31e` are not part of this restored
+subset; the E3 entry-coordinate observation is unchanged.
+
+**Do not bind a Map file's logical year WORD at 58 as the current raw native date.**
+Nor does the calendar reset establish it: `4ac240` initializes month 1 and
+temporary raw date **2098** at `4ac260`, a separate owner.
+
+`53d470` is a configuration loader and ends at `53d527`. The next function starts
+at **`53d530`** and performs the actual date seed: at `53d5ca` it sign-extends the
+then-current Properties WORD at `c5cae0`; at `53d5d1` it stores the result in the
+raw date DWORD `d623fc`.
+
+The real start action `406410` first calls its prelude `406870` at `406421`, then
+calls date seed `53d530` at `406426`. The play action explicitly sets load mode 1
+and configuration flag 1. The prelude has mode-dependent native loads (including
+`53d470 -> 5351e0`, plus `534660/534410` and `535060` alternatives). On the
+successful non-`0x26` branch, `4069ab -> 53d470`, `53d50a -> 5351e0`,
+`5352ae -> 52f4d0`, and `52f516/52f51d` directly read the archive's Properties
+into actual `c5cae0` using `52cd90`, **without** the Standalone-preservation
+wrapper. The later Play start can therefore replace the retained initial year
+with a second archive's actual year. The .map tag is real (`815828`), but the
+current branch/archive identity must be bound before a supplied file's year can
+be claimed as that actual owner. Merely proving the constructor or initial
+Standalone read does not close this later start epoch. Fresh-game `5d1400` calls
+calendar reset first, then:
+
+* flag nonzero: `5d14cb -> 53d470`, separately `5d14d0 -> 53d530`;
+* flag zero: `5d14e4 -> 43abf0` Standalone map load, skipping those two calls.
+
+Other concrete Properties/raw-date writers exist: mission path `42eb04`, mission
+setup/copy `42edc9` followed by `42f0ba -> 53d530`, date UI `425423`, and new-map
+`53cf9b` (WORD **-500**). A fresh-first-load profile must exclude or qualify these
+reachable predecessors; a later Native Restore is outside this profile.
+
+The yearly counter increments when the **resulting native month is 1**:
+`4ac7d0 -> 4f8d50` supplies literal 1, `4ac7d5` compares the resulting month,
+`4ac7db` skips the update otherwise, and `4ac7e4/4ac7e5` increment/store the raw
+DWORD. An authored elapsed World year or month 11-to-0 boundary is insufficient.
+The optional global multiplier is reached only if this actual signed raw date
+is greater than **-300** (`4c1efd`). A proved earlier date removes that numeric
+dependency; an invented or file-derived earlier date does not.
+
+### Runtime fertility and signed region
+
+Ordinary full-archive Standalone map loading is a real recomputation path:
+`43abf0 -> 52e7c0` at `43ad9e`, followed by `43ae05 -> 53d100`,
+`53d1e4 -> 5355f0`, `5356bc -> 4c1d00`, `4c1d13 -> 4c1c20`.
+Archive loading separately reads the saved runtime plane (`52ea84`) and the
+construction plane (`52eaa6`); the later recomputation replaces runtime values
+for the qualified rectangle. `4c1c20` performs integer computation:
+
+`runtime_BYTE = (floor(55 * construction_BYTE / 100) + modifier_BYTE) mod 256`.
+
+The modifier is the live byte at `84c560`; it is read at `4c1c8a` and the runtime
+byte is written at `4c1ccc`. Construction fertility alone is not a live runtime
+operand. A valid World binding must carry the actual sealed source construction
+byte, the qualified modifier epoch, and the actual post-load derived epoch.
+
+Other recomputation paths exist and must invalidate or be excluded by an explicit
+profile: editor-wide refresh at `407a73` (requires both `10de045 == 1` and
+`88ec38 == 1`), terrain-edit rectangle at `4b5b2b`, region editor at `5f539d`, and
+Native save/preparation at `533fba`. No claim is made for editor/native-save
+epochs or imported runtime planes.
+
+The region used by Harvest is a **signed WORD** at `c5cd58` (`4c1ed0`), not an
+unsigned fallback. A Standalone map publishes the Header's region low WORD after
+Properties restoration (`52eb52`). This is Header **logical DWORD 12 / native
+Header+8**, distinct from the coordinate-context index in logical DWORD 8.
+The narrow supported source region is **0..2**; negative values (including
+`ffff`) and values at least 3 must be refused before table indexing. New-map and
+region-editor writers are separate epochs (`53cf03`, `5f5377`). An admitted
+immutable Map/geometry/source hash can bind this region; it does not by itself
+prove current factor, date, event or FP operands.
+
+### Rice/Cabbage event reduction and mutable event lifetime
+
+Harvest first queries enable via `48e0f0 -> 608620` (BYTE +50), then requires
+DWORD +54 equal to 3; the crop selector helper `48e680` reads DWORD +58. The
+selector uses an unsigned bound 0..4, with all others returning false. Each of
+the five actual selector branches excludes crops **Rice197 and Cabbage198**:
+
+* selector 0 admits no crop above 195;
+* selector 1 admits only 199 or 226;
+* selector 2 admits no crop above 196;
+* selector 3 admits no crop above 194;
+* selector 4 admits only 37 or 196.
+
+Therefore the event-derived doubled-base result is **false for Rice197/Cabbage198 for every
+possible actual Enable, State and Selector value**. This is a proved numeric
+branch reduction by the actual crop identity. It claims neither that those live
+globals are zero nor that their reads do not happen. A sealed Rice/Cabbage context
+may carry that semantic reduction explicitly without manufacturing Event inputs.
+
+For the remaining crops, a no-command policy does not freeze Events. The actual yearly
+caller `4ac904 -> 48eb90` clears/reconsiders enable/state and may automatically
+call `48ea40` via mutable eligibility `48e930`. That helper depends on other
+actual global owners (`48a340/48a420`, `5177b0/517cc0`); those are not proved
+equivalent to authored World population. Actual command `48f820` also writes
+selector and state3. The Event constructor clears older controls, but does not
+explicitly initialize all three Harvest members; PE fresh storage alone does not
+establish their lifetime through yearly updates.
+
+### Smallest honest admission boundary
+
+Closed source facts are the signed region source/index relation, integer
+recomputation and its actual Standalone post-load caller, concrete startup
+parameter bits, concrete fresh Properties constructor and preservation behavior,
+the explicit native date-seed/update rules, and Rice/Cabbage's event-result reduction.
+
+A **current** positive live Harvest context still requires an actual bounded
+initialization/start epoch, its raw-date lifetime, a factor/modifier epoch tied to
+the current derived fertility, and the independent FP callback-entry proof. A
+map's year, a free DTO, passing the executable's constructor constants, elapsed
+World time, or absence of user Event commands cannot fill a missing owner. If any
+needed owner is unresolved, retain the actual E4 Wait25 trigger and refuse before
+the first callback mutation.
+
+### World admission and publication boundary
+
+`World::prepare_grower_harvest_context` accepts only an actual lifetime ID.
+It checks the controller policy, current cancellation/retirement, complete
+matching map/model context, Farm/field/registered crop, actual retained actor
+references and assignment, real arrived owned movement channel, due work,
+mark, quantity and signed region. It retains actual tick/slot, road revision,
+source/model identity/difficulty, construction fertility and Q/work/C as
+observations. None is a substitute for current runtime fertility or a native
+date/FP epoch.
+
+All120 cells in the exact square-perimeter1..5 query must pass the existing
+shared effective-cell preparation as known ordinary Farm02/Road04/Food-land10
+masks. Those qualified source/overlay facts have no800. A ditch, pump, boundary
+or unknown/source800 cell refuses, retaining its actual coordinate and the
+number of previously checked cells. Only a fully supported query records
+`irrigated=false`. The separate derived World wet cache supplies no operand.
+The supported source region is the actual Header+8 low signedWORD; preparation
+refuses outside0..2. The source reader preserves it without imposing a new
+navigation admission rule.
+
+For Rice/Cabbage the result may record only the proved event-doublingfalse
+predicate. Other crops retain missing event-input provenance. Current actual
+FP/numeric-owner failures are typed individually. An unresolved current domain
+never manufactures a usable numeric context. The real work invocation stores
+these failures in its bounded actor audit before the existing empty cancellation
+clears the assignment/channel and native actor. No work4000, quantity/history,
+Raw word, Farm credit or Food grant is published by that refusal. Positive C
+and the return/bin lifecycle require separate implementation after full numeric
+admission. Controller presence continues to block historical document/writer/
+restore/Recovery publication even after the worker has retired.
+
+### Reproducible proof plan for the remaining RC and FP postcondition
+
+The static proof closes the immediate real Actor26 branch. It leaves a
+specific numeric FP epoch and FP entry postcondition unobserved. A future
+authorized Original run can qualify that bounded frontier without collecting
+every possible external exception case. No supplied bytes need modification.
+
+1. Pin the three supplied input SHAs from `verified-normal-entry.json` and the
+   actual Windows target's loaded OS/CRT/graphics modules and versions/hashes.
+   Use an explicitly provided map/new session; do not search personal saves.
+   Record the same main thread, actual map/load epoch and current Actor26 ID.
+   Do not edit the process's FPCW, status, tag word, field or Actor values.
+2. Use execution hardware breakpoints, at runtime image-base plus these RVAs:
+   `0xe26cf` (after mandatory `GetTickCount`), `0xe26e8` (after optional QPC,
+   before return), `0xc1dd0` (actual field callback entry), `0xc1e8d` (before
+   first `FILD`). These four fit the normal x86 execution-breakpoint budget.
+   Hardware breakpoints avoid changing code bytes, including in memory.
+3. Log `r`, `rF`, thread ID and a native call stack at each relevant stop. In
+   the x86 FP display retain the complete numeric `fpcw`, `fpsw`, `fptw`, TOP
+   and ST0..ST7/tag information. Decode PC=`(CW>>8)&3`, RC=`(CW>>10)&3`, masks
+   `CW&0x3f`, exception flags `SW&0x3f`, SF=`SW&0x40`, ES=`SW&0x80`, and
+   TOP=`(SW>>11)&7`. A required normal empty tag word is `0xffff`; TOP alone
+   never establishes emptiness. Keep masked sticky flags distinguishable from
+   a pending unmasked exception; do not rewrite them to zero in the report.
+4. Admit the current branch only after verifying actual status1/type26,
+   valid retained Farm193 and Food field identities/vtables, rawstate12,
+   wait1 before the decrement, and harvest mark8000. Record actual profiling
+   flag and take the corresponding last timing-return snapshot. Do not force
+   profiling off, delete other Actors or treat a different direct-call harness
+   as the normal Original Actor callback path.
+5. Compare the same-thread FP snapshot at the last timing return, actual
+   `4c1dd0` and first `4c1e8d`; the closed integer prefix predicts no FP change.
+   At `4c1e8d`, single-step the first FILD, FMUL and FSTP and capture the actual
+   binary32 store plus any exception. Capture before/after actual later
+   `7650fc` as a separate temporary-CW restore check, not a substitute for the
+   earlier FP entry snapshot. Bind numeric field/live-owner snapshots from
+   the sibling E5 operand receipt to the same Actor callback and load epoch.
+6. If an unexplained CW/tag/status transition appears, add a bounded execution
+   or control-write breakpoint around that concrete transition and identify
+   its actual module/caller. Follow only that ordinary observed writer chain.
+   The source prefix already excludes an intervening Original integer helper
+   as the writer. Never infer all-time authority from a finite capture.
+
+`rF` is Microsoft's documented display of all floating-point registers:
+[WinDbg r command](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/r--registers-).
+The normal CW/stack calling convention is separately documented:
+[Microsoft x86 FP convention](https://learn.microsoft.com/en-us/cpp/cpp/floating-point-coprocessor-and-calling-conventions?view=msvc-170).
+These primary references explain the planned observation; they do not supply
+the missing current Original values.
+
+An eventual World admission needs either a source-qualified complete normal
+epoch with these postconditions or an explicitly bound observed native
+context within its proven lifetime. A synthetic World boolean, a host-native
+FP read or an arbitrary CW027f constant cannot fill the missing provenance.
