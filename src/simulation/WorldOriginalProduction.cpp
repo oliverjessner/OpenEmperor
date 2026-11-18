@@ -133,6 +133,7 @@ std::uint64_t paid_cost(Object kind) {
     case Object::OriginalCabbageField:
     case Object::OriginalSoybeanField:
     case Object::OriginalFishingQuay:
+    case Object::OriginalHuntersTent:
     case Object::OriginalIrrigationPump:
     case Object::HealthPost:
     case Object::OriginalDaoistShrine215:
@@ -161,6 +162,7 @@ std::optional<original::ModelBuilding> model_priced(Object kind) {
     case Object::OriginalCabbageField:return B::CabbageField;
     case Object::OriginalSoybeanField:return B::SoybeanField;
     case Object::OriginalFishingQuay:return B::FishingQuay;
+    case Object::OriginalHuntersTent:return B::HuntersTent;
     case Object::OriginalIrrigationPump:return B::IrrigationPump;
     case Object::HealthPost:return B::HerbalistsStall;
     case Object::ServicePost:return B::AcupuncturistsClinic;
@@ -618,7 +620,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         // untrusted origin. In particular, INT_MAX must never reach cell+1.
         if (b.cell.x<0 || b.cell.y<0 || b.cell.x>s.width-footprint.width || b.cell.y>s.height-footprint.height)
             invalid("original production building footprint outside saved grid");
-        if (b.kind==Object::FireWatch || b.kind==Object::ClaySource || b.kind==Object::Pottery || b.kind==Object::Warehouse || b.kind==Object::Market || b.kind==Object::OriginalHempFarm || b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay ||
+        if (b.kind==Object::FireWatch || b.kind==Object::ClaySource || b.kind==Object::Pottery || b.kind==Object::Warehouse || b.kind==Object::Market || b.kind==Object::OriginalHempFarm || b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay || b.kind==Object::OriginalHuntersTent ||
             b.kind==Object::HealthPost || b.kind==Object::ServicePost || b.kind==Object::OriginalAncestorShrine214 || b.kind==Object::OriginalWaterWell72 ||
             b.kind==Object::OriginalDaoistShrine215 || b.kind==Object::OriginalBuddhistShrine217 || b.kind==Object::OriginalConfucianAcademy219 ||
             (b.kind==Object::OriginalTheatre75 && simulation::original_venue_house_service_enabled(s.profile,s.rule_version)) || b.kind==Object::OriginalMusicSchool211 ||
@@ -635,7 +637,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
                 b.kind==Object::OriginalBuddhistShrine217 ? CourierRole::OriginalBuddhist:
                 b.kind==Object::OriginalConfucianAcademy219 ? CourierRole::OriginalConfucian:
                 b.kind==Object::OriginalAncestorShrine214 ? CourierRole::OriginalAncestor:
-                (b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay) ? CourierRole::OriginalFoodToMarket:
+                (b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay || b.kind==Object::OriginalHuntersTent) ? CourierRole::OriginalFoodToMarket:
                 b.kind==Object::OriginalHempFarm ? CourierRole::OriginalHempToWarehouse:
                 b.kind==Object::ClaySource ? CourierRole::Clay:
                 b.kind==Object::Pottery ? CourierRole::Pottery:b.kind==Object::Market ?
@@ -841,7 +843,7 @@ OriginalEliteMaterializationStatus World::original_elite_materialization_status(
     for (int y=0;y<4;++y) for (int x=0;x<4;++x) {
         const Cell cell{b.cell.x+x,b.cell.y+y};
         if (!in_bounds(cell)) return blocked(BuildBlocker::OutsideMap,cell);
-        if(grower_navigation_cell_claimed(cell) || fishing_boat_cell_claimed(cell)) return blocked(BuildBlocker::SandboxOccupied,cell);
+        if(grower_navigation_cell_claimed(cell) || fishing_boat_cell_claimed(cell) || hunting_actor_cell_claimed(cell)) return blocked(BuildBlocker::SandboxOccupied,cell);
         if (bridge_at(cell) || bridge_bank_at(cell)) return blocked(BuildBlocker::ProtectedBridge,cell);
         if (ramp_endpoint(cell)) return blocked(BuildBlocker::SandboxOccupied,cell);
         if (fixed_passage(cell)) return blocked(BuildBlocker::ProtectedGatePassage,cell);
@@ -933,6 +935,7 @@ void World::tick_original_production() {
     // producer until the next ordinary tick. No 400t legacy demand is run.
     advance_clay_pottery_production();advance_original_hemp();advance_original_food();
     if(playable_fishing_enabled()) advance_fishing();
+    if(playable_hunting_enabled()) advance_hunting();
     update_original_industry();
     if(original_plantations_enabled()) update_plantations();
     for (auto& c:couriers_) dispatch_v2(c);

@@ -72,6 +72,9 @@ std::shared_ptr<const original::OriginalRulesModel> prepare_original_irrigation_
 std::shared_ptr<const original::OriginalRulesModel> prepare_playable_fishing_rules_model(
     const std::filesystem::path& data_root,
     original::Difficulty difficulty=original::Difficulty::Normal);
+std::shared_ptr<const original::OriginalRulesModel> prepare_playable_hunting_rules_model(
+    const std::filesystem::path& data_root,
+    original::Difficulty difficulty=original::Difficulty::Normal);
 // Complete supported original map, shared reader and full-file SHA binding.
 // Raw bit4 facts never substitute for MapPermissions or bridge eligibility.
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_terrain_facts(
@@ -85,6 +88,8 @@ std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_irrigat
 // Shared complete map/manager/permission preparation binds marker179 geography;
 // it never imports a native stock or regenerates resources from a source label.
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_playable_fishing_terrain_facts(
+    const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
+std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_playable_hunting_terrain_facts(
     const std::filesystem::path& data_root,const std::filesystem::path& map_relative);
 // Transient Grower session input only. The source-bound native entry operand
 // grants no spawn, path, field claim, production or saved authority.
@@ -235,6 +240,13 @@ simulation::World restore_playable_agriculture(
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
 // Schema44/Rule28 uses a sole six-kind Food authority and physical Fishing state.
 simulation::World restore_playable_fishing(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema45/Rule29 retains one seven-kind Food authority plus real prey/Hunters.
+simulation::World restore_playable_hunting(
     const SaveDocument& document,const std::filesystem::path& data_root,
     std::vector<std::uint8_t> buildable,
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,

@@ -138,6 +138,9 @@ public:
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
     // Explicit Rule28/schema44: six Food kinds and paid physical fishing.
+    static std::unique_ptr<SandboxView> create_playable_hunting(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     static std::unique_ptr<SandboxView> create_playable_fishing(
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
@@ -521,6 +524,7 @@ private:
     bool agriculture_inspector_selected() const;
     void prepare_agriculture_inspection(bool force=false);
     void prepare_fishing_visuals(bool force=false);
+    void prepare_hunting_visuals(bool force=false);
     void append_agriculture_calendar_lines(std::vector<std::string>& lines,simulation::BuildingId id) const;
     int inspection_workers_assigned(simulation::BuildingId id) const;
     bool inspection_building_staffed(simulation::BuildingId id) const;
@@ -556,6 +560,10 @@ private:
         bool irrigation_ditch=false;
         std::uint8_t irrigation_variant=15;
         std::optional<simulation::FishingBoatId> boat=std::nullopt;
+        std::optional<simulation::HuntingHunterId> hunter=std::nullopt;
+        std::optional<simulation::HuntingAnimalId> animal=std::nullopt;
+        simulation::HuntingSpecies hunting_species=simulation::HuntingSpecies::WildPig75;
+        int hunting_cargo=0;
     };
     // Descriptors of the dynamic pixels actually submitted to the painter.
     // Image pixels remain in the eagerly loaded profiles; no hit mask is copied.
@@ -564,6 +572,8 @@ private:
         simulation::Cell cell{};
         std::optional<simulation::CourierId> walker;
         std::optional<simulation::FishingBoatId> boat;
+        std::optional<simulation::HuntingHunterId> hunter;
+        std::optional<simulation::HuntingAnimalId> animal;
         std::optional<simulation::BridgeId> bridge;
         bool bridge_front_rail=false;
         std::optional<simulation::RampId> ramp;
@@ -739,6 +749,16 @@ private:
     std::vector<FishingVisual> fishing_visuals_;
     std::uint64_t fishing_visual_tick_=UINT64_MAX,fishing_visual_sequence_=UINT64_MAX;
     std::optional<original::FishingQuayGeometry> fishing_preview_geometry_;
+    struct HuntingVisual {
+        simulation::BuildingId tent_id{};
+        bool road_connected=false;
+        std::optional<simulation::Cell> habitat,target;
+        std::vector<std::pair<scene::Point,scene::Point>> route;
+        std::size_t route_total_edges=0;
+    };
+    std::vector<HuntingVisual> hunting_visuals_;
+    std::uint64_t hunting_visual_tick_=UINT64_MAX,hunting_visual_sequence_=UINT64_MAX;
+    std::optional<simulation::HuntingAnimalId> selected_hunting_animal_;
     bool irrigation_overlay_=false;
     struct IrrigationVisual { simulation::Cell cell{};std::uint8_t variant=15; };
     std::vector<IrrigationVisual> irrigation_visuals_;
@@ -835,6 +855,9 @@ private:
     }
     bool original_agriculture() const {
         return simulation::original_agriculture_family_enabled(rules_,requested_rule_version_);
+    }
+    bool playable_hunting() const {
+        return simulation::playable_hunting_enabled(rules_,requested_rule_version_);
     }
     bool playable_fishing() const {
         return simulation::playable_fishing_enabled(rules_,requested_rule_version_);

@@ -30,6 +30,7 @@ public:
         ModelData model,Difficulty difficulty);
     [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_fishing(
         ModelData model,Difficulty difficulty);
+    [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_hunting(ModelData,Difficulty);
     OriginalRulesModel(const OriginalRulesModel&)=delete;
     OriginalRulesModel(OriginalRulesModel&&)=delete;
     OriginalRulesModel& operator=(const OriginalRulesModel&)=delete;
@@ -44,7 +45,7 @@ public:
 
 private:
     OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture=false,bool agriculture=false,
-        bool irrigation=false,bool fishing=false);
+        bool irrigation=false,bool fishing=false,bool hunting=false);
     const ModelProvenance provenance_;
     const Difficulty difficulty_;
     const HouseEvolutionRules house_rules_;
@@ -55,6 +56,7 @@ private:
     const std::optional<std::array<BuildingRow,3>> agriculture_rows_;
     const std::optional<std::array<BuildingRow,2>> irrigation_rows_;
     const std::optional<BuildingRow> fishing_row_;
+    const std::optional<BuildingRow> hunting_row_;
 };
 
 } // namespace openemperor::original

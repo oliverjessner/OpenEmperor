@@ -240,6 +240,16 @@ void click(Menu& menu,float x,float y) {
     menu.handle_event(mouse(SDL_EVENT_MOUSE_BUTTON_DOWN,x,y));
     menu.handle_event(mouse(SDL_EVENT_MOUSE_BUTTON_UP,x,y));menu.advance();
 }
+void click_control(Menu& menu,SDL_Window* window,SDL_Renderer* renderer,const char* label) {
+    check(menu.render(),"Render current menu before choosing a control");
+    const auto rect=menu.diagnostic_button_rect(label);check(rect.has_value(),"Current menu control is missing");
+    const float scale=1.5F*std::max(1.0F,SDL_GetWindowPixelDensity(window));float x=0,y=0;
+    check(SDL_RenderCoordinatesToWindow(renderer,(rect->x+rect->w/2)*scale,(rect->y+rect->h/2)*scale,&x,&y),
+          "Transform actual menu control center");
+    const auto hit=menu.diagnostic_button_hit(x,y);check(hit && hit->enabled,"Rendered menu control has no enabled hit");
+    auto down=mouse(SDL_EVENT_MOUSE_BUTTON_DOWN,0,0);down.button.windowID=SDL_GetWindowID(window);down.button.x=x;down.button.y=y;
+    menu.handle_event(down);down.type=SDL_EVENT_MOUSE_BUTTON_UP;menu.handle_event(down);menu.advance();
+}
 void key(Menu& menu,SDL_Keycode code) {
     SDL_Event event{};event.type=SDL_EVENT_KEY_DOWN;event.key.key=code;
     menu.handle_event(event);menu.advance();
@@ -342,7 +352,7 @@ void roots_and_setup_lifetime(Temp& temp,SDL_Window* window,SDL_Renderer* render
     key(menu,SDLK_N);controls->wait_started(1);key(menu,SDLK_ESCAPE);
     check(menu.state()==Menu::State::MainMenu && menu.map_rules_result().status==Status::Unchecked,
           "leaving setup retained pending authorization");
-    click(menu,50,200); // Original data folder, no active session.
+    click_control(menu,window,renderer,"Original Data Folder");
     check(menu.state()==Menu::State::DataSetup,"data root change did not open setup");
     click(menu,50,145);chooser->answer(temp.root/"data-two");menu.advance();
     check(menu.settings().data_root==fs::canonical(temp.root/"data-two"),"second data root not accepted");

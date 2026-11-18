@@ -28,6 +28,15 @@ unreconstructed. Static Original Quay pixels use an authored pose/anchor choice;
 Boat49 animation remains an explicitly labelled fallback. This gameplay does not
 activate the Original callbacks or claim their parity, and runs no Original EXE.
 
+The separate [Playable Hunting Rule29/schema45 contract](../original-economy/agriculture.md#playable-hunting-agri-mac03)
+uses the observed Tent33/Actor40/prey75–77/Meat4 identities and2×2 body. Actual
+source model preparation retains price/staff fields (Normal32/15). Ecology,
+spawn/habitat policy, pursuit, successful hunt60, Meat portion1, return/unload20,
+roaming40, birth720, five-tick movement and Meat quality85 are **AUTHORED**.
+They do not reinterpret raw50/100/400 or establish Original runtime parity.
+Original hunting research below retains its existing unresolved gates. No
+Original execution or new disassembly is required or performed for MAC03.
+
 ## Sources and evidence
 
 The fresh read-only investigation uses the installed PE32/i386 `Emperor.exe`,

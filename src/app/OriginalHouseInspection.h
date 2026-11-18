@@ -61,6 +61,7 @@ template<std::size_t Count> struct BasicAgricultureFoodObservation {
 };
 using AgricultureFoodObservation=BasicAgricultureFoodObservation<simulation::agriculture_crop_count>;
 using FishingFoodObservation=BasicAgricultureFoodObservation<simulation::fishing_food_count>;
+using HuntingFoodObservation=BasicAgricultureFoodObservation<simulation::hunting_food_count>;
 // Bounded, disposable presentation data. It owns no World, route, model,
 // saved authority, resource handle or mutable cache.
 struct HouseInspection {
@@ -76,6 +77,7 @@ struct HouseInspection {
     FoodObservation food;
     std::optional<AgricultureFoodObservation> agriculture_food;
     std::optional<FishingFoodObservation> fishing_food;
+    std::optional<HuntingFoodObservation> hunting_food;
     std::array<simulation::OriginalServiceAvailability,9> visits{};
     std::array<std::vector<std::string>,4> sections;
     std::array<OverlayObservation,3> overlays;
@@ -272,13 +274,19 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
                 if (remaining<0) throw std::logic_error("negative Agriculture inbound cargo");
                 observed.incoming[crop]=detail::add(observed.incoming[crop],static_cast<std::uint64_t>(remaining));
             }
-        if constexpr (std::tuple_size_v<std::remove_cvref_t<decltype(observed.stock)>> == simulation::fishing_food_count) {
+        if constexpr (std::tuple_size_v<std::remove_cvref_t<decltype(observed.stock)>> >= simulation::fishing_food_count) {
             if (world.fishing_state()) for (const auto& quay:world.fishing_state()->quays)
                 observed.city_produced[simulation::fishing_food_index]=detail::add(
                     observed.city_produced[simulation::fishing_food_index],quay.unloaded);
         }
+        if constexpr (std::tuple_size_v<std::remove_cvref_t<decltype(observed.stock)>> == simulation::hunting_food_count) {
+            if (world.hunting_state()) for (const auto& tent:world.hunting_state()->tents)
+                observed.city_produced[simulation::hunting_food_index]=detail::add(
+                    observed.city_produced[simulation::hunting_food_index],tent.unloaded);
+        }
         };
-        if (world.fishing_food_state()) inspect_food(*world.fishing_food_state(),result.fishing_food.emplace());
+        if (world.hunting_food_state()) inspect_food(*world.hunting_food_state(),result.hunting_food.emplace());
+        else if (world.fishing_food_state()) inspect_food(*world.fishing_food_state(),result.fishing_food.emplace());
         else if (world.original_agriculture_state()) inspect_food(*world.original_agriculture_state(),result.agriculture_food.emplace());
         else throw std::logic_error("House inspection lost its versioned Food state");
     } else {
@@ -371,8 +379,8 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
         detail::line(goods,"  City produced "+std::to_string(value.city.totals.produced));
         detail::line(goods,"  City source reserved "+std::to_string(value.city.source_reserved)+" | cargo "+std::to_string(value.city.cargo));
     }
-    if (result.agriculture_food || result.fishing_food) {
-        constexpr std::array names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)","Fish"};
+    if (result.agriculture_food || result.fishing_food || result.hunting_food) {
+        constexpr std::array names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)","Fish","Meat"};
         const auto append_food=[&](const auto& observed) {
         detail::line(goods,"Food quality "+std::to_string(observed.quality)+" (authored weighted nutrition)");
         for (std::size_t crop=0;crop<observed.stock.size();++crop) {
@@ -390,7 +398,8 @@ inline HouseInspection inspect_house(const simulation::World& world,simulation::
             detail::line(goods,"Previous quality "+std::to_string(witness.previous_quality));
         } else detail::line(goods,"Quality arrival witness: none");
         };
-        if (result.fishing_food) append_food(*result.fishing_food);
+        if (result.hunting_food) append_food(*result.hunting_food);
+        else if (result.fishing_food) append_food(*result.fishing_food);
         else append_food(*result.agriculture_food);
     } else {
     detail::line(goods,"Food quality "+std::to_string(observed_food.quality)+" (actual score)");

@@ -64,7 +64,8 @@ struct FunctionalModelCandidate {
         if (rule_version!=simulation::kOriginalAgricultureRuleVersion &&
             rule_version!=simulation::kOriginalIrrigationRuleVersion &&
             rule_version!=simulation::kPlayableAgricultureRuleVersion &&
-            rule_version!=simulation::kPlayableFishingRuleVersion) return {};
+            rule_version!=simulation::kPlayableFishingRuleVersion &&
+            rule_version!=simulation::kPlayableHuntingRuleVersion) return {};
         return {object==Object::OriginalRiceField ? ModelBuilding::RiceField:
                 object==Object::OriginalCabbageField ? ModelBuilding::CabbageField:ModelBuilding::SoybeanField,
                 EvidenceStatus::AuthoredFallback,EvidenceStatus::AuthoredFallback,
@@ -117,6 +118,9 @@ struct FunctionalModelCandidate {
     case Object::OriginalTheatre75:
         return {ModelBuilding::TheatrePavilion, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};
+    case Object::OriginalHuntersTent:
+        if (rule_version!=simulation::kPlayableHuntingRuleVersion) return {};
+        return {ModelBuilding::HuntersTent,EvidenceStatus::AuthoredFallback,EvidenceStatus::AuthoredFallback,EvidenceStatus::Unknown};
     case Object::OriginalFishingQuay:
         if (!simulation::playable_fishing_enabled(simulation::RulesProfile::CityV16,rule_version)) return {};
         return {ModelBuilding::FishingQuay,EvidenceStatus::AuthoredFallback,
@@ -124,7 +128,8 @@ struct FunctionalModelCandidate {
     case Object::OriginalIrrigationPump:
         if (rule_version!=simulation::kOriginalIrrigationRuleVersion &&
             rule_version!=simulation::kPlayableAgricultureRuleVersion &&
-            rule_version!=simulation::kPlayableFishingRuleVersion) return {};
+            rule_version!=simulation::kPlayableFishingRuleVersion &&
+            rule_version!=simulation::kPlayableHuntingRuleVersion) return {};
         return {ModelBuilding::IrrigationPump, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::ReverseEngineered};
     case Object::OriginalDaoistShrine215:

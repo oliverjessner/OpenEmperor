@@ -31,6 +31,13 @@ complete original-game compatibility.
   fallback because their animation registration is not qualified. Historical
   Original hunting/fishing research remains separate. See the
   [fishing contract](docs/original-economy/agriculture.md#playable-fishing-agri-mac02).
+- **Playable Hunting uses explicit authored ecology.** Rule29/schema45 adds
+  living prey75–77, real Hunter40 pursuit/hunt/return, Meat4 and one seven-kind
+  Food authority. Habitat admission, reproduction, movement, timing, portions
+  and Meat quality are authored; native Original hunting parity remains open.
+  Unqualified Tent/animal/Hunter sprites use labelled authored fallbacks. The
+  [hunting contract](docs/original-economy/agriculture.md#playable-hunting-agri-mac03)
+  separates these rules from historical Original research and saves.
 - **Original Agriculture timing is incomplete.** Frozen Rule24/schema40 provides typed
   Rice/Cabbage/Soy (source output BeanCurd), paid source-verified Farm/Field
   construction, Rice fertility100, Food accounting foundations and exact saves.
@@ -46,9 +53,10 @@ complete original-game compatibility.
   raw-to-Food units still prevent production activation. Rule26/schema42 adds
   separately selected irrigation infrastructure. AGRI-05 adds tested raw
   hunting/fishing state operations, complete Quay geometry and read-only
-  inspection. Playable hunting/fishing remains blocked by ecology, navigation,
+  inspection. Original hunting/fishing reconstruction remains blocked by ecology, navigation,
   callback eligibility, raw-to-Food conversion and complete quality/transport
-  contracts. See the [component matrix](docs/original-economy/agriculture.md#hunting-and-fishing-component-matrix-agri-05).
+  contracts. The separate authored Rule28/29 successors provide playable fishing
+  and hunting. See the [component matrix](docs/original-economy/agriculture.md#hunting-and-fishing-component-matrix-agri-05).
   AGRI-06 adds a derived view of the existing World51×16×12 clock and nine
   verified seasonal reference queries. The one-tick-per-phase mapping and
   elapsed-year epoch remain AUTHORED. Hemp has no direct calendar-growth veto;

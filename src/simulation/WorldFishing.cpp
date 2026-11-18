@@ -8,6 +8,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <type_traits>
 
 namespace openemperor::simulation {
 namespace {
@@ -165,7 +166,7 @@ Position World::fishing_boat_position(FishingBoatId id) const {
 
 CommandResult World::validate_fishing_command(Command command) const {
     CommandResult result{false,false,"Fishing Quay requires explicit Playable Fishing",command_sequence_,ticks_};
-    if(!playable_fishing_enabled() || !fishing_ || !fishing_food_ || command.type!=CommandType::PlaceOriginalFishingQuay) return result;
+    if(!playable_fishing_enabled() || !fishing_ || (!fishing_food_ && !hunting_food_) || command.type!=CommandType::PlaceOriginalFishingQuay) return result;
     if(command.orientation>3) {result.reason="Fishing Quay orientation must be0..3";return result;}
     original::FishingQuayGeometry shape;
     try {shape=original::fishing_quay_geometry(command.cell,command.orientation);} catch(const std::exception&) {
@@ -173,7 +174,7 @@ CommandResult World::validate_fishing_command(Command command) const {
     }
     if(!quay_context(*this,shape)) {result.reason="Fishing Quay requires its complete empty shoreline body, dock, eight water and two land cells";return result;}
     for(const auto cell:shape.occupied) {
-        if(fishing_boat_cell_claimed(cell) || grower_navigation_cell_claimed(cell)) {
+        if(fishing_boat_cell_claimed(cell) || hunting_actor_cell_claimed(cell) || grower_navigation_cell_claimed(cell)) {
             result.reason="Fishing Quay overlaps a physical actor or its begun edge";return result;
         }
         for(const auto& c:couriers_) if(c.role==CourierRole::OriginalPlantationGrower && c.phase!=CourierPhase::IdleAtWorkshop && !c.path.empty() &&
@@ -182,7 +183,8 @@ CommandResult World::validate_fishing_command(Command command) const {
         }
     }
     if(fishing_->quays.size()>=fishing_quay_limit || buildings_.size()>=Rules::original_production_building_limit ||
-        couriers_.size()+fishing_->quays.size()+grower_navigation_tracks_.size()>Rules::original_production_courier_limit-2 ||
+        couriers_.size()+fishing_->quays.size()+grower_navigation_tracks_.size()+
+            (hunting_ ? hunting_->tents.size()+hunting_habitat_capacity*hunting_->habitats.size():0)>Rules::original_production_courier_limit-2 ||
         !next_building_id_ || next_building_id_==UINT32_MAX || !next_courier_id_ || next_courier_id_==UINT32_MAX ||
         command_sequence_>=UINT64_MAX-1 || road_revision_==UINT64_MAX) {
         result.reason="Fishing paid building, movement channel or identity budget exhausted";return result;
@@ -205,7 +207,10 @@ CommandResult World::execute_fishing_command(Command command) {
         candidate.owners_[candidate.index(cell)]=static_cast<std::uint32_t>(id);
     }
     candidate.fishing_->quays.push_back(FishingQuay{id,command.orientation});
-    candidate.fishing_food_->stocks.push_back(FishingFoodStock{id});
+    candidate.with_agriculture_food([&](auto& food) {
+        using Stock=typename std::remove_cvref_t<decltype(food.stocks)>::value_type;
+        Stock stock;stock.building_id=id;food.stocks.push_back(stock);
+    });
     CourierState courier;courier.id=static_cast<CourierId>(candidate.next_courier_id_++);
     courier.role=CourierRole::OriginalFoodToMarket;courier.owner=id;courier.target=id;courier.good=Good::Food;courier.enabled=true;
     candidate.couriers_.push_back(std::move(courier));
@@ -321,12 +326,15 @@ void World::validate_fishing_snapshot(const WorldSnapshot& s) {
         if(s.fishing || s.fishing_food || bodies) invalid("Historical generation rejects Fishing authority");
         return;
     }
-    if(!s.fishing || !s.fishing_food || s.agriculture) invalid("Fishing requires its sole new generation and six-kind Food authority");
+    const bool hunting=simulation::playable_hunting_enabled(s.profile,s.rule_version);
+    if(!s.fishing || s.agriculture || (hunting ? (!s.hunting_food || s.fishing_food):(!s.fishing_food || s.hunting_food)))
+        invalid("Fishing requires the sole exact-generation Food authority");
     const auto& f=*s.fishing;
     if(f.quays.size()>fishing_quay_limit || f.boats.size()>f.quays.size() || f.sites.size()>fishing_site_limit ||
         bodies!=static_cast<std::ptrdiff_t>(f.quays.size()) || !f.next_boat_id || f.launched==UINT64_MAX ||
         f.next_boat_id!=f.launched+1 || f.retired>f.launched || f.launched-f.retired!=f.boats.size() ||
-        s.couriers.size()+f.quays.size()>Rules::original_production_courier_limit)
+        s.couriers.size()+f.quays.size()+
+            (s.hunting ? s.hunting->tents.size()+hunting_habitat_capacity*s.hunting->habitats.size():0)>Rules::original_production_courier_limit)
         invalid("Fishing body, channel, actor lifetime or identity bounds disagree");
     // At most one actual allocation per paid Quay at each shared phase31.
     const auto attempts=s.ticks/51+1;
