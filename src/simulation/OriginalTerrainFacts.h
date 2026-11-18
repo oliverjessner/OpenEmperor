@@ -25,8 +25,10 @@ public:
     OriginalTerrainFacts(std::span<const std::uint32_t> raw_terrain,
                          std::span<const std::uint8_t> fertility,std::string source_map_sha256,
                          std::span<const std::uint8_t> irrigation_boundary,
-                         std::span<const Cell> fishing_points={});
+                         std::span<const Cell> fishing_points={},
+                         std::span<const Cell> prey_points={});
     std::span<const Cell> fishing_points() const noexcept { return fishing_points_; }
+    std::span<const Cell> prey_points() const noexcept { return prey_points_; }
     bool fertility_complete() const noexcept { return fertility_complete_; }
     std::uint8_t fertility(Cell cell) const;
     bool irrigation_complete() const noexcept { return !irrigation_terrain_.empty(); }
@@ -45,6 +47,7 @@ private:
     std::vector<std::uint32_t> irrigation_terrain_;
     std::vector<std::uint8_t> irrigation_boundary_;
     std::vector<Cell> fishing_points_;
+    std::vector<Cell> prey_points_;
 };
 
 } // namespace openemperor::simulation

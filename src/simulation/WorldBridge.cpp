@@ -66,6 +66,8 @@ BridgeValidation World::validate_bridge(Cell a,Cell b) const {
         return block(BuildBlocker::InvalidEdge,b,"Bridge requires 1 to 8 water cells between its banks");
     if(a.x>b.x || a.y>b.y)std::swap(a,b);
     for(const auto bank:{a,b}) {
+        if(hunting_actor_cell_claimed(bank))return block(BuildBlocker::SandboxOccupied,bank,
+            "Bridge bank overlaps a physical Hunter or animal edge");
         if(permissions_->road_blocker(bank)==BuildBlocker::OutsideMap)return block(BuildBlocker::OutsideMap,bank);
         if(permissions_->protected_original(bank))return block(permissions_->fixed_gate_at(bank)?BuildBlocker::ProtectedGatePassage:BuildBlocker::OriginalStructure,bank);
         if(!permissions_->road_allowed(bank)||permissions_->protected_original(bank)||permissions_->fixed_gate_at(bank)||!road_cell(bank))

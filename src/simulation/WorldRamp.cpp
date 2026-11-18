@@ -43,6 +43,8 @@ RampValidation World::validate_ramp(Cell a,Cell b) const {
         if(blocker!=BuildBlocker::None)return block(blocker,end,
             blocker==BuildBlocker::UnsupportedTerrain?"Unsupported cliff geometry":
             blocker==BuildBlocker::UnsupportedBridgeWater?"Water crossing requires Bridge":build_blocker_reason(blocker));
+        if(hunting_actor_cell_claimed(end))return block(BuildBlocker::SandboxOccupied,end,
+            "Ramp endpoint overlaps a physical Hunter or animal edge");
         if(!road_cell(end))return block(BuildBlocker::BridgeBankRoadRequired,end,"Road required at both ends");
         if(ramp_endpoint(end))return block(BuildBlocker::SandboxOccupied,end,
             ramp_between(a,b)?"Ramp already exists":"Ramp endpoints cannot share conflicting links");

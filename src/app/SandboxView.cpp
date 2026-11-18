@@ -80,6 +80,63 @@ bool hit_vacant_foundation(scene::Point point,scene::Point ground,double zoom) {
     return zoom>0 && std::abs((point.x-ground.x)/zoom)/vacant_foundation_half_width+
         std::abs((point.y-ground.y)/zoom+20)/vacant_foundation_half_height<=1;
 }
+// Authored canvas shelter for the actual2x2 Tent. Coordinates use the same
+// logical front-cell ground as native buildings; no Original sprite is implied.
+struct HuntingTentFace { std::array<scene::Point,4> points; SDL_Color color; };
+constexpr std::array<HuntingTentFace,12> hunting_tent_faces{{
+    {{{{0,-56},{68,-22},{0,12},{-68,-22}}},{96,77,51,255}},
+    {{{{-27,-85},{10,-66},{-28,-2},{-65,-21}}},{216,186,126,255}},
+    {{{{-27,-85},{11,-37},{48,-18},{10,-66}}},{129,138,94,255}},
+    {{{{10,-66},{-28,-2},{-7,-10},{10,-52}}},{233,210,154,255}},
+    {{{{10,-66},{48,-18},{28,-18},{10,-52}}},{170,150,105,255}},
+    {{{{10,-52},{-7,-10},{28,-18},{28,-18}}},{53,45,34,255}},
+    {{{{-28,-2},{48,-18},{54,-12},{-22,4}}},{142,111,71,255}},
+    {{{{-65,-21},{-61,-19},{-61,-35},{-65,-37}}},{85,61,37,255}},
+    {{{{8,-66},{12,-65},{12,-17},{8,-16}}},{87,62,37,255}},
+    {{{{-35,4},{-31,6},{-31,-4},{-35,-6}}},{88,63,38,255}},
+    {{{{54,-10},{58,-8},{58,-20},{54,-22}}},{88,63,38,255}},
+    {{{{-55,-15},{-42,-9},{-42,-5},{-55,-11}}},{156,119,73,255}}
+}};
+constexpr auto hunting_tent_vertices=[] {
+    std::array<SDL_Vertex,hunting_tent_faces.size()*4> vertices{};
+    for(std::size_t i=0;i<hunting_tent_faces.size();++i)for(std::size_t p=0;p<4;++p) {
+        const auto& face=hunting_tent_faces[i];vertices[4*i+p]={{float(face.points[p].x),float(face.points[p].y)},
+            {face.color.r/255.F,face.color.g/255.F,face.color.b/255.F,1.F},{}};
+    }
+    return vertices;
+}();
+constexpr auto hunting_tent_indices=[] {
+    std::array<int,hunting_tent_faces.size()*6> indices{};
+    for(std::size_t i=0;i<hunting_tent_faces.size();++i) {
+        const int n=static_cast<int>(i*4);const std::array<int,6> triangle{n,n+1,n+2,n,n+2,n+3};
+        std::copy(triangle.begin(),triangle.end(),indices.begin()+static_cast<std::ptrdiff_t>(i*6));
+    }
+    return indices;
+}();
+bool draw_hunting_tent_fallback(SDL_Renderer* renderer,scene::Point ground,double zoom,bool preview) {
+    if (!renderer || !std::isfinite(ground.x) || !std::isfinite(ground.y) || !std::isfinite(zoom) || zoom<=0) return false;
+    auto vertices=hunting_tent_vertices;
+    for(auto& vertex:vertices) {
+        vertex.position={float(ground.x+vertex.position.x*zoom),float(ground.y+vertex.position.y*zoom)};
+        vertex.color.a=preview ? .45F:1.F;
+    }
+    SDL_BlendMode previous;
+    if(!SDL_GetRenderDrawBlendMode(renderer,&previous) || !SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND))return false;
+    const bool drawn=SDL_RenderGeometry(renderer,nullptr,vertices.data(),static_cast<int>(vertices.size()),hunting_tent_indices.data(),static_cast<int>(hunting_tent_indices.size()));
+    const bool restored=SDL_SetRenderDrawBlendMode(renderer,previous);return drawn && restored;
+}
+bool hit_hunting_tent_fallback(scene::Point point,scene::Point ground,double zoom) {
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(zoom) || zoom<=0) return false;
+    const auto cross=[](scene::Point a,scene::Point b,scene::Point p){return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);};
+    for(const auto& face:hunting_tent_faces)for(const auto triangle:{std::array<unsigned,3>{0,1,2},std::array<unsigned,3>{0,2,3}}) {
+        std::array<scene::Point,3> vertices{};
+        for(std::size_t i=0;i<3;++i)vertices[i]={float(ground.x+face.points[triangle[i]].x*zoom),float(ground.y+face.points[triangle[i]].y*zoom)};
+        const auto a=vertices[0],b=vertices[1],c=vertices[2];if(cross(a,b,c)==0)continue;
+        const auto ab=cross(a,b,point),bc=cross(b,c,point),ca=cross(c,a,point);
+        if((ab>=0 && bc>=0 && ca>=0)||(ab<=0 && bc<=0 && ca<=0))return true;
+    }
+    return false;
+}
 const char* original_house_section_name(original_house_ui::Section section) {
     switch (section) {
     case original_house_ui::Section::State:return "State";
@@ -115,9 +172,10 @@ const char* agriculture_production_status(bool plantations,bool playable=false) 
 }
 constexpr std::array agriculture_food_names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)"};
 const char* agriculture_food_name(std::size_t crop) {
-    return crop<agriculture_food_names.size() ? agriculture_food_names[crop]:"Fish";
+    return crop<agriculture_food_names.size() ? agriculture_food_names[crop]:crop==simulation::fishing_food_index ? "Fish":"Meat";
 }
 template<class Function> decltype(auto) visit_agriculture_food(const simulation::World& world,Function&& function) {
+    if (world.hunting_food_state()) return function(*world.hunting_food_state());
     if (world.fishing_food_state()) return function(*world.fishing_food_state());
     if (world.original_agriculture_state()) return function(*world.original_agriculture_state());
     throw std::logic_error("Agriculture presentation lost its versioned Food state");
@@ -164,7 +222,7 @@ bool append_agriculture_stock_lines(const simulation::World& world,simulation::B
                 return courier.owner==id && courier.route_pending;
             });
             if (blocked) lines.push_back("Delivery road blocked; cargo retained until paid repair");
-            // Keep all five live Food columns ahead of cumulative history.
+            // Keep the complete versioned Food stock ahead of cumulative history.
             for (std::size_t crop=0;crop<stock.amounts.size();++crop) {
                 lines.push_back(std::string(agriculture_food_name(crop))+" Arrived "+std::to_string(stock.received[crop]));
                 lines.push_back("  Dispatched "+std::to_string(stock.departed[crop])+" | consumed "+std::to_string(stock.consumed[crop]));
@@ -407,6 +465,7 @@ const char* tool_name(simulation::RulesProfile rules,int tool) {
         case 47: return "Pump203: shoreline2x2; eight intake-water cells; rotate with R";
         case 48: return "Remove installed Ditch; no refund; disconnected sections lose water";
         case 49: return "Fishing Quay31: oriented2x2 shore body plus dock; R rotates";
+        case 50: return "Hunters Tent33: paid2x2 source; physical hunter and finite prey";
         case 21: return "Ancestor Shrine: 2x2, staffed visitors grant Ancestor access";
         case 22: return "Water Well: 2x2, staffed actual visits supply water";
         case 23: return "Daoist: 2x2, staffed actual visits supply religion";
@@ -465,6 +524,7 @@ const char* object_name(simulation::Object object) {
     case simulation::Object::OriginalIrrigationPump: return "Irrigation Pump203";
     case simulation::Object::OriginalTheatre75: return "Theatre Pavilion75 (4x4)";
     case simulation::Object::OriginalFishingQuay: return "Fishing Quay";
+    case simulation::Object::OriginalHuntersTent: return "Hunters Tent";
     case simulation::Object::OriginalLoggingShed38:
     case simulation::Object::OriginalBronzeSmelter39:
     case simulation::Object::OriginalBronzewareMaker42:
@@ -512,6 +572,7 @@ simulation::CommandType command_type(simulation::RulesProfile rules,int tool,boo
         case 47: return simulation::CommandType::PlaceIrrigationPump;
         case 48: return simulation::CommandType::RemoveIrrigationDitch;
         case 49: return simulation::CommandType::PlaceOriginalFishingQuay;
+        case 50: return simulation::CommandType::PlaceOriginalHuntersTent;
         case 21: return simulation::CommandType::PlaceOriginalAncestorShrine;
         case 22: return simulation::CommandType::PlaceOriginalWaterWell;
         case 23: return simulation::CommandType::PlaceOriginalDaoistShrine;
@@ -732,6 +793,17 @@ std::unique_ptr<SandboxView> SandboxView::create_playable_agriculture(
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_playable_hunting(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid Playable Hunting difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule29 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kPlayableHuntingRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;
+    return result;
+}
+
 std::unique_ptr<SandboxView> SandboxView::create_playable_fishing(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
     if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
@@ -901,7 +973,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : playable_fishing() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : playable_hunting() ?
+        persistence::restore_playable_hunting(document,data_root_,buildable_mask_) : playable_fishing() ?
         persistence::restore_playable_fishing(document,data_root_,buildable_mask_) : playable_agriculture() ?
         persistence::restore_playable_agriculture(document,data_root_,buildable_mask_) : original_irrigation() ?
         persistence::restore_original_irrigation(document,data_root_,buildable_mask_) : original_plantations() ?
@@ -1014,7 +1087,8 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
                 maps::map_rules_policy_version(rules_,active_version),expected_map_input_sha256_);
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain;
     if (original_agriculture()) {
-        terrain=playable_fishing() ? persistence::prepare_playable_fishing_terrain_facts(data_root_,map_relative_):
+        terrain=playable_hunting() ? persistence::prepare_playable_hunting_terrain_facts(data_root_,map_relative_):
+            playable_fishing() ? persistence::prepare_playable_fishing_terrain_facts(data_root_,map_relative_):
             original_irrigation() ? persistence::prepare_original_irrigation_terrain_facts(data_root_,map_relative_):
             persistence::prepare_original_agriculture_terrain_facts(data_root_,map_relative_);
         if (terrain->source_map_sha256()!=expected_map_input_sha256_)
@@ -1029,7 +1103,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : playable_fishing() ?
+                std::move(permissions)) : playable_hunting() ?
+            persistence::restore_playable_hunting(*initial_save_,data_root_,
+                buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : playable_fishing() ?
             persistence::restore_playable_fishing(*initial_save_,data_root_,
                 buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : playable_agriculture() ?
             persistence::restore_playable_agriculture(*initial_save_,data_root_,
@@ -1083,6 +1159,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (playable_hunting()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_playable_hunting(
+            std::move(permissions),persistence::prepare_playable_hunting_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_="Playable Hunting: seven Foods; AUTHORED finite animal ecology; physical Hunter to Tent to Market to House supply.";
     } else if (playable_fishing()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_playable_fishing(
             std::move(permissions),persistence::prepare_playable_fishing_rules_model(data_root_,
@@ -1220,7 +1301,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(playable_fishing())title+=" | save schema 44 | Playable Fishing (AUTHORED)";
+    if(playable_hunting())title+=" | save schema 45 | Playable Hunting (AUTHORED)";
+    else if(playable_fishing())title+=" | save schema 44 | Playable Fishing (AUTHORED)";
     else if(playable_agriculture())title+=" | save schema 43 | Playable Agriculture (AUTHORED)";
     else if(original_irrigation())title+=" | save schema 42 | Agriculture Irrigation";
     else if(original_plantations())title+=" | save schema 41 | Agriculture plantations";
@@ -2313,9 +2395,37 @@ void SandboxView::prepare_fishing_visuals(bool force) {
     fishing_visual_tick_=world_->ticks();fishing_visual_sequence_=world_->command_sequence();
 }
 
+void SandboxView::prepare_hunting_visuals(bool force) {
+    if (!world_ || !playable_hunting() || !world_->hunting_state()) {
+        hunting_visuals_.clear();hunting_visual_tick_=hunting_visual_sequence_=UINT64_MAX;return;
+    }
+    if (!force && hunting_visual_tick_==world_->ticks() && hunting_visual_sequence_==world_->command_sequence()) return;
+    hunting_visuals_.clear();const auto& state=*world_->hunting_state();
+    for (const auto& tent:state.tents) {
+        HuntingVisual visual;visual.tent_id=tent.tent_id;visual.road_connected=!world_->building_entrances(tent.tent_id).empty();
+        const auto hunter=std::find_if(state.hunters.begin(),state.hunters.end(),[&](const auto& row){return tent.hunter && row.id==*tent.hunter;});
+        if (hunter!=state.hunters.end()) {
+            if (hunter->habitat_index<state.habitats.size()) visual.habitat=state.habitats[hunter->habitat_index].centre;
+            const auto animal=std::find_if(state.animals.begin(),state.animals.end(),[&](const auto& row){return hunter->target && row.id==*hunter->target;});
+            if (animal!=state.animals.end()) visual.target=animal->current;
+            if (hunter->path_vertex<hunter->path.size()) {
+                visual.route_total_edges=hunter->path.size()-hunter->path_vertex-1;
+                const auto shown=std::min<std::size_t>(256,visual.route_total_edges);visual.route.reserve(shown);
+                for (std::size_t i=0;i<shown;++i) {
+                    const auto a=hunter->path[hunter->path_vertex+i],b=hunter->path[hunter->path_vertex+i+1];
+                    visual.route.emplace_back(world_for({double(a.x),double(a.y)}),world_for({double(b.x),double(b.y)}));
+                }
+            }
+        }
+        hunting_visuals_.push_back(std::move(visual));
+    }
+    hunting_visual_tick_=world_->ticks();hunting_visual_sequence_=world_->command_sequence();
+}
+
 void SandboxView::prepare_original_field_order(bool force) {
     prepare_irrigation_visuals(force);
     prepare_fishing_visuals(force);
+    prepare_hunting_visuals(force);
     prepare_agriculture_inspection(force);
     if (!force && world_ && original_field_order_revision_==world_->road_revision()) return;
     original_field_order_count_=0;
@@ -3034,7 +3144,7 @@ void SandboxView::update_layout(bool preserve_center) {
         simulation::market_profile(rules_),simulation::service_profile(rules_),
         world_ ? world_->bridges_supported():simulation::bridges_rule_enabled(rules_,requested_rule_version_),
         world_ ? world_->ramps_supported():simulation::ramps_rule_enabled(rules_,requested_rule_version_),
-        original_production_fixture(),industry_page_,original_fire_protection(),original_music_venues(),original_agriculture(),original_irrigation(),playable_fishing());
+        original_production_fixture(),industry_page_,original_fire_protection(),original_music_venues(),original_agriculture(),original_irrigation(),playable_fishing(),playable_hunting());
     if (preserve_center && next.map.x==layout_.map.x && next.map.y==layout_.map.y &&
         next.map.w==layout_.map.w && next.map.h==layout_.map.h) {layout_=next;return;}
     // Panel toggles and resize change the clipped viewport before another
@@ -3462,6 +3572,7 @@ void SandboxView::set_tool(int tool) {
     case 47: action=sandbox_ui::Action::IrrigationPump; break;
     case 48: action=sandbox_ui::Action::RemoveIrrigationDitch; break;
     case 49: action=sandbox_ui::Action::OriginalFishingQuay; break;
+    case 50: action=sandbox_ui::Action::OriginalHuntersTent; break;
     case 21: action=sandbox_ui::Action::OriginalAncestorShrine; break;
     case 22: action=sandbox_ui::Action::OriginalWaterWell; break;
     case 23: action=sandbox_ui::Action::OriginalDaoistShrine; break;
@@ -3479,6 +3590,11 @@ void SandboxView::set_tool(int tool) {
 }
 bool SandboxView::action_enabled(sandbox_ui::Action action) const {
     using IA=sandbox_ui::Action;
+    if (action==IA::OriginalHuntersTent) {
+        return world_ && playable_hunting() && !walker_diagnostic_open_ && world_->hunting_state() &&
+            world_->hunting_state()->tents.size()<simulation::hunting_tent_limit &&
+            world_->treasury()>=world_->construction_cost(simulation::CommandType::PlaceOriginalHuntersTent);
+    }
     if (action==IA::OriginalFishingQuay || action==IA::RotateFishingQuay) {
         if (!world_ || !playable_fishing() || walker_diagnostic_open_) return false;
         if (action==IA::RotateFishingQuay) return tool_==49;
@@ -3934,6 +4050,9 @@ sandbox_ui::Rect SandboxView::menu_button_rect() const {
 void SandboxView::perform_action(sandbox_ui::Action action) {
     using A=sandbox_ui::Action;
     if (action==A::Save || action==A::Load) cancel_gesture();
+    if (action==A::OriginalHuntersTent && action_enabled(action)) {
+        cancel_gesture();tool_=50;last_message_="Hunters Tent: paid2x2 source, staffed physical hunting and real Meat returns";refresh_hover();return;
+    }
     if (playable_fishing() && action_enabled(action)) {
         if (action==A::OriginalFishingQuay) {
             cancel_gesture();tool_=49;last_message_="Fishing Quay: paid oriented2x2 body plus dock; R rotates";refresh_hover();return;
@@ -4312,6 +4431,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         return;
     }
     if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+        if (playable_hunting() && !help_open_ && !walker_diagnostic_open_ && event.key.key==SDLK_H && (event.key.mod&SDL_KMOD_SHIFT)) {
+            perform_action(sandbox_ui::Action::OriginalHuntersTent);return;
+        }
         if (event.key.key==SDLK_H || event.key.key==SDLK_QUESTION) {
             cancel_gesture();
             help_open_=!help_open_;
@@ -4684,7 +4806,7 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (selecting && playable_fishing() && pointer_ && visual_frame_valid_) {
             const auto point=visual_hit_camera_.screen_to_world(*pointer_);
             boat_pixel=std::any_of(visual_hits_.begin(),visual_hits_.end(),[&](const auto& hit) {
-                return hit.boat && point.x>=hit.origin.x && point.y>=hit.origin.y &&
+                return (hit.boat || hit.hunter || hit.animal || hit.mesh==simulation::Object::OriginalHuntersTent) && point.x>=hit.origin.x && point.y>=hit.origin.y &&
                     point.x<hit.origin.x+hit.width && point.y<hit.origin.y+hit.height;
             });
         }
@@ -4907,9 +5029,17 @@ int SandboxView::walker_marker_shift(simulation::Position position,simulation::C
     return value==1?-5:value==2?5:value==3?0:value==4?-10:value==5?10:14;
 }
 void SandboxView::clear_visual_selection() {
-    selected_landscape_=false; selected_walker_.reset();
+    selected_landscape_=false; selected_walker_.reset();selected_hunting_animal_.reset();
 }
 void SandboxView::clear_hidden_walker_selection() {
+    if (selected_hunting_animal_) {
+        const auto* state=world_->hunting_state() ? &*world_->hunting_state():nullptr;
+        const auto animal=state ? std::find_if(state->animals.begin(),state->animals.end(),
+            [&](const auto& row){return row.id==*selected_hunting_animal_;}):std::vector<simulation::HuntingAnimal>::const_iterator{};
+        if (!state || animal==state->animals.end()) {
+            clear_visual_selection();selected_.reset();panel_scroll_=0;inspector_hint_scroll_=0;
+        } else selected_=animal->current;
+    }
     if (simulation::production_profile(rules_) && selected_walker_ &&
         !walker_live_visible(world_->courier(*selected_walker_))) {
         clear_visual_selection(); selected_.reset(); panel_scroll_=0;inspector_hint_scroll_=0;original_house_scroll_=0;
@@ -4945,6 +5075,10 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         hit.mesh_ground=world_for({double(instance.cell.x),double(instance.cell.y)});
         hit.origin={hit.mesh_ground.x-40,hit.mesh_ground.y-40};hit.width=80;hit.height=80;
         append(hit);return;
+    }
+    if (instance.hunter || instance.animal) {
+        hit.hunter=instance.hunter;hit.animal=instance.animal;const auto ground=world_for(instance.position);
+        hit.origin={ground.x-8,ground.y-12};hit.width=17;hit.height=20;append(hit);return;
     }
     if (instance.boat) {
         hit.boat=instance.boat;const auto ground=world_for(instance.position);
@@ -4998,6 +5132,10 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         hit.width=image.width;hit.height=image.height;append(hit);return;
     }
     const auto house=original_house_visual_selection(instance.cell,instance.object);
+    if (instance.object==simulation::Object::OriginalHuntersTent) {
+        hit.mesh=simulation::Object::OriginalHuntersTent;hit.mesh_ground=ground;
+        hit.origin={ground.x-72,ground.y-94};hit.width=144;hit.height=112;append(hit);return;
+    }
     if(house.applicable && house.house_type==2 && house.actual_side==2) {
         hit.mesh=simulation::Object::Household;hit.mesh_ground=ground;
         hit.origin={ground.x-vacant_foundation_half_width,ground.y-20-vacant_foundation_half_height};
@@ -5051,6 +5189,10 @@ bool SandboxView::select_visual(scene::Point screen) {
     const auto world=visual_hit_camera_.screen_to_world(screen);
     const VisualHit* dynamic=nullptr;
     for (auto it=visual_hits_.rbegin();it!=visual_hits_.rend();++it) {
+        if (it->hunter && (!world_->hunting_state() || std::none_of(world_->hunting_state()->hunters.begin(),world_->hunting_state()->hunters.end(),
+            [&](const auto& hunter){return hunter.id==*it->hunter;}))) continue;
+        if (it->animal && (!world_->hunting_state() || std::none_of(world_->hunting_state()->animals.begin(),world_->hunting_state()->animals.end(),
+            [&](const auto& animal){return animal.id==*it->animal;}))) continue;
         if (it->boat && (!world_->fishing_state() || std::none_of(world_->fishing_state()->boats.begin(),world_->fishing_state()->boats.end(),
                 [&](const auto& boat){return boat.id==*it->boat;}))) continue;
         // A submitted frame can precede the tick that returns an Inspector home.
@@ -5086,6 +5228,8 @@ bool SandboxView::select_visual(scene::Point screen) {
                 hit_original_elite_house_fallback(screen,ground,visual_hit_camera_.zoom):
                 it->mesh==simulation::Object::Household ?
                 hit_vacant_foundation(screen,ground,visual_hit_camera_.zoom):
+                it->mesh==simulation::Object::OriginalHuntersTent ?
+                hit_hunting_tent_fallback(screen,ground,visual_hit_camera_.zoom):
                 it->mesh==simulation::Object::Well ?
                 hit_well_fallback(screen,ground,visual_hit_camera_.zoom,it->footprint_side):
                 hit_health_post_fallback(screen,ground,visual_hit_camera_.zoom,it->footprint_side);
@@ -5108,7 +5252,7 @@ bool SandboxView::select_visual(scene::Point screen) {
     if (!dynamic && !stored) return false;
     clear_visual_selection(); panel_scroll_=0;inspector_hint_scroll_=0;original_house_scroll_=0;
     if (dynamic && (!stored || !visual_hit_unified_ || stored->key<dynamic->key)) {
-        selected_=dynamic->cell; selected_walker_=dynamic->walker;
+        selected_=dynamic->cell; selected_walker_=dynamic->walker;selected_hunting_animal_=dynamic->animal;
     } else {
         selected_=simulation::Cell{static_cast<int>(stored->cell.x),static_cast<int>(stored->cell.y)};
         selected_landscape_=true;
@@ -5422,6 +5566,9 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             if (object==simulation::Object::OriginalEliteHouse)
                 return draw_original_elite_house_fallback(renderer_,center,camera_.zoom) &&
                     draw_fire_overlay(cell,center,placement_preview) && draw_sickness(cell,center,placement_preview);
+            if (object==simulation::Object::OriginalHuntersTent)
+                return draw_hunting_tent_fallback(renderer_,center,camera_.zoom,placement_preview) &&
+                    draw_fire_overlay(cell,center,placement_preview);
             if (object==simulation::Object::Well || object==simulation::Object::OriginalInfluenceSource)
                 return draw_well_fallback(renderer_,center,camera_.zoom,placement_preview,side);
             if (object==simulation::Object::HealthPost)
@@ -5621,6 +5768,22 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             simulation::Object::Empty,simulation::CourierId::Clay,position};
         instance.boat=boat.id;instances.push_back(instance);
     }
+    if (playable_hunting() && world_->hunting_state()) {
+        const auto& state=*world_->hunting_state();
+        for (const auto& hunter:state.hunters) {
+            const auto position=world_->hunting_hunter_position(hunter.id);const auto ground=world_for(position);
+            DrawInstance instance{{ground.y,ground.x,scene::WorldVisualLayer::SandboxWalker,
+                (UINT64_C(2)<<32)|static_cast<std::uint32_t>(hunter.tent_id)},world_->building(hunter.tent_id).cell,
+                simulation::Object::Empty,simulation::CourierId::Clay,position};
+            instance.hunter=hunter.id;instance.hunting_cargo=hunter.cargo;instances.push_back(instance);
+        }
+        for (std::size_t i=0;i<state.animals.size();++i) {
+            const auto& animal=state.animals[i];const auto position=world_->hunting_animal_position(animal.id);const auto ground=world_for(position);
+            DrawInstance instance{{ground.y,ground.x,scene::WorldVisualLayer::SandboxWalker,
+                (UINT64_C(3)<<32)|i},animal.current,simulation::Object::Empty,simulation::CourierId::Clay,position};
+            instance.animal=animal.id;instance.hunting_species=animal.species;instances.push_back(instance);
+        }
+    }
     if (!road_start_ && !irrigation_start_ && !bridge_start_ && !ramp_start_ && hovered_ && tool_!=14 && tool_!=15 && tool_!=46 && tool_!=48 && tool_!=(simulation::production_profile(rules_) ? 5:4)) {
         const auto result=preview(*hovered_);
         const auto object=tool_==2 ? simulation::Object::ClaySource:
@@ -5639,6 +5802,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==45 ? simulation::Object::OriginalSoybeanField:
             tool_==47 ? simulation::Object::OriginalIrrigationPump:
             tool_==49 ? simulation::Object::OriginalFishingQuay:
+            tool_==50 ? simulation::Object::OriginalHuntersTent:
             tool_==21 ? simulation::Object::OriginalAncestorShrine214:
             tool_==22 ? simulation::Object::OriginalWaterWell72:
             tool_==23 ? simulation::Object::OriginalDaoistShrine215:
@@ -5733,6 +5897,21 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         if (instance.key.layer!=scene::WorldVisualLayer::SandboxWalker)
             return draw_object(instance.cell,instance.object,instance.placement_preview);
+        if (instance.hunter) {
+            ++last_courier_draws_;
+            return draw_agent(instance.position,{202,151,72,255},{161,76,63,255},instance.hunting_cargo,0);
+        }
+        if (instance.animal) {
+            const auto p=camera_.world_to_screen(world_for(instance.position));const auto z=camera_.zoom;
+            const bool bird=instance.hunting_species==simulation::HuntingSpecies::Pheasant76;
+            const bool antelope=instance.hunting_species==simulation::HuntingSpecies::Antelope77;
+            const SDL_FColor color=bird ? SDL_FColor{.70F,.30F,.22F,1}:antelope ? SDL_FColor{.80F,.66F,.38F,1}:SDL_FColor{.42F,.32F,.26F,1};
+            const float w=float((bird ? 5:8)*z),h=float((antelope ? 10:6)*z);
+            const SDL_Vertex points[]{{{float(p.x)-w,float(p.y)},color,{}},{{float(p.x),float(p.y)-h},color,{}},
+                {{float(p.x)+w,float(p.y)},color,{}},{{float(p.x),float(p.y)+float(5*z)},color,{}}};
+            constexpr int triangles[]{0,1,2,0,2,3};
+            return SDL_RenderGeometry(renderer_,nullptr,points,4,triangles,6);
+        }
         if (instance.boat) {
             const auto& boats=world_->fishing_state()->boats;
             const auto boat=std::find_if(boats.begin(),boats.end(),[&](const auto& value){return value.id==*instance.boat;});
@@ -5906,6 +6085,20 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             }
         }
     }
+    if (playable_hunting()) {
+        const auto selected=selected_building();
+        for (const auto& visual:hunting_visuals_) if (selected==visual.tent_id) {
+            if (!SDL_SetRenderDrawColor(renderer_,224,165,95,210)) return false;
+            for (const auto& edge:visual.route) {
+                const auto a=camera_.world_to_screen(edge.first),b=camera_.world_to_screen(edge.second);
+                if (!SDL_RenderLine(renderer_,float(a.x),float(a.y),float(b.x),float(b.y))) return false;
+            }
+            for (const auto cell:{visual.habitat,visual.target}) if (cell) {
+                const auto p=world_for({double(cell->x),double(cell->y)});
+                if (!draw_diamond({p.x,p.y-20},220,170,95,false)) return false;
+            }
+        }
+    }
     if (desirability_overlay_ && simulation::desirability_profile(rules_)) {
         SDL_BlendMode previous_blend=SDL_BLENDMODE_NONE;
         if (!SDL_GetRenderDrawBlendMode(renderer_,&previous_blend) ||
@@ -6071,6 +6264,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             tool_==45 ? simulation::Object::OriginalSoybeanField:
             tool_==47 ? simulation::Object::OriginalIrrigationPump:
             tool_==49 ? simulation::Object::OriginalFishingQuay:
+            tool_==50 ? simulation::Object::OriginalHuntersTent:
             tool_==21 ? simulation::Object::OriginalAncestorShrine214:
             tool_==22 ? simulation::Object::OriginalWaterWell72:
             tool_==23 ? simulation::Object::OriginalDaoistShrine215:
@@ -6117,7 +6311,7 @@ std::vector<simulation::BuildingId> SandboxView::placed_buildings() const {
     return result;
 }
 std::optional<simulation::BuildingId> SandboxView::selected_building() const {
-    if (selected_landscape_ || selected_walker_) return {};
+    if (selected_landscape_ || selected_walker_ || selected_hunting_animal_) return {};
     return selected_ ? world_->building_owner_at(*selected_) : std::nullopt;
 }
 const simulation::RoadConnectivityReport* SandboxView::road_connectivity_report() const {
@@ -6376,11 +6570,12 @@ bool SandboxView::irrigation_inspector_selected() const {
             static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(selected_->x)]!=0;
 }
 bool SandboxView::status_first_selected() const {
+    if (selected_hunting_animal_) return true;
     if (irrigation_inspector_selected()) return true;
     const auto id=selected_building();
     if (!id) return false;
     const auto kind=world_->building(*id).kind;
-    return kind==simulation::Object::OriginalFishingQuay || kind==simulation::Object::Well || kind==simulation::Object::OriginalInfluenceSource ||
+    return kind==simulation::Object::OriginalHuntersTent || kind==simulation::Object::OriginalFishingQuay || kind==simulation::Object::Well || kind==simulation::Object::OriginalInfluenceSource ||
         kind==simulation::Object::FireWatch || industry_inspector_selected() || agriculture_inspector_selected() ||
         (original_production_fixture() &&
             (kind==simulation::Object::Warehouse || kind==simulation::Object::Market)) ||
@@ -6489,6 +6684,78 @@ std::vector<std::string> SandboxView::demolition_hint_lines() const {
 }
 std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
+    if (playable_hunting() && selected_hunting_animal_ && world_->hunting_state()) {
+        const auto& state=*world_->hunting_state();
+        const auto animal=std::find_if(state.animals.begin(),state.animals.end(),[&](const auto& row){return row.id==*selected_hunting_animal_;});
+        if (animal==state.animals.end()) return {"Animal no longer alive"};
+        const auto& habitat=state.habitats.at(animal->habitat_index);
+        const auto live=std::count_if(state.animals.begin(),state.animals.end(),[&](const auto& row){return row.habitat_index==animal->habitat_index;});
+        lines={std::string(simulation::hunting_species_name(animal->species))+" #"+std::to_string(animal->id.value),
+            "Actual live animal; no Food stock", "Cell "+std::to_string(animal->current.x)+","+std::to_string(animal->current.y),
+            "Movement edge "+std::to_string(animal->edge_progress)+"/5",
+            "Habitat "+std::to_string(habitat.centre.x)+","+std::to_string(habitat.centre.y),
+            "Habitat population "+std::to_string(live)+"/3",
+            animal->reserved_by ? "Reserved by Hunter #"+std::to_string(animal->reserved_by->value):"Available; no hunter reservation",
+            "Habitat births "+std::to_string(habitat.births)+" | hunted "+std::to_string(habitat.killed),
+            "Regeneration "+std::to_string(habitat.regeneration_progress)+"/720 (AUTHORED)",
+            habitat.source_marker ? "Source183 geography; AUTHORED ecology":"AUTHORED habitat geography and ecology",
+            "Animal art: AUTHORED fallback; Original clip unqualified"};
+        if (animal->next) lines.insert(lines.begin()+4,"Next cell "+std::to_string(animal->next->x)+","+std::to_string(animal->next->y));
+        return wrap_panel_lines(lines);
+    }
+    if (playable_hunting() && selected_ && !selected_walker_) {
+        const auto owner=world_->building_owner_at(*selected_);
+        if (owner && world_->building(*owner).kind==simulation::Object::OriginalHuntersTent) {
+            const auto& state=*world_->hunting_state();const auto& body=world_->building(*owner);
+            const auto tent=std::find_if(state.tents.begin(),state.tents.end(),[&](const auto& row){return row.tent_id==*owner;});
+            const auto visual=std::find_if(hunting_visuals_.begin(),hunting_visuals_.end(),[&](const auto& row){return row.tent_id==*owner;});
+            if (tent==state.tents.end() || visual==hunting_visuals_.end()) throw std::logic_error("Paid Hunting Tent lost prepared identity");
+            const auto hunter=std::find_if(state.hunters.begin(),state.hunters.end(),[&](const auto& row){return tent->hunter && row.id==*tent->hunter;});
+            int reserved=0;std::uint64_t dispatched=0;
+            for (const auto& active:state.hunters) if (active.tent_id==*owner) reserved+=active.reserved;
+            const auto& food=*world_->hunting_food_state();
+            for (const auto& trip:food.trips) if (trip.source==*owner)
+                for (std::size_t resource=0;resource<trip.loaded.size();++resource) reserved+=trip.loaded[resource]-trip.delivered[resource]-trip.returned[resource];
+            lines={"Hunters Tent33 #"+std::to_string(static_cast<unsigned>(*owner))};
+            for (const auto& stock:food.stocks) if (stock.building_id==*owner) {
+                lines.push_back("Meat stock "+std::to_string(stock.amounts[simulation::hunting_food_index])+"/8 | reserved "+std::to_string(reserved));
+                dispatched=stock.departed[simulation::hunting_food_index];
+                if (stock.amounts[simulation::hunting_food_index]+reserved>=8) lines.push_back("Tent capacity committed; no additional hunt");
+            }
+            lines.push_back("Workers "+std::to_string(inspection_workers_assigned(*owner))+"/"+std::to_string(world_->workforce_required(*owner)));
+            lines.push_back(world_->building_on_fire(*owner) ? "Status: Tent on fire":!body.operating_enabled ?
+                "Status: paused; begun movement drains safely":!inspection_building_staffed(*owner) ? "Status: understaffed":
+                !visual->road_connected ? "Status: road entrance missing":"Status: staffed and operating");
+            lines.push_back("Active hunters "+std::to_string(hunter==state.hunters.end() ? 0:1)+"/1");
+            lines.push_back("Animals alive "+std::to_string(state.animals.size())+" | habitats "+std::to_string(state.habitats.size()));
+            if (hunter!=state.hunters.end()) {
+                lines.push_back("Hunter #"+std::to_string(hunter->id.value)+" "+simulation::hunting_hunter_phase_name(hunter->phase));
+                lines.push_back("Hunter cargo "+std::to_string(hunter->cargo)+"/1 Meat | reserved "+std::to_string(hunter->reserved));
+                lines.push_back(std::string("Movement: ")+simulation::hunting_movement_result_name(hunter->movement));
+                lines.push_back("Route vertex "+std::to_string(hunter->path_vertex)+"/"+std::to_string(hunter->path.size())+
+                    " | edge "+std::to_string(hunter->edge_progress)+"/5");
+                lines.push_back("Hunter cell "+std::to_string(hunter->current.x)+","+std::to_string(hunter->current.y));
+                lines.push_back("Work "+std::to_string(hunter->work_progress)+
+                    (hunter->phase==simulation::HuntingHunterPhase::Unloading ? "/20 unload ticks":"/60 hunting ticks"));
+                const auto animal=std::find_if(state.animals.begin(),state.animals.end(),[&](const auto& row){return hunter->target && row.id==*hunter->target;});
+                lines.push_back(animal!=state.animals.end() ? "Target #"+std::to_string(animal->id.value)+" "+simulation::hunting_species_name(animal->species):"Target: none; actual return or unloading");
+                if (hunter->habitat_index<state.habitats.size()) {
+                    const auto& habitat=state.habitats[hunter->habitat_index];
+                    const auto live=std::count_if(state.animals.begin(),state.animals.end(),[&](const auto& row){return row.habitat_index==hunter->habitat_index;});
+                    lines.push_back("Hunting ground "+std::to_string(habitat.centre.x)+","+std::to_string(habitat.centre.y));
+                    lines.push_back("Ground population "+std::to_string(live)+"/3 | regen "+std::to_string(habitat.regeneration_progress)+"/720");
+                }
+            } else {
+                lines.push_back("Hunter: waiting for eligible reachable prey and capacity");
+                if (state.animals.empty()) lines.push_back("No live prey; AUTHORED regeneration pending");
+            }
+            lines.push_back("Meat unloaded "+std::to_string(tent->unloaded)+" | dispatched "+std::to_string(dispatched));
+            lines.push_back("Route overlay "+std::to_string(visual->route.size())+"/"+std::to_string(visual->route_total_edges)+" upcoming actual edges (max256)");
+            lines.push_back("One hunted animal = one AUTHORED Meat portion");
+            lines.push_back("Tent/Hunter/animal art: AUTHORED fallback; Original clips unqualified");
+            return wrap_panel_lines(lines);
+        }
+    }
     if (playable_fishing() && selected_ && !selected_walker_) {
         const auto owner=world_->building_owner_at(*selected_);
         if (owner && world_->building(*owner).kind==simulation::Object::OriginalFishingQuay) {
@@ -6501,14 +6768,16 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines={"Fishing Quay31 #"+std::to_string(static_cast<unsigned>(*owner))};
             int reserved=0;
             for (const auto& active:state.boats) if (active.quay_id==*owner) reserved+=active.reserved;
-            for (const auto& trip:world_->fishing_food_state()->trips) if (trip.source==*owner)
-                for (std::size_t crop=0;crop<trip.loaded.size();++crop) reserved+=trip.loaded[crop]-trip.delivered[crop]-trip.returned[crop];
             std::uint64_t dispatched=0;
-            for (const auto& stock:world_->fishing_food_state()->stocks) if (stock.building_id==*owner) {
+            visit_agriculture_food(*world_,[&](const auto& food) {
+            for (const auto& trip:food.trips) if (trip.source==*owner)
+                for (std::size_t crop=0;crop<trip.loaded.size();++crop) reserved+=trip.loaded[crop]-trip.delivered[crop]-trip.returned[crop];
+            for (const auto& stock:food.stocks) if (stock.building_id==*owner) {
                 lines.push_back("Fish stock "+std::to_string(stock.amounts[simulation::fishing_food_index])+"/8 | reserved "+std::to_string(reserved));
                 dispatched=stock.departed[simulation::fishing_food_index];
                 if (stock.amounts[simulation::fishing_food_index]+reserved>=8) lines.push_back("Quay capacity committed; no additional catch trip");
             }
+            });
             lines.push_back("Workers "+std::to_string(inspection_workers_assigned(*owner))+"/"+std::to_string(world_->workforce_required(*owner)));
             lines.push_back(world_->building_on_fire(*owner) ? "Status: Quay on fire":!body.operating_enabled ?
                 "Status: paused; begun movement drains safely":!inspection_building_staffed(*owner) ? "Status: understaffed":
@@ -8387,7 +8656,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(playable_fishing())overview+=" | Policy3 | Save44 | Playable Fishing | AUTHORED six Foods";
+        if(playable_hunting())overview+=" | Policy3 | Save45 | Playable Hunting | AUTHORED seven Foods";
+        else if(playable_fishing())overview+=" | Policy3 | Save44 | Playable Fishing | AUTHORED six Foods";
         else if(playable_agriculture())overview+=" | Policy3 | Save43 | Playable Agriculture | AUTHORED five crops";
         else if(original_irrigation())overview+=" | Policy3 | Save42 | Irrigation | Yield bonus PARTIAL";
         else if(original_plantations())overview+=" | Policy3 | Save41 | Agriculture | AUTHORED Wheat/Millet | Other Food LOCKED";
@@ -8441,6 +8711,7 @@ bool SandboxView::draw_hud() {
         };
         if (const auto* industry=industry_action(action)) return std::string(industry->name)+" $"+std::to_string(world_->construction_cost(industry->command));
         switch (action) {
+        case A::OriginalHuntersTent: return "Shift-H Hunters Tent $"+std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalHuntersTent));
         case A::OriginalFishingQuay: return "Shift-F Fishing Quay $"+std::to_string(world_->construction_cost(simulation::CommandType::PlaceOriginalFishingQuay));
         case A::RotateFishingQuay: return "R Rotate Quay: "+std::to_string(fishing_orientation_);
         case A::IrrigationDitch: return "Shift-D Ditch $"+std::to_string(world_->construction_cost(simulation::CommandType::PlaceIrrigationDitch));
@@ -8562,6 +8833,7 @@ bool SandboxView::draw_hud() {
     for (const auto& button:layout_.buttons) {
         bool active=false;
         switch (button.action) {
+        case A::OriginalHuntersTent: active=tool_==50; break;
         case A::OriginalFishingQuay: active=tool_==49; break;
         case A::RotateFishingQuay: active=tool_==49; break;
         case A::IrrigationDitch: active=tool_==46; break;
@@ -8677,6 +8949,7 @@ bool SandboxView::draw_hud() {
     } else if (layout_.panel_open && !income_open_) {
         if (!SDL_SetRenderDrawColor(renderer_,240,244,250,255)) return false;
         if (!draw_text(layout_.panel.x+10*layout_.scale,layout_.panel.y+14*layout_.scale,
+                       selected_hunting_animal_ ? "WILDLIFE INSPECTOR":
                        irrigation_inspector_selected() ? (selected_building() ? "PUMP INSPECTOR":"DITCH INSPECTOR"):
                        industry_inspector_selected() ? "INDUSTRY INSPECTOR":
                        agriculture_inspector_selected() ? "AGRICULTURE INSPECTOR":
@@ -8684,6 +8957,7 @@ bool SandboxView::draw_hud() {
                        original_production_fixture() && selected_building() && world_->building(*selected_building()).kind==simulation::Object::Market ? "MARKET INSPECTOR":
                        selected_building() && world_->building(*selected_building()).kind==simulation::Object::Well ? "WELL INSPECTOR":
                        fire_watch_selected() ? "FIRE WATCH INSPECTOR":
+                       playable_hunting() && selected_building() && world_->building(*selected_building()).kind==simulation::Object::OriginalHuntersTent ? "HUNTERS TENT INSPECTOR":
                        playable_fishing() && selected_building() && world_->building(*selected_building()).kind==simulation::Object::OriginalFishingQuay ? "FISHING QUAY INSPECTOR":
                        status_first_selected() ? "HOUSE INSPECTOR":"BUILDINGS",
                        layout_.panel.w-20*layout_.scale)) return false;
@@ -9118,14 +9392,16 @@ bool SandboxView::draw_help_overlay() {
     const int line=16*layout_.scale;
     if (original_production_fixture()) {
         const std::array<const char*,17> help{
-            playable_fishing() ? "PLAYABLE FISHING - H closes":
+            playable_hunting() ? "PLAYABLE HUNTING - H closes":
+                playable_fishing() ? "PLAYABLE FISHING - H closes":
                 playable_agriculture() ? "PLAYABLE AGRICULTURE - H closes":"ORIGINAL ECONOMY - H closes", "Q Water Well | Y Ancestor Shrine",
             "U Daoist | K Buddhist | V Confucian",
             original_music_venues() ? "E Music -> G Theatre75 (4x4)":"E Music | C Acrobat | A Drama",
             "O Food Farm | W Wheat | L Millet", original_agriculture() ?
                 "Shift-R Rice | Shift-C Cabbage | Shift-S Soy":"N Hemp Farm | M Hemp Field",
             original_irrigation() ? "Shift-D Ditch | Shift-P Pump":"J Herbalist | 9 Acupuncture",
-            playable_fishing() ? "Shift-F Fishing Quay | R rotate":
+            playable_hunting() ? "Shift-H Hunters Tent | Shift-F Quay":
+                playable_fishing() ? "Shift-F Fishing Quay | R rotate":
                 original_irrigation() ? "R rotate | Shift-X remove Ditch | Shift-V water":"0 Market | 5 Select | 1 Road",
             "F5 Save | F9 Load | Space Pause", original_agriculture() ?
                 playable_agriculture() ? "AUTHORED80 ticks: all five Food crops active":
@@ -9134,11 +9410,13 @@ bool SandboxView::draw_help_overlay() {
             original_fire_protection() ? "F Watch: $80; 2 workers (2W)":"Actual arrivals supply Houses",
             original_fire_protection() ? "Inspector arrival:2400 ticks protection":"Water is evaluated on phase28",
             "PageUp/Down: sections | F10: overlays", "Plain needs Water/Food/Ancestor",
-            playable_fishing() ? "Fish: finite grounds; AUTHORED regeneration":
+            playable_hunting() ? "Meat: actual animals, hunt, return and deliveries":
+                playable_fishing() ? "Fish: finite grounds; AUTHORED regeneration":
                 original_venue_house_service() ? "Theatre visits: current Music -> House96":
             original_music_venues() ? "Music arrival: Venue32; no House effect":"Schools: experimental direct visits", world_->original_worker_upkeep_interval()==816 ?
                 "T:816t tax;2/worker/816t upkeep":"T:816t tax;2/worker/400t upkeep",
-            playable_fishing() ? "Boat marker: authored fallback; click for Quay":
+            playable_hunting() ? "Hunter/animal markers: AUTHORED fallback":
+                playable_fishing() ? "Boat marker: authored fallback; click for Quay":
                 building_profile_ && building_profile_->original_house_prepared ?
                 "House art: State; other art pending":"Original graphics follow separately"};
         for (std::size_t row=0;row<help.size();++row)

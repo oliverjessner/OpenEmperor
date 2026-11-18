@@ -267,6 +267,21 @@
   Boat49 animation uses a labelled authored fallback. Rules1–27/schemas1–43,
   defaults and Original research stay exact, with no migration/overwrite.
   See [Playable Fishing](docs/original-economy/agriculture.md#playable-fishing-agri-mac02).
+- Playable Hunting is a separate explicit Rule29/policy3/schema45 successor,
+  `authored-playable-hunting-v1`, revision1, regular Y and
+  `--playable-hunting`. It inherits Rule28; its sole seven-kind HuntingFoodState
+  adds Meat4 with authored quality85. Paid2×2 source-priced/staffed Tent33 owns
+  one Food courier and one Hunter40 slot. Four finite habitats reserve three
+  animal channels each within unchanged82/58 budgets. Living75/76/77 identities,
+  deterministic roaming40/birth720, actual pursuit,60-tick contact hunt,
+  one-portion cargo, physical return and20-tick unload are AUTHORED. Only real
+  unload credits Food; exclusive targets, current/begun edges, cargo, histories,
+  population and Meat/Food equations survive exact schema45 restore. Prey183
+  supplies geography only; qualified normal-land fallback is explicit. Births
+  require empty ordinary grass; roads support traversal, never spawning. No
+  raw50/100/400 conversion, Original ecology/animation parity, historical
+  reinterpretation, automatic migration or cross-generation overwrite.
+  See [Playable Hunting](docs/original-economy/agriculture.md#playable-hunting-agri-mac03).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

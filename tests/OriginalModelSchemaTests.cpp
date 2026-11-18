@@ -374,7 +374,7 @@ void functional_mapping_checks() {
     check(quay.candidate==ModelBuilding::FishingQuay && quay.functional==Status::AuthoredFallback &&
           quay.mechanics_identity==Status::AuthoredFallback && quay.presentation_identity==Status::Unknown,
           "Explicit Quay mapping lost its identity or claimed unproved Original runtime graphics");
-    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalFishingQuay) + 1U);
+    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalHuntersTent) + 1U);
     for (const auto bad : {first_invalid, static_cast<Object>(255)})
         expect_exception<std::out_of_range>([&] { (void)original::functional_model_candidate(bad); }, "invalid Object is not merely unmapped");
 }

@@ -14,7 +14,7 @@
 namespace openemperor::persistence {
 namespace {
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_agriculture_terrain_facts(
-        const std::filesystem::path& root,const std::filesystem::path& relative,bool irrigation,bool fishing=false) {
+        const std::filesystem::path& root,const std::filesystem::path& relative,bool irrigation,bool fishing=false,bool hunting=false) {
     if (relative.empty() || relative.is_absolute())
         throw std::runtime_error("Agriculture requires a relative original map path");
     for (const auto& part:relative) if (part==".." || part==".")
@@ -44,27 +44,28 @@ std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_agriculture_terr
             boundary[std::size_t(y)*maps::stored_grid_width+x]=allowed ? 1:0;
         }
     }
-    std::vector<simulation::Cell> fishing_points;
-    if(fishing) {
+    std::vector<simulation::Cell> fishing_points,prey_points;
+    if(fishing || hunting) {
         const auto entities=maps::read_original_map_entities(container,0);
         const auto heights=container.read_range(0,maps::landscape_height_offset,simulation::OriginalTerrainFacts::cell_count);
         // Reuse the complete existing source identity, occupancy and geometry
         // predicates. This does not create a second marker admission list.
         maps::validate_sandbox_original_map_rules(map,geometry,entities,heights,
             simulation::kBridgesMapPermissionsPolicyVersion);
-        for(const auto& entity:entities.records) if(entity.active() && entity.type==179 &&
+        for(const auto& entity:entities.records) if(entity.active() && (entity.type==179 || (hunting && entity.type==183)) &&
             entity.entity_class==maps::OriginalEntityClass::Industrial && entity.footprint_side==0) {
             const simulation::Cell cell{static_cast<int>(entity.local_x)+static_cast<int>(geometry.border),
                 static_cast<int>(entity.local_y)+static_cast<int>(geometry.border)};
-            if(std::find(fishing_points.begin(),fishing_points.end(),cell)==fishing_points.end())
-                fishing_points.push_back(cell);
+            auto& points=entity.type==179 ? fishing_points:prey_points;
+            if(std::find(points.begin(),points.end(),cell)==points.end()) points.push_back(cell);
         }
         std::sort(fishing_points.begin(),fishing_points.end(),[](auto a,auto b){return a.y!=b.y ? a.y<b.y:a.x<b.x;});
+        std::sort(prey_points.begin(),prey_points.end(),[](auto a,auto b){return a.y!=b.y ? a.y<b.y:a.x<b.x;});
         if(maps::map_input_sha256(maps::EmperorContainer::open(path))!=source_hash)
             throw std::runtime_error("Original map changed while preparing Fishing marker geography");
     }
     return std::make_shared<const simulation::OriginalTerrainFacts>(
-        map.terrain_raw.values,map.fertility_bytes,source_hash,boundary,fishing_points);
+        map.terrain_raw.values,map.fertility_bytes,source_hash,boundary,fishing_points,prey_points);
 }
 } // namespace
 
@@ -80,5 +81,9 @@ std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_irrigat
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_playable_fishing_terrain_facts(
         const std::filesystem::path& root,const std::filesystem::path& relative) {
     return prepare_agriculture_terrain_facts(root,relative,true,true);
+}
+std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_playable_hunting_terrain_facts(
+        const std::filesystem::path& root,const std::filesystem::path& relative) {
+    return prepare_agriculture_terrain_facts(root,relative,true,true,true);
 }
 } // namespace openemperor::persistence

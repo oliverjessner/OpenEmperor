@@ -92,9 +92,13 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # authority. Historical probe calls retain their five-column/default-empty
 # states. Fresh matching archives and these additive ABI pins establish only
 # the unchanged historical observations, not Original fishing parity.
+# AGRI-MAC03 adds exact Rule29 and optional seven-kind Food/ecology/Hunter DTOs.
+# Historical probe calls enable none of this authority; matching fresh archives
+# and unchanged literal case results are required. These additive ABI pins do
+# not establish Original hunting, timing, ecology or raw-unit parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "74462d4a93aab5b6bfcc856198faa08a62f3860e",
+    "World.h": "bbf678f5e9e1f046168fd71d1903f4e8b2d81fed",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
@@ -102,8 +106,9 @@ REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "AgricultureCalendar.h": "17455dad4bca5382ae8b2cb389bc2bf1099d642d",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
-    "OriginalTerrainFacts.h": "7219c3c34eeeb5229ad81f64e0f2b18d5fb84e50",
-    "AgricultureState.h": "844d282aab9af4c0cc9ba9d565200bf6dcbec455",
+    "OriginalTerrainFacts.h": "b22d4fb214405dee9ce98cdfacc26d0092b5df6f",
+    "AgricultureState.h": "8d7c4f9972d6cb9ed625c350e5090a416521bd3c",
+    "HuntingState.h": "8320925ca1dda3d9b24ae873efe6dcd2f7ced15b",
     "FishingState.h": "034e7e5aeb9ca095d7d07f3216b77e007076a7ae",
     "PlantationsState.h": "7fd4ceab82bc8c4442aa470c3cb3275983cb3e8a",
     "IrrigationState.h": "4fdd1b69cf4572342da504f941c3b2e47f23011e",
@@ -624,10 +629,11 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
     if finance_blob != "4c42d35342a89c113b44965562635421efccecd1":
         raise ValueError("Original-finance ABI drift requires reviewed compatibility contract")
     model_header_blobs = {}
-    # AGRI-MAC02 adds an explicit Quay31 preparation factory. Historical
-    # prepared model sets and the fourth-module calls retain their contract.
+    # AGRI-MAC03 adds a separate optional Hunter33 preparation row/factory
+    # alongside Quay31. Historical prepared sets/default flags and actual
+    # fourth-module calls retain their contract; fresh archives match layout.
     for name, expected in (("ModelSchema.h", "c232baf4b249d7a800a8e241b66b517a7891a3ca"),
-                           ("OriginalRulesModel.h", "ebf84b78894a77ebaaa9cf090bdf3ea78e985c83")):
+                           ("OriginalRulesModel.h", "69966738f192c0f380eca9c2dd7b824b5c5d040c")):
         header = ROOT / "src/simulation/original" / name
         actual = hashlib.sha1(b"blob " + str(header.stat().st_size).encode() + b"\0" + header.read_bytes()).hexdigest()
         if actual != expected:

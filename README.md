@@ -41,6 +41,11 @@ unloads Fish, then supplies Markets and Houses through physical deliveries.
 It also retains the five crops, plantations and irrigation. See the
 [fishing guide](docs/original-economy/agriculture.md#playable-fishing-agri-mac02).
 
+**Y Playable Hunting** adds paid Hunter's Tents, living wildlife and Meat.
+Hunters pursue actual animals and carry Meat back before Markets and Houses
+can receive and consume it. This authored mode retains all crops and fishing.
+See the [hunting guide](docs/original-economy/agriculture.md#playable-hunting-agri-mac03).
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

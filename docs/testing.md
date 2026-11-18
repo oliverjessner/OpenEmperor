@@ -44,6 +44,181 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Playable Hunting (AGRI-MAC03)
+
+Select **Y Playable Hunting (rule29)** in the regular menu, or launch:
+
+```sh
+build/openemperor --data "$PWD/.local/gog-extracted/app" \
+  --sandbox Cities/Chengdu.map --sandbox-rules sandbox-city-v16 \
+  --playable-hunting
+```
+
+Use the actual supplied installation path. Shift-H selects the paid Hunter's
+Tent; ordinary H remains Help. Build Houses, a Well, Ancestor, Market and a
+Farm/field first to earn population and workers. A Tent needs a legal2×2 body,
+road access and its full source-model staff (Normal15). Click the Tent or a
+real Hunter to inspect its live status, routes, target, cargo and seven-kind
+inventory. Huntable wildlife uses a labelled authored visual fallback.
+
+For a short manual check, run the city, watch a Hunter walk to an actual animal,
+then return carrying Meat. Tent Meat must increase only after return/unload.
+Open the Market to see Meat after a courier arrives; open a supplied House and
+watch Meat receipts and consumption. Pause the Tent: work/unload stops while
+physical cargo is retained. F5 during pursuit, a loaded return or either Food
+trip; F9 must restore that same movement/cargo and continue without a second
+kill/receipt. Z cycles1x/2x/4x. Try construction using both the toolbar and
+Shift-H, including an occupied cell; rejection must leave Funds unchanged.
+
+Run the full native arm64 matrix with fresh destinations:
+
+```sh
+python3 tools/alpha_check.py --system-sdl --jobs 2 \
+  --build-dir .local/agri-mac03/alpha-debug \
+  --release-build-dir .local/agri-mac03/alpha-release \
+  --sanitize-build-dir .local/agri-mac03/alpha-sanitize \
+  --report .local/agri-mac03/alpha-check.json \
+  --data "$PWD/.local/gog-extracted/app"
+```
+
+The optional supplied-data acceptance launcher shares the existing paid city
+blueprints, production map admission, navigator, capture and exact-save tools:
+
+```sh
+cmake --build build --parallel 2 --target openemperor-hunting-native-playtest
+build/openemperor-hunting-native-playtest "$PWD/.local/gog-extracted/app" \
+  "$PWD/build/OpenEmperor.app/Contents/Resources" Cities/Chengdu.map \
+  "$PWD/.local/agri-mac03/actual-data-fresh"
+```
+
+It buys a complete city, inherited Farm and Tent through normal commands,
+then records actual animal/hunt/cargo/return/unload and Meat Market/House/
+consumption witnesses. It modifies no source model, injects no people or stocks
+and grants no arrivals. It writes exact schema45 checkpoints during hunting,
+loaded Hunter movement and both Food legs, plus three zoom captures. Its
+scripted SDL software evidence is distinct from the native Metal application
+and from an unassisted human playtest. A bounded planner refusal is not proof a
+map cannot support hunting.
+
+Native input diagnostics must record the event before routing as well as the
+single `SDL_RenderCoordinatesFromWindow` conversion. Raw `(0,0)` at the SDL
+boundary is different from an application coordinate-conversion failure.
+Do not infer a DPI/camera offset or manufacture adjusted click positions.
+Report native keyboard, mouse construction/picking, status and F5/F9 separately;
+when automation cannot supply actual coordinates, use the manual steps above.
+
+`playable-hunting-world` earns all seven foods through paid construction,
+normal population/staffing, actual producer work, physical transport and House
+consumption. A separate ordinary two-road-component town holds all seven foods
+in the same operating Market at once, using source operation controls rather
+than stock injection. It covers full footprints, refusal atomicity, exclusive
+prey, moving pursuit,60-tick contact,20-tick unload, finite stock, workforce,
+pause/fire, route cuts, real depletion/regeneration and12,000-tick replay.
+Its strict spawn control depletes a habitat through real hunts, blocks all25
+radius3 cells with paid roads and observes1,000 ticks without birth, ID growth
+or new Meat; clearing one cell permits exactly one monotone birth. Legal road
+movement remains available.
+
+`playable-hunting-save` covers actual pursuit, hunt work, loaded return/unload,
+both physical seven-kind delivery legs, exact Recovery rotation/start retention,
+12,000-tick continuation, hostile identity/phase/path/cargo/counter/reference
+mutations, duplicate JSON keys, atomic-write failure and44/45 isolation.
+`playable-hunting-presentation` uses ordinary paid Millet/Fish/Meat production,
+actual button coordinates, a selectable procedural canvas Tent, live wildlife
+and Hunter picking, real loaded-return F5/F9, actual Meat consumption and seven
+Food inspector columns. Correct submitted frames precede sprite picking.
+A mismatched mouse Down/Up cancels, the following correct click succeeds,
+stale motion cannot replace button coordinates and focus loss cancels the
+purchase. Ten unchanged frames perform no authority, I/O or route work.
+`playable-hunting-cli` rejects28 invalid/conflicting invocations before data or
+SDL startup. The full five-crop/seven-food production acceptance is in the
+World/Save tests; the compact UI town keeps Market capacity available.
+
+Supplied-data acceptance on unchanged `Cities/Chengdu.map` uses the actual
+Normal source models, compact six-House paid construction and Tent33 at118,43.
+Construction costs987 Funds; the Tent requires15 real workers. At tick2029,
+four real hunts had removed four animals, four portions had physically unloaded
+and reached the Market, four had reached Houses and one Meat plus17 Millet
+portions had actually been consumed. Six exact schema45 F5/F9 checkpoints cover
+paid-empty0, hunt729, loaded Hunter789, Meat-to-Market879, Meat-to-House975 and
+consumption2029. Final1x/2x/4x captures were opened. This is supplied-data
+scripted SDL software evidence, independently bounded from native acceptance.
+
+Completion matrix for the final source:
+
+| Check | Result / evidence |
+| --- | --- |
+| Paid seven-food production and actual House consumption | PASS |
+| Seven foods held simultaneously in one Market | PASS, no injected quantities |
+| Depletion, exclusive prey, blocked grass/road births and regeneration | PASS |
+| Persistence, Recovery, hostile input and12,000-tick replay | PASS |
+| Paid SDL controls, canvas roof/actor picking and render purity | PASS |
+| Supplied-data Chengdu hunt → return → Market → House → consumption | PASS |
+| Complete Debug / Release / ASan+UBSan registered suites | PASS371/371 each, zero failures/skips |
+| Native arm64 Metal startup/menu, movement, zoom and F5/F9 | PASS; final strict-spawn continuation checked separately below |
+| Native coordinate mouse construction/picking/stock inspector | NOT_VERIFIED: unstable upstream coordinates |
+| Unassisted human acceptance | NOT_RUN; manual steps above |
+| Original hunting ecology, timing, raw portions and animation parity | Unproved; explicitly AUTHORED successor |
+
+Native input diagnosis observes the raw SDL boundary, not a guessed display
+correction. In the first final-task session, one click arrived with Down387,508
+but Up1099,563.42; the existing matching-release guard correctly cancelled it.
+Another attempt supplied0,566.24 for both events, and a later live-Hunter click
+supplied0,0. At native1100×700 output, scale1 and Metal, converted coordinates
+matched those raw values. Keyboard/window accessibility controls worked. This
+establishes unreliable automated delivery before game conversion, not a proved
+application DPI bug or a verified human mouse flow. No input offset/workaround
+was added. Scripted SDL verifies both real matching coordinates and these
+cancellation boundaries.
+
+The native arm64 Metal app loaded the same earned789 save through the regular
+L/Return menu and advanced the real loaded Hunter to792, cargo1 and edge4/5.
+A final native continuation after the strict birth-floor change reached4266:
+seven actual kills/unloads, five Meat and41 Millet consumed. After two further
+paused ticks, native F9/F5 restored the complete4266 World exactly; all three
+animal/cargo/Food conservation equations also held in that native save.
+The preceding same-UI session observed actual Hunter and wildlife movement,
+1x/2x/4x rendering and exact loaded-Hunter F5/F9 at792; the final birth-only
+change was followed by a further supplied-data and native runtime check.
+The app and its dependencies are native arm64 Mach-O/SDL3/system libraries;
+no Windows binary, VM, debugger or Wine is used. Owned test windows were closed.
+Private input and current native reports remain under
+`.local/agri-mac03/native-ui-01/`, `native-city-01/` and `native-strict-01/`.
+
+Final `tools/alpha_check.py` acceptance is **PASS**: **371/371 Debug**
+(142.562s), **371/371 Release** (139.791s) and **371/371 ASan/UBSan** (718.239s),
+with no failures or skips. The same unchanged runner also passed general-profile
+100,000-tick endurance and12 real JSON roundtrips in each configuration,
+3,000-frame Debug/sanitizer render stress,100 menu lifecycles and the actual
+Original-data checks. These complement the dedicated Hunting acceptance;
+they do not establish Original hunting parity or unassisted human acceptance.
+Independent fresh-library Debug/Release comparisons passed74/74 each, with
+literal historical cases, classifications and observations unchanged. Eleven
+explicit Original-file guards retained SHA-256, size, mode and mtime.
+
+All builds target native arm64. Local Debug/sanitizer use assertion-enabled
+`-g1 -O1`; Release retains normal flags. The initial complete builds took
+567.8/617.969/1063.598s. The strict empty-grass birth admission and new negative
+control were compiled into all three isolated builds before their checks.
+The first full Debug suite then found only two stale synthetic assumptions:
+known-rule range ended at28, and a compact-menu click used an obsolete literal
+position. Tests now retain every historical expectation, explicitly add29 and
+unknown30, and click the actual enabled Data Folder control. No gameplay code
+changed after that first369/371 run.
+
+The initial failed report, complete Debug JUnit/inventory/log and original
+visual bytes are preserved in `.local/agri-mac03/alpha-check.json` and
+`alpha-initial-debug/`. The final run uses unchanged public alpha checks, with
+a private guard allowing only those exact existing isolated build directories
+and a fresh report; every target is reconfigured/rebuilt and every registered
+case rerun. Initial visual roots were archived before fresh captures. No test,
+assertion or individual deadline was skipped or relaxed. Final results and the
+runner/source audit are `alpha-verified-check.json`, `alpha-final-audit.json`
+and the49-entry `validation-sources-03.json` under `.local/agri-mac03/`. A final
+terminal-blank-line cleanup affects only the optional native-tool support
+header; both tools were rebuilt and supplied-data Hunting rerun. Its matching
+commit fingerprints are retained in `validation-sources-final.json`.
+
 ## Playable Fishing (AGRI-MAC02)
 
 Select **F Playable Fishing (rule28)** in the regular menu, or launch:

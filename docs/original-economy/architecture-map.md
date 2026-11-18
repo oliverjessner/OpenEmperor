@@ -26,6 +26,17 @@ regeneration and water policy are AUTHORED; source models and geometry remain
 separate evidence. Rule27/schema43 and older generations stay exact without
 migration. See [Playable Fishing](agriculture.md#playable-fishing-agri-mac02).
 
+**Playable Hunting** is the explicit Rule29/policy3/schema45 successor,
+`authored-playable-hunting-v1`, revision1, regular Y and `--playable-hunting`.
+One seven-kind typed Food authority adds Meat4; its predecessors' five- and
+six-kind DTOs remain exact. World owns paid2×2 Tent33, real Hunter40, finite
+living prey75–77, exclusive targets, shared land routing, actual kills/cargo/
+return/unload and both physical household delivery legs. Ecology, clocks,
+portions and Meat quality85 are AUTHORED; original identities/model fields are
+separate evidence. The unchanged82/58 budgets include reserved ecology slots.
+No migration or cross-generation overwrite is admitted. See
+[Playable Hunting](agriculture.md#playable-hunting-agri-mac03).
+
 The [Agriculture architecture](agriculture.md) defines the explicit Rule24/
 policy3/schema40 construction/Food foundations added during AGRI-02. Its separate
 five-kind state and source-bound fertility preserve Rule1–23/schema1–39.

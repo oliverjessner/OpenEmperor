@@ -70,6 +70,11 @@ bool retained_agriculture_evaluation(const OriginalHousingHouse& house,std::uint
     });
 }
 template<class F> decltype(auto) with_snapshot_agriculture(const WorldSnapshot& s,F&& f) {
+    if(playable_hunting_enabled(s.profile,s.rule_version)) {
+        if(!s.hunting_food || s.fishing_food || s.agriculture) invalid("Hunting Housing requires sole seven-kind Food history");
+        return f(*s.hunting_food);
+    }
+    if(s.hunting_food) invalid("Historical Housing rejects seven-kind Food history");
     if(playable_fishing_enabled(s.profile,s.rule_version)) {
         if(!s.fishing_food || s.agriculture) invalid("Fishing Housing requires sole six-kind Food history");
         return f(*s.fishing_food);

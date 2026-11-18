@@ -113,7 +113,7 @@ std::optional<std::array<BuildingRow,2>> prepare_irrigation_buildings(
 
 } // namespace
 
-OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture,bool agriculture,bool irrigation,bool fishing)
+OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture,bool agriculture,bool irrigation,bool fishing,bool hunting)
     : provenance_(checked_provenance(model,difficulty)),difficulty_(difficulty),
       house_rules_(model,difficulty),building_rows_(prepare_buildings(model,difficulty)),
       production_prepared_(production),
@@ -126,6 +126,13 @@ OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficu
           BuildingRow row{};
           for (std::size_t i=0;i<row.size();++i)
               row[i]=original::building_value(model,ModelBuilding::FishingQuay,static_cast<BuildingField>(i),difficulty);
+          return row;
+      }()),
+      hunting_row_([&]() -> std::optional<BuildingRow> {
+          if (!hunting) return std::nullopt;
+          BuildingRow row{};
+          for (std::size_t i=0;i<row.size();++i)
+              row[i]=original::building_value(model,ModelBuilding::HuntersTent,static_cast<BuildingField>(i),difficulty);
           return row;
       }()) {}
 
@@ -152,7 +159,12 @@ std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_fishing(Mo
     return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,true,false,true,true,true));
 }
 
+std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_hunting(ModelData model,Difficulty difficulty) {
+    return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,true,false,true,true,true,true));
+}
+
 bool OriginalRulesModel::supports_building(ModelBuilding building) const noexcept {
+    if (building==ModelBuilding::HuntersTent) return hunting_row_.has_value();
     if (building==ModelBuilding::FishingQuay) return fishing_row_.has_value();
     if (std::find(irrigation_buildings.begin(),irrigation_buildings.end(),building)!=irrigation_buildings.end())
         return irrigation_rows_.has_value();
@@ -167,6 +179,10 @@ bool OriginalRulesModel::supports_building(ModelBuilding building) const noexcep
 std::int32_t OriginalRulesModel::building_value(ModelBuilding building,BuildingField field) const {
     const auto column=static_cast<std::size_t>(field);
     if (column>=building_field_count) throw std::out_of_range("invalid prepared original building field");
+    if (building==ModelBuilding::HuntersTent) {
+        if (!hunting_row_) throw std::out_of_range("Hunting model was not explicitly prepared");
+        return hunting_row_->at(column);
+    }
     if (building==ModelBuilding::FishingQuay) {
         if (!fishing_row_) throw std::out_of_range("Fishing model was not explicitly prepared");
         return fishing_row_->at(column);

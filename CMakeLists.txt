@@ -344,6 +344,7 @@ target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndust
     src/simulation/WorldGrowerLifecycle.cpp
     src/simulation/WorldIrrigation.cpp
     src/simulation/WorldFishing.cpp
+    src/simulation/WorldHunting.cpp
     src/simulation/WorldAgricultureCalendar.cpp
     src/simulation/WorldOriginalConsumption.cpp src/simulation/WorldOriginalHousingDiagnosis.cpp
     src/simulation/WorldOriginalServices.cpp
@@ -722,6 +723,18 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-fishing-native-playtest PRIVATE
         openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
     openemperor_enable_warnings(openemperor-fishing-native-playtest)
+    add_executable(openemperor-hunting-native-playtest EXCLUDE_FROM_ALL
+        tools/HuntingNativePlaytest.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-hunting-native-playtest PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-hunting-native-playtest)
+    add_executable(openemperor-hunting-presentation-tests
+        tests/HuntingPresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-hunting-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-hunting-presentation-tests)
+    add_test(NAME playable-hunting-presentation COMMAND openemperor-hunting-presentation-tests)
+    set_tests_properties(playable-hunting-presentation PROPERTIES TIMEOUT 300)
     add_executable(openemperor-original-menu-session-tests
         tests/OriginalMenuSessionTests.cpp ${original_menu_test_sources})
     add_executable(openemperor-original-safe-demolition-menu-tests
@@ -1300,6 +1313,18 @@ if(BUILD_TESTING)
         add_test(NAME playable-fishing-${fishing_layer} COMMAND openemperor-fishing-${fishing_layer}-tests)
         set_tests_properties(playable-fishing-${fishing_layer} PROPERTIES TIMEOUT 600)
     endforeach()
+    foreach(hunting_layer world save)
+        if(hunting_layer STREQUAL "world")
+            set(hunting_test_source tests/HuntingWorldTests.cpp)
+        else()
+            set(hunting_test_source tests/HuntingSaveTests.cpp)
+        endif()
+        add_executable(openemperor-hunting-${hunting_layer}-tests ${hunting_test_source})
+        target_link_libraries(openemperor-hunting-${hunting_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-hunting-${hunting_layer}-tests)
+        add_test(NAME playable-hunting-${hunting_layer} COMMAND openemperor-hunting-${hunting_layer}-tests)
+        set_tests_properties(playable-hunting-${hunting_layer} PROPERTIES TIMEOUT 600)
+    endforeach()
     add_executable(openemperor-plantation-food-adapter-tests tests/PlantationFoodAdapterTests.cpp)
     target_link_libraries(openemperor-plantation-food-adapter-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
     openemperor_enable_warnings(openemperor-plantation-food-adapter-tests)
@@ -1473,6 +1498,9 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME playable-hunting-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/HuntingCliTests.py $<TARGET_FILE:openemperor>)
+        set_tests_properties(playable-hunting-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME playable-fishing-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/FishingCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(playable-fishing-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")

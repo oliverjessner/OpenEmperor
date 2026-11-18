@@ -44,7 +44,7 @@ std::uint8_t OriginalTerrainFacts::fertility(Cell cell) const {
 
 OriginalTerrainFacts::OriginalTerrainFacts(std::span<const std::uint32_t> terrain,
     std::span<const std::uint8_t> fertility,std::string sha,
-    std::span<const std::uint8_t> boundary,std::span<const Cell> fishing_points)
+    std::span<const std::uint8_t> boundary,std::span<const Cell> fishing_points,std::span<const Cell> prey_points)
     : OriginalTerrainFacts(terrain,fertility,std::move(sha)) {
     if (boundary.size()!=cell_count || std::any_of(boundary.begin(),boundary.end(),[](auto value){return value>1;}))
         throw std::invalid_argument("Irrigation requires a complete checked source Diamond boundary mask");
@@ -57,6 +57,14 @@ OriginalTerrainFacts::OriginalTerrainFacts(std::span<const std::uint32_t> terrai
         if (std::find(fishing_points_.begin(),fishing_points_.end(),cell)!=fishing_points_.end())
             throw std::invalid_argument("Fishing marker geography contains duplicate cells");
         fishing_points_.push_back(cell);
+    }
+    if (prey_points.size()>64) throw std::invalid_argument("Prey marker geography exceeds bounded source context");
+    for (const auto cell:prey_points) {
+        if (cell.x<0 || cell.y<0 || cell.x>=width || cell.y>=height)
+            throw std::invalid_argument("Prey marker geography outside storage");
+        if (std::find(prey_points_.begin(),prey_points_.end(),cell)!=prey_points_.end())
+            throw std::invalid_argument("Prey marker geography contains duplicate cells");
+        prey_points_.push_back(cell);
     }
 }
 

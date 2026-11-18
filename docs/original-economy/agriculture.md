@@ -177,6 +177,90 @@ boats use a labelled authored fallback at actual World positions. No Original
 pixels or private captures are committed. Current validation and native/manual
 acceptance are reported separately in [testing](../testing.md#playable-fishing-agri-mac02).
 
+## Playable Hunting (AGRI-MAC03)
+
+The separately selected **Playable Hunting** successor uses **Rule29/policy3/
+schema45**, `--playable-hunting` and regular menu Y. It inherits the complete
+Rule28 farming, fishing, plantation, irrigation, workforce, housing, finance,
+fire and physical Food systems. Rules1–28/schemas1–44 retain exact contracts;
+no automatic migration or cross-generation overwrite is permitted.
+
+**Original identities and observed facts:** Hunter's Tent33 has an initial2×2
+body; the supplied Normal model records Cost32 and Employees15. Its worker is
+Actor40; huntable identities are Wild Pig75, Pheasant76 and Antelope77. The
+output is Meat4. PreyPoint183 supplies geography, never Meat. The historical
+[source contract](../reverse/original-agriculture-source-contract.md#hunters-tent33-requires-real-prey-and-a-real-physical-return)
+records the independent evidence and unresolved native lifecycle. No Original
+EXE, Windows runtime or live floating-point context is required for this new
+explicitly authored gameplay.
+
+**AUTHORED World contract:** one sole `HuntingFoodState<7>` contains Wheat7,
+Millet5, Rice6, Cabbage3, BeanCurd1, Fish2 and Meat4, catalog
+`wheat7-millet5-rice6-cabbage3-beancurd1-fish2-meat4-v1`. Historical five- and
+six-column DTOs remain exact and are absent in29. Meat quality is85; all six
+existing scores and the existing batch blending, House witnesses and consumption
+remain unchanged. A hunt produces one World portion, carried by the actual
+Hunter until return; Original raw50/100/400 are not these portions.
+
+At most two paid2×2 Tents each own a land Food courier and one reserved Hunter
+movement slot. The existing82-building/58-channel budgets also reserve three
+animal slots for each of at most four prepared habitats, including depleted
+habitats so births cannot overrun the budget. Existing shared land predicates,
+route traversal and five-tick edges drive actual movement. No second navigator,
+Food ledger or independent simulation is introduced.
+
+Each source-qualified habitat supports at most three living animals within
+Manhattan radius3. Geographic Prey183 references choose the nearest qualifying
+flat3×3 normal-land centre within six offsets per storage axis; without usable markers,
+a deterministic authored normal-land fallback is prepared once from immutable
+source terrain, with distinct centres more than six cells apart. Species cycle
+deterministically75/76/77 through the canonical habitat order; this assignment
+is AUTHORED and does not infer the Original properties selector. Protected,
+unsupported and occupied cells receive no animals. Initial placement and births
+require an actually empty ordinary-grass cell (raw0x80); a paid or imported road
+is never a birth floor, while legal road traversal remains available.
+Actual animals have monotone IDs, a species, habitat, position, begun edge and
+exclusive Hunter reservation. Roaming attempts every40 ticks use legal land
+edges. Missing population regenerates at most one animal per720 ticks, with
+new identities and checked free habitat cells; no marker or restore replenishes
+Food or bypasses live occupancy.
+
+A fully staffed, operating, road-connected, nonburning Tent may dispatch on the
+shared phase31 only after selecting a real unreserved, physically reachable
+animal and reserving one portion of Tent headroom. Actual pursuit follows its
+moving identity; contact permits60 eligible hunt ticks. Success is deterministic
+only with the actual live reserved animal at contact. It removes that animal
+and puts exactly one Meat in physical Hunter cargo. The Hunter physically
+returns, then needs20 eligible unloading ticks at its owning Tent before its
+sole Food account receives the portion. Full storage, staffing, operation,
+fire, blocked routes, reservations and begun edges remain World authority.
+No spawn, proximity, dispatch, failed path, rendering or load grants Meat.
+
+Conservation has three separate authorities:
+
+- `3 * habitat count + births = living animals + successful kills`.
+- `successful kills = active Hunter cargo + actual Tent unloads`.
+- `actual Tent unloads = held Meat + outstanding Food courier Meat + consumed Meat`.
+
+Receipt counters are audit history, never a second inventory. Meat uses the
+same finite source8/Market16/House8 capacities and cart4 mechanism as other
+Foods. Both delivery legs debit stock/reserve capacity before travel and credit
+only on real accepted arrival. The seven Foods may coexist without category
+conversion. No loss term is admitted.
+
+Schema45 retains exact habitat provenance/regeneration, animal identities and
+movement, Hunter targets/reservations, physical paths/progress, successful-kill
+context, cargo, actual unload histories and seven-kind Food inventory/quality/
+transport/consumption. Restore checks the complete source/model/terrain identity,
+paid geometry, budgets, monotone IDs, exclusive references, clocks, routes and
+conservation before atomic publication. F5/F9 and Recovery select45 explicitly.
+Rendering and inspectors derive their positions, status and quantities from
+this authority. Unqualified Tent/Hunter/animal artwork uses labelled authored
+fallbacks rather than guessed Original animation registrations.
+
+See [testing](../testing.md#playable-hunting-agri-mac03) for the completion matrix,
+actual paid-world evidence, macOS native input tier and manual playtest.
+
 ## Evidence and scope
 
 Read the [agricultural source contract](../reverse/original-agriculture-source-contract.md),
