@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "mode": "curated_fishing_static",
+  "selection": "authored-quay-four-static-poses-v1",
+  "anchor_policy": "type30_front_cell",
+  "evidence": "AUTHORED static selection of four visually inspected Original fishing-quay rasters721-724 in China_Husbandry.bmp. Native Type30 source metadata and complete source fingerprints are checked. Pose assignment and front-cell anchors are authored presentation choices; a native Model31 graphics-selector, operating animation and whole-scene original reproduction are not claimed. Dock occupancy and fishing gameplay belong only to World Rule28.",
+  "files": [
+    {
+      "path": "DATA/China_General.sg3",
+      "sha256": "c9ae527102c312098cbfe82932ce1b39c6c96692981c874dc853306835583e46"
+    },
+    {
+      "path": "DATA/China_General.555",
+      "sha256": "3cb09cd2c954eb355e2253482845e7117b353c24506575795bcaa1fe45db33f2"
+    }
+  ],
+  "quays": [
+    {
+      "orientation": 0,
+      "model_type": 31,
+      "image_index": 724,
+      "width": 158,
+      "height": 120,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        100
+      ]
+    },
+    {
+      "orientation": 1,
+      "model_type": 31,
+      "image_index": 721,
+      "width": 158,
+      "height": 107,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        87
+      ]
+    },
+    {
+      "orientation": 2,
+      "model_type": 31,
+      "image_index": 722,
+      "width": 158,
+      "height": 121,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        101
+      ]
+    },
+    {
+      "orientation": 3,
+      "model_type": 31,
+      "image_index": 723,
+      "width": 158,
+      "height": 134,
+      "base_bytes": 12800,
+      "ground_anchor": [
+        79,
+        114
+      ]
+    }
+  ]
+}

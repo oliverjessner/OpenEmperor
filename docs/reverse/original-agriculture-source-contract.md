@@ -17,6 +17,17 @@ stage. AGRI-MAC01 executes no Original binary and supplies no new live x87
 observation. This document retains the static evidence and unknown Original
 inputs without treating authored Food portions as native raw Harvest units.
 
+The separate [Playable Fishing Rule28/schema44 contract](../original-economy/agriculture.md#playable-fishing-agri-mac02)
+adds AUTHORED physical boat work, finite ecology and six-kind Food logistics on
+native macOS. FishingQuay31/Fish2 identities and five-cell shore geometry reuse
+these documented facts. World portions,5-tick cardinal water edges,40-tick catch
+work,20-tick actual dock unload and8-capacity/240-tick ecology do not reinterpret
+Original raw100/400 or callback408/204. Validated179 manager records provide only
+geography; the native header-array/navigation-plane binding below is still
+unreconstructed. Static Original Quay pixels use an authored pose/anchor choice;
+Boat49 animation remains an explicitly labelled fallback. This gameplay does not
+activate the Original callbacks or claim their parity, and runs no Original EXE.
+
 ## Sources and evidence
 
 The fresh read-only investigation uses the installed PE32/i386 `Emperor.exe`,

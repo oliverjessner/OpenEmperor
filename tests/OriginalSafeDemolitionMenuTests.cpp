@@ -139,6 +139,10 @@ int main(int argc,char** argv) {
         for (const auto& [code,rule]:std::array{std::pair{SDLK_O,10U},std::pair{SDLK_F,11U},std::pair{SDLK_S,12U},
             std::pair{SDLK_M,13U},std::pair{SDLK_W,14U},std::pair{SDLK_I,15U},std::pair{SDLK_D,16U},
             std::pair{SDLK_T,17U},std::pair{SDLK_U,18U}}) {
+            // Escape returns to the regular menu, where F now explicitly
+            // selects Fishing28. The historical F11 stays in Advanced/Legacy.
+            if(code==SDLK_F && !menu.diagnostic_button_rect("F Original fire protection"))
+                click(menu,window,renderer,"Advanced / Legacy");
             key(menu,code);wait_map(menu,rule);check(!menu.original_safe_demolition_setup(),"Historical shortcut selected Rule19");key(menu,SDLK_ESCAPE);
         }
         click(menu,window,renderer,"Advanced / Legacy");bounds(menu,false);

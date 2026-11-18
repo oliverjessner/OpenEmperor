@@ -253,4 +253,76 @@ void append_original_building_visual_profile(const fs::path& data_root,const fs:
     candidate.original_building_prepared=true;
     profile=std::move(candidate);
 }
+
+void append_fishing_visual_profile(const fs::path& data_root,const fs::path& manifest,
+        BuildingVisualProfile& profile,std::uint64_t max_final_rgba) {
+    original_visual_detail::Reader r{"Fishing visual profile: "};
+    if (profile.fishing_prepared) r.fail("remove existing fishing supplement before replacement");
+    max_final_rgba=std::min(max_final_rgba,building_max_rgba_bytes);
+    std::uint64_t total=0;
+    for (const auto& image:profile.unique_images) {
+        const auto bytes=r.image_bytes(image);
+        if (bytes>max_final_rgba-total) r.fail("combined building RGBA budget exceeded");
+        total+=bytes;
+    }
+    std::error_code error;const auto root=fs::canonical(data_root,error);
+    if (error || !fs::is_directory(root)) r.fail("invalid data root");
+    if (fs::is_symlink(fs::symlink_status(manifest,error)) || error) r.fail("metadata missing or linked");
+    const auto json=r.read_manifest(manifest);
+    r.keys(json,{"schema_version","mode","selection","anchor_policy","evidence","files","quays"});
+    if (r.number(json,"schema_version",1)!=1 || r.string(json,"mode")!="curated_fishing_static" ||
+        r.string(json,"selection")!="authored-quay-four-static-poses-v1" || r.string(json,"anchor_policy")!="type30_front_cell")
+        r.fail("unsupported schema, selection or anchor policy");
+    const auto evidence=r.string(json,"evidence",4096);
+    if (!json.contains("files") || !json.at("files").is_array() || json.at("files").size()!=2)
+        r.fail("exactly two General fingerprints required");
+    const fs::path archive_name="DATA/China_General.sg3",pixels_name="DATA/China_General.555";
+    std::map<fs::path,fs::path> verified;
+    for (const auto& row:json.at("files")) {
+        r.keys(row,{"path","sha256"});const auto name=r.relative(r.string(row,"path",4096));
+        if (name!=archive_name && name!=pixels_name) r.fail("unsupported dependency");
+        const auto hash=r.string(row,"sha256",64);
+        if (hash.size()!=64 || !std::all_of(hash.begin(),hash.end(),[](char c){return (c>='0' && c<='9') || (c>='a' && c<='f');})) r.fail("invalid SHA256");
+        const auto path=r.checked_file(root,name);
+        if (!verified.emplace(name,path).second || r.sha256(path)!=hash) r.fail("duplicate or mismatching fingerprint");
+    }
+    if (!json.contains("quays") || !json.at("quays").is_array() || json.at("quays").size()!=4)
+        r.fail("four ordered static Quay poses required");
+    const auto archive=read_sg3_archive(verified.at(archive_name));
+    auto candidate=profile;auto ids=r.physical_ids(candidate);
+    // These are curated static images, not a claimed Original Model31 selector.
+    constexpr std::array<std::uint32_t,4> physicals{724,721,722,723};
+    for (std::size_t orientation=0;orientation<physicals.size();++orientation) {
+        const auto& row=json.at("quays")[orientation];
+        r.keys(row,{"orientation","model_type","image_index","width","height","base_bytes","ground_anchor"});
+        const auto physical=r.number(row,"image_index",UINT32_MAX);
+        const auto width=r.number(row,"width",4096),height=r.number(row,"height",4096),base=r.number(row,"base_bytes",12800);
+        if (r.number(row,"orientation",3)!=orientation || r.number(row,"model_type",31)!=31 || physical!=physicals[orientation] ||
+            physical>=archive.images.size() || width!=158 || height<80 || base!=12800)
+            r.fail("curated static pose or complete2x2 geometry differs");
+        const auto& record=archive.images[physical];
+        if (record.external_flag || !original_visual_detail::native_type30_matches(record,width,height,2,base,false))
+            r.fail("native static source metadata differs");
+        if (!row.contains("ground_anchor") || row.at("ground_anchor")!=original_visual_detail::Json::array({79U,height-20U}))
+            r.fail("anchor differs from authored front-cell geometry");
+        const auto bitmap=resolve_sg3_image_bitmap(verified.at(archive_name),archive,record);
+        if (bitmap.status!=Sg3BitmapStatus::Resolved || bitmap.path!=verified.at(pixels_name)) r.fail("bitmap lacks contained fingerprint");
+        BuildingVisualEntry entry;entry.id={archive_name,static_cast<std::uint32_t>(physical)};
+        entry.ground_x=79;entry.ground_y=static_cast<double>(height-20U);entry.footprint_side=2;entry.evidence=evidence;
+        const auto old=std::find_if(ids.begin(),ids.end(),[&](const auto& id){return id && *id==entry.id;});
+        if (old!=ids.end()) {
+            entry.image_index=static_cast<std::size_t>(old-ids.begin());
+            if (candidate.unique_images[entry.image_index].width!=width || candidate.unique_images[entry.image_index].height!=height)
+                r.fail("shared physical geometry differs");
+        } else {
+            const auto bytes=width*height*4U;
+            if (bytes>max_final_rgba-total) r.fail("combined building RGBA budget exceeded");
+            auto rgba=load_sg3_image({verified.at(archive_name),entry.id.image_index});
+            if (rgba.width!=width || rgba.height!=height || r.image_bytes(rgba)!=bytes) r.fail("decoded source geometry differs");
+            entry.image_index=candidate.unique_images.size();candidate.unique_images.push_back(std::move(rgba));ids.push_back(entry.id);total+=bytes;
+        }
+        candidate.fishing_quay_entries[orientation]=std::move(entry);
+    }
+    candidate.fishing_prepared=true;profile=std::move(candidate);
+}
 } // namespace openemperor::assets

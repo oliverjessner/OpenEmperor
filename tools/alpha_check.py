@@ -78,10 +78,12 @@ def configure(build: Path, build_type: str, jobs: int, system_sdl: bool,
     if system_sdl:
         args.append("-DOPENEMPEROR_USE_SYSTEM_SDL3=ON")
     _, configure_seconds = run(args)
-    _, build_seconds = run(["cmake", "--build", str(build), "--parallel", str(jobs)])
+    # Instrumenting the full native SDL test inventory exceeded30 minutes on
+    # the supported arm64 host. This is a compiler budget, not a test deadline.
+    _, build_seconds = run(["cmake", "--build", str(build), "--parallel", str(jobs)], timeout=3600)
     return {"configured": True, "built": True, "type": build_type,
             "sanitizers": sanitizers, "configure_seconds": round(configure_seconds, 3),
-            "build_seconds": round(build_seconds, 3)}
+            "build_seconds": round(build_seconds, 3), "build_command_budget_seconds": 3600}
 
 
 def ctest_result_scope(registration: dict, junit: Path, *, original_data_configured: bool,

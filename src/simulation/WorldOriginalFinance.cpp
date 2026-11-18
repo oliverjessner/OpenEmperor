@@ -1,6 +1,7 @@
 #include "simulation/World.h"
 #include "simulation/original/OriginalRulesModel.h"
 #include "simulation/original/OriginalScheduler.h"
+#include "simulation/original/FishingRules.h"
 
 #include <algorithm>
 #include <array>
@@ -456,11 +457,30 @@ std::size_t fire_path_cells(const OriginalFireProtectionState& state) {
     for (const auto& trip:state.trips) include(trip.travelled.size());
     for (const auto& event:state.arrivals) include(event.trip.travelled.size());return cells;
 }
-int footprint_distance(RulesProfile profile,std::uint32_t rule,const BuildingSnapshot& a,const BuildingSnapshot& b) {
-    const auto x=building_footprint(profile,rule,a.kind),y=building_footprint(profile,rule,b.kind);
+int point_rectangle_distance(Cell point,const BuildingSnapshot& body,BuildingFootprint shape) {
+    return std::max({0,body.cell.x-point.x,point.x-(body.cell.x+shape.width-1)})+
+        std::max({0,body.cell.y-point.y,point.y-(body.cell.y+shape.height-1)});
+}
+int footprint_distance(const WorldSnapshot& state,const BuildingSnapshot& a,const BuildingSnapshot& b) {
+    const auto x=building_footprint(state.profile,state.rule_version,a.kind),y=building_footprint(state.profile,state.rule_version,b.kind);
     const int dx=std::max({0,a.cell.x-(b.cell.x+y.width-1),b.cell.x-(a.cell.x+x.width-1)});
     const int dy=std::max({0,a.cell.y-(b.cell.y+y.height-1),b.cell.y-(a.cell.y+x.height-1)});
-    return dx+dy;
+    auto result=dx+dy;
+    if(!playable_fishing_enabled(state.profile,state.rule_version) ||
+        (a.kind!=Object::OriginalFishingQuay && b.kind!=Object::OriginalFishingQuay)) return result;
+    const auto dock=[&](const BuildingSnapshot& body) -> std::optional<Cell> {
+        if(body.kind!=Object::OriginalFishingQuay) return std::nullopt;
+        if(!state.fishing) invalid("Quay fire travel requires its complete oriented footprint");
+        const auto quay=std::find_if(state.fishing->quays.begin(),state.fishing->quays.end(),
+            [&](const auto& row){return row.quay_id==body.id;});
+        if(quay==state.fishing->quays.end()) invalid("Quay fire travel lost its paid dock identity");
+        return original::fishing_quay_geometry(body.cell,quay->orientation).dock;
+    };
+    const auto ad=dock(a),bd=dock(b);
+    if(ad) result=std::min(result,point_rectangle_distance(*ad,b,y));
+    if(bd) result=std::min(result,point_rectangle_distance(*bd,a,x));
+    if(ad && bd) result=std::min(result,std::abs(ad->x-bd->x)+std::abs(ad->y-bd->y));
+    return result;
 }
 std::uint64_t cell_distance(Cell a,Cell b) {
     const auto dx=static_cast<std::int64_t>(a.x)-b.x,dy=static_cast<std::int64_t>(a.y)-b.y;
@@ -550,8 +570,8 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
         }
         if (static_cast<std::uint64_t>(trip.population)>possible_population)
             invalid("Rule11 Inspector staffing precedes actual resident admission opportunities");
-        if (!building_footprint_contains(s.profile,s.rule_version,owner.kind,owner.cell,trip.travelled.front()) ||
-            (complete && !building_footprint_contains(s.profile,s.rule_version,target.kind,target.cell,trip.travelled.back())))
+        if (!building_footprint_contains(s,owner.id,trip.travelled.front()) ||
+            (complete && !building_footprint_contains(s,target.id,trip.travelled.back())))
             invalid("Rule11 travelled path lacks its paid owner/target endpoints");
         for (std::size_t i=0;i<trip.travelled.size();++i) {
             const auto cell=trip.travelled[i];
@@ -564,7 +584,7 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
             invalid("Rule11 Inspector arrival precedes actual edge travel");
         if (previous[actor]) {
             const auto& old=*previous[actor];
-            const auto minimum=static_cast<std::uint64_t>(std::max(2,footprint_distance(s.profile,s.rule_version,
+            const auto minimum=static_cast<std::uint64_t>(std::max(2,footprint_distance(s,
                 by_id(s.buildings,old.trip.target),owner)))*static_cast<std::uint64_t>(profile_rules(s.profile,s.rule_version).courier_edge_ticks);
             if (trip.dispatched_tick<=old.tick || trip.dispatched_tick-old.tick<minimum)
                 invalid("Rule11 Inspector redispatched before a physical return was possible");

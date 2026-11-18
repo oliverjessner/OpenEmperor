@@ -44,6 +44,130 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Playable Fishing (AGRI-MAC02)
+
+Select **F Playable Fishing (rule28)** in the regular menu, or launch:
+
+```sh
+build/openemperor --data "$PWD/.local/gog-extracted/app" \
+  --sandbox Cities/Chengdu.map --sandbox-rules sandbox-city-v16 \
+  --playable-fishing
+```
+
+Use the user's actual supplied installation and map path. This explicit
+AUTHORED Rule28/schema44 successor retains all five Playable Agriculture crops
+and adds Fish2 through one six-column Food authority. Rule27/schema43 and all
+older generations keep their own exact contracts. No Original executable or
+Windows runtime is used. The [fishing contract](original-economy/agriculture.md#playable-fishing-agri-mac02)
+documents finite ecology, portion units, timing, water admission and equations.
+
+Shift-F selects the paid Fishing Quay; R cycles its four orientations. The
+complete outline includes the exterior dock and required eight-water/two-land
+context. Build road-connected Houses, Water, Ancestor, a Market and an inherited
+Farm/field to earn residents and workers. Full Quay staffing, operation, no fire,
+a real road entrance and a reachable safe-water ground are required. Select the
+Quay or its actual boat to inspect stock, reservations, work, route and cargo.
+Pause/resume it; no Fish may enter its inventory before physical return and
+unloading. Inspect Market arrivals and the House Goods section for actual Fish
+receipts/consumption. Save with F5 during boat movement and delivery, reload with
+F9, then continue. Z cycles three zoom levels. The boat is an explicitly labelled
+authored visual fallback; source-qualified static Quay art has authored poses.
+
+Run the complete native arm64 pipeline with fresh paths:
+
+```sh
+python3 tools/alpha_check.py --system-sdl --jobs 2 \
+  --build-dir .local/agri-mac02/alpha-debug \
+  --release-build-dir .local/agri-mac02/alpha-release \
+  --sanitize-build-dir .local/agri-mac02/alpha-sanitize \
+  --report .local/agri-mac02/alpha-check.json \
+  --data "$PWD/.local/gog-extracted/app"
+```
+
+`playable-fishing-world` earns paid population/staff, actual outward boat
+movement, target work, finite catches, return, unloading, both physical delivery
+legs and actual consumption of all six Foods. It covers all four orientations,
+atomic refusals, late Quay construction after five Farms, staffing competition,
+pause/fire, full storage, rejected/blocked land deliveries, blocked water routes,
+begun-edge safety, two-boat competition, depletion/regeneration and deterministic
+12,000-tick continuation. No positive setup injects Fish or Food.
+`playable-fishing-save` checks schema44 boat/work/cargo and delivery continuations,
+full five-cell dock entrances and real Inspector/food returns, Recovery, hostile
+and duplicate-key input, source binding, atomic writes and historical isolation.
+`playable-fishing-presentation` drives the regular menu, paid Quay construction,
+actual boat picking, ten pure frames, mid-edge F5/F9 and later consumption under
+scripted SDL. `playable-fishing-cli` checks explicit selection and conflicting
+arguments. The existing synthetic/real building-profile tests exercise all four
+Quay rasters, shared deduplication, SHA/path/budget refusal and old selectors.
+
+For additional supplied-data evidence, build the isolated technical launcher:
+
+```sh
+cmake --build build --parallel 2 --target openemperor-fishing-native-playtest
+build/openemperor-fishing-native-playtest "$PWD/.local/gog-extracted/app" \
+  "$PWD/build/OpenEmperor.app/Contents/Resources" Cities/Chengdu.map \
+  "$PWD/.local/agri-mac02/actual-data-fresh"
+```
+
+This requires an app build with its prepared Compatibility metadata. Its fresh
+private output contains paid-only saves, actual event witnesses, exact F5/F9
+checkpoints and three zoom captures. Planning uses normal World admission and
+the existing navigator. It may legitimately refuse a map/layout without suitable
+water, complete shoreline geometry or legal roads. It never changes source
+models or invents stocks to make a test pass. This is **scripted SDL software**,
+separate from running the actual native application and from a human playtest.
+Open the captures and verify the earned save in the native app; report each tier
+separately. Do not call automation an unassisted human acceptance.
+
+Supplied-data testing on `Cities/Chengdu.map` earned the complete Fish and Millet
+chain without model edits or stock/population injection: by tick2040, six boat
+allocations had caught18 portions,15 had unloaded/reached the Market,11 had
+reached Houses, one Fish and17 Millet portions had been consumed. Five exact
+schema44 F5/F9 checkpoints cover paid-empty setup, a moving loaded boat, a moving
+Fish courier, first consumption and later movement. All three zoom captures
+were opened. The bounded layout planner found no layout on Baoji or connected
+layout on Anyi; those are planner limits, not proof those maps cannot host a
+city. Xia/Banpo supplied no ground under this conservative water policy.
+
+The actual native arm64 SDL3/Metal app passed regular F selection, empty Baoji
+scene startup, earned Chengdu loading, visible boat motion and1x/2x/4x rendering.
+Native F5/F9/F5 retained the exact World at tick2043 with cargo3 and edge4/5.
+Native continuation to2811 increased dock receipts15→24, Fish consumption1→2
+and Millet consumption17→22; the saved state loaded paused again. The native
+mouse tier remains **NOT_VERIFIED**: automated coordinate clicks reached SDL
+as raw `(0,0)` before application conversion, while keyboard and accessibility
+window controls worked. No speculative DPI/offset workaround was added.
+Quay placement, boat picking and inventory inspection passed scripted SDL;
+this does not claim native mouse or unassisted human acceptance. The private
+native report/diagnostics remain under `.local/agri-mac02/native-city-01/`.
+
+The complete registered suite passed **367/367 in each of Debug, Release and
+ASan/UBSan**, with zero failures or skips. Independent Debug/Release core parity
+passed74/74 with literal-equal case results/classifications and the maintained
+public report. Eleven explicit Original-file guards retained SHA-256, size,
+permissions and mtime. Debug/sanitizer used assertion-enabled `-g1 -O1`; Release
+used normal flags. The native binaries are arm64, with SDL3 and native system/
+Homebrew dependencies; no Windows runtime is involved.
+
+The first full Debug run passed364/367. Its three failures were stale test
+expectations: the next Object value is now Quay, and regular F now explicitly
+selects28 while Advanced F retains11. Tests retain all historical rule/profile/
+policy assertions and add the explicit new boundary. No gameplay code changed
+after that run. The initial report and complete Debug evidence are preserved
+under `.local/agri-mac02/alpha-check.json` and `alpha-initial-debug/`. The same
+isolated builds were reconfigured/rebuilt, then all three complete suites rerun
+through unchanged alpha runner checks, with a private guard permitting only
+those exact existing build paths and a fresh report. Visual diagnostics use
+fresh output directories. No individual test deadline or assertion was relaxed.
+The compiler-only budget is3600s; the native instrumented build took1924.509s.
+The final pipeline report/audit use `alpha-verified-check.json` and
+`alpha-resumption-audit.json` under `.local/agri-mac02/`.
+All remaining alpha components passed: general-profile100,000-tick endurance
+with12 real JSON roundtrips per build,3,000 render frames in Debug and ASan/UBSan,
+100 menu lifecycles and unchanged checksums for the nine Original files used by
+the runner. These general-profile checks complement the dedicated six-Food
+paid-world tests; they do not prove Original fishing parity or human acceptance.
+
 ## Playable Agriculture (AGRI-MAC01)
 
 The explicit Rule27/schema43 mode is AUTHORED macOS gameplay. The

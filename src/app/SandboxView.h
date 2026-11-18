@@ -8,6 +8,7 @@
 #include "renderer/SourceCellRampRenderer.h"
 #include "renderer/RampTopology.h"
 #include "simulation/World.h"
+#include "simulation/original/FishingRules.h"
 #include "simulation/CityStartGuidance.h"
 #include "simulation/RoadConnectivity.h"
 #include "persistence/SandboxSave.h"
@@ -133,6 +134,11 @@ public:
         bool paid_starter=false);
     // Explicit Rule27/schema43: AUTHORED five-crop food production and physical supply.
     static std::unique_ptr<SandboxView> create_playable_agriculture(
+        maps::StoredMapSession session,
+        std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
+    // Explicit Rule28/schema44: six Food kinds and paid physical fishing.
+    static std::unique_ptr<SandboxView> create_playable_fishing(
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
@@ -514,6 +520,7 @@ private:
     bool fire_watch_selected() const;
     bool agriculture_inspector_selected() const;
     void prepare_agriculture_inspection(bool force=false);
+    void prepare_fishing_visuals(bool force=false);
     void append_agriculture_calendar_lines(std::vector<std::string>& lines,simulation::BuildingId id) const;
     int inspection_workers_assigned(simulation::BuildingId id) const;
     bool inspection_building_staffed(simulation::BuildingId id) const;
@@ -548,6 +555,7 @@ private:
         const simulation::SourceCellRamp* source_cell_ramp=nullptr;
         bool irrigation_ditch=false;
         std::uint8_t irrigation_variant=15;
+        std::optional<simulation::FishingBoatId> boat=std::nullopt;
     };
     // Descriptors of the dynamic pixels actually submitted to the painter.
     // Image pixels remain in the eagerly loaded profiles; no hit mask is copied.
@@ -555,6 +563,7 @@ private:
         scene::WorldDrawKey key;
         simulation::Cell cell{};
         std::optional<simulation::CourierId> walker;
+        std::optional<simulation::FishingBoatId> boat;
         std::optional<simulation::BridgeId> bridge;
         bool bridge_front_rail=false;
         std::optional<simulation::RampId> ramp;
@@ -717,6 +726,19 @@ private:
     std::optional<simulation::Cell> irrigation_start_;
     sandbox_ui::IrrigationPlan irrigation_preview_;
     std::uint8_t irrigation_orientation_=0;
+    std::uint8_t fishing_orientation_=0;
+    struct FishingVisual {
+        simulation::BuildingId quay_id{};
+        std::array<simulation::Cell,5> occupied{};
+        simulation::Cell dock{};
+        bool road_connected=false;
+        std::optional<simulation::Cell> ground;
+        std::vector<std::pair<scene::Point,scene::Point>> route;
+        std::size_t route_total_edges=0;
+    };
+    std::vector<FishingVisual> fishing_visuals_;
+    std::uint64_t fishing_visual_tick_=UINT64_MAX,fishing_visual_sequence_=UINT64_MAX;
+    std::optional<original::FishingQuayGeometry> fishing_preview_geometry_;
     bool irrigation_overlay_=false;
     struct IrrigationVisual { simulation::Cell cell{};std::uint8_t variant=15; };
     std::vector<IrrigationVisual> irrigation_visuals_;
@@ -813,6 +835,9 @@ private:
     }
     bool original_agriculture() const {
         return simulation::original_agriculture_family_enabled(rules_,requested_rule_version_);
+    }
+    bool playable_fishing() const {
+        return simulation::playable_fishing_enabled(rules_,requested_rule_version_);
     }
     bool playable_agriculture() const {
         return simulation::playable_agriculture_enabled(rules_,requested_rule_version_);

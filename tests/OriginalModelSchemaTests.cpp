@@ -366,7 +366,15 @@ void functional_mapping_checks() {
     check(pump.candidate==ModelBuilding::IrrigationPump && pump.functional==Status::AuthoredFallback &&
           pump.mechanics_identity==Status::AuthoredFallback && pump.presentation_identity==Status::ReverseEngineered,
           "Explicit Pump mapping lost its model or overstated Original runtime evidence");
-    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalIrrigationPump) + 1U);
+    for (std::uint32_t rule=0;rule<openemperor::simulation::kPlayableFishingRuleVersion;++rule)
+        check(!original::functional_model_candidate(Object::OriginalFishingQuay,rule).candidate,
+              "Historical model mapping gained a Fishing Quay candidate");
+    const auto quay=original::functional_model_candidate(Object::OriginalFishingQuay,
+        openemperor::simulation::kPlayableFishingRuleVersion);
+    check(quay.candidate==ModelBuilding::FishingQuay && quay.functional==Status::AuthoredFallback &&
+          quay.mechanics_identity==Status::AuthoredFallback && quay.presentation_identity==Status::Unknown,
+          "Explicit Quay mapping lost its identity or claimed unproved Original runtime graphics");
+    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalFishingQuay) + 1U);
     for (const auto bad : {first_invalid, static_cast<Object>(255)})
         expect_exception<std::out_of_range>([&] { (void)original::functional_model_candidate(bad); }, "invalid Object is not merely unmapped");
 }

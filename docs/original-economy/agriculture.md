@@ -87,6 +87,96 @@ pair are superseded by this allocation; a future Original Harvest generation
 needs another explicitly checked free pair. Gameplay tests and macOS acceptance
 are recorded in [testing](../testing.md#playable-agriculture-agri-mac01).
 
+## Playable Fishing (AGRI-MAC02)
+
+The separate **Playable Fishing** selection (regular F menu,
+`--playable-fishing`) extends Playable Agriculture as **Rule28/policy3/schema44**,
+marker `authored-playable-fishing-v1`, revision1. Rule27/schema43 and all earlier
+contracts remain exact. New games select this mode explicitly; no save migration
+or cross-generation overwrite is admitted.
+
+The new `FishingFoodState` is the sole six-kind Food authority: Wheat7, Millet5,
+Rice6, Cabbage3, BeanCurd1 and Fish2, with catalog
+`wheat7-millet5-rice6-cabbage3-beancurd1-fish2-v1`. Historical Agriculture DTO names
+remain five-column template aliases. Rule28 contains neither the old five-column
+state nor a populated legacy two-column ledger. Common FoodBatch, reservation,
+cart, Market, House, quality-witness and consumption code handles the new width;
+Fish is not a field crop or a seventh household Goods type. Its AUTHORED batch
+quality score is75; the five crop scores/cycles remain inherited.
+
+FishingQuay31 uses the prepared source model for price and workforce (the pinned
+Normal source reports50 Funds and10 workers). Its four orientations reuse the
+verified `FishingRules` geometry: complete2x2 body, exterior dock, eight-water
+context and two land cells. World owns all five occupied cells, paid history,
+workforce, fire and operation. Two Quays maximum each reserve one existing land
+courier channel and one boat channel within the unchanged82-body/58-channel
+budgets. Invalid geometry, terrain, protected/source or paid claims, current
+actors and begun edges are rejected before payment.
+
+Boat navigation is an **AUTHORED** extension of the existing shared World
+traversal, not the unreconstructed Original navigation-byte plane. Its cardinal
+water policy admits only complete boundary-qualified flat normal-water facts
+(raw4 and policy3 bridge-water classification), without Original protection,
+bridges/ramps or foreign paid occupancy. Only the owning Quay's actual exterior
+dock is an occupied endpoint. The existing shared queue/predecessor traversal
+prepares real routes; retained paths and5-tick physical edges drive movement.
+Arrived, Moving, Retry and Failed are distinct. A cut never becomes an arrival;
+current/begun cells remain protected, and loaded boats retain cargo/reservations
+while waiting for a real return route.
+
+The geographic catalog is prepared once for creation/restore from immutable
+source facts. Validated179 manager markers supply geography, not Fish quantities
+or the Original header-array runtime binding. A marker selects the nearest
+source-qualified3x3 water centre within four offsets on each storage axis;
+duplicates coalesce.
+If none is usable, an AUTHORED fallback samples at most16 evenly spaced entries
+from the complete canonical safe-water-centre list. Neither rule exempts a
+protected marker cell from map admission. A Quay without a reachable target
+creates no boat or fish.
+
+Each area starts with8 ecological portions, caps at8, and regenerates one portion
+after240 World ticks below capacity; full areas reset their regeneration progress.
+The shared phase31 supplies dispatch attempts, not guaranteed spawns. A new typed
+monotone boat identity is allocated only for an actual reachable voyage with
+reserved Quay headroom. Full source staffing, operation, fire and road access gate
+work. At the actual target,40 eligible work ticks debit one area portion into
+boat cargo, up to four reserved portions. Return is physical. Only20 eligible
+unloading ticks at the real owning dock transfer cargo into its sole six-column
+Food account. Pause/fire/staff/access loss requests a real return and prevents
+work/unload; no actor or stock is teleported or discarded. An empty returned boat
+retires without reusing its ID. These units and timings are authored; Original
+raw100/400 and callback408/204 are not World portions or durations.
+
+Conservation is explicit:
+
+- Each area: `8 + regenerated = stock + caught`.
+- All areas/boats/Quays: `caught = active boat cargo + actual dock receipts`.
+- Food Fish: `dock receipts = held Fish + outstanding courier Fish + consumed Fish`.
+- Combined: `8 * area count + regenerated = area stock + boat cargo + Food stock + courier cargo + consumed`.
+
+The Quay's eight-portion shared capacity includes its actual stock, active boat
+reservations and possible returning courier cargo. Audit receipt counters are
+not another stock. Quay → Market → House uses the existing physical couriers,
+checked source debits, actual arrival credits and return reservations. House
+FoodQuality changes only after accepted physical delivery, and actual consumption
+uses the common Food sink. No Fish is created by a marker, building, idle clock,
+render, dispatch or restore.
+
+Schema44 retains six-column inventories/history/witnesses, complete ecology and
+regeneration, paid Quay orientations, monotone boat lifetimes, actual launch ticks,
+phases, work, cargo, reservations and routes. Atomic restore binds source/model/
+map hashes, geometry, physical paths, current/begun sections, opportunity bounds,
+accounting and canonical keys before publication. F5/F9 and bounded Recovery use
+schema44 exclusively; historical writers reject its targets and vice versa.
+
+Presentation uses source-hash-qualified static Original Quay images selected
+through the shared reader/pool. Their orientation/anchor selection is expressly
+authored static presentation, not a proved Original31 runtime registration.
+Boat49's semantic identity is known but its animation profile is not qualified;
+boats use a labelled authored fallback at actual World positions. No Original
+pixels or private captures are committed. Current validation and native/manual
+acceptance are reported separately in [testing](../testing.md#playable-fishing-agri-mac02).
+
 ## Evidence and scope
 
 Read the [agricultural source contract](../reverse/original-agriculture-source-contract.md),

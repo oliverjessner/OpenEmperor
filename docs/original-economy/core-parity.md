@@ -310,6 +310,15 @@ This checks the historical numerical/ABI boundary. Performer admission,
 training, movement, venue durations and paid gameplay have separate acceptance;
 these vectors establish no Original entertainment or religion parity.
 
+AGRI-MAC02 adds explicit Rule28 factories, optional boat/six-column Food DTOs
+and a separately prepared Quay model capability. The reviewed ABI pins cover
+those additions, including `FishingState.h`; the historical fourth-module
+calls still select neither new authority. The matching World archives now
+also link the existing harvest-rules library for the shared Quay geometry.
+Fresh comparison retains all74 numerical cases and classifications. Authored
+fishing, water navigation, ecology and consumption have their own paid-world
+tests and gain no Original numerical parity from these legacy probes.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the

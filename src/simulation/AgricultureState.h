@@ -16,6 +16,14 @@ inline constexpr bool agriculture_production_clock_verified=false;
 inline constexpr const char* agriculture_catalog="wheat7-millet5-rice6-cabbage3-beancurd1-v1";
 using AgricultureAmounts=std::array<std::int32_t,agriculture_crop_count>;
 using AgricultureCounters=std::array<std::uint64_t,agriculture_crop_count>;
+// New-generation catalog indices, distinct from the Original resource IDs.
+enum class FishingFoodResource : std::uint8_t { Wheat=0, Millet=1, Rice=2, Cabbage=3, BeanCurd=4, Fish=5 };
+inline constexpr std::size_t fishing_food_count=6;
+inline constexpr std::size_t fishing_food_index=static_cast<std::size_t>(FishingFoodResource::Fish);
+inline constexpr std::uint32_t fishing_food_revision=1;
+inline constexpr const char* fishing_food_catalog="wheat7-millet5-rice6-cabbage3-beancurd1-fish2-v1";
+using FishingFoodAmounts=std::array<std::int32_t,fishing_food_count>;
+using FishingFoodCounters=std::array<std::uint64_t,fishing_food_count>;
 struct AgricultureFarm {
     BuildingId farm_id{};
     bool operator==(const AgricultureFarm&) const = default;
@@ -27,47 +35,63 @@ struct AgricultureField {
     std::uint64_t productive_events=0,harvested=0,last_harvest_cycle=0;
     bool operator==(const AgricultureField&) const = default;
 };
-struct AgricultureQualityWitness {
+template<std::size_t Count> struct BasicAgricultureQualityWitness {
     OriginalGoodsTransferKey transfer;
     std::uint64_t tick=0;
-    AgricultureAmounts accepted{};
-    AgricultureCounters consumed_before{};
+    std::array<std::int32_t,Count> accepted{};
+    std::array<std::uint64_t,Count> consumed_before{};
     std::uint8_t previous_quality=0;
-    bool operator==(const AgricultureQualityWitness&) const = default;
+    bool operator==(const BasicAgricultureQualityWitness&) const = default;
 };
-struct AgricultureStock {
+template<std::size_t Count> struct BasicAgricultureStock {
     BuildingId building_id{};
-    AgricultureAmounts amounts{};
-    AgricultureCounters received{},departed{},returned{},consumed{};
+    std::array<std::int32_t,Count> amounts{};
+    std::array<std::uint64_t,Count> received{},departed{},returned{},consumed{};
     std::uint64_t missed_demands=0;
-    std::optional<AgricultureQualityWitness> quality_witness;
-    bool operator==(const AgricultureStock&) const = default;
+    std::optional<BasicAgricultureQualityWitness<Count>> quality_witness;
+    bool operator==(const BasicAgricultureStock&) const = default;
 };
-struct AgricultureTrip {
+template<std::size_t Count> struct BasicAgricultureTrip {
     OriginalGoodsTransferKey transfer;
     BuildingId source{},target{};
     OriginalGoodsTransferPhase phase=OriginalGoodsTransferPhase::Loaded;
-    AgricultureAmounts loaded{},delivered{},returned{};
-    bool operator==(const AgricultureTrip&) const = default;
+    std::array<std::int32_t,Count> loaded{},delivered{},returned{};
+    bool operator==(const BasicAgricultureTrip&) const = default;
 };
 // Separate full-width historical inputs, never a lossy legacy Food projection.
-struct AgricultureHousingEvaluation {
+template<std::size_t Count> struct BasicAgricultureHousingEvaluation {
     BuildingId building_id{};
     std::uint64_t tick=0;
-    std::optional<AgricultureQualityWitness> quality_witness;
-    AgricultureCounters received{},consumed{};
-    bool operator==(const AgricultureHousingEvaluation&) const = default;
+    std::optional<BasicAgricultureQualityWitness<Count>> quality_witness;
+    std::array<std::uint64_t,Count> received{},consumed{};
+    bool operator==(const BasicAgricultureHousingEvaluation&) const = default;
 };
-struct AgricultureState {
+template<std::size_t Count> struct BasicAgricultureState {
+    static constexpr std::size_t resource_count=Count;
     std::vector<AgricultureFarm> farms;
     std::vector<AgricultureField> fields;
-    std::vector<AgricultureStock> stocks;
-    std::vector<AgricultureTrip> trips;
-    std::vector<AgricultureHousingEvaluation> housing_evaluations;
-    bool operator==(const AgricultureState&) const = default;
+    std::vector<BasicAgricultureStock<Count>> stocks;
+    std::vector<BasicAgricultureTrip<Count>> trips;
+    std::vector<BasicAgricultureHousingEvaluation<Count>> housing_evaluations;
+    bool operator==(const BasicAgricultureState&) const = default;
 };
+// Historical aliases remain exactly five-wide; only the explicit successor
+// owns six-wide arrays. No projection or shared mutable inventory exists.
+using AgricultureQualityWitness=BasicAgricultureQualityWitness<agriculture_crop_count>;
+using AgricultureStock=BasicAgricultureStock<agriculture_crop_count>;
+using AgricultureTrip=BasicAgricultureTrip<agriculture_crop_count>;
+using AgricultureHousingEvaluation=BasicAgricultureHousingEvaluation<agriculture_crop_count>;
+using AgricultureState=BasicAgricultureState<agriculture_crop_count>;
+using FishingFoodQualityWitness=BasicAgricultureQualityWitness<fishing_food_count>;
+using FishingFoodStock=BasicAgricultureStock<fishing_food_count>;
+using FishingFoodTrip=BasicAgricultureTrip<fishing_food_count>;
+using FishingFoodHousingEvaluation=BasicAgricultureHousingEvaluation<fishing_food_count>;
+using FishingFoodState=BasicAgricultureState<fishing_food_count>;
 // AUTHORED nutrition scores and quantity-weighted blend, not original scores.
 inline FoodBatchQuality agriculture_batch_quality(const AgricultureAmounts& amounts) {
     return {food_batch::weighted_quality(amounts,std::array<std::uint8_t,5>{20,80,60,70,90})};
+}
+inline FoodBatchQuality agriculture_batch_quality(const FishingFoodAmounts& amounts) {
+    return {food_batch::weighted_quality(amounts,std::array<std::uint8_t,6>{20,80,60,70,90,75})};
 }
 } // namespace openemperor::simulation

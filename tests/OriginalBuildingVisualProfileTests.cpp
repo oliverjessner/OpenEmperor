@@ -58,7 +58,8 @@ Json state(const a::BuildingVisualProfile& p) {
         {"house_prepared",p.original_house_prepared},{"house_fallbacks",p.original_house_fallbacks},
         {"original",entries(p.original_building_entries)},{"prepared",p.original_building_prepared},
         {"fallbacks",p.original_building_fallbacks},{"field_prepared",p.original_field_prepared},{"field_stages",fields},
-        {"rice_prepared",p.original_rice_prepared},{"rice_entries",entries(p.original_rice_entries)},{"rice_masks",p.original_rice_mask_offsets}};
+        {"rice_prepared",p.original_rice_prepared},{"rice_entries",entries(p.original_rice_entries)},{"rice_masks",p.original_rice_mask_offsets},
+        {"fishing_prepared",p.fishing_prepared},{"fishing_entries",entries(p.fishing_quay_entries)}};
 }
 struct Fixture {
     fs::path root=fs::canonical(fs::temp_directory_path())/("openemperor-original-building-profile-"+
@@ -115,6 +116,33 @@ struct Fixture {
             for(unsigned pixel=0;pixel<1600;++pixel)u16(bitmap,bitmap_start+n*3200U+2U*pixel,0x001fU+n*32U);
         }
         save();
+    }
+    void quay_atlas() {
+        constexpr unsigned first=721,total=725;
+        const auto bitmap_start=bitmap.size();
+        sg3.resize(40680U+total*64U);bitmap.resize(bitmap_start+4U*12800U);
+        u32(sg3,0,static_cast<unsigned>(sg3.size()));u32(sg3,12,total);u32(sg3,16,total-1);
+        u32(sg3,880+124,total-201U);u32(sg3,880+132,total-1);
+        constexpr std::array<unsigned,4> heights{107,121,134,120};
+        for (unsigned n=0;n<4;++n) {
+            const auto at=40680U+64U*(first+n);
+            u32(sg3,at,static_cast<unsigned>(bitmap_start)+n*12800U);u32(sg3,at+4,12800);u32(sg3,at+8,12800);
+            u16(sg3,at+20,158);u16(sg3,at+22,heights[n]);u16(sg3,at+50,30);sg3[at+55]=2;sg3[at+56]=1;
+            for(unsigned pixel=0;pixel<6400;++pixel)u16(bitmap,bitmap_start+n*12800U+2U*pixel,0x001fU+n*64U);
+        }
+        save();
+    }
+    Json fishing() const {
+        constexpr std::array<unsigned,4> physicals{724,721,722,723},heights{120,107,121,134};
+        Json rows=Json::array();
+        for(unsigned orientation=0;orientation<4;++orientation)
+            rows.push_back({{"orientation",orientation},{"model_type",31U},{"image_index",physicals[orientation]},
+                {"width",158U},{"height",heights[orientation]},{"base_bytes",12800U},
+                {"ground_anchor",{79U,heights[orientation]-20U}}});
+        return {{"schema_version",1U},{"mode","curated_fishing_static"},{"selection","authored-quay-four-static-poses-v1"},
+            {"anchor_policy","type30_front_cell"},{"evidence","Independent synthetic pixels; authored static Quay association and anchor"},
+            {"files",{{{"path","DATA/China_General.sg3"},{"sha256",hash(sg3)}},
+                      {{"path","DATA/China_General.555"},{"sha256",hash(bitmap)}}}},{"quays",rows}};
     }
     Json valid(unsigned schema=2) const {
         Json rows=Json::array();
@@ -480,6 +508,69 @@ void inactive_rice() {
     a::append_original_building_visual_profile(f.data,f.manifest,historical);
     check(!historical.original_rice_prepared && !historical.find_original_rice(0),"Schema5 gained native Rice or topology");
 }
+void fishing_static() {
+    Fixture f;f.quay_atlas();const auto source=read(f.data/"DATA/China_General.sg3"),pixels=read(f.data/"DATA/China_General.555");
+    const auto metadata=f.fishing();write(f.manifest,metadata);auto profile=f.legacy();const auto historical=state(profile);
+    a::append_fishing_visual_profile(f.data,f.manifest,profile);
+    check(profile.fishing_prepared && profile.unique_images.size()==5 && state(profile)["core"]==historical["core"] &&
+        state(profile)["houses"]==historical["houses"] && state(profile)["original"]==historical["original"] &&
+        !profile.original_building_prepared && !profile.original_rice_prepared,"Fishing supplement changed historical capability or pool");
+    constexpr std::array<unsigned,4> physicals{724,721,722,723};
+    std::uint64_t required=0;for(const auto& image:profile.unique_images)required+=image.pixels.size();
+    for(std::uint8_t orientation=0;orientation<4;++orientation) {
+        const auto* entry=profile.find_fishing_quay(orientation);
+        check(entry && entry->id.image_index==physicals[orientation] && entry->footprint_side==2 && entry->ground_x==79,
+            "Fishing pose lost its explicit curated orientation or geometry");
+        const auto decoded=a::load_sg3_image({f.data/entry->id.archive_relative_path,entry->id.image_index});
+        check(decoded.pixels==profile.unique_images.at(entry->image_index).pixels && entry->ground_y==decoded.height-20,
+            "Fishing pixels or authored front-cell anchor changed");
+        for(std::uint8_t previous=0;previous<orientation;++previous)
+            check(hash(decoded.pixels)!=hash(profile.unique_images.at(profile.find_fishing_quay(previous)->image_index).pixels),
+                "Fishing orientations collapsed into one physical image");
+    }
+    check(!profile.find_fishing_quay(4) && !f.legacy().find_fishing_quay(0),"Historical or invalid orientation gained Quay art");
+    auto reused=f.legacy();reused.unique_images.push_back(a::load_sg3_image({f.data/"DATA/China_General.sg3",721}));
+    reused.original_house_entries[1]=a::BuildingVisualEntry{{"DATA/China_General.sg3",721},1,79,87,2,"Existing physical image owner"};
+    const auto old_house=state(reused)["houses"];
+    a::append_fishing_visual_profile(f.data,f.manifest,reused);
+    check(reused.unique_images.size()==5 && reused.find_fishing_quay(1)->image_index==1 && state(reused)["houses"]==old_house,
+        "Fishing did not share an existing physical image or changed its owner");
+    const auto reject=[&](const Json& document,const char* reason,std::uint64_t budget=a::building_max_rgba_bytes) {
+        write(f.manifest,document);auto unchanged=f.legacy();unchanged.original_house_entries[1]=unchanged.entries[a::role_index(a::BuildingVisualRole::Well)];
+        const auto before=state(unchanged);bool refused=false;
+        try{a::append_fishing_visual_profile(f.data,f.manifest,unchanged,budget);}catch(const std::exception&){refused=true;}
+        check(refused,reason);check(state(unchanged)==before,"Rejected Fishing supplement changed prior pixels, selections or capabilities");
+    };
+    auto bad=metadata;bad["selection"]="model31-runtime-selector";reject(bad,"Unproved Quay runtime selector accepted");
+    bad=metadata;bad["quays"].erase(3);reject(bad,"Incomplete Fishing pose set accepted");
+    bad=metadata;bad["quays"].push_back(metadata["quays"][0]);reject(bad,"Extra Fishing pose accepted");
+    bad=metadata;bad["quays"][1]["orientation"]=0;reject(bad,"Duplicate Fishing orientation accepted");
+    bad=metadata;bad["quays"][1]["image_index"]=724;reject(bad,"Fishing orientation silently used another static pose");
+    bad=metadata;bad["quays"][3]["model_type"]=33;reject(bad,"Hunter body accepted as Quay");
+    bad=metadata;bad["quays"][3]["width"]=159;reject(bad,"Partial or different Quay width accepted");
+    bad=metadata;bad["quays"][3]["ground_anchor"][1]=113;reject(bad,"Late Quay anchor failure published earlier poses");
+    bad=metadata;bad["quays"][0]["animation"]=true;reject(bad,"Unqualified Fishing animation metadata accepted");
+    bad=metadata;bad["files"][1]["sha256"]=std::string(64,'0');reject(bad,"Fishing fingerprint mismatch accepted");
+    bad=metadata;bad["files"][1]=bad["files"][0];reject(bad,"Duplicate Fishing dependency accepted");
+    reject(metadata,"Fishing exceeded shared combined RGBA budget",required-1);
+    write(f.manifest,metadata);const auto qualified=state(profile);bool duplicate=false;
+    try{a::append_fishing_visual_profile(f.data,f.manifest,profile);}catch(const std::exception&){duplicate=true;}
+    check(duplicate && state(profile)==qualified,"Second Fishing preparation duplicated pixels or replaced qualified entries");
+    const auto original=f.data/"DATA/China_General.555",held=f.root/"held.555";
+    fs::rename(original,held);reject(metadata,"Missing Fishing bitmap accepted");
+    fs::create_symlink(held,original);reject(metadata,"Linked Fishing bitmap escaped contained source context");
+    fs::remove(original);fs::rename(held,original);
+    write(f.manifest,metadata);const auto linked=f.root/"fishing-linked.json";fs::create_symlink(f.manifest,linked);
+    auto untouched=f.legacy();const auto old=state(untouched);bool linked_refused=false;
+    try{a::append_fishing_visual_profile(f.data,linked,untouched);}catch(const std::exception&){linked_refused=true;}
+    check(linked_refused && state(untouched)==old,"Linked Fishing metadata accepted or changed prior state");
+    perf::set_enabled(true);perf::reset();
+    for(unsigned frame=0;frame<1000;++frame)for(std::uint8_t pose=0;pose<4;++pose)(void)profile.find_fishing_quay(pose);
+    check(!perf::counter(perf::Counter::FileReads) && !perf::counter(perf::Counter::AssetDecodes),"Prepared Quay lookup read or decoded source data");
+    perf::set_enabled(false);
+    check(read(f.data/"DATA/China_General.sg3")==source && read(f.data/"DATA/China_General.555")==pixels,
+        "Fishing profile preparation altered supplied source bytes");
+}
 void real(const fs::path& data,const fs::path& resources) {
     const auto pack=resources/"Compatibility/gog-derived-2.0.0.2-en-assetset-1";
     auto p=a::load_building_visual_profile(data,pack/"buildings.json");
@@ -565,12 +656,23 @@ void real(const fs::path& data,const fs::path& resources) {
         check(entry.id.image_index==2506U+offset && image.pixels==rice.unique_images.at(entry.image_index).pixels &&
             entry.ground_x==39 && entry.ground_y==image.height-20,"Real inactive Rice native pixels or anchor changed");
     }
+    const auto before_fishing=state(rice);a::append_fishing_visual_profile(data,pack/"fishing.json",rice);
+    check(rice.fishing_prepared && rice.unique_images.size()==127 && state(rice)["core"]==before_fishing["core"] &&
+        state(rice)["houses"]==before_fishing["houses"] && state(rice)["original"]==before_fishing["original"] &&
+        state(rice)["rice_entries"]==before_fishing["rice_entries"],"Real Fishing supplement changed historical selections or physical pool");
+    constexpr std::array<unsigned,4> quay_physical{724,721,722,723};
+    for(std::uint8_t orientation=0;orientation<4;++orientation) {
+        const auto* entry=rice.find_fishing_quay(orientation);check(entry && entry->id.image_index==quay_physical[orientation],"Real curated Quay pose differs");
+        const auto image=a::load_sg3_image({data/entry->id.archive_relative_path,entry->id.image_index});
+        check(image.pixels==rice.unique_images.at(entry->image_index).pixels && entry->ground_x==79 && entry->ground_y==image.height-20,
+            "Real curated Quay source pixels or authored anchor changed");
+    }
     const auto detected=a::detect_compatibility(data,resources/"Compatibility");check(detected.original_building_compatible(),"committed pack supplement not declared");
 }
 }
 int main(int argc,char** argv) {
     try{check(argc==1 || (argc==4 && std::string_view(argv[1])=="--real"),"Usage: original-building-profile [--real DATA RESOURCES]");
-        synthetic();fields();appended_static_roles();agriculture_fields();inactive_rice();compatibility();if(argc==4)real(fs::canonical(argv[2]),fs::canonical(argv[3]));
+        synthetic();fields();appended_static_roles();agriculture_fields();inactive_rice();fishing_static();compatibility();if(argc==4)real(fs::canonical(argv[2]),fs::canonical(argv[3]));
         std::cout<<"Original static building identity, atomic guards, native RGBA, shared budget and compatibility PASS\n";return 0;
     }catch(const std::exception& e){perf::set_enabled(false);std::cerr<<"Original building profile FAIL: "<<e.what()<<'\n';return 1;}
 }

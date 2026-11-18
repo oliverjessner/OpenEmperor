@@ -91,7 +91,7 @@ void validate_retained_irrigation(const Snapshot& s) {
             invalid("Irrigation authority requires the explicit Rule26 contract");
         return;
     }
-    if(!s.irrigation || !s.agriculture || !s.plantations || s.width<1 || s.width>228 || s.height<1 || s.height>228)
+    if(!s.irrigation || (!s.agriculture && !s.fishing_food) || !s.plantations || s.width<1 || s.width>228 || s.height<1 || s.height>228)
         invalid("Irrigation requires its bounded Agriculture/plantation lineage");
     const auto& state=*s.irrigation;
     if(state.ditches.size()>irrigation_ditch_limit || state.pumps.size()>Rules::original_production_building_limit ||
@@ -145,6 +145,16 @@ World World::create_playable_agriculture(std::shared_ptr<const MapPermissions> p
     std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
     return create_irrigation_generation(kPlayableAgricultureRuleVersion,std::move(permissions),std::move(model),std::move(terrain));
 }
+World World::create_playable_fishing(std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    auto world=create_irrigation_generation(kPlayableFishingRuleVersion,std::move(permissions),std::move(model),std::move(terrain));
+    world.initialize_fishing_sites();world.validate_fishing_context();return world;
+}
+World World::restore_playable_fishing(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    auto world=restore_irrigation_generation(kPlayableFishingRuleVersion,s,std::move(permissions),std::move(model),std::move(terrain));
+    world.validate_fishing_context();return world;
+}
 World World::create_irrigation_generation(std::uint32_t version,std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
     if(!permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain ||
@@ -173,7 +183,7 @@ World World::restore_irrigation_generation(std::uint32_t version,const WorldSnap
         permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !terrain->fertility_complete() || !terrain->irrigation_complete())
         invalid("Irrigation restore requires its exact generation, policy3 and complete source-bound model/terrain");
     validate_original_production_snapshot(s);validate_irrigation_snapshot(s);
-    for(const auto& row:s.agriculture->fields) if(row.crop==AgricultureCrop::Rice) {
+    for(const auto& row:(s.fishing_food ? s.fishing_food->fields:s.agriculture->fields)) if(row.crop==AgricultureCrop::Rice) {
         const auto at=std::find_if(s.buildings.begin(),s.buildings.end(),[&](const auto& b){return b.id==row.field_id;});
         if(at==s.buildings.end() || terrain->fertility(at->cell)!=100)
             invalid("Irrigation generation retains Rice fertility100 construction admission");
@@ -249,7 +259,7 @@ IrrigationBatchValidation World::validate_irrigation_batch(std::span<const Cell>
     if(cells.empty() || cells.size()>irrigation_gesture_limit) {result.reason="Irrigation gesture requires1..256 cells";return result;}
     std::vector<Cell> added;added.reserve(cells.size());
     for(const auto cell:cells) {
-        if(!has_ditch(*irrigation_,cell) && grower_navigation_cell_claimed(cell)) {
+        if(!has_ditch(*irrigation_,cell) && (grower_navigation_cell_claimed(cell) || fishing_boat_cell_claimed(cell))) {
             result.reason="Ditch overlaps navigation experiment or its begun edge";return result;
         }
         if(!ditch_context(*this,cell)) {
@@ -304,7 +314,7 @@ CommandResult World::validate_irrigation_command(Command command) const {
     }
     if(command_sequence_>=UINT64_MAX-1) {result.reason="Irrigation command counter exhausted";return result;}
     if(command.type==CommandType::RemoveIrrigationDitch) {
-        if(grower_navigation_cell_claimed(command.cell)) {
+        if((grower_navigation_cell_claimed(command.cell) || fishing_boat_cell_claimed(command.cell))) {
             result.reason="Ditch occupied by navigation experiment or its begun edge";return result;
         }
         if(!has_ditch(*irrigation_,command.cell)) {result.reason="Only an installed paid World ditch can be removed";return result;}
@@ -320,7 +330,7 @@ CommandResult World::validate_irrigation_command(Command command) const {
         result.reason="Pump geometry exceeds coordinate bounds";return result;
     }
     if(!pump_context(*this,shape)) {result.reason="Pump requires its complete empty shoreline body and eight intake-water cells";return result;}
-    for(const auto cell:shape.footprint) if(grower_navigation_cell_claimed(cell)) {
+    for(const auto cell:shape.footprint) if((grower_navigation_cell_claimed(cell) || fishing_boat_cell_claimed(cell))) {
         result.reason="Pump overlaps navigation experiment or its begun edge";return result;
     }
     if(buildings_.size()>=Rules::original_production_building_limit || !next_building_id_ || next_building_id_==UINT32_MAX ||

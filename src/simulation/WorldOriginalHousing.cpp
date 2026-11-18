@@ -5,6 +5,7 @@
 #include <array>
 #include <map>
 #include <stdexcept>
+#include <type_traits>
 
 namespace openemperor::simulation {
 namespace {
@@ -59,7 +60,7 @@ void basic_input(const original::HouseState& input,bool cardinal_water,bool agri
         if (stock<0 || stock>Rules::household_capacity) invalid("Housing input invents unsupported goods stock");
     }
 }
-auto agriculture_evaluation_key(const AgricultureHousingEvaluation& row) {
+template<class Evaluation> auto agriculture_evaluation_key(const Evaluation& row) {
     return std::pair{row.building_id,row.tick};
 }
 bool retained_agriculture_evaluation(const OriginalHousingHouse& house,std::uint64_t tick) {
@@ -68,9 +69,17 @@ bool retained_agriculture_evaluation(const OriginalHousingHouse& house,std::uint
         return entry && entry->kind==OriginalHousingTransitionKind::Evolution && entry->evaluation.tick==tick;
     });
 }
+template<class F> decltype(auto) with_snapshot_agriculture(const WorldSnapshot& s,F&& f) {
+    if(playable_fishing_enabled(s.profile,s.rule_version)) {
+        if(!s.fishing_food || s.agriculture) invalid("Fishing Housing requires sole six-kind Food history");
+        return f(*s.fishing_food);
+    }
+    if(!s.agriculture || s.fishing_food) invalid("Agriculture Housing requires exact historical full-width Food history");
+    return f(*s.agriculture);
+}
 void validate_agriculture_housing_rows(const WorldSnapshot& s) {
-    if (!s.agriculture) invalid("Agriculture Housing requires its separate full-width Food history");
-    const auto& rows=s.agriculture->housing_evaluations;
+    with_snapshot_agriculture(s,[&](const auto& food) {
+    const auto& rows=food.housing_evaluations;
     if (rows.size()>20*(original::house_row_count+1)) invalid("Agriculture Housing history exceeds retained transition bounds");
     for (std::size_t i=0;i<rows.size();++i) {
         const auto& row=rows[i];
@@ -80,11 +89,12 @@ void validate_agriculture_housing_rows(const WorldSnapshot& s) {
         if (!house.first_admission_tick || !retained_agriculture_evaluation(house,row.tick))
             invalid("Agriculture Housing Food history has no retained actual evaluation");
     }
+    });
 }
-void historical_agriculture_food(const WorldSnapshot& s,BuildingId id,std::uint64_t first,const OriginalHousingEvaluation& proof) {
+template<class Food> void historical_agriculture_food_state(const WorldSnapshot& s,const Food& state,BuildingId id,
+    std::uint64_t first,const OriginalHousingEvaluation& proof) {
     if (proof.food_quality_witness || proof.food_received!=OriginalFoodCounters{} || proof.food_consumed!=OriginalFoodCounters{})
         invalid("Agriculture Housing cannot project five crops into legacy Food evidence");
-    const auto& state=*s.agriculture;
     const auto key=std::pair{id,proof.tick};
     const auto found=std::lower_bound(state.housing_evaluations.begin(),state.housing_evaluations.end(),key,
         [](const auto& row,const auto& wanted){return agriculture_evaluation_key(row)<wanted;});
@@ -92,7 +102,7 @@ void historical_agriculture_food(const WorldSnapshot& s,BuildingId id,std::uint6
         invalid("Agriculture Housing evaluation lacks its actual full-width Food input");
     const auto& food=*found;const auto& current=by_id(state.stocks,id);
     std::uint64_t received=0,consumed=0;
-    for (std::size_t crop=0;crop<agriculture_crop_count;++crop) {
+    for (std::size_t crop=0;crop<food.received.size();++crop) {
         if (food.received[crop]>current.received[crop] || food.consumed[crop]>current.consumed[crop] ||
             food.consumed[crop]>food.received[crop])
             invalid("Agriculture Housing Food input exceeds actual physical reception/sinks");
@@ -136,7 +146,7 @@ void historical_agriculture_food(const WorldSnapshot& s,BuildingId id,std::uint6
         invalid("Agriculture Housing Food witness contradicts retained delivery");
     std::int32_t previous=0,accepted=0;std::uint64_t used_since=0;
     std::uint8_t minimum_quality=90,maximum_quality=20;
-    for (std::size_t crop=0;crop<agriculture_crop_count;++crop) {
+    for (std::size_t crop=0;crop<food.received.size();++crop) {
         if (witness.accepted[crop]<0 || witness.accepted[crop]>4 || witness.consumed_before[crop]>food.consumed[crop] ||
             food.received[crop]<static_cast<std::uint64_t>(witness.accepted[crop]) ||
             food.received[crop]-static_cast<std::uint64_t>(witness.accepted[crop])<witness.consumed_before[crop])
@@ -148,7 +158,7 @@ void historical_agriculture_food(const WorldSnapshot& s,BuildingId id,std::uint6
             invalid("Agriculture Housing Food witness exceeds historical stock");
         previous+=static_cast<std::int32_t>(prior);accepted+=witness.accepted[crop];add(used_since,delta);
         if (prior_received) {
-            AgricultureAmounts single{};single[crop]=1;const auto quality=agriculture_batch_quality(single).value;
+            std::remove_cvref_t<decltype(witness.accepted)> single{};single[crop]=1;const auto quality=agriculture_batch_quality(single).value;
             minimum_quality=std::min(minimum_quality,quality);maximum_quality=std::max(maximum_quality,quality);
         }
     }
@@ -160,6 +170,9 @@ void historical_agriculture_food(const WorldSnapshot& s,BuildingId id,std::uint6
         agriculture_batch_quality(witness.accepted).value,accepted,previous);
     if (proof.input.food_quality!=(received>consumed ? expected:0))
         invalid("Agriculture Housing Food input differs from witnessed blend/empty reset");
+}
+void historical_agriculture_food(const WorldSnapshot& s,BuildingId id,std::uint64_t first,const OriginalHousingEvaluation& proof) {
+    with_snapshot_agriculture(s,[&](const auto& food){historical_agriculture_food_state(s,food,id,first,proof);});
 }
 void historical_service(const WorldSnapshot& s,BuildingId id,std::uint64_t first,const OriginalHousingEvaluation& proof,std::size_t index) {
     const auto role=roles[index];const auto& value=proof.service_witnesses[index];std::uint8_t expected=0;
@@ -521,14 +534,17 @@ void World::evaluate_original_houses() {
         }
         proof.water_evaluation_witness=original_production_->water.houses[i].evaluation_witness;
         if (original_agriculture_enabled()) {
-            const auto& food=by_id(agriculture_->stocks,home.building_id);
-            AgricultureHousingEvaluation actual{home.building_id,ticks_,food.quality_witness,food.received,food.consumed};
-            auto& entries=agriculture_->housing_evaluations;const auto key=agriculture_evaluation_key(actual);
+            with_agriculture_food([&](auto& agriculture) {
+            const auto& food=by_id(agriculture.stocks,home.building_id);
+            using Evaluation=typename std::remove_cvref_t<decltype(agriculture.housing_evaluations)>::value_type;
+            Evaluation actual{home.building_id,ticks_,food.quality_witness,food.received,food.consumed};
+            auto& entries=agriculture.housing_evaluations;const auto key=agriculture_evaluation_key(actual);
             const auto at=std::lower_bound(entries.begin(),entries.end(),key,
                 [](const auto& row,const auto& wanted){return agriculture_evaluation_key(row)<wanted;});
             if (at!=entries.end() && agriculture_evaluation_key(*at)==key)
                 invalid("Agriculture Housing attempted to capture the same actual evaluation twice");
             entries.insert(at,std::move(actual));
+            });
         } else {
             const auto& food=by_id(original_production_->food.stocks,home.building_id);
             proof.food_quality_witness=food.quality_witness;proof.food_received=food.received;proof.food_consumed=food.consumed;
@@ -544,9 +560,11 @@ void World::evaluate_original_houses() {
     if (original_agriculture_enabled()) {
         // Keep only inputs still referenced by the exact first/latest Housing
         // proofs. This never becomes an unbounded per-phase delivery journal.
-        std::erase_if(agriculture_->housing_evaluations,[&](const auto& entry) {
+        with_agriculture_food([&](auto& agriculture) {
+        std::erase_if(agriculture.housing_evaluations,[&](const auto& entry) {
             const auto& house=by_id(original_production_->housing.houses,entry.building_id);
             return !retained_agriculture_evaluation(house,entry.tick);
+        });
         });
     }
 }

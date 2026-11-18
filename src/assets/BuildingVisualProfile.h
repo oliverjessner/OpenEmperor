@@ -156,11 +156,18 @@ struct BuildingVisualProfile {
     bool irrigation_prepared=false;
     std::array<std::optional<BuildingVisualEntry>,36> irrigation_ditch_entries{};
     std::array<std::optional<BuildingVisualEntry>,4> irrigation_pump_entries{};
+    // Explicit Rule28 supplement: curated static Original pixels, authored pose/anchor.
+    bool fishing_prepared=false;
+    std::array<std::optional<BuildingVisualEntry>,4> fishing_quay_entries{};
     // Schema6's inactive, unworked representative only. This mask index is
     // derived during asset preparation; no source table or work clock is saved.
     bool original_rice_prepared=false;
     std::array<std::optional<BuildingVisualEntry>,rice_inactive_tile_count> original_rice_entries{};
     std::array<std::uint8_t,256> original_rice_mask_offsets{};
+    const BuildingVisualEntry* find_fishing_quay(std::uint8_t orientation) const {
+        if (!fishing_prepared || orientation>=fishing_quay_entries.size()) return nullptr;
+        const auto& entry=fishing_quay_entries[orientation];return entry ? &*entry:nullptr;
+    }
     const BuildingVisualEntry* find_original_rice(std::uint8_t neighbor_mask,
             std::uint8_t actual_side=1,std::uint32_t quantity=0) const {
         if (!original_building_prepared || !original_rice_prepared || actual_side!=1 || quantity!=0)
@@ -229,6 +236,10 @@ void append_original_house_visual_profile(const std::filesystem::path& data_root
 // Complete native rasters only. Schema3 field illustrations quantize existing
 // authored progress; Original growth/animation and gameplay authority are absent.
 void append_original_building_visual_profile(const std::filesystem::path& data_root,
+    const std::filesystem::path& manifest,BuildingVisualProfile& profile,
+    std::uint64_t max_final_rgba=building_max_rgba_bytes);
+// Independent atomic supplement; historical schemas/role values remain frozen.
+void append_fishing_visual_profile(const std::filesystem::path& data_root,
     const std::filesystem::path& manifest,BuildingVisualProfile& profile,
     std::uint64_t max_final_rgba=building_max_rgba_bytes);
 }

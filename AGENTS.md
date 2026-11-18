@@ -249,6 +249,24 @@
   Original research sessions and their refusal domains remain exact; no
   automatic migration or cross-schema overwrite. See
   [Playable Agriculture](docs/original-economy/agriculture.md#playable-agriculture-agri-mac01).
+- Playable Fishing is a separate explicit Rule28/policy3/schema44 successor,
+  `authored-playable-fishing-v1`, revision1, regular F menu and
+  `--playable-fishing`. Its sole six-column FishingFoodState extends the same
+  typed Food engine with Fish2; old five-column Agriculture and two-column Food
+  ledgers are absent/empty. Two paid source-priced/staffed Quay31 bodies retain
+  all four oriented2x2+dock five-cell claims. Each owns one courier and one
+  reserved boat channel within unchanged82/58 budgets. Shared water traversal,
+  actual5-tick boat edges, finite8-portion areas with1/240 regeneration,
+  phase31 attempts,40-work-tick portions and20-tick real dock unloads are
+  AUTHORED. Marker179 is geography only; normal-water fallback sites are
+  explicit and bounded16. Only actual dock return/unload credits Fish stock;
+  boat cargo, area depletion, receipts and six-kind Food balances stay distinct.
+  Full staff, operation/fire/access, begun-edge safety, capacity/reservations,
+  physical Market/House arrivals and actual consumption remain World authority.
+  Static Original Quay artwork uses authored pose/anchor selection; unqualified
+  Boat49 animation uses a labelled authored fallback. Rules1–27/schemas1–43,
+  defaults and Original research stay exact, with no migration/overwrite.
+  See [Playable Fishing](docs/original-economy/agriculture.md#playable-fishing-agri-mac02).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

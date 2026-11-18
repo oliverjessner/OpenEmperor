@@ -85,7 +85,7 @@ BridgeValidation World::validate_bridge(Cell a,Cell b) const {
         if(permissions_->road_blocker(cell)==BuildBlocker::OutsideMap)return block(BuildBlocker::OutsideMap,cell);
         if(permissions_->protected_original(cell))return block(permissions_->fixed_gate_at(cell)?BuildBlocker::ProtectedGatePassage:BuildBlocker::OriginalStructure,cell);
         if(!permissions_->bridge_water(cell))return block(BuildBlocker::UnsupportedBridgeWater,cell);
-        if(object_at(cell)!=Object::Empty||bridge_at(cell)||bridge_bank_at(cell))
+        if(fishing_boat_cell_claimed(cell)||object_at(cell)!=Object::Empty||bridge_at(cell)||bridge_bank_at(cell))
             return block(BuildBlocker::SandboxOccupied,cell,"Bridge overlaps existing sandbox occupancy");
         span.water_cells.push_back(cell);
     }

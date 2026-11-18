@@ -13,7 +13,8 @@ namespace openemperor::simulation {
 namespace {
 [[noreturn]] void invalid(const char* message) {throw std::invalid_argument(message);}
 bool food_role(CourierRole role) {return role==CourierRole::OriginalFoodToMarket || role==CourierRole::OriginalFoodToHouse;}
-bool food_owner(Object kind) {return kind==Object::OriginalFoodFarm || kind==Object::Market || original_house_kind(kind);}
+bool food_source(Object kind,bool fishing=false) {return kind==Object::OriginalFoodFarm || (fishing && kind==Object::OriginalFishingQuay);}
+bool food_owner(Object kind,bool fishing=false) {return food_source(kind,fishing) || kind==Object::Market || original_house_kind(kind);}
 int capacity(Object kind) {return kind==Object::Market ? 16:8;}
 std::size_t crop_index(OriginalFoodCrop crop) {
     const auto result=static_cast<std::size_t>(crop);
@@ -85,23 +86,45 @@ bool work_area(Cell farm,Cell field) {
 }
 FoodBatchQuality batch_quality(const OriginalFoodAmounts& a) {return original_food_batch_quality(a);}
 FoodBatchQuality batch_quality(const AgricultureAmounts& a) {return agriculture_batch_quality(a);}
+FoodBatchQuality batch_quality(const FishingFoodAmounts& a) {return agriculture_batch_quality(a);}
+std::uint64_t fish_origin(const FishingState* state,BuildingId quay) {
+    if(!state) invalid("Fish origin requires its sole Fishing authority");
+    const auto row=std::find_if(state->quays.begin(),state->quays.end(),[&](const auto& value){return value.quay_id==quay;});
+    if(row==state->quays.end()) invalid("Fish source lost its paid Quay identity");
+    return row->unloaded;
+}
+int boat_return_room(const FishingState* state,BuildingId quay) {
+    int result=0;
+    if(state) for(const auto& boat:state->boats) if(boat.quay_id==quay) {
+        if(boat.reserved<0 || boat.reserved>fishing_boat_capacity || result>8-boat.reserved)
+            invalid("Boat return reservation exceeds finite Quay capacity");
+        result+=boat.reserved;
+    }
+    return result;
+}
 template<class Food,class Buildings,class Couriers,class Homes>
 void validate_food(const Food& food,const Buildings& buildings,const Couriers& couriers,const Homes& houses,
-              std::uint64_t ticks,RulesProfile profile,std::uint32_t rule,bool bind_movement=true,bool check_progress=true) {
+              std::uint64_t ticks,RulesProfile profile,std::uint32_t rule,bool bind_movement=true,bool check_progress=true,
+              const FishingState* fishing_context=nullptr) {
     using Amounts=std::remove_cvref_t<decltype(food.stocks.front().amounts)>;
     using Counters=std::remove_cvref_t<decltype(food.stocks.front().received)>;
-    constexpr bool agriculture=std::is_same_v<Food,AgricultureState>;
+    constexpr bool agriculture=!std::is_same_v<Food,OriginalFoodState>;
+    constexpr bool fishing=std::is_same_v<Food,FishingFoodState>;
+    if constexpr(fishing) {
+        if(!playable_fishing_enabled(profile,rule) || !fishing_context) invalid("Six-kind Food requires exact Fishing generation");
+    } else if(fishing_context) invalid("Historical Food cannot bind Fishing authority");
     const auto farm_limit=original_food_farm_limit(profile,rule);
     const auto trip_limit=original_food_trip_limit(profile,rule);
     if (food.farms.size()>farm_limit || food.stocks.size()>original_food_stock_limit(profile,rule) || food.trips.size()>trip_limit)
         invalid("bounded Food authority exceeded");
     std::size_t owners=0,farms=0,fields=0,actors=0;
-    for (const auto& b:buildings) {owners+=food_owner(b.kind);farms+=b.kind==Object::OriginalFoodFarm;
+    for (const auto& b:buildings) {owners+=food_owner(b.kind,fishing);farms+=b.kind==Object::OriginalFoodFarm;
         fields+=agriculture ? agriculture_field(b.kind):(b.kind==Object::OriginalWheatField || b.kind==Object::OriginalMilletField);}
     for (const auto& c:couriers) actors+=food_role(c.role);
     if (owners!=food.stocks.size() || farms!=food.farms.size() || fields>(agriculture ? agriculture_field_limit:farm_limit) || actors>trip_limit) invalid("missing Food purchase authority");
     std::array<BuildingId,3> assigned_fields{};std::size_t assigned=0;
     Counters harvest{},all_stock{},all_consumed{},all_departed{},all_received{},all_returned{},all_cargo{};
+    if constexpr(fishing) for(const auto& quay:fishing_context->quays) add(harvest[fishing_food_index],quay.unloaded);
     if constexpr (agriculture) {
         const bool authored_food=simulation::original_plantations_enabled(profile,rule);
         if(food.fields.size()!=fields) invalid("Agriculture field count differs from paid bodies");
@@ -168,7 +191,7 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
             (bind_movement && (c->target!=trip.target || c->last_dispatched_target!=trip.target)))
             invalid("Food transaction lost actual actor/source/target binding");
         const auto& source=body(buildings,trip.source);const auto& target=body(buildings,trip.target);
-        if (source.kind!=(c->role==CourierRole::OriginalFoodToMarket ? Object::OriginalFoodFarm:Object::Market) ||
+        if ((c->role==CourierRole::OriginalFoodToMarket ? !food_source(source.kind,fishing):source.kind!=Object::Market) ||
             (c->role==CourierRole::OriginalFoodToMarket ? target.kind!=Object::Market:!original_house_kind(target.kind))) invalid("Food actor has incompatible owner or target");
         if (original_house_kind(target.kind) && home(houses,target.id).house.occupants<=0)
             invalid("Food targeted dispatch requires a genuinely occupied House");
@@ -204,6 +227,8 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
             std::uint64_t origin=0;
             if(source.kind==Object::OriginalFoodFarm) {
                 for(const auto& field:food.fields) if(field.farm_id==source.id && static_cast<std::size_t>(field.crop)==g) add(origin,field.harvested);
+            } else if constexpr(fishing) {
+                origin=source.kind==Object::OriginalFishingQuay ? (g==fishing_food_index ? fish_origin(fishing_context,source.id):0):from.received[g];
             } else origin=from.received[g];
             if(static_cast<std::uint64_t>(trip.loaded[g])>origin) invalid("Agriculture load exceeds physical crop origin");
         }
@@ -216,9 +241,10 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
     }
     for (std::size_t i=0;i<food.stocks.size();++i) {
         const auto& stock=food.stocks[i];const auto& b=body(buildings,stock.building_id);
-        if (!food_owner(b.kind) || (i && !(food.stocks[i-1].building_id<stock.building_id))) invalid("Food accounts require sorted unique purchased owners");
+        if (!food_owner(b.kind,fishing) || (i && !(food.stocks[i-1].building_id<stock.building_id))) invalid("Food accounts require sorted unique purchased owners");
         const auto amount=volume(stock.amounts);
-        if (std::int64_t(amount)+incoming(food,b.id)+return_room(food,b.id)>capacity(b.kind)) invalid("Food stock, incoming and source return-room exceed physical volume");
+        const auto boat_reserved=fishing ? boat_return_room(fishing_context,b.id):0;
+        if (std::int64_t(amount)+incoming(food,b.id)+return_room(food,b.id)+boat_reserved>capacity(b.kind)) invalid("Food stock, incoming and source return-room exceed physical volume");
         Counters own_harvest{};
         if (b.kind==Object::OriginalFoodFarm) {
             if constexpr (agriculture) {
@@ -233,11 +259,13 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
             }
 
         }
+        if constexpr(fishing) if(b.kind==Object::OriginalFishingQuay)
+            own_harvest[fishing_food_index]=fish_origin(fishing_context,b.id);
         for (std::size_t g=0;g<stock.amounts.size();++g) {
             auto input=own_harvest[g];add(input,stock.received[g]);add(input,stock.returned[g]);
             auto output=static_cast<std::uint64_t>(stock.amounts[g]);add(output,stock.departed[g]);add(output,stock.consumed[g]);
             if (input!=output || stock.returned[g]>stock.departed[g]) invalid("Food owner harvest+received+returned differs from stock+departed+consumed");
-            if (b.kind==Object::OriginalFoodFarm && (stock.received[g] || stock.consumed[g])) invalid("Food Farm received or consumed unearned crop");
+            if (food_source(b.kind,fishing) && (stock.received[g] || stock.consumed[g])) invalid("Food Farm received or consumed unearned crop");
             if (b.kind==Object::Market && stock.consumed[g]) invalid("Market cannot consume household Food");
             if (original_house_kind(b.kind) && (stock.departed[g] || stock.returned[g])) invalid("House Food cannot depart or return");
             add(all_stock[g],static_cast<std::uint64_t>(stock.amounts[g]));add(all_consumed[g],stock.consumed[g]);
@@ -295,10 +323,10 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
                     (stock.received[0]==static_cast<std::uint64_t>(witness.accepted[0]) && witness.previous_quality!=80)))
                     invalid("Food witness previous quality contradicts exclusive crop history");
                 if constexpr (agriculture) {
-                    constexpr std::array<std::uint8_t,5> scores{20,80,60,70,90};
                     std::uint8_t minimum=UINT8_MAX,maximum=0;
-                    for(std::size_t g=0;g<scores.size();++g) if(stock.received[g]>static_cast<std::uint64_t>(witness.accepted[g])) {
-                        minimum=std::min(minimum,scores[g]);maximum=std::max(maximum,scores[g]);
+                    for(std::size_t g=0;g<stock.amounts.size();++g) if(stock.received[g]>static_cast<std::uint64_t>(witness.accepted[g])) {
+                        Amounts single{};single[g]=1;const auto score=batch_quality(single).value;
+                        minimum=std::min(minimum,score);maximum=std::max(maximum,score);
                     }
                     if(prior && (witness.previous_quality<minimum || witness.previous_quality>maximum))
                         invalid("Agriculture previous quality has no actual received crop origin");
@@ -307,7 +335,7 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
                 if (h.house.food_quality!=(amount ? expected:0)) invalid("sole House Food quality disagrees with witnessed original blend or empty reset");
             }
         }
-        if (b.kind!=Object::OriginalFoodFarm) {
+        if (!food_source(b.kind,fishing)) {
             const auto role=b.kind==Object::Market ? CourierRole::OriginalFoodToMarket:CourierRole::OriginalFoodToHouse;
             bool pruned=false;Counters delivered{};
             for (const auto& c:couriers) if (c.role==role) {
@@ -362,6 +390,13 @@ CommandResult World::validate_original_food_command(Command command) const {
 }
 void World::validate_original_food_snapshot(const WorldSnapshot& snapshot) {
     if (!snapshot.original_production || !snapshot.original_economy) invalid("Food snapshot has no original production authority");
+    if(simulation::playable_fishing_enabled(snapshot.profile,snapshot.rule_version)) {
+        if(!snapshot.fishing_food || !snapshot.fishing || snapshot.agriculture || snapshot.original_production->food!=OriginalFoodState{})
+            invalid("Fishing requires sole six-kind Food authority without historical projections");
+        validate_food(*snapshot.fishing_food,snapshot.buildings,snapshot.couriers,snapshot.original_economy->houses,
+            snapshot.ticks,snapshot.profile,snapshot.rule_version,true,true,&*snapshot.fishing);return;
+    }
+    if(snapshot.fishing_food || snapshot.fishing) invalid("Historical Food rejects Fishing authority");
     if(simulation::original_agriculture_family_enabled(snapshot.profile,snapshot.rule_version)) {
         if(!snapshot.agriculture || snapshot.original_production->food!=OriginalFoodState{}) invalid("Agriculture requires sole five-kind Food authority");
         validate_food(*snapshot.agriculture,snapshot.buildings,snapshot.couriers,snapshot.original_economy->houses,snapshot.ticks,snapshot.profile,snapshot.rule_version);return;
@@ -371,7 +406,7 @@ void World::validate_original_food_snapshot(const WorldSnapshot& snapshot) {
         snapshot.ticks,snapshot.profile,snapshot.rule_version);
 }
 void World::validate_original_food_state() const {
-    with_original_food([&](const auto& food){validate_food(food,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_);});
+    with_original_food([&](const auto& food){validate_food(food,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr);});
 }
 bool World::original_food_courier(CourierRole role) const {return original_production_enabled() && food_role(role);}
 int World::original_food_cargo(CourierId id) const {
@@ -392,16 +427,26 @@ int World::original_food_headroom(BuildingId owner) const {
     return with_original_food([&](auto& food) {
 
 
-    return capacity(building(owner).kind)-original_food_stock(owner)-incoming(food,owner)-return_room(food,owner);
+    return capacity(building(owner).kind)-original_food_stock(owner)-incoming(food,owner)-return_room(food,owner)-
+        boat_return_room(fishing_ ? &*fishing_:nullptr,owner);
 
     });
+}
+void World::credit_fishing_return(BuildingId quay,int amount) {
+    if(!playable_fishing_enabled() || !fishing_food_ || !fishing_ ||
+        building(quay).kind!=Object::OriginalFishingQuay || amount<=0 || amount>original_food_headroom(quay))
+        invalid("Fish credit requires actual reserved dock return and positive finite headroom");
+    auto& stock=account(fishing_food_->stocks,quay);
+    stock.amounts[fishing_food_index]+=amount;
+    validate_original_food_state();
 }
 void World::advance_original_food() {
     if(original_plantations_enabled()) {
         // Explicit retained AUTHORED adapter, not Original Grower/calendar
         // reconstruction. Rule25/26 retain Wheat/Millet only; Rule27 admits
         // all five typed crops under a separate explicit contract.
-        for(auto& record:agriculture_->fields) {
+        with_agriculture_food([&](auto& agriculture) {
+        for(auto& record:agriculture.fields) {
             const auto g=static_cast<std::size_t>(record.crop);
             if(!authored_agriculture_crop_enabled(profile_,rule_version_,record.crop)) continue;
             auto& farm=mutable_building(record.farm_id);
@@ -413,8 +458,9 @@ void World::advance_original_food() {
             }
             if(original_food_headroom(farm.id)<=0) {farm.progress=0;continue;}
             if(farm.progress<79) {++farm.progress;continue;}
-            add(record.harvested,1);++account(agriculture_->stocks,farm.id).amounts[g];farm.progress=0;
+            add(record.harvested,1);++account(agriculture.stocks,farm.id).amounts[g];farm.progress=0;
         }
+        });
         return;
     }
     // Rule24 deliberately has no active Food origin. Source phase20 is known,
@@ -577,7 +623,7 @@ void World::dispatch_original_food(CourierState& c) {
     auto path=*route->second;
     // No actual movement fields are changed until every bounded DTO check and
     // the route allocation have completed successfully.
-    validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false);
+    validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr);
     food=std::move(candidate);c.path=std::move(path);c.target=target;c.last_dispatched_target=target;c.path_vertex=0;c.edge_progress=0;
     c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::ToWarehouse;
 
@@ -590,9 +636,9 @@ void World::cancel_original_food(BuildingId owner) {
         auto candidate=food;auto* trip=trip_for(candidate.trips,c.id);
         if (!trip) throw std::logic_error("loaded Food actor lost its trip");trip->phase=OriginalGoodsTransferPhase::Returning;
         const auto here=c.path.at(c.path_vertex);const auto& source=building(owner);
-        const bool already_home=!c.edge_progress && building_footprint_contains(profile_,rule_version_,source.kind,source.cell,here);
+        const bool already_home=!c.edge_progress && building_contains(source.id,here);
         if (already_home) return_load(candidate,*trip);
-        validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false);
+        validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr);
         food=std::move(candidate);
         if (already_home) {c.path.clear();c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::IdleAtWorkshop;}
         else {c.phase=CourierPhase::Returning;mark_route_pending(c);if (!c.edge_progress) reroute_v2(c);}
@@ -620,13 +666,13 @@ void World::arrive_original_food(CourierState& c) {
             for (std::size_t g=0;g<cargo.size();++g) {stock.amounts[g]+=cargo[g];add(stock.received[g],static_cast<std::uint64_t>(cargo[g]));trip->delivered[g]=cargo[g];}
             trip->phase=OriginalGoodsTransferPhase::Completed;
         }
-        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false);
+        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr);
         food=std::move(candidate);original_economy_->houses=std::move(houses);c.phase=CourierPhase::Returning;
         if (valid_return_path(c)) {std::reverse(c.path.begin(),c.path.end());c.path_vertex=0;}
         else {c.path={c.path.back()};c.path_vertex=0;c.route_pending=true;c.route_checked_revision.reset();reroute_v2(c);}
     } else {
         if (volume(remaining(*trip))) return_load(candidate,*trip);
-        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false);
+        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr);
         food=std::move(candidate);c.path.clear();c.path_vertex=0;c.phase=CourierPhase::IdleAtWorkshop;
         c.route_pending=false;c.route_checked_revision.reset();
     }
@@ -647,7 +693,7 @@ void World::consume_original_food() {
         }
         if (!volume(stock.amounts)) h.house.food_quality=0;
     }
-    validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_);
+    validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr);
     food=std::move(candidate);original_economy_->houses=std::move(houses);
 
     });
@@ -655,11 +701,11 @@ void World::consume_original_food() {
 
 std::optional<BuildingId> World::agriculture_farm_for_field(Cell cell,BuildingId selected) const {
     std::optional<BuildingId> result;std::int64_t distance=INT64_MAX;
-    for(const auto& row:agriculture_->farms) {
+    for(const auto& row:agriculture_farms()) {
         const auto& farm=building(row.farm_id);
         if((static_cast<std::uint32_t>(selected) && selected!=farm.id) || !work_area(farm.cell,cell)) continue;
         if(playable_agriculture_enabled() && !static_cast<std::uint32_t>(selected) &&
-            std::any_of(agriculture_->fields.begin(),agriculture_->fields.end(),[&](const auto& field) {
+            std::any_of(agriculture_fields().begin(),agriculture_fields().end(),[&](const auto& field) {
                 return field.farm_id==farm.id;
             })) continue;
         const auto d=std::abs(std::int64_t(cell.x)-farm.cell.x-1)+std::abs(std::int64_t(cell.y)-farm.cell.y-1);
@@ -669,15 +715,15 @@ std::optional<BuildingId> World::agriculture_farm_for_field(Cell cell,BuildingId
 }
 CommandResult World::validate_agriculture_command(Command command) const {
     CommandResult result{false,false,"Agriculture requires separately paid Farm and Field",command_sequence_,ticks_};
-    if(!agriculture_ || !in_bounds(command.cell)) return result;
+    if(!original_agriculture_enabled() || !in_bounds(command.cell)) return result;
     if(command.type==CommandType::PlaceOriginalFoodFarm) {
-        if(agriculture_->farms.size()>=original_food_farm_limit(profile_,rule_version_)) {result.reason="Agriculture Farm limit reached";return result;}
+        if(agriculture_farms().size()>=original_food_farm_limit(profile_,rule_version_)) {result.reason="Agriculture Farm limit reached";return result;}
     } else {
-        if(agriculture_->fields.size()>=agriculture_field_limit) {result.reason="Agriculture field limit reached";return result;}
+        if(agriculture_fields().size()>=agriculture_field_limit) {result.reason="Agriculture field limit reached";return result;}
         const auto parent=agriculture_farm_for_field(command.cell,command.building_id);
         if(!parent) {result.reason="Field requires an existing paid Farmhouse within its source work area";return result;}
         if(original_plantations_enabled() && (playable_agriculture_enabled() || command.type==CommandType::PlaceOriginalWheatField || command.type==CommandType::PlaceOriginalMilletField) &&
-            std::any_of(agriculture_->fields.begin(),agriculture_->fields.end(),[&](const auto& f) {
+            std::any_of(agriculture_fields().begin(),agriculture_fields().end(),[&](const auto& f) {
                 return f.farm_id==*parent && authored_agriculture_crop_enabled(profile_,rule_version_,f.crop);
             })) {result.reason=playable_agriculture_enabled() ? "AUTHORED adapter permits one productive Field per Farm":
                 "AUTHORED Wheat/Millet adapter permits one productive Field per Farm";return result;}
@@ -696,7 +742,7 @@ void World::validate_agriculture_model() const {
 }
 void World::validate_original_agriculture_snapshot(const WorldSnapshot& snapshot) {
     if(!simulation::original_agriculture_family_enabled(snapshot.profile,snapshot.rule_version)) {
-        if(snapshot.agriculture) invalid("Agriculture authority requires exact Rule24");return;
+        if(snapshot.agriculture || snapshot.fishing_food) invalid("Agriculture authority requires its explicit generation");return;
     }
     validate_original_food_snapshot(snapshot);
 }

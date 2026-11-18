@@ -537,18 +537,31 @@ void player_mode_menu(SDL_Window*& window,SDL_Renderer*& renderer,const fs::path
         }
         menu.shutdown();
     }
-    // Shortcuts remain reachable without expanding historical controls. Each
-    // selection performs the real map preflight, including unchanged N Rule3.
+    // The regular menu explicitly assigns F to Rule28. Its historical F11
+    // shortcut remains inside Advanced/Legacy; all other shortcuts retain their
+    // collapsed-menu contracts, including unchanged N Rule3.
+    {
+        const auto app=source.root/"fishing-shortcut";seed_preferences(app,data);
+        Menu menu({},app,std::make_unique<Dialog>());menu.initialize(window,renderer);expect_compact_main(menu);
+        check(menu.diagnostic_button_rect("F Playable Fishing (rule 28)").has_value(),"Regular menu lost explicit Fishing selection");
+        key(menu,SDLK_F);wait_check(menu);const auto& request=menu.map_rules_result().request;
+        check(menu.playable_fishing_setup() && request.rule_version==28 && request.profile==sim::RulesProfile::CityV16 &&
+            request.policy_version==3 && !menu.original_fire_protection_setup(),"Regular F did not select exact Rule28/policy3 Fishing");
+        menu.shutdown();
+    }
     for (std::size_t i=0;i<historical_entries.size();++i) {
         const auto app=source.root/("shortcut-"+std::to_string(i));seed_preferences(app,data);
         Menu menu({},app,std::make_unique<Dialog>());menu.initialize(window,renderer);expect_compact_main(menu);
+        if(historical_entries[i].second==SDLK_F)open_legacy(menu,window,renderer);
         key(menu,historical_entries[i].second);wait_check(menu);
         const auto request=menu.map_rules_result().request;
         const auto expected_rule=i==0 ? 3U:static_cast<unsigned>(i)+9U;
         check(menu.state()==Menu::State::NewSandbox && request.rule_version==expected_rule &&
             request.profile==(i==0 ? sim::RulesProfile::CityV11:sim::RulesProfile::CityV16) &&
             request.policy_version==(i==0 ? 0U:3U) && menu.original_setup()==(i!=0),
-            "Collapsed-menu historical shortcut changed its rule/profile/policy contract");
+            "Historical shortcut changed its exact rule/profile/policy contract in its menu context");
+        if(historical_entries[i].second==SDLK_F)
+            check(menu.original_fire_protection_setup() && !menu.playable_fishing_setup(),"Advanced F lost the exact historical fire-protection setup");
         menu.shutdown();
         Menu clicked({},source.root/("clicked-"+std::to_string(i)),std::make_unique<Dialog>());
         // Give the independent click case the same historical default preferences.
