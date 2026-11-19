@@ -91,6 +91,23 @@ It only reads stocks and presence; it performs no delivery, consumption, timer
 grant or decay. Physical goods units and the production of FoodQuality remain
 outside OE-04.
 
+## Supplied-model luxury thresholds
+
+For the model SHA above at Normal difficulty, the first current-row Tea need
+is Common10 (Luxurious Apartment); Silk first appears at Elite14 (Lavish
+Siheyuan), and the Bronzeware/Lacquerware alternative at Elite15 (Humble
+Compound). These are **MODEL_OBSERVED** requirements, not proof that a paid
+city reaches or retains those rows. Common10 cannot evolve into the Elite
+family: its numeric next model row is not an eligible next-stage demand.
+
+Common10 and Elite14 require FoodQuality50; Elite15 requires70. Reaching
+Common10, Elite14 and Elite15 also requires the preceding row's evolution
+DES threshold40,50 and60 respectively and the actual service/goods predicates.
+Silk or Lacquerware sitting in a Warehouse is therefore neither a House
+consumption witness nor evidence of broken supply to a lower House.
+The [supplied-model integration check](../testing.md#high-tier-luxury-consumption-agri-mac04)
+records actual paid progression separately from these model facts.
+
 ## Capacity is a row fact; effective capacity has context
 
 `0x44cc80–0x44cc95` directly returns the prepared signed 32-bit value at

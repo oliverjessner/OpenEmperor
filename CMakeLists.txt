@@ -2188,6 +2188,31 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-high-tier-progression-acceptance PRIVATE openemperor-original-longplay-view-support)
     openemperor_enable_warnings(openemperor-high-tier-progression-acceptance)
     add_dependencies(openemperor-high-tier-progression-acceptance openemperor)
+    add_executable(openemperor-luxury-progression-acceptance tools/LuxuryProgressionAcceptance.cpp)
+    target_link_libraries(openemperor-luxury-progression-acceptance PRIVATE
+        openemperor-original-longplay-view-support openemperor-recovery)
+    openemperor_enable_warnings(openemperor-luxury-progression-acceptance)
+    add_test(NAME original-luxury-progression-cli COMMAND openemperor-luxury-progression-acceptance --help)
+    set_tests_properties(original-luxury-progression-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-luxury-progression-view-acceptance EXCLUDE_FROM_ALL
+        tools/LuxuryProgressionViewAcceptance.cpp)
+    target_link_libraries(openemperor-luxury-progression-view-acceptance PRIVATE
+        openemperor-original-longplay-view-support)
+    openemperor_enable_warnings(openemperor-luxury-progression-view-acceptance)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME original-luxury-progression-cli-guards COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_luxury_progression_cli.py
+            --executable $<TARGET_FILE:openemperor-luxury-progression-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        set_tests_properties(original-luxury-progression-cli-guards PROPERTIES TIMEOUT 60
+            ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME original-luxury-progression-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_luxury_progression_replay.py
+            --executable $<TARGET_FILE:openemperor-luxury-progression-acceptance>
+            --real "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        set_tests_properties(original-luxury-progression-real PROPERTIES TIMEOUT 600
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+    endif()
     add_executable(openemperor-market-distribution-acceptance tools/MarketDistributionAcceptance.cpp)
     target_link_libraries(openemperor-market-distribution-acceptance PRIVATE openemperor-original-longplay-view-support)
     openemperor_enable_warnings(openemperor-market-distribution-acceptance)

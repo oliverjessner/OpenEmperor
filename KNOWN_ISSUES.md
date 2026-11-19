@@ -38,6 +38,13 @@ complete original-game compatibility.
   Unqualified Tent/animal/Hunter sprites use labelled authored fallbacks. The
   [hunting contract](docs/original-economy/agriculture.md#playable-hunting-agri-mac03)
   separates these rules from historical Original research and saves.
+- **Luxury consumption and citywide reliability are separate.** The unchanged
+  supplied-model Rule29 Xia check earns real Tea/Silk/Lacquerware House
+  consumption and20,400 subsequent Elite17 ticks. That House still has53 unmet
+  current-need evaluations; the other twelve Houses incur51 devolutions and
+  8,090 combined burning House-ticks. This finite integration result does not
+  establish uninterrupted supply, citywide stability or Original parity. See
+  [the measured scope](docs/testing.md#high-tier-luxury-consumption-agri-mac04).
 - **Original Agriculture timing is incomplete.** Frozen Rule24/schema40 provides typed
   Rice/Cabbage/Soy (source output BeanCurd), paid source-verified Farm/Field
   construction, Rice fertility100, Food accounting foundations and exact saves.
