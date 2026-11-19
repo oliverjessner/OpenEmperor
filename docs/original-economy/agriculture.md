@@ -261,6 +261,42 @@ fallbacks rather than guessed Original animation registrations.
 See [testing](../testing.md#playable-hunting-agri-mac03) for the completion matrix,
 actual paid-world evidence, macOS native input tier and manual playtest.
 
+## High-tier luxury consumption (AGRI-MAC04)
+
+Luxury integration uses the existing **Rule29/policy3/schema45** and the
+unchanged supplied Normal model. No gameplay successor, altered House row,
+extra stock, population grant or larger resource budget is introduced.
+
+| First current-row demand | House | Additional progression gate |
+|---|---|---|
+| Tea | Common10, Luxurious Apartment | Previous-row DES40, FoodQuality50 and actual required services/goods |
+| Silk | Elite14, Lavish Siheyuan | Previous-row DES50, FoodQuality50 and actual required services/goods |
+| Bronzeware **or** Lacquerware | Elite15, Humble Compound | Previous-row DES60, FoodQuality70 and actual required services/goods |
+
+The Market's existing current-need, refill and eligible-next-stage tiers count
+actual incoming commitments and the alternative good. Common10 has no further
+evolution target. A House below a luxury's real demand row is not a consumption
+failure merely because its Warehouse holds that good.
+
+The supplied-data acceptance tool buys its own finite Xia city through normal
+World commands; it does not locate personal saves. Reports distinguish paid
+plant work, real Grower returns, processor input debits, Warehouse/Market/House
+arrivals and actual per-House/global consumption. Current/next need matrices,
+routes, incoming cargo, workforce, fire and finance identify concrete gates.
+Exact schema45 checkpoints and Recovery retain the same authoritative state.
+See [testing](../testing.md#high-tier-luxury-consumption-agri-mac04) for commands,
+measured outcomes and the separate SDL/Metal/human evidence tiers.
+
+The paid supplied-model Xia case reaches Elite13→14→15→16→17 naturally, then
+consumes Tea, Silk and Lacquerware at House41. At tick4477 all three have actual
+House debits; by tick24877 their totals are51/52/51. The same House remains
+Elite17 for the20,400 following ticks with no fire or devolution, but53 of400
+actual evolution evaluations have an unmet current need. This is finite
+type retention, not uninterrupted full supply. The other twelve Houses record
+51 devolutions and8,090 combined burning House-ticks in that window.
+This result closes the luxury-consumption gap without changing the model or
+rules; it does not establish citywide reliability or Original parity.
+
 ## Evidence and scope
 
 Read the [agricultural source contract](../reverse/original-agriculture-source-contract.md),

@@ -44,6 +44,117 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## High-tier luxury consumption (AGRI-MAC04)
+
+This check uses the unchanged supplied Normal House model and paid
+**Rule29/policy3/schema45** gameplay. Existing authored lower-House tests remain
+separate controls. Tea first needs Common10, Silk Elite14, and the
+Bronzeware/Lacquerware alternative Elite15. Warehouse arrivals alone do not
+establish any House consumption.
+
+```sh
+cmake -S . -B .local/agri-mac04/build-release -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DOPENEMPEROR_USE_SYSTEM_SDL3=ON \
+  -DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT="$PWD/.local/gog-extracted/app"
+cmake --build .local/agri-mac04/build-release --parallel 4 --target \
+  openemperor-luxury-progression-acceptance \
+  openemperor-luxury-progression-view-acceptance
+.local/agri-mac04/build-release/openemperor-luxury-progression-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --output "$PWD/.local/agri-mac04/paid-city-fresh" \
+  --ticks 30000 --hold 20400
+```
+
+Use a configured build and the actual read-only installation. Output must be a
+fresh child of `.local/agri-mac04`, disjoint from Original data. The finite Xia
+recipe buys roads, bodies and attached plants/fields with normal funds,
+workforce and placement checks. It changes no source model or gameplay rule.
+`report.json` and `commands.json` retain current/next House needs, physical
+routes and commitments, actual transitions and per-good dispatch, arrival and
+consumption events. Production, held stock, real cargo and consumed units are
+checked independently. Exit2 means **PARTIAL**, with the first actual gate and
+the terminal House matrices; it must not be reported as positive acceptance.
+
+The creator restores an independent World from its exact paid seed and compares
+complete state throughout continuation. Checkpoints perform canonical JSON
+roundtrips; final hostile controls preserve the existing save, and Recovery
+must restore the same schema45 World. An explicitly supplied `--input` plus
+`--expected` repeats the creator continuation in a separate process. No personal
+save directory is searched.
+
+For actual F5/F9, paused Step/reload, House Goods inspection and1x/2x/4x
+captures, use an earned `mid-cargo.save.json` from that run:
+
+```sh
+.local/agri-mac04/build-release/openemperor-luxury-progression-view-acceptance \
+  --data "$PWD/.local/gog-extracted/app" --resources "$PWD/resources" \
+  --input "$PWD/.local/agri-mac04/paid-city-fresh/mid-cargo.save.json" \
+  --output "$PWD/.local/agri-mac04/view-fresh" --renderer software
+```
+
+The optional `--renderer metal` opens a native window and verifies the actual
+Metal renderer. Both modes drive scripted production SDL handlers; native OS
+mouse delivery and unassisted human acceptance remain separate. Any observed
+user input stops the native script. Open all generated PNGs before making
+visual claims. Pure paused frames must perform zero tracked I/O, decode/upload,
+route, command or tick work and preserve the complete World.
+
+The registered `original-luxury-progression-real` check earns all three goods
+within6,000 real ticks and runs an independent process from moving luxury cargo
+to the creator endpoint. It requires ordered plantation-return/processor-debit/
+Warehouse/Market/House/consumption witnesses, actual paid command receipts,
+per-good conservation, meaningful hostile controls and canonical save equality.
+`original-luxury-progression-cli-guards` additionally covers14 argument, path,
+publication and supplied-source replay refusals. Without Original data it runs
+11 independent controls and reports the three source-backed controls NOT_RUN;
+the separate positive real-data check returns77 when its inputs are absent.
+
+Measured supplied-model Xia case (Normal, Rule29/schema45):
+
+| Observation | Result |
+|---|---|
+| Natural occupied House41 sequence | Elite13 at920;14 at3865;15 at4222;16 at4273;17 at4426 |
+| First actual luxury consumption | Silk at4120 (Elite14); Tea and Lacquerware at4477 (Elite17) |
+| End tick24877 luxury equations | Tea132=81 held+0 cargo+51 consumed; Silk129=77+0+52; Lacquerware128=77+0+51; imports/losses0 |
+| Real post-maturity window |20,400 ticks,4477→24877 |
+| Target House41 |20,400 Elite17 ticks; minimum22 occupants;0 fires/devolutions;53/400 actual current-need failures |
+| Other twelve Houses in that window |51 devolutions;8,090 combined burning House-ticks; per-House durations and need failures retained |
+| Window finance | Taxes21,109 minus installed upkeep15,400=+5,709; Funds5,478→11,187; minimum during complete run5,322 |
+| Paid resource bounds |62 bodies;46 couriers+12 reserved wildlife channels=58; limits unchanged |
+| Exact persistence | Moving cargo at2284, maturity4477 and final24877; canonical roundtrips, independent World continuation, four hostile controls and Recovery |
+
+The finite player plan omits two distant redundant paid school sites to fit the
+existing channel budget. A third planned Farm/Field remains unbought because
+actual wildlife blocks its footprint; the other two paid Farms supply the city.
+The report distinguishes real transient refusals, unresolved purchases and
+permanent aborts. No model threshold, actor claim, budget or source-admission
+rule is bypassed. These measured shortages/fires are not a claim of uninterrupted
+needs or universal citywide fairness. Human acceptance remains NOT_RUN.
+
+| Technical validation | Result |
+|---|---|
+| Complete Debug / Release / ASan+UBSan suites |374/374 each; zero failures/skips in the final complete runs |
+| General-profile alpha endurance |100,000 deterministic ticks and12 real JSON roundtrips per build |
+| Alpha render/session stress |3,000 frames each in Debug and sanitizer, zero decode/upload/ticks;100 menu sessions |
+| Independent historical core comparison |74/74 each in Debug and Release; existing case observations/classifications unchanged |
+| Historical production/resource source identity |347 files byte-identical to merged main0906031; no gameplay or schema change |
+| Supplied-data SDL / native Cocoa-Metal | Exact moving-cargo F5/F9, Step/reload and1x/2x/4x House Goods inspection; all final captures opened |
+| Supplemental sanitizer View | PASS with zero tracked paused-frame work and no sanitizer diagnostics |
+| Original-input protection |15 SHA/size/mode/mtime guards unchanged; alpha additionally verifies its nine used files |
+
+The initial complete sanitizer run passed372/374 and found a use-after-free in
+the new QA recipe's workforce-priority loop. Transactional commands replace
+World storage, so that loop now retains stable IDs and reacquires copied bodies
+before each command. The corrected paid city and independent longplay replay
+reproduce the exact canonical endpoint above. All complete suites and the
+remaining unchanged alpha-runner components were repeated with fresh visual
+output roots; no test deadline or assertion was relaxed. Initial failure reports
+remain private, alongside `.local/agri-mac04/alpha-verified-check.json` and the
+final creator/replay under `.local/agri-mac04/run-01/`. Debug and sanitizer use
+assertion-enabled `-g1 -O1`; macOS LeakSanitizer is disabled as documented above.
+Native OS mouse/keyboard delivery, unassisted human play and packaging were not
+part of this verification.
+
 ## Playable Hunting (AGRI-MAC03)
 
 Select **Y Playable Hunting (rule29)** in the regular menu, or launch:
