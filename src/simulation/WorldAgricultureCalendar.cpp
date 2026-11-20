@@ -36,10 +36,11 @@ std::optional<AgricultureSeasonStatus> World::agriculture_season_status(Building
         result.model=static_cast<original::ModelBuilding>(195+static_cast<unsigned>(field->crop));
         result.authored_production_active=authored_agriculture_crop_enabled(profile_,rule_version_,field->crop);
         if(result.authored_production_active)
-            result.productive_progress=static_cast<std::uint32_t>(building(field->farm_id).progress);
+            result.productive_progress=static_cast<std::uint32_t>(agriculture_field_progress(id));
         result.productive_target=result.authored_production_active ? 80:0;
         result.harvested=field->harvested;
-        result.blocker=playable_agriculture_enabled() ? "AUTHORED80-tick Food adapter; Original harvest reconstruction is separate":
+        result.blocker=multi_field_agriculture_enabled() ? "AUTHORED shared Farm labor; per-field80 work units; Original harvest reconstruction is separate":
+            playable_agriculture_enabled() ? "AUTHORED80-tick Food adapter; Original harvest reconstruction is separate":
             "Original Grower lifecycle, runtime yield inputs and raw-to-Food units unresolved";
     } else {
         const auto hemp=std::find_if(original_production_->hemp_farms.begin(),original_production_->hemp_farms.end(),

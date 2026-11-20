@@ -52,8 +52,10 @@ public:
         original_rule_version_==simulation::kOriginalIrrigationRuleVersion ||
         original_rule_version_==simulation::kPlayableAgricultureRuleVersion ||
         original_rule_version_==simulation::kPlayableFishingRuleVersion ||
-        original_rule_version_==simulation::kPlayableHuntingRuleVersion; }
+        original_rule_version_==simulation::kPlayableHuntingRuleVersion ||
+        original_rule_version_==simulation::kMultiFieldAgricultureRuleVersion; }
     bool playable_agriculture_setup() const { return original_rule_version_==simulation::kPlayableAgricultureRuleVersion; }
+    bool multi_field_agriculture_setup() const { return original_rule_version_==simulation::kMultiFieldAgricultureRuleVersion; }
     bool playable_hunting_setup() const { return original_rule_version_==simulation::kPlayableHuntingRuleVersion; }
     bool playable_fishing_setup() const { return original_rule_version_==simulation::kPlayableFishingRuleVersion; }
     bool original_safe_demolition_setup() const { return original_rule_version_==simulation::kOriginalSafeDemolitionRuleVersion; }

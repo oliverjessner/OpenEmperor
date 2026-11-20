@@ -735,6 +735,13 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-hunting-presentation-tests)
     add_test(NAME playable-hunting-presentation COMMAND openemperor-hunting-presentation-tests)
     set_tests_properties(playable-hunting-presentation PROPERTIES TIMEOUT 300)
+    add_executable(openemperor-multi-field-agriculture-presentation-tests
+        tests/MultiFieldAgriculturePresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-multi-field-agriculture-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-multi-field-agriculture-presentation-tests)
+    add_test(NAME multi-field-agriculture-presentation COMMAND openemperor-multi-field-agriculture-presentation-tests)
+    set_tests_properties(multi-field-agriculture-presentation PROPERTIES TIMEOUT 600)
     add_executable(openemperor-original-menu-session-tests
         tests/OriginalMenuSessionTests.cpp ${original_menu_test_sources})
     add_executable(openemperor-original-safe-demolition-menu-tests
@@ -1325,6 +1332,18 @@ if(BUILD_TESTING)
         add_test(NAME playable-hunting-${hunting_layer} COMMAND openemperor-hunting-${hunting_layer}-tests)
         set_tests_properties(playable-hunting-${hunting_layer} PROPERTIES TIMEOUT 600)
     endforeach()
+    foreach(multi_field_layer world save)
+        if(multi_field_layer STREQUAL "world")
+            set(multi_field_test_source tests/MultiFieldAgricultureWorldTests.cpp)
+        else()
+            set(multi_field_test_source tests/MultiFieldAgricultureSaveTests.cpp)
+        endif()
+        add_executable(openemperor-multi-field-agriculture-${multi_field_layer}-tests ${multi_field_test_source})
+        target_link_libraries(openemperor-multi-field-agriculture-${multi_field_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-multi-field-agriculture-${multi_field_layer}-tests)
+        add_test(NAME multi-field-agriculture-${multi_field_layer} COMMAND openemperor-multi-field-agriculture-${multi_field_layer}-tests)
+        set_tests_properties(multi-field-agriculture-${multi_field_layer} PROPERTIES TIMEOUT 600)
+    endforeach()
     add_executable(openemperor-plantation-food-adapter-tests tests/PlantationFoodAdapterTests.cpp)
     target_link_libraries(openemperor-plantation-food-adapter-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
     openemperor_enable_warnings(openemperor-plantation-food-adapter-tests)
@@ -1498,6 +1517,9 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME multi-field-agriculture-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/MultiFieldAgricultureCliTests.py $<TARGET_FILE:openemperor>)
+        set_tests_properties(multi-field-agriculture-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME playable-hunting-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/HuntingCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(playable-hunting-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
@@ -2188,18 +2210,35 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-high-tier-progression-acceptance PRIVATE openemperor-original-longplay-view-support)
     openemperor_enable_warnings(openemperor-high-tier-progression-acceptance)
     add_dependencies(openemperor-high-tier-progression-acceptance openemperor)
+    add_executable(openemperor-multi-field-agriculture-acceptance tools/MultiFieldAgricultureAcceptance.cpp)
+    target_link_libraries(openemperor-multi-field-agriculture-acceptance PRIVATE
+        openemperor-original-longplay-view-support openemperor-recovery)
+    openemperor_enable_warnings(openemperor-multi-field-agriculture-acceptance)
+    add_test(NAME multi-field-agriculture-acceptance-cli COMMAND openemperor-multi-field-agriculture-acceptance --help)
+    set_tests_properties(multi-field-agriculture-acceptance-cli PROPERTIES TIMEOUT 30)
     add_executable(openemperor-luxury-progression-acceptance tools/LuxuryProgressionAcceptance.cpp)
     target_link_libraries(openemperor-luxury-progression-acceptance PRIVATE
         openemperor-original-longplay-view-support openemperor-recovery)
     openemperor_enable_warnings(openemperor-luxury-progression-acceptance)
     add_test(NAME original-luxury-progression-cli COMMAND openemperor-luxury-progression-acceptance --help)
     set_tests_properties(original-luxury-progression-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-multi-field-agriculture-view-acceptance EXCLUDE_FROM_ALL
+        tools/MultiFieldAgricultureViewAcceptance.cpp)
+    target_link_libraries(openemperor-multi-field-agriculture-view-acceptance PRIVATE
+        openemperor-original-longplay-view-support)
+    openemperor_enable_warnings(openemperor-multi-field-agriculture-view-acceptance)
     add_executable(openemperor-luxury-progression-view-acceptance EXCLUDE_FROM_ALL
         tools/LuxuryProgressionViewAcceptance.cpp)
     target_link_libraries(openemperor-luxury-progression-view-acceptance PRIVATE
         openemperor-original-longplay-view-support)
     openemperor_enable_warnings(openemperor-luxury-progression-view-acceptance)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME original-multi-field-agriculture-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_multi_field_agriculture_replay.py
+            --executable $<TARGET_FILE:openemperor-multi-field-agriculture-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        set_tests_properties(original-multi-field-agriculture-real PROPERTIES TIMEOUT 600
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME original-luxury-progression-cli-guards COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_luxury_progression_cli.py
             --executable $<TARGET_FILE:openemperor-luxury-progression-acceptance>

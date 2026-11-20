@@ -155,6 +155,13 @@ Play reload/date seed prevent a file-year shortcut. See the
 Model29 is a submenu marker, with no Fruit commodity. See the
 [completion matrix and boundaries](agriculture.md#material-plantations-and-completion-matrix-agri-03).
 
+**Multi-field Agriculture** is explicit Rule30/policy3/schema46,
+`authored-multi-field-agriculture-v1`, revision1. It inherits Rule29's sole
+seven-kind Food engine and allocates one shared Farm work unit/tick fairly
+across up to eight paid fields. Independent work/cursors are separate from Food
+inventory, existing harvest origins and physical cart/House authority. Historical
+Rules1–29 remain exact. See [the contract](agriculture.md#multi-field-agriculture-agri-mac05).
+
 ## Versions and source preparation
 
 | Generation | Saved contract and scope |
@@ -178,6 +185,9 @@ Model29 is a submenu marker, with no Fruit commodity. See the
 | Rule25 / schema41 / plantation revision1 | Current explicit Agriculture material plantations:32 paid matching plants, six sources within82 bodies/58 channels; authored80-tick finite readiness, actual Grower pickup/return and regrowth. Existing six Goods/five Aux ledgers remain sole authority. The expressly retained authored Wheat/Millet80-tick adapter uses the sole five-kind Food ledger and physical House deliveries/consumption; Rice/Cabbage/Soy stay locked. Exact marker/catalog, create/restore and Recovery; no migration or default change. Validation results are separately reported. |
 | Rule26 / schema42 / irrigation revision1 | Explicit Agriculture irrigation successor inheriting Rule25. Paid terrain ditches and four-orientation2x2 shoreline Pumps, phase27 cardinal water distribution, derived wet/supplier cache, field water queries and strict source-bound persistence. Existing harvest adapters continue unchanged; numeric irrigation yields remain inactive. Separate `--original-irrigation` selection and exact marker, without migration. |
 | Rule27 / schema43 / playable revision1 | Explicit Playable Agriculture; inherits Rule26, shared80-tick authored production for all five existing crops, five paid one-field Farms, actual typed delivery/quality/consumption and exact Save/Recovery. Original raw-yield research remains separate; no migration, historical overwrite, Windows dependency or default change. |
+| Rule28 / schema44 / fishing revision1 | Explicit authored Fishing; sole six-kind Food, paid Quays, physical boats/unloads and unchanged historical Agriculture. |
+| Rule29 / schema45 / hunting revision1 | Explicit authored Hunting; sole seven-kind Food, finite prey, paid Tents/Hunters and physical Meat return/unload. |
+| Rule30 / schema46 / multi-field revision1 | Explicit authored multi-field Agriculture; inherits Rule29, up to eight paid fields/Farm sharing one work unit/tick, separate lifetime work/cursors and the unchanged sole Food ledger, capacities and82/58 budgets. Exact markers, release-time quotas, Save/Recovery and no migration or cross-generation overwrite. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy

@@ -282,6 +282,18 @@
   raw50/100/400 conversion, Original ecology/animation parity, historical
   reinterpretation, automatic migration or cross-generation overwrite.
   See [Playable Hunting](docs/original-economy/agriculture.md#playable-hunting-agri-mac03).
+- Multi-field Agriculture is explicit Rule30/policy3/schema46, marker
+  `authored-multi-field-agriculture-v1`, revision1, regular C menu and
+  `--multi-field-agriculture`. Inherit Rule29 and its sole seven-kind Food ledger.
+  At most eight paid fields per Farm share one fully staffed productive work
+  unit/tick, canonical Field-ID round robin; field pause/fire skips independently.
+  Full reserved source, Farm pause/fire/staff/access freeze work/cursor. Separate
+  per-field lifetime work derives progress modulo80 and must equal the existing
+  sole harvest count times80 plus progress. Preserve paid-release-time suffix
+  quotas, cursor provenance, physical carts/reservations/consumption, five Farms,
+  32 fields and82/58 budgets. No physical Grower or Original harvest claim,
+  migration, historical reinterpretation or cross-generation overwrite. Rules1–29/
+  schemas1–45 remain exact. See [multi-field Agriculture](docs/original-economy/agriculture.md#multi-field-agriculture-agri-mac05).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

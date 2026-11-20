@@ -391,6 +391,15 @@ chains remain unresolved or assigned to later tasks. Gate A only establishes
 this bounded comparison and unchanged legacy behavior after its required
 tests; a passing comparison is not original-game or human acceptance.
 
+AGRI-MAC05 adds explicit Rule30 work/cursor APIs and a separate optional
+`MultiFieldAgricultureState` header. The reviewed additive ABI pins require
+fresh matching libraries. The74 canonical comparisons, classifications,
+fork-source pins and real-model digest remain unchanged. An independent probe
+against exact merged main `cda60b20` additionally compares70 historical
+Rules24–29 canonical JSON/state files byte for byte through8,000 ticks,
+including actual cargo. Neither check establishes Original field timing or
+physical crop Growers. Private commands/reports remain under `.local/agri-mac05`.
+
 [fork-model]: https://github.com/amscova/OpenEmperor/blob/d861d2912337c09751cb68196f85d5a30752726e/src/simulation/original/ModelData.cpp
 [fork-desirability]: https://github.com/amscova/OpenEmperor/blob/d861d2912337c09751cb68196f85d5a30752726e/src/simulation/original/Desirability.cpp
 [fork-house]: https://github.com/amscova/OpenEmperor/blob/d861d2912337c09751cb68196f85d5a30752726e/src/simulation/original/HouseEvolution.cpp

@@ -540,6 +540,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v28{28,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v30{30,32,64,32,5,800};
+    if (multi_field_agriculture_enabled(profile,version)) return city_v16_v30;
     static constexpr ProfileRules city_v16_v29{29,32,64,32,5,800};
     if (playable_hunting_enabled(profile,version)) return city_v16_v29;
     if (playable_fishing_enabled(profile,version)) return city_v16_v28;
@@ -628,6 +630,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         else if (playable_fishing_enabled()) {fishing_food_.emplace();fishing_.emplace();}
         else agriculture_.emplace();
     }
+    if(multi_field_agriculture_enabled()) multi_field_agriculture_.emplace();
     if(original_plantations_enabled()) plantations_.emplace();
     if(irrigation_enabled()) {
         if (!original_terrain_facts_->irrigation_complete())
@@ -1027,6 +1030,12 @@ bool World::operation_controllable(Object kind) {
         kind==Object::Farm || kind==Object::ServicePost || kind==Object::Market || kind==Object::FireWatch || kind==Object::HealthPost;
 }
 
+bool World::operation_controllable_for_rules(Object kind) const {
+    return operation_controllable(kind) || (multi_field_agriculture_enabled() &&
+        (kind==Object::OriginalWheatField || kind==Object::OriginalMilletField || kind==Object::OriginalRiceField ||
+         kind==Object::OriginalCabbageField || kind==Object::OriginalSoybeanField));
+}
+
 int World::workforce_supply() const {
     if (!city_profile(profile_)) return 0;
     if (population_profile(profile_)) return total_population();
@@ -1048,7 +1057,7 @@ int World::active_workforce_required() const {
     int total=0;
     for (const auto& b:buildings_) {
         const int need=workforce_required(b.id);
-        if (!operation_controls_supported() || !operation_controllable(b.kind) ||
+        if (!operation_controls_supported() || !operation_controllable_for_rules(b.kind) ||
             (b.operating_enabled && !building_on_fire(b.id))) total+=need;
     }
     return total;
@@ -1062,7 +1071,7 @@ std::vector<bool> World::workforce_allocation() const {
         const auto& b=buildings_[i];
         const int need=workforce_required(b.id);
         if (need==0) { staffed[i]=true; continue; }
-        if (operation_controls_supported() && operation_controllable(b.kind) &&
+        if (operation_controls_supported() && operation_controllable_for_rules(b.kind) &&
             (!b.operating_enabled || building_on_fire(b.id))) continue;
         candidates.push_back(i);
     }
@@ -1617,7 +1626,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
         if (found==buildings_.end() || found->id!=command.building_id) {
             result.reason="Building does not exist"; return result;
         }
-        if (!found->placed || !operation_controllable(found->kind)) {
+        if (!found->placed || !operation_controllable_for_rules(found->kind)) {
             result.reason="Building does not support operation controls"; return result;
         }
         if (command.type==CommandType::SetBuildingWorkforcePriority &&
@@ -2246,6 +2255,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         if(original_agriculture_enabled()) with_agriculture_food([&](auto& food){food.farms.push_back({farm.id});using Stock=typename std::remove_cvref_t<decltype(food.stocks)>::value_type;food.stocks.push_back(Stock{farm.id});});
         else {original_production_->food.farms.push_back({farm.id,std::nullopt,OriginalFoodCrop::Wheat,0});
             original_production_->food.stocks.push_back(OriginalFoodStock{farm.id});}
+        if(multi_field_agriculture_enabled())multi_field_agriculture_->farms.push_back({farm.id,{}});
         add_v10_courier(farm.id,CourierRole::OriginalFoodToMarket,Good::Food);break;
     }
     case CommandType::PlaceOriginalWheatField:
@@ -2261,7 +2271,9 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
                 command.type==CommandType::PlaceOriginalMilletField ? AgricultureCrop::Millet:
                 command.type==CommandType::PlaceOriginalRiceField ? AgricultureCrop::Rice:
                 command.type==CommandType::PlaceOriginalCabbageField ? AgricultureCrop::Cabbage:AgricultureCrop::Soybean;
-            with_agriculture_food([&](auto& food){food.fields.push_back({field.id,*parent,crop});});break;
+            with_agriculture_food([&](auto& food){food.fields.push_back({field.id,*parent,crop});});
+            if(multi_field_agriculture_enabled())multi_field_agriculture_->fields.push_back({field.id,*parent,0});
+            break;
         }
         const auto farm=std::find_if(original_production_->food.farms.begin(),original_production_->food.farms.end(),
             [&](const auto& row){return row.farm_id==command.building_id;});
@@ -2944,7 +2956,7 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
     const auto& source=building(c.owner);
     if (!source.placed) return {CourierDispatchStatus::Disabled,std::nullopt};
     if (building_on_fire(source.id)) return {CourierDispatchStatus::OnFire,std::nullopt};
-    if (operation_controls_supported() && operation_controllable(source.kind) &&
+    if (operation_controls_supported() && operation_controllable_for_rules(source.kind) &&
         !source.operating_enabled)
         return {CourierDispatchStatus::OperationPaused,std::nullopt};
     if (city_profile(profile_) && !building_staffed_for_tick(c.owner))
@@ -4680,6 +4692,11 @@ std::string World::canonical_state() const {
             for(const auto& t:h.first_transitions) if(t) evaluation(t->evaluation);
         }
     }
+    if(multi_field_agriculture_) {
+        out<<multi_field_agriculture_contract<<':'<<multi_field_agriculture_revision<<'|';
+        for(const auto& farm:multi_field_agriculture_->farms)out<<"|mf:"<<static_cast<unsigned>(farm.farm_id)<<','<<static_cast<unsigned>(farm.last_field.value_or(static_cast<BuildingId>(0)));
+        for(const auto& field:multi_field_agriculture_->fields)out<<"|mw:"<<static_cast<unsigned>(field.field_id)<<','<<static_cast<unsigned>(field.farm_id)<<','<<field.productive_ticks;
+    }
     if(source_cell_ramps_supported())out<<authored_source_cell_ramp_contract<<":20|";
     if(playable_hunting_enabled()) out<<playable_hunting_contract<<':'<<playable_hunting_revision<<'|';
     if(playable_fishing_enabled()) out<<playable_fishing_contract<<':'<<playable_fishing_revision<<'|';
@@ -5116,6 +5133,7 @@ WorldSnapshot World::snapshot() const {
     s.original_production=original_production_;
     s.agriculture=agriculture_;
     s.hunting_food=hunting_food_;s.hunting=hunting_;
+    s.multi_field_agriculture=multi_field_agriculture_;
     s.fishing_food=fishing_food_;s.fishing=fishing_;
     s.plantations=plantations_;
     s.irrigation=irrigation_;
@@ -5164,6 +5182,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     if(s.navigation_session_present)
         throw std::invalid_argument("Transient grower navigation cannot be restored as historical saved authority");
     performance::increment(performance::Counter::WorldRestores);
+    validate_multi_field_agriculture_snapshot(s);
     validate_authored_land_trade_snapshot(s);
     validate_original_plantations_snapshot(s);
     validate_irrigation_snapshot(s);
@@ -5192,6 +5211,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.original_production_=s.original_production;
     w.agriculture_=s.agriculture;
     w.hunting_food_=s.hunting_food;w.hunting_=s.hunting;
+    w.multi_field_agriculture_=s.multi_field_agriculture;
     w.fishing_food_=s.fishing_food;w.fishing_=s.fishing;
     w.plantations_=s.plantations;
     w.irrigation_=s.irrigation;
@@ -5310,7 +5330,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 b.workforce_priority==WorkforcePriority::Low;
             if (!valid_priority ||
                 (w.operation_controls_supported() ?
-                    (!operation_controllable(b.kind) &&
+                    (!w.operation_controllable_for_rules(b.kind) &&
                      (!b.operating_enabled || b.workforce_priority!=WorkforcePriority::Normal)):
                     (!b.operating_enabled || b.workforce_priority!=WorkforcePriority::Normal)))
                 fail("invalid building operation controls");
