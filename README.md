@@ -53,6 +53,11 @@ Select a Farm or one of its fields to bind another field to that Farm.
 The mode retains hunting, fishing, plantations and irrigation. See the
 [multi-field guide](docs/original-economy/agriculture.md#multi-field-agriculture-agri-mac05).
 
+**E Physical Growers** sends a Farm worker to tend each selected crop, carry
+its harvest back and credit Food only after the real Farm return. The worker
+shares the Farm's existing staff and finite storage. Working and returning
+Growers use an explicitly authored marker; their inspector shows crop and cargo.
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

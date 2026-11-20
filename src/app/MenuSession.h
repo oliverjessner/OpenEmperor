@@ -53,8 +53,10 @@ public:
         original_rule_version_==simulation::kPlayableAgricultureRuleVersion ||
         original_rule_version_==simulation::kPlayableFishingRuleVersion ||
         original_rule_version_==simulation::kPlayableHuntingRuleVersion ||
-        original_rule_version_==simulation::kMultiFieldAgricultureRuleVersion; }
+        original_rule_version_==simulation::kMultiFieldAgricultureRuleVersion ||
+        original_rule_version_==simulation::kPhysicalFoodGrowersRuleVersion; }
     bool playable_agriculture_setup() const { return original_rule_version_==simulation::kPlayableAgricultureRuleVersion; }
+    bool physical_food_growers_setup() const { return original_rule_version_==simulation::kPhysicalFoodGrowersRuleVersion; }
     bool multi_field_agriculture_setup() const { return original_rule_version_==simulation::kMultiFieldAgricultureRuleVersion; }
     bool playable_hunting_setup() const { return original_rule_version_==simulation::kPlayableHuntingRuleVersion; }
     bool playable_fishing_setup() const { return original_rule_version_==simulation::kPlayableFishingRuleVersion; }

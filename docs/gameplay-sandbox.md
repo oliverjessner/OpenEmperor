@@ -198,6 +198,17 @@ labor across independently progressing paid fields. Historical Rules1–29,
 schemas1–45 and defaults do not change; no cross-generation overwrite or migration
 is permitted. See [Agriculture](original-economy/agriculture.md#multi-field-agriculture-agri-mac05).
 
+The separate **E Physical Growers** / `--physical-food-growers` selection uses
+Rule31/policy3/schema47 and marker `authored-physical-food-growers-v1`.
+It inherits Rule30's fields and seven-kind Food. Each Farm's existing staff
+dispatch one visible worker through the shared land navigator; five waiting
+ticks and actual field work earn one carried crop per completed80-work cycle.
+Only physical return credits Farm stock. Pause, fire, staffing or access loss
+before harvest requests an empty physical return; begun edges and partial field
+work survive. Loaded returns retain cargo and reserved bin room. Historical
+Rules1–30/schemas1–46, defaults and research sessions remain exact. See
+[Agriculture](original-economy/agriculture.md#physical-food-growers-agri-mac06).
+
 ## Start from the menu
 
 `./build/openemperor` opens the normal main menu. Choose a folder containing

@@ -340,6 +340,7 @@ target_link_libraries(openemperor-model-inspect PRIVATE openemperor-original-har
 target_link_libraries(openemperor-simulation PUBLIC openemperor-original-irrigation-rules openemperor-original-harvest-rules)
 target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndustry.cpp
     src/simulation/WorldPlantations.cpp
+    src/simulation/WorldPhysicalFoodGrowers.cpp
     src/simulation/WorldGrowerNavigation.cpp
     src/simulation/WorldGrowerLifecycle.cpp
     src/simulation/WorldIrrigation.cpp
@@ -735,6 +736,13 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-hunting-presentation-tests)
     add_test(NAME playable-hunting-presentation COMMAND openemperor-hunting-presentation-tests)
     set_tests_properties(playable-hunting-presentation PROPERTIES TIMEOUT 300)
+    add_executable(openemperor-physical-food-growers-presentation-tests
+        tests/PhysicalFoodGrowersPresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-physical-food-growers-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-physical-food-growers-presentation-tests)
+    add_test(NAME physical-food-growers-presentation COMMAND openemperor-physical-food-growers-presentation-tests)
+    set_tests_properties(physical-food-growers-presentation PROPERTIES TIMEOUT 600)
     add_executable(openemperor-multi-field-agriculture-presentation-tests
         tests/MultiFieldAgriculturePresentationTests.cpp ${original_menu_test_sources})
     target_link_libraries(openemperor-multi-field-agriculture-presentation-tests PRIVATE
@@ -1332,6 +1340,18 @@ if(BUILD_TESTING)
         add_test(NAME playable-hunting-${hunting_layer} COMMAND openemperor-hunting-${hunting_layer}-tests)
         set_tests_properties(playable-hunting-${hunting_layer} PROPERTIES TIMEOUT 600)
     endforeach()
+    foreach(physical_grower_layer world save)
+        if(physical_grower_layer STREQUAL "world")
+            set(physical_grower_test tests/PhysicalFoodGrowersWorldTests.cpp)
+        else()
+            set(physical_grower_test tests/PhysicalFoodGrowersSaveTests.cpp)
+        endif()
+        add_executable(openemperor-physical-food-growers-${physical_grower_layer}-tests ${physical_grower_test})
+        target_link_libraries(openemperor-physical-food-growers-${physical_grower_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-physical-food-growers-${physical_grower_layer}-tests)
+        add_test(NAME physical-food-growers-${physical_grower_layer} COMMAND openemperor-physical-food-growers-${physical_grower_layer}-tests)
+        set_tests_properties(physical-food-growers-${physical_grower_layer} PROPERTIES TIMEOUT 600)
+    endforeach()
     foreach(multi_field_layer world save)
         if(multi_field_layer STREQUAL "world")
             set(multi_field_test_source tests/MultiFieldAgricultureWorldTests.cpp)
@@ -1517,6 +1537,9 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME physical-food-growers-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/PhysicalFoodGrowersCliTests.py $<TARGET_FILE:openemperor>)
+        set_tests_properties(physical-food-growers-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME multi-field-agriculture-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/MultiFieldAgricultureCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(multi-field-agriculture-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
@@ -2210,6 +2233,11 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-high-tier-progression-acceptance PRIVATE openemperor-original-longplay-view-support)
     openemperor_enable_warnings(openemperor-high-tier-progression-acceptance)
     add_dependencies(openemperor-high-tier-progression-acceptance openemperor)
+    add_executable(openemperor-physical-food-growers-acceptance tools/PhysicalFoodGrowersAcceptance.cpp)
+    target_link_libraries(openemperor-physical-food-growers-acceptance PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
+    openemperor_enable_warnings(openemperor-physical-food-growers-acceptance)
+    add_test(NAME physical-food-growers-acceptance-cli COMMAND openemperor-physical-food-growers-acceptance --help)
+    set_tests_properties(physical-food-growers-acceptance-cli PROPERTIES TIMEOUT 30)
     add_executable(openemperor-multi-field-agriculture-acceptance tools/MultiFieldAgricultureAcceptance.cpp)
     target_link_libraries(openemperor-multi-field-agriculture-acceptance PRIVATE
         openemperor-original-longplay-view-support openemperor-recovery)
@@ -2227,18 +2255,36 @@ if(BUILD_TESTING)
     target_link_libraries(openemperor-multi-field-agriculture-view-acceptance PRIVATE
         openemperor-original-longplay-view-support)
     openemperor_enable_warnings(openemperor-multi-field-agriculture-view-acceptance)
+    add_executable(openemperor-physical-food-growers-view-acceptance
+        tools/PhysicalFoodGrowersViewAcceptance.cpp)
+    target_link_libraries(openemperor-physical-food-growers-view-acceptance PRIVATE
+        openemperor-original-longplay-view-support)
+    openemperor_enable_warnings(openemperor-physical-food-growers-view-acceptance)
+    add_test(NAME physical-food-growers-view-cli COMMAND openemperor-physical-food-growers-view-acceptance --help)
+    set_tests_properties(physical-food-growers-view-cli PROPERTIES TIMEOUT 30)
     add_executable(openemperor-luxury-progression-view-acceptance EXCLUDE_FROM_ALL
         tools/LuxuryProgressionViewAcceptance.cpp)
     target_link_libraries(openemperor-luxury-progression-view-acceptance PRIVATE
         openemperor-original-longplay-view-support)
     openemperor_enable_warnings(openemperor-luxury-progression-view-acceptance)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME original-physical-food-growers-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_physical_food_growers_replay.py
+            --executable $<TARGET_FILE:openemperor-physical-food-growers-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        set_tests_properties(original-physical-food-growers-real PROPERTIES TIMEOUT 600
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME original-multi-field-agriculture-real COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_multi_field_agriculture_replay.py
             --executable $<TARGET_FILE:openemperor-multi-field-agriculture-acceptance>
             --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
         set_tests_properties(original-multi-field-agriculture-real PROPERTIES TIMEOUT 600
             SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        if(OPENEMPEROR_ENABLE_SANITIZERS)
+            # Keep each actual14k creator/replay's existing240s limit meaningful:
+            # ASan needs the CPU without competing original-data scenarios.
+            set_tests_properties(original-multi-field-agriculture-real PROPERTIES RUN_SERIAL TRUE)
+        endif()
         add_test(NAME original-luxury-progression-cli-guards COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_luxury_progression_cli.py
             --executable $<TARGET_FILE:openemperor-luxury-progression-acceptance>

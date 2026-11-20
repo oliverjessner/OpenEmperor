@@ -99,9 +99,12 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # AGRI-MAC05 appends explicit Rule30 work/cursor authority and APIs. Historical
 # probes select no new mode; DTOs, default selectors and literal case results
 # remain exact. Fresh matching archives cover the additive ABI only.
+# AGRI-MAC06 appends optional Rule31 physical Grower lifetimes, receipt evidence
+# and explicit APIs. Historical probes select no worker authority. The new DTO
+# and matching fresh archives are ABI checks, not Original harvest parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "c1f2b0705b2f3bbbe324cd51f1e79f136fc9d990",
+    "World.h": "db5a7fb18342a2f91197cbd1acf818660ad476c4",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
@@ -111,6 +114,7 @@ REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "b22d4fb214405dee9ce98cdfacc26d0092b5df6f",
     "MultiFieldAgricultureState.h": "8f0e0b59aa1196ceaaabaa74afbd5d8843c7b1bc",
+    "PhysicalFoodGrowersState.h": "bf2e073c6e29d4ae500fdab927ed8408b414cb63",
     "AgricultureState.h": "8d7c4f9972d6cb9ed625c350e5090a416521bd3c",
     "HuntingState.h": "8320925ca1dda3d9b24ae873efe6dcd2f7ced15b",
     "FishingState.h": "034e7e5aeb9ca095d7d07f3216b77e007076a7ae",
@@ -528,7 +532,8 @@ def current_source_hashes() -> dict[str,str]:
     sources += list((ROOT / "tools/original-rules-parity").glob("*.cpp")) + [Path(__file__).resolve(), ROOT / "src/simulation/OriginalEconomyState.h", ROOT / "src/simulation/OriginalInfluenceState.h", ROOT / "src/simulation/OriginalGoodsState.h", ROOT / "src/simulation/OriginalProductionState.h", ROOT / "src/simulation/OriginalFoodState.h", ROOT / "src/simulation/OriginalServicesState.h", ROOT / "src/simulation/OriginalWaterState.h", ROOT / "src/simulation/OriginalHousingState.h", ROOT / "src/simulation/OriginalIndustryState.h", ROOT / "src/simulation/OriginalFinanceState.h"]
     sources.append(ROOT / "src/simulation/OriginalFireProtectionState.h")
     sources += [ROOT / "src/simulation" / name for name in (
-        "World.cpp", "WorldGrowerNavigation.cpp", "WorldGrowerLifecycle.cpp", "WorldOriginalProduction.cpp", "WorldIrrigation.cpp")]
+        "World.cpp", "WorldGrowerNavigation.cpp", "WorldGrowerLifecycle.cpp", "WorldOriginalProduction.cpp", "WorldIrrigation.cpp",
+        "WorldOriginalFood.cpp", "WorldPhysicalFoodGrowers.cpp")]
     sources.append(ROOT / "src/persistence/OriginalGrowerContext.cpp")
     sources += [ROOT / "src/simulation" / name for name in REVIEWED_HOUSING_WORLD_API_GIT_BLOBS]
     return {str(path.relative_to(ROOT)):sha256(path) for path in sorted(sources)}

@@ -44,6 +44,153 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Physical Food Growers (AGRI-MAC06)
+
+Use explicit **Rule31/policy3/schema47** (`E Physical Growers` or
+`--physical-food-growers`). The [Agriculture contract](original-economy/agriculture.md#physical-food-growers-agri-mac06)
+defines real field work, carried harvest, reserved Farm return and sole Food
+authority. Historical Rule30's direct-credit adapter remains exact.
+
+```sh
+cmake -S . -B .local/agri-mac06/build-release -DCMAKE_BUILD_TYPE=Release \
+  -DOPENEMPEROR_USE_SYSTEM_SDL3=ON \
+  -DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT="$PWD/.local/gog-extracted/app"
+cmake --build .local/agri-mac06/build-release --parallel 4
+ctest --test-dir .local/agri-mac06/build-release --output-on-failure \
+  -R 'physical-food-growers'
+.local/agri-mac06/build-release/openemperor-physical-food-growers-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --map Cities/Chengdu.map \
+  --output "$PWD/.local/agri-mac06/paid-city-fresh" --ticks 14000
+.local/agri-mac06/build-release/openemperor-physical-food-growers-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --map Cities/Chengdu.map \
+  --output "$PWD/.local/agri-mac06/replay-fresh" \
+  --replay "$PWD/.local/agri-mac06/paid-city-fresh/seed.save.json" \
+  --expected "$PWD/.local/agri-mac06/paid-city-fresh/final.save.json"
+```
+
+Output must be a fresh ignored child of `.local/agri-mac06`, disjoint from
+Original files and explicit replay inputs. The actual source-model creator buys
+its city through World commands, records source prices/debits, runs at least
+12,000 ticks and independently records every crop's outward/wait/work/carried
+return/accepted Farm receipt and later Market/House receipt/consumption. A
+separate process restores the exact seed and must reproduce the creator's final
+canonical save. Reports distinguish optional paid joint infrastructure from
+actual Fish/Meat/material returns; a building alone proves no production.
+
+World tests cover all five physical chains, one worker rotating three crops,
+five Farms alongside Fish/Meat/plantations, one-unit labor, finite headroom,
+partial work cancellation, staffing/fire/access gates, future land cuts,
+begun-edge preservation, repair and retained loaded return. Save tests cover
+every actor phase, physical carts, Recovery, twelve-thousand-tick continuation,
+hostile identities/crop/work/chronology/routes/conservation, atomic-write failure
+and historical writer protection. SDL tests exercise ordinary menu E, Farm/field
+inspectors, visible worker picking, F5/F9 and paused frame purity. These are
+scripted checks; human play and native OS pointer acceptance remain separate.
+
+The supplied-model Chengdu creator and a separate process each completed
+20,000 ticks using the frozen Rule31 implementation. Both final canonical saves
+have SHA-256 `942be7dcee141847529a20b00b72595f836f03d83039a7b572f3a24a0e23e898`.
+The single Farm rotated all five crops, earned9,760 actual work units, and
+spawned/retired122 distinct workers. Its full22-person staffing held for19,721
+ticks; the city ended with88 residents,19 paid bodies and26 channels.
+
+| Food | Actual Farm/Quay/Tent returns | Actual House consumption |
+|---|---:|---:|
+| Wheat | 24 | 24 |
+| Millet | 25 | 25 |
+| Rice | 25 | 24 |
+| Cabbage | 24 | 24 |
+| Bean Curd | 24 | 17 |
+| Fish | 88 | 70 |
+| Meat | 34 | 7 |
+
+The same city recorded eight actual plantation returns. Crop harvest122 equals
+Farm returns122 plus zero live Grower cargo; all Food origin244 equals held52
+plus one actual Rice cart portion plus consumed191. Work, harvest, carrying,
+source receipts, subsequent Food arrivals and House meals were independently
+observed; stock/population injection was absent. The creator and replay reports
+are `.local/agri-mac06/final-chengdu-creator-02/report.json` and
+`.local/agri-mac06/final-chengdu-replay-02/report.json`. The registered supplied-
+model test separately earns and replays14,000 ticks, verifies actual joint
+Fish/Meat/plantation returns and rejects output reuse, wrong schema, unsafe maps
+and a map-mismatched replay without altering supplied inputs.
+
+The frozen-code Rules24–30 comparison produced **84/84 byte-identical** files
+(42 canonical JSON saves and42 canonical states), against Git-verified merged
+MAC05 source at `29f29deeafe1692ef7a976cac7111914342ed056`. It includes active
+Food/boat/Grower cargo, Rule30 partial work and three-crop consumption; none
+acquired Rule31 worker authority. Evidence is
+`.local/agri-mac06/run-01/historical-final4-byte-equality.json`.
+
+Hostile controls include swapped older receipt lifetime IDs, coherent impossible
+spawn/retirement counts, overflowing cart arithmetic, and a coherent forged
+four-harvest history requiring376 physical ticks in a375-tick Farm. Both JSON
+restore and DTO publication reject these histories; existing targets and live
+Worlds remain unchanged. The supplied-data375-tick control is additionally in
+`.local/agri-mac06/hostile-source-timeline-01/report.json`.
+
+For a native Cocoa/Metal check of an earned checkpoint:
+
+```sh
+.local/agri-mac06/build-release/openemperor-physical-food-growers-view-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --resources "$PWD/.local/agri-mac06/build-release/resources" \
+  --input "$PWD/.local/agri-mac06/paid-city-fresh/grower-loaded.save.json" \
+  --output "$PWD/.local/agri-mac06/view-loaded-fresh" \
+  --renderer metal --phase loaded
+```
+
+Match `--phase outward|waiting|working|loaded` to its corresponding creator
+checkpoint. Use `--renderer software` for hidden SDL dummy-driver checks.
+Native input/focus takeover stops the Metal script immediately. Inputs remain
+read-only; F5 writes a separate private target before exact F9/Step replay.
+
+All four phases passed with both renderers against the20,000-tick creator's
+checkpoints: outward281, waiting285, working298 and loaded370. Each produced
+seven inspected PNGs: Farm/field at1×/2×/4× and actual Grower selection at1×.
+All56 real PNGs were opened; the56 frame groups cover168 paused frames.
+The two larger-zoom Grower views were honestly recorded as occluded/unavailable,
+with no screenshots or visibility claim for them. Native Metal used Cocoa;
+software used SDL dummy. Every phase retained exact F5/F9/Step/pause state,
+selected the actual worker through submitted pixels at1× and recorded all12
+forbidden frame-work counters as zero. Reports/screenshots are in
+`.local/agri-mac06/view-verified-{software|metal}-{outward|waiting|working|loaded}-01/`.
+Native OS pointer and human acceptance remain **NOT_RUN**; this is scripted
+native rendering/input-handler evidence. Grower artwork remains a labelled
+authored fallback, not Original Actor26 animation parity.
+
+The initial fresh full pipeline completed387/387 Debug and387/387 Release
+cases, then ASan exposed a real next-edge read beyond a restored one-cell
+Waiting/Working Grower route. The production position query now returns that
+validated actual Field cell directly. Regression checks call it before save
+and after fresh restore; sanitized Presentation/World/Save then passed3/3.
+The first full report remains `.local/agri-mac06/alpha-check.json`.
+
+That run also exhausted the older Rule30 integration's unchanged240-second
+child limit under eight concurrent tests. The identical isolated test passed
+its creator and independent14,000-tick replay in400.658 seconds total, with no
+input changes. Only that case uses CTest `RUN_SERIAL` in sanitizer builds;
+its240-second child limits,600-second case limit,14,000 ticks and assertions
+remain unchanged. Final verification uses entirely new build/report paths.
+
+Final full pipeline: `.local/agri-mac06/alpha-verified-check.json` is
+**PASS/full_data**, with fresh native arm64 Debug, Release and ASan+UBSan
+builds under `alpha-verified-{debug,release,sanitize}`. Each completed
+**387/387 tests with zero failures and zero skips** (124.814s /99.135s /
+987.979s). The100,000-tick deterministic JSON-roundtrip endurance, render stress,
+session lifecycles and Original-data checks also passed. Debug and sanitizer
+used assertion-enabled `-g1 -O1`; macOS LeakSanitizer remains disabled, with
+project texture/resource lifetime checks reported separately.
+
+All three fresh primary core comparisons passed74/74 with unchanged
+46 parity /18 corrected_bug /6 unverified /4 unsupported classifications;
+reports are in `.local/agri-mac06/run-01/core-parity-verified-{debug,release,sanitize}/`.
+The corrected817-file code/test manifest remained byteexact throughout validation.
+All15 monitored supplied files retained bytes, permissions and modification
+times; see `.local/agri-mac06/run-01/input-guard-final.json`.
+
 ## Multi-field Agriculture (AGRI-MAC05)
 
 Use explicit **Rule30/policy3/schema46** (`C Multi-field Agriculture` or

@@ -653,6 +653,13 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
                     worker.role!=CourierRole::OriginalPlantationGrower) invalid("plantation Grower identity must follow its paid source output channel");
                 ++courier_index;
             }
+            if(simulation::physical_food_growers_enabled(s.profile,s.rule_version)&&b.kind==Object::OriginalFoodFarm) {
+                if(courier_index>=s.couriers.size())invalid("Missing paid Food Grower channel");
+                const auto& worker=s.couriers[courier_index];
+                if(static_cast<std::uint32_t>(worker.id)!=courier_index+retired_before+1||worker.owner!=b.id||worker.role!=CourierRole::OriginalFoodGrower)
+                    invalid("Food Grower channel must follow the paid Farm cart");
+                ++courier_index;
+            }
             if (b.kind==Object::Warehouse) {
                 if (courier_index>=s.couriers.size()) invalid("missing paid Warehouse Aux supplier");
                 const auto& supplier=s.couriers[courier_index];
@@ -768,6 +775,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         !(simulation::original_music_venues_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalMusicPerformer) &&
         !(simulation::original_venue_house_service_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalVenueMusic) &&
         !(simulation::original_plantations_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalPlantationGrower) &&
+        !(simulation::physical_food_growers_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalFoodGrower) &&
         c.role!=CourierRole::OriginalLuxuryToWarehouse && c.role!=CourierRole::OriginalAuxToWarehouse && c.role!=CourierRole::OriginalAuxSupplier &&
         !(simulation::original_fire_protection_enabled(s.profile,s.rule_version) && c.role==CourierRole::FireInspector))
         invalid("unsupported original production courier role");
@@ -947,7 +955,7 @@ void World::tick_original_production() {
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
     if (irrigation_enabled()) refresh_irrigation();
     validate_original_food_state();validate_original_industry_state();
-    validate_plantations_state();
+    validate_plantations_state();validate_physical_food_growers_state();
     validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();validate_original_venue_house_service_state();
     const auto balances=original_production_goods_balances();
     if (!population_valid() || !fire_state_valid() || !production_balance_valid() || !navigation_valid() ||

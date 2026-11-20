@@ -38,11 +38,18 @@ complete original-game compatibility.
   Unqualified Tent/animal/Hunter sprites use labelled authored fallbacks. The
   [hunting contract](docs/original-economy/agriculture.md#playable-hunting-agri-mac03)
   separates these rules from historical Original research and saves.
+- **Physical Food Growers are authored.** Explicit Rule31/schema47 replaces
+  abstract crop credit with one actual Farm-owned worker, at-field tending,
+  typed crop cargo and physical return receipts. Crop timing, yield and worker
+  presentation are authored; Original Actor26 harvest/animation parity remains
+  separate. Source bounds and82/58 resource limits remain strict. Rule30 and
+  historical saves retain their own contracts. See [the contract](docs/original-economy/agriculture.md#physical-food-growers-agri-mac06).
 - **Multi-field Agriculture shares authored Farm labor.** Explicit Rule30/schema46
   allows up to eight independently progressing paid fields per Farm with one
   shared work unit/tick and the existing sole seven-kind Food account. Physical
-  crop Growers, seasons and irrigation yield effects are separate upcoming work;
-  there is no Original field-work or harvest-parity claim. Rice retains static
+  crop Growers are available separately in Rule31; seasons and irrigation yield
+  effects remain future work.
+  There is no Original field-work or harvest-parity claim. Rice retains static
   qualified paddy art. Historical rules and save generations stay exact. See
   [the contract](docs/original-economy/agriculture.md#multi-field-agriculture-agri-mac05).
 - **Luxury consumption and citywide reliability are separate.** The unchanged

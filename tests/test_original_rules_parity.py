@@ -232,7 +232,7 @@ class HousingNamespaceControls(unittest.TestCase):
         self.assertEqual(set(reviewed), {
             "World.h", "OriginalTerrainFacts.h", "OriginalHousingDiagnosis.h",
             "OriginalSafeDemolitionState.h", "SourceCellRamp.h", "AuthoredLandTrade.h",
-            "OriginalCultureState.h", "AgricultureState.h", "MultiFieldAgricultureState.h", "PlantationsState.h",
+            "OriginalCultureState.h", "AgricultureState.h", "MultiFieldAgricultureState.h", "PhysicalFoodGrowersState.h", "PlantationsState.h",
             "IrrigationState.h", "FishingState.h", "HuntingState.h", "AgricultureCalendar.h", "GrowerNavigationState.h",
             "GrowerLifecycleState.h", "GrowerSourceFacts.h", "HarvestContextAdmission.h"})
         fingerprints = parity.current_source_hashes()
