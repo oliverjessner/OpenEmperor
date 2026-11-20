@@ -44,6 +44,123 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Multi-field Agriculture (AGRI-MAC05)
+
+Use explicit **Rule30/policy3/schema46** (`C Multi-field Agriculture` or
+`--multi-field-agriculture`). Historical Rule29 retains its one-field contract.
+The maintained [Agriculture contract](original-economy/agriculture.md#multi-field-agriculture-agri-mac05)
+defines shared labor, per-field history and the unchanged sole seven-kind ledger.
+
+```sh
+cmake -S . -B .local/agri-mac05/build-release -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DOPENEMPEROR_USE_SYSTEM_SDL3=ON \
+  -DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT="$PWD/.local/gog-extracted/app"
+cmake --build .local/agri-mac05/build-release --parallel 4
+ctest --test-dir .local/agri-mac05/build-release --output-on-failure \
+  -R 'multi-field-agriculture'
+.local/agri-mac05/build-release/openemperor-multi-field-agriculture-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --output "$PWD/.local/agri-mac05/paid-city-fresh" --ticks 14000
+```
+
+Output must be a fresh ignored child of `.local/agri-mac05`, disjoint from the
+read-only source installation. The supplied Xia/Normal scene uses the unchanged
+model and actual paid Farm/field/road/House/service commands. Natural immigration
+and assigned workers earn all work. A passing report requires at least three
+crop kinds whose sole harvested source is the same Farm, actual source departures,
+accepted Market/House receipts and House consumption over12,000+ real ticks.
+It checks both per-kind Food and physical transfer equations, independently
+restored continuation, multiple field phases, real loaded-courier edges and
+Recovery. Exit2/PARTIAL is a failed positive acceptance, never a substitute.
+
+Repeat the creator in a separate process with explicitly supplied files:
+
+```sh
+.local/agri-mac05/build-release/openemperor-multi-field-agriculture-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --output "$PWD/.local/agri-mac05/replay-fresh" \
+  --replay "$PWD/.local/agri-mac05/paid-city-fresh/seed.save.json" \
+  --expected "$PWD/.local/agri-mac05/paid-city-fresh/final.save.json"
+```
+
+Registered World/Save tests cover all five crop variations, multiple Farms,
+per-tick shared quota/fairness, independent field/Farm pause, full inventory,
+real workforce competition and natural Farm fire, loaded route cuts, supply
+starvation/repair, strict cursor/parent/age/suffix-work bounds, hostile/duplicate
+JSON, exact save/recovery and12,000 restored ticks. Historical writers must
+preserve both valid and damaged schema46 targets. Presentation tests drive
+normal menu/button/keyboard handlers, explicit Farm binding, eight-field panel
+scrolling, real field operation controls, per-field growth, F5/F9 and paused
+frame purity using synthetic data and scripted SDL. They do not prove native
+Metal or unassisted human acceptance. Original source bytes must remain intact.
+
+The supplied-model14,000-tick Xia/Normal run earns four fields at one paid
+Farm with22 actual workers. Each receives3,215 shared work units, producing40
+portions and retaining15/80 progress; total work12,860 stays within the Farm's
+real staffed opportunities. Wheat, Cabbage and BeanCurd have no other Farm
+harvest origin. At the endpoint their equations are respectively
+`40 = 0 held + 2 cargo + 38 consumed`, `40 = 2 + 2 + 36`, and
+`40 = 4 + 2 + 34`. Millet's citywide equation is `203 = 4 + 3 + 196`.
+No Fish/Meat origin is earned by this particular city. All actual departures
+also equal receipts plus returns plus remaining cargo. Independent-process
+creator/replay endpoints are byte-identical. The studied Farm's own loaded
+cart checkpoint is tick517; independent-progress checkpoint is203. Private
+creator/replay evidence is under `.local/agri-mac05/positive-replay-a_hny_zs/`.
+
+For scripted source-backed rendering, build the excluded view helper and use
+that explicitly earned Food-cargo checkpoint:
+
+```sh
+cmake --build .local/agri-mac05/build-release --parallel 4 --target \
+  openemperor-multi-field-agriculture-view-acceptance
+.local/agri-mac05/build-release/openemperor-multi-field-agriculture-view-acceptance \
+  --data "$PWD/.local/gog-extracted/app" --resources "$PWD/resources" \
+  --input "$PWD/.local/agri-mac05/paid-city-fresh/mid-cargo.save.json" \
+  --output "$PWD/.local/agri-mac05/view-fresh" --renderer metal
+```
+
+`--renderer software` uses a hidden dummy window; `metal` requires actual
+macOS Cocoa/Metal and stops on observed native user input/focus takeover.
+The helper verifies Farm/field picking and actual inspector work, F5/F9,
+Step/reload and paused1x/2x/4x frames against complete immutable state. Frame
+I/O, asset decode/upload, navigation, commands, ticks and tracked snapshot work
+must stay zero. Open every capture used for visual claims. Native OS pointer
+input and unassisted human acceptance remain separate. At900×600 the inherited
+toolbar leaves only one detail row: Rule30 scrolls by text rows and omits the
+unsupported demolition footer, preserving fixed operation controls and access
+to all eight fields. Larger windows show more of the same bounded document.
+
+The final source-backed software/dummy and native Cocoa/Metal runs both pass
+at tick517. Each retains six opened Farm/field1x/2x/4x PNGs under
+`.local/agri-mac05/view-software-final/` and `view-metal-final/`. Farm1's Millet
+field2 has harvested1 with progress0; selected Wheat field3 and its two peers
+are79/80. Farm1's own courier1 carries Millet1 toward Market13 with begun-edge
+progress1. F5/F9, Step/reload and pause/resume preserve the exact schema46 World;
+all twelve tracked counters remain zero during pure paused frames. Source
+pixels become soft at4x and tall artwork can leave the viewport; this is no
+Original animation or whole-scene parity claim. Native OS input and human
+acceptance are NOT_RUN.
+
+Final fresh native arm64 CTest matrix: **380/380 Debug,380/380 Release and
+380/380 ASan+UBSan**, with Original data configured and no skipped cases.
+The separate core comparison passes74/74 in all three configurations. The
+first full run retained five obsolete unknown-Rule30 expectations; those tests
+now explicitly verify30 and continue refusing31/999, preserving every historical
+term/default. The first report remains `.local/agri-mac05/alpha-check-01.json`.
+The final historical probe against matching libraries preserves35 saveJSON and
+35 canonical states byte for byte relative to merged `cda60b20`.
+
+The final full `tools/alpha_check.py` report is
+`.local/agri-mac05/alpha-verified-check.json` (**PASS/full_data**), built in fresh
+`alpha-verified-debug`, `alpha-verified-release` and `alpha-verified-sanitize`
+directories. Every configuration also completes100,000 deterministic generic
+endurance ticks and12 real JSON roundtrips. Debug and Sanitizer each complete
+3,000 render-stress frames with unavailable loaded source files, zero decode/
+upload/order rebuild work and no simulation ticks. All100 session lifecycles
+close their owned texture counters; the9 additional Original-file guards pass.
+The separate15-file byte/mode/mtime guard remains unchanged. The generic
+endurance is distinct from Rule30's earned14,000-tick supplied-model replay.
+
 ## High-tier luxury consumption (AGRI-MAC04)
 
 This check uses the unchanged supplied Normal House model and paid

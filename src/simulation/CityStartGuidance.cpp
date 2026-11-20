@@ -34,7 +34,7 @@ StarterSupplyCondition facility_condition(const World& world,Object kind) {
     for (const auto& building:world.buildings()) {
         if (!building.placed || building.kind!=kind) continue;
         found=true;
-        if (world.operation_controls_supported() && World::operation_controllable(building.kind) &&
+        if (world.operation_controls_supported() && world.operation_controllable_for_rules(building.kind) &&
             !building.operating_enabled) continue;
         enabled=true;
         if (world.building_on_fire(building.id)) { burning=true; continue; }
@@ -93,7 +93,7 @@ StarterFacilityInstance facility_instance(const World& world,const BuildingState
             status==CourierDispatchStatus::AlreadyMoving ||
             status==CourierDispatchStatus::TargetFull;
     }
-    if (world.operation_controls_supported() && World::operation_controllable(building.kind) &&
+    if (world.operation_controls_supported() && world.operation_controllable_for_rules(building.kind) &&
         !result.operating_enabled) result.condition=StarterSupplyCondition::Paused;
     else if (result.burning) result.condition=StarterSupplyCondition::OnFire;
     else if (!world.building_staffed(building.id)) result.condition=StarterSupplyCondition::Unstaffed;

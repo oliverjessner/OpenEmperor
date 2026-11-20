@@ -191,6 +191,13 @@ construction_spent_total`; upkeep is absent before City-v16. Its fixed layout ha
 nine building/five courier entries, extended to ten/six in City-v7 and eleven/seven
 in City-v8/v9. The legacy goal conditions and fields remain independently checked.
 
+The separate **C Multi-field Agriculture** / `--multi-field-agriculture`
+selection uses Rule30/policy3/schema46 and exact marker
+`authored-multi-field-agriculture-v1`. It inherits Rule29 and shares finite Farm
+labor across independently progressing paid fields. Historical Rules1–29,
+schemas1–45 and defaults do not change; no cross-generation overwrite or migration
+is permitted. See [Agriculture](original-economy/agriculture.md#multi-field-agriculture-agri-mac05).
+
 ## Start from the menu
 
 `./build/openemperor` opens the normal main menu. Choose a folder containing

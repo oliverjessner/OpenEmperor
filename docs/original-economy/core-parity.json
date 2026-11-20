@@ -3658,6 +3658,7 @@
       "src/simulation/HarvestContextAdmission.h": "117ea119b0ab321ef0c4d1db43800eadc23455d8e88d1836f21a90818f65e0ab",
       "src/simulation/HuntingState.h": "04c7876788625daa0d095e6d88d2cf3abf04d627aeedaf479dc83f405f220b96",
       "src/simulation/IrrigationState.h": "3362f71fdc7502411be77fdb455b59df8e1b7bd52e4123a277869122cd277b06",
+      "src/simulation/MultiFieldAgricultureState.h": "a723c1b072fedb2c2bc5b94c9184a7c5f87df6d21fca06d6988cac81240500bc",
       "src/simulation/OriginalCultureState.h": "70948c63591ab550d557a377e684a3988c683c63f0ba07c24d1764e5c0f06dfe",
       "src/simulation/OriginalEconomyState.h": "213f8b02abd2e50115356d367b843b94f82867684d08dc8809eaea3dae923ca7",
       "src/simulation/OriginalFinanceState.h": "d571a5972b60da9900cf9d3d11b3b61b47b6e7624929628b33a2e7233b1089cd",
@@ -3675,12 +3676,12 @@
       "src/simulation/OriginalWaterState.h": "10f3b78644b432087fc4700c570e8b90ac82a7e3e2668fd52ea9d16ee152e914",
       "src/simulation/PlantationsState.h": "df396a82e946d30fb31733b4c9655a097809e4bfd5a6d36d936f60b1be9265c3",
       "src/simulation/SourceCellRamp.h": "f3e394396925b3830957e3b7b674a06c3a956464d161c4e2a93008e79b1ec4d1",
-      "src/simulation/World.cpp": "16a3bfc0d538b00aa5cc94947404a8df5efdc8f28567e4cf58e3ccc7cd96ec84",
-      "src/simulation/World.h": "7b3caee663d99197e662c1ac6e579c0015f42d1cc3276fc8419de90f46eb5992",
+      "src/simulation/World.cpp": "10c3100453f783165a0e7429dd02f875d2ee078ac08205dc848e1a131fc0d263",
+      "src/simulation/World.h": "1fa973e85ba606060ad7b7c2a907f4bb19bd2183fbd6763be41ee0bdcd69572e",
       "src/simulation/WorldGrowerLifecycle.cpp": "4bf355afa1ad4b3ec0a7d48a34959fd09b85756b8bbe2201b5071dd39e495909",
       "src/simulation/WorldGrowerNavigation.cpp": "185d794666fa82f2825ed4600e385b39c35ecf143dd564676ef5e278bc41997e",
-      "src/simulation/WorldIrrigation.cpp": "6c5810cc5f2d3b702f41a6c2b691147ab5c977765c21c681f4a7728da7af238a",
-      "src/simulation/WorldOriginalProduction.cpp": "e7551bc47f3f53af56de6a3942a7300b9ab6396cb1b222e1144d4d8c50462518",
+      "src/simulation/WorldIrrigation.cpp": "157cbc0fe86c89fd339a161964cea57efb5ecf15897cba23ffa42835cf3b7de0",
+      "src/simulation/WorldOriginalProduction.cpp": "d69b9474ef89d71b9261e35be8c4e3ed25c06e6856b4e89c4a56abe294fe6b81",
       "src/simulation/original/CropGrowerRules.cpp": "cf129c9f5068a0f270d32493f1afea238023bb3116dbc3757bc29ec0a4b76c6c",
       "src/simulation/original/CropGrowerRules.h": "d977e220486380d0e0dc8622b43726b9e2783301673268955bc826c2eb1fbbb2",
       "src/simulation/original/CropHarvestRules.cpp": "fcf4a411b4813981b8c3e792a9edb481367371990ce3ce1de5d7009295aa7b3f",
@@ -3712,7 +3713,7 @@
       "src/simulation/original/ModelData.h": "3b40b06585b4a3d00c64db776d23b70dbe5639720b97dcf04b6945bd8162fc01",
       "src/simulation/original/ModelSchema.cpp": "ec057dc3157063185f978de36f2141c8aac937f2ae52b51a8ff216bfaa0b37ae",
       "src/simulation/original/ModelSchema.h": "163c469c094d9c69ad2a3c9a006c8789e4a634a97fce0c35099bd963090de4b4",
-      "src/simulation/original/OriginalModelMapping.h": "2fb06c2655dd17b9f6c3b6b72de07f4743515619b6a8c6f7a5d759956d27195b",
+      "src/simulation/original/OriginalModelMapping.h": "db216ce6d724d89a868e5c157218aa77c3e93aabb4e23880697ce1a4ce01a355",
       "src/simulation/original/OriginalRulesModel.cpp": "e7f7e55ee37183c00dd552fbca8ac59ae7bfc5cce0ea304f95a8605101e78abc",
       "src/simulation/original/OriginalRulesModel.h": "38179a92d9dd75d68aaa4d8d5fd8fc48f1345915e0c8246150918f6c25fd6dd4",
       "src/simulation/original/OriginalScheduler.h": "8b35dbb4b57bbcf03f262d2228f3be53c19315d50c6ab75974dc6b976bc07573",
@@ -3722,7 +3723,7 @@
       "src/simulation/original/ServiceRules.h": "4152e969bb95d5ba28f2400beef4032f8a3026ca225aed364deb0f7da805d944",
       "tools/original-rules-parity/HousingViewProbe.cpp": "d3efec7c21c7b361f96aa245c0a4929e48f3bebd0b51e02bed6be838ddc69d80",
       "tools/original-rules-parity/RuleProbe.cpp": "70f8e715f7be03d6c2ae4ec04afc5b69f13e90b05ba82174066ac208e8c8caa2",
-      "tools/original_rules_parity.py": "cab203539f6a52970c8547df11e1994da06e747d0009b3fd38b95f2324e6af77"
+      "tools/original_rules_parity.py": "17b9023820cfea238f80d6384e42d302410e94fb350d66ea4dd92c9f3755272b"
     }
   },
   "fork": {

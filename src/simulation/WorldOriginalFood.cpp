@@ -118,15 +118,53 @@ int hunter_return_room(const HuntingState* state,BuildingId tent) {
     }
     return result;
 }
+template<class Buildings> void validate_multi_field_work(const MultiFieldAgricultureState& state,const HuntingFoodState& food,
+                              const Buildings& buildings,std::uint64_t ticks) {
+    if(state.farms.size()!=food.farms.size() || state.fields.size()!=food.fields.size())
+        invalid("Multi-field work must bind every paid Farm and Field exactly once");
+    for(std::size_t i=0;i<state.fields.size();++i) {
+        const auto& work=state.fields[i];const auto& field=food.fields[i];
+        const auto& paid=body(buildings,field.field_id);
+        if(work.field_id!=field.field_id || work.farm_id!=field.farm_id || paid.placed_tick>ticks ||
+           work.productive_ticks>ticks-paid.placed_tick || field.harvested!=work.productive_ticks/multi_field_work_per_portion)
+            invalid("Multi-field work lost paid identity, age or sole harvest provenance");
+    }
+    for(std::size_t i=0;i<state.farms.size();++i) {
+        const auto& schedule=state.farms[i];
+        if(schedule.farm_id!=food.farms[i].farm_id || body(buildings,schedule.farm_id).progress)
+            invalid("Multi-field Farm schedule identity or legacy progress invalid");
+        std::size_t count=0;bool worked=false,cursor=false;
+        for(const auto& work:state.fields) if(work.farm_id==schedule.farm_id) {
+            ++count;worked|=work.productive_ticks!=0;
+            cursor|=schedule.last_field==work.field_id && work.productive_ticks!=0;
+            // Work released by a later Field cannot borrow the Farm's earlier
+            // idle age. Every release-time suffix shares one work unit/tick.
+            const auto epoch=body(buildings,work.field_id).placed_tick;
+            std::uint64_t suffix=0;
+            for(const auto& peer:state.fields) if(peer.farm_id==schedule.farm_id &&
+                body(buildings,peer.field_id).placed_tick>=epoch) add(suffix,peer.productive_ticks);
+            if(suffix>ticks-epoch) invalid("Multi-field work exceeds shared Farm labor after paid Field release");
+        }
+        if(count>multi_field_per_farm_limit || (worked ? !cursor:schedule.last_field.has_value()))
+            invalid("Multi-field Farm quota or real last-work cursor invalid");
+    }
+}
 template<class Food,class Buildings,class Couriers,class Homes>
 void validate_food(const Food& food,const Buildings& buildings,const Couriers& couriers,const Homes& houses,
               std::uint64_t ticks,RulesProfile profile,std::uint32_t rule,bool bind_movement=true,bool check_progress=true,
-              const FishingState* fishing_context=nullptr,const HuntingState* hunting_context=nullptr) {
+              const FishingState* fishing_context=nullptr,const HuntingState* hunting_context=nullptr,
+              const MultiFieldAgricultureState* multi_context=nullptr) {
     using Amounts=std::remove_cvref_t<decltype(food.stocks.front().amounts)>;
     using Counters=std::remove_cvref_t<decltype(food.stocks.front().received)>;
     constexpr bool agriculture=!std::is_same_v<Food,OriginalFoodState>;
     constexpr bool hunting=std::is_same_v<Food,HuntingFoodState>;
     constexpr bool fishing=std::is_same_v<Food,FishingFoodState> || hunting;
+    if(simulation::multi_field_agriculture_enabled(profile,rule)) {
+        if constexpr(hunting) {
+            if(!multi_context) invalid("Multi-field generation requires its independent work authority");
+            validate_multi_field_work(*multi_context,food,buildings,ticks);
+        } else invalid("Multi-field generation requires sole seven-kind Food authority");
+    } else if(multi_context) invalid("Historical Food rejects multi-field work authority");
     if constexpr(hunting) {
         if(!playable_hunting_enabled(profile,rule) || !hunting_context) invalid("Seven-kind Food requires exact Hunting generation");
     } else if(hunting_context) invalid("Historical Food cannot bind Hunting authority");
@@ -157,7 +195,9 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
             const auto productive=std::count_if(food.fields.begin(),food.fields.end(),[&](const auto& field) {
                 return field.farm_id==row.farm_id && authored_agriculture_crop_enabled(profile,rule,field.crop);
             });
-            if(authored_food && (productive>1 || (!productive && b.progress)))
+            if(simulation::multi_field_agriculture_enabled(profile,rule) ?
+                (productive>static_cast<std::ptrdiff_t>(multi_field_per_farm_limit) || b.progress) :
+                (authored_food && (productive>1 || (!productive && b.progress))))
                 invalid("AUTHORED adapter requires one paid productive Field per Farm");
         }
         for(std::size_t i=0;i<food.fields.size();++i) {
@@ -413,13 +453,22 @@ CommandResult World::validate_original_food_command(Command command) const {
     } else return result;
     result.accepted=true;result.changed=true;result.reason="Food purchase facts ready";return result;
 }
+void World::validate_multi_field_agriculture_snapshot(const WorldSnapshot& snapshot) {
+    if(!simulation::multi_field_agriculture_enabled(snapshot.profile,snapshot.rule_version)) {
+        if(snapshot.multi_field_agriculture) invalid("Historical snapshots reject multi-field work authority");
+        return;
+    }
+    if(!snapshot.multi_field_agriculture || !snapshot.hunting_food) invalid("Multi-field snapshot requires work and sole seven-kind Food authority");
+    validate_multi_field_work(*snapshot.multi_field_agriculture,*snapshot.hunting_food,snapshot.buildings,snapshot.ticks);
+}
 void World::validate_original_food_snapshot(const WorldSnapshot& snapshot) {
+    validate_multi_field_agriculture_snapshot(snapshot);
     if (!snapshot.original_production || !snapshot.original_economy) invalid("Food snapshot has no original production authority");
     if(simulation::playable_hunting_enabled(snapshot.profile,snapshot.rule_version)) {
         if(!snapshot.hunting_food || !snapshot.hunting || !snapshot.fishing || snapshot.fishing_food || snapshot.agriculture || snapshot.original_production->food!=OriginalFoodState{})
             invalid("Hunting requires sole seven-kind Food authority without historical projections");
         validate_food(*snapshot.hunting_food,snapshot.buildings,snapshot.couriers,snapshot.original_economy->houses,
-            snapshot.ticks,snapshot.profile,snapshot.rule_version,true,true,&*snapshot.fishing,&*snapshot.hunting);return;
+            snapshot.ticks,snapshot.profile,snapshot.rule_version,true,true,&*snapshot.fishing,&*snapshot.hunting,snapshot.multi_field_agriculture ? &*snapshot.multi_field_agriculture:nullptr);return;
     }
     if(snapshot.hunting_food || snapshot.hunting) invalid("Historical Food rejects Hunting authority");
     if(simulation::playable_fishing_enabled(snapshot.profile,snapshot.rule_version)) {
@@ -438,7 +487,7 @@ void World::validate_original_food_snapshot(const WorldSnapshot& snapshot) {
         snapshot.ticks,snapshot.profile,snapshot.rule_version);
 }
 void World::validate_original_food_state() const {
-    with_original_food([&](const auto& food){validate_food(food,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr);});
+    with_original_food([&](const auto& food){validate_food(food,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);});
 }
 bool World::original_food_courier(CourierRole role) const {return original_production_enabled() && food_role(role);}
 int World::original_food_cargo(CourierId id) const {
@@ -478,7 +527,44 @@ void World::credit_hunting_return(BuildingId tent,int amount) {
     account(hunting_food_->stocks,tent).amounts[hunting_food_index]+=amount;
     validate_original_food_state();
 }
+int World::agriculture_field_progress(BuildingId id) const {
+    if(multi_field_agriculture_) {
+        const auto& rows=multi_field_agriculture_->fields;
+        const auto at=std::lower_bound(rows.begin(),rows.end(),id,[](const auto& row,BuildingId key){return row.field_id<key;});
+        return at!=rows.end() && at->field_id==id ? static_cast<int>(at->productive_ticks%multi_field_work_per_portion):0;
+    }
+    if(!original_agriculture_enabled()) return 0;
+    for(const auto& field:agriculture_fields()) if(field.field_id==id) return building(field.farm_id).progress;
+    return 0;
+}
+void World::advance_multi_field_agriculture() {
+    auto& food=*hunting_food_;
+    for(auto& schedule:multi_field_agriculture_->farms) {
+        const auto& farm=building(schedule.farm_id);
+        if(!farm.operating_enabled || building_on_fire(farm.id) || !building_staffed_for_tick(farm.id) ||
+           building_entrances(farm.id).empty() || original_food_headroom(farm.id)<=0) continue;
+        auto& rows=multi_field_agriculture_->fields;
+        const auto after=schedule.last_field ? std::upper_bound(rows.begin(),rows.end(),*schedule.last_field,
+            [](BuildingId id,const auto& row){return id<row.field_id;}):rows.begin();
+        const auto start=static_cast<std::size_t>(after-rows.begin());
+        for(std::size_t n=0;n<rows.size();++n) {
+            auto& work=rows[(start+n)%rows.size()];
+            if(work.farm_id!=farm.id) continue;
+            const auto& field=building(work.field_id);
+            if(!field.placed || !field.operating_enabled || building_on_fire(field.id)) continue;
+            auto at=std::lower_bound(food.fields.begin(),food.fields.end(),field.id,
+                [](const auto& row,BuildingId id){return row.field_id<id;});
+            if(at==food.fields.end() || at->field_id!=field.id) throw std::logic_error("Multi-field work lost paid Food Field");
+            add(work.productive_ticks,1);schedule.last_field=field.id;
+            if(work.productive_ticks%multi_field_work_per_portion==0) {
+                add(at->harvested,1);++account(food.stocks,farm.id).amounts[static_cast<std::size_t>(at->crop)];
+            }
+            break;
+        }
+    }
+}
 void World::advance_original_food() {
+    if(multi_field_agriculture_enabled()) {advance_multi_field_agriculture();return;}
     if(original_plantations_enabled()) {
         // Explicit retained AUTHORED adapter, not Original Grower/calendar
         // reconstruction. Rule25/26 retain Wheat/Millet only; Rule27 admits
@@ -661,7 +747,7 @@ void World::dispatch_original_food(CourierState& c) {
     auto path=*route->second;
     // No actual movement fields are changed until every bounded DTO check and
     // the route allocation have completed successfully.
-    validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr);
+    validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
     food=std::move(candidate);c.path=std::move(path);c.target=target;c.last_dispatched_target=target;c.path_vertex=0;c.edge_progress=0;
     c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::ToWarehouse;
 
@@ -676,7 +762,7 @@ void World::cancel_original_food(BuildingId owner) {
         const auto here=c.path.at(c.path_vertex);const auto& source=building(owner);
         const bool already_home=!c.edge_progress && building_contains(source.id,here);
         if (already_home) return_load(candidate,*trip);
-        validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr);
+        validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
         food=std::move(candidate);
         if (already_home) {c.path.clear();c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::IdleAtWorkshop;}
         else {c.phase=CourierPhase::Returning;mark_route_pending(c);if (!c.edge_progress) reroute_v2(c);}
@@ -704,13 +790,13 @@ void World::arrive_original_food(CourierState& c) {
             for (std::size_t g=0;g<cargo.size();++g) {stock.amounts[g]+=cargo[g];add(stock.received[g],static_cast<std::uint64_t>(cargo[g]));trip->delivered[g]=cargo[g];}
             trip->phase=OriginalGoodsTransferPhase::Completed;
         }
-        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr);
+        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
         food=std::move(candidate);original_economy_->houses=std::move(houses);c.phase=CourierPhase::Returning;
         if (valid_return_path(c)) {std::reverse(c.path.begin(),c.path.end());c.path_vertex=0;}
         else {c.path={c.path.back()};c.path_vertex=0;c.route_pending=true;c.route_checked_revision.reset();reroute_v2(c);}
     } else {
         if (volume(remaining(*trip))) return_load(candidate,*trip);
-        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr);
+        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
         food=std::move(candidate);c.path.clear();c.path_vertex=0;c.phase=CourierPhase::IdleAtWorkshop;
         c.route_pending=false;c.route_checked_revision.reset();
     }
@@ -731,7 +817,7 @@ void World::consume_original_food() {
         }
         if (!volume(stock.amounts)) h.house.food_quality=0;
     }
-    validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr);
+    validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
     food=std::move(candidate);original_economy_->houses=std::move(houses);
 
     });
@@ -743,9 +829,9 @@ std::optional<BuildingId> World::agriculture_farm_for_field(Cell cell,BuildingId
         const auto& farm=building(row.farm_id);
         if((static_cast<std::uint32_t>(selected) && selected!=farm.id) || !work_area(farm.cell,cell)) continue;
         if(playable_agriculture_enabled() && !static_cast<std::uint32_t>(selected) &&
-            std::any_of(agriculture_fields().begin(),agriculture_fields().end(),[&](const auto& field) {
+            std::count_if(agriculture_fields().begin(),agriculture_fields().end(),[&](const auto& field) {
                 return field.farm_id==farm.id;
-            })) continue;
+            }) >= static_cast<std::ptrdiff_t>(multi_field_agriculture_enabled() ? multi_field_per_farm_limit:1)) continue;
         const auto d=std::abs(std::int64_t(cell.x)-farm.cell.x-1)+std::abs(std::int64_t(cell.y)-farm.cell.y-1);
         if(d<distance) {result=farm.id;distance=d;}
     }
@@ -760,7 +846,11 @@ CommandResult World::validate_agriculture_command(Command command) const {
         if(agriculture_fields().size()>=agriculture_field_limit) {result.reason="Agriculture field limit reached";return result;}
         const auto parent=agriculture_farm_for_field(command.cell,command.building_id);
         if(!parent) {result.reason="Field requires an existing paid Farmhouse within its source work area";return result;}
-        if(original_plantations_enabled() && (playable_agriculture_enabled() || command.type==CommandType::PlaceOriginalWheatField || command.type==CommandType::PlaceOriginalMilletField) &&
+        if(multi_field_agriculture_enabled() && std::count_if(agriculture_fields().begin(),agriculture_fields().end(),
+            [&](const auto& f){return f.farm_id==*parent;})>=static_cast<std::ptrdiff_t>(multi_field_per_farm_limit)) {
+            result.reason="Multi-field Farm permits at most eight paid Fields";return result;
+        }
+        if(!multi_field_agriculture_enabled() && original_plantations_enabled() && (playable_agriculture_enabled() || command.type==CommandType::PlaceOriginalWheatField || command.type==CommandType::PlaceOriginalMilletField) &&
             std::any_of(agriculture_fields().begin(),agriculture_fields().end(),[&](const auto& f) {
                 return f.farm_id==*parent && authored_agriculture_crop_enabled(profile_,rule_version_,f.crop);
             })) {result.reason=playable_agriculture_enabled() ? "AUTHORED adapter permits one productive Field per Farm":

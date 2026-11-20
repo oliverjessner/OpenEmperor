@@ -96,9 +96,12 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # Historical probe calls enable none of this authority; matching fresh archives
 # and unchanged literal case results are required. These additive ABI pins do
 # not establish Original hunting, timing, ecology or raw-unit parity.
+# AGRI-MAC05 appends explicit Rule30 work/cursor authority and APIs. Historical
+# probes select no new mode; DTOs, default selectors and literal case results
+# remain exact. Fresh matching archives cover the additive ABI only.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "bbf678f5e9e1f046168fd71d1903f4e8b2d81fed",
+    "World.h": "c1f2b0705b2f3bbbe324cd51f1e79f136fc9d990",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
@@ -107,6 +110,7 @@ REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "b22d4fb214405dee9ce98cdfacc26d0092b5df6f",
+    "MultiFieldAgricultureState.h": "8f0e0b59aa1196ceaaabaa74afbd5d8843c7b1bc",
     "AgricultureState.h": "8d7c4f9972d6cb9ed625c350e5090a416521bd3c",
     "HuntingState.h": "8320925ca1dda3d9b24ae873efe6dcd2f7ced15b",
     "FishingState.h": "034e7e5aeb9ca095d7d07f3216b77e007076a7ae",

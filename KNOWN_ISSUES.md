@@ -38,6 +38,13 @@ complete original-game compatibility.
   Unqualified Tent/animal/Hunter sprites use labelled authored fallbacks. The
   [hunting contract](docs/original-economy/agriculture.md#playable-hunting-agri-mac03)
   separates these rules from historical Original research and saves.
+- **Multi-field Agriculture shares authored Farm labor.** Explicit Rule30/schema46
+  allows up to eight independently progressing paid fields per Farm with one
+  shared work unit/tick and the existing sole seven-kind Food account. Physical
+  crop Growers, seasons and irrigation yield effects are separate upcoming work;
+  there is no Original field-work or harvest-parity claim. Rice retains static
+  qualified paddy art. Historical rules and save generations stay exact. See
+  [the contract](docs/original-economy/agriculture.md#multi-field-agriculture-agri-mac05).
 - **Luxury consumption and citywide reliability are separate.** The unchanged
   supplied-model Rule29 Xia check earns real Tea/Silk/Lacquerware House
   consumption and20,400 subsequent Elite17 ticks. That House still has53 unmet

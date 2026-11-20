@@ -166,6 +166,18 @@ World World::restore_playable_hunting(const WorldSnapshot& s,std::shared_ptr<con
     auto world=restore_irrigation_generation(kPlayableHuntingRuleVersion,s,std::move(permissions),std::move(model),std::move(terrain));
     world.validate_fishing_context();world.validate_hunting_context();return world;
 }
+World World::create_multi_field_agriculture(std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    auto world=create_irrigation_generation(kMultiFieldAgricultureRuleVersion,std::move(permissions),std::move(model),std::move(terrain));
+    world.initialize_fishing_sites();world.initialize_hunting_habitats();
+    world.validate_fishing_context();world.validate_hunting_context();return world;
+}
+World World::restore_multi_field_agriculture(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    validate_multi_field_agriculture_snapshot(s);
+    auto world=restore_irrigation_generation(kMultiFieldAgricultureRuleVersion,s,std::move(permissions),std::move(model),std::move(terrain));
+    world.validate_fishing_context();world.validate_hunting_context();return world;
+}
 World World::create_irrigation_generation(std::uint32_t version,std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
     if(!permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain ||

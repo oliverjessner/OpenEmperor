@@ -137,10 +137,15 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
-    // Explicit Rule28/schema44: six Food kinds and paid physical fishing.
+    // Explicit Rule30/schema46: shared finite Farm labor over multiple fields.
+    static std::unique_ptr<SandboxView> create_multi_field_agriculture(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
+    // Explicit Rule29/schema45: seven Food kinds and physical hunting.
     static std::unique_ptr<SandboxView> create_playable_hunting(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule28/schema44: six Food kinds and paid physical fishing.
     static std::unique_ptr<SandboxView> create_playable_fishing(
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
@@ -528,6 +533,7 @@ private:
     void append_agriculture_calendar_lines(std::vector<std::string>& lines,simulation::BuildingId id) const;
     int inspection_workers_assigned(simulation::BuildingId id) const;
     bool inspection_building_staffed(simulation::BuildingId id) const;
+    bool inspection_farm_road_connected(simulation::BuildingId id) const;
     bool status_first_selected() const;
     bool irrigation_inspector_selected() const;
     std::vector<std::string> wrap_panel_lines(const std::vector<std::string>& lines) const;
@@ -856,6 +862,9 @@ private:
     bool original_agriculture() const {
         return simulation::original_agriculture_family_enabled(rules_,requested_rule_version_);
     }
+    bool multi_field_agriculture() const {
+        return simulation::multi_field_agriculture_enabled(rules_,requested_rule_version_);
+    }
     bool playable_hunting() const {
         return simulation::playable_hunting_enabled(rules_,requested_rule_version_);
     }
@@ -965,6 +974,7 @@ private:
     // Disposable Agriculture display values, prepared only at World publication
     // boundaries. Render/hover never rebuild workforce allocation.
     std::vector<std::pair<simulation::BuildingId,int>> agriculture_inspection_workers_;
+    std::vector<std::pair<simulation::BuildingId,bool>> agriculture_inspection_farm_roads_;
     std::vector<std::pair<simulation::BuildingId,std::vector<std::string>>> agriculture_calendar_lines_;
     std::uint64_t agriculture_inspection_tick_=UINT64_MAX,agriculture_inspection_sequence_=UINT64_MAX;
     std::uint64_t agriculture_inspection_prepare_count_=0;

@@ -164,7 +164,8 @@ SDL_Color original_house_status_color(original_house_ui::Status status) {
     }
     return {148,157,172,38};
 }
-const char* agriculture_production_status(bool plantations,bool playable=false) {
+const char* agriculture_production_status(bool plantations,bool playable=false,bool multi_field=false) {
+    if (multi_field) return "AUTHORED80 field work units per harvest; finite shared Farm labor";
     if (playable) return "AUTHORED80-tick harvests: Wheat/Millet/Rice/Cabbage/BeanCurd";
     if (plantations) return "AUTHORED Wheat/Millet; Rice/Cabbage/Soy locked";
     return simulation::agriculture_production_clock_verified ? "Original production clock verified":
@@ -793,6 +794,17 @@ std::unique_ptr<SandboxView> SandboxView::create_playable_agriculture(
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_multi_field_agriculture(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid Multi-field Agriculture difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule30 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kMultiFieldAgricultureRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;
+    return result;
+}
+
 std::unique_ptr<SandboxView> SandboxView::create_playable_hunting(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
     if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
@@ -973,7 +985,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : playable_hunting() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : multi_field_agriculture() ?
+        persistence::restore_multi_field_agriculture(document,data_root_,buildable_mask_) : playable_hunting() ?
         persistence::restore_playable_hunting(document,data_root_,buildable_mask_) : playable_fishing() ?
         persistence::restore_playable_fishing(document,data_root_,buildable_mask_) : playable_agriculture() ?
         persistence::restore_playable_agriculture(document,data_root_,buildable_mask_) : original_irrigation() ?
@@ -1103,7 +1116,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : playable_hunting() ?
+                std::move(permissions)) : multi_field_agriculture() ?
+            persistence::restore_multi_field_agriculture(*initial_save_,data_root_,
+                buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : playable_hunting() ?
             persistence::restore_playable_hunting(*initial_save_,data_root_,
                 buildable_mask_,std::move(permissions),nullptr,std::move(terrain)) : playable_fishing() ?
             persistence::restore_playable_fishing(*initial_save_,data_root_,
@@ -1159,6 +1174,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (multi_field_agriculture()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_multi_field_agriculture(
+            std::move(permissions),persistence::prepare_playable_hunting_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_="Multi-field Agriculture: shared Farm labor across up to eight fields; AUTHORED80 work units per crop portion.";
     } else if (playable_hunting()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_playable_hunting(
             std::move(permissions),persistence::prepare_playable_hunting_rules_model(data_root_,
@@ -1188,7 +1208,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_agriculture(
             std::move(permissions),persistence::prepare_original_agriculture_rules_model(data_root_,
                 original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
-        last_message_=std::string("Agriculture: paid typed crop construction. ")+agriculture_production_status(original_plantations(),playable_agriculture());
+        last_message_=std::string("Agriculture: paid typed crop construction. ")+agriculture_production_status(original_plantations(),playable_agriculture(),multi_field_agriculture());
     } else if (original_venue_house_service()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_original_venue_house_service(
             std::move(permissions),persistence::prepare_original_culture_rules_model(data_root_,
@@ -1291,7 +1311,7 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
         saved_tick_=world_->ticks(); saved_command_=world_->command_sequence();
     }
     if (!builtin_errors.empty()) last_message_=builtin_errors.front();
-    if (original_agriculture()) last_message_+=" | "+std::string(agriculture_production_status(original_plantations(),playable_agriculture()));
+    if (original_agriculture()) last_message_+=" | "+std::string(agriculture_production_status(original_plantations(),playable_agriculture(),multi_field_agriculture()));
     if (original_save_fixture_) clock_.pause_and_reset();
     update_window_title();
 }
@@ -1301,7 +1321,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(playable_hunting())title+=" | save schema 45 | Playable Hunting (AUTHORED)";
+    if(multi_field_agriculture())title+=" | save schema 46 | Multi-field Agriculture (AUTHORED)";
+    else if(playable_hunting())title+=" | save schema 45 | Playable Hunting (AUTHORED)";
     else if(playable_fishing())title+=" | save schema 44 | Playable Fishing (AUTHORED)";
     else if(playable_agriculture())title+=" | save schema 43 | Playable Agriculture (AUTHORED)";
     else if(original_irrigation())title+=" | save schema 42 | Agriculture Irrigation";
@@ -2197,9 +2218,10 @@ SandboxView::OriginalFieldVisualSelection SandboxView::original_field_visual_sel
         for (const auto& field:world_->agriculture_fields()) if (field.field_id==*owner) {
             if (original_plantations() && (playable_agriculture() || field.crop==simulation::AgricultureCrop::Wheat || field.crop==simulation::AgricultureCrop::Millet)) {
                 const auto& farm=world_->building(field.farm_id);
-                const auto stage=assets::authored_farm_progress_stage(farm.progress);
+                const auto progress=world_->agriculture_field_progress(field.field_id);
+                const auto stage=assets::authored_farm_progress_stage(progress);
                 if (!stage || farm.kind!=simulation::Object::OriginalFoodFarm) return result;
-                result.farm=field.farm_id;result.progress=farm.progress;result.stage=stage;
+                result.farm=field.farm_id;result.progress=progress;result.stage=stage;
                 result.entry=building_profile_->find_original_field(*role,1,*stage);return result;
             }
             const auto stage=assets::agriculture_field_quantity_stage(field.quantity);
@@ -2552,11 +2574,13 @@ SandboxView::OriginalBuildingVisualDiagnostic SandboxView::original_building_vis
             result.field_farm=field.farm;result.field_stage=field.stage;result.field_farm_progress=field.progress;
             result.rice_neighbor_mask=field.rice_neighbor_mask;
             result.selection=field.rice_neighbor_mask ?
+                multi_field_agriculture() ? "Original static Rice paddy topology; AUTHORED80 field work units per portion; canonical variation0":
                 playable_agriculture() ? "Original static Rice paddy topology; AUTHORED80-tick production; canonical variation0":
                 "Original Rice inactive paddy topology; Original work/season bank unavailable; canonical variation0; production locked":
                 original_agriculture() && !playable_agriculture() && body->kind!=simulation::Object::OriginalHempField &&
                 !(original_plantations() && (body->kind==simulation::Object::OriginalWheatField || body->kind==simulation::Object::OriginalMilletField)) ?
                 "Original crop images; source quantity selector; production locked; canonical variation0 and authored anchor":
+                multi_field_agriculture() ? "Original crop images; authored six-stage field work mapping; canonical variation0 and authored anchor":
                 "Original crop images; authored six-stage Farm progress mapping; canonical variation0 and authored anchor";
             if (result.active && unified_depth_ && background_.landscape_mode()!=LandscapeDebugMode::Snapshot)
                 for (std::size_t i=0;i<original_field_order_count_;++i) if (original_field_order_[i].id==id) {
@@ -2611,7 +2635,8 @@ bool SandboxView::append_original_building_visual_diagnostic(std::vector<std::st
             lines.push_back(playable_agriculture() ? "Static Rice paddy art; AUTHORED growth and harvest active":
                 "Inactive Rice paddy; growth and harvest remain locked");
             if (playable_agriculture())
-                lines.push_back("Actual Farm growth "+std::to_string(world_->building(*art.field_farm).progress)+"/80 (AUTHORED)");
+                lines.push_back(std::string(multi_field_agriculture() ? "Actual field growth ":"Actual Farm growth ")+
+                    std::to_string(world_->agriculture_field_progress(id))+"/80 (AUTHORED)");
             lines.push_back("Farm #"+std::to_string(static_cast<unsigned>(*art.field_farm)));
             if (debug_open_) lines.push_back("Rice8-neighbor mask "+std::to_string(*art.rice_neighbor_mask)+"; variation0");
             return;
@@ -2619,9 +2644,10 @@ bool SandboxView::append_original_building_visual_diagnostic(std::vector<std::st
         if (!art.field_stage || !art.field_farm) return;
         lines.push_back("Field visual stage "+std::to_string(*art.field_stage+1)+
             (agriculture_field ? "/6 (quantity selector)":"/6 (authored)"));
-        lines.push_back("Farm #"+std::to_string(static_cast<unsigned>(*art.field_farm))+" progress "+
+        lines.push_back(std::string(multi_field_agriculture() ? "Field #":"Farm #")+
+            std::to_string(static_cast<unsigned>(multi_field_agriculture() ? id:*art.field_farm))+" progress "+
             std::to_string(art.field_farm_progress)+(agriculture_field ? "/10000 quantity":"/80"));
-        lines.push_back(agriculture_field ? agriculture_production_status(original_plantations(),playable_agriculture()):
+        lines.push_back(agriculture_field ? agriculture_production_status(original_plantations(),playable_agriculture(),multi_field_agriculture()):
             "Original crop images; authored growth and anchor");
         lines.push_back(agriculture_field ? "Canonical variation0; actual stored field quantity":
             "Canonical variation0; original calendar not reproduced");
@@ -3515,6 +3541,14 @@ simulation::Command SandboxView::placement_command(simulation::Cell cell) const 
     if (tool_==47) command.orientation=irrigation_orientation_;
     if (tool_==49) command.orientation=fishing_orientation_;
     if (tool_==17 || (!original_agriculture() && (tool_==19 || tool_==20))) command.building_id=selected_building().value_or(simulation::BuildingId{});
+    if (multi_field_agriculture() && (tool_==19 || tool_==20 || tool_==43 || tool_==44 || tool_==45)) {
+        if (const auto selected=selected_building()) {
+            if (world_->building(*selected).kind==simulation::Object::OriginalFoodFarm) command.building_id=*selected;
+            else for (const auto& field:world_->agriculture_fields()) if (field.field_id==*selected) {
+                command.building_id=field.farm_id;break;
+            }
+        }
+    }
     if (original_production_fixture() && tool_>=38 && tool_<=40) {
         if (original_plantations()) {
             const auto plant=static_cast<simulation::Object>(static_cast<unsigned>(simulation::Object::OriginalTeaBush26)+static_cast<unsigned>(tool_-38));
@@ -3728,6 +3762,14 @@ bool SandboxView::action_enabled(sandbox_ui::Action action) const {
                 simulation::CommandType::PlaceOriginalSoybeanField;
         if (world_->treasury()<world_->construction_cost(command)) return false;
         const auto fields=world_->agriculture_fields();const auto farms=world_->agriculture_farms();
+        if (multi_field_agriculture() && action!=sandbox_ui::Action::OriginalFoodFarm) {
+            if (fields.size()>=simulation::agriculture_field_limit) return false;
+            return std::any_of(farms.begin(),farms.end(),[&](const auto& farm) {
+                return std::count_if(fields.begin(),fields.end(),[&](const auto& field) {
+                    return field.farm_id==farm.farm_id;
+                })<static_cast<std::ptrdiff_t>(simulation::multi_field_per_farm_limit);
+            });
+        }
         if (original_plantations() && action!=sandbox_ui::Action::OriginalFoodFarm && (playable_agriculture() || action==sandbox_ui::Action::OriginalWheatField || action==sandbox_ui::Action::OriginalMilletField)) {
             if (fields.size()>=simulation::agriculture_field_limit) return false;
             return std::any_of(farms.begin(),farms.end(),[&](const auto& farm) {
@@ -3920,8 +3962,11 @@ sandbox_ui::InspectorLayout SandboxView::inspector_layout() const {
     }
     const auto id=selected_building();
     const bool operations=id && world_->operation_controls_supported() &&
-        simulation::World::operation_controllable(world_->building(*id).kind);
-    const bool demolition=id && world_->demolition_supported();
+        world_->operation_controllable_for_rules(world_->building(*id).kind);
+    // A refused kind has no demolition action to reserve beneath the Rule30
+    // inspector. Reuse World's diagnostic; historical layouts remain exact.
+    const bool demolition=id && world_->demolition_supported() &&
+        (!multi_field_agriculture() || world_->demolition_status(*id).blocker!=simulation::DemolitionBlocker::UnsupportedKind);
     return sandbox_ui::make_inspector_layout(layout_.panel,layout_.scale,placed_buildings().size(),
         inspection_lines().size(),land_trade_selected() ? land_trade_hint_lines().size():demolition ? demolition_hint_lines().size():0,
         status_first_selected(),operations,demolition || land_trade_selected(),panel_scroll_,inspector_hint_scroll_);
@@ -3974,7 +4019,7 @@ std::optional<SandboxView::OperationAction> SandboxView::operation_action_at(dou
     if (income_open_ || !layout_.panel_open || !world_ || !world_->operation_controls_supported())
         return std::nullopt;
     const auto id=selected_building();
-    if (!id || !simulation::World::operation_controllable(world_->building(*id).kind))
+    if (!id || !world_->operation_controllable_for_rules(world_->building(*id).kind))
         return std::nullopt;
     if (operation_toggle_rect().contains(x,y)) return OperationAction::Toggle;
     for (int i=0;i<3;++i) if (operation_priority_rect(i).contains(x,y))
@@ -4161,7 +4206,8 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
             action==A::ServicePost ? 9:action==A::FireWatch ? 11:action==A::Well ? 12:action==A::HealthPost ? 13:action==A::Bridge ? 14:action==A::Ramp ? 15:action==A::OriginalHempFarm ? 16:action==A::OriginalHempField ? 17:
             action==A::OriginalFoodFarm ? 18:action==A::OriginalWheatField ? 19:action==A::OriginalMilletField ? 20:action==A::OriginalRiceField ? 43:action==A::OriginalCabbageField ? 44:action==A::OriginalSoybeanField ? 45:action==A::OriginalAncestorShrine ? 21:action==A::OriginalWaterWell ? 22:action==A::OriginalDaoistShrine ? 23:action==A::OriginalBuddhistShrine ? 24:action==A::OriginalConfucianAcademy ? 25:action==A::OriginalMusicSchool ? 26:action==A::OriginalAcrobatSchool ? 27:action==A::OriginalDramaSchool ? 28:0;
         last_message_=original_agriculture() && (tool_==18 || tool_==19 || tool_==20 || (tool_>=43 && tool_<=45)) ?
-            std::string(agriculture_production_status(original_plantations(),playable_agriculture()))+" | Paid field work area -3..+5; Rice requires source fertility100":
+            std::string(agriculture_production_status(original_plantations(),playable_agriculture(),multi_field_agriculture()))+" | Paid field work area -3..+5; Rice requires source fertility100"+
+                (multi_field_agriculture() ? "; selected Farm binds new fields":""):
             original_venue_house_service() && tool_==26 ? "Music School: paid2x2; actual performer supplies Theatre; no direct House grant":
             original_music_venues() && tool_==26 ? "Music School: paid2x2; real performer to Theatre75; no House effect":
             original_influence_fixture() && tool_==12 ? "Well72 influence source: 2x2, $60, no water":
@@ -4658,7 +4704,11 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
                         auto& scroll=hints ? inspector_hint_scroll_:panel_scroll_;
                         const int current=hints ? panel.hint_scroll:panel.scroll;
                         const int limit=hints ? panel.hint_scroll_limit:panel.scroll_limit;
-                        const double next=current-std::trunc(double(event.wheel.y))*24*layout_.scale;
+                        // Rule30's complete inherited toolbar can leave a one-row
+                        // inspector at minimum size. Step by its actual text row
+                        // so ordinary wheel input cannot skip an entire field row.
+                        const int stride=multi_field_agriculture() && !hints ? 17:24;
+                        const double next=current-std::trunc(double(event.wheel.y))*stride*layout_.scale;
                         scroll=static_cast<int>(std::clamp(next,0.0,double(limit)));
                     }
                 }
@@ -6481,6 +6531,7 @@ bool SandboxView::agriculture_inspector_selected() const {
 void SandboxView::prepare_agriculture_inspection(bool force) {
     if (!world_ || !original_agriculture()) {
         agriculture_inspection_workers_.clear();
+        agriculture_inspection_farm_roads_.clear();
         agriculture_calendar_lines_.clear();
         agriculture_inspection_tick_=agriculture_inspection_sequence_=UINT64_MAX;
         return;
@@ -6488,10 +6539,13 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
     if (!force && agriculture_inspection_tick_==world_->ticks() &&
         agriculture_inspection_sequence_==world_->command_sequence()) return;
     agriculture_inspection_workers_.clear();
+    agriculture_inspection_farm_roads_.clear();
     agriculture_inspection_workers_.reserve(world_->buildings().size());
     std::vector<simulation::AgricultureSeasonStatus> seasons;
     for (const auto& body:world_->buildings()) {
         agriculture_inspection_workers_.emplace_back(body.id,world_->workers_assigned(body.id));
+        if (multi_field_agriculture() && body.kind==simulation::Object::OriginalFoodFarm)
+            agriculture_inspection_farm_roads_.emplace_back(body.id,!world_->building_entrances(body.id).empty());
         if (const auto status=world_->agriculture_season_status(body.id)) seasons.push_back(*status);
     }
     const auto calendar=world_->agriculture_calendar();
@@ -6556,6 +6610,13 @@ int SandboxView::inspection_workers_assigned(simulation::BuildingId id) const {
         [](const auto& value,auto wanted){return value.first<wanted;});
     if (row==agriculture_inspection_workers_.end() || row->first!=id)
         throw std::logic_error("Agriculture workforce display was not prepared after World publication");
+    return row->second;
+}
+bool SandboxView::inspection_farm_road_connected(simulation::BuildingId id) const {
+    const auto row=std::lower_bound(agriculture_inspection_farm_roads_.begin(),agriculture_inspection_farm_roads_.end(),id,
+        [](const auto& value,auto wanted){return value.first<wanted;});
+    if (row==agriculture_inspection_farm_roads_.end() || row->first!=id)
+        throw std::logic_error("Multi-field Farm access display was not prepared after World publication");
     return row->second;
 }
 bool SandboxView::inspection_building_staffed(simulation::BuildingId id) const {
@@ -7647,6 +7708,85 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     const bool playable_crop=playable_agriculture() && (b.kind==simulation::Object::OriginalWheatField ||
         b.kind==simulation::Object::OriginalMilletField || b.kind==simulation::Object::OriginalRiceField ||
         b.kind==simulation::Object::OriginalCabbageField || b.kind==simulation::Object::OriginalSoybeanField);
+    if (multi_field_agriculture() && (playable_crop || b.kind==simulation::Object::OriginalFoodFarm)) {
+        lines.push_back(object_name(b.kind)+std::string(" #")+std::to_string(static_cast<unsigned>(*id)));
+        const auto& food=*world_->hunting_food_state();
+        const auto& work=*world_->multi_field_agriculture_state();
+        const auto selected_field=std::find_if(food.fields.begin(),food.fields.end(),[&](const auto& field) {
+            return field.field_id==*id;
+        });
+        const auto farm_id=selected_field!=food.fields.end() ? selected_field->farm_id:*id;
+        const auto& farm=world_->building(farm_id);
+        const auto schedule=std::find_if(work.farms.begin(),work.farms.end(),[&](const auto& row) {
+            return row.farm_id==farm_id;
+        });
+        lines.push_back("Farm workers "+std::to_string(inspection_workers_assigned(farm_id))+"/"+
+            std::to_string(world_->workforce_required(farm_id)));
+        lines.push_back("AUTHORED labor: one work unit per staffed Farm/tick");
+        lines.push_back("80 field work units per portion; shared fairly");
+        int stock_total=0,reserved=0;
+        for (const auto& stock:food.stocks) if (stock.building_id==farm_id)
+            for (const auto amount:stock.amounts) stock_total+=amount;
+        for (const auto& trip:food.trips) {
+            if (trip.source!=farm_id && !(trip.target==farm_id && trip.phase==simulation::OriginalGoodsTransferPhase::Loaded)) continue;
+            for (std::size_t crop=0;crop<trip.loaded.size();++crop)
+                reserved+=trip.loaded[crop]-trip.delivered[crop]-trip.returned[crop];
+        }
+        const bool road=inspection_farm_road_connected(farm_id);
+        const char* farm_blocker=world_->building_on_fire(farm_id) ? "Farm on fire":
+            !farm.operating_enabled ? "Farm paused":!inspection_building_staffed(farm_id) ? "Farm understaffed":
+            !road ? "Road entrance missing":stock_total+reserved>=8 ? "Stock/reservations full":nullptr;
+        // Keep each bounded status phrase intact in the narrow inspector.
+        lines.push_back(farm_blocker ? farm_blocker:"Ready for shared Farm work");
+        lines.push_back("Farm stock "+std::to_string(stock_total)+"/8 | return/inbound reserved "+std::to_string(reserved));
+        if (schedule!=work.farms.end())
+            lines.push_back(schedule->last_field ? "Last worked field #"+std::to_string(static_cast<unsigned>(*schedule->last_field)):
+                "Last worked field: none");
+        std::size_t field_count=0,eligible=0;
+        std::optional<simulation::BuildingId> first,next;
+        for (const auto& field:food.fields) {
+            if (field.farm_id!=farm_id) continue;
+            ++field_count;
+            const auto& body=world_->building(field.field_id);
+            const char* blocker=farm_blocker ? farm_blocker:world_->building_on_fire(field.field_id) ? "Field on fire":
+                !body.operating_enabled ? "Field paused":nullptr;
+            if (!blocker) {
+                ++eligible;
+                if (!first) first=field.field_id;
+                if (!next && (schedule==work.farms.end() || !schedule->last_field || field.field_id>*schedule->last_field)) next=field.field_id;
+            }
+            if (playable_crop && field.field_id!=*id) continue;
+            const auto row=std::find_if(work.fields.begin(),work.fields.end(),[&](const auto& value) {
+                return value.field_id==field.field_id;
+            });
+            lines.push_back("Field #"+std::to_string(static_cast<unsigned>(field.field_id))+" "+
+                agriculture_food_names[static_cast<std::size_t>(field.crop)]+" | progress "+
+                std::to_string(world_->agriculture_field_progress(field.field_id))+"/80");
+            if (row!=work.fields.end()) lines.push_back("Work total "+std::to_string(row->productive_ticks));
+            lines.push_back("Actually harvested "+std::to_string(field.harvested));
+            lines.push_back(blocker ? blocker:"Eligible for Farm work");
+            if (field.crop==simulation::AgricultureCrop::Rice)
+                lines.push_back("Rice fertility100; no universal Pump requirement");
+        }
+        lines.push_back("Bound fields "+std::to_string(field_count)+"/8 | eligible "+std::to_string(eligible));
+        const auto next_field=next ? next:first;
+        lines.push_back(next_field ? "Next eligible field #"+std::to_string(static_cast<unsigned>(*next_field))+" (current state)":
+            field_count ? "Next eligible field: none":"Place paid Food fields within Farm range");
+        lines.push_back("Bound Farmhouse #"+std::to_string(static_cast<unsigned>(farm_id)));
+        for (const auto& courier:world_->couriers()) if (courier.owner==farm_id) {
+            lines.push_back(std::string("Food courier: ")+simulation::delivery_phase_name(courier.phase)+
+                " | cargo "+std::to_string(world_->original_food_cargo(courier.id)));
+            if (courier.route_pending) lines.push_back("Courier road blocked; cargo and reservations retained");
+        }
+        append_agriculture_stock_lines(*world_,farm_id,lines,8);
+        add_connectivity();add_maintenance(farm_id);add_fire_status(farm_id);
+        lines.push_back("Base yield; no irrigation bonus");
+        if (debug_open_) {
+            append_agriculture_calendar_lines(lines,*id);
+            append_original_building_visual_diagnostic(lines,*id);
+        }
+        return wrap_panel_lines(lines);
+    }
     if (playable_agriculture() && (playable_crop || b.kind==simulation::Object::OriginalFoodFarm)) {
         lines.push_back(object_name(b.kind)+std::string(" #")+std::to_string(static_cast<unsigned>(*id)));
         return visit_agriculture_food(*world_,[&](const auto& food) {
@@ -7768,7 +7908,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Workers assigned "+std::to_string(inspection_workers_assigned(*id))+
                 "/"+std::to_string(required));
             if (world_->operation_controls_supported() &&
-                simulation::World::operation_controllable(b.kind)) {
+                world_->operation_controllable_for_rules(b.kind)) {
                 lines.push_back(std::string("Operation: ")+
                     (b.operating_enabled ? "Running":"Paused by player"));
                 lines.push_back(std::string("Worker priority: ")+
@@ -7828,7 +7968,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         for (const auto& field:world_->agriculture_fields()) if (field.farm_id==*id)
             lines.push_back(std::string(agriculture_food_names[static_cast<std::size_t>(field.crop)])+
                 " field #"+std::to_string(static_cast<unsigned>(field.field_id))+"; harvested "+std::to_string(field.harvested));
-        lines.push_back(agriculture_production_status(original_plantations(),playable_agriculture()));
+        lines.push_back(agriculture_production_status(original_plantations(),playable_agriculture(),multi_field_agriculture()));
     } else if (original_agriculture() && (b.kind==simulation::Object::OriginalWheatField ||
         b.kind==simulation::Object::OriginalMilletField || b.kind==simulation::Object::OriginalRiceField ||
         b.kind==simulation::Object::OriginalCabbageField || b.kind==simulation::Object::OriginalSoybeanField)) {
@@ -7871,7 +8011,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 lines.push_back("Last harvest cycle "+std::to_string(field.last_harvest_cycle));
                 lines.push_back("Harvest locked: Original worker/yield contract incomplete");
             }
-            lines.push_back(agriculture_production_status(original_plantations(),playable_agriculture()));
+            lines.push_back(agriculture_production_status(original_plantations(),playable_agriculture(),multi_field_agriculture()));
             if (field.crop==simulation::AgricultureCrop::Rice)
                 lines.push_back(playable_agriculture() ? "Rice requires source fertility100; no universal Pump requirement":original_irrigation() ?
                     "Rice fertility100 admission; irrigation does not prove harvest/yield inputs":
@@ -8656,7 +8796,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(playable_hunting())overview+=" | Policy3 | Save45 | Playable Hunting | AUTHORED seven Foods";
+        if(multi_field_agriculture())overview+=" | Policy3 | Save46 | Multi-field Agriculture | shared Farm labor";
+        else if(playable_hunting())overview+=" | Policy3 | Save45 | Playable Hunting | AUTHORED seven Foods";
         else if(playable_fishing())overview+=" | Policy3 | Save44 | Playable Fishing | AUTHORED six Foods";
         else if(playable_agriculture())overview+=" | Policy3 | Save43 | Playable Agriculture | AUTHORED five crops";
         else if(original_irrigation())overview+=" | Policy3 | Save42 | Irrigation | Yield bonus PARTIAL";
@@ -9392,7 +9533,8 @@ bool SandboxView::draw_help_overlay() {
     const int line=16*layout_.scale;
     if (original_production_fixture()) {
         const std::array<const char*,17> help{
-            playable_hunting() ? "PLAYABLE HUNTING - H closes":
+            multi_field_agriculture() ? "MULTI-FIELD AGRICULTURE - H closes":
+                playable_hunting() ? "PLAYABLE HUNTING - H closes":
                 playable_fishing() ? "PLAYABLE FISHING - H closes":
                 playable_agriculture() ? "PLAYABLE AGRICULTURE - H closes":"ORIGINAL ECONOMY - H closes", "Q Water Well | Y Ancestor Shrine",
             "U Daoist | K Buddhist | V Confucian",
@@ -9404,6 +9546,7 @@ bool SandboxView::draw_help_overlay() {
                 playable_fishing() ? "Shift-F Fishing Quay | R rotate":
                 original_irrigation() ? "R rotate | Shift-X remove Ditch | Shift-V water":"0 Market | 5 Select | 1 Road",
             "F5 Save | F9 Load | Space Pause", original_agriculture() ?
+                multi_field_agriculture() ? "Farm: one work/tick shared by up to eight fields":
                 playable_agriculture() ? "AUTHORED80 ticks: all five Food crops active":
                 original_plantations() ? "AUTHORED Wheat/Millet; Rice/Cabbage/Soy locked":
                 "Production LOCKED: Original timing unverified":"Panel wheel scrolls; sources need workers",

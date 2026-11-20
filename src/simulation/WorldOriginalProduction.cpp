@@ -201,14 +201,14 @@ template<class Buildings,class Bridges> std::uint64_t spending(const Buildings& 
     }
     return result;
 }
-template<class Building> void validate_neutral_fields(const Building& b) {
+template<class Building> void validate_neutral_fields(const Building& b,bool multi_field) {
     BuildingSnapshot expected{b.id,b.kind,b.cell,true};expected.placed_tick=b.placed_tick;
     const bool field=b.kind==Object::OriginalHempField || b.kind==Object::OriginalWheatField || b.kind==Object::OriginalMilletField || b.kind==Object::OriginalRiceField || b.kind==Object::OriginalCabbageField || b.kind==Object::OriginalSoybeanField;
     if (b.kind!=Object::OriginalInfluenceSource && !field) {
         expected.fire_risk=b.fire_risk;expected.fire_protection_until_tick=b.fire_protection_until_tick;
         expected.fire_until_tick=b.fire_until_tick;
     }
-    if (!original_house_kind(b.kind) && b.kind!=Object::OriginalInfluenceSource && !field) {
+    if (!original_house_kind(b.kind) && b.kind!=Object::OriginalInfluenceSource && (!field || (multi_field && b.kind!=Object::OriginalHempField))) {
         expected.operating_enabled=b.operating_enabled;expected.workforce_priority=b.workforce_priority;
     }
     if (original_house_kind(b.kind)) expected.taxes_paid_total=b.taxes_paid_total;
@@ -614,7 +614,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
             invalid("original production buildings must be sorted with valid placement time");
         if (b.kind==Object::FireWatch && !simulation::original_fire_protection_enabled(s.profile,s.rule_version))
             invalid("Rule10 does not admit FireWatch");
-        (void)paid_cost(b.kind);validate_neutral_fields(b);
+        (void)paid_cost(b.kind);validate_neutral_fields(b,simulation::multi_field_agriculture_enabled(s.profile,s.rule_version));
         const auto footprint=building_footprint(s.profile,s.rule_version,b.kind);
         // Check by subtraction before any helper adds footprint offsets to an
         // untrusted origin. In particular, INT_MAX must never reach cell+1.

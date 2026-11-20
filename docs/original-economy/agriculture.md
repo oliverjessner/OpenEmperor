@@ -87,6 +87,60 @@ pair are superseded by this allocation; a future Original Harvest generation
 needs another explicitly checked free pair. Gameplay tests and macOS acceptance
 are recorded in [testing](../testing.md#playable-agriculture-agri-mac01).
 
+## Multi-field Agriculture (AGRI-MAC05)
+
+**Explicit AUTHORED Rule30/policy3/schema46**, marker
+`authored-multi-field-agriculture-v1`, revision1. Select **C Multi-field
+Agriculture** in the regular menu or `--multi-field-agriculture`. It inherits
+Rule29's sole seven-kind `HuntingFoodState`, fishing, hunting, plantations,
+irrigation, housing and finance. Rules1–29/schemas1–45 and general defaults
+retain their exact contracts; Rule29 still permits one productive field per Farm.
+
+Each of at most five paid Farmhouse193 bodies can own up to **eight** paid1×1
+fields, within the unchanged32-field,82-body and58-channel bounds. Crop prices,
+parent work area, map/complete-footprint admission and Rice source fertility100
+remain unchanged. Selecting a Farm or one of its fields explicitly binds new
+field placement to that Farm; otherwise the canonical nearest available Farm
+is selected. All five crops retain their existing typed output and authored
+quality scores. No additional cart or worker channel is allocated per field.
+
+One fully staffed, enabled, unburned Farm with an actual road entrance earns
+**one total work unit per World tick**, shared across eligible fields. Sorted
+monotone Field IDs form a round-robin queue after the last field that actually
+received work. Paused/burning fields are skipped independently; no eligible
+field, missing full staffing/access, Farm pause/fire or full reserved source
+capacity freezes both work and cursor. Fractional progress survives these
+blocks. Every80 work units earned by a field credits one portion to its Farm's
+existing typed Food account and increments that field's sole harvest counter.
+Farm-wide legacy progress stays zero. No calendar event, rendering, dispatch or
+restore grants work. This bounded scheduler is an authored abstraction; physical
+crop Growers and Original harvest parity are separate milestones.
+
+The separate `MultiFieldAgricultureState` stores only each Farm's last-work
+cursor and each field's paid parent and lifetime work. Progress is work modulo80;
+existing `AgricultureField::harvested` must equal work divided by80. It stores
+no second Food inventory or harvest counter. Farm capacity8, Market16, House8,
+physical carts4, reservations, accepted arrivals, quality witnesses and actual
+consumption retain their shared authority. Per-kind conservation remains
+`harvest + actual Fish/Meat unload = held stock + cargo + consumed`.
+
+Schema46 requires the exact inherited lineage and new marker/revision, complete
+sorted Farm/field/work identities and a cursor pointing to a real previously
+worked sibling. Each field's work fits its paid age. For every field placement
+epoch, summed work of the Farm's fields placed at or after that epoch cannot
+exceed elapsed ticks since that epoch. Thus later fields cannot borrow old idle
+Farm time or claim parallel labor. Overflow, orphan/missing/duplicate rows,
+legacy Farm progress and incompatible generations are refused before publication.
+F5/F9 and Recovery preserve independent field phases, cursor, cargo, reservations
+and lifetime histories exactly. Neither new nor historical writers may overwrite
+a schema46 target with another generation; there is no migration.
+
+Farm/field inspectors expose workforce, independent progress/work/harvest,
+last/next eligible work, typed stock, real cargo and current blocking reasons.
+Growth art reads the selected field's progress. Rice keeps its qualified static
+paddy profile and gains no universal Pump requirement or irrigation yield bonus.
+See [validation](../testing.md#multi-field-agriculture-agri-mac05) for evidence.
+
 ## Playable Fishing (AGRI-MAC02)
 
 The separate **Playable Fishing** selection (regular F menu,

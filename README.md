@@ -46,6 +46,13 @@ Hunters pursue actual animals and carry Meat back before Markets and Houses
 can receive and consume it. This authored mode retains all crops and fishing.
 See the [hunting guide](docs/original-economy/agriculture.md#playable-hunting-agri-mac03).
 
+**C Multi-field Agriculture** shares each Farm's finite labor across up to eight
+paid fields. Every field retains its own crop progress and harvest history;
+additional fields share the Farm's work rather than adding free throughput.
+Select a Farm or one of its fields to bind another field to that Farm.
+The mode retains hunting, fishing, plantations and irrigation. See the
+[multi-field guide](docs/original-economy/agriculture.md#multi-field-agriculture-agri-mac05).
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.
