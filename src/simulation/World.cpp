@@ -52,7 +52,7 @@ bool service_role(CourierRole role) {
         role==CourierRole::HealthWorker || role==CourierRole::OriginalAncestor || role==CourierRole::OriginalWater ||
         role==CourierRole::OriginalDaoist || role==CourierRole::OriginalBuddhist || role==CourierRole::OriginalConfucian ||
         role==CourierRole::OriginalMusic || role==CourierRole::OriginalAcrobat || role==CourierRole::OriginalDrama ||
-        role==CourierRole::OriginalMusicPerformer || role==CourierRole::OriginalVenueMusic || role==CourierRole::OriginalPlantationGrower;
+        role==CourierRole::OriginalMusicPerformer || role==CourierRole::OriginalVenueMusic || role==CourierRole::OriginalPlantationGrower || role==CourierRole::OriginalFoodGrower;
 }
 Object courier_target_kind(CourierRole role) {
     switch (role) {
@@ -306,6 +306,9 @@ bool courier_can_target(CourierRole role,const BuildingState& target) {
 
 bool courier_can_target(CourierRole role,const BuildingState& target,
                         RulesProfile profile,std::uint32_t rule_version) {
+    if(role==CourierRole::OriginalFoodGrower) return physical_food_growers_enabled(profile,rule_version) && target.placed &&
+        (target.kind==Object::OriginalWheatField || target.kind==Object::OriginalMilletField || target.kind==Object::OriginalRiceField ||
+         target.kind==Object::OriginalCabbageField || target.kind==Object::OriginalSoybeanField);
     if(role==CourierRole::OriginalPlantationGrower) return original_plantations_enabled(profile,rule_version) && target.placed && original_industry_plant(target.kind);
     if(role==CourierRole::AuthoredLandTrader)return profile==RulesProfile::CityV16&&rule_version==kAuthoredLandTradeRuleVersion&&target.placed&&target.kind==Object::Warehouse;
     if (role==CourierRole::OriginalVenueMusic && !original_venue_house_service_enabled(profile,rule_version)) return false;
@@ -540,6 +543,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v28{28,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v31{31,32,64,32,5,800};
+    if (physical_food_growers_enabled(profile,version)) return city_v16_v31;
     static constexpr ProfileRules city_v16_v30{30,32,64,32,5,800};
     if (multi_field_agriculture_enabled(profile,version)) return city_v16_v30;
     static constexpr ProfileRules city_v16_v29{29,32,64,32,5,800};
@@ -631,6 +636,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         else agriculture_.emplace();
     }
     if(multi_field_agriculture_enabled()) multi_field_agriculture_.emplace();
+    if(physical_food_growers_enabled()) physical_food_growers_.emplace();
     if(original_plantations_enabled()) plantations_.emplace();
     if(irrigation_enabled()) {
         if (!original_terrain_facts_->irrigation_complete())
@@ -1857,6 +1863,13 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
                 result.reason="Construction overlaps an actual plantation worker or its begun edge";return result;
             }
     }
+    if(physical_food_growers_enabled() && construction && *construction!=Object::Road) {
+        for(const auto cell:building_footprint_cells(profile_,rule_version_,*construction,command.cell))
+            for(const auto& c:couriers_) if(c.role==CourierRole::OriginalFoodGrower && c.phase!=CourierPhase::IdleAtWorkshop &&
+                (c.path.at(c.path_vertex)==cell || (c.edge_progress && c.path.at(c.path_vertex+1)==cell))) {
+                result.reason="Construction overlaps an actual Food Grower or its begun edge";return result;
+            }
+    }
     if (cost>0 && construction_spent_total_>UINT64_MAX-static_cast<std::uint64_t>(cost)) {
         result.reason="Construction spending counter exhausted"; return result;
     }
@@ -1889,7 +1902,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
             result.reason="Original production building capacity reached";return result;
         }
         const bool plantation=original_plantations_enabled() && (command.type==CommandType::PlaceOriginalTeaCuringShed || command.type==CommandType::PlaceOriginalLacquerRefinery || command.type==CommandType::PlaceOriginalSilkwormShed);
-        const std::size_t needed=(plantation || command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceWarehouse) ? 2U:creates_courier ? 1U:0U;
+        const std::size_t needed=(plantation || (physical_food_growers_enabled() && command.type==CommandType::PlaceOriginalFoodFarm) || command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceWarehouse) ? 2U:creates_courier ? 1U:0U;
         const auto capacity=Rules::original_production_courier_limit;
         if (needed>capacity || couriers_.size()+retired_couriers+grower_navigation_tracks_.size()+(fishing_ ? fishing_->quays.size():0)+(hunting_ ? hunting_->tents.size()+3*hunting_->habitats.size():0)>capacity-needed ||
             (original_safe_demolition_enabled() && (!next_courier_id_ || next_courier_id_-1>capacity-needed))) {
@@ -1898,7 +1911,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
     }
     if (scalable(profile_) && creates_courier &&
         (next_courier_id_==0 || next_courier_id_==UINT32_MAX ||
-         ((command.type==CommandType::PlaceMarket || (original_production_enabled() && command.type==CommandType::PlaceWarehouse) || (original_plantations_enabled() && construction && (*construction==Object::OriginalTeaCuringShed237 || *construction==Object::OriginalLacquerRefinery238 || *construction==Object::OriginalSilkwormShed239))) && next_courier_id_==UINT32_MAX-1))) {
+         ((command.type==CommandType::PlaceMarket || (physical_food_growers_enabled() && command.type==CommandType::PlaceOriginalFoodFarm) || (original_production_enabled() && command.type==CommandType::PlaceWarehouse) || (original_plantations_enabled() && construction && (*construction==Object::OriginalTeaCuringShed237 || *construction==Object::OriginalLacquerRefinery238 || *construction==Object::OriginalSilkwormShed239))) && next_courier_id_==UINT32_MAX-1))) {
         result.reason="Courier ID counter exhausted"; return result;
     }
     return {true,true,"Placed",result.sequence,ticks_};
@@ -2256,7 +2269,12 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         else {original_production_->food.farms.push_back({farm.id,std::nullopt,OriginalFoodCrop::Wheat,0});
             original_production_->food.stocks.push_back(OriginalFoodStock{farm.id});}
         if(multi_field_agriculture_enabled())multi_field_agriculture_->farms.push_back({farm.id,{}});
-        add_v10_courier(farm.id,CourierRole::OriginalFoodToMarket,Good::Food);break;
+        add_v10_courier(farm.id,CourierRole::OriginalFoodToMarket,Good::Food);
+        if(physical_food_growers_enabled()) {
+            add_v10_courier(farm.id,CourierRole::OriginalFoodGrower,Good::Food);
+            physical_food_growers_->farms.push_back({farm.id,couriers_.back().id,0,0,{}});
+        }
+        break;
     }
     case CommandType::PlaceOriginalWheatField:
     case CommandType::PlaceOriginalMilletField:
@@ -2273,6 +2291,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
                 command.type==CommandType::PlaceOriginalCabbageField ? AgricultureCrop::Cabbage:AgricultureCrop::Soybean;
             with_agriculture_food([&](auto& food){food.fields.push_back({field.id,*parent,crop});});
             if(multi_field_agriculture_enabled())multi_field_agriculture_->fields.push_back({field.id,*parent,0});
+            if(physical_food_growers_enabled())physical_food_growers_->fields.push_back({field.id,*parent,0,{}});
             break;
         }
         const auto farm=std::find_if(original_production_->food.farms.begin(),original_production_->food.farms.end(),
@@ -2492,6 +2511,11 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
             if(!plantation_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)) {mark_route_pending(c);break;}
     }
+    if(physical_food_growers_enabled()) for(auto& c:couriers_) {
+        if(c.role!=CourierRole::OriginalFoodGrower || c.phase==CourierPhase::IdleAtWorkshop || c.route_pending || physical_food_grower_stationary(c)) continue;
+        for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
+            if(!physical_food_grower_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)) {mark_route_pending(c);break;}
+    }
     if (refresh_after && production_profile(profile_)) refresh_routes();
     return result;
 }
@@ -2658,6 +2682,7 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
     if (boat && (!playable_fishing_enabled() || original_preparation || plantation_source || plantation_plant)) return std::nullopt;
     const bool land=!boat && !hunter && !original_preparation && original_plantations_enabled() &&
         plantation_source && plantation_plant;
+    const bool physical_land=land && physical_food_growers_enabled() && building(*plantation_source).kind==Object::OriginalFoodFarm;
     if (!in_bounds(start) || !in_bounds(goal) ||
         (hunter ? !hunting_hunter_cell_allowed(start,*hunter_source) || !hunting_hunter_cell_allowed(goal,*hunter_source):
          boat ? !fishing_boat_cell_allowed(start,*boat_source) || !fishing_boat_cell_allowed(goal,*boat_source):
@@ -2708,7 +2733,8 @@ std::optional<std::vector<Cell>> World::find_road_route(Cell start,Cell goal,
                 if (!(*mask&preparation_mask)) continue;
             } else if (!(hunter ? hunting_hunter_edge_allowed(current,next,*hunter_source):
                           boat ? fishing_boat_edge_allowed(current,next,*boat_source):
-                          land ? plantation_edge_allowed(current,next,*plantation_source,*plantation_plant):
+                          land ? (physical_land ? physical_food_grower_edge_allowed(current,next,*plantation_source,*plantation_plant):
+                              plantation_edge_allowed(current,next,*plantation_source,*plantation_plant)):
                                transport_edge_allowed(current,next))) continue;
             if (previous[index(next)]!=unvisited) continue;
             previous[index(next)]=original_preparation ? previous[index(current)]+1:index(current);
@@ -2840,6 +2866,12 @@ void World::refresh_routes() {
     if (scalable(profile_)) {
         for (auto& courier:couriers_) {
             courier.dynamic_target_routes.clear();
+            if(courier.role==CourierRole::OriginalFoodGrower) {
+                for(const auto& field:hunting_food_->fields) if(field.farm_id==courier.owner)
+                    courier.dynamic_target_routes.emplace_back(field.field_id,
+                        physical_food_grower_route({-1,-1},courier.owner,field.field_id,false));
+                courier.cached_route.reset();courier.cached_revision=road_revision_;continue;
+            }
             if(courier.role==CourierRole::OriginalPlantationGrower) {
                 for(const auto& plant:plantations_->plants) if(plant.source_id==courier.owner)
                     courier.dynamic_target_routes.emplace_back(plant.plant_id,
@@ -2940,6 +2972,7 @@ std::optional<BuildingId> World::next_pottery_candidate(CourierId id) const {
 CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
     if(courier(id).role==CourierRole::AuthoredLandTrader)return {courier(id).phase==CourierPhase::IdleAtWorkshop?CourierDispatchStatus::Disabled:CourierDispatchStatus::AlreadyMoving,{}};
     const auto& c=courier(id);
+    if (c.role==CourierRole::OriginalFoodGrower) return physical_food_grower_dispatch_status(c);
     if (c.role==CourierRole::OriginalPlantationGrower) return plantation_dispatch_status(c);
     if (c.role==CourierRole::OriginalMusicPerformer) return original_music_dispatch_status(c);
     if (!c.enabled) return {CourierDispatchStatus::Disabled,std::nullopt};
@@ -3428,6 +3461,7 @@ void World::advance_clay_pottery_production() {
 }
 
 void World::dispatch_v2(CourierState& courier) {
+    if(courier.role==CourierRole::OriginalFoodGrower) {dispatch_physical_food_grower(courier);return;}
     if(courier.role==CourierRole::OriginalPlantationGrower) {dispatch_plantation_grower(courier);return;}
     if (courier.role==CourierRole::OriginalMusicPerformer) {dispatch_original_music_performer(courier);return;}
     if(courier.role==CourierRole::AuthoredLandTrader)return; // Explicit paid order only, never automatic dispatch.
@@ -3625,7 +3659,9 @@ void World::reroute_v2(CourierState& courier) {
         throw std::overflow_error("courier reroute counter exhausted");
     ++courier.reroute_attempts;
     courier.route_checked_revision=road_revision_;
-    const auto route=courier.role==CourierRole::OriginalPlantationGrower ?
+    const auto route=courier.role==CourierRole::OriginalFoodGrower ?
+        physical_food_grower_route(courier.path.at(courier.path_vertex),courier.owner,courier.target,
+            courier.phase==CourierPhase::Returning):courier.role==CourierRole::OriginalPlantationGrower ?
         plantation_route(courier.path.at(courier.path_vertex),courier.owner,courier.target,
             courier.phase==CourierPhase::Returning):scalable(profile_) ?
         find_route_to_building(courier.path.at(courier.path_vertex),destination.id):
@@ -3641,6 +3677,13 @@ void World::reroute_v2(CourierState& courier) {
 bool World::valid_return_path(const CourierState& courier) const {
     const auto& source=building(courier.owner);
     const auto& target=building(courier.target);
+    if(courier.role==CourierRole::OriginalFoodGrower) {
+        if(!physical_food_growers_enabled() || courier.path.size()<2 ||
+            !building_contains(source.id,courier.path.front()) || courier.path.back()!=target.cell) return false;
+        for(std::size_t i=1;i<courier.path.size();++i)
+            if(!physical_food_grower_edge_allowed(courier.path[i-1],courier.path[i],source.id,target.id)) return false;
+        return true;
+    }
     if(courier.role==CourierRole::OriginalPlantationGrower) {
         if(!original_plantations_enabled() || courier.path.size()<2 ||
             !building_contains(source.id,courier.path.front()) ||
@@ -3665,6 +3708,7 @@ bool World::valid_return_path(const CourierState& courier) const {
 
 void World::move_v2(CourierState& courier) {
     if (!courier.enabled || courier.phase==CourierPhase::IdleAtWorkshop) return;
+    if (courier.role==CourierRole::OriginalFoodGrower && physical_food_grower_stationary(courier)) return;
     if (courier.route_pending && courier.edge_progress==0) {
         reroute_v2(courier);
         if (courier.route_pending) return;
@@ -3683,6 +3727,7 @@ void World::move_v2(CourierState& courier) {
         return;
     }
     if (courier.path_vertex+1<courier.path.size()) return;
+    if(courier.role==CourierRole::OriginalFoodGrower) {arrive_physical_food_grower(courier);return;}
     if(courier.role==CourierRole::OriginalPlantationGrower) {arrive_plantation_grower(courier);return;}
     if(courier.role==CourierRole::OriginalMusicPerformer) {arrive_original_music_performer(courier);return;}
     if(courier.role==CourierRole::AuthoredLandTrader) {arrive_land_trader(courier);return;}
@@ -3825,7 +3870,7 @@ void World::tick() {
 
 std::optional<Position> World::courier_position(CourierId id) const {
     const auto& c=courier(id);
-    if ((c.role==CourierRole::OriginalMusicPerformer || c.role==CourierRole::OriginalVenueMusic || c.role==CourierRole::OriginalPlantationGrower) && c.phase==CourierPhase::IdleAtWorkshop) return std::nullopt;
+    if ((c.role==CourierRole::OriginalMusicPerformer || c.role==CourierRole::OriginalVenueMusic || c.role==CourierRole::OriginalPlantationGrower || c.role==CourierRole::OriginalFoodGrower) && c.phase==CourierPhase::IdleAtWorkshop) return std::nullopt;
     if (!c.enabled) return std::nullopt;
     const auto& source=building(c.owner);
     if (!source.placed) return std::nullopt;
@@ -3835,6 +3880,10 @@ std::optional<Position> World::courier_position(CourierId id) const {
             building_front_cell(profile_,rule_version_,source.kind,source.cell):source.cell;
         return Position{static_cast<double>(cell.x),static_cast<double>(cell.y)};
     }
+    // Rule31 waits/tends at the actual Field cell with a one-cell route.
+    // No next edge exists until the controller starts its physical return.
+    if(c.role==CourierRole::OriginalFoodGrower && physical_food_growers_enabled() && physical_food_grower_stationary(c))
+        return Position{static_cast<double>(c.path.front().x),static_cast<double>(c.path.front().y)};
     if (c.route_pending && c.edge_progress==0)
         return Position{static_cast<double>(c.path.at(c.path_vertex).x),
                         static_cast<double>(c.path.at(c.path_vertex).y)};
@@ -4137,7 +4186,8 @@ bool World::industry_balance_valid() const {
                 c.reserved<0 || c.reserved>Rules::courier_capacity ||
                 (c.role!=CourierRole::AuthoredLandTrader&&c.reserved!=(c.phase==CourierPhase::ToWarehouse ? c.cargo:0))) return false;
             const auto& owner=building(c.owner);
-            const Object owner_kind=c.role==CourierRole::OriginalPlantationGrower&&original_plantations_enabled() ? owner.kind:
+            const Object owner_kind=c.role==CourierRole::OriginalFoodGrower&&physical_food_growers_enabled() ? Object::OriginalFoodFarm:
+                c.role==CourierRole::OriginalPlantationGrower&&original_plantations_enabled() ? owner.kind:
                 c.role==CourierRole::AuthoredLandTrader&&authored_land_trade_enabled()?Object::Warehouse:
                 c.role==CourierRole::OriginalAuxSupplier && original_production_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalLuxuryToWarehouse && original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
@@ -4196,7 +4246,7 @@ bool World::industry_balance_valid() const {
             else if ((!original_food_courier(c.role) && c.role!=CourierRole::OriginalHempToWarehouse &&
                       c.role!=CourierRole::OriginalAncestor && c.role!=CourierRole::OriginalWater &&
                       c.role!=CourierRole::OriginalDaoist && c.role!=CourierRole::OriginalBuddhist && c.role!=CourierRole::OriginalConfucian && c.role!=CourierRole::OriginalMusic &&
-                      c.role!=CourierRole::OriginalAcrobat && c.role!=CourierRole::OriginalDrama && c.role!=CourierRole::OriginalMusicPerformer && c.role!=CourierRole::OriginalVenueMusic && c.role!=CourierRole::OriginalPlantationGrower &&
+                      c.role!=CourierRole::OriginalAcrobat && c.role!=CourierRole::OriginalDrama && c.role!=CourierRole::OriginalMusicPerformer && c.role!=CourierRole::OriginalVenueMusic && c.role!=CourierRole::OriginalPlantationGrower && c.role!=CourierRole::OriginalFoodGrower &&
                       c.role!=CourierRole::OriginalLuxuryToWarehouse && c.role!=CourierRole::OriginalAuxToWarehouse && c.role!=CourierRole::OriginalAuxSupplier) || !original_production_enabled()) return false;
             if (c.phase==CourierPhase::ToWarehouse && !service_role(c.role)&&c.role!=CourierRole::AuthoredLandTrader) {
                 auto& reservations=food_role(c.role) ? food_reservations:pottery_reservations;
@@ -4596,6 +4646,9 @@ bool World::navigation_valid() const {
         if (c.route_pending) {
             if (c.path_vertex!=0 || c.path.size()!=(c.edge_progress>0 ? 2U:1U) ||
                 (c.edge_progress>0 && c.route_checked_revision)) return false;
+        } else if (c.role==CourierRole::OriginalFoodGrower && physical_food_grower_stationary(c)) {
+            if(c.path.size()!=1 || c.path_vertex || c.edge_progress || c.route_checked_revision ||
+                c.phase!=CourierPhase::ToWarehouse || c.path.front()!=building(c.target).cell) return false;
         } else if (c.path.size()<2 || c.path_vertex+1>=c.path.size() ||
                    (scalable(profile_) ?
                     !building_contains(destination.id,c.path.back()):
@@ -4608,6 +4661,12 @@ bool World::navigation_valid() const {
                            std::abs(point.y-c.path[i-1].y)!=1) return false;
             if (permissions_ && i>0 &&
                 transport_edge_blocker(c.path[i-1],point)!=BuildBlocker::None) return false;
+            if(c.role==CourierRole::OriginalFoodGrower) {
+                if(!physical_food_growers_enabled() ||
+                    (i>=c.path_vertex && !physical_food_grower_cell_allowed(point,c.owner,c.target)) ||
+                    (i>c.path_vertex && !physical_food_grower_edge_allowed(c.path[i-1],point,c.owner,c.target))) return false;
+                continue;
+            }
             if(c.role==CourierRole::OriginalPlantationGrower) {
                 if(!original_plantations_enabled() ||
                     (i>=c.path_vertex && !plantation_cell_allowed(point,c.owner,c.target)) ||
@@ -4691,6 +4750,29 @@ std::string World::canonical_state() const {
             if(h.last_evaluation) evaluation(*h.last_evaluation);
             for(const auto& t:h.first_transitions) if(t) evaluation(t->evaluation);
         }
+    }
+    if(physical_food_growers_) {
+        const auto& state=*physical_food_growers_;
+        out<<physical_food_growers_contract<<':'<<physical_food_growers_revision<<','<<state.next_grower_id;
+        const auto epoch=[&](const auto& tick){out<<','<<tick.has_value();if(tick)out<<','<<*tick;};
+        for(const auto& farm:state.farms) {
+            out<<"|pgf:"<<static_cast<unsigned>(farm.farm_id)<<','<<static_cast<unsigned>(farm.courier_id)<<','<<farm.spawned<<','<<farm.retired<<','<<farm.latest_trip.has_value();
+            if(farm.latest_trip) {
+                const auto& trip=*farm.latest_trip;
+                out<<','<<trip.grower_id.value<<','<<static_cast<unsigned>(trip.field_id)<<','<<unsigned(trip.crop)<<','<<unsigned(trip.phase)<<','<<trip.dispatched_tick;
+                epoch(trip.arrived_tick);epoch(trip.harvested_tick);epoch(trip.returned_tick);
+                out<<','<<trip.work_before<<','<<trip.work_ticks<<','<<unsigned(trip.wait_left)<<','<<unsigned(trip.delivered)<<','<<trip.cancel_requested;
+            }
+        }
+        for(const auto& field:state.fields) {
+            out<<"|pgp:"<<static_cast<unsigned>(field.field_id)<<','<<static_cast<unsigned>(field.farm_id)<<','<<field.returned<<','<<field.last_receipt.has_value();
+            if(field.last_receipt) {
+                const auto& receipt=*field.last_receipt;
+                out<<','<<receipt.grower_id.value<<','<<static_cast<unsigned>(receipt.courier_id)<<','<<unsigned(receipt.crop)<<','<<receipt.dispatched_tick<<','<<receipt.arrived_tick
+                   <<','<<receipt.harvested_tick<<','<<receipt.returned_tick<<','<<receipt.work_at_harvest;
+            }
+        }
+        out<<'|';
     }
     if(multi_field_agriculture_) {
         out<<multi_field_agriculture_contract<<':'<<multi_field_agriculture_revision<<'|';
@@ -5134,6 +5216,7 @@ WorldSnapshot World::snapshot() const {
     s.agriculture=agriculture_;
     s.hunting_food=hunting_food_;s.hunting=hunting_;
     s.multi_field_agriculture=multi_field_agriculture_;
+    s.physical_food_growers=physical_food_growers_;
     s.fishing_food=fishing_food_;s.fishing=fishing_;
     s.plantations=plantations_;
     s.irrigation=irrigation_;
@@ -5182,6 +5265,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     if(s.navigation_session_present)
         throw std::invalid_argument("Transient grower navigation cannot be restored as historical saved authority");
     performance::increment(performance::Counter::WorldRestores);
+    validate_physical_food_growers_snapshot(s);
     validate_multi_field_agriculture_snapshot(s);
     validate_authored_land_trade_snapshot(s);
     validate_original_plantations_snapshot(s);
@@ -5212,6 +5296,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.agriculture_=s.agriculture;
     w.hunting_food_=s.hunting_food;w.hunting_=s.hunting;
     w.multi_field_agriculture_=s.multi_field_agriculture;
+    w.physical_food_growers_=s.physical_food_growers;
     w.fishing_food_=s.fishing_food;w.fishing_=s.fishing;
     w.plantations_=s.plantations;
     w.irrigation_=s.irrigation;
@@ -5272,9 +5357,14 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.last_dispatched_service_household_=s.last_dispatched_service_household;
     w.food_produced_total_=s.food_produced_total;
     const auto route=[&](const std::vector<Cell>& path,std::size_t vertex,int edge,
-                         CourierPhase phase,Cell source,Cell target,bool pending,bool grower=false) {
+                         CourierPhase phase,Cell source,Cell target,bool pending,bool grower=false,bool stationary=false) {
         if (phase==CourierPhase::IdleAtWorkshop) {
             if (!path.empty() || vertex!=0 || edge!=0) fail("idle courier has active route");
+            return;
+        }
+        if(stationary) {
+            if(phase!=CourierPhase::ToWarehouse || pending || path.size()!=1 || vertex || edge ||
+                path.front()!=target || !w.in_bounds(path.front())) fail("invalid stationary Food Grower route");
             return;
         }
         if (path.empty() || path.size()>w.objects_.size() || edge<0 ||
@@ -5383,7 +5473,8 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
             }
             const auto& owner=w.building(c.owner);
             const auto& target=w.building(c.target);
-            const Object expected_owner=c.role==CourierRole::OriginalPlantationGrower&&w.original_plantations_enabled() ? owner.kind:
+            const Object expected_owner=c.role==CourierRole::OriginalFoodGrower&&w.physical_food_growers_enabled() ? Object::OriginalFoodFarm:
+                c.role==CourierRole::OriginalPlantationGrower&&w.original_plantations_enabled() ? owner.kind:
                 c.role==CourierRole::AuthoredLandTrader&&w.authored_land_trade_enabled()?Object::Warehouse:
                 c.role==CourierRole::OriginalAuxSupplier && w.original_production_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalLuxuryToWarehouse && w.original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
@@ -5411,7 +5502,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 c.role==CourierRole::HealthWorker ? Object::HealthPost:
                 c.role==CourierRole::MarketPotteryDistribution ||
                     c.role==CourierRole::MarketFoodDistribution ? Object::Market:Object::Empty;
-            const Good expected_good=w.original_food_courier(c.role) ? Good::Food:
+            const Good expected_good=(c.role==CourierRole::OriginalFoodGrower || w.original_food_courier(c.role)) ? Good::Food:
                 (c.role==CourierRole::OriginalHempToWarehouse || c.role==CourierRole::OriginalAuxToWarehouse || c.role==CourierRole::OriginalAuxSupplier) ? Good::Goods:
                 c.role==CourierRole::Clay ? Good::Clay:
                 service_role(c.role) ? Good::Goods:
@@ -5439,8 +5530,10 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 // removed; current/future graph and progress are validated below.
                 const bool resumed_origin=w.permissions_ && w.road_buildable(c.path.front()) &&
                     (w.transport_cell(c.path.front()) || c.path_vertex>0);
-                const bool grower_origin=c.role==CourierRole::OriginalPlantationGrower && w.original_plantations_enabled() &&
-                    w.plantation_cell_allowed(c.path.front(),owner.id,target.id);
+                const bool grower_origin=(c.role==CourierRole::OriginalPlantationGrower && w.original_plantations_enabled() &&
+                    w.plantation_cell_allowed(c.path.front(),owner.id,target.id)) ||
+                    (c.role==CourierRole::OriginalFoodGrower && w.physical_food_growers_enabled() &&
+                    w.physical_food_grower_cell_allowed(c.path.front(),owner.id,target.id));
                 if ((!building_origin && !resumed_origin && !grower_origin) ||
                     !w.building_contains(route_target.id,c.path.back()))
                     fail("invalid City-v10 route footprint endpoints");
@@ -5450,7 +5543,8 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                       (c.phase==CourierPhase::ToWarehouse ? c.path.front():c.path.back()),
                   c.path.empty() ? target.cell:
                       (c.phase==CourierPhase::ToWarehouse ? c.path.back():c.path.front()),
-                  c.route_pending,c.role==CourierRole::OriginalPlantationGrower);
+                  c.route_pending,c.role==CourierRole::OriginalPlantationGrower || c.role==CourierRole::OriginalFoodGrower,
+                  c.role==CourierRole::OriginalFoodGrower && w.physical_food_grower_stationary(out));
             w.couriers_.push_back(std::move(out));
         }
         const auto retired_count=w.original_safe_demolition_enabled() && s.original_production &&

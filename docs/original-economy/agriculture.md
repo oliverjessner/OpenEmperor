@@ -141,6 +141,81 @@ Growth art reads the selected field's progress. Rice keeps its qualified static
 paddy profile and gains no universal Pump requirement or irrigation yield bonus.
 See [validation](../testing.md#multi-field-agriculture-agri-mac05) for evidence.
 
+## Physical Food Growers (AGRI-MAC06)
+
+**Explicit AUTHORED Rule31/policy3/schema47**, contract
+`authored-physical-food-growers-v1`, revision1. Select **E Physical Growers** or
+`--physical-food-growers`. It inherits Rule30's paid multi-field Farm geometry,
+work counters, sole seven-kind Food accounts, Fish/Meat, material plantations,
+irrigation, housing and finance. Rules1–30/schemas1–46, their exact factories,
+original research sessions and general defaults remain frozen.
+
+A paid Farm owns its existing Food cart plus one paid-source Grower channel,
+both counted within the unchanged58-channel bound. Five Farms,32 fields,
+eight fields/Farm and82 paid bodies remain maximums. No new employees are
+created: the Farm's complete source-model workforce gates its sole live Grower.
+A separate monotone `PhysicalFoodGrowerId` identifies every successful dispatch;
+an idle channel has no visible worker or world position. Retired IDs never recur.
+
+Assignments rotate by the complete canonical Field-ID cursor after the last
+actual dispatch. The next eligible physically reachable paid sibling is selected
+from prepared shared routes. The worker traverses real cardinal5-tick edges,
+waits five eligible World ticks at its assigned field, then earns at most one
+field-work unit per tick. It completes the remaining part of that field's
+80-work-unit cycle and carries exactly one matching crop portion home. Movement,
+waiting, tending and yield are authored choices, independent of unresolved
+Original Actor26/x87/calendar semantics. The old abstract Farm Food grant is
+disabled only in31; Rule30's abstract fair work and direct-credit contract stays
+exact. Normal grass/fertile-land facts, source Diamond, permissions, complete
+Farm/owned-field footprints and shared edge legality constrain the land domain.
+Ditches without supported road crossings and foreign bodies block it. No second
+navigator or clock is introduced.
+
+Dispatch reserves one actual Farm return slot, including while empty, waiting,
+working or returning after cancellation. That reservation must not deadlock its
+owner when all remaining headroom is reserved. Source stock plus retained Cart
+return reservations plus the Grower slot cannot exceed8. Field pause, Farm
+pause/fire, loss of full staffing or source road access cancels unharvested work:
+finish a begun edge, preserve fractional field work, return physically and retire
+empty. A cut future route retains the actual cell, begun edge, assignment and
+cargo while awaiting ordinary repair. A loaded worker never changes crop or
+discards its legitimate portion. Actual valid source-footprint return settles
+reserved cargo even if the Farm is now paused/burning/unstaffed, following the
+existing plantation return convention. No refund, teleport or passive arrival
+is permitted. Fields retain the inherited fire eligibility contract; actual
+Farm fire gates all field work.
+
+`AgricultureField::harvested` records actual physical field harvests. The new
+bounded field `returned` counter and latest receipt record actual Farm returns;
+there is no second inventory. Only real accepted return increments that counter
+and the existing matching Food stock once. The separate equations are
+`field harvest = actual Farm returns + live Grower cargo` and
+`Farm returns + Fish/Meat unloads = Food stock + physical Cart cargo + consumed`.
+World preserves the existing four-portion Farm→Market→House deliveries,
+reservations, House quality witnesses and one-portion demand consumption.
+
+Schema47 retains each fixed Farm channel, monotone lifetime, immutable field/crop,
+phase, wait, earned work, dispatch/arrival/harvest/return epochs, cancellation and
+receipt. Movement route/dispatch-cursor/begun-edge authority remains solely in the shared courier;
+the separate MultiField last-work cursor remains saved field-work evidence.
+legacy cargo/reserved mirrors stay zero. Exact typed references, paid ages,
+Rule30 release-time work quotas, reserved source capacity, physical temporal
+lower bounds, lifetime provenance and both conservation equations are validated
+before publication. Retained receipt IDs must agree with global dispatch order
+and nonoverlapping source lifetimes. Farm age bounds actual work plus five
+waiting ticks per harvest and at least nine additional ticks per retirement;
+the last work tick may also begin the return edge. This conservative lower bound
+rejects work/wait/return histories that cannot fit the source's lifetime;
+unretained historical paths are not reconstructed.
+Recovery and F5/F9 preserve every phase. Old schemas reject
+physical worker state; no automatic migration or cross-generation overwrite is
+admitted. Source-bound terrain/model preparation remains shared with Hunting.
+
+Normal Farm/field inspectors expose actual phase, waiting/work, crop, lifetime,
+physical cargo, reserved return and accepted receipts. The moving/working body
+uses a labelled **authored Grower*** fallback until Original actor art is
+qualified; pixels do not prove Original animation or harvest parity.
+
 ## Playable Fishing (AGRI-MAC02)
 
 The separate **Playable Fishing** selection (regular F menu,

@@ -162,6 +162,16 @@ across up to eight paid fields. Independent work/cursors are separate from Food
 inventory, existing harvest origins and physical cart/House authority. Historical
 Rules1–29 remain exact. See [the contract](agriculture.md#multi-field-agriculture-agri-mac05).
 
+**Physical Food Growers** is explicit Rule31/policy3/schema47,
+`authored-physical-food-growers-v1`, revision1. It inherits Rule30's paid fields,
+seven-kind Food and bounded labor. Each Farm reserves a second movement channel
+for one physical Grower, sharing its existing staffing. Only actual tending after
+field arrival and the authored wait earns work; harvest creates one carried crop. Only actual
+Farm return credits Food. Lifetime, field work, carried harvest and Farm receipts
+are distinct authorities, with derived return reservations and shared navigation.
+Historical Rules1–30 stay exact. See
+[the contract](agriculture.md#physical-food-growers-agri-mac06).
+
 ## Versions and source preparation
 
 | Generation | Saved contract and scope |
@@ -188,6 +198,7 @@ Rules1–29 remain exact. See [the contract](agriculture.md#multi-field-agricult
 | Rule28 / schema44 / fishing revision1 | Explicit authored Fishing; sole six-kind Food, paid Quays, physical boats/unloads and unchanged historical Agriculture. |
 | Rule29 / schema45 / hunting revision1 | Explicit authored Hunting; sole seven-kind Food, finite prey, paid Tents/Hunters and physical Meat return/unload. |
 | Rule30 / schema46 / multi-field revision1 | Explicit authored multi-field Agriculture; inherits Rule29, up to eight paid fields/Farm sharing one work unit/tick, separate lifetime work/cursors and the unchanged sole Food ledger, capacities and82/58 budgets. Exact markers, release-time quotas, Save/Recovery and no migration or cross-generation overwrite. |
+| Rule31 / schema47 / physical Growers revision1 | Explicit authored physical Food Growers; inherits Rule30, one staffed worker/Farm and one-crop return cargo through the shared navigator. Only actual source return credits the sole Food ledger. Exact lifetime/work/route/receipt/reservation validation, Save/Recovery and no migration or cross-generation overwrite; historical Rules1–30 remain exact. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy

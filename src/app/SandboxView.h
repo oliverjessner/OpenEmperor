@@ -137,6 +137,10 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule31/schema47: physical Food Grower work and real crop return.
+    static std::unique_ptr<SandboxView> create_physical_food_growers(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=false);
     // Explicit Rule30/schema46: shared finite Farm labor over multiple fields.
     static std::unique_ptr<SandboxView> create_multi_field_agriculture(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
@@ -231,6 +235,7 @@ public:
     std::optional<simulation::Cell> demo_origin() const { return demo_origin_; }
     scene::Camera2D camera() const { return camera_; }
     int last_courier_draws() const { return last_courier_draws_; }
+    std::optional<scene::Point> courier_ground_position(simulation::CourierId id) const;
     void configure_save(std::filesystem::path data_root,std::filesystem::path map_relative,
                         std::filesystem::path save_path,
                         std::optional<persistence::SaveDocument> initial=std::nullopt);
@@ -862,6 +867,9 @@ private:
     bool original_agriculture() const {
         return simulation::original_agriculture_family_enabled(rules_,requested_rule_version_);
     }
+    bool physical_food_growers() const {
+        return simulation::physical_food_growers_enabled(rules_,requested_rule_version_);
+    }
     bool multi_field_agriculture() const {
         return simulation::multi_field_agriculture_enabled(rules_,requested_rule_version_);
     }
@@ -975,6 +983,7 @@ private:
     // boundaries. Render/hover never rebuild workforce allocation.
     std::vector<std::pair<simulation::BuildingId,int>> agriculture_inspection_workers_;
     std::vector<std::pair<simulation::BuildingId,bool>> agriculture_inspection_farm_roads_;
+    std::vector<std::pair<simulation::BuildingId,simulation::CourierDispatchDecision>> physical_grower_dispatch_status_;
     std::vector<std::pair<simulation::BuildingId,std::vector<std::string>>> agriculture_calendar_lines_;
     std::uint64_t agriculture_inspection_tick_=UINT64_MAX,agriculture_inspection_sequence_=UINT64_MAX;
     std::uint64_t agriculture_inspection_prepare_count_=0;

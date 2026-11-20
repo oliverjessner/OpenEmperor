@@ -294,6 +294,20 @@
   32 fields and82/58 budgets. No physical Grower or Original harvest claim,
   migration, historical reinterpretation or cross-generation overwrite. Rules1–29/
   schemas1–45 remain exact. See [multi-field Agriculture](docs/original-economy/agriculture.md#multi-field-agriculture-agri-mac05).
+- Physical Food Growers are explicit Rule31/policy3/schema47, marker
+  `authored-physical-food-growers-v1`, revision1, E menu/`--physical-food-growers`.
+  Inherit30 with one additional counted Farm Grower channel, shared source staff,
+  canonical field assignments, real5-tick land edges,5-tick field wait and at most
+  one work unit/Farm/tick. Only at-field work earns an actual one-crop harvest;
+  only physical source return credits the sole seven-kind Food account. Keep
+  field harvest, live cargo and returned counters distinct; reserve one return
+  slot for the whole live trip and settle genuine loaded returns even after
+  source pause/fire/staff loss. Empty cancellation drains begun edges and retains
+  fractional work; no ID reuse, crop reassignment, stock discard or extra staff.
+  Preserve82/58, five Farms/32 fields/eight perFarm, exact source/route/lifetime/
+  receipt validation and all Rules1–30/schemas1–46 without migration/overwrite.
+  Raw Actor26/x87 research remains separate and unchanged. See
+  [physical Growers](docs/original-economy/agriculture.md#physical-food-growers-agri-mac06).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

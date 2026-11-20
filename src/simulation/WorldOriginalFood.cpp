@@ -149,11 +149,18 @@ template<class Buildings> void validate_multi_field_work(const MultiFieldAgricul
             invalid("Multi-field Farm quota or real last-work cursor invalid");
     }
 }
+std::uint64_t crop_origin(const AgricultureField& field,const PhysicalFoodGrowersState* physical) {
+    if(!physical)return field.harvested;
+    const auto at=std::lower_bound(physical->fields.begin(),physical->fields.end(),field.field_id,[](const auto& row,BuildingId id){return row.field_id<id;});
+    if(at==physical->fields.end()||at->field_id!=field.field_id||at->farm_id!=field.farm_id)invalid("Food origin lost its actual Farm return identity");
+    return at->returned;
+}
 template<class Food,class Buildings,class Couriers,class Homes>
 void validate_food(const Food& food,const Buildings& buildings,const Couriers& couriers,const Homes& houses,
               std::uint64_t ticks,RulesProfile profile,std::uint32_t rule,bool bind_movement=true,bool check_progress=true,
               const FishingState* fishing_context=nullptr,const HuntingState* hunting_context=nullptr,
-              const MultiFieldAgricultureState* multi_context=nullptr) {
+              const MultiFieldAgricultureState* multi_context=nullptr,const PhysicalFoodGrowersState* physical_context=nullptr) {
+    if(simulation::physical_food_growers_enabled(profile,rule) ? !physical_context:physical_context!=nullptr)invalid("Physical Food return authority requires exact Rule31");
     using Amounts=std::remove_cvref_t<decltype(food.stocks.front().amounts)>;
     using Counters=std::remove_cvref_t<decltype(food.stocks.front().received)>;
     constexpr bool agriculture=!std::is_same_v<Food,OriginalFoodState>;
@@ -217,7 +224,7 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
                     static_cast<std::uint64_t>(farm.progress)>age%80))
                     invalid("AUTHORED harvest exceeds its paid80-tick opportunities");
             }
-            add(harvest[g],field.harvested);
+            add(harvest[g],crop_origin(field,physical_context));
         }
     } else {
     for (std::size_t i=0;i<food.farms.size();++i) {
@@ -287,7 +294,7 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
         } else for(std::size_t g=0;g<cargo.size();++g) {
             std::uint64_t origin=0;
             if(source.kind==Object::OriginalFoodFarm) {
-                for(const auto& field:food.fields) if(field.farm_id==source.id && static_cast<std::size_t>(field.crop)==g) add(origin,field.harvested);
+                for(const auto& field:food.fields) if(field.farm_id==source.id && static_cast<std::size_t>(field.crop)==g) add(origin,crop_origin(field,physical_context));
             } else if constexpr(fishing) {
                 if(source.kind==Object::OriginalFishingQuay) origin=g==fishing_food_index ? fish_origin(fishing_context,source.id):0;
                 else if constexpr(hunting) origin=source.kind==Object::OriginalHuntersTent ? (g==hunting_food_index ? meat_origin(hunting_context,source.id):0):from.received[g];
@@ -306,12 +313,12 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
         const auto& stock=food.stocks[i];const auto& b=body(buildings,stock.building_id);
         if (!food_owner(b.kind,fishing,hunting) || (i && !(food.stocks[i-1].building_id<stock.building_id))) invalid("Food accounts require sorted unique purchased owners");
         const auto amount=volume(stock.amounts);
-        const auto boat_reserved=(fishing ? boat_return_room(fishing_context,b.id):0)+(hunting ? hunter_return_room(hunting_context,b.id):0);
+        const auto boat_reserved=(fishing ? boat_return_room(fishing_context,b.id):0)+(hunting ? hunter_return_room(hunting_context,b.id):0)+physical_food_grower_reservations(physical_context,b.id);
         if (std::int64_t(amount)+incoming(food,b.id)+return_room(food,b.id)+boat_reserved>capacity(b.kind)) invalid("Food stock, incoming and source return-room exceed physical volume");
         Counters own_harvest{};
         if (b.kind==Object::OriginalFoodFarm) {
             if constexpr (agriculture) {
-                for(const auto& field:food.fields) if(field.farm_id==b.id) add(own_harvest[static_cast<std::size_t>(field.crop)],field.harvested);
+                for(const auto& field:food.fields) if(field.farm_id==b.id) add(own_harvest[static_cast<std::size_t>(field.crop)],crop_origin(field,physical_context));
             } else {
             const auto farm=std::find_if(food.farms.begin(),food.farms.end(),[&](const auto& f){return f.farm_id==b.id;});
             if (farm==food.farms.end()) invalid("Food stock has no paid Farm record");own_harvest[crop_index(farm->crop)]=farm->harvested;
@@ -468,7 +475,7 @@ void World::validate_original_food_snapshot(const WorldSnapshot& snapshot) {
         if(!snapshot.hunting_food || !snapshot.hunting || !snapshot.fishing || snapshot.fishing_food || snapshot.agriculture || snapshot.original_production->food!=OriginalFoodState{})
             invalid("Hunting requires sole seven-kind Food authority without historical projections");
         validate_food(*snapshot.hunting_food,snapshot.buildings,snapshot.couriers,snapshot.original_economy->houses,
-            snapshot.ticks,snapshot.profile,snapshot.rule_version,true,true,&*snapshot.fishing,&*snapshot.hunting,snapshot.multi_field_agriculture ? &*snapshot.multi_field_agriculture:nullptr);return;
+            snapshot.ticks,snapshot.profile,snapshot.rule_version,true,true,&*snapshot.fishing,&*snapshot.hunting,snapshot.multi_field_agriculture ? &*snapshot.multi_field_agriculture:nullptr,snapshot.physical_food_growers ? &*snapshot.physical_food_growers:nullptr);return;
     }
     if(snapshot.hunting_food || snapshot.hunting) invalid("Historical Food rejects Hunting authority");
     if(simulation::playable_fishing_enabled(snapshot.profile,snapshot.rule_version)) {
@@ -487,7 +494,7 @@ void World::validate_original_food_snapshot(const WorldSnapshot& snapshot) {
         snapshot.ticks,snapshot.profile,snapshot.rule_version);
 }
 void World::validate_original_food_state() const {
-    with_original_food([&](const auto& food){validate_food(food,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);});
+    with_original_food([&](const auto& food){validate_food(food,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr,physical_food_growers_ ? &*physical_food_growers_:nullptr);});
 }
 bool World::original_food_courier(CourierRole role) const {return original_production_enabled() && food_role(role);}
 int World::original_food_cargo(CourierId id) const {
@@ -509,7 +516,7 @@ int World::original_food_headroom(BuildingId owner) const {
 
 
     return capacity(building(owner).kind)-original_food_stock(owner)-incoming(food,owner)-return_room(food,owner)-
-        boat_return_room(fishing_ ? &*fishing_:nullptr,owner)-hunter_return_room(hunting_ ? &*hunting_:nullptr,owner);
+        boat_return_room(fishing_ ? &*fishing_:nullptr,owner)-hunter_return_room(hunting_ ? &*hunting_:nullptr,owner)-physical_food_grower_reservations(physical_food_growers_ ? &*physical_food_growers_:nullptr,owner);
 
     });
 }
@@ -564,6 +571,7 @@ void World::advance_multi_field_agriculture() {
     }
 }
 void World::advance_original_food() {
+    if(physical_food_growers_enabled()) {advance_physical_food_growers();return;}
     if(multi_field_agriculture_enabled()) {advance_multi_field_agriculture();return;}
     if(original_plantations_enabled()) {
         // Explicit retained AUTHORED adapter, not Original Grower/calendar
@@ -747,7 +755,7 @@ void World::dispatch_original_food(CourierState& c) {
     auto path=*route->second;
     // No actual movement fields are changed until every bounded DTO check and
     // the route allocation have completed successfully.
-    validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
+    validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr,physical_food_growers_ ? &*physical_food_growers_:nullptr);
     food=std::move(candidate);c.path=std::move(path);c.target=target;c.last_dispatched_target=target;c.path_vertex=0;c.edge_progress=0;
     c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::ToWarehouse;
 
@@ -762,7 +770,7 @@ void World::cancel_original_food(BuildingId owner) {
         const auto here=c.path.at(c.path_vertex);const auto& source=building(owner);
         const bool already_home=!c.edge_progress && building_contains(source.id,here);
         if (already_home) return_load(candidate,*trip);
-        validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
+        validate_food(candidate,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr,physical_food_growers_ ? &*physical_food_growers_:nullptr);
         food=std::move(candidate);
         if (already_home) {c.path.clear();c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::IdleAtWorkshop;}
         else {c.phase=CourierPhase::Returning;mark_route_pending(c);if (!c.edge_progress) reroute_v2(c);}
@@ -790,13 +798,13 @@ void World::arrive_original_food(CourierState& c) {
             for (std::size_t g=0;g<cargo.size();++g) {stock.amounts[g]+=cargo[g];add(stock.received[g],static_cast<std::uint64_t>(cargo[g]));trip->delivered[g]=cargo[g];}
             trip->phase=OriginalGoodsTransferPhase::Completed;
         }
-        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
+        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr,physical_food_growers_ ? &*physical_food_growers_:nullptr);
         food=std::move(candidate);original_economy_->houses=std::move(houses);c.phase=CourierPhase::Returning;
         if (valid_return_path(c)) {std::reverse(c.path.begin(),c.path.end());c.path_vertex=0;}
         else {c.path={c.path.back()};c.path_vertex=0;c.route_pending=true;c.route_checked_revision.reset();reroute_v2(c);}
     } else {
         if (volume(remaining(*trip))) return_load(candidate,*trip);
-        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
+        validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr,physical_food_growers_ ? &*physical_food_growers_:nullptr);
         food=std::move(candidate);c.path.clear();c.path_vertex=0;c.phase=CourierPhase::IdleAtWorkshop;
         c.route_pending=false;c.route_checked_revision.reset();
     }
@@ -817,7 +825,7 @@ void World::consume_original_food() {
         }
         if (!volume(stock.amounts)) h.house.food_quality=0;
     }
-    validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr);
+    validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr,physical_food_growers_ ? &*physical_food_growers_:nullptr);
     food=std::move(candidate);original_economy_->houses=std::move(houses);
 
     });

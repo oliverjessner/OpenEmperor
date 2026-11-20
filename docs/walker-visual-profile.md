@@ -8,6 +8,17 @@ fingerprinted complete built-in pack replaces the historical configuration
 only after atomic preparation; the existing profiles below remain its fallback.
 See the [OE62 source and role inventory](rendering/oe62-original-walker-animations.md).
 
+Rule31's [physical Food Grower](original-economy/agriculture.md#physical-food-growers-agri-mac06)
+has no qualified Original animation role. Its live shared courier channel draws
+a green marker and `Grower*` label at the actual World feet, without the older
+generic courier-ID offset; an idle channel has no body or position. Crop cargo
+and reserved return come from the physical trip, never legacy cargo mirrors.
+Submitted marker/label bounds use that same projection for normal selection and
+open the owning Farm inspector. Existing painter occlusion remains effective;
+a hidden body is not proof of visibility or field work. No walker profile schema,
+asset admission or texture budget changes. Native/scripted checks are recorded
+in [testing](testing.md#physical-food-growers-agri-mac06).
+
 The JSON is an OpenEmperor convention, not an Emperor format. Each `image_index` is a **physical SG3 record number**, including record zero in numbering (zero itself is rejected). No runtime-table skip or packed graphic-ID conversion is applied. `archive` is relative to the selected game-data root. A frame's `foot_anchor` is measured in its decoded image pixels from the top-left to the chosen projected ground point. The anchor is chosen by visual inspection; SG3 animation offsets are not treated as verified pivots. Frame dimensions may differ.
 
 ```json

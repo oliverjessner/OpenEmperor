@@ -178,6 +178,18 @@ World World::restore_multi_field_agriculture(const WorldSnapshot& s,std::shared_
     auto world=restore_irrigation_generation(kMultiFieldAgricultureRuleVersion,s,std::move(permissions),std::move(model),std::move(terrain));
     world.validate_fishing_context();world.validate_hunting_context();return world;
 }
+World World::create_physical_food_growers(std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    auto world=create_irrigation_generation(kPhysicalFoodGrowersRuleVersion,std::move(permissions),std::move(model),std::move(terrain));
+    world.initialize_fishing_sites();world.initialize_hunting_habitats();
+    world.validate_fishing_context();world.validate_hunting_context();return world;
+}
+World World::restore_physical_food_growers(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> permissions,
+    std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
+    validate_physical_food_growers_snapshot(s);
+    auto world=restore_irrigation_generation(kPhysicalFoodGrowersRuleVersion,s,std::move(permissions),std::move(model),std::move(terrain));
+    world.validate_fishing_context();world.validate_hunting_context();return world;
+}
 World World::create_irrigation_generation(std::uint32_t version,std::shared_ptr<const MapPermissions> permissions,
     std::shared_ptr<const original::OriginalRulesModel> model,std::shared_ptr<const OriginalTerrainFacts> terrain) {
     if(!permissions || permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !model || !terrain ||
@@ -282,6 +294,11 @@ IrrigationBatchValidation World::validate_irrigation_batch(std::span<const Cell>
     if(cells.empty() || cells.size()>irrigation_gesture_limit) {result.reason="Irrigation gesture requires1..256 cells";return result;}
     std::vector<Cell> added;added.reserve(cells.size());
     for(const auto cell:cells) {
+        if(physical_food_growers_enabled()&&!has_ditch(*irrigation_,cell))for(const auto& c:couriers_)
+            if(c.role==CourierRole::OriginalFoodGrower&&c.phase!=CourierPhase::IdleAtWorkshop&&!c.path.empty()&&
+               (c.path.at(c.path_vertex)==cell||(c.edge_progress&&c.path.at(c.path_vertex+1)==cell))){
+                result.reason="Ditch overlaps an actual Food Grower or its begun edge";return result;
+            }
         if(!has_ditch(*irrigation_,cell) && (grower_navigation_cell_claimed(cell) || fishing_boat_cell_claimed(cell) || hunting_actor_cell_claimed(cell))) {
             result.reason="Ditch overlaps navigation experiment or its begun edge";return result;
         }
@@ -324,7 +341,15 @@ CommandResult World::execute_irrigation_batch(std::span<const Cell> cells) {
     candidate.treasury_-=checked.total_cost;
     candidate.construction_spent_total_+=static_cast<std::uint64_t>(checked.total_cost);
     candidate.irrigation_->ditch_construction_spent+=static_cast<std::uint64_t>(checked.total_cost);
-    candidate.road_revision_+=checked.new_ditch_count;candidate.cached_route_.reset();candidate.refresh_routes();
+    candidate.road_revision_+=checked.new_ditch_count;candidate.cached_route_.reset();
+    // A new ditch may cut a later land edge. Retain an already begun edge,
+    // then let the shared navigator repair the remaining physical trip.
+    if(candidate.physical_food_growers_enabled()) for(auto& c:candidate.couriers_) {
+        if(c.role!=CourierRole::OriginalFoodGrower || c.phase==CourierPhase::IdleAtWorkshop || c.route_pending || candidate.physical_food_grower_stationary(c)) continue;
+        for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
+            if(!candidate.physical_food_grower_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)) {candidate.mark_route_pending(c);break;}
+    }
+    candidate.refresh_routes();
     candidate.rebuild_irrigation_cache();*this=std::move(candidate);
     return {true,true,"Paid irrigation ditch installed",command_sequence_,ticks_};
 }
@@ -359,7 +384,7 @@ CommandResult World::validate_irrigation_command(Command command) const {
     if(buildings_.size()>=Rules::original_production_building_limit || !next_building_id_ || next_building_id_==UINT32_MAX ||
         road_revision_==UINT64_MAX) {result.reason="Pump paid building capacity or revision exhausted";return result;}
     for(const auto cell:shape.footprint) for(const auto& c:couriers_)
-        if(c.role==CourierRole::OriginalPlantationGrower && c.phase!=CourierPhase::IdleAtWorkshop && !c.path.empty() &&
+        if((c.role==CourierRole::OriginalPlantationGrower || c.role==CourierRole::OriginalFoodGrower) && c.phase!=CourierPhase::IdleAtWorkshop && !c.path.empty() &&
             (c.path.at(c.path_vertex)==cell || (c.edge_progress && c.path.at(c.path_vertex+1)==cell))) {
             result.reason="Pump construction overlaps a real worker or its begun edge";return result;
         }
@@ -398,6 +423,11 @@ CommandResult World::execute_irrigation_command(Command command) {
         if(c.role!=CourierRole::OriginalPlantationGrower || c.phase==CourierPhase::IdleAtWorkshop || c.route_pending) continue;
         for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
             if(!candidate.plantation_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)) {candidate.mark_route_pending(c);break;}
+    }
+    if(candidate.physical_food_growers_enabled()) for(auto& c:candidate.couriers_) {
+        if(c.role!=CourierRole::OriginalFoodGrower || c.phase==CourierPhase::IdleAtWorkshop || c.route_pending || candidate.physical_food_grower_stationary(c)) continue;
+        for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
+            if(!candidate.physical_food_grower_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)) {candidate.mark_route_pending(c);break;}
     }
     candidate.refresh_routes();candidate.refresh_irrigation();*this=std::move(candidate);
     result.sequence=command_sequence_;result.reason="Paid irrigation Pump installed";return result;
