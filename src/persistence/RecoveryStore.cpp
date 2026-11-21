@@ -274,7 +274,8 @@ void validate_policy_readback(const SaveDocument& saved,const SaveDocument& sour
         return;
     }
     if (simulation::original_production_enabled(source.world.profile,source.world.rule_version)) {
-        require(saved.source_schema_version==(simulation::physical_food_growers_enabled(source.world.profile,source.world.rule_version) ? 47U:
+        require(saved.source_schema_version==(simulation::seasonal_agriculture_enabled(source.world.profile,source.world.rule_version) ? 48U:
+                simulation::physical_food_growers_enabled(source.world.profile,source.world.rule_version) ? 47U:
                 simulation::multi_field_agriculture_enabled(source.world.profile,source.world.rule_version) ? 46U:
                 simulation::playable_hunting_enabled(source.world.profile,source.world.rule_version) ? 45U:
                 simulation::playable_fishing_enabled(source.world.profile,source.world.rule_version) ? 44U:
@@ -317,6 +318,10 @@ void validate_policy_readback(const SaveDocument& saved,const SaveDocument& sour
                 "recovery read-back differs from schema21 world or map policy");
 }
 bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access) {
+    const auto seasonal=simulation::seasonal_agriculture_enabled(document.world.profile,document.world.rule_version);
+    require(document.world.seasonal_agriculture.has_value()==seasonal,
+        "Seasonal Agriculture recovery authority requires exact Rule32/schema48");
+    if(seasonal) simulation::World::validate_seasonal_agriculture_snapshot(document.world);
     const auto physical=simulation::physical_food_growers_enabled(document.world.profile,document.world.rule_version);
     const auto multi=simulation::multi_field_agriculture_enabled(document.world.profile,document.world.rule_version);
     const auto hunting=simulation::playable_hunting_enabled(document.world.profile,document.world.rule_version);
@@ -339,7 +344,8 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
             simulation::original_production_enabled(document.world.profile,document.world.rule_version),
             "schema23 development saves are unavailable in normal recovery histories");
     require((document.source_schema_version==0 || document.source_schema_version==
-                (simulation::physical_food_growers_enabled(document.world.profile,document.world.rule_version) ? 47U:
+                (simulation::seasonal_agriculture_enabled(document.world.profile,document.world.rule_version) ? 48U:
+                 simulation::physical_food_growers_enabled(document.world.profile,document.world.rule_version) ? 47U:
                  simulation::multi_field_agriculture_enabled(document.world.profile,document.world.rule_version) ? 46U:
                  simulation::playable_hunting_enabled(document.world.profile,document.world.rule_version) ? 45U:
                  simulation::playable_fishing_enabled(document.world.profile,document.world.rule_version) ? 44U:

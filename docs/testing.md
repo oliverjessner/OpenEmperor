@@ -44,6 +44,176 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Seasonal Agriculture (AGRI-MAC07)
+
+Select explicit **Rule32/policy3/schema48** with **Z Seasons (32)** or
+`--seasonal-agriculture`. The [Agriculture contract](original-economy/agriculture.md#seasonal-agriculture-agri-mac07)
+defines all nine windows, real Food harvest work, partial-cycle loss, ready
+expiry and Hemp's physical worker. The calendar derives from the sole saved
+completed World tick; cargo and inventory have no seasonal expiry.
+
+```sh
+cmake -S . -B .local/agri-mac07/build-release -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DOPENEMPEROR_USE_SYSTEM_SDL3=ON \
+  -DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT="$PWD/.local/gog-extracted/app"
+cmake --build .local/agri-mac07/build-release --parallel 4
+ctest --test-dir .local/agri-mac07/build-release --output-on-failure \
+  -R 'seasonal-agriculture'
+.local/agri-mac07/build-release/openemperor-seasonal-agriculture-acceptance \
+  --data "$PWD/.local/gog-extracted/app" --map Cities/Chengdu.map \
+  --output "$PWD/.local/agri-mac07/paid-city-fresh" --ticks 80000
+.local/agri-mac07/build-release/openemperor-seasonal-agriculture-acceptance \
+  --data "$PWD/.local/gog-extracted/app" --map Cities/Chengdu.map \
+  --output "$PWD/.local/agri-mac07/replay-fresh" \
+  --replay "$PWD/.local/agri-mac07/paid-city-fresh/seed.save.json" \
+  --expected "$PWD/.local/agri-mac07/paid-city-fresh/final.save.json"
+```
+
+Destinations must be fresh ignored children of `.local/agri-mac07`, disjoint
+from supplied data and explicit replay inputs. The creator buys its city with
+ordinary World commands. Reports distinguish earned growth, readiness, actual
+harvest/pickup, returned cargo, Warehouse/Market arrivals and House consumption.
+The separate process must reproduce its final canonical save exactly. The
+80,000-tick supplied-model scenario includes genuine startup and at least five
+consecutive complete mixed years afterwards; it does not require immediate
+high-tier households. Every annual delta, physical source return and actual
+current-row luxury debit is checked independently. Both children retain a
+600-second deadline; CTest allows1260 seconds for their pair and verification.
+The sanitizer case runs serially to preserve that CPU budget.
+
+World tests use independent literal masks for all nine crops, paid mixed-city
+production over60,000 ticks, five later complete years of real receipts and
+Food consumption, winter scarcity, staggered fields and the exact first/last
+eligible ticks. They cover pending ready crops, expiry, pause/fire/staff/access,
+full sources, begun-edge drainage, repair and retained loaded cargo. Save tests
+exercise all worker phases, physical carts, boundary/year roundtrips, Recovery,
+12,000-tick continuation, hostile ready epochs/harvest clocks and atomic target
+protection. Old generations must refuse appended seasonal DTO authority.
+
+Presentation tests use the ordinary Z menu and actual paid construction,
+normal cached all-nine inspectors, real Food/Hemp marker selection, F5/F9 and
+paused frame purity. These scripted checks remain distinct from native Metal,
+native OS pointer delivery and unassisted human acceptance.
+
+The unchanged supplied-model Chengdu creator and separate replay completed
+80,000 ticks with canonical final SHA-256
+`a74e055816e84df379f7e93a8f731a0753149a1bab806308521d2688996801b4`.
+The actual city uses55 paid bodies/56 channels and237 residents. Its minimum
+Funds were689 and final Funds4,158; this is a finite positive-balance result,
+not a profit or universal city-reliability claim. The80,000-tick duration
+includes measured startup; years3–8 are six consecutive complete mixed years.
+Each has actual returns from all nine contributors and actual current-row
+Tea/Silk/Lacquerware consumption. No inventory, residents, yield, needs or
+resource limits were changed to obtain the result.
+
+| Contributor | Actual source returns |
+|---|---:|
+| Wheat |125|
+| Millet |90|
+| Rice |30|
+| Cabbage |111|
+| Soy → Bean Curd |149|
+| Hemp |579|
+| Tea |338|
+| Lacquer |200|
+| Mulberry |196|
+
+Actual luxury debits are Tea303, Silk155 and Lacquerware121; material Warehouse
+arrivals are579/338/200/196. The four-house plan uses three Common10 consumers
+and one Elite15, two physically staffed Hemp sources and two paid Tea Bushes
+on the same existing shed/channel. Its ordinary staged operation commands
+start water/market access before the Farm, then continuous fishing, Hemp and
+later chains only as real population covers the complete model labor. The
+copied240-tick geometry probe grants nothing to the real tick0/population0
+seed. All issued commands are independently repeated after restore.
+
+Creator/replay reports and all34 exact checkpoints are under
+`.local/agri-mac07/{paid-14,replay-14}/`. Independent Python checks validate
+annual deltas/current-row events, sole Food balances and separate Hemp/plant
+work, picked cargo and accepted-return equations. Stored goods and loaded
+cargo survive seasonal boundaries; only unpicked field readiness expires.
+
+The frozen isolated source-model test also passed under ASan+UBSan in
+798.80 seconds for its complete creator/replay pair. Each child retained its
+600-second deadline. The sanitized creator's canonical final SHA is identical
+to the Debug creator above; the separate sanitized replay independently passed
+the same exact endpoint, annual and accounting assertions. This preliminary
+case is recorded in `.local/agri-mac07/run-01/dev-sanitize-real-80k.log` and
+`.local/agri-mac07/positive-replay-_fh2ay6f/`; fresh full-matrix evidence is
+reported separately below.
+
+All three fresh primary core comparisons passed74/74 with literal-equal
+public results and unchanged46 parity/18 corrected_bug/6 unverified/4 unsupported
+classifications. Reports are in
+`.local/agri-mac07/run-01/core-parity-verified-{debug,release,sanitize}/`.
+The fresh Debug historical probe against Git-verified merged MAC06
+`58a07238df08b4c3b5a38bbe8326a9e1a302e8fd` produced108/108 byte-identical
+artifacts across54 paid Rules24–31 cases, including12 Rule31 worker/cargo/
+cancellation checkpoints. All693 baseline archive files,689 corresponding old
+code hashes and17 retained baseline archives were independently checked.
+Evidence is `.local/agri-mac07/run-01/historical-final-debug/report.json`.
+
+The frozen Release executable passed six scripted Cocoa/Metal runs: five
+successful paid-14 Food/ready/boundary/Hemp/plantation checkpoints plus the
+preserved paid-01 Tea-ready expiry. Each uses regular Z and all nine ordinary
+inspectors, exact F5/F9/Step continuation and pure frames. Across59 observations/
+177 paused frames every instrumented forbidden-work counter stayed0. Twenty
+individual key PNGs were opened, including all nine species. The paid-14
+boundary8975→8976 changes Cabbage growing true→false with progress/waste/expiry
+already0; the additional paid-01 checkpoint actually changes Tea ready80→0,
+expired0→1 at8976. No fabricated checkpoint or expiry claim is used.
+
+Food marker pixel selection passed. The actual Hemp checkpoint remains
+`OCCLUDED_OR_UNAVAILABLE` at1×/2×/4×; ordinary paid-source selection visibly
+shows its real cargo1/1. Existing plantation marker selection is
+`NOT_RUN_EXISTING_PLANTATION_ROLE`; bound-source inspection shows its actual
+Tea cargo. Original inputs, six protected saves and the frozen executable
+retained bytes/size/mode/mtime. Evidence is
+`.local/agri-mac07/view-verified-metal-summary-01.json` and
+`view-verified-metal-{food,ready,boundary,hemp,plantation,expiry}-01/`.
+Native OS pointer delivery and human acceptance remain **NOT_RUN**.
+
+Final fresh `tools/alpha_check.py` result is **PASS/full_data**:
+`.local/agri-mac07/alpha-verified-check.json`. Native arm64 Debug, Release and
+ASan+UBSan each completed **394/394 tests with zero failures and zero skips**
+(147.893s /124.587s /1815.746s). All three100,000-tick deterministic
+JSON-roundtrip endurance runs,3,000 renderframes,100 menu/session lifecycles,
+resource lifetime checks and configured Original-data checks passed. Debug and
+sanitizer retain assertions with the isolated `-g1 -O1` toolchain. macOS
+LeakSanitizer remains disabled; project texture/resource counters are checked
+separately. Packaging was not requested.
+
+The851-file code/test/resource manifest stayed byteexact throughout the full
+matrix and independent comparisons. The15 separately monitored supplied
+Original files retained bytes, permissions and modification times; the runner's
+own nine-file Original-data check also passed. See
+`.local/agri-mac07/run-01/final-source-manifest.json` and
+`input-guard-final.json`. These are technical/scripted results, with native
+OS pointer and human acceptance still separate.
+
+For native Cocoa/Metal inspection of an earned seasonal checkpoint:
+
+```sh
+.local/agri-mac07/build-release/openemperor-seasonal-agriculture-view-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --resources "$PWD/.local/agri-mac07/build-release/resources" \
+  --input "$PWD/.local/agri-mac07/paid-city-fresh/grower-loaded.save.json" \
+  --output "$PWD/.local/agri-mac07/view-loaded-fresh" \
+  --renderer metal --phase food-loaded
+```
+
+Other creator checkpoints are `crop-ready.save.json`,
+`hemp-grower-loaded.save.json`, `plantation-grower-loaded.save.json` and
+`slot-11-before.save.json`; use phases `ready`, `hemp-loaded`, `plant-loaded`
+and `boundary` respectively. Software checks use `--renderer software` with
+SDL dummy. The script stops on native input/focus takeover. It verifies all
+nine ordinary inspectors, exact F5/F9/Step continuation and paused frame
+purity, then records marker visibility separately. Existing painter occlusion
+can make the supplied Hemp marker unavailable at1×/2×/4×; ordinary source
+selection still exposes the real carried portion. Clear-scene Hemp pixel
+selection remains required in the synthetic presentation test. Do not report
+an occluded actor as a successful native marker pick.
+
 ## Physical Food Growers (AGRI-MAC06)
 
 Use explicit **Rule31/policy3/schema47** (`E Physical Growers` or

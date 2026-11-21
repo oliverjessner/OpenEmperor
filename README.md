@@ -58,6 +58,14 @@ its harvest back and credit Food only after the real Farm return. The worker
 shares the Farm's existing staff and finite storage. Working and returning
 Growers use an explicitly authored marker; their inspector shows crop and cargo.
 
+**Z Seasons** selects the separate Rule32 seasonal successor. The existing World
+calendar gates all five Food crops, Hemp, Tea, Lacquer and Mulberry; each plant's
+inspector shows its numeric season windows, next opening and any pending expiry.
+Food needs real field harvest work and Farm return, and Hemp needs real pickup
+and return. Plan stored reserves and year-round fishing/hunting for scarcity.
+These schedules and yields are authored; older modes keep their existing clocks.
+See the [seasonal guide](docs/original-economy/agriculture.md#seasonal-agriculture-agri-mac07).
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

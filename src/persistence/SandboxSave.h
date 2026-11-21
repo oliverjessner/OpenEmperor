@@ -266,6 +266,13 @@ simulation::World restore_physical_food_growers(
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
     std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema48/Rule32 retains seasonal pending work and physical material receipts.
+simulation::World restore_seasonal_agriculture(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
 // Schema36 is an explicit authored classic Rule6 successor. It does not
 // inherit Original-economy rules or migrate an existing transport save.
 simulation::World restore_authored_source_cell_ramps(

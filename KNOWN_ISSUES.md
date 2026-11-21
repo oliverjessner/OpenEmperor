@@ -38,6 +38,15 @@ complete original-game compatibility.
   Unqualified Tent/animal/Hunter sprites use labelled authored fallbacks. The
   [hunting contract](docs/original-economy/agriculture.md#playable-hunting-agri-mac03)
   separates these rules from historical Original research and saves.
+- **Seasons are an explicit authored successor.** Rule32/schema48 uses the
+  shared51×16×12 World calendar for five Food crops and Hemp/Tea/Lacquer/Mulberry.
+  Relative windows are source-observed; work suppression, partial loss, grace,
+  expiry and actual five-tick Food harvest work are authored. Hemp now requires
+  a real worker return. Picked cargo and stored goods survive winter. Original
+  seasonal/harvest parity remains open; irrigation yield effects are inactive.
+  Hemp markers can be occluded by existing building art; source inspection
+  still shows actual cargo. Historical generations stay exact. See
+  [the contract](docs/original-economy/agriculture.md#seasonal-agriculture-agri-mac07).
 - **Physical Food Growers are authored.** Explicit Rule31/schema47 replaces
   abstract crop credit with one actual Farm-owned worker, at-field tending,
   typed crop cargo and physical return receipts. Crop timing, yield and worker
@@ -47,8 +56,8 @@ complete original-game compatibility.
 - **Multi-field Agriculture shares authored Farm labor.** Explicit Rule30/schema46
   allows up to eight independently progressing paid fields per Farm with one
   shared work unit/tick and the existing sole seven-kind Food account. Physical
-  crop Growers are available separately in Rule31; seasons and irrigation yield
-  effects remain future work.
+  crop Growers are available separately in Rule31 and seasons in Rule32; irrigation
+  yield effects remain future work.
   There is no Original field-work or harvest-parity claim. Rice retains static
   qualified paddy art. Historical rules and save generations stay exact. See
   [the contract](docs/original-economy/agriculture.md#multi-field-agriculture-agri-mac05).

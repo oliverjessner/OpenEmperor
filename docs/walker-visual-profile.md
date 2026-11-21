@@ -19,6 +19,12 @@ a hidden body is not proof of visibility or field work. No walker profile schema
 asset admission or texture budget changes. Native/scripted checks are recorded
 in [testing](testing.md#physical-food-growers-agri-mac06).
 
+Rule32 adds a separately counted Hemp Grower with the same authored marker
+presentation at its actual shared-navigator feet. The source-owned idle channel
+has no actor or position. A monotone seasonal Hemp lifetime identifies each real
+trip; selected markers open the actual paid source inspector. No Original
+animation registration or walker schema is inferred from this fallback.
+
 The JSON is an OpenEmperor convention, not an Emperor format. Each `image_index` is a **physical SG3 record number**, including record zero in numbering (zero itself is rejected). No runtime-table skip or packed graphic-ID conversion is applied. `archive` is relative to the selected game-data root. A frame's `foot_anchor` is measured in its decoded image pixels from the top-left to the chosen projected ground point. The anchor is chosen by visual inspection; SG3 animation offsets are not treated as verified pivots. Frame dimensions may differ.
 
 ```json

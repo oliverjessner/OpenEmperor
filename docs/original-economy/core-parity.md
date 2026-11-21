@@ -319,6 +319,17 @@ Fresh comparison retains all74 numerical cases and classifications. Authored
 fishing, water navigation, ecology and consumption have their own paid-world
 tests and gain no Original numerical parity from these legacy probes.
 
+AGRI-MAC07 adds explicit Rule32/schema48 seasonal factories, optional seasonal
+state and a source-owned Hemp channel. The reviewed ABI pins include
+`SeasonalAgricultureState.h`, the appended Food/plantation ready-epoch evidence
+and derived calendar inspection fields. Historical calls select none of the
+new authority; fresh matching archives remain mandatory. Current-source
+fingerprints also cover the new seasonal queries, World transitions and Hemp
+movement implementation. The74 legacy vectors and their classifications must
+remain literal-equal. Separate Rules24–31 paid-save comparisons cover active
+historical workers/cargo; neither comparison establishes Original seasonal,
+work, expiry, harvest-quantity or animation parity.
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the

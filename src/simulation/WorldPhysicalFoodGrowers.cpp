@@ -24,7 +24,7 @@ struct Observation {std::uint64_t id;BuildingId farm,field;CourierId courier;Agr
     bool operator==(const Observation&)const=default;};
 template<class Buildings,class Couriers>
 void validate_physical_state(const PhysicalFoodGrowersState& state,const HuntingFoodState& food,const MultiFieldAgricultureState& multi,
-    const Buildings& buildings,const Couriers& couriers,std::uint64_t tick){
+    const Buildings& buildings,const Couriers& couriers,std::uint64_t tick,const SeasonalAgricultureState* season=nullptr){
     if(!state.next_grower_id||state.farms.size()!=food.farms.size()||state.fields.size()!=food.fields.size()||
        state.farms.size()>5||state.fields.size()>agriculture_field_limit)invalid("Physical Grower collection or ID bounds invalid");
     if(std::count_if(couriers.begin(),couriers.end(),[](const auto& c){return c.role==CourierRole::OriginalFoodGrower;})!=static_cast<std::ptrdiff_t>(state.farms.size()))
@@ -45,6 +45,7 @@ void validate_physical_state(const PhysicalFoodGrowersState& state,const Hunting
         for(const auto& field:food.fields)if(field.farm_id==farm.id)add(harvested,field.harvested);
         for(const auto& field:state.fields)if(field.farm_id==farm.id)add(returned,field.returned);
         for(const auto& field:multi.fields)if(field.farm_id==farm.id)add(earned_work,field.productive_ticks);
+        if(season)for(const auto& field:season->fields)if(field.farm_id==farm.id)add(earned_work,field.harvest_work);
         if(harvested>source.spawned||returned>source.retired)invalid("Physical Grower harvest/receipt exceeds allocated lifetimes");
         // Harvest work, its five waiting ticks and completed physical trips
         // share one source timeline. The first return microstep may coincide
@@ -60,12 +61,14 @@ void validate_physical_state(const PhysicalFoodGrowersState& state,const Hunting
             continue;
         }
         const auto& t=*source.latest_trip;const auto& f=row(food.fields,t.field_id,field_key);const auto& paid=row(buildings,t.field_id,body_key);
-        const auto& work=row(multi.fields,t.field_id,field_key);const auto g=static_cast<std::size_t>(t.crop);const auto minimum=gap(farm.cell,paid.cell)*5;
+        const auto& work=row(multi.fields,t.field_id,field_key);const auto* seasonal=season?&row(season->fields,t.field_id,field_key):nullptr;
+        if((!season&&(t.wasted_work_before||t.ready_tick))||(seasonal&&(t.wasted_work_before>seasonal->wasted_work||t.wasted_work_before>t.work_before)))invalid("Food trip lost seasonal work provenance");
+        const auto g=static_cast<std::size_t>(t.crop);const auto minimum=gap(farm.cell,paid.cell)*5;
         if(!source.spawned||!t.grower_id.value||t.grower_id.value>=state.next_grower_id||t.grower_id.value<source.spawned||
            f.farm_id!=farm.id||g>=agriculture_crop_count||f.crop!=t.crop||!minimum||
            t.dispatched_tick<=std::max(farm.placed_tick,paid.placed_tick)||t.dispatched_tick>tick||
            source.spawned-1>(t.dispatched_tick-farm.placed_tick-1)/10||
-           c.target!=f.field_id||c.last_dispatched_target!=f.field_id||t.work_ticks>80-t.work_before%80||
+           c.target!=f.field_id||c.last_dispatched_target!=f.field_id||t.work_ticks>80-(t.work_before-t.wasted_work_before)%80||
            t.work_before>UINT64_MAX-t.work_ticks||work.productive_ticks!=t.work_before+t.work_ticks||t.delivered>1||
            t.wait_left>physical_food_grower_wait_ticks)
             invalid("Physical Grower trip identity/crop/work bounds invalid");
@@ -75,8 +78,13 @@ void validate_physical_state(const PhysicalFoodGrowersState& state,const Hunting
         if(t.arrived_tick&&(*t.arrived_tick<t.dispatched_tick||*t.arrived_tick>tick||*t.arrived_tick-t.dispatched_tick+1<minimum))
             invalid("Physical Grower arrived before traversing real land");
         if(t.harvested_tick&&(!t.arrived_tick||*t.harvested_tick<=*t.arrived_tick||*t.harvested_tick>tick||
-            *t.harvested_tick-*t.arrived_tick<physical_food_grower_wait_ticks+t.work_ticks||!t.work_ticks||
-            (t.work_before+t.work_ticks)%80))invalid("Physical Grower harvest lacks actual waiting/work");
+            *t.harvested_tick-*t.arrived_tick<physical_food_grower_wait_ticks+t.work_ticks||(!season&&!t.work_ticks)||
+            (!season&&(t.work_before+t.work_ticks)%80)||
+            (season&&(!t.ready_tick||*t.ready_tick>=*t.harvested_tick||*t.harvested_tick-*t.ready_tick<seasonal_harvest_work_ticks||!seasonal_harvest_allowed(static_cast<original::ModelBuilding>(195+g),*t.harvested_tick,*t.ready_tick)))))invalid("Physical Grower harvest lacks actual waiting/work");
+        if(t.ready_tick&&(!season||*t.ready_tick>tick||!seasonal_growing(static_cast<original::ModelBuilding>(195+g),*t.ready_tick)))invalid("Food trip has no actual growing ready epoch");
+        if(t.ready_tick&&t.work_ticks&&(!t.arrived_tick||*t.ready_tick<*t.arrived_tick||
+            *t.ready_tick-*t.arrived_tick<physical_food_grower_wait_ticks+t.work_ticks))
+            invalid("Food readiness predates the worker's actual field work");
         if(t.work_ticks&&(!t.arrived_tick||tick-*t.arrived_tick<physical_food_grower_wait_ticks+t.work_ticks))
             invalid("Physical Grower work predates arrival/wait");
         if(t.phase==PhysicalFoodGrowerPhase::Working&&t.arrived_tick&&tick-*t.arrived_tick<physical_food_grower_wait_ticks)invalid("Food Grower skipped its real waiting interval");
@@ -93,6 +101,8 @@ void validate_physical_state(const PhysicalFoodGrowersState& state,const Hunting
                (t.harvested_tick&&(*t.returned_tick<=*t.harvested_tick||*t.returned_tick-*t.harvested_tick+1<minimum)))
                 invalid("Physical Grower retirement lacks actual source return");
         }else if(t.delivered||c.path.empty()||c.path_vertex>=c.path.size())invalid("Live Food Grower has no retained physical position");
+        if(seasonal&&live&&t.phase!=PhysicalFoodGrowerPhase::Returning&&seasonal->ready_tick&&t.ready_tick!=seasonal->ready_tick)
+            invalid("Ready physical Food worker lost its bound crop cycle");
         if(live&&(t.phase==PhysicalFoodGrowerPhase::Working||t.phase==PhysicalFoodGrowerPhase::Waiting)&&
            (c.path.size()!=1||c.path.front()!=paid.cell||c.path_vertex||c.edge_progress||c.route_pending))
             invalid("Working Food Grower is not physically at its assigned field");
@@ -120,10 +130,17 @@ void validate_physical_state(const PhysicalFoodGrowersState& state,const Hunting
            r.dispatched_tick<=std::max(farm.placed_tick,paid.placed_tick)||r.arrived_tick<r.dispatched_tick||r.arrived_tick-r.dispatched_tick+1<minimum||
            r.harvested_tick<=r.arrived_tick||r.harvested_tick-r.arrived_tick<physical_food_grower_wait_ticks+1||
            r.returned_tick<=r.harvested_tick||r.returned_tick-r.harvested_tick+1<minimum||r.returned_tick>tick||
-           r.work_at_harvest/80!=p.returned||r.work_at_harvest%80||!worker.latest_trip)
+           r.wasted_work_at_harvest>r.work_at_harvest||
+           (r.work_at_harvest-r.wasted_work_at_harvest)/80!=p.returned||(r.work_at_harvest-r.wasted_work_at_harvest)%80||!worker.latest_trip||
+           (!season&&(r.wasted_work_at_harvest||r.ready_tick))||
+           (season&&(!r.ready_tick||r.ready_tick>=r.harvested_tick||r.harvested_tick-r.ready_tick<seasonal_harvest_work_ticks||
+            r.work_at_harvest>seasonal_work_opportunities(static_cast<original::ModelBuilding>(195+static_cast<unsigned>(f.crop)),std::max(farm.placed_tick,paid.placed_tick),r.ready_tick)||
+            !seasonal_harvest_allowed(static_cast<original::ModelBuilding>(195+static_cast<unsigned>(f.crop)),r.harvested_tick,r.ready_tick)||
+            r.wasted_work_at_harvest>row(season->fields,p.field_id,field_key).wasted_work)))
             invalid("Food Grower receipt lacks bound crop/lifetime/physical chronology");
         if(worker.latest_trip->grower_id==r.grower_id){const auto& t=*worker.latest_trip;
-            if(t.field_id!=p.field_id||t.dispatched_tick!=r.dispatched_tick||t.arrived_tick!=r.arrived_tick||t.harvested_tick!=r.harvested_tick||t.returned_tick!=r.returned_tick||t.delivered!=1)
+            if(t.field_id!=p.field_id||t.dispatched_tick!=r.dispatched_tick||t.arrived_tick!=r.arrived_tick||t.harvested_tick!=r.harvested_tick||t.returned_tick!=r.returned_tick||t.delivered!=1||
+               (season&&(t.ready_tick!=r.ready_tick||t.wasted_work_before!=r.wasted_work_at_harvest)))
                 invalid("Food receipt contradicts latest actual return");
         }else if(worker.latest_trip->grower_id.value<r.grower_id.value||worker.latest_trip->dispatched_tick<=r.returned_tick)
             invalid("Food receipt postdates source's later lifetime");
@@ -153,10 +170,10 @@ void World::validate_physical_food_growers_snapshot(const WorldSnapshot& s){
         return;
     }
     if(!s.physical_food_growers||!s.hunting_food||!s.multi_field_agriculture)invalid("Physical Food Growers lost sole Food/work authority");
-    validate_physical_state(*s.physical_food_growers,*s.hunting_food,*s.multi_field_agriculture,s.buildings,s.couriers,s.ticks);
+    validate_physical_state(*s.physical_food_growers,*s.hunting_food,*s.multi_field_agriculture,s.buildings,s.couriers,s.ticks,s.seasonal_agriculture?&*s.seasonal_agriculture:nullptr);
 }
 void World::validate_physical_food_growers_state()const{
-    if(physical_food_growers_enabled())validate_physical_state(*physical_food_growers_,*hunting_food_,*multi_field_agriculture_,buildings_,couriers_,ticks_);
+    if(physical_food_growers_enabled())validate_physical_state(*physical_food_growers_,*hunting_food_,*multi_field_agriculture_,buildings_,couriers_,ticks_,seasonal_agriculture_?&*seasonal_agriculture_:nullptr);
 }
 int World::physical_food_grower_cargo(CourierId id)const{
     if(!physical_food_growers_)return 0;const auto& c=courier(id);if(c.role!=CourierRole::OriginalFoodGrower)return 0;
@@ -204,6 +221,11 @@ CourierDispatchDecision World::physical_food_grower_dispatch_status(const Courie
     for(int pass=0;pass<2;++pass)for(const auto& f:hunting_food_->fields){
         if(f.farm_id!=source.id||!building(f.field_id).operating_enabled||building_on_fire(f.field_id)||
            (c.last_dispatched_target&&(pass==0?f.field_id<=*c.last_dispatched_target:f.field_id>*c.last_dispatched_target))||(!c.last_dispatched_target&&pass==1))continue;
+        if(seasonal_agriculture_enabled()){
+            const auto& cycle=row(seasonal_agriculture_->fields,f.field_id,field_key);
+            const auto model=static_cast<original::ModelBuilding>(195+static_cast<unsigned>(f.crop));
+            if(!seasonal_growing(model,ticks_)&&(!cycle.ready_tick||!seasonal_harvest_allowed(model,ticks_,*cycle.ready_tick)))continue;
+        }
         eligible=true;const auto at=std::lower_bound(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),f.field_id,[](const auto& p,BuildingId id){return p.first<id;});
         if(at!=c.dynamic_target_routes.end()&&at->first==f.field_id&&at->second)return {CourierDispatchStatus::Ready,f.field_id};
     }
@@ -216,6 +238,7 @@ void World::dispatch_physical_food_grower(CourierState& c){
     auto& f=row(physical_food_growers_->farms,c.owner,farm_key);PhysicalFoodGrowerTrip t;
     t.grower_id={physical_food_growers_->next_grower_id++};t.field_id=id;t.crop=row(hunting_food_->fields,id,field_key).crop;
     t.dispatched_tick=ticks_;t.work_before=row(multi_field_agriculture_->fields,id,field_key).productive_ticks;
+    if(seasonal_agriculture_enabled()){const auto& cycle=row(seasonal_agriculture_->fields,id,field_key);t.wasted_work_before=cycle.wasted_work;t.ready_tick=cycle.ready_tick;}
     f.latest_trip=t;add(f.spawned);c.target=id;c.last_dispatched_target=id;c.path=*at->second;c.path_vertex=0;c.edge_progress=0;
     c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::ToWarehouse;
 }
@@ -241,6 +264,10 @@ void World::arrive_physical_food_grower(CourierState& c){
         auto& field=row(physical_food_growers_->fields,t.field_id,field_key);add(field.returned);
         ++row(hunting_food_->stocks,c.owner,stock_key).amounts[static_cast<std::size_t>(t.crop)];t.delivered=1;
         field.last_receipt=PhysicalFoodGrowerReceipt{t.grower_id,c.id,t.crop,t.dispatched_tick,*t.arrived_tick,*t.harvested_tick,ticks_,row(multi_field_agriculture_->fields,t.field_id,field_key).productive_ticks};
+        if(seasonal_agriculture_enabled()){
+            field.last_receipt->wasted_work_at_harvest=row(seasonal_agriculture_->fields,t.field_id,field_key).wasted_work;
+            field.last_receipt->ready_tick=*t.ready_tick;
+        }
     }
     c.path.clear();c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::IdleAtWorkshop;
 }
@@ -251,11 +278,34 @@ void World::advance_physical_food_growers(){
         if(t.phase==PhysicalFoodGrowerPhase::Returning)continue;
         const auto& farm=building(source.farm_id);const auto& field=building(t.field_id);
         const bool eligible=farm.operating_enabled&&!building_on_fire(farm.id)&&building_staffed_for_tick(farm.id)&&!building_entrances(farm.id).empty()&&field.operating_enabled&&!building_on_fire(field.id);
-        if(!eligible)t.cancel_requested=true;
+        bool crop_eligible=true;
+        if(seasonal_agriculture_enabled()){
+            const auto& cycle=row(seasonal_agriculture_->fields,t.field_id,field_key);
+            const auto model=static_cast<original::ModelBuilding>(195+static_cast<unsigned>(t.crop));
+            crop_eligible=seasonal_growing(model,ticks_)||(cycle.ready_tick&&seasonal_harvest_allowed(model,ticks_,*cycle.ready_tick));
+            if(t.ready_tick&&(!cycle.ready_tick||t.ready_tick!=cycle.ready_tick))crop_eligible=false;
+        }
+        if(!eligible||!crop_eligible)t.cancel_requested=true;
         if(t.cancel_requested){if(!c.edge_progress)begin_physical_food_grower_return(c);continue;}
         if(t.phase==PhysicalFoodGrowerPhase::Outward)continue;
         if(!physical_food_grower_stationary(c))throw std::logic_error("Food Grower tending without physical field arrival");
         if(t.phase==PhysicalFoodGrowerPhase::Waiting){if(--t.wait_left==0)t.phase=PhysicalFoodGrowerPhase::Working;continue;}
+        if(seasonal_agriculture_enabled()){
+            auto& cycle=row(seasonal_agriculture_->fields,t.field_id,field_key);
+            if(cycle.ready_tick){
+                if(t.ready_tick!=cycle.ready_tick)throw std::logic_error("Food worker changed ready cycle");
+                add(cycle.harvest_work);++cycle.harvest_progress;
+                if(cycle.harvest_progress==seasonal_harvest_work_ticks){
+                    add(row(hunting_food_->fields,t.field_id,field_key).harvested);t.harvested_tick=ticks_;
+                    cycle.ready_tick.reset();cycle.harvest_progress=0;begin_physical_food_grower_return(c);
+                }
+                continue;
+            }
+            auto& work=row(multi_field_agriculture_->fields,t.field_id,field_key);add(work.productive_ticks);++t.work_ticks;
+            row(multi_field_agriculture_->farms,source.farm_id,farm_key).last_field=t.field_id;
+            if(seasonal_food_progress(t.field_id)==80){cycle.ready_tick=ticks_;t.ready_tick=ticks_;}
+            continue;
+        }
         auto& work=row(multi_field_agriculture_->fields,t.field_id,field_key);add(work.productive_ticks);++t.work_ticks;
         row(multi_field_agriculture_->farms,source.farm_id,farm_key).last_field=t.field_id;
         if(work.productive_ticks%80==0){add(row(hunting_food_->fields,t.field_id,field_key).harvested);t.harvested_tick=ticks_;begin_physical_food_grower_return(c);}

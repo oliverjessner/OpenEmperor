@@ -208,6 +208,15 @@ std::string reference_slots(const std::array<std::int8_t,4>& slots,std::uint8_t 
     }
     return text.empty() ? "none":text;
 }
+std::string seasonal_windows(const original::SeasonRule& rule) {
+    std::string text;
+    for(std::size_t i=0;i<rule.start_slots.size();++i) {
+        if(rule.start_slots[i]<0 || rule.end_slots[i]<0)continue;
+        if(!text.empty())text+=", ";
+        text+="["+std::to_string(rule.start_slots[i])+","+std::to_string(rule.end_slots[i])+")";
+    }
+    return text;
+}
 bool append_agriculture_stock_lines(const simulation::World& world,simulation::BuildingId id,
         std::vector<std::string>& lines,int capacity) {
     if (!world.original_agriculture_enabled()) return false;
@@ -298,6 +307,7 @@ std::optional<std::uint64_t> next_original_tax_tick(std::uint64_t tick) {
     return tick+remaining;
 }
 template<class Courier> int displayed_courier_cargo(const simulation::World& world,const Courier& courier) {
+    if (courier.role==simulation::CourierRole::OriginalSeasonalHempGrower) return world.seasonal_hemp_grower_cargo(courier.id);
     if (courier.role==simulation::CourierRole::OriginalFoodGrower) return world.physical_food_grower_cargo(courier.id);
     if (courier.role==simulation::CourierRole::OriginalPlantationGrower)
         return world.plantation_grower_cargo(courier.id);
@@ -305,6 +315,8 @@ template<class Courier> int displayed_courier_cargo(const simulation::World& wor
         std::max(courier.cargo,world.original_courier_cargo(courier.id)):courier.cargo;
 }
 template<class Courier> int displayed_courier_reservation(const simulation::World& world,const Courier& courier) {
+    if(courier.role==simulation::CourierRole::OriginalSeasonalHempGrower)
+        return simulation::seasonal_hemp_reserved(&*world.seasonal_agriculture_state(),world.courier(courier.id).owner);
     if(courier.role==simulation::CourierRole::OriginalFoodGrower)
         return simulation::physical_food_grower_reservations(&*world.physical_food_growers_state(),world.courier(courier.id).owner);
     if (world.original_production_enabled() && courier.phase==simulation::CourierPhase::ToWarehouse &&
@@ -320,6 +332,27 @@ template<class Courier> int displayed_courier_reservation(const simulation::Worl
                     row.loaded-row.delivered-row.returned:0;
     }
     return courier.reserved;
+}
+void append_seasonal_hemp_lines(const simulation::World& world,simulation::BuildingId farm,
+        std::vector<std::string>& lines) {
+    if(!world.seasonal_agriculture_enabled())return;
+    for(const auto& source:world.seasonal_agriculture_state()->hemp_farms) if(source.farm_id==farm) {
+        const auto& actor=world.courier(source.courier_id);
+        lines.push_back("Hemp Grower* AUTHORED marker");
+        lines.push_back("Grower channel #"+std::to_string(static_cast<unsigned>(source.courier_id))+" | "+
+            simulation::courier_phase_name(actor.phase));
+        lines.push_back("Grown "+std::to_string(source.grown)+" | picked "+std::to_string(source.picked));
+        lines.push_back("Spawned "+std::to_string(source.spawned)+" | retired "+std::to_string(source.retired));
+        lines.push_back("Hemp cargo "+std::to_string(world.seasonal_hemp_grower_cargo(source.courier_id))+"/1 | return reserved "+
+            std::to_string(simulation::seasonal_hemp_reserved(&*world.seasonal_agriculture_state(),farm)));
+        if(source.latest_trip) {
+            const auto& trip=*source.latest_trip;
+            lines.push_back("Hemp Grower lifetime #"+std::to_string(trip.grower_id.value));
+            lines.push_back(trip.returned_tick ? "Actual Hemp Farm return received":trip.picked_tick ?
+                "Picked Hemp; physical return required":"Travelling to actual Hemp pickup");
+            if(actor.route_pending)lines.push_back("Grower route blocked; begun edge and cargo retained");
+        } else lines.push_back("Hemp Grower idle; no visible actor");
+    }
 }
 WalkerPose resolved_walker_pose(const simulation::World& world,const simulation::CourierState& courier,
                                const assets::WalkerRoleVisual& visual) {
@@ -365,6 +398,7 @@ const char* courier_role_label(simulation::CourierRole role) {
     case simulation::CourierRole::OriginalAuxSupplier: return "MaterialSupplier";
     case simulation::CourierRole::OriginalPlantationGrower: return "Plantation Grower26";
     case simulation::CourierRole::OriginalFoodGrower: return "Food Grower (AUTHORED)";
+    case simulation::CourierRole::OriginalSeasonalHempGrower: return "Hemp Grower (AUTHORED)";
 
     case simulation::CourierRole::None: return "None";
     }
@@ -395,6 +429,8 @@ const char* courier_good_label(simulation::Good good) {
     return "Unknown";
 }
 const char* displayed_courier_good(const simulation::World& world,const simulation::CourierState& courier) {
+    if(courier.role==simulation::CourierRole::OriginalSeasonalHempGrower)
+        return world.seasonal_hemp_grower_cargo(courier.id) ? "Hemp":"Empty";
     if (courier.role==simulation::CourierRole::OriginalFoodGrower) {
         if (!world.physical_food_grower_cargo(courier.id)) return "Empty";
         for (const auto& farm:world.physical_food_growers_state()->farms)
@@ -814,6 +850,16 @@ std::unique_ptr<SandboxView> SandboxView::create_playable_agriculture(
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_seasonal_agriculture(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid Seasonal Agriculture difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule32 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kSeasonalAgricultureRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;return result;
+}
+
 std::unique_ptr<SandboxView> SandboxView::create_physical_food_growers(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
     if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
@@ -1015,7 +1061,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : physical_food_growers() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : seasonal_agriculture() ?
+        persistence::restore_seasonal_agriculture(document,data_root_,buildable_mask_) : physical_food_growers() ?
         persistence::restore_physical_food_growers(document,data_root_,buildable_mask_) : multi_field_agriculture() ?
         persistence::restore_multi_field_agriculture(document,data_root_,buildable_mask_) : playable_hunting() ?
         persistence::restore_playable_hunting(document,data_root_,buildable_mask_) : playable_fishing() ?
@@ -1147,7 +1194,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : physical_food_growers() ?
+                std::move(permissions)) : seasonal_agriculture() ?
+            persistence::restore_seasonal_agriculture(*initial_save_,data_root_,buildable_mask_,
+                std::move(permissions),nullptr,std::move(terrain)) : physical_food_growers() ?
             persistence::restore_physical_food_growers(*initial_save_,data_root_,buildable_mask_,
                 std::move(permissions),nullptr,std::move(terrain)) : multi_field_agriculture() ?
             persistence::restore_multi_field_agriculture(*initial_save_,data_root_,
@@ -1207,6 +1256,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (seasonal_agriculture()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_seasonal_agriculture(
+            std::move(permissions),persistence::prepare_playable_hunting_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_="Seasonal Agriculture: authored growing windows, physical harvest and return; plan stored Food reserves.";
     } else if (physical_food_growers()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_physical_food_growers(
             std::move(permissions),persistence::prepare_playable_hunting_rules_model(data_root_,
@@ -1359,7 +1413,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(physical_food_growers())title+=" | save schema 47 | Physical Food Growers (AUTHORED)";
+    if(seasonal_agriculture())title+=" | save schema 48 | Seasonal Agriculture (AUTHORED)";
+    else if(physical_food_growers())title+=" | save schema 47 | Physical Food Growers (AUTHORED)";
     else if(multi_field_agriculture())title+=" | save schema 46 | Multi-field Agriculture (AUTHORED)";
     else if(playable_hunting())title+=" | save schema 45 | Playable Hunting (AUTHORED)";
     else if(playable_fishing())title+=" | save schema 44 | Playable Fishing (AUTHORED)";
@@ -4896,7 +4951,8 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             const auto point=visual_hit_camera_.screen_to_world(*pointer_);
             boat_pixel=std::any_of(visual_hits_.begin(),visual_hits_.end(),[&](const auto& hit) {
                 return (hit.boat || hit.hunter || hit.animal || hit.mesh==simulation::Object::OriginalHuntersTent ||
-                    (physical_food_growers() && hit.walker && world_->courier(*hit.walker).role==simulation::CourierRole::OriginalFoodGrower)) && point.x>=hit.origin.x && point.y>=hit.origin.y &&
+                    (physical_food_growers() && hit.walker && (world_->courier(*hit.walker).role==simulation::CourierRole::OriginalFoodGrower ||
+                        world_->courier(*hit.walker).role==simulation::CourierRole::OriginalSeasonalHempGrower))) && point.x>=hit.origin.x && point.y>=hit.origin.y &&
                     point.x<hit.origin.x+hit.width && point.y<hit.origin.y+hit.height;
             });
         }
@@ -5117,7 +5173,8 @@ std::optional<scene::Point> SandboxView::courier_ground_position(simulation::Cou
 int SandboxView::walker_marker_shift(simulation::Position position,simulation::CourierId id) const {
     if (world_->courier(id).role==simulation::CourierRole::OriginalMusicPerformer ||
         world_->courier(id).role==simulation::CourierRole::OriginalVenueMusic ||
-        world_->courier(id).role==simulation::CourierRole::OriginalFoodGrower) return 0;
+        world_->courier(id).role==simulation::CourierRole::OriginalFoodGrower ||
+        world_->courier(id).role==simulation::CourierRole::OriginalSeasonalHempGrower) return 0;
     const simulation::Cell cell{int(std::floor(position.x)),int(std::floor(position.y))};
     if(world_->bridge_at(cell)||world_->bridge_bank_at(cell)||world_->ramp_surface_height(position)||world_->source_cell_ramp_surface_height(position))return 0;
     const auto value=static_cast<unsigned>(id);
@@ -5211,11 +5268,13 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         const double size=std::max(debug_open_ ? 5.0:4.0,(debug_open_ ? 10.0:7.0)*camera_.zoom)/camera_.zoom;
         hit.origin={ground.x-size/2+(simulation::production_profile(rules_) ? shift/camera_.zoom:0),ground.y-size/2};
         hit.width=hit.height=size; append(hit);
-        if(physical_food_growers() && world_->courier(instance.courier).role==simulation::CourierRole::OriginalFoodGrower) {
+        if(physical_food_growers() && (world_->courier(instance.courier).role==simulation::CourierRole::OriginalFoodGrower ||
+            world_->courier(instance.courier).role==simulation::CourierRole::OriginalSeasonalHempGrower)) {
             // The explicit authored text is part of the submitted worker marker.
             // Its fixed screen-size hit bounds use the same camera transform.
             auto label=hit;label.origin={ground.x+6/camera_.zoom,ground.y-18/camera_.zoom};
-            label.width=56/camera_.zoom;label.height=8/camera_.zoom;append(label);
+            label.width=(world_->courier(instance.courier).role==simulation::CourierRole::OriginalSeasonalHempGrower ? 88:56)/camera_.zoom;
+            label.height=8/camera_.zoom;append(label);
         }
         const auto cargo=simulation::production_profile(rules_) ?
             displayed_courier_cargo(*world_,world_->courier(instance.courier)):world_->courier_cargo();
@@ -5815,11 +5874,12 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             return !debug_open_ || SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
                 static_cast<float>(ground.y)-20,"W?");
         }
-        if(courier.role==simulation::CourierRole::OriginalFoodGrower) {
+        if(courier.role==simulation::CourierRole::OriginalFoodGrower || courier.role==simulation::CourierRole::OriginalSeasonalHempGrower) {
             if(!draw_agent(position,{102,196,132,255},cargo_color,displayed_courier_cargo(*world_,courier),marker_shift)) return false;
             const auto point=camera_.world_to_screen(world_for(position));
             return SDL_SetRenderDrawColor(renderer_,228,244,230,255) &&
-                SDL_RenderDebugText(renderer_,static_cast<float>(point.x)+6,static_cast<float>(point.y)-18,"Grower*");
+                SDL_RenderDebugText(renderer_,static_cast<float>(point.x)+6,static_cast<float>(point.y)-18,
+                    courier.role==simulation::CourierRole::OriginalSeasonalHempGrower ? "HempGrower*":"Grower*");
         }
         if (courier.role==simulation::CourierRole::FireInspector) ++fire_inspector_fallback_draws_;
         if (food_market_visual(visual_role)) ++market_walker_fallback_draws_;
@@ -6420,7 +6480,7 @@ std::vector<simulation::BuildingId> SandboxView::placed_buildings() const {
 std::optional<simulation::BuildingId> SandboxView::selected_building() const {
     if(selected_walker_ && physical_food_growers()) {
         const auto& actor=world_->courier(*selected_walker_);
-        if(actor.role==simulation::CourierRole::OriginalFoodGrower) return actor.owner;
+        if(actor.role==simulation::CourierRole::OriginalFoodGrower || actor.role==simulation::CourierRole::OriginalSeasonalHempGrower) return actor.owner;
     }
     if (selected_landscape_ || selected_walker_ || selected_hunting_animal_) return {};
     return selected_ ? world_->building_owner_at(*selected_) : std::nullopt;
@@ -6594,6 +6654,7 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
         agriculture_inspection_workers_.clear();
         agriculture_inspection_farm_roads_.clear();
         physical_grower_dispatch_status_.clear();
+        seasonal_field_eligibility_.clear();
         agriculture_calendar_lines_.clear();
         agriculture_inspection_tick_=agriculture_inspection_sequence_=UINT64_MAX;
         return;
@@ -6603,13 +6664,18 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
     agriculture_inspection_workers_.clear();
     agriculture_inspection_farm_roads_.clear();
     physical_grower_dispatch_status_.clear();
+    seasonal_field_eligibility_.clear();
     agriculture_inspection_workers_.reserve(world_->buildings().size());
     std::vector<simulation::AgricultureSeasonStatus> seasons;
     for (const auto& body:world_->buildings()) {
         agriculture_inspection_workers_.emplace_back(body.id,world_->workers_assigned(body.id));
         if (multi_field_agriculture() && body.kind==simulation::Object::OriginalFoodFarm)
             agriculture_inspection_farm_roads_.emplace_back(body.id,!world_->building_entrances(body.id).empty());
-        if (const auto status=world_->agriculture_season_status(body.id)) seasons.push_back(*status);
+        if (const auto status=world_->agriculture_season_status(body.id)) {
+            seasons.push_back(*status);
+            if(status->seasonal_production)
+                seasonal_field_eligibility_.emplace_back(body.id,status->growing || status->harvest_allowed);
+        }
     }
     if(physical_food_growers()) for(const auto& farm:world_->physical_food_growers_state()->farms)
         physical_grower_dispatch_status_.emplace_back(farm.farm_id,world_->courier_dispatch_status(farm.courier_id));
@@ -6624,15 +6690,43 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
     for (const auto& body:world_->buildings()) {
         if (!agriculture_inspection_kind(body.kind)) continue;
         auto lines=common;
+        if(seasonal_agriculture()) {
+            lines={"Elapsed cycle "+std::to_string(position.year)+" | Outer slot "+std::to_string(position.month),
+                "Subslot "+std::to_string(position.step)+" | Phase "+std::to_string(position.phase)+" (next dispatch)"};
+        }
         std::vector<original::ModelBuilding> models;
         for (const auto& status:seasons) {
             if (status.subject!=body.id && status.producer!=body.id) continue;
-            if (std::find(models.begin(),models.end(),status.model)!=models.end()) continue;
+            if (!status.seasonal_production && std::find(models.begin(),models.end(),status.model)!=models.end()) continue;
             models.push_back(status.model);
-            if (status.subject==body.id) {
-                lines.push_back(status.authored_production_active ? "Actual AUTHORED adapter available":"Original productive quantity disabled");
+            const auto& rule=original::season_rule(status.model);
+            if(status.seasonal_production) {
+                lines.push_back("Seasonal Model"+std::to_string(static_cast<unsigned>(status.model))+" #"+
+                    std::to_string(static_cast<unsigned>(status.subject))+" | AUTHORED");
+                lines.push_back(status.ready_expiry_tick ? "Ready crop expires before tick "+std::to_string(*status.ready_expiry_tick):
+                    "No pending ready crop expiry");
+                lines.push_back(status.next_opening_tick ? "Next growing opening tick "+std::to_string(*status.next_opening_tick):
+                    "Next growing opening unavailable");
+                lines.push_back("Growing slots "+seasonal_windows(rule));
+                lines.push_back(status.growing ? "Actual growing window OPEN":"Off-season: productive work blocked");
+                lines.push_back(status.harvest_allowed ? "Actual harvest window OPEN":"Actual harvest window closed");
+                lines.push_back("Actual work "+std::to_string(status.productive_progress)+"/80"+
+                    (status.harvest_ready ? " | READY":" | not ready"));
+                if(status.model>=original::ModelBuilding::WheatField && status.model<=original::ModelBuilding::SoybeanField)
+                    lines.push_back("At-field harvest work "+std::to_string(status.harvest_progress)+"/5");
+                lines.push_back("Wasted work "+std::to_string(status.wasted_work)+" | expired ready "+std::to_string(status.expired_ready));
+                lines.push_back(status.burning ? "Producer on fire":!status.operating ? "Producer paused":
+                    !status.staffed ? "Producer understaffed":!status.road_connected ? "Producer road entrance missing":
+                    "Producer staffed and operating");
+                lines.push_back(std::string("Actual water context ")+(status.water_available ? "wet":"dry")+" | yield inactive");
+                lines.push_back("Only physical harvest/pickup and source return credit stock; loaded cargo survives seasons");
+                lines.push_back("AUTHORED growing gate; Original period query is not its quantity callback veto");
+                continue;
+            }
+            if (status.subject==body.id && !status.seasonal_production) {
+                if(!status.seasonal_production)lines.push_back(status.authored_production_active ? "Actual AUTHORED adapter available":"Original productive quantity disabled");
                 const bool plant=simulation::original_industry_plant(body.kind);
-                if(status.productive_target)lines.push_back("Actual progress "+std::to_string(status.productive_progress)+"/"+
+                if(status.productive_target && !status.seasonal_production)lines.push_back("Actual progress "+std::to_string(status.productive_progress)+"/"+
                     std::to_string(status.productive_target)+(plant ? status.harvest_ready ? " | ready":" | not ready":
                         " | automatic adapter harvest"));
                 lines.push_back(status.burning ? "Producer on fire":!status.operating ? "Producer paused":
@@ -6642,13 +6736,13 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
                     (status.water_available ? "available":"unavailable")+
                     (status.yield_effect_active ? " | yield effect active":" | yield effect inactive"));
             }
-            const auto& rule=original::season_rule(status.model);
             const auto label="Reference Model"+std::to_string(static_cast<unsigned>(status.model));
             lines.push_back(label+" starts "+reference_slots(rule.start_slots,rule.start_count)+
                 " | ends "+reference_slots(rule.end_slots,rule.end_count));
             lines.push_back(std::string("Reference period ")+(status.reference_growing_period ? "inside":"outside")+
                 (status.reference_growth_suppressed ? " | quantity callback suppressed":" | quantity callback not season-vetoed"));
-            lines.push_back(playable_agriculture() ? "Original seasons are reference only; AUTHORED cycle is independent":
+            lines.push_back(status.seasonal_production ? "AUTHORED growing gate; Original period query is not its quantity callback veto":
+                playable_agriculture() ? "Original seasons are reference only; AUTHORED cycle is independent":
                 "Original seasonal production blocked by "+status.blocker);
         }
         if (models.empty()) lines.push_back("Paid field or plant required");
@@ -7787,6 +7881,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         });
         lines.push_back("Farm workers "+std::to_string(inspection_workers_assigned(farm_id))+"/"+
             std::to_string(world_->workforce_required(farm_id)));
+        if(seasonal_agriculture())append_agriculture_calendar_lines(lines,*id);
         lines.push_back(physical_food_growers() ? "AUTHORED one Grower/Farm; shared staff":"AUTHORED labor: one work unit per staffed Farm/tick");
         lines.push_back(physical_food_growers() ? "Only actual field tending earns work":"80 field work units per portion; shared fairly");
         const simulation::PhysicalFoodGrowerFarm* grower=nullptr;
@@ -7842,8 +7937,12 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             if (field.farm_id!=farm_id) continue;
             ++field_count;
             const auto& body=world_->building(field.field_id);
+            const auto season=std::lower_bound(seasonal_field_eligibility_.begin(),seasonal_field_eligibility_.end(),field.field_id,
+                [](const auto& row,auto wanted){return row.first<wanted;});
+            const bool in_season=!seasonal_agriculture() || (season!=seasonal_field_eligibility_.end() &&
+                season->first==field.field_id && season->second);
             const char* blocker=farm_blocker ? farm_blocker:world_->building_on_fire(field.field_id) ? "Field on fire":
-                !body.operating_enabled ? "Field paused":nullptr;
+                !body.operating_enabled ? "Field paused":!in_season ? "Off-season: field work blocked":nullptr;
             if (!blocker) {
                 ++eligible;
                 if (!first) first=field.field_id;
@@ -7889,7 +7988,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         add_connectivity();add_maintenance(farm_id);add_fire_status(farm_id);
         lines.push_back("Base yield; no irrigation bonus");
         if (debug_open_) {
-            append_agriculture_calendar_lines(lines,*id);
+            if(!seasonal_agriculture())append_agriculture_calendar_lines(lines,*id);
             append_original_building_visual_diagnostic(lines,*id);
         }
         return wrap_panel_lines(lines);
@@ -7931,7 +8030,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         append_agriculture_stock_lines(*world_,farm_id,lines,8);
         add_connectivity();add_maintenance(farm_id);add_fire_status(farm_id);
         lines.push_back("Base yield; no irrigation bonus");
-        if (debug_open_) {
+        if (seasonal_agriculture() || debug_open_) {
             append_agriculture_calendar_lines(lines,*id);
             append_original_building_visual_diagnostic(lines,*id);
         }
@@ -7942,7 +8041,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         (b.kind==simulation::Object::Warehouse || b.kind==simulation::Object::Market);
     const auto number=std::to_string(static_cast<unsigned>(*id));
     lines.push_back(object_name(b.kind)+std::string(" #")+number);
-    if (!playable_agriculture() || debug_open_) append_agriculture_calendar_lines(lines,*id);
+    if (seasonal_agriculture() || !playable_agriculture() || debug_open_) append_agriculture_calendar_lines(lines,*id);
     const bool playable_market=playable_agriculture() && b.kind==simulation::Object::Market;
     if (playable_market) append_agriculture_stock_lines(*world_,*id,lines,16);
     if (original_storage) {
@@ -8146,6 +8245,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back(farm.field_id ? "Paid field #"+std::to_string(static_cast<unsigned>(*farm.field_id)):"Missing paid field: select Farm, M, place adjacent field");
             lines.push_back("Harvested "+std::to_string(farm.harvested));
         }
+        append_seasonal_hemp_lines(*world_,*id,lines);
     } else if (b.kind==simulation::Object::OriginalHempField) {
         for (const auto& farm:world_->original_production_state()->hemp_farms) if (farm.field_id==id) {
             lines.push_back("Bound Farm #"+std::to_string(static_cast<unsigned>(farm.farm_id)));
@@ -8158,7 +8258,9 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 lines.push_back(world_->building_on_fire(farm.farm_id) ? "Farm on fire":
                     !source.operating_enabled ? "Farm paused":
                     !inspection_building_staffed(farm.farm_id) ? "Farm understaffed":"Farm staffed");
-                lines.push_back("Actual Hemp uses the existing adapter; no Original quantity or seasonal yield grant");
+                lines.push_back(seasonal_agriculture() ? "AUTHORED seasonal Hemp; only physical Farm return credits stock":
+                    "Actual Hemp uses the existing adapter; no Original quantity or seasonal yield grant");
+                append_seasonal_hemp_lines(*world_,farm.farm_id,lines);
             }
         }
     } else if (b.kind==simulation::Object::Warehouse) {
@@ -8903,7 +9005,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(physical_food_growers())overview+=" | Policy3 | Save47 | Physical Food Growers | real crop return";
+        if(seasonal_agriculture())overview+=" | Policy3 | Save48 | Seasons | real harvest and return";
+        else if(physical_food_growers())overview+=" | Policy3 | Save47 | Physical Food Growers | real crop return";
         else if(multi_field_agriculture())overview+=" | Policy3 | Save46 | Multi-field Agriculture | shared Farm labor";
         else if(playable_hunting())overview+=" | Policy3 | Save45 | Playable Hunting | AUTHORED seven Foods";
         else if(playable_fishing())overview+=" | Policy3 | Save44 | Playable Fishing | AUTHORED six Foods";
@@ -9641,6 +9744,7 @@ bool SandboxView::draw_help_overlay() {
     const int line=16*layout_.scale;
     if (original_production_fixture()) {
         const std::array<const char*,17> help{
+            seasonal_agriculture() ? "SEASONAL AGRICULTURE - H closes":
             physical_food_growers() ? "PHYSICAL FOOD GROWERS - H closes":
                 multi_field_agriculture() ? "MULTI-FIELD AGRICULTURE - H closes":
                 playable_hunting() ? "PLAYABLE HUNTING - H closes":
