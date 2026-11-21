@@ -66,6 +66,11 @@ and return. Plan stored reserves and year-round fishing/hunting for scarcity.
 These schedules and yields are authored; older modes keep their existing clocks.
 See the [seasonal guide](docs/original-economy/agriculture.md#seasonal-agriculture-agri-mac07).
 
+**X Irrigation yields** or `--irrigation-productivity` selects separate Rule33.
+An actually supplied, eligible crop earns one extra growth unit per four real
+wet work ticks. Inspect a field or plant for its Pump, wet/dry state, retained
+carry and current work blocker. Harvesting and physical return still credit stock.
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

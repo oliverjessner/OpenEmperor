@@ -38,6 +38,14 @@ complete original-game compatibility.
   Unqualified Tent/animal/Hunter sprites use labelled authored fallbacks. The
   [hunting contract](docs/original-economy/agriculture.md#playable-hunting-agri-mac03)
   separates these rules from historical Original research and saves.
+- **Irrigation productivity is a separate authored successor.** Rule33/schema49
+  adds bounded+25% earned growth work on actual wet eligible crop ticks for all
+  nine crop types. It changes cadence, never the one-portion harvest, physical
+  transport or stock authority. Actual network phases, fire, staffing and cuts
+  control the effect. Native Original yield/fertility/Flood/x87 parity remains
+  open; human playtest follows the final milestone. Historical Rules1–32 retain
+  their exact semantics, including inactive numeric effects in32 and older.
+  See [the contract](docs/original-economy/agriculture.md#irrigation-productivity-agri-mac08).
 - **Seasons are an explicit authored successor.** Rule32/schema48 uses the
   shared51×16×12 World calendar for five Food crops and Hemp/Tea/Lacquer/Mulberry.
   Relative windows are source-observed; work suppression, partial loss, grace,
@@ -57,7 +65,7 @@ complete original-game compatibility.
   allows up to eight independently progressing paid fields per Farm with one
   shared work unit/tick and the existing sole seven-kind Food account. Physical
   crop Growers are available separately in Rule31 and seasons in Rule32; irrigation
-  yield effects remain future work.
+  yield effects are separately opt-in through Rule33.
   There is no Original field-work or harvest-parity claim. Rice retains static
   qualified paddy art. Historical rules and save generations stay exact. See
   [the contract](docs/original-economy/agriculture.md#multi-field-agriculture-agri-mac05).

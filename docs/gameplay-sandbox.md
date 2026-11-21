@@ -209,6 +209,15 @@ work survive. Loaded returns retain cargo and reserved bin room. Historical
 Rules1–30/schemas1–46, defaults and research sessions remain exact. See
 [Agriculture](original-economy/agriculture.md#physical-food-growers-agri-mac06).
 
+The separate **X Irrigation yields (33)** / `--irrigation-productivity`
+selection uses Rule33/policy3/schema49 with marker
+`authored-irrigation-productivity-v1`. It inherits Rule32 and adds one bonus
+growth unit per four actual eligible wet work ticks on all nine crop types,
+with per-crop rational carry and cap80. The existing phase27 paid water network
+is sole supply authority; physical Food harvest work, pickup, return and stock
+remain unchanged. Historical Rules1–32 and defaults keep their exact contracts.
+See [irrigation productivity](original-economy/agriculture.md#irrigation-productivity-agri-mac08).
+
 The separate **Z Seasons (32)** / `--seasonal-agriculture` selection uses
 Rule32/policy3/schema48 and marker `authored-seasonal-agriculture-v1`.
 It inherits Rule31 and gates five Food crops plus Hemp/Tea/Lacquer/Mulberry on

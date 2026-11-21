@@ -26,15 +26,15 @@ void ready_valid(original::ModelBuilding model,std::optional<std::uint64_t> read
 }
 template<class Buildings>
 void validate_food_plants(const SeasonalAgricultureState& s,const HuntingFoodState& food,const MultiFieldAgricultureState& work,
-    const PlantationsState& plants,const Buildings& bodies,std::uint64_t tick){
+    const PlantationsState& plants,const Buildings& bodies,std::uint64_t tick,const IrrigationProductivityState* irrigation=nullptr){
     if(s.fields.size()!=food.fields.size()||s.plants.size()!=plants.plants.size()||s.fields.size()>agriculture_field_limit||s.plants.size()>plantation_plant_limit)
         invalid("Seasonal authority must bind every paid Field and plant once");
     for(std::size_t i=0;i<s.fields.size();++i){
         const auto& f=s.fields[i];const auto& base=food.fields[i];const auto& paid=row(bodies,f.field_id,body_id);
         const auto& source=row(bodies,f.farm_id,body_id);const auto& w=row(work.fields,f.field_id,food_id);
-        if(f.field_id!=base.field_id||f.farm_id!=base.farm_id||w.farm_id!=f.farm_id||f.wasted_work>w.productive_ticks)
+        if(f.field_id!=base.field_id||f.farm_id!=base.farm_id||w.farm_id!=f.farm_id||f.wasted_work>irrigation_earned_work(w.productive_ticks,irrigation,f.field_id))
             invalid("Seasonal Food identity or work loss invalid");
-        const auto net=w.productive_ticks-f.wasted_work;
+        const auto net=irrigation_earned_work(w.productive_ticks,irrigation,f.field_id)-f.wasted_work;
         if(base.harvested>net/80||net-base.harvested*80>80||f.expired_ready>f.wasted_work/80||
            w.productive_ticks>seasonal_work_opportunities(food_model(base.crop),std::max(paid.placed_tick,source.placed_tick),tick))
             invalid("Seasonal Food work exceeds its paid growing opportunities");
@@ -52,9 +52,9 @@ void validate_food_plants(const SeasonalAgricultureState& s,const HuntingFoodSta
     }
     for(std::size_t i=0;i<s.plants.size();++i){
         const auto& f=s.plants[i];const auto& p=plants.plants[i];const auto& paid=row(bodies,f.plant_id,body_id);
-        if(f.plant_id!=p.plant_id||f.source_id!=p.source_id||p.growth>80||f.wasted_work>p.productive_ticks)
+        if(f.plant_id!=p.plant_id||f.source_id!=p.source_id||p.growth>80||f.wasted_work>irrigation_earned_work(p.productive_ticks,irrigation,p.plant_id))
             invalid("Seasonal plant lost paid source or work");
-        const auto net=p.productive_ticks-f.wasted_work;
+        const auto net=irrigation_earned_work(p.productive_ticks,irrigation,p.plant_id)-f.wasted_work;
         if(p.harvested>net/80||net-p.harvested*80!=p.growth||f.expired_ready>f.wasted_work/80||
            p.grown<p.harvested||p.grown-p.harvested<f.expired_ready||p.grown-p.harvested-f.expired_ready!=static_cast<unsigned>(p.growth==80)||
            f.ready_tick.has_value()!=(p.growth==80)||(!seasonal_growing(plant_model(paid.kind),tick)&&p.growth>0&&p.growth<80)||
@@ -63,13 +63,13 @@ void validate_food_plants(const SeasonalAgricultureState& s,const HuntingFoodSta
         ready_valid(plant_model(paid.kind),f.ready_tick,tick,paid.placed_tick);
         if(f.ready_tick&&p.productive_ticks>seasonal_work_opportunities(plant_model(paid.kind),paid.placed_tick,*f.ready_tick))
             invalid("Plant readiness predates its earned growing work");
-        if(p.last_receipt&&(!p.last_receipt->ready_tick||seasonal_work_opportunities(plant_model(paid.kind),paid.placed_tick,p.last_receipt->ready_tick)<80||
+        if(p.last_receipt&&(!p.last_receipt->ready_tick||seasonal_work_opportunities(plant_model(paid.kind),paid.placed_tick,p.last_receipt->ready_tick)<(irrigation?64U:80U)||
            !seasonal_harvest_allowed(plant_model(paid.kind),p.last_receipt->picked_tick,p.last_receipt->ready_tick)))
             invalid("Seasonal plant receipt picked an expired ready cycle");
     }
     for(const auto& source:plants.sources)if(source.latest_trip){
         const auto& t=*source.latest_trip;const auto& paid=row(bodies,t.plant_id,body_id);
-        if(!t.ready_tick||t.ready_tick>t.dispatched_tick||seasonal_work_opportunities(plant_model(paid.kind),paid.placed_tick,t.ready_tick)<80||
+        if(!t.ready_tick||t.ready_tick>t.dispatched_tick||seasonal_work_opportunities(plant_model(paid.kind),paid.placed_tick,t.ready_tick)<(irrigation?64U:80U)||
            !seasonal_harvest_allowed(plant_model(paid.kind),t.dispatched_tick,t.ready_tick)||
            (t.picked_tick&&!seasonal_harvest_allowed(plant_model(paid.kind),*t.picked_tick,t.ready_tick)))
             invalid("Seasonal plant trip lacks its exact live ready-cycle commitment");
@@ -91,7 +91,7 @@ World World::restore_seasonal_agriculture(const WorldSnapshot& s,std::shared_ptr
 std::uint32_t World::seasonal_food_progress(BuildingId id)const{
     if(!seasonal_agriculture_enabled())return 0;
     const auto& f=row(hunting_food_->fields,id,food_id);const auto& season=row(seasonal_agriculture_->fields,id,food_id);
-    const auto total=row(multi_field_agriculture_->fields,id,food_id).productive_ticks;
+    const auto total=irrigation_earned_work(row(multi_field_agriculture_->fields,id,food_id).productive_ticks,irrigation_productivity_?&*irrigation_productivity_:nullptr,id);
     if(total<season.wasted_work||f.harvested>(total-season.wasted_work)/80)invalid("Seasonal crop progress underflow");
     const auto progress=total-season.wasted_work-f.harvested*80;if(progress>80)invalid("Seasonal crop cycle exceeded80 work units");
     return static_cast<std::uint32_t>(progress);
@@ -127,12 +127,12 @@ void World::validate_seasonal_agriculture_snapshot(const WorldSnapshot& s){
     }
     if(!s.seasonal_agriculture||!s.hunting_food||!s.multi_field_agriculture||!s.plantations||!s.original_production||!s.original_goods)
         invalid("Seasonal mode lacks its exact inherited authorities");
-    validate_food_plants(*s.seasonal_agriculture,*s.hunting_food,*s.multi_field_agriculture,*s.plantations,s.buildings,s.ticks);
+    validate_food_plants(*s.seasonal_agriculture,*s.hunting_food,*s.multi_field_agriculture,*s.plantations,s.buildings,s.ticks,s.irrigation_productivity?&*s.irrigation_productivity:nullptr);
     validate_seasonal_hemp_snapshot(s);
 }
 void World::validate_seasonal_agriculture_state()const{
     if(!seasonal_agriculture_enabled())return;
-    validate_food_plants(*seasonal_agriculture_,*hunting_food_,*multi_field_agriculture_,*plantations_,buildings_,ticks_);
+    validate_food_plants(*seasonal_agriculture_,*hunting_food_,*multi_field_agriculture_,*plantations_,buildings_,ticks_,irrigation_productivity_?&*irrigation_productivity_:nullptr);
     validate_seasonal_hemp_state();
 }
 }

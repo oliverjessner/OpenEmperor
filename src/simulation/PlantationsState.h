@@ -1,10 +1,11 @@
 #pragma once
 
 #include "simulation/OriginalIndustryState.h"
+#include "simulation/IrrigationProductivityState.h"
 
 namespace openemperor::simulation {
 
-// Agriculture Rule25 only. Original commodity identities retain the existing
+// Versioned Agriculture lineage. Original commodity identities retain the existing
 // six-Goods/five-Aux ledgers; these rows never contain a second inventory.
 enum class PlantationGrowerId : std::uint64_t {};
 inline constexpr std::uint32_t plantations_revision=1;
@@ -21,11 +22,13 @@ struct PlantationReceipt {
     std::uint64_t dispatched_tick=0,picked_tick=0,returned_tick=0;
     // Rule32 binds the exact ready cycle, not a later regrowth.
     std::uint64_t ready_tick=0;
+    std::optional<IrrigationWorkWitness> irrigation_ready_work{};
     bool operator==(const PlantationReceipt&) const = default;
 };
 struct PlantationPlant {
     BuildingId plant_id{},source_id{};
-    // 0..80 productive ticks. 80 means exactly one harvestable unit; the
+    // 0..80 growth units (Rule33 adds earned bonus to actual base ticks).
+    // 80 means exactly one harvestable unit; the
     // plant remains after harvest and starts the next paid work cycle at zero.
     std::uint32_t growth=0;
     std::uint64_t productive_ticks=0,grown=0,harvested=0,returned=0;
@@ -41,6 +44,7 @@ struct PlantationTrip {
     // picked unit remains on the worker until its actual source return.
     std::uint8_t delivered=0;
     std::uint64_t ready_tick=0;
+    std::optional<IrrigationWorkWitness> irrigation_ready_work{};
     bool operator==(const PlantationTrip&) const = default;
 };
 struct PlantationSource {

@@ -964,7 +964,7 @@ void World::tick_original_production() {
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
     if (irrigation_enabled()) refresh_irrigation();
     validate_original_food_state();validate_original_industry_state();
-    validate_plantations_state();validate_physical_food_growers_state();validate_seasonal_agriculture_state();
+    validate_irrigation_productivity_state();validate_plantations_state();validate_physical_food_growers_state();validate_seasonal_agriculture_state();
     validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();validate_original_venue_house_service_state();
     const auto balances=original_production_goods_balances();
     if (!population_valid() || !fire_state_valid() || !production_balance_valid() || !navigation_valid() ||

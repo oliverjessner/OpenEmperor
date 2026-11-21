@@ -544,6 +544,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v28{28,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v33{33,32,64,32,5,800};
+    if (irrigation_productivity_enabled(profile,version)) return city_v16_v33;
     static constexpr ProfileRules city_v16_v32{32,32,64,32,5,800};
     if (seasonal_agriculture_enabled(profile,version)) return city_v16_v32;
     static constexpr ProfileRules city_v16_v31{31,32,64,32,5,800};
@@ -641,6 +643,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     if(multi_field_agriculture_enabled()) multi_field_agriculture_.emplace();
     if(physical_food_growers_enabled()) physical_food_growers_.emplace();
     if(seasonal_agriculture_enabled()) seasonal_agriculture_.emplace();
+    if(irrigation_productivity_enabled()) irrigation_productivity_.emplace();
     if(original_plantations_enabled()) plantations_.emplace();
     if(irrigation_enabled()) {
         if (!original_terrain_facts_->irrigation_complete())
@@ -2212,6 +2215,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
             if(seasonal_agriculture_enabled()) {
                 SeasonalPlant plant;plant.plant_id=body.id;plant.source_id=command.building_id;
                 seasonal_agriculture_->plants.push_back(std::move(plant));
+                if(irrigation_productivity_enabled())irrigation_productivity_->work.push_back({body.id});
             }
         } else {
             const auto source=std::lower_bound(original_production_->industry.sources.begin(),original_production_->industry.sources.end(),command.building_id,
@@ -2310,6 +2314,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
             if(seasonal_agriculture_enabled()) {
                 SeasonalFoodField work;work.field_id=field.id;work.farm_id=*parent;
                 seasonal_agriculture_->fields.push_back(std::move(work));
+                if(irrigation_productivity_enabled())irrigation_productivity_->work.push_back({field.id});
             }
             break;
         }
@@ -2334,7 +2339,9 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         auto& field=add_v10_building(Object::OriginalHempField);field.placed_tick=ticks_;
         const auto farm=std::find_if(original_production_->hemp_farms.begin(),original_production_->hemp_farms.end(),
             [&](const auto& row){return row.farm_id==command.building_id;});
-        farm->field_id=field.id;break;
+        farm->field_id=field.id;
+        if(irrigation_productivity_enabled())irrigation_productivity_->work.push_back({field.id});
+        break;
     }
     case CommandType::PlaceRoad:
         objects_[index(command.cell)]=Object::Road;
@@ -4820,6 +4827,7 @@ std::string World::canonical_state() const {
                 epoch(trip.arrived_tick);epoch(trip.harvested_tick);epoch(trip.returned_tick);
                 out<<','<<trip.work_before<<','<<trip.work_ticks<<','<<unsigned(trip.wait_left)<<','<<unsigned(trip.delivered)<<','<<trip.cancel_requested;
                 if(seasonal_agriculture_enabled()){out<<','<<trip.wasted_work_before;epoch(trip.ready_tick);}
+                if(irrigation_productivity_enabled())out<<','<<trip.irrigation_bonus_before;
             }
         }
         for(const auto& field:state.fields) {
@@ -4829,6 +4837,7 @@ std::string World::canonical_state() const {
                 out<<','<<receipt.grower_id.value<<','<<static_cast<unsigned>(receipt.courier_id)<<','<<unsigned(receipt.crop)<<','<<receipt.dispatched_tick<<','<<receipt.arrived_tick
                    <<','<<receipt.harvested_tick<<','<<receipt.returned_tick<<','<<receipt.work_at_harvest;
                 if(seasonal_agriculture_enabled())out<<','<<receipt.wasted_work_at_harvest<<','<<receipt.ready_tick;
+                if(irrigation_productivity_enabled())out<<','<<receipt.irrigation_bonus_at_harvest;
             }
         }
         out<<'|';
@@ -4837,6 +4846,24 @@ std::string World::canonical_state() const {
         out<<multi_field_agriculture_contract<<':'<<multi_field_agriculture_revision<<'|';
         for(const auto& farm:multi_field_agriculture_->farms)out<<"|mf:"<<static_cast<unsigned>(farm.farm_id)<<','<<static_cast<unsigned>(farm.last_field.value_or(static_cast<BuildingId>(0)));
         for(const auto& field:multi_field_agriculture_->fields)out<<"|mw:"<<static_cast<unsigned>(field.field_id)<<','<<static_cast<unsigned>(field.farm_id)<<','<<field.productive_ticks;
+    }
+    if(irrigation_productivity_) {
+        out<<'|'<<irrigation_productivity_contract<<':'<<irrigation_productivity_revision;
+        for(const auto& w:irrigation_productivity_->work)
+            out<<';'<<static_cast<std::uint32_t>(w.building_id)<<','<<w.wet_work_ticks<<','<<w.bonus_work<<','<<w.clipped_bonus;
+        const auto witness=[&](char kind,BuildingId owner,std::uint64_t id,const std::optional<IrrigationWorkWitness>& value){
+            out<<';'<<kind<<static_cast<std::uint32_t>(owner)<<','<<id;
+            if(value){const auto& v=*value;out<<','<<v.base_work<<','<<v.wet_work_ticks<<','<<v.bonus_work<<','<<v.clipped_bonus<<','<<v.wasted_work;}
+            else out<<",missing";
+        };
+        for(const auto& p:plantations_->sources)if(p.latest_trip)
+            witness('p',p.building_id,static_cast<std::uint64_t>(p.latest_trip->grower_id),p.latest_trip->irrigation_ready_work);
+        for(const auto& p:plantations_->plants)if(p.last_receipt)
+            witness('r',p.plant_id,static_cast<std::uint64_t>(p.last_receipt->grower_id),p.last_receipt->irrigation_ready_work);
+        for(const auto& f:seasonal_agriculture_->hemp_farms){
+            if(f.latest_trip)witness('h',f.farm_id,f.latest_trip->grower_id.value,f.latest_trip->irrigation_ready_work);
+            if(f.last_receipt)witness('s',f.farm_id,f.last_receipt->grower_id.value,f.last_receipt->irrigation_ready_work);
+        }
     }
     if(seasonal_agriculture_) {
         const auto& state=*seasonal_agriculture_;
@@ -5314,6 +5341,7 @@ WorldSnapshot World::snapshot() const {
     s.multi_field_agriculture=multi_field_agriculture_;
     s.physical_food_growers=physical_food_growers_;
     s.seasonal_agriculture=seasonal_agriculture_;
+    s.irrigation_productivity=irrigation_productivity_;
     s.fishing_food=fishing_food_;s.fishing=fishing_;
     s.plantations=plantations_;
     s.irrigation=irrigation_;
@@ -5362,6 +5390,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     if(s.navigation_session_present)
         throw std::invalid_argument("Transient grower navigation cannot be restored as historical saved authority");
     performance::increment(performance::Counter::WorldRestores);
+    validate_irrigation_productivity_snapshot(s);
     validate_seasonal_agriculture_snapshot(s);
     validate_physical_food_growers_snapshot(s);
     validate_multi_field_agriculture_snapshot(s);
@@ -5396,6 +5425,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.multi_field_agriculture_=s.multi_field_agriculture;
     w.physical_food_growers_=s.physical_food_growers;
     w.seasonal_agriculture_=s.seasonal_agriculture;
+    w.irrigation_productivity_=s.irrigation_productivity;
     w.fishing_food_=s.fishing_food;w.fishing_=s.fishing;
     w.plantations_=s.plantations;
     w.irrigation_=s.irrigation;

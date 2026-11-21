@@ -1,5 +1,6 @@
 #pragma once
 #include "simulation/PhysicalFoodGrowersState.h"
+#include "simulation/IrrigationProductivityState.h"
 #include "simulation/original/ModelSchema.h"
 
 namespace openemperor::simulation {
@@ -35,11 +36,13 @@ struct SeasonalHempTrip {
     std::uint64_t dispatched_tick=0,ready_tick=0;
     std::optional<std::uint64_t> picked_tick,returned_tick;
     std::uint8_t delivered=0;
+    std::optional<IrrigationWorkWitness> irrigation_ready_work{};
     bool operator==(const SeasonalHempTrip&)const=default;
 };
 struct SeasonalHempReceipt {
     SeasonalHempGrowerId grower_id{};CourierId courier_id{};BuildingId field_id{};
     std::uint64_t dispatched_tick=0,ready_tick=0,picked_tick=0,returned_tick=0;
+    std::optional<IrrigationWorkWitness> irrigation_ready_work{};
     bool operator==(const SeasonalHempReceipt&)const=default;
 };
 struct SeasonalHempFarm {

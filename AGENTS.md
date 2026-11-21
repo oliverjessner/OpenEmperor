@@ -322,6 +322,23 @@
   cross-generation overwrite. Water yield effects remain inactive. No Original
   calendar, work cadence, harvest arithmetic or animation parity is claimed. See
   [seasonal Agriculture](docs/original-economy/agriculture.md#seasonal-agriculture-agri-mac07).
+- Irrigation productivity is explicit Rule33/policy3/schema49, marker
+  `authored-irrigation-productivity-v1`, revision1, X/`--irrigation-productivity`.
+  Inherit Rule32 and preserve actual base-work tick histories. Each otherwise
+  eligible actual wet growth tick on the five Food fields, Hemp and three
+  plantation kinds earns one quarter bonus; every fourth adds one growth unit,
+  cap80 with consumed clipped excess. Per-crop carry is wet modulo4 and persists
+  without creating work while dry/ineligible. The existing end-of-tick phase27
+  water cache alone grants supply; fire/staff/operation/cuts invalidate through
+  existing boundaries, restart waits for real refill. No stacked Pumps, harvest
+  work bonus, direct stock, changed portions, Rice Pump requirement or extra
+  bodies/channels. Physical arrival/return stays sole inventory authority.
+  Exact earned growth is base+bonus; wet/4=bonus+clipped. Schema49 binds all crop
+  rows, Food dispatch/receipt bonus epochs and immutable five-counter material
+  readiness witnesses. Enforce exact same-ready counters and ordinal/physical
+  history; known ditch epochs are checked outside normal ticks. Never serialize
+  wet caches. The successor leaves Rules1–32/schemas1–48/defaults exact without migration/overwrite.
+  See [irrigation productivity](docs/original-economy/agriculture.md#irrigation-productivity-agri-mac08).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

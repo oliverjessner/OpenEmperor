@@ -217,6 +217,24 @@ std::string seasonal_windows(const original::SeasonRule& rule) {
     }
     return text;
 }
+void append_irrigation_productivity_lines(std::vector<std::string>& lines,
+        const simulation::IrrigationProductivityStatus& status) {
+    if(!status.supported)return;
+    lines.push_back("Irrigation productivity | AUTHORED +1 per4 wet growth ticks");
+    lines.push_back(std::string("Actual water ")+(status.water_available ? "WET":"DRY")+
+        (status.supplying_pump ? " | Pump #"+std::to_string(static_cast<unsigned>(*status.supplying_pump)):" | Pump none"));
+    lines.push_back(status.wet_ditch ? "Supplying Ditch "+std::to_string(status.wet_ditch->x)+","+
+        std::to_string(status.wet_ditch->y):"Supplying Ditch none");
+    lines.push_back("Current growth increment "+std::to_string(status.next_increment)+
+        (status.bonus_active ? " | wet bonus eligible":" | wet bonus inactive"));
+    lines.push_back("Wet carry "+std::to_string(status.carry)+"/4 | retained across dry and blocked work");
+    lines.push_back("Actual base work "+std::to_string(status.base_work_ticks)+" | wet work "+std::to_string(status.wet_work_ticks));
+    lines.push_back("Bonus earned "+std::to_string(status.bonus_work)+" | clipped at80 "+std::to_string(status.clipped_bonus));
+    lines.push_back(status.work_eligible ? "Next productive opportunity: eligible now":
+        "Next productive opportunity: await eligible growth");
+    lines.push_back("Work blocker: "+(status.work_eligible ? std::string("none"):status.reason));
+    lines.push_back("Only real eligible wet growth advances carry; harvest work has no bonus");
+}
 bool append_agriculture_stock_lines(const simulation::World& world,simulation::BuildingId id,
         std::vector<std::string>& lines,int capacity) {
     if (!world.original_agriculture_enabled()) return false;
@@ -850,6 +868,16 @@ std::unique_ptr<SandboxView> SandboxView::create_playable_agriculture(
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_irrigation_productivity(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid Irrigation Productivity difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule33 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kIrrigationProductivityRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;return result;
+}
+
 std::unique_ptr<SandboxView> SandboxView::create_seasonal_agriculture(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
     if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
@@ -1061,7 +1089,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : seasonal_agriculture() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : irrigation_productivity() ?
+        persistence::restore_irrigation_productivity(document,data_root_,buildable_mask_) : seasonal_agriculture() ?
         persistence::restore_seasonal_agriculture(document,data_root_,buildable_mask_) : physical_food_growers() ?
         persistence::restore_physical_food_growers(document,data_root_,buildable_mask_) : multi_field_agriculture() ?
         persistence::restore_multi_field_agriculture(document,data_root_,buildable_mask_) : playable_hunting() ?
@@ -1194,7 +1223,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : seasonal_agriculture() ?
+                std::move(permissions)) : irrigation_productivity() ?
+            persistence::restore_irrigation_productivity(*initial_save_,data_root_,buildable_mask_,
+                std::move(permissions),nullptr,std::move(terrain)) : seasonal_agriculture() ?
             persistence::restore_seasonal_agriculture(*initial_save_,data_root_,buildable_mask_,
                 std::move(permissions),nullptr,std::move(terrain)) : physical_food_growers() ?
             persistence::restore_physical_food_growers(*initial_save_,data_root_,buildable_mask_,
@@ -1256,6 +1287,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (irrigation_productivity()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_irrigation_productivity(
+            std::move(permissions),persistence::prepare_playable_hunting_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_="Irrigation productivity: actual eligible wet work earns +25% growth; physical harvest and return still required.";
     } else if (seasonal_agriculture()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_seasonal_agriculture(
             std::move(permissions),persistence::prepare_playable_hunting_rules_model(data_root_,
@@ -1413,7 +1449,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(seasonal_agriculture())title+=" | save schema 48 | Seasonal Agriculture (AUTHORED)";
+    if(irrigation_productivity())title+=" | save schema 49 | Irrigation Productivity (AUTHORED)";
+    else if(seasonal_agriculture())title+=" | save schema 48 | Seasonal Agriculture (AUTHORED)";
     else if(physical_food_growers())title+=" | save schema 47 | Physical Food Growers (AUTHORED)";
     else if(multi_field_agriculture())title+=" | save schema 46 | Multi-field Agriculture (AUTHORED)";
     else if(playable_hunting())title+=" | save schema 45 | Playable Hunting (AUTHORED)";
@@ -2426,7 +2463,7 @@ bool SandboxView::draw_irrigation_overlay() {
         const auto kind=body.kind;
         const bool field=kind==simulation::Object::OriginalWheatField || kind==simulation::Object::OriginalMilletField ||
             kind==simulation::Object::OriginalRiceField || kind==simulation::Object::OriginalCabbageField ||
-            kind==simulation::Object::OriginalSoybeanField || simulation::original_industry_plant(kind);
+            kind==simulation::Object::OriginalSoybeanField || (irrigation_productivity() && kind==simulation::Object::OriginalHempField) || simulation::original_industry_plant(kind);
         if (!body.placed || !field) continue;
         const auto status=world_->irrigation_field_status(body.cell);
         const auto ground=world_for({double(body.cell.x),double(body.cell.y)});
@@ -2454,7 +2491,8 @@ bool SandboxView::draw_irrigation_overlay() {
     } restore_clip{renderer_,clipped,clip};
     return
         draw_text(layout_.map.x+8*scale,layout_.map.y+8*scale,"Irrigation: blue supplied / brown dry",width) &&
-        draw_text(layout_.map.x+8*scale,layout_.map.y+25*scale,playable_agriculture() ?
+        draw_text(layout_.map.x+8*scale,layout_.map.y+25*scale,irrigation_productivity() ?
+            "AUTHORED wet work: +1 progress per4 eligible wet ticks":playable_agriculture() ?
             "AUTHORED base yields; no irrigation bonus":"Yield bonuses PARTIAL; locked crops remain locked",width);
 }
 
@@ -4213,7 +4251,8 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         }
         if (action==A::IrrigationOverlay) {
             cancel_gesture();irrigation_overlay_=!irrigation_overlay_;
-            last_message_=irrigation_overlay_ ? playable_agriculture() ?
+            last_message_=irrigation_overlay_ ? irrigation_productivity() ?
+                "Irrigation overlay: blue supplied, brown dry; actual eligible wet work earns extra progress":playable_agriculture() ?
                 "Irrigation overlay: blue supplied, brown dry; AUTHORED base yields; no water bonus":
                 "Irrigation overlay: blue supplied, brown dry; yield bonus PARTIAL":"Irrigation overlay off";return;
         }
@@ -6703,6 +6742,8 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
             if(status.seasonal_production) {
                 lines.push_back("Seasonal Model"+std::to_string(static_cast<unsigned>(status.model))+" #"+
                     std::to_string(static_cast<unsigned>(status.subject))+" | AUTHORED");
+                if(irrigation_productivity())
+                    append_irrigation_productivity_lines(lines,world_->irrigation_productivity_status(status.subject));
                 lines.push_back(status.ready_expiry_tick ? "Ready crop expires before tick "+std::to_string(*status.ready_expiry_tick):
                     "No pending ready crop expiry");
                 lines.push_back(status.next_opening_tick ? "Next growing opening tick "+std::to_string(*status.next_opening_tick):
@@ -6718,7 +6759,8 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
                 lines.push_back(status.burning ? "Producer on fire":!status.operating ? "Producer paused":
                     !status.staffed ? "Producer understaffed":!status.road_connected ? "Producer road entrance missing":
                     "Producer staffed and operating");
-                lines.push_back(std::string("Actual water context ")+(status.water_available ? "wet":"dry")+" | yield inactive");
+                if(!irrigation_productivity())
+                    lines.push_back(std::string("Actual water context ")+(status.water_available ? "wet":"dry")+" | yield inactive");
                 lines.push_back("Only physical harvest/pickup and source return credit stock; loaded cargo survives seasons");
                 lines.push_back("AUTHORED growing gate; Original period query is not its quantity callback veto");
                 continue;
@@ -7050,6 +7092,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 std::string("Intake: ")+(pump.intake_valid ? "eight water cells valid":"INVALID"),
                 "Orientation "+std::to_string(pump.orientation)+"; paid shoreline2x2",
                 "Water starts at the next scheduled irrigation update",
+                irrigation_productivity() ? "Eligible wet growth earns +1 progress per4 actual wet growth ticks":
                 playable_agriculture() ? "AUTHORED base yields; all five Food crops active; no irrigation bonus":
                     "Yield bonuses PARTIAL; Rice/Cabbage/Soy remain locked"};
             if (!building_profile_ || !building_profile_->irrigation_prepared) lines.push_back("Original irrigation art unavailable; authored marker");
@@ -7057,7 +7100,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
         const bool installed=selected_->x>=0 && selected_->y>=0 && selected_->x<world_->width() && selected_->y<world_->height() &&
             !irrigation_visual_mask_.empty() && irrigation_visual_mask_[static_cast<std::size_t>(selected_->y)*static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(selected_->x)];
-        if (installed) return wrap_panel_lines({"Irrigation Ditch202",world_->irrigation_ditch_wet(*selected_) ? "WET: supplied by an eligible Pump":"DRY: no current supplied connection", "Shift-X removes installed Ditch; no refund", playable_agriculture() ? "Shift-V shows actual supplied state; AUTHORED base yields, no water bonus":
+        if (installed) return wrap_panel_lines({"Irrigation Ditch202",world_->irrigation_ditch_wet(*selected_) ? "WET: supplied by an eligible Pump":"DRY: no current supplied connection", "Shift-X removes installed Ditch; no refund", irrigation_productivity() ? "Shift-V shows actual supply; only eligible wet growth earns extra work":playable_agriculture() ? "Shift-V shows actual supplied state; AUTHORED base yields, no water bonus":
             "Shift-V shows actual supplied state; yield bonuses PARTIAL"});
     }
 
@@ -7347,12 +7390,12 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             if (original_irrigation() && simulation::original_industry_plant(body.kind)) {
                 const auto status=world_->irrigation_field_status(body.cell);
                 lines.push_back(status.water_available ? "Irrigation: supplied Ditch within5 cells":"Irrigation: "+status.reason);
-                lines.push_back(playable_agriculture() ? "AUTHORED base yield; no irrigation bonus":"Irrigation yield bonus: PARTIAL / inactive");
+                lines.push_back(irrigation_productivity() ? "AUTHORED wet growth earns progress; physical return credits stock":playable_agriculture() ? "AUTHORED base yield; no irrigation bonus":"Irrigation yield bonus: PARTIAL / inactive");
             }
 
             lines[2]=simulation::original_industry_plant(body.kind) ?
                 "Bound paid source; work area -3..+4":"Paid plants -> physical returned harvest -> output";
-            lines[3]="80 productive ticks / plant;1 unit / returned harvest";
+            lines[3]=irrigation_productivity() ? "80 earned growth units / plant;1 unit / real return":"80 productive ticks / plant;1 unit / returned harvest";
             const auto& plantations=*world_->plantations_state();
             const auto plant_line=[&](const simulation::PlantationPlant& plant) {
                 lines.push_back("Plant #"+std::to_string(static_cast<unsigned>(plant.plant_id))+" growth "+
@@ -7800,7 +7843,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         if (debug_open_) lines.push_back("Origin "+std::to_string(b.cell.x)+","+std::to_string(b.cell.y));
         return wrap_panel_lines(lines);
     }
-    if (selected_ && world_->object_at(*selected_)==simulation::Object::Road) {
+    if (selected_ && !selected_walker_ && world_->object_at(*selected_)==simulation::Object::Road) {
         constexpr const char* names[]{"neg_y","pos_x","pos_y","neg_x"};
         constexpr char hex[]="0123456789abcdef";
         const auto roads=sandbox_ui::road_neighbor_mask(*world_,*selected_);
@@ -7922,7 +7965,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 lines.push_back(trip.returned_tick ? "Grower retired after real return":physical_grower_phase_name(trip.phase));
                 lines.push_back("Assigned field #"+std::to_string(static_cast<unsigned>(trip.field_id)));
                 lines.push_back(std::string("Crop: ")+agriculture_food_name(static_cast<std::size_t>(trip.crop)));
-                lines.push_back("Field wait "+std::to_string(trip.wait_left)+" | earned work "+std::to_string(trip.work_ticks));
+                lines.push_back("Field wait "+std::to_string(trip.wait_left)+(irrigation_productivity() ? " | base work ":" | earned work ")+std::to_string(trip.work_ticks));
                 lines.push_back("Grower crop cargo "+std::to_string(world_->physical_food_grower_cargo(actor.id))+"/1");
                 lines.push_back("Farm return reserved "+std::to_string(active_grower ? 1:0));
                 if(trip.cancel_requested) lines.push_back("Empty work cancelled; physical return required");
@@ -7955,7 +7998,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Field #"+std::to_string(static_cast<unsigned>(field.field_id))+" "+
                 agriculture_food_names[static_cast<std::size_t>(field.crop)]+" | progress "+
                 std::to_string(world_->agriculture_field_progress(field.field_id))+"/80");
-            if (row!=work.fields.end()) lines.push_back("Work total "+std::to_string(row->productive_ticks));
+            if (row!=work.fields.end()) lines.push_back(std::string(irrigation_productivity() ? "Base work total ":"Work total ")+std::to_string(row->productive_ticks));
             lines.push_back("Actually harvested "+std::to_string(field.harvested));
             if(physical_food_growers()) {
                 for(const auto& receipt:world_->physical_food_growers_state()->fields) if(receipt.field_id==field.field_id) {
@@ -7986,7 +8029,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
         append_agriculture_stock_lines(*world_,farm_id,lines,8);
         add_connectivity();add_maintenance(farm_id);add_fire_status(farm_id);
-        lines.push_back("Base yield; no irrigation bonus");
+        lines.push_back(irrigation_productivity() ? "Wet growth earns progress; no direct stock grant":"Base yield; no irrigation bonus");
         if (debug_open_) {
             if(!seasonal_agriculture())append_agriculture_calendar_lines(lines,*id);
             append_original_building_visual_diagnostic(lines,*id);
@@ -8029,7 +8072,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         }
         append_agriculture_stock_lines(*world_,farm_id,lines,8);
         add_connectivity();add_maintenance(farm_id);add_fire_status(farm_id);
-        lines.push_back("Base yield; no irrigation bonus");
+        lines.push_back(irrigation_productivity() ? "Wet growth earns progress; no direct stock grant":"Base yield; no irrigation bonus");
         if (seasonal_agriculture() || debug_open_) {
             append_agriculture_calendar_lines(lines,*id);
             append_original_building_visual_diagnostic(lines,*id);
@@ -8181,7 +8224,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         if (original_irrigation()) {
             const auto status=world_->irrigation_field_status(b.cell);
             lines.push_back(status.water_available ? "Irrigation: supplied Ditch within5 cells":"Irrigation: "+status.reason);
-            lines.push_back(playable_agriculture() ? "AUTHORED base yield; no irrigation bonus":"Irrigation yield bonus: PARTIAL / inactive");
+            lines.push_back(irrigation_productivity() ? "AUTHORED wet growth earns progress; physical return credits stock":playable_agriculture() ? "AUTHORED base yield; no irrigation bonus":"Irrigation yield bonus: PARTIAL / inactive");
         }
         for (const auto& field:world_->agriculture_fields()) if (field.field_id==*id) {
             lines.push_back(std::string("Output: ")+agriculture_food_names[static_cast<std::size_t>(field.crop)]);
@@ -8240,7 +8283,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
         lines.push_back("Authored field ownership and harvest timing");
     } else if (b.kind==simulation::Object::OriginalHempFarm) {
         lines.push_back("Hemp stock "+std::to_string(displayed_original_stock(*world_,*id,original::Goods::Hemp))+"/8");
-        lines.push_back("Harvest progress "+std::to_string(b.progress)+"/80 productive ticks (authored)");
+        lines.push_back("Harvest progress "+std::to_string(b.progress)+(irrigation_productivity() ?
+            "/80 earned growth units (authored)":"/80 productive ticks (authored)"));
         for (const auto& farm:world_->original_production_state()->hemp_farms) if (farm.farm_id==*id) {
             lines.push_back(farm.field_id ? "Paid field #"+std::to_string(static_cast<unsigned>(*farm.field_id)):"Missing paid field: select Farm, M, place adjacent field");
             lines.push_back("Harvested "+std::to_string(farm.harvested));
@@ -8251,7 +8295,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Bound Farm #"+std::to_string(static_cast<unsigned>(farm.farm_id)));
             if (original_agriculture()) {
                 const auto& source=world_->building(farm.farm_id);
-                lines.push_back("Actual Hemp progress "+std::to_string(source.progress)+"/80 productive ticks (AUTHORED)");
+                lines.push_back("Actual Hemp progress "+std::to_string(source.progress)+(irrigation_productivity() ?
+                    "/80 earned growth units (AUTHORED)":"/80 productive ticks (AUTHORED)"));
                 lines.push_back("Actually harvested "+std::to_string(farm.harvested));
                 lines.push_back("Farm workers "+std::to_string(inspection_workers_assigned(farm.farm_id))+"/"+
                     std::to_string(world_->workforce_required(farm.farm_id)));
@@ -9005,7 +9050,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(seasonal_agriculture())overview+=" | Policy3 | Save48 | Seasons | real harvest and return";
+        if(irrigation_productivity())overview+=" | Policy3 | Save49 | Irrigation productivity | earned wet work";
+        else if(seasonal_agriculture())overview+=" | Policy3 | Save48 | Seasons | real harvest and return";
         else if(physical_food_growers())overview+=" | Policy3 | Save47 | Physical Food Growers | real crop return";
         else if(multi_field_agriculture())overview+=" | Policy3 | Save46 | Multi-field Agriculture | shared Farm labor";
         else if(playable_hunting())overview+=" | Policy3 | Save45 | Playable Hunting | AUTHORED seven Foods";
@@ -9744,6 +9790,7 @@ bool SandboxView::draw_help_overlay() {
     const int line=16*layout_.scale;
     if (original_production_fixture()) {
         const std::array<const char*,17> help{
+            irrigation_productivity() ? "IRRIGATION PRODUCTIVITY - H closes":
             seasonal_agriculture() ? "SEASONAL AGRICULTURE - H closes":
             physical_food_growers() ? "PHYSICAL FOOD GROWERS - H closes":
                 multi_field_agriculture() ? "MULTI-FIELD AGRICULTURE - H closes":

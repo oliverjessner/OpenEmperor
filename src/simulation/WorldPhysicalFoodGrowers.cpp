@@ -24,7 +24,11 @@ struct Observation {std::uint64_t id;BuildingId farm,field;CourierId courier;Agr
     bool operator==(const Observation&)const=default;};
 template<class Buildings,class Couriers>
 void validate_physical_state(const PhysicalFoodGrowersState& state,const HuntingFoodState& food,const MultiFieldAgricultureState& multi,
-    const Buildings& buildings,const Couriers& couriers,std::uint64_t tick,const SeasonalAgricultureState* season=nullptr){
+    const Buildings& buildings,const Couriers& couriers,std::uint64_t tick,const SeasonalAgricultureState* season=nullptr,const IrrigationProductivityState* irrigation=nullptr){
+    if(!irrigation){
+        for(const auto& f:state.farms)if(f.latest_trip&&f.latest_trip->irrigation_bonus_before)invalid("Historical Food trip has irrigation work authority");
+        for(const auto& f:state.fields)if(f.last_receipt&&f.last_receipt->irrigation_bonus_at_harvest)invalid("Historical Food receipt has irrigation work authority");
+    }
     if(!state.next_grower_id||state.farms.size()!=food.farms.size()||state.fields.size()!=food.fields.size()||
        state.farms.size()>5||state.fields.size()>agriculture_field_limit)invalid("Physical Grower collection or ID bounds invalid");
     if(std::count_if(couriers.begin(),couriers.end(),[](const auto& c){return c.role==CourierRole::OriginalFoodGrower;})!=static_cast<std::ptrdiff_t>(state.farms.size()))
@@ -62,13 +66,13 @@ void validate_physical_state(const PhysicalFoodGrowersState& state,const Hunting
         }
         const auto& t=*source.latest_trip;const auto& f=row(food.fields,t.field_id,field_key);const auto& paid=row(buildings,t.field_id,body_key);
         const auto& work=row(multi.fields,t.field_id,field_key);const auto* seasonal=season?&row(season->fields,t.field_id,field_key):nullptr;
-        if((!season&&(t.wasted_work_before||t.ready_tick))||(seasonal&&(t.wasted_work_before>seasonal->wasted_work||t.wasted_work_before>t.work_before)))invalid("Food trip lost seasonal work provenance");
+        if((!season&&(t.wasted_work_before||t.ready_tick))||(seasonal&&(t.wasted_work_before>seasonal->wasted_work||t.wasted_work_before>t.work_before+t.irrigation_bonus_before)))invalid("Food trip lost seasonal work provenance");
         const auto g=static_cast<std::size_t>(t.crop);const auto minimum=gap(farm.cell,paid.cell)*5;
         if(!source.spawned||!t.grower_id.value||t.grower_id.value>=state.next_grower_id||t.grower_id.value<source.spawned||
            f.farm_id!=farm.id||g>=agriculture_crop_count||f.crop!=t.crop||!minimum||
            t.dispatched_tick<=std::max(farm.placed_tick,paid.placed_tick)||t.dispatched_tick>tick||
            source.spawned-1>(t.dispatched_tick-farm.placed_tick-1)/10||
-           c.target!=f.field_id||c.last_dispatched_target!=f.field_id||t.work_ticks>80-(t.work_before-t.wasted_work_before)%80||
+           c.target!=f.field_id||c.last_dispatched_target!=f.field_id||t.work_ticks>80-(t.work_before+t.irrigation_bonus_before-t.wasted_work_before)%80||
            t.work_before>UINT64_MAX-t.work_ticks||work.productive_ticks!=t.work_before+t.work_ticks||t.delivered>1||
            t.wait_left>physical_food_grower_wait_ticks)
             invalid("Physical Grower trip identity/crop/work bounds invalid");
@@ -130,8 +134,8 @@ void validate_physical_state(const PhysicalFoodGrowersState& state,const Hunting
            r.dispatched_tick<=std::max(farm.placed_tick,paid.placed_tick)||r.arrived_tick<r.dispatched_tick||r.arrived_tick-r.dispatched_tick+1<minimum||
            r.harvested_tick<=r.arrived_tick||r.harvested_tick-r.arrived_tick<physical_food_grower_wait_ticks+1||
            r.returned_tick<=r.harvested_tick||r.returned_tick-r.harvested_tick+1<minimum||r.returned_tick>tick||
-           r.wasted_work_at_harvest>r.work_at_harvest||
-           (r.work_at_harvest-r.wasted_work_at_harvest)/80!=p.returned||(r.work_at_harvest-r.wasted_work_at_harvest)%80||!worker.latest_trip||
+           r.wasted_work_at_harvest>r.work_at_harvest+r.irrigation_bonus_at_harvest||
+           (r.work_at_harvest+r.irrigation_bonus_at_harvest-r.wasted_work_at_harvest)/80!=p.returned||(r.work_at_harvest+r.irrigation_bonus_at_harvest-r.wasted_work_at_harvest)%80||!worker.latest_trip||
            (!season&&(r.wasted_work_at_harvest||r.ready_tick))||
            (season&&(!r.ready_tick||r.ready_tick>=r.harvested_tick||r.harvested_tick-r.ready_tick<seasonal_harvest_work_ticks||
             r.work_at_harvest>seasonal_work_opportunities(static_cast<original::ModelBuilding>(195+static_cast<unsigned>(f.crop)),std::max(farm.placed_tick,paid.placed_tick),r.ready_tick)||
@@ -170,10 +174,10 @@ void World::validate_physical_food_growers_snapshot(const WorldSnapshot& s){
         return;
     }
     if(!s.physical_food_growers||!s.hunting_food||!s.multi_field_agriculture)invalid("Physical Food Growers lost sole Food/work authority");
-    validate_physical_state(*s.physical_food_growers,*s.hunting_food,*s.multi_field_agriculture,s.buildings,s.couriers,s.ticks,s.seasonal_agriculture?&*s.seasonal_agriculture:nullptr);
+    validate_physical_state(*s.physical_food_growers,*s.hunting_food,*s.multi_field_agriculture,s.buildings,s.couriers,s.ticks,s.seasonal_agriculture?&*s.seasonal_agriculture:nullptr,s.irrigation_productivity?&*s.irrigation_productivity:nullptr);
 }
 void World::validate_physical_food_growers_state()const{
-    if(physical_food_growers_enabled())validate_physical_state(*physical_food_growers_,*hunting_food_,*multi_field_agriculture_,buildings_,couriers_,ticks_,seasonal_agriculture_?&*seasonal_agriculture_:nullptr);
+    if(physical_food_growers_enabled())validate_physical_state(*physical_food_growers_,*hunting_food_,*multi_field_agriculture_,buildings_,couriers_,ticks_,seasonal_agriculture_?&*seasonal_agriculture_:nullptr,irrigation_productivity_?&*irrigation_productivity_:nullptr);
 }
 int World::physical_food_grower_cargo(CourierId id)const{
     if(!physical_food_growers_)return 0;const auto& c=courier(id);if(c.role!=CourierRole::OriginalFoodGrower)return 0;
@@ -239,6 +243,7 @@ void World::dispatch_physical_food_grower(CourierState& c){
     t.grower_id={physical_food_growers_->next_grower_id++};t.field_id=id;t.crop=row(hunting_food_->fields,id,field_key).crop;
     t.dispatched_tick=ticks_;t.work_before=row(multi_field_agriculture_->fields,id,field_key).productive_ticks;
     if(seasonal_agriculture_enabled()){const auto& cycle=row(seasonal_agriculture_->fields,id,field_key);t.wasted_work_before=cycle.wasted_work;t.ready_tick=cycle.ready_tick;}
+    if(irrigation_productivity_enabled())t.irrigation_bonus_before=irrigation_bonus(&*irrigation_productivity_,id);
     f.latest_trip=t;add(f.spawned);c.target=id;c.last_dispatched_target=id;c.path=*at->second;c.path_vertex=0;c.edge_progress=0;
     c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::ToWarehouse;
 }
@@ -267,6 +272,7 @@ void World::arrive_physical_food_grower(CourierState& c){
         if(seasonal_agriculture_enabled()){
             field.last_receipt->wasted_work_at_harvest=row(seasonal_agriculture_->fields,t.field_id,field_key).wasted_work;
             field.last_receipt->ready_tick=*t.ready_tick;
+            if(irrigation_productivity_enabled())field.last_receipt->irrigation_bonus_at_harvest=irrigation_bonus(&*irrigation_productivity_,t.field_id);
         }
     }
     c.path.clear();c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::IdleAtWorkshop;
@@ -301,6 +307,9 @@ void World::advance_physical_food_growers(){
                 }
                 continue;
             }
+            // Keep labor/trip counters in real ticks; seasonal progress adds
+            // the separately earned bonus recorded by this same work attempt.
+            (void)irrigation_growth_increment(t.field_id,80-seasonal_food_progress(t.field_id));
             auto& work=row(multi_field_agriculture_->fields,t.field_id,field_key);add(work.productive_ticks);++t.work_ticks;
             row(multi_field_agriculture_->farms,source.farm_id,farm_key).last_field=t.field_id;
             if(seasonal_food_progress(t.field_id)==80){cycle.ready_tick=ticks_;t.ready_tick=ticks_;}

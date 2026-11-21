@@ -268,7 +268,8 @@ void World::update_plantations() {
         const auto& source=building(p.source_id);
         if(p.growth==plantation_growth_ticks || !source.operating_enabled || building_on_fire(source.id) ||
             !building(p.plant_id).operating_enabled || !building_staffed_for_tick(source.id) || building_entrances(source.id).empty()) continue;
-        add(p.productive_ticks,1);++p.growth;
+        const auto increment=irrigation_growth_increment(p.plant_id,plantation_growth_ticks-p.growth);
+        add(p.productive_ticks,1);p.growth+=increment;
         if(p.growth==plantation_growth_ticks){add(p.grown,1);
             if(seasonal_agriculture_enabled()){
                 const auto at=std::lower_bound(seasonal_agriculture_->plants.begin(),seasonal_agriculture_->plants.end(),p.plant_id,[](const auto& r,BuildingId id){return r.plant_id<id;});
@@ -310,6 +311,7 @@ void World::dispatch_plantation_grower(CourierState& c) {
         const auto at=std::lower_bound(seasonal_agriculture_->plants.begin(),seasonal_agriculture_->plants.end(),*decision.selected_target,[](const auto& r,BuildingId id){return r.plant_id<id;});
         if(at==seasonal_agriculture_->plants.end()||!at->ready_tick)invalid("Plant dispatch lost ready epoch");worker.latest_trip->ready_tick=*at->ready_tick;
     }
+    if(irrigation_productivity_enabled())worker.latest_trip->irrigation_ready_work=irrigation_ready_work(*decision.selected_target);
     ++worker.spawned;c.target=*decision.selected_target;c.last_dispatched_target=c.target;
     c.path=**route;c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::ToWarehouse;
 }
@@ -348,6 +350,7 @@ void World::arrive_plantation_grower(CourierState& c) {
         add(recipe.completed,1);add(p.returned,1);trip.delivered=1;
         p.last_receipt=PlantationReceipt{trip.grower_id,c.id,trip.dispatched_tick,*trip.picked_tick,ticks_};
         if(seasonal_agriculture_enabled())p.last_receipt->ready_tick=trip.ready_tick;
+        if(irrigation_productivity_enabled())p.last_receipt->irrigation_ready_work=trip.irrigation_ready_work;
     }
     trip.returned_tick=ticks_;c.phase=CourierPhase::IdleAtWorkshop;c.path.clear();c.path_vertex=0;c.edge_progress=0;
     c.route_pending=false;c.route_checked_revision.reset();

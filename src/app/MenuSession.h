@@ -55,7 +55,9 @@ public:
         original_rule_version_==simulation::kPlayableHuntingRuleVersion ||
         original_rule_version_==simulation::kMultiFieldAgricultureRuleVersion ||
         original_rule_version_==simulation::kPhysicalFoodGrowersRuleVersion ||
-        original_rule_version_==simulation::kSeasonalAgricultureRuleVersion; }
+        original_rule_version_==simulation::kSeasonalAgricultureRuleVersion ||
+        original_rule_version_==simulation::kIrrigationProductivityRuleVersion; }
+    bool irrigation_productivity_setup() const { return original_rule_version_==simulation::kIrrigationProductivityRuleVersion; }
     bool seasonal_agriculture_setup() const { return original_rule_version_==simulation::kSeasonalAgricultureRuleVersion; }
     bool playable_agriculture_setup() const { return original_rule_version_==simulation::kPlayableAgricultureRuleVersion; }
     bool physical_food_growers_setup() const { return original_rule_version_==simulation::kPhysicalFoodGrowersRuleVersion; }

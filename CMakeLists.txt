@@ -344,6 +344,7 @@ target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndust
     src/simulation/SeasonalAgricultureRules.cpp
     src/simulation/WorldSeasonalAgriculture.cpp
     src/simulation/WorldSeasonalHemp.cpp
+    src/simulation/WorldIrrigationProductivity.cpp
     src/simulation/WorldGrowerNavigation.cpp
     src/simulation/WorldGrowerLifecycle.cpp
     src/simulation/WorldIrrigation.cpp
@@ -746,6 +747,13 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-physical-food-growers-presentation-tests)
     add_test(NAME physical-food-growers-presentation COMMAND openemperor-physical-food-growers-presentation-tests)
     set_tests_properties(physical-food-growers-presentation PROPERTIES TIMEOUT 600)
+    add_executable(openemperor-irrigation-productivity-presentation-tests
+        tests/IrrigationProductivityPresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-irrigation-productivity-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-irrigation-productivity-presentation-tests)
+    add_test(NAME irrigation-productivity-presentation COMMAND openemperor-irrigation-productivity-presentation-tests)
+    set_tests_properties(irrigation-productivity-presentation PROPERTIES TIMEOUT 600)
     add_executable(openemperor-seasonal-agriculture-presentation-tests
         tests/SeasonalAgriculturePresentationTests.cpp ${original_menu_test_sources})
     target_link_libraries(openemperor-seasonal-agriculture-presentation-tests PRIVATE
@@ -1362,6 +1370,18 @@ if(BUILD_TESTING)
         add_test(NAME physical-food-growers-${physical_grower_layer} COMMAND openemperor-physical-food-growers-${physical_grower_layer}-tests)
         set_tests_properties(physical-food-growers-${physical_grower_layer} PROPERTIES TIMEOUT 600)
     endforeach()
+    foreach(productivity_layer world save)
+        if(productivity_layer STREQUAL "world")
+            set(productivity_test tests/IrrigationProductivityWorldTests.cpp)
+        else()
+            set(productivity_test tests/IrrigationProductivitySaveTests.cpp)
+        endif()
+        add_executable(openemperor-irrigation-productivity-${productivity_layer}-tests ${productivity_test})
+        target_link_libraries(openemperor-irrigation-productivity-${productivity_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-irrigation-productivity-${productivity_layer}-tests)
+        add_test(NAME irrigation-productivity-${productivity_layer} COMMAND openemperor-irrigation-productivity-${productivity_layer}-tests)
+        set_tests_properties(irrigation-productivity-${productivity_layer} PROPERTIES TIMEOUT 600)
+    endforeach()
     foreach(seasonal_layer world save)
         if(seasonal_layer STREQUAL "world")
             set(seasonal_test tests/SeasonalAgricultureWorldTests.cpp)
@@ -1562,6 +1582,9 @@ if(BUILD_TESTING)
         add_test(NAME physical-food-growers-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/PhysicalFoodGrowersCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(physical-food-growers-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME irrigation-productivity-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/IrrigationProductivityCliTests.py $<TARGET_FILE:openemperor>)
+        set_tests_properties(irrigation-productivity-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME seasonal-agriculture-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/SeasonalAgricultureCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(seasonal-agriculture-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
@@ -2263,6 +2286,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-physical-food-growers-acceptance)
     add_test(NAME physical-food-growers-acceptance-cli COMMAND openemperor-physical-food-growers-acceptance --help)
     set_tests_properties(physical-food-growers-acceptance-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-irrigation-productivity-acceptance tools/IrrigationProductivityAcceptance.cpp)
+    target_link_libraries(openemperor-irrigation-productivity-acceptance PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
+    openemperor_enable_warnings(openemperor-irrigation-productivity-acceptance)
+    add_test(NAME irrigation-productivity-acceptance-cli COMMAND openemperor-irrigation-productivity-acceptance --help)
+    set_tests_properties(irrigation-productivity-acceptance-cli PROPERTIES TIMEOUT 30)
     add_executable(openemperor-seasonal-agriculture-acceptance tools/SeasonalAgricultureAcceptance.cpp)
     target_link_libraries(openemperor-seasonal-agriculture-acceptance PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
     openemperor_enable_warnings(openemperor-seasonal-agriculture-acceptance)
@@ -2292,6 +2320,14 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-physical-food-growers-view-acceptance)
     add_test(NAME physical-food-growers-view-cli COMMAND openemperor-physical-food-growers-view-acceptance --help)
     set_tests_properties(physical-food-growers-view-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-irrigation-productivity-view-acceptance
+        tools/IrrigationProductivityViewAcceptance.cpp
+        src/app/MenuSession.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp)
+    target_link_libraries(openemperor-irrigation-productivity-view-acceptance PRIVATE
+        openemperor-original-longplay-view-support Threads::Threads)
+    openemperor_enable_warnings(openemperor-irrigation-productivity-view-acceptance)
+    add_test(NAME irrigation-productivity-view-cli COMMAND openemperor-irrigation-productivity-view-acceptance --help)
+    set_tests_properties(irrigation-productivity-view-cli PROPERTIES TIMEOUT 30)
     add_executable(openemperor-seasonal-agriculture-view-acceptance
         tools/SeasonalAgricultureViewAcceptance.cpp
         src/app/MenuSession.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp)
@@ -2311,6 +2347,12 @@ if(BUILD_TESTING)
             --executable $<TARGET_FILE:openemperor-physical-food-growers-acceptance>
             --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
         set_tests_properties(original-physical-food-growers-real PROPERTIES TIMEOUT 600
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME original-irrigation-productivity-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_irrigation_productivity_replay.py
+            --executable $<TARGET_FILE:openemperor-irrigation-productivity-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        set_tests_properties(original-irrigation-productivity-real PROPERTIES TIMEOUT 1260
             SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME original-seasonal-agriculture-real COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_seasonal_agriculture_replay.py
@@ -2332,7 +2374,7 @@ if(BUILD_TESTING)
             set_tests_properties(original-multi-field-agriculture-real PROPERTIES RUN_SERIAL TRUE)
             # The new eight-year paid seasonal creator/replay also needs an
             # isolated CPU budget; retain its complete duration and deadlines.
-            set_tests_properties(original-seasonal-agriculture-real PROPERTIES RUN_SERIAL TRUE)
+            set_tests_properties(original-seasonal-agriculture-real original-irrigation-productivity-real PROPERTIES RUN_SERIAL TRUE)
         endif()
         add_test(NAME original-luxury-progression-cli-guards COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_luxury_progression_cli.py
