@@ -34,6 +34,11 @@ struct FunctionalModelCandidate {
     case Object::Market:
         return {ModelBuilding::CommonMarketSquare, EvidenceStatus::Inferred,
                 EvidenceStatus::Unknown, EvidenceStatus::Unknown};
+    case Object::OriginalMill53:
+    case Object::OriginalFoodShop66:
+        if (!simulation::food_processing_enabled(simulation::RulesProfile::CityV16,rule_version)) return {};
+        return {object==Object::OriginalMill53 ? ModelBuilding::Mill:ModelBuilding::FoodShop,
+                EvidenceStatus::AuthoredFallback,EvidenceStatus::AuthoredFallback,EvidenceStatus::Unknown};
     case Object::Farm:
         return {ModelBuilding::Farmhouse, EvidenceStatus::Inferred,
                 EvidenceStatus::Unknown, EvidenceStatus::Unknown};
@@ -65,7 +70,7 @@ struct FunctionalModelCandidate {
             rule_version!=simulation::kOriginalIrrigationRuleVersion &&
             rule_version!=simulation::kPlayableAgricultureRuleVersion &&
             rule_version!=simulation::kPlayableFishingRuleVersion &&
-            rule_version!=simulation::kPlayableHuntingRuleVersion && rule_version!=simulation::kMultiFieldAgricultureRuleVersion && rule_version!=simulation::kPhysicalFoodGrowersRuleVersion && rule_version!=simulation::kSeasonalAgricultureRuleVersion && rule_version!=simulation::kIrrigationProductivityRuleVersion) return {};
+            rule_version!=simulation::kPlayableHuntingRuleVersion && rule_version!=simulation::kMultiFieldAgricultureRuleVersion && rule_version!=simulation::kPhysicalFoodGrowersRuleVersion && rule_version!=simulation::kSeasonalAgricultureRuleVersion && rule_version!=simulation::kIrrigationProductivityRuleVersion && rule_version!=simulation::kFoodProcessingRuleVersion) return {};
         return {object==Object::OriginalRiceField ? ModelBuilding::RiceField:
                 object==Object::OriginalCabbageField ? ModelBuilding::CabbageField:ModelBuilding::SoybeanField,
                 EvidenceStatus::AuthoredFallback,EvidenceStatus::AuthoredFallback,
@@ -119,7 +124,7 @@ struct FunctionalModelCandidate {
         return {ModelBuilding::TheatrePavilion, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::Unknown};
     case Object::OriginalHuntersTent:
-        if (rule_version!=simulation::kPlayableHuntingRuleVersion && rule_version!=simulation::kMultiFieldAgricultureRuleVersion && rule_version!=simulation::kPhysicalFoodGrowersRuleVersion && rule_version!=simulation::kSeasonalAgricultureRuleVersion && rule_version!=simulation::kIrrigationProductivityRuleVersion) return {};
+        if (rule_version!=simulation::kPlayableHuntingRuleVersion && rule_version!=simulation::kMultiFieldAgricultureRuleVersion && rule_version!=simulation::kPhysicalFoodGrowersRuleVersion && rule_version!=simulation::kSeasonalAgricultureRuleVersion && rule_version!=simulation::kIrrigationProductivityRuleVersion && rule_version!=simulation::kFoodProcessingRuleVersion) return {};
         return {ModelBuilding::HuntersTent,EvidenceStatus::AuthoredFallback,EvidenceStatus::AuthoredFallback,EvidenceStatus::Unknown};
     case Object::OriginalFishingQuay:
         if (!simulation::playable_fishing_enabled(simulation::RulesProfile::CityV16,rule_version)) return {};
@@ -129,7 +134,7 @@ struct FunctionalModelCandidate {
         if (rule_version!=simulation::kOriginalIrrigationRuleVersion &&
             rule_version!=simulation::kPlayableAgricultureRuleVersion &&
             rule_version!=simulation::kPlayableFishingRuleVersion &&
-            rule_version!=simulation::kPlayableHuntingRuleVersion && rule_version!=simulation::kMultiFieldAgricultureRuleVersion && rule_version!=simulation::kPhysicalFoodGrowersRuleVersion && rule_version!=simulation::kSeasonalAgricultureRuleVersion && rule_version!=simulation::kIrrigationProductivityRuleVersion) return {};
+            rule_version!=simulation::kPlayableHuntingRuleVersion && rule_version!=simulation::kMultiFieldAgricultureRuleVersion && rule_version!=simulation::kPhysicalFoodGrowersRuleVersion && rule_version!=simulation::kSeasonalAgricultureRuleVersion && rule_version!=simulation::kIrrigationProductivityRuleVersion && rule_version!=simulation::kFoodProcessingRuleVersion) return {};
         return {ModelBuilding::IrrigationPump, EvidenceStatus::AuthoredFallback,
                 EvidenceStatus::AuthoredFallback, EvidenceStatus::ReverseEngineered};
     case Object::OriginalDaoistShrine215:

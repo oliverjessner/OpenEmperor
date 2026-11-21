@@ -38,6 +38,14 @@ complete original-game compatibility.
   Unqualified Tent/animal/Hunter sprites use labelled authored fallbacks. The
   [hunting contract](docs/original-economy/agriculture.md#playable-hunting-agri-mac03)
   separates these rules from historical Original research and saves.
+- **Food processing is a separate authored successor.** Rule34/schema50
+  supplies paid Mill53/FoodShop66, finite real ingredient/meal transport,
+  staffed recipes and actual House meal consumption in the sole Food account.
+  Portion conversion, work, grade policy and shop ownership are authored;
+  Original linked assistants/parent-slot behavior and artwork parity remain
+  unresolved. No Salt/Spices origin, grade5 or Warehouse Food storage exists.
+  Rules1–33/schemas1–49 and defaults stay exact. See
+  [the contract](docs/original-economy/agriculture.md#food-processing-agri-mac09).
 - **Irrigation productivity is a separate authored successor.** Rule33/schema49
   adds bounded+25% earned growth work on actual wet eligible crop ticks for all
   nine crop types. It changes cadence, never the one-portion harvest, physical

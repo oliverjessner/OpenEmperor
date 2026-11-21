@@ -133,6 +133,8 @@ std::uint64_t paid_cost(Object kind) {
     case Object::OriginalCabbageField:
     case Object::OriginalSoybeanField:
     case Object::OriginalFishingQuay:
+    case Object::OriginalMill53:
+    case Object::OriginalFoodShop66:
     case Object::OriginalHuntersTent:
     case Object::OriginalIrrigationPump:
     case Object::HealthPost:
@@ -162,6 +164,8 @@ std::optional<original::ModelBuilding> model_priced(Object kind) {
     case Object::OriginalCabbageField:return B::CabbageField;
     case Object::OriginalSoybeanField:return B::SoybeanField;
     case Object::OriginalFishingQuay:return B::FishingQuay;
+    case Object::OriginalMill53:return B::Mill;
+    case Object::OriginalFoodShop66:return B::FoodShop;
     case Object::OriginalHuntersTent:return B::HuntersTent;
     case Object::OriginalIrrigationPump:return B::IrrigationPump;
     case Object::HealthPost:return B::HerbalistsStall;
@@ -620,14 +624,14 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         // untrusted origin. In particular, INT_MAX must never reach cell+1.
         if (b.cell.x<0 || b.cell.y<0 || b.cell.x>s.width-footprint.width || b.cell.y>s.height-footprint.height)
             invalid("original production building footprint outside saved grid");
-        if (b.kind==Object::FireWatch || b.kind==Object::ClaySource || b.kind==Object::Pottery || b.kind==Object::Warehouse || b.kind==Object::Market || b.kind==Object::OriginalHempFarm || b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay || b.kind==Object::OriginalHuntersTent ||
+        if (b.kind==Object::FireWatch || b.kind==Object::ClaySource || b.kind==Object::Pottery || b.kind==Object::Warehouse || b.kind==Object::Market || b.kind==Object::OriginalHempFarm || b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay || b.kind==Object::OriginalHuntersTent || b.kind==Object::OriginalMill53 || b.kind==Object::OriginalFoodShop66 ||
             b.kind==Object::HealthPost || b.kind==Object::ServicePost || b.kind==Object::OriginalAncestorShrine214 || b.kind==Object::OriginalWaterWell72 ||
             b.kind==Object::OriginalDaoistShrine215 || b.kind==Object::OriginalBuddhistShrine217 || b.kind==Object::OriginalConfucianAcademy219 ||
             (b.kind==Object::OriginalTheatre75 && simulation::original_venue_house_service_enabled(s.profile,s.rule_version)) || b.kind==Object::OriginalMusicSchool211 ||
             b.kind==Object::OriginalAcrobatSchool212 || b.kind==Object::OriginalDramaSchool213 || original_industry_source(b.kind)) {
             if (courier_index>=s.couriers.size()) invalid("missing purchased original production courier");
             const auto& c=s.couriers[courier_index];
-            const auto role=b.kind==Object::OriginalTheatre75 ? CourierRole::OriginalVenueMusic:b.kind==Object::FireWatch ? CourierRole::FireInspector:original_industry_source(b.kind) ? (original_industry_goods::output(b.kind) ? CourierRole::OriginalLuxuryToWarehouse:CourierRole::OriginalAuxToWarehouse):
+            const auto role=b.kind==Object::OriginalMill53 ? CourierRole::OriginalMealsToShop:b.kind==Object::OriginalFoodShop66 ? CourierRole::OriginalMealsToHouse:b.kind==Object::OriginalTheatre75 ? CourierRole::OriginalVenueMusic:b.kind==Object::FireWatch ? CourierRole::FireInspector:original_industry_source(b.kind) ? (original_industry_goods::output(b.kind) ? CourierRole::OriginalLuxuryToWarehouse:CourierRole::OriginalAuxToWarehouse):
                 b.kind==Object::OriginalWaterWell72 ? CourierRole::OriginalWater:b.kind==Object::HealthPost ? CourierRole::HealthWorker:
                 b.kind==Object::ServicePost ? CourierRole::Service:
                 b.kind==Object::OriginalMusicSchool211 ? (simulation::original_music_venues_enabled(s.profile,s.rule_version) ? CourierRole::OriginalMusicPerformer:CourierRole::OriginalMusic):
@@ -784,6 +788,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         !(simulation::original_plantations_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalPlantationGrower) &&
         !(simulation::physical_food_growers_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalFoodGrower) &&
         !(simulation::seasonal_agriculture_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalSeasonalHempGrower) &&
+        !(simulation::food_processing_enabled(s.profile,s.rule_version) && (c.role==CourierRole::OriginalMealsToShop || c.role==CourierRole::OriginalMealsToHouse)) &&
         c.role!=CourierRole::OriginalLuxuryToWarehouse && c.role!=CourierRole::OriginalAuxToWarehouse && c.role!=CourierRole::OriginalAuxSupplier &&
         !(simulation::original_fire_protection_enabled(s.profile,s.rule_version) && c.role==CourierRole::FireInspector))
         invalid("unsupported original production courier role");
@@ -953,6 +958,7 @@ void World::tick_original_production() {
     advance_clay_pottery_production();advance_original_hemp();advance_original_food();
     if(playable_fishing_enabled()) advance_fishing();
     if(playable_hunting_enabled()) advance_hunting();
+    if(food_processing_enabled())advance_food_processing();
     update_original_industry();
     if(original_plantations_enabled()) update_plantations();
     for (auto& c:couriers_) dispatch_v2(c);
@@ -963,7 +969,7 @@ void World::tick_original_production() {
     if (dispatch.evolution) evaluate_original_houses();
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
     if (irrigation_enabled()) refresh_irrigation();
-    validate_original_food_state();validate_original_industry_state();
+    validate_original_food_state();validate_food_processing_state();validate_original_industry_state();
     validate_irrigation_productivity_state();validate_plantations_state();validate_physical_food_growers_state();validate_seasonal_agriculture_state();
     validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();validate_original_venue_house_service_state();
     const auto balances=original_production_goods_balances();

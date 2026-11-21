@@ -31,6 +31,9 @@ public:
     [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_fishing(
         ModelData model,Difficulty difficulty);
     [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_hunting(ModelData,Difficulty);
+    // Separate Rule34 capability. Earlier preparations do not require Mill53
+    // or Food Shop66, even when their source table contains these records.
+    [[nodiscard]] static std::shared_ptr<const OriginalRulesModel> prepare_food_processing(ModelData,Difficulty);
     OriginalRulesModel(const OriginalRulesModel&)=delete;
     OriginalRulesModel(OriginalRulesModel&&)=delete;
     OriginalRulesModel& operator=(const OriginalRulesModel&)=delete;
@@ -45,7 +48,7 @@ public:
 
 private:
     OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture=false,bool agriculture=false,
-        bool irrigation=false,bool fishing=false,bool hunting=false);
+        bool irrigation=false,bool fishing=false,bool hunting=false,bool food_processing=false);
     const ModelProvenance provenance_;
     const Difficulty difficulty_;
     const HouseEvolutionRules house_rules_;
@@ -57,6 +60,7 @@ private:
     const std::optional<std::array<BuildingRow,2>> irrigation_rows_;
     const std::optional<BuildingRow> fishing_row_;
     const std::optional<BuildingRow> hunting_row_;
+    const std::optional<std::array<BuildingRow,2>> food_processing_rows_;
 };
 
 } // namespace openemperor::original

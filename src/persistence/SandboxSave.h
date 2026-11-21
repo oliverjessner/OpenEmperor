@@ -75,6 +75,10 @@ std::shared_ptr<const original::OriginalRulesModel> prepare_playable_fishing_rul
 std::shared_ptr<const original::OriginalRulesModel> prepare_playable_hunting_rules_model(
     const std::filesystem::path& data_root,
     original::Difficulty difficulty=original::Difficulty::Normal);
+// Rule34 separately admits source-priced Mill53 and FoodShop66 capability.
+std::shared_ptr<const original::OriginalRulesModel> prepare_food_processing_rules_model(
+    const std::filesystem::path& data_root,
+    original::Difficulty difficulty=original::Difficulty::Normal);
 // Complete supported original map, shared reader and full-file SHA binding.
 // Raw bit4 facts never substitute for MapPermissions or bridge eligibility.
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_terrain_facts(
@@ -275,6 +279,13 @@ simulation::World restore_seasonal_agriculture(
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
 // Schema49/Rule33 retains actual wet-work carry and bounded earned bonus.
 simulation::World restore_irrigation_productivity(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema50/Rule34 retains the sole twelve-kind Food ledger and real processing histories.
+simulation::World restore_food_processing(
     const SaveDocument& document,const std::filesystem::path& data_root,
     std::vector<std::uint8_t> buildable,
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,

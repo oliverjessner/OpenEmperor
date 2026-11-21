@@ -57,6 +57,8 @@ bool service_role(CourierRole role) {
 Object courier_target_kind(CourierRole role) {
     switch (role) {
     case CourierRole::OriginalMusicPerformer: return Object::OriginalTheatre75;
+    case CourierRole::OriginalMealsToShop: return Object::OriginalFoodShop66;
+    case CourierRole::OriginalMealsToHouse: return Object::Household;
     case CourierRole::OriginalFoodToMarket: return Object::Market;
     case CourierRole::OriginalFoodToHouse: return Object::Household;
     case CourierRole::OriginalDaoist:
@@ -106,6 +108,8 @@ std::size_t building_limit(RulesProfile profile,Object kind) {
     case Object::OriginalLacquerTree27:
     case Object::OriginalMulberryTree28:
         return 2;
+    case Object::OriginalMill53:
+    case Object::OriginalFoodShop66:
     case Object::OriginalHuntersTent:
     case Object::OriginalFishingQuay:
     case Object::OriginalFoodFarm:
@@ -265,6 +269,8 @@ std::optional<Object> placed_object(CommandType type) {
     case CommandType::PlaceOriginalSoybeanField: return Object::OriginalSoybeanField;
     case CommandType::PlaceIrrigationPump: return Object::OriginalIrrigationPump;
     case CommandType::PlaceOriginalFishingQuay: return Object::OriginalFishingQuay;
+    case CommandType::PlaceOriginalMill: return Object::OriginalMill53;
+    case CommandType::PlaceOriginalFoodShop: return Object::OriginalFoodShop66;
     case CommandType::PlaceOriginalHuntersTent: return Object::OriginalHuntersTent;
     case CommandType::PlaceOriginalAncestorShrine: return Object::OriginalAncestorShrine214;
     case CommandType::PlaceOriginalWaterWell: return Object::OriginalWaterWell72;
@@ -306,6 +312,9 @@ bool courier_can_target(CourierRole role,const BuildingState& target) {
 
 bool courier_can_target(CourierRole role,const BuildingState& target,
                         RulesProfile profile,std::uint32_t rule_version) {
+    if(role==CourierRole::OriginalMealsToShop) return food_processing_enabled(profile,rule_version) && target.placed && target.kind==Object::OriginalFoodShop66;
+    if(role==CourierRole::OriginalMealsToHouse) return food_processing_enabled(profile,rule_version) && target.placed && original_house_kind(target.kind);
+    if(role==CourierRole::OriginalFoodToMarket && food_processing_enabled(profile,rule_version) && target.placed && target.kind==Object::OriginalMill53) return true;
     if(role==CourierRole::OriginalFoodGrower) return physical_food_growers_enabled(profile,rule_version) && target.placed &&
         (target.kind==Object::OriginalWheatField || target.kind==Object::OriginalMilletField || target.kind==Object::OriginalRiceField ||
          target.kind==Object::OriginalCabbageField || target.kind==Object::OriginalSoybeanField);
@@ -321,6 +330,10 @@ bool courier_can_target(CourierRole role,const BuildingState& target,
 }
 
 BuildingFootprint building_footprint(RulesProfile profile,std::uint32_t rule_version,Object kind) {
+    if(kind==Object::OriginalMill53 || kind==Object::OriginalFoodShop66) {
+        if(!food_processing_enabled(profile,rule_version))throw std::invalid_argument("Mill/FoodShop require explicit Rule34");
+        return kind==Object::OriginalMill53 ? BuildingFootprint{5,5}:BuildingFootprint{2,2};
+    }
     if (kind==Object::OriginalHuntersTent) {
         if (!playable_hunting_enabled(profile,rule_version)) throw std::invalid_argument("Hunters Tent requires explicit Rule29");
         return {2,2};
@@ -544,6 +557,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v28{28,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v34{34,32,64,32,5,800};
+    if (food_processing_enabled(profile,version)) return city_v16_v34;
     static constexpr ProfileRules city_v16_v33{33,32,64,32,5,800};
     if (irrigation_productivity_enabled(profile,version)) return city_v16_v33;
     static constexpr ProfileRules city_v16_v32{32,32,64,32,5,800};
@@ -636,7 +651,8 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
     if (original_production_enabled()) original_production_.emplace();
     if (original_agriculture_enabled()) {
         if(!original_terrain_facts_->fertility_complete()) throw std::invalid_argument("Agriculture requires complete source-bound fertility");
-        if (playable_hunting_enabled()) {hunting_food_.emplace();hunting_.emplace();fishing_.emplace();}
+        if (food_processing_enabled()) {processed_food_.emplace();food_processing_.emplace();hunting_.emplace();fishing_.emplace();}
+        else if (playable_hunting_enabled()) {hunting_food_.emplace();hunting_.emplace();fishing_.emplace();}
         else if (playable_fishing_enabled()) {fishing_food_.emplace();fishing_.emplace();}
         else agriculture_.emplace();
     }
@@ -866,6 +882,9 @@ CourierState& World::mutable_courier(CourierId id) {
 std::int64_t World::construction_cost(CommandType type) const {
     if (!city_profile(profile_)) return 0;
     switch (type) {
+    case CommandType::PlaceOriginalMill:
+    case CommandType::PlaceOriginalFoodShop:
+        return food_processing_enabled() ? original_rules_model_->building_value(type==CommandType::PlaceOriginalMill ? original::ModelBuilding::Mill:original::ModelBuilding::FoodShop,original::BuildingField::Cost):0;
     case CommandType::PlaceOriginalHuntersTent:
         return playable_hunting_enabled() ? original_rules_model_->building_value(original::ModelBuilding::HuntersTent,original::BuildingField::Cost):0;
     case CommandType::PlaceOriginalFishingQuay:
@@ -968,7 +987,8 @@ std::int64_t World::construction_cost(CommandType type) const {
     case CommandType::RemoveIrrigationDitch:
     case CommandType::RemoveRoad:
     case CommandType::SetBuildingOperation:
-    case CommandType::SetBuildingWorkforcePriority: return 0;
+    case CommandType::SetBuildingWorkforcePriority:
+    case CommandType::SetMillRecipe: return 0;
     case CommandType::ConfigureLandTrade: return authored_land_trade_enabled()?land_trade_license_cost:0;
     case CommandType::ImportPottery:
     case CommandType::ExportPottery:
@@ -979,6 +999,8 @@ std::int64_t World::construction_cost(CommandType type) const {
 
 int World::workforce_required(BuildingId id) const {
     const auto& value=building(id);
+    if(value.kind==Object::OriginalMill53 || value.kind==Object::OriginalFoodShop66)
+        return food_processing_enabled() ? original_rules_model_->building_value(value.kind==Object::OriginalMill53 ? original::ModelBuilding::Mill:original::ModelBuilding::FoodShop,original::BuildingField::Employees):0;
     if (value.kind==Object::OriginalHuntersTent)
         return playable_hunting_enabled() ? original_rules_model_->building_value(original::ModelBuilding::HuntersTent,original::BuildingField::Employees):0;
     if (value.kind==Object::OriginalFishingQuay)
@@ -1037,7 +1059,7 @@ int World::workforce_required(BuildingId id) const {
 }
 
 bool World::operation_controllable(Object kind) {
-    return kind==Object::OriginalHuntersTent || kind==Object::OriginalFishingQuay || kind==Object::OriginalIrrigationPump || kind==Object::OriginalTheatre75 || original_industry_source(kind) || kind==Object::OriginalMusicSchool211 || kind==Object::OriginalAcrobatSchool212 ||
+    return kind==Object::OriginalMill53 || kind==Object::OriginalFoodShop66 || kind==Object::OriginalHuntersTent || kind==Object::OriginalFishingQuay || kind==Object::OriginalIrrigationPump || kind==Object::OriginalTheatre75 || original_industry_source(kind) || kind==Object::OriginalMusicSchool211 || kind==Object::OriginalAcrobatSchool212 ||
         kind==Object::OriginalDramaSchool213 || kind==Object::OriginalDaoistShrine215 || kind==Object::OriginalBuddhistShrine217 ||
         kind==Object::OriginalConfucianAcademy219 || kind==Object::OriginalWaterWell72 || kind==Object::OriginalAncestorShrine214 || kind==Object::OriginalFoodFarm || kind==Object::OriginalHempFarm || kind==Object::ClaySource || kind==Object::Pottery || kind==Object::Warehouse ||
         kind==Object::Farm || kind==Object::ServicePost || kind==Object::Market || kind==Object::FireWatch || kind==Object::HealthPost;
@@ -1526,6 +1548,21 @@ CommandResult World::validate(Command command) const {
 }
 
 CommandResult World::validate_impl(Command command,bool check_irrigation_crossings) const {
+    if(command.type==CommandType::SetMillRecipe) {
+        const auto row=food_processing_ ? std::find_if(food_processing_->mills.begin(),food_processing_->mills.end(),[&](const auto& m){return m.mill_id==command.building_id;}):std::vector<MillProcessing>::const_iterator{};
+        if(!food_processing_enabled() || !food_processing_ || row==food_processing_->mills.end() || command.recipe_grade<1 || command.recipe_grade>4)
+            return {false,false,"Recipe requires a paid Rule34 Mill and grade1–4",command_sequence_,ticks_};
+        if(command_sequence_==UINT64_MAX)return {false,false,"Command counter exhausted",command_sequence_,ticks_};
+        return {true,row->requested_grade!=command.recipe_grade,"Mill recipe selection",command_sequence_,ticks_};
+    }
+    if(command.type==CommandType::PlaceOriginalMill || command.type==CommandType::PlaceOriginalFoodShop) {
+        if(!food_processing_enabled())return {false,false,"Mill/FoodShop construction requires explicit Rule34",command_sequence_,ticks_};
+        const auto kind=*placed_object(command.type);
+        if(std::count_if(buildings_.begin(),buildings_.end(),[&](const auto& b){return b.kind==kind;})>=2)
+            return {false,false,"Paid Mill/FoodShop limit reached",command_sequence_,ticks_};
+        if(kind==Object::OriginalFoodShop66 && !food_shop_parent(command.cell))
+            return {false,false,"FoodShop requires one unbound cardinal-adjacent paid Market",command_sequence_,ticks_};
+    }
     if (command.type==CommandType::PlaceOriginalHuntersTent) return validate_hunting_command(command);
     if (command.type==CommandType::PlaceOriginalFishingQuay) return validate_fishing_command(command);
     if (command.type==CommandType::PlaceIrrigationDitch || command.type==CommandType::RemoveIrrigationDitch ||
@@ -1596,6 +1633,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
         command.type!=CommandType::PlaceOriginalConfucianAcademy &&
         command.type!=CommandType::PlaceOriginalMusicSchool && command.type!=CommandType::PlaceOriginalAcrobatSchool &&
         command.type!=CommandType::PlaceOriginalDramaSchool && command.type!=CommandType::PlaceOriginalTheatre &&
+        command.type!=CommandType::PlaceOriginalMill && command.type!=CommandType::PlaceOriginalFoodShop &&
         command.type!=CommandType::PlaceOriginalAncestorShrine && command.type!=CommandType::PlaceOriginalWaterWell &&
         command.type!=CommandType::SetBuildingOperation &&
         command.type!=CommandType::SetBuildingWorkforcePriority)
@@ -1668,6 +1706,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
         command.type!=CommandType::PlaceOriginalConfucianAcademy &&
         command.type!=CommandType::PlaceOriginalMusicSchool && command.type!=CommandType::PlaceOriginalAcrobatSchool &&
         command.type!=CommandType::PlaceOriginalDramaSchool && command.type!=CommandType::PlaceOriginalTheatre &&
+        command.type!=CommandType::PlaceOriginalMill && command.type!=CommandType::PlaceOriginalFoodShop &&
         command.type!=CommandType::PlaceOriginalAncestorShrine && command.type!=CommandType::PlaceOriginalWaterWell && !industry_construction) {
         result.reason="Unknown placement command"; return result;
     }
@@ -1891,7 +1930,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
         (next_building_id_==0 || next_building_id_==UINT32_MAX)) {
         result.reason="Building ID counter exhausted"; return result;
     }
-    const bool creates_courier=(original_venue_house_service_enabled() && command.type==CommandType::PlaceOriginalTheatre) || command.type==CommandType::PlaceClaySource ||
+    const bool creates_courier=command.type==CommandType::PlaceOriginalMill || command.type==CommandType::PlaceOriginalFoodShop || (original_venue_house_service_enabled() && command.type==CommandType::PlaceOriginalTheatre) || command.type==CommandType::PlaceClaySource ||
         command.type==CommandType::PlacePottery || command.type==CommandType::PlaceWarehouse ||
         command.type==CommandType::PlaceFarm || command.type==CommandType::PlaceServicePost ||
         command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceFireWatch ||
@@ -2036,6 +2075,12 @@ CommandResult World::execute(Command command) {
 }
 
 CommandResult World::execute_impl(Command command,bool refresh_after,bool influence_prepared,bool irrigation_prepared) {
+    if(command.type==CommandType::SetMillRecipe) {
+        auto result=validate(command);if(!result.accepted || !result.changed)return result;
+        auto& rows=food_processing_->mills;
+        std::find_if(rows.begin(),rows.end(),[&](const auto& m){return m.mill_id==command.building_id;})->requested_grade=command.recipe_grade;
+        result.sequence=++command_sequence_;return result;
+    }
     if (command.type==CommandType::PlaceOriginalHuntersTent) return execute_hunting_command(command);
     if (command.type==CommandType::PlaceOriginalFishingQuay) return execute_fishing_command(command);
     if (command.type==CommandType::PlaceIrrigationDitch || command.type==CommandType::RemoveIrrigationDitch ||
@@ -2180,6 +2225,20 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         couriers_.push_back(std::move(courier));
     };
     switch (command.type) {
+    case CommandType::PlaceOriginalMill:
+    case CommandType::PlaceOriginalFoodShop: {
+        const auto kind=*placed_object(command.type);
+        const auto parent=kind==Object::OriginalFoodShop66 ? food_shop_parent(command.cell):std::optional<BuildingId>{};
+        auto& b=add_v10_building(kind);b.placed_tick=ticks_;
+        processed_food_->stocks.push_back(ProcessedFoodStock{b.id});
+        if(kind==Object::OriginalMill53)food_processing_->mills.push_back(MillProcessing{b.id});
+        else food_processing_->shops.push_back({b.id,*parent});
+        add_v10_courier(b.id,kind==Object::OriginalMill53 ? CourierRole::OriginalMealsToShop:CourierRole::OriginalMealsToHouse,Good::Food);
+        break;
+    }
+    case CommandType::SetMillRecipe: throw std::logic_error("recipe command bypassed its handler");
+    case CommandType::PlaceOriginalFishingQuay:
+    case CommandType::PlaceOriginalHuntersTent:
     case CommandType::PlaceIrrigationDitch:
     case CommandType::RemoveIrrigationDitch:
     case CommandType::PlaceIrrigationPump:
@@ -2632,7 +2691,7 @@ bool World::building_contains(BuildingId id,Cell cell) const {
 }
 CommandResult World::validate_hunting_command(Command command) const {
     CommandResult result{false,false,"Hunters Tent requires explicit Playable Hunting",command_sequence_,ticks_};
-    if(!playable_hunting_enabled() || !hunting_ || !hunting_food_ || command.type!=CommandType::PlaceOriginalHuntersTent) return result;
+    if(!playable_hunting_enabled() || !hunting_ || (!hunting_food_ && !processed_food_) || command.type!=CommandType::PlaceOriginalHuntersTent) return result;
     if(command.orientation!=0) {result.reason="Hunters Tent has no oriented construction";return result;}
     if(!original_rules_model_ || !original_rules_model_->supports_building(original::ModelBuilding::HuntersTent)) return result;
     const auto cost=construction_cost(command.type);
@@ -2672,7 +2731,7 @@ CommandResult World::execute_hunting_command(Command command) {
         candidate.objects_[candidate.index(cell)]=Object::OriginalHuntersTent;
         candidate.owners_[candidate.index(cell)]=static_cast<std::uint32_t>(id);
     }
-    candidate.hunting_->tents.push_back(HuntingTent{id});candidate.hunting_food_->stocks.push_back(HuntingFoodStock{id});
+    candidate.hunting_->tents.push_back(HuntingTent{id});candidate.with_agriculture_food([&](auto& f){using Stock=typename std::remove_cvref_t<decltype(f.stocks)>::value_type;f.stocks.push_back(Stock{id});});
     CourierState courier;courier.id=static_cast<CourierId>(candidate.next_courier_id_++);
     courier.role=CourierRole::OriginalFoodToMarket;courier.owner=id;courier.target=id;courier.good=Good::Food;courier.enabled=true;
     candidate.couriers_.push_back(std::move(courier));
@@ -2906,7 +2965,7 @@ void World::refresh_routes() {
         for (auto& courier:couriers_) {
             courier.dynamic_target_routes.clear();
             if(courier.role==CourierRole::OriginalFoodGrower) {
-                for(const auto& field:hunting_food_->fields) if(field.farm_id==courier.owner)
+                for(const auto& field:agriculture_fields()) if(field.farm_id==courier.owner)
                     courier.dynamic_target_routes.emplace_back(field.field_id,
                         physical_food_grower_route({-1,-1},courier.owner,field.field_id,false));
                 courier.cached_route.reset();courier.cached_revision=road_revision_;continue;
@@ -4149,6 +4208,10 @@ bool World::industry_balance_valid() const {
                 if (source==original_production_->industry.sources.end() || source->building_id!=b.id || !add(clay,source->clay_used)) return false;
                 break;
             }
+            case Object::OriginalMill53:
+            case Object::OriginalFoodShop66:
+                if(!food_processing_enabled())return false;
+                break;
             case Object::OriginalTheatre75:
                 if (!original_music_venues_enabled()) return false;
                 break;
@@ -4251,6 +4314,8 @@ bool World::industry_balance_valid() const {
                 c.role==CourierRole::OriginalLuxuryToWarehouse && original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalAuxToWarehouse && original_production_enabled() && original_industry_source(owner.kind) && !original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalFoodToMarket ? (playable_hunting_enabled() && owner.kind==Object::OriginalHuntersTent ? Object::OriginalHuntersTent:playable_fishing_enabled() && owner.kind==Object::OriginalFishingQuay ? Object::OriginalFishingQuay:Object::OriginalFoodFarm):
+                c.role==CourierRole::OriginalMealsToShop && food_processing_enabled() ? Object::OriginalMill53:
+                c.role==CourierRole::OriginalMealsToHouse && food_processing_enabled() ? Object::OriginalFoodShop66:
                 c.role==CourierRole::OriginalFoodToHouse ? Object::Market:
                 c.role==CourierRole::OriginalHempToWarehouse ? Object::OriginalHempFarm:
                 c.role==CourierRole::OriginalWater ? Object::OriginalWaterWell72:
@@ -4337,6 +4402,8 @@ bool World::industry_balance_valid() const {
                 (original_production_enabled() && b.kind==Object::Warehouse && owned(CourierRole::OriginalAuxSupplier)!=1) ||
                 (b.kind==Object::ClaySource && owned(CourierRole::Clay)!=1) ||
                 ((b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay || b.kind==Object::OriginalHuntersTent) && owned(CourierRole::OriginalFoodToMarket)!=1) ||
+                (b.kind==Object::OriginalMill53 && owned(CourierRole::OriginalMealsToShop)!=1) ||
+                (b.kind==Object::OriginalFoodShop66 && owned(CourierRole::OriginalMealsToHouse)!=1) ||
                 (b.kind==Object::Pottery && owned(CourierRole::Pottery)!=1) ||
                 (b.kind==Object::Warehouse && owned(market_profile(profile_) ?
                     CourierRole::MarketPotteryInbound:CourierRole::Household)!=1) ||
@@ -5083,6 +5150,25 @@ std::string World::canonical_state() const {
                 if(seasonal_agriculture_enabled())out<<','<<t.ready_tick;}
         }
     }
+    if(food_processing_) {
+        out<<'|'<<food_processing_contract<<':'<<food_processing_revision;
+        const auto batch=[&](const FoodProcessingBatch& b){out<<','<<b.sequence<<','<<b.started_tick<<','<<unsigned(b.grade)<<','<<b.work;for(auto n:b.ingredients)out<<','<<unsigned(n);};
+        const auto arrival=[&](const std::optional<FoodProcessingArrival>& value){out<<','<<bool(value);if(value)out<<','<<static_cast<std::uint32_t>(value->transfer.courier_id)<<','<<value->transfer.sequence<<','<<static_cast<std::uint32_t>(value->source)<<','<<value->tick<<','<<value->amount;};
+        const auto receipt=[&](const std::optional<FoodProcessingReceipt>& value){out<<','<<bool(value);if(value){batch(value->batch);out<<','<<value->completed_tick;}};
+        for(const auto& m:food_processing_->mills){out<<"|mill:"<<static_cast<std::uint32_t>(m.mill_id)<<','<<unsigned(m.requested_grade)<<','<<m.started<<','<<m.completed<<','<<m.productive_ticks;
+            for(const auto& grade:m.ingredients_consumed)for(auto n:grade)out<<','<<n;
+            for(auto n:m.completed_by_grade)out<<','<<n;
+            for(const auto& value:m.first_ingredients)arrival(value);
+            for(const auto& value:m.first_completions)receipt(value);
+            out<<','<<bool(m.active);if(m.active)batch(*m.active);
+            out<<','<<bool(m.last_receipt);if(m.last_receipt){batch(m.last_receipt->batch);out<<','<<m.last_receipt->completed_tick;}}
+        for(const auto& shop:food_processing_->shops){out<<"|food-shop:"<<static_cast<std::uint32_t>(shop.shop_id)<<','<<static_cast<std::uint32_t>(shop.market_id);for(const auto& value:shop.first_meals)arrival(value);}
+        for(const auto& house:food_processing_->houses){const auto& w=house.first_receipt;out<<"|meal-house:"<<static_cast<std::uint32_t>(house.house_id)<<','<<static_cast<std::uint32_t>(w.transfer.courier_id)<<','<<w.transfer.sequence<<','<<w.tick<<','<<unsigned(w.previous_quality);
+            for(auto n:w.accepted)out<<','<<n;for(auto n:w.consumed_before)out<<','<<n;
+            for(const auto& value:house.first_by_grade)arrival(value);
+            out<<','<<bool(house.first_consumption);if(house.first_consumption)out<<','<<house.first_consumption->tick<<','<<unsigned(house.first_consumption->grade);}
+
+    }
     if(agriculture_) {
         out<<"|agriculture:"<<agriculture_revision<<','<<agriculture_catalog;
         for(const auto& f:agriculture_->farms) out<<"|af:"<<static_cast<std::uint32_t>(f.farm_id);
@@ -5092,6 +5178,16 @@ std::string World::canonical_state() const {
         for(const auto& row:agriculture_->stocks) {out<<"|as:"<<static_cast<std::uint32_t>(row.building_id)<<','<<row.missed_demands;amounts(row.amounts);amounts(row.received);amounts(row.departed);amounts(row.returned);amounts(row.consumed);witness(row.quality_witness);}
         for(const auto& t:agriculture_->trips) {out<<"|at:"<<static_cast<std::uint32_t>(t.transfer.courier_id)<<','<<t.transfer.sequence<<','<<static_cast<std::uint32_t>(t.source)<<','<<static_cast<std::uint32_t>(t.target)<<','<<int(t.phase);amounts(t.loaded);amounts(t.delivered);amounts(t.returned);}
         for(const auto& e:agriculture_->housing_evaluations){out<<"|ah:"<<static_cast<std::uint32_t>(e.building_id)<<','<<e.tick;amounts(e.received);amounts(e.consumed);witness(e.quality_witness);}
+    }
+    if(processed_food_) {
+        out<<"|processed-food:"<<food_processing_revision<<','<<processed_food_catalog;
+        for(const auto& f:processed_food_->farms) out<<"|af:"<<static_cast<std::uint32_t>(f.farm_id);
+        for(const auto& f:processed_food_->fields) out<<"|ac:"<<static_cast<std::uint32_t>(f.field_id)<<','<<static_cast<std::uint32_t>(f.farm_id)<<','<<int(f.crop)<<','<<f.quantity<<','<<f.productive_events<<','<<f.harvested<<','<<f.last_harvest_cycle;
+        const auto amounts=[&](const auto& a){for(auto n:a) out<<','<<n;};
+        const auto witness=[&](const auto& w){out<<','<<bool(w);if(w){out<<','<<static_cast<std::uint32_t>(w->transfer.courier_id)<<','<<w->transfer.sequence<<','<<w->tick<<','<<int(w->previous_quality);amounts(w->accepted);amounts(w->consumed_before);}};
+        for(const auto& row:processed_food_->stocks) {out<<"|as:"<<static_cast<std::uint32_t>(row.building_id)<<','<<row.missed_demands;amounts(row.amounts);amounts(row.received);amounts(row.departed);amounts(row.returned);amounts(row.consumed);witness(row.quality_witness);}
+        for(const auto& t:processed_food_->trips) {out<<"|at:"<<static_cast<std::uint32_t>(t.transfer.courier_id)<<','<<t.transfer.sequence<<','<<static_cast<std::uint32_t>(t.source)<<','<<static_cast<std::uint32_t>(t.target)<<','<<int(t.phase);amounts(t.loaded);amounts(t.delivered);amounts(t.returned);}
+        for(const auto& e:processed_food_->housing_evaluations){out<<"|ah:"<<static_cast<std::uint32_t>(e.building_id)<<','<<e.tick;amounts(e.received);amounts(e.consumed);witness(e.quality_witness);}
     }
     if(hunting_food_) {
         out<<"|hunting-food:"<<playable_hunting_revision<<','<<hunting_food_catalog;
@@ -5337,7 +5433,7 @@ WorldSnapshot World::snapshot() const {
     s.original_goods=original_goods_;
     s.original_production=original_production_;
     s.agriculture=agriculture_;
-    s.hunting_food=hunting_food_;s.hunting=hunting_;
+    s.hunting_food=hunting_food_;s.hunting=hunting_;s.processed_food=processed_food_;s.food_processing=food_processing_;
     s.multi_field_agriculture=multi_field_agriculture_;
     s.physical_food_growers=physical_food_growers_;
     s.seasonal_agriculture=seasonal_agriculture_;
@@ -5390,7 +5486,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     if(s.navigation_session_present)
         throw std::invalid_argument("Transient grower navigation cannot be restored as historical saved authority");
     performance::increment(performance::Counter::WorldRestores);
-    validate_irrigation_productivity_snapshot(s);
+    validate_irrigation_productivity_snapshot(s);validate_food_processing_snapshot(s);
     validate_seasonal_agriculture_snapshot(s);
     validate_physical_food_growers_snapshot(s);
     validate_multi_field_agriculture_snapshot(s);
@@ -5421,7 +5517,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.original_goods_=s.original_goods;
     w.original_production_=s.original_production;
     w.agriculture_=s.agriculture;
-    w.hunting_food_=s.hunting_food;w.hunting_=s.hunting;
+    w.hunting_food_=s.hunting_food;w.hunting_=s.hunting;w.processed_food_=s.processed_food;w.food_processing_=s.food_processing;
     w.multi_field_agriculture_=s.multi_field_agriculture;
     w.physical_food_growers_=s.physical_food_growers;
     w.seasonal_agriculture_=s.seasonal_agriculture;
@@ -5538,6 +5634,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 (b.kind==Object::OriginalTheatre75 && !w.original_music_venues_enabled()) ||
                 (b.kind==Object::OriginalIrrigationPump && !w.irrigation_enabled()) ||
                 (b.kind==Object::OriginalFishingQuay && !w.playable_fishing_enabled()) ||
+                ((b.kind==Object::OriginalMill53 || b.kind==Object::OriginalFoodShop66) && !w.food_processing_enabled()) ||
                 (b.kind==Object::OriginalHuntersTent && !w.playable_hunting_enabled()) ||
                 (b.kind==Object::OriginalInfluenceSource && !w.original_influence_enabled()) || (b.kind==Object::Market && !market_profile(s.profile)) ||
                 (b.kind==Object::FireWatch && !fire_profile(s.profile)) ||
@@ -5610,6 +5707,8 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 c.role==CourierRole::OriginalLuxuryToWarehouse && w.original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalAuxToWarehouse && w.original_production_enabled() && original_industry_source(owner.kind) && !original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalFoodToMarket && w.original_production_enabled() ? (w.playable_hunting_enabled() && owner.kind==Object::OriginalHuntersTent ? Object::OriginalHuntersTent:w.playable_fishing_enabled() && owner.kind==Object::OriginalFishingQuay ? Object::OriginalFishingQuay:Object::OriginalFoodFarm):
+                c.role==CourierRole::OriginalMealsToShop && w.food_processing_enabled() ? Object::OriginalMill53:
+                c.role==CourierRole::OriginalMealsToHouse && w.food_processing_enabled() ? Object::OriginalFoodShop66:
                 c.role==CourierRole::OriginalFoodToHouse && w.original_production_enabled() ? Object::Market:
                 c.role==CourierRole::OriginalHempToWarehouse && w.original_production_enabled() ? Object::OriginalHempFarm:
                 c.role==CourierRole::OriginalWater && w.original_production_enabled() ? Object::OriginalWaterWell72:

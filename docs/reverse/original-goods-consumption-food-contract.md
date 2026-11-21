@@ -514,6 +514,31 @@ established as an Original crop-quality rule by these observations. There is
 still no raw100/raw400 to OpenEmperor Food-portion conversion, new inventory,
 World production/transport authority, schema change or automatic migration.
 
+## Separately selected authored World processing
+
+Rule34/policy3/schema50 (`authored-food-processing-v1`) uses these observations
+as bounded research, with its own explicit portion/work/transport contract.
+[Food processing](../original-economy/agriculture.md#food-processing-agri-mac09)
+consumes1–4 distinct available base portions and produces the same count of
+grade-tagged Dinners after20 staffed ticks per input. These are authored units
+and times. The score mapper maps the chosen scores20/40/60/80 to grades1–4;
+this does not derive those scores or quantities from a native crop. Grade5 is
+unavailable without a proved/implemented Salt/Spices origin. The debit-before-
+allocation loss path above is not reproduced: the World first admits its
+bounded job/output reservation, then debits actual inputs once atomically.
+
+**EXE_OBSERVED:** a read-only inspection of the known registered-side table at
+`0x823598 + 24 × model` in the pinned EXE finds side DWORD5 for Mill53 at
+`0x823a90` and2 for FoodShop66 at `0x823bc8`; Warehouse54 gives3 and Market59/60
+both give1 as controls. These are static registered geometry facts, not proof
+of complete constructor/slot/occupancy behavior. The separately selected World
+binds full5×5/2×2 paid footprints to them. The source model at Normal supplies
+cost85/employees16 for Mill and16/4 for FoodShop; ordinary difficulty arithmetic
+remains source-bound, rather than hardcoding those prices into the runtime.
+No original executable was run. Native parent-slot ownership remains distinct:
+the authored paid Shop has its sole physical account and an explicit stable
+paid Market binding, with no mirrored stock or invisible parent credit.
+
 ## Crop admission boundary
 
 The observed House quality blend and six independent goods debits do not identify

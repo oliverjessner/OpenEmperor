@@ -91,7 +91,7 @@ void validate_retained_irrigation(const Snapshot& s) {
             invalid("Irrigation authority requires the explicit Rule26 contract");
         return;
     }
-    if(!s.irrigation || (!s.agriculture && !s.fishing_food && !s.hunting_food) || !s.plantations || s.width<1 || s.width>228 || s.height<1 || s.height>228)
+    if(!s.irrigation || (!s.agriculture && !s.fishing_food && !s.hunting_food && !s.processed_food) || !s.plantations || s.width<1 || s.width>228 || s.height<1 || s.height>228)
         invalid("Irrigation requires its bounded Agriculture/plantation lineage");
     const auto& state=*s.irrigation;
     if(state.ditches.size()>irrigation_ditch_limit || state.pumps.size()>Rules::original_production_building_limit ||
@@ -218,7 +218,7 @@ World World::restore_irrigation_generation(std::uint32_t version,const WorldSnap
         permissions->policy_version()!=kBridgesMapPermissionsPolicyVersion || !terrain->fertility_complete() || !terrain->irrigation_complete())
         invalid("Irrigation restore requires its exact generation, policy3 and complete source-bound model/terrain");
     validate_original_production_snapshot(s);validate_irrigation_snapshot(s);
-    for(const auto& row:(s.hunting_food ? s.hunting_food->fields:s.fishing_food ? s.fishing_food->fields:s.agriculture->fields)) if(row.crop==AgricultureCrop::Rice) {
+    for(const auto& row:(s.processed_food ? s.processed_food->fields:s.hunting_food ? s.hunting_food->fields:s.fishing_food ? s.fishing_food->fields:s.agriculture->fields)) if(row.crop==AgricultureCrop::Rice) {
         const auto at=std::find_if(s.buildings.begin(),s.buildings.end(),[&](const auto& b){return b.id==row.field_id;});
         if(at==s.buildings.end() || terrain->fertility(at->cell)!=100)
             invalid("Irrigation generation retains Rice fertility100 construction admission");

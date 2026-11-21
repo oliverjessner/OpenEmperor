@@ -339,6 +339,24 @@
   history; known ditch epochs are checked outside normal ticks. Never serialize
   wet caches. The successor leaves Rules1–32/schemas1–48/defaults exact without migration/overwrite.
   See [irrigation productivity](docs/original-economy/agriculture.md#irrigation-productivity-agri-mac08).
+- Food processing is explicit Rule34/policy3/schema50, marker
+  `authored-food-processing-v1`, revision1, Q/`--food-processing`. Inherit33
+  and use separately prepared paid5×5 Mill53/2×2 FoodShop66 within82/58.
+  A Shop permanently binds one earlier cardinal-adjacent paid Market; no
+  parent/Shop inventory mirror. The sole ProcessedFoodState has seven raw
+  ingredients and five grade-tagged lots of the same Dinners28 commodity.
+  Grades1–4 consume one of each selected distinct raw kind once at commitment;
+  AUTHORED20 staffed ticks per ingredient create the same count of meals only
+  at completion. Full shared capacity, active output and real return reservations
+  persist. Raw quota2 per kind prevents Mill intake deadlock. Real Mill→Shop→House
+  arrivals alone carry meals/quality; the sole House event consumes one portion,
+  meals first, without a second need grant. Direct raw arrivals reserve at most4
+  of the unchanged8 House slots. Salt/Spices/grade5 and Warehouse Food remain
+  unavailable. Preserve recipe/debit/work/completion and immutable first meal
+  arrival/consumption provenance. All Rules1–33/schemas1–49/defaults remain
+  exact, without migration or cross-schema overwrite; native linked assistants,
+  unit conversion, original recipe timing and artwork parity remain unresolved.
+  See [Food processing](docs/original-economy/agriculture.md#food-processing-agri-mac09).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

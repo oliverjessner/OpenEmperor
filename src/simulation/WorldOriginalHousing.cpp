@@ -70,6 +70,11 @@ bool retained_agriculture_evaluation(const OriginalHousingHouse& house,std::uint
     });
 }
 template<class F> decltype(auto) with_snapshot_agriculture(const WorldSnapshot& s,F&& f) {
+    if(food_processing_enabled(s.profile,s.rule_version)) {
+        if(!s.processed_food || s.hunting_food || s.fishing_food || s.agriculture) invalid("Food processing Housing requires its sole full-width graded Food authority");
+        return f(*s.processed_food);
+    }
+    if(s.processed_food) invalid("Historical Housing rejects processed Food authority");
     if(playable_hunting_enabled(s.profile,s.rule_version)) {
         if(!s.hunting_food || s.fishing_food || s.agriculture) invalid("Hunting Housing requires sole seven-kind Food history");
         return f(*s.hunting_food);
@@ -98,6 +103,7 @@ void validate_agriculture_housing_rows(const WorldSnapshot& s) {
 }
 template<class Food> void historical_agriculture_food_state(const WorldSnapshot& s,const Food& state,BuildingId id,
     std::uint64_t first,const OriginalHousingEvaluation& proof) {
+    constexpr bool processing=std::is_same_v<Food,ProcessedFoodState>;
     if (proof.food_quality_witness || proof.food_received!=OriginalFoodCounters{} || proof.food_consumed!=OriginalFoodCounters{})
         invalid("Agriculture Housing cannot project five crops into legacy Food evidence");
     const auto key=std::pair{id,proof.tick};
@@ -127,7 +133,7 @@ template<class Food> void historical_agriculture_food_state(const WorldSnapshot&
     const auto actor=std::find_if(s.couriers.begin(),s.couriers.end(),[&](const auto& row){return row.id==witness.transfer.courier_id;});
     const auto trip=std::find_if(state.trips.begin(),state.trips.end(),
         [&](const auto& row){return row.transfer.courier_id==witness.transfer.courier_id;});
-    if (actor==s.couriers.end() || actor->role!=CourierRole::OriginalFoodToHouse || trip==state.trips.end() ||
+    if (actor==s.couriers.end() || (actor->role!=CourierRole::OriginalFoodToHouse&&!(processing&&actor->role==CourierRole::OriginalMealsToHouse)) || trip==state.trips.end() ||
         !witness.transfer.sequence || witness.transfer.sequence>trip->transfer.sequence || witness.transfer.sequence>witness.tick ||
         !witness.tick || witness.tick<first || witness.tick>proof.tick || !current.quality_witness ||
         current.quality_witness->tick<witness.tick ||
@@ -141,15 +147,18 @@ template<class Food> void historical_agriculture_food_state(const WorldSnapshot&
     // Retain the same conservative source-distance lower bound as historical
     // Food evidence; this does not reconstruct discarded road history.
     const auto target_size=building_footprint(s.profile,s.rule_version,target.kind);
-    const auto travel=static_cast<std::uint64_t>(std::max<std::int64_t>(2,
-        gap(market.cell.x,2,target.cell.x,target_size.width)+gap(market.cell.y,2,target.cell.y,target_size.height)))*
+    const auto source_size=processing?building_footprint(s.profile,s.rule_version,market.kind):BuildingFootprint{2,2};
+    const auto travel=static_cast<std::uint64_t>(std::max<std::int64_t>(processing?1:2,
+        gap(market.cell.x,source_size.width,target.cell.x,target_size.width)+gap(market.cell.y,source_size.height,target.cell.y,target_size.height)))*
         static_cast<std::uint64_t>(profile_rules(s.profile,s.rule_version).courier_edge_ticks);
-    if (market.kind!=Object::Market || witness.tick<=market.placed_tick || witness.tick-market.placed_tick<travel || witness.tick-first<travel)
+    const auto source_kind=processing&&actor->role==CourierRole::OriginalMealsToHouse?Object::OriginalFoodShop66:Object::Market;
+    if (market.kind!=source_kind || witness.tick<=market.placed_tick || witness.tick-market.placed_tick<travel || witness.tick-first<travel)
         invalid("Agriculture Housing Food witness predates actual paid Market/occupied target travel");
     if (trip->transfer==witness.transfer && (trip->phase!=OriginalGoodsTransferPhase::Completed || trip->source!=actor->owner ||
         trip->target!=id || trip->delivered!=witness.accepted))
         invalid("Agriculture Housing Food witness contradicts retained delivery");
     std::int32_t previous=0,accepted=0;std::uint64_t used_since=0;
+    std::remove_cvref_t<decltype(witness.accepted)> available{};
     std::uint8_t minimum_quality=90,maximum_quality=20;
     for (std::size_t crop=0;crop<food.received.size();++crop) {
         if (witness.accepted[crop]<0 || witness.accepted[crop]>4 || witness.consumed_before[crop]>food.consumed[crop] ||
@@ -162,6 +171,7 @@ template<class Food> void historical_agriculture_food_state(const WorldSnapshot&
         if (prior>8 || delta>prior+static_cast<std::uint64_t>(witness.accepted[crop]))
             invalid("Agriculture Housing Food witness exceeds historical stock");
         previous+=static_cast<std::int32_t>(prior);accepted+=witness.accepted[crop];add(used_since,delta);
+        available[crop]=static_cast<std::int32_t>(prior)+witness.accepted[crop];
         if (prior_received) {
             std::remove_cvref_t<decltype(witness.accepted)> single{};single[crop]=1;const auto quality=agriculture_batch_quality(single).value;
             minimum_quality=std::min(minimum_quality,quality);maximum_quality=std::max(maximum_quality,quality);
@@ -171,6 +181,14 @@ template<class Food> void historical_agriculture_food_state(const WorldSnapshot&
         (previous && (witness.previous_quality<minimum_quality || witness.previous_quality>maximum_quality)) ||
         used_since>original_housing_consumption_events(proof.tick-1)-original_housing_consumption_events(witness.tick-1))
         invalid("Agriculture Housing Food witness violates real crop quality/capacity/clock");
+    if constexpr(processing) {
+        auto pending=used_since;
+        const auto check_slot=[&](std::size_t slot){const auto expected=std::min(pending,static_cast<std::uint64_t>(available[slot]));
+            pending-=expected;if(food.consumed[slot]-witness.consumed_before[slot]!=expected)
+                invalid("Processed Housing evaluation changed the sole meal-first consumption order");};
+        for(std::size_t slot=processed_food_first_meal;slot<available.size();++slot)check_slot(slot);
+        for(std::size_t slot=0;slot<processed_food_first_meal;++slot)check_slot(slot);
+    }
     const auto expected=original::blend_food_quality(witness.previous_quality,
         agriculture_batch_quality(witness.accepted).value,accepted,previous);
     if (proof.input.food_quality!=(received>consumed ? expected:0))

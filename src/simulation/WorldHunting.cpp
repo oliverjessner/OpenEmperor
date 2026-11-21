@@ -142,7 +142,7 @@ const char* hunting_movement_result_name(HuntingMovementResult result) {
     return "Invalid movement";
 }
 void World::initialize_hunting_habitats() {
-    if(!playable_hunting_enabled() || !hunting_ || !hunting_food_)invalid("Hunting ecology requires its explicit fresh World generation");
+    if(!playable_hunting_enabled() || !hunting_ || (!hunting_food_ && !processed_food_))invalid("Hunting ecology requires its explicit fresh World generation");
     auto& state=*hunting_;
     if(!state.habitats.empty() || !state.animals.empty() || !state.tents.empty() || !state.hunters.empty() ||
         state.next_animal_id!=1 || state.next_hunter_id!=1 || state.launched || state.retired)
@@ -363,9 +363,10 @@ void World::advance_hunting() {
 void World::validate_hunting_snapshot(const WorldSnapshot& s) {
     const auto bodies=std::count_if(s.buildings.begin(),s.buildings.end(),[](const auto& row){return row.kind==Object::OriginalHuntersTent;});
     if(!simulation::playable_hunting_enabled(s.profile,s.rule_version)) {
-        if(s.hunting || s.hunting_food || bodies)invalid("Historical generation rejects Hunting authority");return;
+        if(s.hunting || s.hunting_food || s.processed_food || bodies)invalid("Historical generation rejects Hunting authority");return;
     }
-    if(!s.hunting || !s.hunting_food || s.fishing_food || s.agriculture || !s.fishing)
+    if(!s.hunting || s.fishing_food || s.agriculture || !s.fishing ||
+       (simulation::food_processing_enabled(s.profile,s.rule_version)?(!s.processed_food||s.hunting_food):(!s.hunting_food||s.processed_food)))
         invalid("Hunting requires its sole seven-kind Food and inherited Fishing metadata");
     const auto& state=*s.hunting;
     const auto initial=state.habitats.size()*static_cast<std::size_t>(hunting_habitat_capacity);
@@ -506,7 +507,7 @@ void World::validate_hunting_snapshot(const WorldSnapshot& s) {
 }
 void World::validate_hunting_context() const {
     if(!playable_hunting_enabled())return;
-    if(!hunting_ || !hunting_food_ || !original_terrain_facts_ || !original_terrain_facts_->irrigation_complete() || !original_rules_model_ ||
+    if(!hunting_ || (!hunting_food_ && !processed_food_) || !original_terrain_facts_ || !original_terrain_facts_->irrigation_complete() || !original_rules_model_ ||
         original_rules_model_->building_value(original::ModelBuilding::HuntersTent,original::BuildingField::Cost)<=0 ||
         original_rules_model_->building_value(original::ModelBuilding::HuntersTent,original::BuildingField::Employees)<=0 ||
         original_rules_model_->building_value(original::ModelBuilding::HuntersTent,original::BuildingField::Employees)>INT16_MAX)

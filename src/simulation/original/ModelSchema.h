@@ -55,7 +55,9 @@ enum class ModelBuilding : std::uint16_t {
     IrrigationDitch = 202,
     IrrigationPump = 203,
     FishingQuay = 31,
-    HuntersTent = 33
+    HuntersTent = 33,
+    Mill = 53,
+    FoodShop = 66
 };
 
 // Ordered ALL HOUSES records. Vacant House has no separate house-table row.
