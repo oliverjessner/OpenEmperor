@@ -190,6 +190,16 @@ work/completion and physical shop/House arrivals precede the sole Food sink.
 No Warehouse Food, Salt/Spices, parallel inventory or second demand is added.
 Historical modes remain exact. See [the processing contract](agriculture.md#food-processing-agri-mac09).
 
+**Food Warehouses** is separately explicit Rule35/policy3/schema51,
+`authored-food-warehouses-v1`, revision1, V/`--food-warehouses`. It inherits34.
+The same twelve-column Food account owns Warehouse stock and transfers;
+`WorldFoodWarehouses` validates immutable first inputs and accepted outward
+receipts, with Market first inputs closing the raw House chain. Warehouse
+construction and Goods/Aux remain unchanged. One additional counted Food
+courier per Warehouse uses the shared navigator; derived UI/status caches add
+no saved inventory. Rules1–34/defaults remain exact. See
+[the Warehouse contract](agriculture.md#food-warehouses-agri-mac10).
+
 **Irrigation productivity** is separately explicit Rule33/policy3/schema49,
 `authored-irrigation-productivity-v1`, revision1. `WorldIrrigationProductivity`
 records per-crop wet work, earned/clipped bonus and derived quarter carry;
@@ -230,6 +240,7 @@ Historical Rules1–32 stay exact. See
 | Rule32 / schema48 / seasons revision1 | Explicit authored seasonal Agriculture; derives nine growing windows from the sole World tick,80-work readiness, actual Food harvest work and one end-slot expiry grace. Real Food/Hemp/plant pickup and return retain sole inventory authority. Strict ready-cycle provenance, work/waste/cargo/receipt validation and no historical migration or overwrite. |
 | Rule33 / schema49 / irrigation productivity revision1 | Explicit authored water-driven growth; inherits Rule32 and retains actual base-work ticks, per-crop wet/bonus/clipped history and fractional carry. Existing phase27 paid supply alone permits +25% bounded growth work; actual harvest/pickup/return remains sole inventory authority. All older saves/defaults stay exact. |
 | Rule34 / schema50 / Food processing revision1 | Explicit paid Mill53/FoodShop66 successor to33. One12-column Food authority preserves seven raw ingredients and graded Dinners28, finite physical transport/reservations, one-time recipe inputs, staffed work, actual output and sole House consumption. Exact first meal provenance and strict source-bound restore; no defaults or historical migrations. |
+| Rule35 / schema51 / Food Warehouses revision1 | Explicit successor to34. Paid Warehouses join the same twelve-column Food account with bounded storage, physical source debits, another real forwarding leg and immutable first receipts. Existing construction/Goods/Aux, historical generations, defaults and82/58 limits remain exact. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy

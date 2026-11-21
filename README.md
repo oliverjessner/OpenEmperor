@@ -79,6 +79,12 @@ portion of that grade. Physical shop deliveries share the existing House Food
 stock and consumption event. Inspect recipes, cargo, returns and first receipts.
 These recipes and timing are authored; Salt, Spices and grade5 remain unavailable.
 
+**V Food Warehouses** or `--food-warehouses` selects separate Rule35. Existing
+paid Warehouses gain a finite Food compartment and their own Food courier.
+Raw Food travels to Mills or Markets; stored Dinners travel to FoodShops.
+Inspect the Warehouse for typed stock, capacity, cargo and actual receipts.
+Goods/Aux storage and older modes retain their existing contracts.
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

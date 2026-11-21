@@ -357,6 +357,22 @@
   exact, without migration or cross-schema overwrite; native linked assistants,
   unit conversion, original recipe timing and artwork parity remain unresolved.
   See [Food processing](docs/original-economy/agriculture.md#food-processing-agri-mac09).
+- Food Warehouses are a separate explicit Rule35/policy3/schema51 successor,
+  marker `authored-food-warehouses-v1`, revision1, V/`--food-warehouses`.
+  Inherit34 and preserve existing Warehouse2×2/cost150/staff2, Goods/Aux and
+  two-body limit; these are inherited authored values, not native54 parity.
+  Add one counted Food courier per Warehouse within82/58. Warehouse stock is
+  a row in the sole twelve-column ProcessedFoodState: shared Food32, per-kind4
+  including actual incoming and physical return cargo. No parallel Food stash,
+  origin, House witness or consumption. Producers bring raw Food and Mills bring
+  Dinners; another real Warehouse trip supplies raw Food to Mill/Market or meals
+  to FoodShop. No Warehouse→Warehouse/House, Market meals or grade5. Preserve
+  immutable typed first input/accepted-output and Market input receipts, actual
+  work, arrival order, begun edges, return room and exact Save/Recovery. Only35
+  uses the cached-route-distance/canonical cursor for these new logistics paths;
+  all Rules1–34/schemas1–50 and defaults stay exact without migration or overwrite.
+  Warehouse demolition remains refused. See
+  [Food Warehouses](docs/original-economy/agriculture.md#food-warehouses-agri-mac10).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

@@ -218,6 +218,16 @@ transport and the existing sole House Food event form one shared account.
 Grades, quantities and timing are authored; Salt/Spices/grade5 stay unavailable.
 Older modes and saves remain exact. See [Food processing](original-economy/agriculture.md#food-processing-agri-mac09).
 
+The separate regular **V Food Warehouses (35)** / `--food-warehouses` selects
+Rule35/policy3/schema51, marker `authored-food-warehouses-v1`. Existing paid
+2×2 Warehouses retain150-Funds construction, two workers and Goods/Aux; each
+adds one bounded Food courier and32 shared Food slots, at most four per kind
+including actual incoming and physical return room. Raw Food goes onward to
+Mills/Markets, meals to FoodShops; another actual House arrival and the existing
+sole consumption event remain necessary. Legacy advanced V still selects
+Rule19 safe demolition. Rules1–34/schemas1–50/defaults remain exact. See
+[Food Warehouses](original-economy/agriculture.md#food-warehouses-agri-mac10).
+
 The separate **X Irrigation yields (33)** / `--irrigation-productivity`
 selection uses Rule33/policy3/schema49 with marker
 `authored-irrigation-productivity-v1`. It inherits Rule32 and adds one bonus

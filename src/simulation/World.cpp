@@ -312,7 +312,11 @@ bool courier_can_target(CourierRole role,const BuildingState& target) {
 
 bool courier_can_target(CourierRole role,const BuildingState& target,
                         RulesProfile profile,std::uint32_t rule_version) {
-    if(role==CourierRole::OriginalMealsToShop) return food_processing_enabled(profile,rule_version) && target.placed && target.kind==Object::OriginalFoodShop66;
+    if(role==CourierRole::OriginalWarehouseFood) return food_warehouses_enabled(profile,rule_version) && target.placed &&
+        (target.kind==Object::OriginalMill53 || target.kind==Object::Market || target.kind==Object::OriginalFoodShop66);
+    if(role==CourierRole::OriginalFoodToMarket && food_warehouses_enabled(profile,rule_version) && target.placed && target.kind==Object::Warehouse) return true;
+    if(role==CourierRole::OriginalMealsToShop) return food_processing_enabled(profile,rule_version) && target.placed &&
+        (target.kind==Object::OriginalFoodShop66 || (food_warehouses_enabled(profile,rule_version) && target.kind==Object::Warehouse));
     if(role==CourierRole::OriginalMealsToHouse) return food_processing_enabled(profile,rule_version) && target.placed && original_house_kind(target.kind);
     if(role==CourierRole::OriginalFoodToMarket && food_processing_enabled(profile,rule_version) && target.placed && target.kind==Object::OriginalMill53) return true;
     if(role==CourierRole::OriginalFoodGrower) return physical_food_growers_enabled(profile,rule_version) && target.placed &&
@@ -557,6 +561,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v28{28,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v35{35,32,64,32,5,800};
+    if (food_warehouses_enabled(profile,version)) return city_v16_v35;
     static constexpr ProfileRules city_v16_v34{34,32,64,32,5,800};
     if (food_processing_enabled(profile,version)) return city_v16_v34;
     static constexpr ProfileRules city_v16_v33{33,32,64,32,5,800};
@@ -656,6 +662,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         else if (playable_fishing_enabled()) {fishing_food_.emplace();fishing_.emplace();}
         else agriculture_.emplace();
     }
+    if(food_warehouses_enabled()) food_warehouses_.emplace();
     if(multi_field_agriculture_enabled()) multi_field_agriculture_.emplace();
     if(physical_food_growers_enabled()) physical_food_growers_.emplace();
     if(seasonal_agriculture_enabled()) seasonal_agriculture_.emplace();
@@ -1955,7 +1962,8 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
             result.reason="Original production building capacity reached";return result;
         }
         const bool plantation=original_plantations_enabled() && (command.type==CommandType::PlaceOriginalTeaCuringShed || command.type==CommandType::PlaceOriginalLacquerRefinery || command.type==CommandType::PlaceOriginalSilkwormShed);
-        const std::size_t needed=(plantation || (physical_food_growers_enabled() && command.type==CommandType::PlaceOriginalFoodFarm) || (seasonal_agriculture_enabled() && command.type==CommandType::PlaceOriginalHempFarm) || command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceWarehouse) ? 2U:creates_courier ? 1U:0U;
+        const std::size_t needed=(food_warehouses_enabled() && command.type==CommandType::PlaceWarehouse) ? 3U:
+            (plantation || (physical_food_growers_enabled() && command.type==CommandType::PlaceOriginalFoodFarm) || (seasonal_agriculture_enabled() && command.type==CommandType::PlaceOriginalHempFarm) || command.type==CommandType::PlaceMarket || command.type==CommandType::PlaceWarehouse) ? 2U:creates_courier ? 1U:0U;
         const auto capacity=Rules::original_production_courier_limit;
         if (needed>capacity || couriers_.size()+retired_couriers+grower_navigation_tracks_.size()+(fishing_ ? fishing_->quays.size():0)+(hunting_ ? hunting_->tents.size()+3*hunting_->habitats.size():0)>capacity-needed ||
             (original_safe_demolition_enabled() && (!next_courier_id_ || next_courier_id_-1>capacity-needed))) {
@@ -1964,6 +1972,7 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
     }
     if (scalable(profile_) && creates_courier &&
         (next_courier_id_==0 || next_courier_id_==UINT32_MAX ||
+         (food_warehouses_enabled() && command.type==CommandType::PlaceWarehouse && next_courier_id_>=UINT32_MAX-2) ||
          ((command.type==CommandType::PlaceMarket || (physical_food_growers_enabled() && command.type==CommandType::PlaceOriginalFoodFarm) || (seasonal_agriculture_enabled() && command.type==CommandType::PlaceOriginalHempFarm) || (original_production_enabled() && command.type==CommandType::PlaceWarehouse) || (original_plantations_enabled() && construction && (*construction==Object::OriginalTeaCuringShed237 || *construction==Object::OriginalLacquerRefinery238 || *construction==Object::OriginalSilkwormShed239))) && next_courier_id_==UINT32_MAX-1))) {
         result.reason="Courier ID counter exhausted"; return result;
     }
@@ -2431,6 +2440,11 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
             if (original_production_enabled()) {
                 original_goods_->stocks.push_back({b.id,{}});original_production_->industry.auxiliary.push_back({b.id});
                 add_v10_courier(b.id,CourierRole::OriginalAuxSupplier,Good::Goods);
+                if(food_warehouses_enabled()) {
+                    processed_food_->stocks.push_back(ProcessedFoodStock{b.id});
+                    food_warehouses_->warehouses.push_back(FoodWarehouseHistory{b.id});
+                    add_v10_courier(b.id,CourierRole::OriginalWarehouseFood,Good::Food);
+                }
             }
         } else if (production_profile(profile_)) {
             auto& b=mutable_building(BuildingId::Warehouse);
@@ -2570,6 +2584,7 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
             if(original_agriculture_enabled()) with_agriculture_food([&](auto& food){using Stock=typename std::remove_cvref_t<decltype(food.stocks)>::value_type;food.stocks.push_back(Stock{id});});
             else original_production_->food.stocks.push_back(OriginalFoodStock{id});
             add_v10_courier(id,CourierRole::OriginalFoodToHouse,Good::Food);
+            if(food_warehouses_enabled())food_warehouses_->markets.push_back(FoodWarehouseMarket{id});
         }
         else add_v10_courier(id,CourierRole::MarketFoodDistribution,Good::Food);
         break;
@@ -4310,6 +4325,7 @@ bool World::industry_balance_valid() const {
                 c.role==CourierRole::OriginalSeasonalHempGrower&&seasonal_agriculture_enabled() ? Object::OriginalHempFarm:
                 c.role==CourierRole::OriginalPlantationGrower&&original_plantations_enabled() ? owner.kind:
                 c.role==CourierRole::AuthoredLandTrader&&authored_land_trade_enabled()?Object::Warehouse:
+                c.role==CourierRole::OriginalWarehouseFood && food_warehouses_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalAuxSupplier && original_production_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalLuxuryToWarehouse && original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalAuxToWarehouse && original_production_enabled() && original_industry_source(owner.kind) && !original_industry_goods::output(owner.kind) ? owner.kind:
@@ -4400,6 +4416,7 @@ bool World::industry_balance_valid() const {
             };
             if ((original_industry_source(b.kind) && owned(original_industry_goods::output(b.kind) ? CourierRole::OriginalLuxuryToWarehouse:CourierRole::OriginalAuxToWarehouse)!=1) ||
                 (original_production_enabled() && b.kind==Object::Warehouse && owned(CourierRole::OriginalAuxSupplier)!=1) ||
+                (food_warehouses_enabled() && b.kind==Object::Warehouse && owned(CourierRole::OriginalWarehouseFood)!=1) ||
                 (b.kind==Object::ClaySource && owned(CourierRole::Clay)!=1) ||
                 ((b.kind==Object::OriginalFoodFarm || b.kind==Object::OriginalFishingQuay || b.kind==Object::OriginalHuntersTent) && owned(CourierRole::OriginalFoodToMarket)!=1) ||
                 (b.kind==Object::OriginalMill53 && owned(CourierRole::OriginalMealsToShop)!=1) ||
@@ -5150,6 +5167,25 @@ std::string World::canonical_state() const {
                 if(seasonal_agriculture_enabled())out<<','<<t.ready_tick;}
         }
     }
+    if(food_warehouses_) {
+        out<<'|'<<food_warehouses_contract<<':'<<food_warehouses_revision;
+        const auto arrival=[&](const std::optional<FoodProcessingArrival>& value){
+            out<<','<<bool(value);if(value)out<<','<<static_cast<std::uint32_t>(value->transfer.courier_id)<<','<<value->transfer.sequence
+                <<','<<static_cast<std::uint32_t>(value->source)<<','<<value->tick<<','<<value->amount;
+        };
+        for(const auto& node:food_warehouses_->warehouses) {
+            out<<"|food-warehouse:"<<static_cast<std::uint32_t>(node.warehouse_id);
+            for(const auto& value:node.first_received)arrival(value);
+            for(const auto& value:node.first_delivered) {
+                out<<','<<bool(value);if(value)out<<','<<static_cast<std::uint32_t>(value->transfer.courier_id)<<','<<value->transfer.sequence
+                    <<','<<static_cast<std::uint32_t>(value->target)<<','<<value->tick<<','<<value->amount;
+            }
+        }
+        for(const auto& node:food_warehouses_->markets) {
+            out<<"|food-warehouse-market:"<<static_cast<std::uint32_t>(node.market_id);
+            for(const auto& value:node.first_received)arrival(value);
+        }
+    }
     if(food_processing_) {
         out<<'|'<<food_processing_contract<<':'<<food_processing_revision;
         const auto batch=[&](const FoodProcessingBatch& b){out<<','<<b.sequence<<','<<b.started_tick<<','<<unsigned(b.grade)<<','<<b.work;for(auto n:b.ingredients)out<<','<<unsigned(n);};
@@ -5433,7 +5469,7 @@ WorldSnapshot World::snapshot() const {
     s.original_goods=original_goods_;
     s.original_production=original_production_;
     s.agriculture=agriculture_;
-    s.hunting_food=hunting_food_;s.hunting=hunting_;s.processed_food=processed_food_;s.food_processing=food_processing_;
+    s.hunting_food=hunting_food_;s.hunting=hunting_;s.processed_food=processed_food_;s.food_processing=food_processing_;s.food_warehouses=food_warehouses_;
     s.multi_field_agriculture=multi_field_agriculture_;
     s.physical_food_growers=physical_food_growers_;
     s.seasonal_agriculture=seasonal_agriculture_;
@@ -5486,7 +5522,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     if(s.navigation_session_present)
         throw std::invalid_argument("Transient grower navigation cannot be restored as historical saved authority");
     performance::increment(performance::Counter::WorldRestores);
-    validate_irrigation_productivity_snapshot(s);validate_food_processing_snapshot(s);
+    validate_irrigation_productivity_snapshot(s);validate_food_processing_snapshot(s);validate_food_warehouses_snapshot(s);
     validate_seasonal_agriculture_snapshot(s);
     validate_physical_food_growers_snapshot(s);
     validate_multi_field_agriculture_snapshot(s);
@@ -5517,7 +5553,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.original_goods_=s.original_goods;
     w.original_production_=s.original_production;
     w.agriculture_=s.agriculture;
-    w.hunting_food_=s.hunting_food;w.hunting_=s.hunting;w.processed_food_=s.processed_food;w.food_processing_=s.food_processing;
+    w.hunting_food_=s.hunting_food;w.hunting_=s.hunting;w.processed_food_=s.processed_food;w.food_processing_=s.food_processing;w.food_warehouses_=s.food_warehouses;
     w.multi_field_agriculture_=s.multi_field_agriculture;
     w.physical_food_growers_=s.physical_food_growers;
     w.seasonal_agriculture_=s.seasonal_agriculture;
@@ -5703,6 +5739,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 c.role==CourierRole::OriginalSeasonalHempGrower&&w.seasonal_agriculture_enabled() ? Object::OriginalHempFarm:
                 c.role==CourierRole::OriginalPlantationGrower&&w.original_plantations_enabled() ? owner.kind:
                 c.role==CourierRole::AuthoredLandTrader&&w.authored_land_trade_enabled()?Object::Warehouse:
+                c.role==CourierRole::OriginalWarehouseFood && w.food_warehouses_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalAuxSupplier && w.original_production_enabled() ? Object::Warehouse:
                 c.role==CourierRole::OriginalLuxuryToWarehouse && w.original_production_enabled() && original_industry_goods::output(owner.kind) ? owner.kind:
                 c.role==CourierRole::OriginalAuxToWarehouse && w.original_production_enabled() && original_industry_source(owner.kind) && !original_industry_goods::output(owner.kind) ? owner.kind:

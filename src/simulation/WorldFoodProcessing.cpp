@@ -53,9 +53,9 @@ void validate_arrival(const FoodProcessingArrival& arrival,const ProcessedFoodSt
 // First proofs can share one atomic multi-kind arrival. Publication checks
 // their bounded keys together; ordinary ticks create these proofs only through
 // the real monotone courier path and do not sort or rebuild this index.
-void validate_first_transfer_keys(const FoodProcessingState& state){
+void validate_first_transfer_keys(const FoodProcessingState& state,const FoodWarehousesState* warehouses){
     struct Binding {OriginalGoodsTransferKey transfer;BuildingId source{},target{};std::uint64_t tick=0;std::size_t slot=0;std::int32_t amount=0;};
-    constexpr std::size_t bound=food_processing_mill_limit*7+food_processing_shop_limit*4+Rules::city_v10_household_limit*(4+processed_food_count);
+    constexpr std::size_t bound=food_processing_mill_limit*7+food_processing_shop_limit*4+Rules::city_v10_household_limit*(4+processed_food_count)+Rules::city_v10_warehouse_limit*processed_food_count*2+Rules::city_v11_market_limit*7;
     std::array<Binding,bound> rows{};std::size_t count=0;
     const auto append=[&](const FoodProcessingArrival& a,BuildingId target,std::size_t slot){
         if(count==rows.size())invalid("Bounded first transfer proof index exhausted");
@@ -69,6 +69,13 @@ void validate_first_transfer_keys(const FoodProcessingState& state){
         const auto first=std::find_if(house.first_by_grade.begin(),house.first_by_grade.end(),[&](const auto& a){return a&&a->transfer==house.first_receipt.transfer;});
         if(first==house.first_by_grade.end())invalid("Full first meal witness lost its actual grade supplier");
         for(std::size_t g=0;g<processed_food_count;++g)append(FoodProcessingArrival{house.first_receipt.transfer,(*first)->source,house.first_receipt.tick,house.first_receipt.accepted[g]},house.house_id,g);
+    }
+    if(warehouses){
+        for(const auto& row:warehouses->warehouses)for(std::size_t g=0;g<processed_food_count;++g){
+            if(row.first_received[g])append(*row.first_received[g],row.warehouse_id,g);
+            if(row.first_delivered[g]){const auto& a=*row.first_delivered[g];append(FoodProcessingArrival{a.transfer,row.warehouse_id,a.tick,a.amount},a.target,g);}
+        }
+        for(const auto& row:warehouses->markets)for(std::size_t g=0;g<7;++g)if(row.first_received[g])append(*row.first_received[g],row.market_id,g);
     }
     const auto key=[](const auto& r){return std::pair{r.transfer.courier_id,r.transfer.sequence};};
     std::sort(rows.begin(),rows.begin()+static_cast<std::ptrdiff_t>(count),[&](const auto& a,const auto& b){return key(a)<key(b);});
@@ -95,9 +102,10 @@ void validate_first_transfer_keys(const FoodProcessingState& state){
     }
 }
 template<class Buildings>
-void validate_processing(const FoodProcessingState& state,const ProcessedFoodState& food,const Buildings& buildings,std::uint64_t tick,bool publication){
-    if(buildings.size()>Rules::original_production_building_limit||food.stocks.size()>original_food_stock_limit(RulesProfile::CityV16,kFoodProcessingRuleVersion)||
-       food.trips.size()>original_food_trip_limit(RulesProfile::CityV16,kFoodProcessingRuleVersion))invalid("Food processing publication exceeds its unchanged World bounds");
+void validate_processing(const FoodProcessingState& state,const ProcessedFoodState& food,const Buildings& buildings,std::uint64_t tick,bool publication,const FoodWarehousesState* warehouses){
+    const auto version=warehouses ? kFoodWarehousesRuleVersion:kFoodProcessingRuleVersion;
+    if(buildings.size()>Rules::original_production_building_limit||food.stocks.size()>original_food_stock_limit(RulesProfile::CityV16,version)||
+       food.trips.size()>original_food_trip_limit(RulesProfile::CityV16,version))invalid("Food processing publication exceeds its unchanged World bounds");
     if(state.mills.size()>food_processing_mill_limit||state.shops.size()>food_processing_shop_limit ||
        std::count_if(buildings.begin(),buildings.end(),[](const auto& b){return b.kind==Object::OriginalMill53;})!=static_cast<std::ptrdiff_t>(state.mills.size()) ||
        std::count_if(buildings.begin(),buildings.end(),[](const auto& b){return b.kind==Object::OriginalFoodShop66;})!=static_cast<std::ptrdiff_t>(state.shops.size()))
@@ -114,7 +122,12 @@ void validate_processing(const FoodProcessingState& state,const ProcessedFoodSta
             const auto& arrival=*m.first_ingredients[g];validate_arrival(arrival,food,buildings,m.mill_id,g,tick);
             const auto& source=find(buildings,arrival.source,body_key);const auto travel=arrival_travel(buildings,arrival.source,m.mill_id);
             if(arrival.amount>2)invalid("First raw Mill arrival exceeds its per-kind physical admission");
-            if(g<5){
+            if(warehouses&&source.kind==Object::Warehouse){
+                const auto& history=find(warehouses->warehouses,source.id,[](const auto& row){return row.warehouse_id;});
+                if(!history.first_received[g]||!history.first_delivered[g]||arrival.tick<=history.first_received[g]->tick||
+                   arrival.tick-history.first_received[g]->tick<travel||arrival.tick<history.first_delivered[g]->tick)
+                    invalid("Mill Warehouse input predates its actual raw receipt or physical forwarding");
+            }else if(g<5){
                 if(source.kind!=Object::OriginalFoodFarm)invalid("Mill crop has no actual Farm supplier");
                 bool possible=false;for(const auto& field:food.fields)if(field.farm_id==source.id&&static_cast<std::size_t>(field.crop)==g){
                     const auto placed=find(buildings,field.field_id,body_key).placed_tick;
@@ -218,10 +231,17 @@ void validate_processing(const FoodProcessingState& state,const ProcessedFoodSta
             if(bool(stock.received[7+g])!=shop.first_meals[g].has_value())invalid("Every Shop meal grade requires its first actual physical Mill receipt");
             if(!shop.first_meals[g])continue;
             const auto& arrival=*shop.first_meals[g];validate_arrival(arrival,food,buildings,b.id,7+g,tick);
-            const auto& producer=find(state.mills,arrival.source,[](const auto& m){return m.mill_id;});
-            if(!producer.first_completions[g]||arrival.tick<=producer.first_completions[g]->completed_tick||
-               arrival.tick-producer.first_completions[g]->completed_tick<arrival_travel(buildings,arrival.source,b.id)-1)
-                invalid("First Shop grade arrived before its actual Mill completion and physical transport");
+            if(warehouses&&find(buildings,arrival.source,body_key).kind==Object::Warehouse){
+                const auto& history=find(warehouses->warehouses,arrival.source,[](const auto& row){return row.warehouse_id;});
+                if(!history.first_received[7+g]||!history.first_delivered[7+g]||arrival.tick<=history.first_received[7+g]->tick||
+                   arrival.tick-history.first_received[7+g]->tick<arrival_travel(buildings,arrival.source,b.id)||arrival.tick<history.first_delivered[7+g]->tick)
+                    invalid("First Shop grade predates its actual Warehouse meal receipt and physical forwarding");
+            }else {
+                const auto& producer=find(state.mills,arrival.source,[](const auto& m){return m.mill_id;});
+                if(!producer.first_completions[g]||arrival.tick<=producer.first_completions[g]->completed_tick||
+                   arrival.tick-producer.first_completions[g]->completed_tick<arrival_travel(buildings,arrival.source,b.id)-1)
+                    invalid("First Shop grade arrived before its actual Mill completion and physical transport");
+            }
         }
         std::optional<BuildingId> admitted_parent;
         for(const auto& candidate:buildings)if(candidate.placed&&candidate.kind==Object::Market&&candidate.id<b.id&&
@@ -295,7 +315,7 @@ void validate_processing(const FoodProcessingState& state,const ProcessedFoodSta
         if(received!=(at!=state.houses.end()&&at->house_id==stock.building_id))invalid("House meal histories require exactly one actual first receipt");
     }
 
-    if(publication)validate_first_transfer_keys(state);
+    if(publication)validate_first_transfer_keys(state,warehouses);
 }
 }
 Command set_mill_recipe(BuildingId id,std::uint8_t grade){Command c{CommandType::SetMillRecipe};c.building_id=id;c.recipe_grade=grade;return c;}
@@ -304,7 +324,7 @@ World World::create_food_processing(std::shared_ptr<const MapPermissions> p,std:
     w.validate_food_processing_model();w.initialize_fishing_sites();w.initialize_hunting_habitats();w.validate_fishing_context();w.validate_hunting_context();return w;
 }
 World World::restore_food_processing(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> p,std::shared_ptr<const original::OriginalRulesModel> m,std::shared_ptr<const OriginalTerrainFacts> t){
-    if(!simulation::food_processing_enabled(s.profile,s.rule_version))invalid("Food processing restore requires exact Rule34");
+    if(s.profile!=RulesProfile::CityV16||s.rule_version!=kFoodProcessingRuleVersion)invalid("Food processing restore requires exact Rule34");
     validate_food_processing_snapshot(s);
     auto w=restore_irrigation_generation(kFoodProcessingRuleVersion,s,std::move(p),std::move(m),std::move(t));
     w.validate_food_processing_model();w.validate_fishing_context();w.validate_hunting_context();return w;
@@ -369,10 +389,14 @@ void World::validate_food_processing_snapshot(const WorldSnapshot& s){
         if(s.processed_food||s.food_processing)invalid("Historical generations reject processed Food authority");return;
     }
     if(!s.processed_food||!s.food_processing||s.hunting_food||s.fishing_food||s.agriculture)invalid("Rule34 requires its sole graded Food authority");
-    validate_processing(*s.food_processing,*s.processed_food,s.buildings,s.ticks,true);
+    if(s.food_warehouses.has_value()!=simulation::food_warehouses_enabled(s.profile,s.rule_version))invalid("Food Warehouse authority requires exact Rule35");
+    validate_processing(*s.food_processing,*s.processed_food,s.buildings,s.ticks,true,s.food_warehouses ? &*s.food_warehouses:nullptr);
 }
 void World::validate_food_processing_state() const{
-    if(food_processing_enabled())validate_processing(*food_processing_,*processed_food_,buildings_,ticks_,false);
+    if(food_processing_enabled()){
+        if(food_warehouses_.has_value()!=food_warehouses_enabled())invalid("Food Warehouse authority requires exact Rule35");
+        validate_processing(*food_processing_,*processed_food_,buildings_,ticks_,false,food_warehouses_ ? &*food_warehouses_:nullptr);
+    }
     else if(food_processing_||processed_food_)invalid("Historical World rejects Food processing state");
 }
 FoodProcessingStatus World::food_processing_status(BuildingId id) const{

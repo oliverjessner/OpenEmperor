@@ -184,7 +184,12 @@ const char* physical_grower_phase_name(simulation::PhysicalFoodGrowerPhase phase
 constexpr std::array agriculture_food_names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)"};
 bool processing_food_courier(simulation::CourierRole role) {
     return role==simulation::CourierRole::OriginalFoodToMarket || role==simulation::CourierRole::OriginalFoodToHouse ||
-        role==simulation::CourierRole::OriginalMealsToShop || role==simulation::CourierRole::OriginalMealsToHouse;
+        role==simulation::CourierRole::OriginalMealsToShop || role==simulation::CourierRole::OriginalMealsToHouse ||
+        role==simulation::CourierRole::OriginalWarehouseFood;
+}
+bool authored_food_cart(simulation::CourierRole role) {
+    return role==simulation::CourierRole::OriginalMealsToShop || role==simulation::CourierRole::OriginalMealsToHouse ||
+        role==simulation::CourierRole::OriginalWarehouseFood;
 }
 const char* agriculture_food_name(std::size_t crop) {
     constexpr std::array names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)","Fish","Meat",
@@ -348,8 +353,7 @@ template<class Courier> int displayed_courier_reservation(const simulation::Worl
         (courier.role==simulation::CourierRole::OriginalAuxToWarehouse || courier.role==simulation::CourierRole::OriginalAuxSupplier))
         return world.original_auxiliary_cargo(courier.id);
     if (world.original_production_enabled() && courier.phase==simulation::CourierPhase::ToWarehouse &&
-        (courier.role==simulation::CourierRole::OriginalFoodToMarket || courier.role==simulation::CourierRole::OriginalFoodToHouse ||
-         courier.role==simulation::CourierRole::OriginalMealsToShop || courier.role==simulation::CourierRole::OriginalMealsToHouse))
+        processing_food_courier(courier.role))
         return world.original_food_cargo(courier.id);
     if (world.original_production_enabled() && world.original_goods_state()) {
         for (const auto& row:world.original_goods_state()->reservations)
@@ -411,6 +415,7 @@ const char* courier_role_label(simulation::CourierRole role) {
     case simulation::CourierRole::OriginalFoodToHouse: return "FoodToHouse";
     case simulation::CourierRole::OriginalMealsToShop: return "Dinners to Food Shop (AUTHORED)";
     case simulation::CourierRole::OriginalMealsToHouse: return "Dinners to House (AUTHORED)";
+    case simulation::CourierRole::OriginalWarehouseFood: return "Warehouse Food (AUTHORED)";
     case simulation::CourierRole::OriginalAncestor: return "Ancestor";
     case simulation::CourierRole::OriginalWater: return "Water";
     case simulation::CourierRole::OriginalDaoist: return "Daoist";
@@ -884,6 +889,16 @@ std::unique_ptr<SandboxView> SandboxView::create_playable_agriculture(
     return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_food_warehouses(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid Food warehouses difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule35 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kFoodWarehousesRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;return result;
+}
+
 std::unique_ptr<SandboxView> SandboxView::create_food_processing(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
     if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
@@ -1115,7 +1130,8 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : food_processing() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : food_warehouses() ?
+        persistence::restore_food_warehouses(document,data_root_,buildable_mask_) : food_processing() ?
         persistence::restore_food_processing(document,data_root_,buildable_mask_) : irrigation_productivity() ?
         persistence::restore_irrigation_productivity(document,data_root_,buildable_mask_) : seasonal_agriculture() ?
         persistence::restore_seasonal_agriculture(document,data_root_,buildable_mask_) : physical_food_growers() ?
@@ -1250,7 +1266,9 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : food_processing() ?
+                std::move(permissions)) : food_warehouses() ?
+            persistence::restore_food_warehouses(*initial_save_,data_root_,buildable_mask_,
+                std::move(permissions),nullptr,std::move(terrain)) : food_processing() ?
             persistence::restore_food_processing(*initial_save_,data_root_,buildable_mask_,
                 std::move(permissions),nullptr,std::move(terrain)) : irrigation_productivity() ?
             persistence::restore_irrigation_productivity(*initial_save_,data_root_,buildable_mask_,
@@ -1316,6 +1334,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (food_warehouses()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_food_warehouses(
+            std::move(permissions),persistence::prepare_food_processing_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_="Food warehouses: paid typed storage and physical redistribution; Goods and materials retain their own compartments.";
     } else if (food_processing()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_food_processing(
             std::move(permissions),persistence::prepare_food_processing_rules_model(data_root_,
@@ -1483,7 +1506,8 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(food_processing())title+=" | save schema 50 | Food processing (AUTHORED)";
+    if(food_warehouses())title+=" | save schema 51 | Food warehouses (AUTHORED)";
+    else if(food_processing())title+=" | save schema 50 | Food processing (AUTHORED)";
     else if(irrigation_productivity())title+=" | save schema 49 | Irrigation Productivity (AUTHORED)";
     else if(seasonal_agriculture())title+=" | save schema 48 | Seasonal Agriculture (AUTHORED)";
     else if(physical_food_growers())title+=" | save schema 47 | Physical Food Growers (AUTHORED)";
@@ -5291,8 +5315,7 @@ int SandboxView::walker_marker_shift(simulation::Position position,simulation::C
         world_->courier(id).role==simulation::CourierRole::OriginalVenueMusic ||
         world_->courier(id).role==simulation::CourierRole::OriginalFoodGrower ||
         world_->courier(id).role==simulation::CourierRole::OriginalSeasonalHempGrower ||
-        world_->courier(id).role==simulation::CourierRole::OriginalMealsToShop ||
-        world_->courier(id).role==simulation::CourierRole::OriginalMealsToHouse) return 0;
+        authored_food_cart(world_->courier(id).role)) return 0;
     const simulation::Cell cell{int(std::floor(position.x)),int(std::floor(position.y))};
     if(world_->bridge_at(cell)||world_->bridge_bank_at(cell)||world_->ramp_surface_height(position)||world_->source_cell_ramp_surface_height(position))return 0;
     const auto value=static_cast<unsigned>(id);
@@ -5394,10 +5417,10 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
             label.width=(world_->courier(instance.courier).role==simulation::CourierRole::OriginalSeasonalHempGrower ? 88:56)/camera_.zoom;
             label.height=8/camera_.zoom;append(label);
         }
-        if (world_->courier(instance.courier).role==simulation::CourierRole::OriginalMealsToShop ||
-            world_->courier(instance.courier).role==simulation::CourierRole::OriginalMealsToHouse) {
+        if (authored_food_cart(world_->courier(instance.courier).role)) {
             auto label=hit;label.origin={ground.x+6/camera_.zoom,ground.y-18/camera_.zoom};
-            label.width=48/camera_.zoom;label.height=8/camera_.zoom;append(label);
+            label.width=(world_->courier(instance.courier).role==simulation::CourierRole::OriginalWarehouseFood ? 80:48)/camera_.zoom;
+            label.height=8/camera_.zoom;append(label);
         }
         const auto cargo=simulation::production_profile(rules_) ?
             displayed_courier_cargo(*world_,world_->courier(instance.courier)):world_->courier_cargo();
@@ -6028,11 +6051,12 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 SDL_RenderDebugText(renderer_,static_cast<float>(point.x)+6,static_cast<float>(point.y)-18,
                     courier.role==simulation::CourierRole::OriginalSeasonalHempGrower ? "HempGrower*":"Grower*");
         }
-        if (courier.role==simulation::CourierRole::OriginalMealsToShop || courier.role==simulation::CourierRole::OriginalMealsToHouse) {
+        if (authored_food_cart(courier.role)) {
             if (!draw_agent(position,{235,188,110,255},cargo_color,displayed_courier_cargo(*world_,courier),0)) return false;
             const auto point=camera_.world_to_screen(world_for(position));
             return SDL_SetRenderDrawColor(renderer_,255,235,202,255) &&
-                SDL_RenderDebugText(renderer_,static_cast<float>(point.x)+6,static_cast<float>(point.y)-18,"Meals*");
+                SDL_RenderDebugText(renderer_,static_cast<float>(point.x)+6,static_cast<float>(point.y)-18,
+                    courier.role==simulation::CourierRole::OriginalWarehouseFood ? "FoodStore*":"Meals*");
         }
         if (courier.role==simulation::CourierRole::FireInspector) ++fire_inspector_fallback_draws_;
         if (food_market_visual(visual_role)) ++market_walker_fallback_draws_;
@@ -6818,6 +6842,7 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
         seasonal_field_eligibility_.clear();
         agriculture_calendar_lines_.clear();
         food_processing_lines_.clear();
+        food_warehouse_lines_.clear();
         agriculture_inspection_tick_=agriculture_inspection_sequence_=UINT64_MAX;
         return;
     }
@@ -6825,6 +6850,7 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
         agriculture_inspection_sequence_==world_->command_sequence()) return;
     agriculture_inspection_workers_.clear();
     food_processing_lines_.clear();
+    food_warehouse_lines_.clear();
     agriculture_inspection_farm_roads_.clear();
     physical_grower_dispatch_status_.clear();
     seasonal_field_eligibility_.clear();
@@ -6832,6 +6858,68 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
     std::vector<simulation::AgricultureSeasonStatus> seasons;
     for (const auto& body:world_->buildings()) {
         agriculture_inspection_workers_.emplace_back(body.id,world_->workers_assigned(body.id));
+        if (food_warehouses() && body.kind==simulation::Object::Warehouse) {
+            const auto status=world_->food_warehouse_status(body.id);
+            const auto& food=*world_->processed_food_state();
+            const auto own=std::find_if(food.stocks.begin(),food.stocks.end(),[&](const auto& row){return row.building_id==body.id;});
+            if (own==food.stocks.end()) throw std::logic_error("Paid Food Warehouse lost its sole Food account");
+            int held=0;for (const auto amount:status.amounts) held+=amount;
+            simulation::ProcessedFoodAmounts incoming_by_kind{},return_by_kind{};
+            for (const auto& trip:food.trips) for (std::size_t kind=0;kind<trip.loaded.size();++kind) {
+                const auto cargo=trip.loaded[kind]-trip.delivered[kind]-trip.returned[kind];
+                if (trip.target==body.id&&trip.phase==simulation::OriginalGoodsTransferPhase::Loaded) incoming_by_kind[kind]+=cargo;
+                if (trip.source==body.id) return_by_kind[kind]+=cargo;
+            }
+            std::vector<std::string> rows{
+                "Food Warehouse #"+std::to_string(static_cast<unsigned>(body.id)),
+                "Status: "+status.blocker,
+                "Food stock "+std::to_string(held)+"/"+std::to_string(status.capacity),
+                "Incoming "+std::to_string(status.incoming)+" | return room "+std::to_string(status.return_reserved),
+                "Food compartment:32 shared; intake4 per kind includes incoming and return room",
+                "Goods and Auxiliary stock use their unchanged separate compartments",
+                "AUTHORED Food storage and physical redistribution",
+                "Raw -> Mill or Market; Dinners -> Food Shop; no direct House delivery"};
+            for (std::size_t kind=0;kind<status.amounts.size();++kind) {
+                rows.push_back(std::string(agriculture_food_name(kind))+" stock "+std::to_string(status.amounts[kind])+"/4 | incoming "+
+                    std::to_string(incoming_by_kind[kind])+" | return room "+std::to_string(return_by_kind[kind]));
+                rows.push_back("Arrived "+std::to_string(own->received[kind])+" | loaded "+std::to_string(own->departed[kind])+
+                    " | returned "+std::to_string(own->returned[kind]));
+            }
+            const auto& histories=world_->food_warehouses_state()->warehouses;
+            const auto history=std::find_if(histories.begin(),histories.end(),[&](const auto& row){return row.warehouse_id==body.id;});
+            if (history==histories.end()) throw std::logic_error("Paid Food Warehouse lost its immutable receipt history");
+            for (std::size_t kind=0;kind<status.amounts.size();++kind) {
+                if (const auto& first=history->first_received[kind])
+                    rows.push_back(std::string("First received ")+agriculture_food_name(kind)+" tick "+std::to_string(first->tick)+
+                        " | source #"+std::to_string(static_cast<unsigned>(first->source))+" | courier #"+
+                        std::to_string(static_cast<unsigned>(first->transfer.courier_id))+":"+std::to_string(first->transfer.sequence));
+                if (const auto& first=history->first_delivered[kind])
+                    rows.push_back(std::string("First delivered ")+agriculture_food_name(kind)+" tick "+std::to_string(first->tick)+
+                        " | target #"+std::to_string(static_cast<unsigned>(first->target))+" | courier #"+
+                        std::to_string(static_cast<unsigned>(first->transfer.courier_id))+":"+std::to_string(first->transfer.sequence));
+            }
+            if (status.courier) {
+                const auto& courier=world_->courier(*status.courier);
+                rows.push_back("Food courier #"+std::to_string(static_cast<unsigned>(courier.id))+": "+simulation::delivery_phase_name(courier.phase));
+                rows.push_back("Actual Food cargo "+std::to_string(world_->original_food_cargo(courier.id))+"/4 | target #"+
+                    std::to_string(static_cast<unsigned>(courier.target)));
+                if (courier.phase!=simulation::CourierPhase::IdleAtWorkshop)
+                    rows.push_back(std::string("Current destination: ")+object_name(world_->building(courier.target).kind)+" #"+
+                        std::to_string(static_cast<unsigned>(courier.target)));
+                rows.push_back(courier.route_pending ? "Road interrupted; cargo and reservations retained":"Prepared physical route; arrival required");
+            }
+            for (const auto& trip:food.trips) if (trip.source==body.id || trip.target==body.id) {
+                rows.push_back("Food transfer #"+std::to_string(static_cast<unsigned>(trip.transfer.courier_id))+":"+
+                    std::to_string(trip.transfer.sequence)+" | "+object_name(world_->building(trip.source).kind)+" #"+
+                    std::to_string(static_cast<unsigned>(trip.source))+" -> "+object_name(world_->building(trip.target).kind)+" #"+
+                    std::to_string(static_cast<unsigned>(trip.target)));
+                for (std::size_t kind=0;kind<trip.loaded.size();++kind) if (trip.loaded[kind])
+                    rows.push_back(std::string(agriculture_food_name(kind))+" loaded "+std::to_string(trip.loaded[kind])+
+                        " | arrived "+std::to_string(trip.delivered[kind])+" | returned "+std::to_string(trip.returned[kind]));
+            }
+            rows.push_back("Stored Food grants no House quality; only accepted House arrivals do");
+            food_warehouse_lines_.emplace_back(body.id,std::move(rows));
+        }
         if (food_processing() && (body.kind==simulation::Object::OriginalMill53 || body.kind==simulation::Object::OriginalFoodShop66)) {
             const auto status=world_->food_processing_status(body.id);
             const auto& food_accounts=world_->processed_food_state()->stocks;
@@ -6854,7 +6942,8 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
                     std::to_string(status.work)+"/"+std::to_string(status.required_work):"Active recipe: none; no input debit");
                 rows.push_back("Started "+std::to_string(status.started)+" | completed "+std::to_string(status.completed));
                 rows.push_back("Actual staffed work total "+std::to_string(status.productive_ticks));
-                rows.push_back("Ingredient lots are the sole Food stock; no Warehouse Food storage");
+                rows.push_back(food_warehouses() ? "Ingredients share the sole Food authority with paid Warehouses":
+                    "Ingredient lots are the sole Food stock; no Warehouse Food storage");
                 for (std::size_t crop=0;crop<status.ingredients.size();++crop)
                     rows.push_back(std::string(agriculture_food_name(crop))+" input "+std::to_string(status.ingredients[crop])+
                         " | arrived "+std::to_string(own->received[crop])+" | consumed "+std::to_string(own->consumed[crop]));
@@ -6900,7 +6989,7 @@ void SandboxView::prepare_agriculture_inspection(bool force) {
                 for (std::size_t grade=0;grade<shop->first_meals.size();++grade)
                     if (shop->first_meals[grade] && (!first_meal || shop->first_meals[grade]->tick<shop->first_meals[*first_meal]->tick)) first_meal=grade;
                 if (first_meal) rows.push_back("First physical meal grade "+std::to_string(*first_meal+1)+" at tick "+
-                    std::to_string(shop->first_meals[*first_meal]->tick)+" from Mill #"+
+                    std::to_string(shop->first_meals[*first_meal]->tick)+(food_warehouses() ? " from source #":" from Mill #")+
                     std::to_string(static_cast<unsigned>(shop->first_meals[*first_meal]->source)));
             }
             for (std::size_t grade=0;grade<status.meals.size();++grade)
@@ -7170,8 +7259,10 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     std::vector<std::string> lines;
     if (food_processing() && selected_walker_ && processing_food_courier(world_->courier(*selected_walker_).role)) {
         const auto& actor=world_->courier(*selected_walker_);
+        const char* role=food_warehouses()&&actor.role==simulation::CourierRole::OriginalFoodToMarket ? "Producer Food (AUTHORED)":
+            food_warehouses()&&actor.role==simulation::CourierRole::OriginalMealsToShop ? "Mill Dinners (AUTHORED)":courier_role_label(actor.role);
         lines={"Physical Food courier #"+std::to_string(static_cast<unsigned>(actor.id)),
-            std::string("Role: ")+courier_role_label(actor.role),
+            std::string("Role: ")+role,
             "Paid owner #"+std::to_string(static_cast<unsigned>(actor.owner))+" | target #"+std::to_string(static_cast<unsigned>(actor.target)),
             std::string("Phase: ")+simulation::delivery_phase_name(actor.phase),
             "Actual Food cargo "+std::to_string(world_->original_food_cargo(actor.id))+"/4",
@@ -8341,6 +8432,14 @@ std::vector<std::string> SandboxView::inspection_lines() const {
     if (seasonal_agriculture() || !playable_agriculture() || debug_open_) append_agriculture_calendar_lines(lines,*id);
     const bool playable_market=playable_agriculture() && b.kind==simulation::Object::Market;
     if (playable_market) append_agriculture_stock_lines(*world_,*id,lines,16);
+    if (food_warehouses() && b.kind==simulation::Object::Warehouse) {
+        const auto prepared=std::lower_bound(food_warehouse_lines_.begin(),food_warehouse_lines_.end(),*id,
+            [](const auto& row,auto wanted){return row.first<wanted;});
+        if (prepared==food_warehouse_lines_.end() || prepared->first!=*id)
+            throw std::logic_error("Food Warehouse inspector was not prepared after World publication");
+        lines.insert(lines.end(),prepared->second.begin(),prepared->second.end());
+        lines.push_back("Goods and Auxiliary compartments");
+    }
     if (original_storage) {
         const int capacity=b.kind==simulation::Object::Warehouse ? 32:16;
         for (std::size_t good=0;good<goods_names.size();++good) {
@@ -9304,7 +9403,8 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(food_processing())overview+=" | Policy3 | Save50 | Mill to Food Shop | Graded Dinners";
+        if(food_warehouses())overview+=" | Policy3 | Save51 | Food Warehouses | Physical redistribution";
+        else if(food_processing())overview+=" | Policy3 | Save50 | Mill to Food Shop | Graded Dinners";
         else if(irrigation_productivity())overview+=" | Policy3 | Save49 | Irrigation productivity | earned wet work";
         else if(seasonal_agriculture())overview+=" | Policy3 | Save48 | Seasons | real harvest and return";
         else if(physical_food_growers())overview+=" | Policy3 | Save47 | Physical Food Growers | real crop return";
@@ -10054,6 +10154,7 @@ bool SandboxView::draw_help_overlay() {
     const int line=16*layout_.scale;
     if (original_production_fixture()) {
         const std::array<const char*,17> help{
+            food_warehouses() ? "FOOD WAREHOUSES - H closes":
             food_processing() ? "FOOD PROCESSING - H closes":
             irrigation_productivity() ? "IRRIGATION PRODUCTIVITY - H closes":
             seasonal_agriculture() ? "SEASONAL AGRICULTURE - H closes":
@@ -10079,6 +10180,7 @@ bool SandboxView::draw_help_overlay() {
             original_fire_protection() ? "F Watch: $80; 2 workers (2W)":"Actual arrivals supply Houses",
             original_fire_protection() ? "Inspector arrival:2400 ticks protection":"Water is evaluated on phase28",
             "PageUp/Down: sections | F10: overlays", "Plain needs Water/Food/Ancestor",
+            food_warehouses() ? "4 Warehouse: Food32 + separate Goods/materials":
             food_processing() ? "Ingredients -> staffed Mill -> Shop -> House meals":
             playable_hunting() ? "Meat: actual animals, hunt, return and deliveries":
                 playable_fishing() ? "Fish: finite grounds; AUTHORED regeneration":

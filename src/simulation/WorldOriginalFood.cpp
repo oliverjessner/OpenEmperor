@@ -13,10 +13,10 @@ namespace openemperor::simulation {
 namespace {
 [[noreturn]] void invalid(const char* message) {throw std::invalid_argument(message);}
 bool meal_role(CourierRole role) {return role==CourierRole::OriginalMealsToShop || role==CourierRole::OriginalMealsToHouse;}
-bool food_role(CourierRole role) {return role==CourierRole::OriginalFoodToMarket || role==CourierRole::OriginalFoodToHouse || meal_role(role);}
+bool food_role(CourierRole role) {return role==CourierRole::OriginalFoodToMarket || role==CourierRole::OriginalFoodToHouse || meal_role(role) || role==CourierRole::OriginalWarehouseFood;}
 bool food_source(Object kind,bool fishing=false,bool hunting=false) {return kind==Object::OriginalFoodFarm || (fishing && kind==Object::OriginalFishingQuay) || (hunting && kind==Object::OriginalHuntersTent);}
-bool food_owner(Object kind,bool fishing=false,bool hunting=false,bool processing=false) {return food_source(kind,fishing,hunting) || kind==Object::Market || original_house_kind(kind) || (processing && (kind==Object::OriginalMill53 || kind==Object::OriginalFoodShop66));}
-int capacity(Object kind) {return kind==Object::Market || kind==Object::OriginalMill53 || kind==Object::OriginalFoodShop66 ? 16:8;}
+bool food_owner(Object kind,bool fishing=false,bool hunting=false,bool processing=false,bool warehouses=false) {return food_source(kind,fishing,hunting) || kind==Object::Market || original_house_kind(kind) || (warehouses && kind==Object::Warehouse) || (processing && (kind==Object::OriginalMill53 || kind==Object::OriginalFoodShop66));}
+int capacity(Object kind) {return kind==Object::Warehouse ? food_warehouse_capacity:kind==Object::Market || kind==Object::OriginalMill53 || kind==Object::OriginalFoodShop66 ? 16:8;}
 std::size_t crop_index(OriginalFoodCrop crop) {
     const auto result=static_cast<std::size_t>(crop);
     if (result>=original_food_crop_count) invalid("unsupported authored Food crop");return result;
@@ -84,13 +84,25 @@ template<class Food> int incoming_raw(const Food& food,BuildingId target) {
     }
     return result;
 }
-template<class Food> auto available_load(const Food& food,BuildingId owner,BuildingId target,Object target_kind,CourierRole role) {
+template<class Food> auto available_load(const Food& food,BuildingId owner,BuildingId target,Object target_kind,CourierRole role,bool warehouses=false) {
     auto result=account(food.stocks,owner).amounts;
     if constexpr(std::is_same_v<Food,ProcessedFoodState>) {
-        for(std::size_t g=0;g<result.size();++g)if((g>=processed_food_first_meal)!=meal_role(role))result[g]=0;
+        for(std::size_t g=0;g<result.size();++g) {
+            if(role==CourierRole::OriginalWarehouseFood) {
+                if(target_kind!=Object::Empty && ((g>=processed_food_first_meal)!=(target_kind==Object::OriginalFoodShop66)))result[g]=0;
+            } else if((g>=processed_food_first_meal)!=meal_role(role))result[g]=0;
+        }
         if(target_kind==Object::OriginalMill53)for(std::size_t g=0;g<processed_food_first_meal;++g) {
             int reserved=0;for(const auto& trip:food.trips)if(trip.target==target&&trip.phase==OriginalGoodsTransferPhase::Loaded)reserved+=remaining(trip)[g];
             result[g]=std::min(result[g],std::max(0,2-account(food.stocks,target).amounts[g]-reserved));
+        }
+        if(warehouses && target_kind==Object::Warehouse)for(std::size_t g=0;g<result.size();++g) {
+            int reserved=0;
+            for(const auto& trip:food.trips) {
+                if(trip.target==target && trip.phase==OriginalGoodsTransferPhase::Loaded)reserved+=remaining(trip)[g];
+                if(trip.source==target)reserved+=remaining(trip)[g];
+            }
+            result[g]=std::min(result[g],std::max(0,food_warehouse_kind_intake-account(food.stocks,target).amounts[g]-reserved));
         }
     }
     return result;
@@ -218,6 +230,7 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
     using Counters=std::remove_cvref_t<decltype(food.stocks.front().received)>;
     constexpr bool agriculture=!std::is_same_v<Food,OriginalFoodState>;
     constexpr bool processing=std::is_same_v<Food,ProcessedFoodState>;
+    const bool warehouses=food_warehouses_enabled(profile,rule);
     constexpr bool hunting=std::is_same_v<Food,HuntingFoodState> || processing;
     constexpr bool fishing=std::is_same_v<Food,FishingFoodState> || hunting;
     if(simulation::multi_field_agriculture_enabled(profile,rule)) {
@@ -239,7 +252,7 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
     if (food.farms.size()>farm_limit || food.stocks.size()>original_food_stock_limit(profile,rule) || food.trips.size()>trip_limit)
         invalid("bounded Food authority exceeded");
     std::size_t owners=0,farms=0,fields=0,actors=0;
-    for (const auto& b:buildings) {owners+=food_owner(b.kind,fishing,hunting,processing);farms+=b.kind==Object::OriginalFoodFarm;
+    for (const auto& b:buildings) {owners+=food_owner(b.kind,fishing,hunting,processing,warehouses);farms+=b.kind==Object::OriginalFoodFarm;
         fields+=agriculture ? agriculture_field(b.kind):(b.kind==Object::OriginalWheatField || b.kind==Object::OriginalMilletField);}
     for (const auto& c:couriers) actors+=food_role(c.role);
     if (owners!=food.stocks.size() || farms!=food.farms.size() || fields>(agriculture ? agriculture_field_limit:farm_limit) || actors>trip_limit) invalid("missing Food purchase authority");
@@ -325,13 +338,17 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
             invalid("Food transaction lost actual actor/source/target binding");
         const auto& source=body(buildings,trip.source);const auto& target=body(buildings,trip.target);
         const bool raw_to_market=c->role==CourierRole::OriginalFoodToMarket&&food_source(source.kind,fishing,hunting)&&
-            (target.kind==Object::Market||(processing&&target.kind==Object::OriginalMill53));
+            (target.kind==Object::Market||(processing&&target.kind==Object::OriginalMill53)||(warehouses&&target.kind==Object::Warehouse));
         const bool raw_to_house=c->role==CourierRole::OriginalFoodToHouse&&source.kind==Object::Market&&original_house_kind(target.kind);
-        const bool meals_to_shop=processing&&c->role==CourierRole::OriginalMealsToShop&&source.kind==Object::OriginalMill53&&target.kind==Object::OriginalFoodShop66;
+        const bool meals_to_shop=processing&&c->role==CourierRole::OriginalMealsToShop&&source.kind==Object::OriginalMill53&&
+            (target.kind==Object::OriginalFoodShop66||(warehouses&&target.kind==Object::Warehouse));
         const bool meals_to_house=processing&&c->role==CourierRole::OriginalMealsToHouse&&source.kind==Object::OriginalFoodShop66&&original_house_kind(target.kind);
-        if(!raw_to_market&&!raw_to_house&&!meals_to_shop&&!meals_to_house)invalid("Food actor has incompatible owner or target");
+        const bool warehouse_leg=warehouses&&c->role==CourierRole::OriginalWarehouseFood&&source.kind==Object::Warehouse&&
+            (target.kind==Object::OriginalMill53||target.kind==Object::Market||target.kind==Object::OriginalFoodShop66);
+        if(!raw_to_market&&!raw_to_house&&!meals_to_shop&&!meals_to_house&&!warehouse_leg)invalid("Food actor has incompatible owner or target");
         if constexpr(processing)for(std::size_t g=0;g<trip.loaded.size();++g) {
-            if(((g>=processed_food_first_meal)!=meal_role(c->role))&&
+            const bool meals=warehouse_leg ? target.kind==Object::OriginalFoodShop66:meal_role(c->role);
+            if(((g>=processed_food_first_meal)!=meals)&&
                 (trip.loaded[g]||trip.delivered[g]||trip.returned[g]))invalid("Food cargo changed ingredient/graded-meal identity");
             if(g==processed_food_count-1&&(trip.loaded[g]||trip.delivered[g]||trip.returned[g]))invalid("Grade5 meals require an unavailable real supplement contract");
         }
@@ -386,10 +403,19 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
     }
     for (std::size_t i=0;i<food.stocks.size();++i) {
         const auto& stock=food.stocks[i];const auto& b=body(buildings,stock.building_id);
-        if (!food_owner(b.kind,fishing,hunting,processing) || (i && !(food.stocks[i-1].building_id<stock.building_id))) invalid("Food accounts require sorted unique purchased owners");
+        if (!food_owner(b.kind,fishing,hunting,processing,warehouses) || (i && !(food.stocks[i-1].building_id<stock.building_id))) invalid("Food accounts require sorted unique purchased owners");
         const auto amount=volume(stock.amounts);
         const auto boat_reserved=(fishing ? boat_return_room(fishing_context,b.id):0)+(hunting ? hunter_return_room(hunting_context,b.id):0)+physical_food_grower_reservations(physical_context,b.id);
         if (std::int64_t(amount)+incoming(food,b.id)+return_room(food,b.id)+boat_reserved+processing_reservation(processing_context,b.id)>capacity(b.kind)) invalid("Food stock, incoming and source return-room exceed physical volume");
+        if(warehouses && b.kind==Object::Warehouse)for(std::size_t g=0;g<stock.amounts.size();++g) {
+            int claimed=stock.amounts[g];
+            for(const auto& trip:food.trips) {
+                if(trip.target==b.id && trip.phase==OriginalGoodsTransferPhase::Loaded)claimed+=remaining(trip)[g];
+                if(trip.source==b.id)claimed+=remaining(trip)[g];
+            }
+            if(claimed>food_warehouse_kind_intake)invalid("Warehouse per-kind Food intake and return room exceeded");
+            if(stock.consumed[g])invalid("Warehouse cannot consume Food or create a House witness");
+        }
         Counters own_harvest{};
         if (b.kind==Object::OriginalFoodFarm) {
             if constexpr (agriculture) {
@@ -510,9 +536,14 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
         }
         if (!food_source(b.kind,fishing,hunting)) {
             bool pruned=false;Counters delivered{};
-            for (const auto& c:couriers) if (b.kind==Object::Market||b.kind==Object::OriginalMill53 ? c.role==CourierRole::OriginalFoodToMarket:
-                b.kind==Object::OriginalFoodShop66 ? c.role==CourierRole::OriginalMealsToShop:
-                c.role==CourierRole::OriginalFoodToHouse||(processing&&c.role==CourierRole::OriginalMealsToHouse)) {
+            for (const auto& c:couriers) if (warehouses ?
+                (b.kind==Object::Warehouse ? c.role==CourierRole::OriginalFoodToMarket||c.role==CourierRole::OriginalMealsToShop:
+                 b.kind==Object::Market||b.kind==Object::OriginalMill53 ? c.role==CourierRole::OriginalFoodToMarket||c.role==CourierRole::OriginalWarehouseFood:
+                 b.kind==Object::OriginalFoodShop66 ? c.role==CourierRole::OriginalMealsToShop||c.role==CourierRole::OriginalWarehouseFood:
+                 c.role==CourierRole::OriginalFoodToHouse||c.role==CourierRole::OriginalMealsToHouse):
+                (b.kind==Object::Market||b.kind==Object::OriginalMill53 ? c.role==CourierRole::OriginalFoodToMarket:
+                 b.kind==Object::OriginalFoodShop66 ? c.role==CourierRole::OriginalMealsToShop:
+                 c.role==CourierRole::OriginalFoodToHouse||(processing&&c.role==CourierRole::OriginalMealsToHouse))) {
                 const auto* trip=trip_for(food.trips,c.id);if (!trip) continue;pruned|=trip->transfer.sequence>1;
                 if (trip->phase==OriginalGoodsTransferPhase::Completed && trip->target==b.id)
                     for (std::size_t g=0;g<delivered.size();++g) add(delivered[g],static_cast<std::uint64_t>(trip->delivered[g]));
@@ -610,7 +641,7 @@ void World::validate_original_food_snapshot(const WorldSnapshot& snapshot) {
 void World::validate_original_food_state() const {
     with_original_food([&](const auto& food){validate_food(food,buildings_,couriers_,original_economy_->houses,ticks_,profile_,rule_version_,true,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr,physical_food_growers_ ? &*physical_food_growers_:nullptr,seasonal_agriculture_?&*seasonal_agriculture_:nullptr,irrigation_productivity_?&*irrigation_productivity_:nullptr,food_processing_?&*food_processing_:nullptr);});
 }
-bool World::original_food_courier(CourierRole role) const {return original_production_enabled() && food_role(role) && (!meal_role(role)||food_processing_enabled());}
+bool World::original_food_courier(CourierRole role) const {return original_production_enabled() && food_role(role) && (!meal_role(role)||food_processing_enabled()) && (role!=CourierRole::OriginalWarehouseFood||food_warehouses_enabled());}
 int World::original_food_cargo(CourierId id) const {
     if (!original_production_enabled()) return 0;
     return with_original_food([&](auto& food) {
@@ -728,7 +759,7 @@ void World::advance_original_food() {
 CourierDispatchDecision World::original_food_dispatch_status(const CourierState& c) const {
     return with_original_food([&](auto& food) -> CourierDispatchDecision {
 
-    const auto carried_kind=available_load(food,c.owner,c.owner,Object::Empty,c.role);
+    const auto carried_kind=available_load(food,c.owner,c.owner,Object::Empty,c.role,food_warehouses_enabled());
     if (!volume(carried_kind)) return {CourierDispatchStatus::NoStock,{}};
     const auto target_space=[&](BuildingId target) {
         auto space=original_food_headroom(target);
@@ -739,6 +770,35 @@ CourierDispatchDecision World::original_food_dispatch_status(const CourierState&
         }
         return space;
     };
+    if(food_warehouses_enabled() && (c.role==CourierRole::OriginalFoodToMarket || c.role==CourierRole::OriginalMealsToShop || c.role==CourierRole::OriginalWarehouseFood)) {
+        // One complete cursor over the existing cached physical routes. Nearby
+        // destinations begin each new cursor first; every eligible receiver
+        // retains its turn while the topology remains unchanged.
+        struct Target {const BuildingState* body=nullptr;std::size_t distance=SIZE_MAX;};
+        std::array<Target,Rules::city_v10_household_limit> canonical{};
+        std::size_t count=0,start=0;
+        for(const auto& b:buildings_)if(courier_can_target(c.role,b,profile_,rule_version_)) {
+            if(count==canonical.size())throw std::logic_error("Food routing exceeded its bounded receiver catalog");
+            const auto route=std::lower_bound(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),b.id,[](const auto& entry,BuildingId key){return entry.first<key;});
+            const auto distance=route!=c.dynamic_target_routes.end()&&route->first==b.id&&route->second ? route->second->size():SIZE_MAX;
+            canonical[count++]={&b,distance};
+        }
+        std::sort(canonical.begin(),canonical.begin()+count,[](const auto& a,const auto& b){
+            return std::pair{a.distance,a.body->id}<std::pair{b.distance,b.body->id};
+        });
+        for(std::size_t i=0;i<count;++i)if(c.last_dispatched_target==canonical[i].body->id)start=(i+1)%count;
+        bool eligible=false,room=false;
+        for(std::size_t i=0;i<count;++i) {
+            const auto& entry=canonical[(start+i)%count];const auto& target=*entry.body;
+            if(!target.operating_enabled || building_on_fire(target.id) ||
+               (target.kind==Object::Warehouse&&!building_staffed_for_tick(target.id)))continue;
+            eligible=true;
+            if(target_space(target.id)<=0 || !volume(available_load(food,c.owner,target.id,target.kind,c.role,true)))continue;
+            room=true;
+            if(entry.distance!=SIZE_MAX)return {CourierDispatchStatus::Ready,target.id};
+        }
+        return {room ? CourierDispatchStatus::NoRoad:eligible ? CourierDispatchStatus::TargetFull:CourierDispatchStatus::NoTarget,{}};
+    }
     if (original_deadline_food_dispatch_enabled() && (c.role==CourierRole::OriginalFoodToHouse ||
         (food_processing_enabled()&&c.role==CourierRole::OriginalMealsToHouse))) {
         const auto add=[](std::uint64_t a,std::uint64_t b) {return b>UINT64_MAX-a ? UINT64_MAX:a+b;};
@@ -799,7 +859,7 @@ CourierDispatchDecision World::original_food_dispatch_status(const CourierState&
             // Capacity still reserves every real incoming load, including a
             // road-waiting load that is too uncertain to predict as coverage.
             if (target_space(target.id)<=0 || (food_processing_enabled()&&
-                !volume(available_load(food,c.owner,target.id,target.kind,c.role)))) continue;
+                !volume(available_load(food,c.owner,target.id,target.kind,c.role,food_warehouses_enabled())))) continue;
             room=true;
             const auto route=std::lower_bound(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),target.id,
                 [](const auto& entry,BuildingId key){return entry.first<key;});
@@ -865,7 +925,7 @@ CourierDispatchDecision World::original_food_dispatch_status(const CourierState&
         const auto& target=*targets[(start+i)%count];
         if(passes==2&&((target.kind==Object::OriginalMill53)!=(pass==0)))continue;
         const auto space=target_space(target.id);
-        if(space<=0||!volume(available_load(food,c.owner,target.id,target.kind,c.role)))continue;room=true;
+        if(space<=0||!volume(available_load(food,c.owner,target.id,target.kind,c.role,food_warehouses_enabled())))continue;room=true;
         const auto route=std::lower_bound(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),target.id,[](const auto& entry,BuildingId key){return entry.first<key;});
         if (route!=c.dynamic_target_routes.end() && route->first==target.id && route->second) return {CourierDispatchStatus::Ready,target.id};
     }
@@ -881,7 +941,7 @@ void World::dispatch_original_food(CourierState& c) {
     if (route==c.dynamic_target_routes.end() || !route->second) throw std::logic_error("Food dispatch lost its shared cached route");
     auto candidate=food;auto& source=account(candidate.stocks,c.owner);const auto* previous=trip_for(candidate.trips,c.id);
     if (previous && previous->transfer.sequence==UINT64_MAX) return;
-    const auto& destination=building(target);const auto available=available_load(food,c.owner,target,destination.kind,c.role);
+    const auto& destination=building(target);const auto available=available_load(food,c.owner,target,destination.kind,c.role,food_warehouses_enabled());
     auto headroom=original_food_headroom(target);
     if(food_processing_enabled()&&c.role==CourierRole::OriginalFoodToHouse) {
         int raw=0;const auto& held=account(candidate.stocks,target).amounts;
@@ -922,11 +982,12 @@ void World::cancel_original_food(BuildingId owner) {
 void World::arrive_original_food(CourierState& c) {
     return with_original_food([&](auto& food) {
 
-    auto candidate=food;auto houses=original_economy_->houses;auto processing=food_processing_;auto* trip=trip_for(candidate.trips,c.id);
+    auto candidate=food;auto houses=original_economy_->houses;auto processing=food_processing_;auto warehouses=food_warehouses_;auto* trip=trip_for(candidate.trips,c.id);
     if (!trip) throw std::logic_error("Food arrival lost its latest trip");
     if (c.phase==CourierPhase::ToWarehouse) {
         const auto& target=building(c.target);const auto cargo=remaining(*trip);
         if (!target.operating_enabled || building_on_fire(target.id) ||
+            (food_warehouses_enabled() && target.kind==Object::Warehouse && !building_staffed_for_tick(target.id)) ||
             (original_house_kind(target.kind) && home(houses,target.id).house.occupants<=0)) trip->phase=OriginalGoodsTransferPhase::Returning;
         else {
             auto& stock=account(candidate.stocks,target.id);const auto before=volume(stock.amounts),accepted=volume(cargo);
@@ -949,6 +1010,28 @@ void World::arrive_original_food(CourierState& c) {
             }
             if constexpr(std::is_same_v<std::remove_cvref_t<decltype(food)>,ProcessedFoodState>) {
                 if(!processing)invalid("Physical Food processing arrival lost its sole causal history");
+                if(warehouses) {
+                    if(target.kind==Object::Warehouse) {
+                        auto& rows=warehouses->warehouses;
+                        const auto at=std::lower_bound(rows.begin(),rows.end(),target.id,[](const auto& row,BuildingId id){return row.warehouse_id<id;});
+                        if(at==rows.end()||at->warehouse_id!=target.id)invalid("Food arrival lost its exact paid Warehouse");
+                        for(std::size_t g=0;g<cargo.size();++g)if(cargo[g]>0&&!at->first_received[g])
+                            at->first_received[g]=FoodProcessingArrival{trip->transfer,trip->source,ticks_,cargo[g]};
+                    } else if(target.kind==Object::Market) {
+                        auto& rows=warehouses->markets;
+                        const auto at=std::lower_bound(rows.begin(),rows.end(),target.id,[](const auto& row,BuildingId id){return row.market_id<id;});
+                        if(at==rows.end()||at->market_id!=target.id)invalid("Food arrival lost its exact paid Market");
+                        for(std::size_t g=0;g<processed_food_first_meal;++g)if(cargo[g]>0&&!at->first_received[g])
+                            at->first_received[g]=FoodProcessingArrival{trip->transfer,trip->source,ticks_,cargo[g]};
+                    }
+                    if(c.role==CourierRole::OriginalWarehouseFood) {
+                        auto& rows=warehouses->warehouses;
+                        const auto at=std::lower_bound(rows.begin(),rows.end(),trip->source,[](const auto& row,BuildingId id){return row.warehouse_id<id;});
+                        if(at==rows.end()||at->warehouse_id!=trip->source)invalid("Food departure lost its exact paid Warehouse");
+                        for(std::size_t g=0;g<cargo.size();++g)if(cargo[g]>0&&!at->first_delivered[g])
+                            at->first_delivered[g]=FoodWarehouseDelivery{trip->transfer,target.id,ticks_,cargo[g]};
+                    }
+                }
                 if(target.kind==Object::OriginalMill53) {
                     auto& rows=processing->mills;const auto at=std::lower_bound(rows.begin(),rows.end(),target.id,
                         [](const auto& row,BuildingId id){return row.mill_id<id;});
@@ -967,7 +1050,7 @@ void World::arrive_original_food(CourierState& c) {
             trip->phase=OriginalGoodsTransferPhase::Completed;
         }
         validate_food(candidate,buildings_,couriers_,houses,ticks_,profile_,rule_version_,false,true,fishing_ ? &*fishing_:nullptr,hunting_ ? &*hunting_:nullptr,multi_field_agriculture_ ? &*multi_field_agriculture_:nullptr,physical_food_growers_ ? &*physical_food_growers_:nullptr,seasonal_agriculture_?&*seasonal_agriculture_:nullptr,irrigation_productivity_?&*irrigation_productivity_:nullptr,processing?&*processing:nullptr);
-        food=std::move(candidate);original_economy_->houses=std::move(houses);food_processing_=std::move(processing);c.phase=CourierPhase::Returning;
+        food=std::move(candidate);original_economy_->houses=std::move(houses);food_processing_=std::move(processing);food_warehouses_=std::move(warehouses);c.phase=CourierPhase::Returning;
         if (valid_return_path(c)) {std::reverse(c.path.begin(),c.path.end());c.path_vertex=0;}
         else {c.path={c.path.back()};c.path_vertex=0;c.route_pending=true;c.route_checked_revision.reset();reroute_v2(c);}
     } else {
