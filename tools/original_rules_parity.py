@@ -102,23 +102,28 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # AGRI-MAC06 appends optional Rule31 physical Grower lifetimes, receipt evidence
 # and explicit APIs. Historical probes select no worker authority. The new DTO
 # and matching fresh archives are ABI checks, not Original harvest parity.
+# AGRI-MAC07 appends explicit Rule32 seasonal authority, source-owned Hemp
+# movement and conditional schema48 trip provenance. Historical probes select
+# neither authority; their literal results must remain exact. Fresh archives
+# and these reviewed ABI pins establish no Original calendar/harvest parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "db5a7fb18342a2f91197cbd1acf818660ad476c4",
+    "World.h": "1fd0927dd5e1b26264e0bac1a215854e996980c5",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
     "HarvestContextAdmission.h": "bcc00678f5ed87458a64df2e4d2ce99e319cb2e4",
-    "AgricultureCalendar.h": "17455dad4bca5382ae8b2cb389bc2bf1099d642d",
+    "AgricultureCalendar.h": "6df7741df5434328dfecd5e7eb85228e56c875e5",
     "AuthoredLandTrade.h": "88647c25c07976be248851cf608bab822189c67a",
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "b22d4fb214405dee9ce98cdfacc26d0092b5df6f",
     "MultiFieldAgricultureState.h": "8f0e0b59aa1196ceaaabaa74afbd5d8843c7b1bc",
-    "PhysicalFoodGrowersState.h": "bf2e073c6e29d4ae500fdab927ed8408b414cb63",
+    "SeasonalAgricultureState.h": "de5c5268befa85c465d7348ade33eae3fbc15928",
+    "PhysicalFoodGrowersState.h": "91cb70084055a892e408ba9061e1a2defc3cd291",
     "AgricultureState.h": "8d7c4f9972d6cb9ed625c350e5090a416521bd3c",
     "HuntingState.h": "8320925ca1dda3d9b24ae873efe6dcd2f7ced15b",
     "FishingState.h": "034e7e5aeb9ca095d7d07f3216b77e007076a7ae",
-    "PlantationsState.h": "7fd4ceab82bc8c4442aa470c3cb3275983cb3e8a",
+    "PlantationsState.h": "4be38b79924c6206b7e02cdef21588c0ce2a9cbc",
     "IrrigationState.h": "4fdd1b69cf4572342da504f941c3b2e47f23011e",
     "OriginalHousingDiagnosis.h": "62d1ebd836ae700c3f790ef993c155b589d2a3d1",
     "OriginalSafeDemolitionState.h": "a4f27b05d422d004cc4bfcae49ccc5f67a6c6121",
@@ -533,7 +538,8 @@ def current_source_hashes() -> dict[str,str]:
     sources.append(ROOT / "src/simulation/OriginalFireProtectionState.h")
     sources += [ROOT / "src/simulation" / name for name in (
         "World.cpp", "WorldGrowerNavigation.cpp", "WorldGrowerLifecycle.cpp", "WorldOriginalProduction.cpp", "WorldIrrigation.cpp",
-        "WorldOriginalFood.cpp", "WorldPhysicalFoodGrowers.cpp")]
+        "WorldOriginalFood.cpp", "WorldPhysicalFoodGrowers.cpp", "WorldSeasonalAgriculture.cpp",
+        "WorldSeasonalHemp.cpp", "SeasonalAgricultureRules.cpp", "WorldPlantations.cpp")]
     sources.append(ROOT / "src/persistence/OriginalGrowerContext.cpp")
     sources += [ROOT / "src/simulation" / name for name in REVIEWED_HOUSING_WORLD_API_GIT_BLOBS]
     return {str(path.relative_to(ROOT)):sha256(path) for path in sorted(sources)}

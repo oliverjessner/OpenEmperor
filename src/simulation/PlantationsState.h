@@ -19,6 +19,8 @@ struct PlantationReceipt {
     PlantationGrowerId grower_id{};
     CourierId courier_id{};
     std::uint64_t dispatched_tick=0,picked_tick=0,returned_tick=0;
+    // Rule32 binds the exact ready cycle, not a later regrowth.
+    std::uint64_t ready_tick=0;
     bool operator==(const PlantationReceipt&) const = default;
 };
 struct PlantationPlant {
@@ -38,6 +40,7 @@ struct PlantationTrip {
     // picked_tick and delivered are the sole harvest cargo authority: one
     // picked unit remains on the worker until its actual source return.
     std::uint8_t delivered=0;
+    std::uint64_t ready_tick=0;
     bool operator==(const PlantationTrip&) const = default;
 };
 struct PlantationSource {

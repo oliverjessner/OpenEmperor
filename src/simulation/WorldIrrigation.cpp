@@ -295,7 +295,7 @@ IrrigationBatchValidation World::validate_irrigation_batch(std::span<const Cell>
     std::vector<Cell> added;added.reserve(cells.size());
     for(const auto cell:cells) {
         if(physical_food_growers_enabled()&&!has_ditch(*irrigation_,cell))for(const auto& c:couriers_)
-            if(c.role==CourierRole::OriginalFoodGrower&&c.phase!=CourierPhase::IdleAtWorkshop&&!c.path.empty()&&
+            if((c.role==CourierRole::OriginalFoodGrower||c.role==CourierRole::OriginalSeasonalHempGrower)&&c.phase!=CourierPhase::IdleAtWorkshop&&!c.path.empty()&&
                (c.path.at(c.path_vertex)==cell||(c.edge_progress&&c.path.at(c.path_vertex+1)==cell))){
                 result.reason="Ditch overlaps an actual Food Grower or its begun edge";return result;
             }
@@ -349,6 +349,11 @@ CommandResult World::execute_irrigation_batch(std::span<const Cell> cells) {
         for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
             if(!candidate.physical_food_grower_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)) {candidate.mark_route_pending(c);break;}
     }
+    if(candidate.seasonal_agriculture_enabled()) for(auto& c:candidate.couriers_) {
+        if(c.role!=CourierRole::OriginalSeasonalHempGrower||c.phase==CourierPhase::IdleAtWorkshop||c.route_pending)continue;
+        for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
+            if(!candidate.seasonal_hemp_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)){candidate.mark_route_pending(c);break;}
+    }
     candidate.refresh_routes();
     candidate.rebuild_irrigation_cache();*this=std::move(candidate);
     return {true,true,"Paid irrigation ditch installed",command_sequence_,ticks_};
@@ -384,7 +389,7 @@ CommandResult World::validate_irrigation_command(Command command) const {
     if(buildings_.size()>=Rules::original_production_building_limit || !next_building_id_ || next_building_id_==UINT32_MAX ||
         road_revision_==UINT64_MAX) {result.reason="Pump paid building capacity or revision exhausted";return result;}
     for(const auto cell:shape.footprint) for(const auto& c:couriers_)
-        if((c.role==CourierRole::OriginalPlantationGrower || c.role==CourierRole::OriginalFoodGrower) && c.phase!=CourierPhase::IdleAtWorkshop && !c.path.empty() &&
+        if((c.role==CourierRole::OriginalPlantationGrower || c.role==CourierRole::OriginalFoodGrower || c.role==CourierRole::OriginalSeasonalHempGrower) && c.phase!=CourierPhase::IdleAtWorkshop && !c.path.empty() &&
             (c.path.at(c.path_vertex)==cell || (c.edge_progress && c.path.at(c.path_vertex+1)==cell))) {
             result.reason="Pump construction overlaps a real worker or its begun edge";return result;
         }
@@ -428,6 +433,11 @@ CommandResult World::execute_irrigation_command(Command command) {
         if(c.role!=CourierRole::OriginalFoodGrower || c.phase==CourierPhase::IdleAtWorkshop || c.route_pending || candidate.physical_food_grower_stationary(c)) continue;
         for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
             if(!candidate.physical_food_grower_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)) {candidate.mark_route_pending(c);break;}
+    }
+    if(candidate.seasonal_agriculture_enabled()) for(auto& c:candidate.couriers_) {
+        if(c.role!=CourierRole::OriginalSeasonalHempGrower||c.phase==CourierPhase::IdleAtWorkshop||c.route_pending)continue;
+        for(std::size_t i=c.path_vertex+1;i<c.path.size();++i)
+            if(!candidate.seasonal_hemp_edge_allowed(c.path[i-1],c.path[i],c.owner,c.target)){candidate.mark_route_pending(c);break;}
     }
     candidate.refresh_routes();candidate.refresh_irrigation();*this=std::move(candidate);
     result.sequence=command_sequence_;result.reason="Paid irrigation Pump installed";return result;

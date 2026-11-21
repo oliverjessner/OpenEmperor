@@ -60,7 +60,7 @@ void World::validate_original_hemp_snapshot(const WorldSnapshot& s) {
         const auto& record=farms[i];
         if ((i && !(farms[i-1].farm_id<record.farm_id))) invalid("Hemp Farm records must be sorted and unique");
         const auto farm=std::find_if(s.buildings.begin(),s.buildings.end(),[&](const auto& b){return b.id==record.farm_id;});
-        if (farm==s.buildings.end() || farm->kind!=Object::OriginalHempFarm || farm->progress<0 || farm->progress>=80)
+        if (farm==s.buildings.end() || farm->kind!=Object::OriginalHempFarm || farm->progress<0 || farm->progress>=(simulation::seasonal_agriculture_enabled(s.profile,s.rule_version)?81:80))
             invalid("Hemp Farm record requires its exact purchased body and bounded crop progress");
         std::int64_t held=0;
         for (const auto& stock:s.original_goods->stocks) if (stock.building_id==farm->id) held+=stock.amounts[0];
@@ -86,12 +86,13 @@ void World::validate_original_hemp_snapshot(const WorldSnapshot& s) {
         const auto age=s.ticks-field->placed_tick;
         if (record.harvested>age/80 || (record.harvested==age/80 && static_cast<std::uint64_t>(farm->progress)>age%80))
             invalid("Hemp harvest and progress exceed productive clock opportunities after paid Field placement");
-        if (held==8 && farm->progress) invalid("full Hemp source must retain no partial crop progress");
+        if (!simulation::seasonal_agriculture_enabled(s.profile,s.rule_version) && held==8 && farm->progress) invalid("full Hemp source must retain no partial crop progress");
     }
     if (count!=actual_fields) invalid("orphan or multiply owned Hemp Field");
 }
 
 void World::advance_original_hemp() {
+    if(seasonal_agriculture_enabled()){advance_seasonal_hemp();return;}
     for (auto& record:original_production_->hemp_farms) {
         auto& farm=mutable_building(record.farm_id);
         if (!record.field_id || !building_staffed_for_tick(farm.id)) continue;

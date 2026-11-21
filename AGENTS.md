@@ -308,6 +308,20 @@
   receipt validation and all Rules1–30/schemas1–46 without migration/overwrite.
   Raw Actor26/x87 research remains separate and unchanged. See
   [physical Growers](docs/original-economy/agriculture.md#physical-food-growers-agri-mac06).
+- Seasonal Agriculture is explicit Rule32/policy3/schema48, marker
+  `authored-seasonal-agriculture-v1`, revision1, Z/`--seasonal-agriculture`.
+  Derive all nine growing windows from the sole completed World tick,51×16×12.
+  Source-observed relative windows are distinct from authored suppression,
+  80-work readiness, five actual Food harvest-work ticks, partial-cycle loss and
+  one end-slot grace/expiry. Food still requires real tending and Farm return;
+  material plants still require pickup/source return. Hemp owns one counted
+  physical worker channel, distinct from its existing Warehouse cart, and credits
+  Goods only after source return. Expiry never discards picked cargo or stock.
+  Preserve lifetime work/waste/harvest equations, exact ready epochs, reservations,
+  begun edges,82/58 limits and all Rules1–31/schemas1–47 without migration or
+  cross-generation overwrite. Water yield effects remain inactive. No Original
+  calendar, work cadence, harvest arithmetic or animation parity is claimed. See
+  [seasonal Agriculture](docs/original-economy/agriculture.md#seasonal-agriculture-agri-mac07).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

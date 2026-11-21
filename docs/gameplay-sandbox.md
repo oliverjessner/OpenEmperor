@@ -209,6 +209,20 @@ work survive. Loaded returns retain cargo and reserved bin room. Historical
 Rules1–30/schemas1–46, defaults and research sessions remain exact. See
 [Agriculture](original-economy/agriculture.md#physical-food-growers-agri-mac06).
 
+The separate **Z Seasons (32)** / `--seasonal-agriculture` selection uses
+Rule32/policy3/schema48 and marker `authored-seasonal-agriculture-v1`.
+It inherits Rule31 and gates five Food crops plus Hemp/Tea/Lacquer/Mulberry on
+the shared51×16×12 completed-tick calendar. Real tending earns80-work readiness;
+five further actual harvest-work ticks create carried Food. Partial work is
+lost when the growing window closes; a ready crop has one end-slot grace before
+expiry. Hemp uses its own real worker pickup/return channel. Picked cargo and
+stored Food/Goods remain intact. Inspectors expose the current window, actual
+progress, next opening and pending expiry. Timing and expiry are authored;
+Original seasonal parity and irrigation yield effects remain separate. All
+historical generations and defaults stay exact, with no save migration or
+cross-generation overwrite. See
+[Agriculture](original-economy/agriculture.md#seasonal-agriculture-agri-mac07).
+
 ## Start from the menu
 
 `./build/openemperor` opens the normal main menu. Choose a folder containing

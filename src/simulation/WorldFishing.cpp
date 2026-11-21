@@ -177,7 +177,7 @@ CommandResult World::validate_fishing_command(Command command) const {
         if(fishing_boat_cell_claimed(cell) || hunting_actor_cell_claimed(cell) || grower_navigation_cell_claimed(cell)) {
             result.reason="Fishing Quay overlaps a physical actor or its begun edge";return result;
         }
-        for(const auto& c:couriers_) if((c.role==CourierRole::OriginalPlantationGrower || c.role==CourierRole::OriginalFoodGrower) && c.phase!=CourierPhase::IdleAtWorkshop && !c.path.empty() &&
+        for(const auto& c:couriers_) if((c.role==CourierRole::OriginalPlantationGrower || c.role==CourierRole::OriginalFoodGrower || c.role==CourierRole::OriginalSeasonalHempGrower) && c.phase!=CourierPhase::IdleAtWorkshop && !c.path.empty() &&
             (c.path.at(c.path_vertex)==cell || (c.edge_progress && c.path.at(c.path_vertex+1)==cell))) {
             result.reason="Fishing Quay overlaps a physical plantation worker";return result;
         }

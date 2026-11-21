@@ -198,7 +198,7 @@ std::optional<original::Goods> World::original_courier_good(CourierId id) const 
 int World::original_market_headroom(BuildingId owner,original::Goods good) const {
     const auto& b=building(owner);
     return capacity(b.kind,good)-original_typed_stock(owner,good)-returning_room(*original_goods_,owner,good)-
-        incoming(*original_goods_,owner,good)-(b.kind==Object::Warehouse && good==original::Goods::Ceramics ? b.reserved_incoming:0);
+        incoming(*original_goods_,owner,good)-(seasonal_agriculture_enabled() && good==original::Goods::Hemp ? seasonal_hemp_reserved(&*seasonal_agriculture_,owner):0)-(b.kind==Object::Warehouse && good==original::Goods::Ceramics ? b.reserved_incoming:0);
 }
 void World::validate_original_market_snapshot(const WorldSnapshot& s) {
     for (const auto& r:s.original_goods->reservations)

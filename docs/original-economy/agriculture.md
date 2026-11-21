@@ -3,7 +3,7 @@
 This is the maintained design for completing civilian agriculture in one
 explicit Original-economy lineage. **Rule24/policy3/schema40 remains frozen with
 paid crop construction and Food foundations; crop production is locked.**
-The current explicit Agriculture generation is Rule25/policy3/schema41. AGRI-03
+The historical A Agriculture selection remains Rule25/policy3/schema41. AGRI-03
 adds the three material plantations using retained, expressly authored growth
 and real worker pickup/return. Rule25 expressly retains the existing authored
 Wheat/Millet80-tick Food adapter; Rice/Cabbage/Soy and the unproved Original
@@ -13,6 +13,10 @@ Current plantation validation is reported separately from implementation.
 Rule26/schema42 remains the separately selected irrigation extension. AGRI-06
 adds a derived view of the shared World calendar and verified seasonal reference
 queries. It adds no rule, schema, independent clock or production activation.
+The separate playable lineage now includes **Z Seasons, Rule32/schema48**:
+[AGRI-MAC07](#seasonal-agriculture-agri-mac07) makes the shared calendar an
+explicit authored production driver. Historical selectors and Original research
+keep their exact contracts; the new gameplay supplies no raw Harvest parity.
 
 ## Playable Agriculture (AGRI-MAC01)
 
@@ -140,6 +144,96 @@ last/next eligible work, typed stock, real cargo and current blocking reasons.
 Growth art reads the selected field's progress. Rice keeps its qualified static
 paddy profile and gains no universal Pump requirement or irrigation yield bonus.
 See [validation](../testing.md#multi-field-agriculture-agri-mac05) for evidence.
+
+## Seasonal Agriculture (AGRI-MAC07)
+
+**Explicit AUTHORED Rule32/policy3/schema48**, marker
+`authored-seasonal-agriculture-v1`, revision1. Select **Z Seasons** or
+`--seasonal-agriculture`. This inherits Rule31's real Food workers, all seven
+Foods, goods, fishing, hunting, irrigation, staffing and finance. Historical
+Rules1–31/schemas1–47 and their exact saves/defaults remain unchanged. There is
+no automatic migration or cross-generation overwrite.
+
+The only clock is the saved World tick. For completed tick `t`, the existing
+mapping gives phase `t%51`, subslot `(t/51)%16`, slot `(t/816)%12` and elapsed
+year `t/9792`. These are numeric slots, not reconstructed Gregorian dates.
+Seasonal production explicitly uses that **completed-tick position**: the
+tick ending at1632 is the first Wheat-eligible tick; growth stops at4896.
+One tick per phase and the elapsed epoch remain authored choices.
+
+| Type | Growing slots, start included/end excluded | Ready harvest grace slots |
+|---|---|---|
+| Wheat195 | [2,6) | 6 |
+| Millet196 | [6,10) | 10 |
+| Rice197 | [5,9) | 9 |
+| Cabbage198 | [7,11) | 11 |
+| Soy199 → BeanCurd1 | [4,8) | 8 |
+| Hemp194 | [3,8) | 8 |
+| Tea26 | [2,4), [5,7), [8,10) | 4,7,10 |
+| Lacquer27 | [1,6) | 6 |
+| Mulberry28 | [3,5), [6,8) | 5,8 |
+
+The relative intervals come from the existing source-observed growing-period
+query. Using them as complete production vetoes, readiness windows and a
+one-end-slot grace is **authored**. The Original quantity callbacks differ:
+Hemp has no calendar suppression; Tea/Mulberry suppress only their final ends,
+and Lacquer's additional end7 does not create another growing interval. No raw
+157/79-style quantity increment or native calendar cadence is activated here.
+
+Each Food field retains monotone actual tending work. A real Farm-owned worker
+must arrive, wait the inherited five ticks and earn80 in-window tending units.
+Readiness creates no Food. Five additional actual at-field harvest-work ticks
+complete one carried portion; only real Farm return credits the sole Food
+account. One worker and at most one tending/harvest work unit per Farm/tick
+remain the limit. Each field retains its own work, ready epoch, harvest work,
+expired readiness and discarded work. Assignments keep the shared canonical
+cursor and navigator.
+
+At the first tick outside a growing interval, incomplete0–79 work is discarded
+into a cumulative waste counter; lifetime earned work never decreases. A
+complete80-work crop remains ready throughout that interval's end-slot grace.
+At `(end+1)*816` in its bound year it expires before any work or pickup,
+including at year rollover. A new year cannot rescue an older ready epoch.
+Partial harvest work is accounted as wasted on expiration. Pause, fire, staff
+or access loss requests the inherited real empty return; an unexpired ready
+crop can be revisited. Already harvested/picked cargo, credited stock and
+accepted receipts never expire. A blocked loaded worker keeps its original
+crop/identity/reservation until normal physical repair and return.
+
+Tea/Lacquer/Mulberry retain their staffed80-tick readiness and existing real
+Growers. Growth now occurs only in the table's windows. Pickup is bound to the
+specific ready epoch at dispatch; an expired cycle cannot be replaced silently
+by later regrowth. Only the existing actual source return produces material.
+
+Hemp has its own explicit seasonal contract. Its old direct80-tick stock grant
+is disabled only in32. A paid Hemp Farm owns its old Warehouse courier plus
+one separately counted `OriginalSeasonalHempGrower` channel, sharing the same
+source workforce. A paid Field grows to80 only during [3,8) with full staff,
+operation, fire and source-access checks. The actual worker must travel to the
+Field, pick its bound ready crop and physically return before producing one
+Hemp in the existing six-Goods ledger. Idle channels are invisible; lifetime
+IDs are monotone. This uses the shared land navigator and five-tick edges,
+not a second engine. Two Hemp Farms, five Food Farms,32 Food fields, eight
+fields/Farm,32 plantation plants and82-body/58-channel limits stay bounded.
+
+For Food, `actual tending = 80*harvested + wasted + pending0..80` and
+`actual harvest work = 5*harvested + wasted harvest work + pending0..4`.
+Field harvest remains actual Farm returns plus live carried crop. For material
+plants, `earned growth = 80*picked + wasted + pending growth` and
+`grown = picked + expired ready + current ready`. Hemp uses the same readiness
+equations, with picked equal to existing returned Hemp plus real worker cargo.
+No additional inventory is introduced. Source capacities include the worker's
+whole-trip reserved return; a full bin waits for real downstream space.
+
+Schema48 saves non-derived work/waste/readiness, exact ready epochs, physical
+assignments, receipts and IDs. The calendar, future windows and expiry queries
+are derived from the sole tick and immutable schedule. Save/Recovery validates
+paid identities, seasonal opportunities, work equations, physical routes and
+conservation before publication. The normal cached inspectors show slots,
+subslots, next phase/opening, readiness/expiry, wasted work and actual cargo.
+Wet/dry context remains visible with **yield effect inactive**; Rule32 adds no
+irrigation yield bonus, free winter provision, Original harvest parity or
+qualified Original actor animation.
 
 ## Physical Food Growers (AGRI-MAC06)
 

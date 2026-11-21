@@ -91,6 +91,34 @@ std::optional<AgricultureSeasonStatus> World::agriculture_season_status(Building
     const auto water=irrigation_field_status(building(id).cell);
     result.water_available=water.water_available;
     result.yield_effect_active=water.yield_effect_active;
+    if(seasonal_agriculture_enabled()) {
+        result.seasonal_production=true;result.growing=seasonal_growing(result.model,ticks_);
+        result.next_opening_tick=seasonal_next_opening(result.model,ticks_);
+        std::optional<std::uint64_t> ready;
+        if(field!=fields.end()) {
+            for(const auto& r:seasonal_agriculture_->fields)if(r.field_id==id){
+                result.wasted_work=r.wasted_work;result.expired_ready=r.expired_ready;result.harvest_progress=r.harvest_progress;ready=r.ready_tick;break;
+            }
+            for(const auto& r:physical_food_growers_->fields)if(r.field_id==id)result.returned=r.returned;
+            for(const auto& r:physical_food_growers_->farms)if(r.farm_id==result.producer)
+                result.actual_grower_active=r.latest_trip&&!r.latest_trip->returned_tick&&r.latest_trip->field_id==id;
+        } else if(result.model==original::ModelBuilding::HempField) {
+            for(const auto& r:seasonal_agriculture_->hemp_farms)if(r.farm_id==result.producer){
+                result.wasted_work=r.wasted_work;result.expired_ready=r.expired_ready;ready=r.ready_tick;
+                result.actual_grower_active=r.latest_trip&&!r.latest_trip->returned_tick;
+                result.harvested=r.picked;
+            }
+            for(const auto& r:original_production_->hemp_farms)if(r.farm_id==result.producer)result.returned=r.harvested;
+        } else {
+            for(const auto& r:seasonal_agriculture_->plants)if(r.plant_id==id){
+                result.wasted_work=r.wasted_work;result.expired_ready=r.expired_ready;ready=r.ready_tick;break;
+            }
+        }
+        result.harvest_ready=ready.has_value();result.harvest_allowed=ready&&seasonal_harvest_allowed(result.model,ticks_,*ready);
+        if(ready)result.ready_expiry_tick=seasonal_ready_expiry(result.model,*ready);
+        result.blocker=result.harvest_ready?"AUTHORED ready crop; physical harvest/pickup and return required":result.growing?
+            "AUTHORED growing window; no Food from calendar passage":"AUTHORED seasonal rest; waiting for next growing window";
+    }
     return result;
 }
 

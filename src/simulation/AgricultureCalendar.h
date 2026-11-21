@@ -34,6 +34,10 @@ struct AgricultureSeasonStatus {
     bool operating=false,burning=false,staffed=false,road_connected=false;
     int assigned_workers=0,required_workers=0;
     bool water_available=false,yield_effect_active=false;
+    bool seasonal_production=false,growing=false,harvest_allowed=false;
+    std::uint32_t harvest_progress=0;
+    std::uint64_t wasted_work=0,expired_ready=0;
+    std::optional<std::uint64_t> ready_expiry_tick,next_opening_tick;
     // Original work-word, harvest lifecycle and unit binding remain unresolved.
     std::string blocker;
 };
