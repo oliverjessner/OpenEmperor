@@ -539,6 +539,18 @@ No original executable was run. Native parent-slot ownership remains distinct:
 the authored paid Shop has its sole physical account and an explicit stable
 paid Market binding, with no mirrored stock or invisible parent credit.
 
+**AUTHORED:** separately selected Rule35/policy3/schema51
+(`authored-food-warehouses-v1`) adds Warehouse owners to the same typed Food
+account and actual courier forwarding. The inherited2×2/150-Funds/two-worker
+Warehouse remains unchanged; native54's observed side3 and source-model values
+do not redefine that existing World construction. The additional Food32
+compartment, per-kind4 claims, third counted courier and deterministic cached
+route/cursor policy are explicit new gameplay choices. They do not establish
+native storage, assistants, allocation or redistribution parity. Seven raw
+identities and grade-tagged Dinners remain separate; no Warehouse receipt grants
+House quality or consumption. See the maintained
+[Warehouse contract](../original-economy/agriculture.md#food-warehouses-agri-mac10).
+
 ## Crop admission boundary
 
 The observed House quality blend and six independent goods debits do not identify

@@ -346,6 +346,7 @@ target_sources(openemperor-simulation PRIVATE src/simulation/WorldOriginalIndust
     src/simulation/WorldSeasonalHemp.cpp
     src/simulation/WorldIrrigationProductivity.cpp
     src/simulation/WorldFoodProcessing.cpp
+    src/simulation/WorldFoodWarehouses.cpp
     src/simulation/WorldGrowerNavigation.cpp
     src/simulation/WorldGrowerLifecycle.cpp
     src/simulation/WorldIrrigation.cpp
@@ -762,6 +763,14 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-food-processing-presentation-tests)
     add_test(NAME food-processing-presentation COMMAND openemperor-food-processing-presentation-tests)
     set_tests_properties(food-processing-presentation PROPERTIES TIMEOUT 600)
+    add_executable(openemperor-food-warehouses-presentation-tests
+        tests/FoodProcessingPresentationTests.cpp ${original_menu_test_sources})
+    target_compile_definitions(openemperor-food-warehouses-presentation-tests PRIVATE OPENEMPEROR_FOOD_WAREHOUSES_ACCEPTANCE=1)
+    target_link_libraries(openemperor-food-warehouses-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-food-warehouses-presentation-tests)
+    add_test(NAME food-warehouses-presentation COMMAND openemperor-food-warehouses-presentation-tests)
+    set_tests_properties(food-warehouses-presentation PROPERTIES TIMEOUT 600)
     add_executable(openemperor-seasonal-agriculture-presentation-tests
         tests/SeasonalAgriculturePresentationTests.cpp ${original_menu_test_sources})
     target_link_libraries(openemperor-seasonal-agriculture-presentation-tests PRIVATE
@@ -1393,6 +1402,20 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-food-processing-save-tests)
     add_test(NAME food-processing-save COMMAND openemperor-food-processing-save-tests)
     set_tests_properties(food-processing-save PROPERTIES TIMEOUT 600)
+    foreach(warehouse_layer world edge save)
+        if(warehouse_layer STREQUAL "world")
+            set(warehouse_test tests/FoodWarehouseWorldTests.cpp)
+        elseif(warehouse_layer STREQUAL "edge")
+            set(warehouse_test tests/FoodWarehouseEdgeTests.cpp)
+        else()
+            set(warehouse_test tests/FoodWarehouseSaveTests.cpp)
+        endif()
+        add_executable(openemperor-food-warehouses-${warehouse_layer}-tests ${warehouse_test})
+        target_link_libraries(openemperor-food-warehouses-${warehouse_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-food-warehouses-${warehouse_layer}-tests)
+        add_test(NAME food-warehouses-${warehouse_layer} COMMAND openemperor-food-warehouses-${warehouse_layer}-tests)
+        set_tests_properties(food-warehouses-${warehouse_layer} PROPERTIES TIMEOUT 600)
+    endforeach()
     foreach(productivity_layer world save)
         if(productivity_layer STREQUAL "world")
             set(productivity_test tests/IrrigationProductivityWorldTests.cpp)
@@ -1605,6 +1628,9 @@ if(BUILD_TESTING)
         add_test(NAME food-processing-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/FoodProcessingCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(food-processing-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME food-warehouses-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/FoodWarehousesCliTests.py $<TARGET_FILE:openemperor>)
+        set_tests_properties(food-warehouses-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME physical-food-growers-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/PhysicalFoodGrowersCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(physical-food-growers-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
@@ -2322,6 +2348,11 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-food-processing-acceptance)
     add_test(NAME food-processing-acceptance-cli COMMAND openemperor-food-processing-acceptance --help)
     set_tests_properties(food-processing-acceptance-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-food-warehouses-acceptance tools/FoodWarehouseAcceptance.cpp)
+    target_link_libraries(openemperor-food-warehouses-acceptance PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
+    openemperor_enable_warnings(openemperor-food-warehouses-acceptance)
+    add_test(NAME food-warehouses-acceptance-cli COMMAND openemperor-food-warehouses-acceptance --help)
+    set_tests_properties(food-warehouses-acceptance-cli PROPERTIES TIMEOUT 30)
     add_executable(openemperor-seasonal-agriculture-acceptance tools/SeasonalAgricultureAcceptance.cpp)
     target_link_libraries(openemperor-seasonal-agriculture-acceptance PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
     openemperor_enable_warnings(openemperor-seasonal-agriculture-acceptance)
@@ -2367,6 +2398,15 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-food-processing-view-acceptance)
     add_test(NAME food-processing-view-cli COMMAND openemperor-food-processing-view-acceptance --help)
     set_tests_properties(food-processing-view-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-food-warehouses-view-acceptance
+        tools/FoodProcessingViewAcceptance.cpp
+        src/app/MenuSession.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp)
+    target_compile_definitions(openemperor-food-warehouses-view-acceptance PRIVATE OPENEMPEROR_FOOD_WAREHOUSES_ACCEPTANCE=1)
+    target_link_libraries(openemperor-food-warehouses-view-acceptance PRIVATE
+        openemperor-original-longplay-view-support Threads::Threads)
+    openemperor_enable_warnings(openemperor-food-warehouses-view-acceptance)
+    add_test(NAME food-warehouses-view-cli COMMAND openemperor-food-warehouses-view-acceptance --help)
+    set_tests_properties(food-warehouses-view-cli PROPERTIES TIMEOUT 30)
     add_executable(openemperor-seasonal-agriculture-view-acceptance
         tools/SeasonalAgricultureViewAcceptance.cpp
         src/app/MenuSession.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp)
@@ -2385,6 +2425,12 @@ if(BUILD_TESTING)
             ${CMAKE_SOURCE_DIR}/tests/test_food_processing_replay.py
             --executable $<TARGET_FILE:openemperor-food-processing-acceptance>
             --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        add_test(NAME original-food-warehouses-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_food_warehouses_replay.py
+            --executable $<TARGET_FILE:openemperor-food-warehouses-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        set_tests_properties(original-food-warehouses-real PROPERTIES TIMEOUT 1260
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         set_tests_properties(original-food-processing-real PROPERTIES TIMEOUT 1260
             SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME original-physical-food-growers-real COMMAND ${Python3_EXECUTABLE}
@@ -2415,6 +2461,7 @@ if(BUILD_TESTING)
             SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         if(OPENEMPEROR_ENABLE_SANITIZERS)
             set_tests_properties(original-food-processing-real PROPERTIES RUN_SERIAL TRUE)
+            set_tests_properties(original-food-warehouses-real PROPERTIES RUN_SERIAL TRUE)
             # Keep each actual14k creator/replay's existing240s limit meaningful:
             # ASan needs the CPU without competing original-data scenarios.
             set_tests_properties(original-multi-field-agriculture-real PROPERTIES RUN_SERIAL TRUE)

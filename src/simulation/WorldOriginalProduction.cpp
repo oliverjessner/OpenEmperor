@@ -678,6 +678,13 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
                     invalid("Warehouse Aux supplier must follow the paid Goods courier");
                 ++courier_index;
             }
+            if(b.kind==Object::Warehouse && simulation::food_warehouses_enabled(s.profile,s.rule_version)) {
+                if(courier_index>=s.couriers.size())invalid("Missing paid Warehouse Food channel");
+                const auto& supplier=s.couriers[courier_index];
+                if(static_cast<std::uint32_t>(supplier.id)!=courier_index+retired_before+1 || supplier.owner!=b.id || supplier.role!=CourierRole::OriginalWarehouseFood)
+                    invalid("Warehouse Food channel must follow its unchanged Goods and Aux channels");
+                ++courier_index;
+            }
             if (b.kind==Object::Market) {
                 if (courier_index>=s.couriers.size()) invalid("missing purchased Food Distributor");
                 const auto& food=s.couriers[courier_index];
@@ -789,6 +796,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         !(simulation::physical_food_growers_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalFoodGrower) &&
         !(simulation::seasonal_agriculture_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalSeasonalHempGrower) &&
         !(simulation::food_processing_enabled(s.profile,s.rule_version) && (c.role==CourierRole::OriginalMealsToShop || c.role==CourierRole::OriginalMealsToHouse)) &&
+        !(simulation::food_warehouses_enabled(s.profile,s.rule_version) && c.role==CourierRole::OriginalWarehouseFood) &&
         c.role!=CourierRole::OriginalLuxuryToWarehouse && c.role!=CourierRole::OriginalAuxToWarehouse && c.role!=CourierRole::OriginalAuxSupplier &&
         !(simulation::original_fire_protection_enabled(s.profile,s.rule_version) && c.role==CourierRole::FireInspector))
         invalid("unsupported original production courier role");
@@ -969,7 +977,7 @@ void World::tick_original_production() {
     if (dispatch.evolution) evaluate_original_houses();
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
     if (irrigation_enabled()) refresh_irrigation();
-    validate_original_food_state();validate_food_processing_state();validate_original_industry_state();
+    validate_original_food_state();validate_food_processing_state();validate_food_warehouses_state();validate_original_industry_state();
     validate_irrigation_productivity_state();validate_plantations_state();validate_physical_food_growers_state();validate_seasonal_agriculture_state();
     validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();validate_original_venue_house_service_state();
     const auto balances=original_production_goods_balances();

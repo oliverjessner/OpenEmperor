@@ -113,9 +113,12 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # AGRI-MAC09 appends explicit Rule34 graded Food and processor provenance.
 # Historical selection/numerical observations remain exact; these API pins
 # establish no Original Mill/assistant/unit-conversion parity.
+# AGRI-MAC10 appends explicit Rule35 Warehouse owner provenance and APIs.
+# The same Food authority and historical numeric observations remain exact;
+# these reviewed ABI pins establish no Original Warehouse storage parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "7fd8c8b10013d1f9f26688ea847e535e0974ea54",
+    "World.h": "1b5805a6572519a84789a849b773f83e7d917fa2",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
@@ -126,6 +129,7 @@ REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalTerrainFacts.h": "b22d4fb214405dee9ce98cdfacc26d0092b5df6f",
     "MultiFieldAgricultureState.h": "8f0e0b59aa1196ceaaabaa74afbd5d8843c7b1bc",
     "FoodProcessingState.h": "d056d675dcfa6aca3e7ba67303f5c1edf4318f17",
+    "FoodWarehousesState.h": "d4bf79e8230261a6aa6e51d71a50b4358df8400f",
     "IrrigationProductivityState.h": "02087bce419492bdfabf5c0414f23a2194f185de",
     "SeasonalAgricultureState.h": "f2c216c9b9303d9ed0d4b0cffbd43fdee3beadcb",
     "PhysicalFoodGrowersState.h": "1c3705f4b188a56f602bd3b4f9fb26e5784195e6",

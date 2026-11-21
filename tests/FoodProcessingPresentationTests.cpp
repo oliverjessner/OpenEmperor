@@ -9,6 +9,14 @@ namespace {
 namespace oe=openemperor;namespace sim=oe::simulation;
 namespace f=oe::testing::economy;namespace n=oe_food_processing_fixture;namespace fs=std::filesystem;
 using f::check;using Point=oe::scene::Point;
+#if defined(OPENEMPEROR_FOOD_WAREHOUSES_ACCEPTANCE)
+constexpr bool warehouse_mode=true;
+#else
+constexpr bool warehouse_mode=false;
+#endif
+constexpr auto selected_rule=warehouse_mode ? sim::kFoodWarehousesRuleVersion:sim::kFoodProcessingRuleVersion;
+constexpr const char* mode_selector=warehouse_mode ? "V Food warehouses (35)":"Q Food processing (34)";
+constexpr auto mode_key=warehouse_mode ? SDLK_V:SDLK_Q;
 void key(oe::menu::MenuSession& menu,SDL_Keycode code) {
     SDL_Event e{};e.type=SDL_EVENT_KEY_DOWN;e.key.key=code;
     menu.handle_event(e);menu.advance();
@@ -88,20 +96,30 @@ void capture(oe::SandboxView& view,SDL_Renderer* renderer,const fs::path& path) 
 void menu_path(const fs::path& data,const fs::path& app,SDL_Window* window,SDL_Renderer* renderer) {
     oe::menu::MenuSession menu(data,app);menu.initialize(window,renderer);
     check(menu.state()==oe::menu::MenuSession::State::MainMenu&&!menu.food_processing_setup(),"General menu default changed");
-    for(const char* label:{"Q Food processing (34)","X Irrigation yields (33)","Z Seasons (32)","E Physical Growers (31)",
+    for(const char* label:{"V Food warehouses (35)","Q Food processing (34)","X Irrigation yields (33)","Z Seasons (32)","E Physical Growers (31)",
             "G Agriculture Irrigation (rule 26)","P Playable Agriculture (rule 27)","F Playable Fishing (rule 28)","Y Playable Hunting (rule 29)"}) {
         const auto rect=menu.diagnostic_button_rect(label);
         check(rect&&rect->x>=0&&rect->x+rect->w<=600&&rect->y>=0&&rect->y+rect->h<=358,"Explicit regular selector escapes minimum menu aperture");
     }
     check(menu.render(),"Render regular food processing selector");
-    const auto rect=*menu.diagnostic_button_rect("Q Food processing (34)");
+    const auto rect=*menu.diagnostic_button_rect(mode_selector);
     const float scale=1.5F*std::max(1.0F,SDL_GetWindowPixelDensity(window));float x=0,y=0;
     check(SDL_RenderCoordinatesToWindow(renderer,(rect.x+rect.w/2)*scale,(rect.y+rect.h/2)*scale,&x,&y),"Q pointer coordinates");
     SDL_Event e{};e.type=SDL_EVENT_MOUSE_BUTTON_DOWN;e.button.button=SDL_BUTTON_LEFT;e.button.x=x;e.button.y=y;menu.handle_event(e);
     e.type=SDL_EVENT_MOUSE_BUTTON_UP;menu.handle_event(e);menu.advance();
-    check(menu.food_processing_setup()&&menu.original_agriculture_setup(),"Q pointer selected a historical generation");
+    check((warehouse_mode ? menu.food_warehouses_setup():menu.food_processing_setup())&&menu.original_agriculture_setup(),"Food pointer selected a historical generation");
     key(menu,SDLK_ESCAPE);key(menu,SDLK_X);check(menu.irrigation_productivity_setup()&&!menu.food_processing_setup(),"Historical X changed");
-    key(menu,SDLK_ESCAPE);key(menu,SDLK_Q);check(menu.food_processing_setup(),"Q keyboard and button disagree");menu.shutdown();
+    key(menu,SDLK_ESCAPE);key(menu,mode_key);check(warehouse_mode ? menu.food_warehouses_setup():menu.food_processing_setup(),"Food keyboard and button disagree");
+    if (warehouse_mode) {
+        key(menu,SDLK_ESCAPE);
+        const auto advanced_button=menu.diagnostic_button_rect("Advanced / Legacy");check(advanced_button.has_value(),"Regular main menu omitted Advanced / Legacy");
+        const auto advanced=*advanced_button;
+        check(SDL_RenderCoordinatesToWindow(renderer,(advanced.x+advanced.w/2)*scale,(advanced.y+advanced.h/2)*scale,&x,&y),"Advanced pointer coordinates");
+        e={};e.type=SDL_EVENT_MOUSE_BUTTON_DOWN;e.button.button=SDL_BUTTON_LEFT;e.button.x=x;e.button.y=y;menu.handle_event(e);
+        e.type=SDL_EVENT_MOUSE_BUTTON_UP;menu.handle_event(e);menu.advance();key(menu,SDLK_V);
+        check(menu.original_safe_demolition_setup()&&!menu.food_warehouses_setup(),"Advanced V no longer selects historical safe demolition");
+    }
+    menu.shutdown();
 }
 void pure_frames(oe::SandboxView& view) {
     const auto before=view.world().snapshot();const auto prepared=view.agriculture_inspection_prepare_count();
@@ -136,6 +154,17 @@ void processing_inspector(oe::SandboxView& view,sim::BuildingId id) {
     if(actual.parent_market)check(contains(lines,"Bound paid Market #"+std::to_string(static_cast<unsigned>(*actual.parent_market))),"Shop inspector lost exact parent Market");
     else check(contains(lines,"Requested recipe grade "+std::to_string(actual.requested_grade)),"Mill inspector differs from actual requested recipe");
 }
+void warehouse_inspector(oe::SandboxView& view,sim::BuildingId id) {
+    const auto status=view.world().food_warehouse_status(id);const auto lines=view.inspection_lines();
+    std::string text;for (const auto& line:lines) {text+=line;text+=' ';}
+    check(view.selected_building()==id&&contains(lines,"Food Warehouse #")&&contains(lines,"Status: ")&&
+        contains(lines,"Food stock ")&&contains(lines,"Incoming ")&&contains(lines,"Goods and Auxiliary"),"Normal Warehouse inspector omits its separate compartments");
+    constexpr std::array names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)","Fish","Meat",
+        "Dinners grade1","Dinners grade2","Dinners grade3","Dinners grade4","Dinners grade5 (locked)"};
+    for (std::size_t kind=0;kind<status.amounts.size();++kind)
+        check(text.find(std::string(names[kind])+" stock "+std::to_string(status.amounts[kind])+"/4")!=std::string::npos,"Warehouse inspector differs from its sole typed Food account");
+    check(contains(lines,"Hemp stock")&&contains(lines,"Wood stock"),"Warehouse Food hid historical Goods/Aux rows");
+}
 } // namespace
 int main() {
     SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
@@ -150,11 +179,12 @@ int main() {
         check(SDL_SetWindowSize(window,1440,1000),"Resize processing inspector");
         auto session=oe::maps::load_stored_map_session(source.root.data,oe_influence_fixture::map_relative,oe::maps::FootprintPolicy::EdgeByte4x4Preview,
             oe::maps::StoredGraphicsProfile::Slot8,oe::maps::GreatWallPresentationMode::Automatic,{},true);
-        auto view=oe::SandboxView::create_food_processing(std::move(session),std::nullopt,false);
-        const auto save_path=art.root/"processing50.save.json";view->configure_save(source.root.data,oe_influence_fixture::map_relative,save_path);view->initialize(window,renderer);
+        auto view=warehouse_mode ? oe::SandboxView::create_food_warehouses(std::move(session),std::nullopt,false):
+            oe::SandboxView::create_food_processing(std::move(session),std::nullopt,false);
+        const auto save_path=art.root/(warehouse_mode ? "warehouses51.save.json":"processing50.save.json");view->configure_save(source.root.data,oe_influence_fixture::map_relative,save_path);view->initialize(window,renderer);
         SDL_Event focus{};focus.type=SDL_EVENT_WINDOW_FOCUS_GAINED;event(*view,focus);
         for(unsigned i=0;i<3&&view->camera().zoom!=1.;++i)key(*view,SDLK_Z);
-        check(view->world().rule_version()==34&&view->world().processed_food_state()&&!view->world().hunting_food_state()&&view->world().ticks()==0&&!view->world().total_population(),"New processing UI gained historical inventory/time/population");
+        check(view->world().rule_version()==selected_rule&&view->world().processed_food_state()&&!view->world().hunting_food_state()&&view->world().ticks()==0&&!view->world().total_population(),"New processing UI gained historical inventory/time/population");
         const auto buy=[&](sim::CommandType type,sim::Cell cell,sim::BuildingId parent=sim::BuildingId{}) {
             sim::Command command{type,cell};command.building_id=parent;const auto result=view->execute(command);
             if(!result.accepted||!result.changed)throw std::runtime_error("Paid processing UI construction: "+result.reason);
@@ -163,12 +193,21 @@ int main() {
         for(int x=89;x<=132;++x)buy(sim::CommandType::PlaceRoad,{x,109});
         for(int x=90;x<126;x+=3)buy(sim::CommandType::PlaceHousehold,{x,107});
         const auto farm=buy(sim::CommandType::PlaceOriginalFoodFarm,{90,110});
-        for(std::size_t crop=0;crop<5;++crop)buy(oe_playable_agriculture_fixture::crop_commands[crop],{93,110+static_cast<int>(crop)},farm);
+        for(std::size_t crop=0;crop<(warehouse_mode ? 1U:5U);++crop)
+            buy(oe_playable_agriculture_fixture::crop_commands[crop],{93,110+static_cast<int>(crop)},farm);
+        if (warehouse_mode) {
+            for(int y=110;y<=124;++y)buy(sim::CommandType::PlaceRoad,{89,y});
+            for(int x=90;x<=107;++x)buy(sim::CommandType::PlaceRoad,{x,124});
+            for (const auto& [kind,origin]:std::array{std::pair{1U,sim::Cell{94,125}},std::pair{4U,sim::Cell{104,125}}}) {
+                const auto crop_farm=buy(sim::CommandType::PlaceOriginalFoodFarm,origin);
+                buy(oe_playable_agriculture_fixture::crop_commands[kind],{origin.x+3,origin.y},crop_farm);
+            }
+        }
         const auto market=buy(sim::CommandType::PlaceMarket,{97,110});
         buy(sim::CommandType::PlaceOriginalWaterWell,{101,110});buy(sim::CommandType::PlaceOriginalAncestorShrine,{105,110});
         for(int x:{109,112})buy(sim::CommandType::PlaceFireWatch,{x,110});
-        const auto construct=[&](SDL_Keycode shortcut,int tool,sim::Cell cell,sim::Object kind,sim::CommandType command) {
-            key(*view,shortcut,SDL_KMOD_SHIFT);check(view->tool()==tool&&view->preview(cell).accepted,"Processing shortcut omitted validated placement");
+        const auto construct=[&](SDL_Keycode shortcut,int tool,sim::Cell cell,sim::Object kind,sim::CommandType command,SDL_Keymod mod=SDL_KMOD_SHIFT) {
+            key(*view,shortcut,mod);check(view->tool()==tool&&view->preview(cell).accepted,"Processing shortcut omitted validated placement");
             const auto before=view->world().snapshot();pure_frames(*view);
             const auto ground=oe::maps::terrain_ground({static_cast<unsigned>(cell.x),static_cast<unsigned>(cell.y)},1);center(*view,ground);
             check(view->render(),"Submit validated processing preview");click(*view,renderer,view->camera().world_to_screen(ground));
@@ -177,6 +216,13 @@ int main() {
         };
         const auto mill=construct(SDLK_M,51,{119,110},sim::Object::OriginalMill53,sim::CommandType::PlaceOriginalMill);
         const auto shop=construct(SDLK_K,52,{98,110},sim::Object::OriginalFoodShop66,sim::CommandType::PlaceOriginalFoodShop);
+        std::optional<sim::BuildingId> warehouse;
+        if (warehouse_mode) {
+            warehouse=construct(SDLK_4,4,{127,110},sim::Object::Warehouse,sim::CommandType::PlaceWarehouse,SDL_KMOD_NONE);
+            check(view->world().building_cells(*warehouse).size()==4&&view->world().workforce_required(*warehouse)==2&&
+                view->world().construction_cost(sim::CommandType::PlaceWarehouse)==150,"Warehouse changed historical paid geometry/cost/workforce");
+            select(*view,renderer,view->world().building(*warehouse).cell);warehouse_inspector(*view,*warehouse);pure_frames(*view);
+        }
         check(view->world().building_cells(mill).size()==25&&view->world().building_cells(shop).size()==4&&view->world().food_processing_state()->shops.front().market_id==market,
             "Paid Mill/Shop complete geometry or stable parent binding changed");
         select(*view,renderer,view->world().building(mill).cell);processing_inspector(*view,mill);
@@ -186,12 +232,33 @@ int main() {
         check(n::mill(view->world(),mill).requested_grade==3,"Recipe button did not use the shared action");
         key(*view,SDLK_G,SDL_KMOD_SHIFT);check(n::mill(view->world(),mill).requested_grade==4,"Recipe key and button disagree");
         key(*view,SDLK_G,SDL_KMOD_SHIFT);check(n::mill(view->world(),mill).requested_grade==1,"Recipe cycle admitted unavailable grade5");
-        const auto output=fs::current_path()/".local/agri-mac09/presentation";fs::create_directories(output);
+        const auto output=fs::current_path()/(warehouse_mode ? ".local/agri-mac10/presentation":".local/agri-mac09/presentation");fs::create_directories(output);
+        if (warehouse_mode) for (const auto outlet:{mill,shop,market})
+            check(view->execute(sim::set_building_operation(outlet,false)).accepted,"Could not pause downstream outlets for finite Warehouse intake proof");
         processing_inspector(*view,mill);pure_frames(*view);capture(*view,renderer,output/"processing-paid-empty-mill.png");
         key(*view,SDLK_F5);const auto empty=view->world().snapshot();view->tick_once();key(*view,SDLK_F9);check(view->world().snapshot()==empty,"Empty processing F5/F9 changed paid identity");
-        bool active_seen=false,meal_cargo_seen=false;
-        for(unsigned i=0;i<14000&&!n::meals_consumed(view->world());++i) {
-            view->tick_once();const auto& work=n::mill(view->world(),mill);
+        bool active_seen=false,meal_cargo_seen=false,warehouse_three=false,warehouse_cargo=false;
+        for(unsigned i=0;i<16000&&(!n::meals_consumed(view->world())||(warehouse_mode&&(!warehouse_three||!warehouse_cargo)));++i) {
+            view->tick_once();
+            if (warehouse) {
+                const auto status=view->world().food_warehouse_status(*warehouse);
+                const auto kinds=std::count_if(status.amounts.begin(),status.amounts.end(),[](auto amount){return amount>0;});
+                if (!warehouse_three&&kinds>=3) {
+                    warehouse_three=true;select(*view,renderer,view->world().building(*warehouse).cell);warehouse_inspector(*view,*warehouse);
+                    show_row(*view,renderer,"Food stock ");pure_frames(*view);capture(*view,renderer,output/"warehouse-three-food-kinds.png");
+                    key(*view,SDLK_F5);const auto stocked=view->world().snapshot();view->tick_once();key(*view,SDLK_F9);
+                    check(view->world().snapshot()==stocked,"Stocked Warehouse F5/F9 changed typed Food or Goods/Aux compartments");
+                    for (const auto outlet:{mill,shop,market})
+                        check(view->execute(sim::set_building_operation(outlet,true)).accepted,"Could not resume actual Warehouse redistribution outlets");
+                }
+                if (!warehouse_cargo&&status.courier&&view->world().original_food_cargo(*status.courier)>0) {
+                    warehouse_cargo=true;select(*view,renderer,view->world().building(*warehouse).cell);warehouse_inspector(*view,*warehouse);
+                    show_row(*view,renderer,"Actual Food cargo ");pure_frames(*view);capture(*view,renderer,output/"warehouse-real-outbound-cargo.png");
+                    key(*view,SDLK_F5);const auto loaded=view->world().snapshot();view->tick_once();key(*view,SDLK_F9);
+                    check(view->world().snapshot()==loaded,"Loaded Warehouse F5/F9 changed physical transfer or return room");
+                }
+            }
+            const auto& work=n::mill(view->world(),mill);
             if(!active_seen&&work.active&&work.active->work>0) {
                 active_seen=true;select(*view,renderer,view->world().building(mill).cell);processing_inspector(*view,mill);show_row(*view,renderer,"Active grade");pure_frames(*view);
                 capture(*view,renderer,output/"processing-active-paid-input.png");key(*view,SDLK_F5);const auto active=view->world().snapshot();view->tick_once();key(*view,SDLK_F9);
@@ -220,6 +287,7 @@ int main() {
             }
         }
         check(active_seen&&meal_cargo_seen&&n::meals_consumed(view->world())>0,"Actual paid UI never completed processing, physical Shop/House delivery and consumption");
+        check(!warehouse_mode||(warehouse_three&&warehouse_cargo),"Paid Warehouse UI never held three typed Foods or loaded an independent physical courier");
         select(*view,renderer,view->world().building(shop).cell);processing_inspector(*view,shop);pure_frames(*view);capture(*view,renderer,output/"processing-food-shop.png");
         const auto witness=std::find_if(view->world().food_processing_state()->houses.begin(),view->world().food_processing_state()->houses.end(),[](const auto& row){return row.first_consumption.has_value();});
         check(witness!=view->world().food_processing_state()->houses.end(),"Actual meal consumption lacks a House witness");
@@ -231,15 +299,20 @@ int main() {
         key(*view,SDLK_F5);const auto consumed=view->world().snapshot();view->tick_once();key(*view,SDLK_F9);check(view->world().snapshot()==consumed,"Consumed meal F5/F9 changed a sole Food history");
         for(const auto size:{SDL_Point{600,400},SDL_Point{900,600},SDL_Point{1280,800}}) {
             check(SDL_SetWindowSize(window,size.x,size.y),"Resize processing UI");view->update(0);check(view->render(),"Render resized processing UI");
-            if(view->layout().panel_open){select(*view,renderer,view->world().building(mill).cell);processing_inspector(*view,mill);
+            if(view->layout().panel_open){select(*view,renderer,view->world().building(warehouse.value_or(mill)).cell);
+                if (warehouse) warehouse_inspector(*view,*warehouse);else processing_inspector(*view,mill);
                 check(view->inspector_layout().content.h>=3*17*view->layout().scale+6*view->layout().scale,"Normal processing inspector lost three complete readable rows");
-                show_row(*view,renderer,"Grade5 unavailable");}
+                show_row(*view,renderer,warehouse ? "Hemp stock":"Grade5 unavailable");}
             pure_frames(*view);capture(*view,renderer,output/("processing-"+std::to_string(size.x)+".png"));
         }
         sim::CourierState meal;meal.role=sim::CourierRole::OriginalMealsToShop;
         check(!oe::walker_live_visible(meal)&&!oe::walker_visual_role(meal.role),"Idle meal channel gained visible actor or unqualified art");meal.phase=sim::CourierPhase::Returning;
         check(oe::walker_live_visible(meal),"Actual returning meal carrier is hidden");
-        const auto historical=sim::World::create_irrigation_productivity(view->world().map_permissions(),
+        meal.role=sim::CourierRole::OriginalWarehouseFood;meal.phase=sim::CourierPhase::IdleAtWorkshop;
+        check(!oe::walker_live_visible(meal)&&!oe::walker_visual_role(meal.role),"Idle Warehouse channel gained visible actor or unqualified art");
+        meal.phase=sim::CourierPhase::Returning;check(oe::walker_live_visible(meal),"Actual returning Warehouse Food carrier is hidden");
+        const auto historical=warehouse_mode ? sim::World::create_food_processing(view->world().map_permissions(),
+            view->world().original_rules_model(),view->world().original_terrain_facts()):sim::World::create_irrigation_productivity(view->world().map_permissions(),
             view->world().original_rules_model(),view->world().original_terrain_facts());
         const auto historical_path=art.root/"historical49.save.json";
         const auto old_document=oe::persistence::make_document(source.root.data,oe_influence_fixture::map_relative,

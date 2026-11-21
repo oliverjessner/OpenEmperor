@@ -147,6 +147,74 @@ Growth art reads the selected field's progress. Rice keeps its qualified static
 paddy profile and gains no universal Pump requirement or irrigation yield bonus.
 See [validation](../testing.md#multi-field-agriculture-agri-mac05) for evidence.
 
+## Food Warehouses (AGRI-MAC10)
+
+**Explicit AUTHORED Rule35/policy3/schema51**, marker
+`authored-food-warehouses-v1`, revision1, **V Food Warehouses** /
+`--food-warehouses`. It inherits Rule34's production, processing, direct Food,
+House consumption, seasons, irrigation and economy. Rules1–34/schemas1–50,
+Original research sessions and general defaults remain exact; there is no
+migration or cross-generation overwrite.
+
+The existing paid Warehouse remains **2×2, 150 Funds, two workers**, with the
+same limit of two and its unchanged Goods/Aux channels and capacities. These
+inherited authored construction values do not claim the native Warehouse54
+geometry, price or staffing. Each Warehouse adds one counted physical Food
+courier after its Goods and Aux channels. The shared **82-body/58-channel**
+budgets still apply atomically to placement, identities and restore.
+
+The sole twelve-column `ProcessedFoodState` now has a typed owner row for
+each paid Warehouse. Its additional authored Food compartment has **32 shared
+portions**, independent of existing Goods/Aux storage. Each raw kind or graded
+meal lot admits at most **four**, counting held stock, actual inbound claims
+and loaded outbound cargo that may physically return. Construction creates an
+empty account. No aggregate Food stash, legacy Food projection, House quality
+or new origin is created. Grade5 remains unavailable in all accounts and
+histories.
+
+Farm, Quay and Tent carts can bring real raw Food; Mill carts can bring real
+Dinners. The Warehouse's own courier makes a separate physical journey:
+raw ingredients go to Mills or Markets, and meals go to FoodShops. There is
+no Warehouse→Warehouse, Warehouse→House, Market meal stock or Mill meal import.
+Mill intake remains two portions per raw kind; all existing shared capacities,
+recipe reservations and House raw/meal limits remain in force.
+
+Rule35 producer, Mill and Warehouse selection rotates over the complete
+compatible receiver catalog in cached physical-route-distance order, then
+stable BuildingId order. The saved last-target cursor advances through that
+catalog; current stock, actual incoming claims, typed demand and headroom gate
+each load. Paused, burning or unreachable receivers retain their place in the
+catalog. This gives eligible destinations turns under stable topology without
+replacing the shared navigator or creating a per-frame route query. Rule34's
+Mill-first producer policy and all historical selectors stay exact.
+
+Full Warehouse staffing, operation and fire eligibility gate new Warehouse
+dispatches and accepted Warehouse arrivals. Losing eligibility returns actual
+incoming cargo through ordinary movement. Pausing a source returns its loaded
+trip; road cuts preserve current/begun edges, cargo and original return room
+until real repair or return. No stock is discarded or teleported. Warehouse
+demolition remains refused, including an empty Warehouse; safe agricultural
+reconfiguration is a separate future contract.
+
+Only accepted arrivals update stock and immutable provenance. Each Warehouse
+retains its first input and first accepted outward delivery per typed lot,
+including the actual source/destination, courier sequence, time and amount.
+Each paid Market retains its first raw arrival per kind. These fixed-size
+receipts are not inventory. Restore checks the paid producer→Warehouse→Mill
+and Mill→Warehouse→Shop→House chains, real work/arrival epochs, complete typed
+transfer keys and the unchanged sole House sink. All courier dispatches precede
+all movement in a tick: an arrival can be forwarded no earlier than the next
+tick. A canceled-only departure has no accepted-delivery receipt.
+
+For each kind, Warehouse received + actual returns equals held + departed;
+departed equals accepted deliveries + actual returns + retained cargo. Globally,
+earned raw origins equal held + transit + processor/House consumption, and
+completed Dinners equal held + transit + actual House consumption. Warehouses
+consume none. Save/Load/Recovery preserve these accounts, return reservations,
+route phases, source identities and first receipts exactly. Derived inspectors
+and routing caches remain outside saved authority. The Warehouse inspector
+shows typed Food, actual cargo and destinations alongside existing Goods/Aux.
+
 ## Food processing (AGRI-MAC09)
 
 **Explicit AUTHORED Rule34/policy3/schema50**, marker

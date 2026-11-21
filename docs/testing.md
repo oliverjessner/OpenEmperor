@@ -44,6 +44,63 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Food Warehouses (AGRI-MAC10)
+
+Select **V Food Warehouses (35)** / `--food-warehouses` for explicit
+Rule35/policy3/schema51. The [contract](original-economy/agriculture.md#food-warehouses-agri-mac10)
+keeps the existing Warehouse construction and Goods/Aux account; only this
+generation admits its additional bounded compartment in the sole Food ledger.
+
+```sh
+ctest --test-dir build --output-on-failure -R 'food-warehouses|food-processing'
+./build/openemperor-food-warehouses-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --output "$PWD/.local/agri-mac10/paid-new" --ticks 24000
+./build/openemperor-food-warehouses-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --replay "$PWD/.local/agri-mac10/paid-new" \
+  --output "$PWD/.local/agri-mac10/replay-new" --ticks 24000
+```
+
+Use fresh output directories. `original-food-warehouses-real` independently
+audits the creator and separate replay: actual Farm/Quay/Tent/Mill arrivals,
+three simultaneously held raw kinds, Warehouse-only input to a fresh Mill and
+Market, meal forwarding through a FoodShop and actual House consumption.
+The full tick stream binds first receipts to observed accepted arrivals,
+one-time work/debits, capacities32/per-kind4, cargo, return room and82/58 limits.
+It checks a real loaded cut, paid repair and exact physical return; each child
+retains600 seconds and the outer case1260 seconds. No inventory is injected.
+
+World/Edge tests additionally earn a fully held32-portion compartment, genuine
+zero staffing, natural fire and Food/Goods/Aux coexistence. Independent paid
+Farm buffers avoid confusing a deliberately blocked producer with Warehouse
+admission. Save/Recovery tests cover loaded outward/return phases, stock,
+House consumption, malformed catalogs, impossible first-hop epochs, reused
+transfer keys and protected historical50 targets. The normal UI tests cover
+V/contextual legacy V, existing Warehouse construction, narrow scrolling,
+actual cargo picking and F5/F9; the native tool is
+`openemperor-food-warehouses-view-acceptance`. Inspect native screenshots and
+pure-frame counters separately from synthetic SDL and human acceptance.
+
+The frozen native arm64 source passed all 417 cases in each fresh Debug,
+Release and ASan+UBSan build, without skips. Full-data alpha passed 100,000
+deterministic ticks and 12 real JSON roundtrips per configuration, 3,000-frame
+render stress in Debug and sanitizers, and 100 menu/session cycles. All 74 core
+observations and public reports matched the merged baseline in every build.
+The independent historical comparison preserved 205 artifacts and 110 paid
+Rules24–34 saves byte-for-byte, including 15 actual Save/Recovery comparisons.
+The actual Chengdu creator and separate replay matched 24,000 ticks each and
+11 checkpoints: all four producer classes supplied the Warehouse, three raw
+kinds were held simultaneously, and another physical trip supplied a fresh
+Mill/Market or FoodShop before real raw/grade3 House consumption. The bounded
+paid city used 26 bodies and 32 movement channels. Ten Cocoa/Metal checkpoint
+cases passed exact F5/F9/Step and cargo picking, with 97 inspected captures and
+291 pure measured frames; all instrumentation deltas were zero. Goods and Aux
+rows were also visually checked after ordinary inspector scrolling. Original
+inputs retained their bytes, modes and timestamps. Human/OS-input acceptance
+and isolated native fire/zero-staff scenarios were not run; technical World
+tests cover actual fire and zero staffing. Original reproduction is unproved.
+
 ## Food processing (AGRI-MAC09)
 
 Select **Q Food processing (34)** / `--food-processing` for explicit

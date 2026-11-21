@@ -43,9 +43,15 @@ complete original-game compatibility.
   staffed recipes and actual House meal consumption in the sole Food account.
   Portion conversion, work, grade policy and shop ownership are authored;
   Original linked assistants/parent-slot behavior and artwork parity remain
-  unresolved. No Salt/Spices origin, grade5 or Warehouse Food storage exists.
+  unresolved. No Salt/Spices origin, grade5 or Rule34 Warehouse Food storage exists.
   Rules1–33/schemas1–49 and defaults stay exact. See
   [the contract](docs/original-economy/agriculture.md#food-processing-agri-mac09).
+- **Food Warehouses require their own authored successor.** Rule35/schema51
+  extends the sole Food account with paid Warehouse owners, a bounded separate
+  Food compartment and physical redistribution. Its capacities, extra courier
+  and routing policy are authored, with no native Warehouse reproduction claim.
+  Warehouse demolition remains refused. Rules1–34/schemas1–50 and defaults stay
+  exact. See [the contract](docs/original-economy/agriculture.md#food-warehouses-agri-mac10).
 - **Irrigation productivity is a separate authored successor.** Rule33/schema49
   adds bounded+25% earned growth work on actual wet eligible crop ticks for all
   nine crop types. It changes cadence, never the one-portion harvest, physical
