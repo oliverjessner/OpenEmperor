@@ -13,10 +13,12 @@ Current plantation validation is reported separately from implementation.
 Rule26/schema42 remains the separately selected irrigation extension. AGRI-06
 adds a derived view of the shared World calendar and verified seasonal reference
 queries. It adds no rule, schema, independent clock or production activation.
-The separate playable lineage now includes **Z Seasons, Rule32/schema48**:
+The separate playable lineage includes **Z Seasons, Rule32/schema48**:
 [AGRI-MAC07](#seasonal-agriculture-agri-mac07) makes the shared calendar an
 explicit authored production driver. Historical selectors and Original research
 keep their exact contracts; the new gameplay supplies no raw Harvest parity.
+**X Irrigation yields, Rule33/schema49**, separately adds authored water-driven
+productive work; see [AGRI-MAC08](#irrigation-productivity-agri-mac08).
 
 ## Playable Agriculture (AGRI-MAC01)
 
@@ -144,6 +146,83 @@ last/next eligible work, typed stock, real cargo and current blocking reasons.
 Growth art reads the selected field's progress. Rice keeps its qualified static
 paddy profile and gains no universal Pump requirement or irrigation yield bonus.
 See [validation](../testing.md#multi-field-agriculture-agri-mac05) for evidence.
+
+## Irrigation productivity (AGRI-MAC08)
+
+**Explicit AUTHORED Rule33/policy3/schema49**, marker
+`authored-irrigation-productivity-v1`, revision1. Select **X Irrigation yields**
+or `--irrigation-productivity`. This inherits Rule32's nine seasonal crop
+windows, actual Food tending/harvest/return, Hemp/plantation pickup and the
+sole seven-kind Food and existing Goods/Aux accounts. Rules1–32/schemas1–48,
+all defaults and Original research remain exact, without migration or
+cross-generation overwrite. Rice still requires source fertility100 at
+construction and can grow dry; no universal Pump requirement is introduced.
+
+All five Food fields, Hemp194 and Tea26/Lacquer27/Mulberry28 receive the same
+bounded rational **+25% growth-work policy**. One otherwise eligible real
+base-work tick always earns one growth unit. If its actual paid field query
+finds currently supplied water, it also earns one quarter bonus; every fourth
+such wet tick adds one extra unit. Integer carry is per paid crop identity,
+`wet_work_ticks % 4`, never shared between fields or multiplied by overlapping
+Pumps. Both increments cap at80. A due extra unit that would exceed80 is
+consumed into `clipped_bonus`, rather than carried into a future cycle.
+Carry survives dry periods, pause, seasonal loss and expiry, but can emit a
+unit only on a later genuinely eligible wet growth tick. No water, staffing,
+work or inventory is granted by that retained fraction.
+
+Food growth still requires the actual Farm-owned Grower to be at its assigned
+Field after its real wait, with full Farm staffing, operation, fire and road
+access checks. Only tending gains the bonus: the five actual harvest-work
+ticks, travel and one-portion cargo/return remain unchanged. Material plants
+and Hemp retain their inherited passive staffed readiness, source operation,
+access and real pickup/return rules. A wet uninterrupted80-unit growth cycle
+therefore takes64 base-work ticks; a dry cycle takes80. Physical dispatch,
+waiting, backpressure, route distance and seasonal loss can still determine
+actual output cadence. This policy never raises the one-portion harvest or
+creates Food/Goods directly. Fish, Meat, processing, consumption, capacities
+and82-body/58-channel limits remain unchanged.
+
+The existing phase27 cache is the sole water authority. Growth runs before
+the inherited end-of-tick water update. A phase27 fill published at completed
+tick28 (then79,130,…) can influence growth from the next tick. A fire started
+later in a tick invalidates supply at that same tick's existing final update;
+the earlier work remains earned and subsequent work receives no bonus.
+Operation/staff loss and ditch cuts invalidate through the existing World
+boundaries. New/reconnected ditches or a restarted/extinguished Pump must wait
+for the next real supply phase. No proximity, wet artwork, raw marker,
+future phase or second topology grants eligibility. Overlap uses the existing
+canonical supplying Pump and never stacks bonuses.
+
+Existing `productive_ticks`, Food trip `work_ticks` and receipt
+`work_at_harvest` retain **actual base-work ticks**, keeping one Farm labor
+timeline exact. Per-crop saved counters add only `wet_work_ticks`, earned
+`bonus_work` and `clipped_bonus`; carry is derived. Their identities obey
+`wet <= base` and `wet/4 = bonus + clipped` with integer division.
+`earned growth = base + bonus`. Food conservation becomes
+`base + bonus = 80*harvested + wasted + pending0..80`; actual harvest work and
+cargo/return equations remain exact. Material/Hemp readiness uses the same
+earned-growth equation. Exact Food dispatch/receipt bonus epochs prevent a
+later bonus history from being borrowed by an older physical trip.
+
+Schema49 strictly binds every paid eligible crop once, exact lineage markers,
+source/model/terrain identity, rational counters, real base-work chronology,
+ready epochs, current/begun routes and all inherited resource accounts before
+publication. It saves no wet mask, provider cache or independent clock.
+Current ready work and Food dispatch/receipt bonus history must fit their own
+ready epochs, including the first possible paid supply phase. Immutable five-
+counter work witnesses bind material trips/receipts to their exact ready crop,
+including base work, wet ticks, bonus, clipping and prior seasonal waste.
+Pickup/receipt ordinals, same-epoch equality and bounded later regrowth prevent
+future work from being borrowed by an older carried crop. Known first-ditch
+construction epochs are checked during snapshot publication/restore, outside
+normal ticks; removed-ditch dates are not invented.
+Save/Recovery rebuild the existing supply cache and preserve fractional carry
+without a double increment. Historical schemas reject the new state and
+Food bonus epochs. Normal cached inspectors expose actual wet/dry/provider,
+base and wet ticks, bonus/clipping/carry, the next capped work increment,
+seasonal opening and concrete work blockers. They do not invent an actor ETA
+or perform routing in the frame/hover path. Original native irrigation yield,
+runtime fertility/Flood/x87 arithmetic and animation parity remain separate.
 
 ## Seasonal Agriculture (AGRI-MAC07)
 

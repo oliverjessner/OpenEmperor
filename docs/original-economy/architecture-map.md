@@ -181,6 +181,16 @@ navigator; only physical return credits the existing Goods account. No second
 calendar or Food/Goods ledger is introduced. Historical Rules1–31 stay exact.
 See [the contract](agriculture.md#seasonal-agriculture-agri-mac07).
 
+**Irrigation productivity** is separately explicit Rule33/policy3/schema49,
+`authored-irrigation-productivity-v1`, revision1. `WorldIrrigationProductivity`
+records per-crop wet work, earned/clipped bonus and derived quarter carry;
+`WorldIrrigation` remains the only water topology/supplier owner. Existing
+base-work counters keep actual labor ticks, and the seasonal progress queries
+add earned bonus units. Food Growers, Hemp and plantation paths retain the sole
+physical pickup/return authority; no inventory, clock or navigator is added.
+Historical Rules1–32 stay exact. See
+[the contract](agriculture.md#irrigation-productivity-agri-mac08).
+
 ## Versions and source preparation
 
 | Generation | Saved contract and scope |
@@ -209,6 +219,7 @@ See [the contract](agriculture.md#seasonal-agriculture-agri-mac07).
 | Rule30 / schema46 / multi-field revision1 | Explicit authored multi-field Agriculture; inherits Rule29, up to eight paid fields/Farm sharing one work unit/tick, separate lifetime work/cursors and the unchanged sole Food ledger, capacities and82/58 budgets. Exact markers, release-time quotas, Save/Recovery and no migration or cross-generation overwrite. |
 | Rule31 / schema47 / physical Growers revision1 | Explicit authored physical Food Growers; inherits Rule30, one staffed worker/Farm and one-crop return cargo through the shared navigator. Only actual source return credits the sole Food ledger. Exact lifetime/work/route/receipt/reservation validation, Save/Recovery and no migration or cross-generation overwrite; historical Rules1–30 remain exact. |
 | Rule32 / schema48 / seasons revision1 | Explicit authored seasonal Agriculture; derives nine growing windows from the sole World tick,80-work readiness, actual Food harvest work and one end-slot expiry grace. Real Food/Hemp/plant pickup and return retain sole inventory authority. Strict ready-cycle provenance, work/waste/cargo/receipt validation and no historical migration or overwrite. |
+| Rule33 / schema49 / irrigation productivity revision1 | Explicit authored water-driven growth; inherits Rule32 and retains actual base-work ticks, per-crop wet/bonus/clipped history and fractional carry. Existing phase27 paid supply alone permits +25% bounded growth work; actual harvest/pickup/return remains sole inventory authority. All older saves/defaults stay exact. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy

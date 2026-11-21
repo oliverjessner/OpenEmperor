@@ -20,7 +20,7 @@ def main() -> None:
                 "--sandbox-rules", "sandbox-city-v16", "--seasonal-agriculture"]
         incompatible = [
             "--sandbox-bridges", "--sandbox-ramps", "--authored-source-cell-ramps",
-            "--authored-land-trade", "--original-fire-protection",
+            "--authored-land-trade", "--irrigation-productivity", "--original-fire-protection",
             "--original-sustainable-economy", "--original-market-logistics",
             "--original-cardinal-water", "--original-inspector-coordination",
             "--original-deadline-fire-dispatch", "--original-deadline-service-dispatch",

@@ -83,7 +83,10 @@ void World::validate_original_hemp_snapshot(const WorldSnapshot& s) {
             std::find(fields.begin(),fields.begin()+static_cast<std::ptrdiff_t>(count),field->id)!=fields.begin()+static_cast<std::ptrdiff_t>(count))
             invalid("Hemp Field must be uniquely paid after and adjacent to its exact Farm");
         fields[count++]=field->id;
-        const auto age=s.ticks-field->placed_tick;
+        const auto elapsed=s.ticks-field->placed_tick;
+        const auto extra=simulation::irrigation_productivity_enabled(s.profile,s.rule_version)?elapsed/4:0;
+        if(extra>UINT64_MAX-elapsed)invalid("Hemp productive opportunity overflow");
+        const auto age=elapsed+extra;
         if (record.harvested>age/80 || (record.harvested==age/80 && static_cast<std::uint64_t>(farm->progress)>age%80))
             invalid("Hemp harvest and progress exceed productive clock opportunities after paid Field placement");
         if (!simulation::seasonal_agriculture_enabled(s.profile,s.rule_version) && held==8 && farm->progress) invalid("full Hemp source must retain no partial crop progress");

@@ -273,6 +273,13 @@ simulation::World restore_seasonal_agriculture(
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
     std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema49/Rule33 retains actual wet-work carry and bounded earned bonus.
+simulation::World restore_irrigation_productivity(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
 // Schema36 is an explicit authored classic Rule6 successor. It does not
 // inherit Original-economy rules or migrate an existing transport save.
 simulation::World restore_authored_source_cell_ramps(

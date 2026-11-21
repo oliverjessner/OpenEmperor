@@ -330,6 +330,17 @@ remain literal-equal. Separate Rules24–31 paid-save comparisons cover active
 historical workers/cargo; neither comparison establishes Original seasonal,
 work, expiry, harvest-quantity or animation parity.
 
+AGRI-MAC08 adds explicit Rule33/schema49 and the reviewed
+`IrrigationProductivityState.h` API. The twenty-one reviewed headers include
+immutable material readiness witnesses and conditional Food bonus provenance;
+current fingerprints also include the Hemp and productivity World code.
+Historical probes select no productivity authority. Their74 observations,
+classifications, fork pins and real-model digest remain literal-equal; full
+matching fresh archives and independent paid Rules24–32 save comparisons are
+required. These ABI checks establish no Original water-yield, work or human
+acceptance. Actual paid quarter-work/return and native checks are separate in
+[the testing guide](../testing.md#irrigation-productivity-agri-mac08).
+
 The comparison uses independently specified vectors and expected outcomes for
 parser values, rings, needs, House transitions, timer effects, consumption,
 market-style inventory transfers and FoodQuality. A second executable runs the

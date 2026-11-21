@@ -137,7 +137,11 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
-    // Explicit Rule31/schema47: physical Food Grower work and real crop return.
+    // Explicit Rule33/schema49: actual wet work earns authored progress bonuses.
+    static std::unique_ptr<SandboxView> create_irrigation_productivity(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=true);
+    // Explicit Rule32/schema48: seasonal physical work, harvest and return.
     static std::unique_ptr<SandboxView> create_seasonal_agriculture(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=true);
@@ -872,6 +876,9 @@ private:
     }
     bool seasonal_agriculture() const {
         return simulation::seasonal_agriculture_enabled(rules_,requested_rule_version_);
+    }
+    bool irrigation_productivity() const {
+        return simulation::irrigation_productivity_enabled(rules_,requested_rule_version_);
     }
     bool physical_food_growers() const {
         return simulation::physical_food_growers_enabled(rules_,requested_rule_version_);

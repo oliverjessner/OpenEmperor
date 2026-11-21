@@ -16,7 +16,7 @@ const auto farm_key=[](const auto& v){return v.farm_id;};
 const auto id_key=[](const auto& v){return v.id;};
 template<class Bodies,class Couriers>
 void validate_hemp(const SeasonalAgricultureState& s,const OriginalProductionState& p,const OriginalGoodsState& goods,
-    const Bodies& bodies,const Couriers& couriers,std::uint64_t tick){
+    const Bodies& bodies,const Couriers& couriers,std::uint64_t tick,const IrrigationProductivityState* irrigation=nullptr){
     if(!s.next_hemp_grower_id||s.hemp_farms.size()!=p.hemp_farms.size()||s.hemp_farms.size()>2||
        std::count_if(couriers.begin(),couriers.end(),[](const auto& c){return c.role==CourierRole::OriginalSeasonalHempGrower;})!=static_cast<std::ptrdiff_t>(s.hemp_farms.size()))
         invalid("Seasonal Hemp requires one exact paid worker channel per source");
@@ -38,8 +38,8 @@ void validate_hemp(const SeasonalAgricultureState& s,const OriginalProductionSta
             continue;
         }
         const auto& field=row(bodies,*base.field_id,id_key);
-        if(b.progress<0||b.progress>80||f.wasted_work>f.productive_ticks||f.picked>(f.productive_ticks-f.wasted_work)/80||
-           f.productive_ticks-f.wasted_work-f.picked*80!=static_cast<unsigned>(b.progress)||f.expired_ready>f.wasted_work/80||
+        if(b.progress<0||b.progress>80||f.wasted_work>irrigation_earned_work(f.productive_ticks,irrigation,field.id)||f.picked>(irrigation_earned_work(f.productive_ticks,irrigation,field.id)-f.wasted_work)/80||
+           irrigation_earned_work(f.productive_ticks,irrigation,field.id)-f.wasted_work-f.picked*80!=static_cast<unsigned>(b.progress)||f.expired_ready>f.wasted_work/80||
            f.grown<f.picked||f.grown-f.picked<f.expired_ready||f.grown-f.picked-f.expired_ready!=static_cast<unsigned>(b.progress==80)||
            f.ready_tick.has_value()!=(b.progress==80)||f.productive_ticks>seasonal_work_opportunities(original::ModelBuilding::HempField,field.placed_tick,tick)||
            (!seasonal_growing(original::ModelBuilding::HempField,tick)&&b.progress>0&&b.progress<80))
@@ -61,7 +61,7 @@ void validate_hemp(const SeasonalAgricultureState& s,const OriginalProductionSta
             std::max({std::int64_t{0},std::int64_t(b.cell.y)-field.cell.y,std::int64_t(field.cell.y)-b.cell.y-1}))*5;
         if(!f.spawned||!t.grower_id.value||t.grower_id.value>=s.next_hemp_grower_id||t.grower_id.value<f.spawned||t.field_id!=field.id||
            t.dispatched_tick<=std::max(field.placed_tick,b.placed_tick)||t.dispatched_tick>tick||t.ready_tick<=field.placed_tick||
-           t.ready_tick>t.dispatched_tick||seasonal_work_opportunities(original::ModelBuilding::HempField,field.placed_tick,t.ready_tick)<80||
+           t.ready_tick>t.dispatched_tick||seasonal_work_opportunities(original::ModelBuilding::HempField,field.placed_tick,t.ready_tick)<(irrigation?64U:80U)||
            !seasonal_harvest_allowed(original::ModelBuilding::HempField,t.dispatched_tick,t.ready_tick)||
            c.target!=field.id||c.last_dispatched_target!=field.id||t.delivered>1||!gap)
             invalid("Seasonal Hemp assignment or ready-cycle identity invalid");
@@ -90,7 +90,7 @@ void validate_hemp(const SeasonalAgricultureState& s,const OriginalProductionSta
         if(f.last_receipt){const auto& r=*f.last_receipt;
             observations.push_back({r.grower_id.value,b.id,r.dispatched_tick,r.ready_tick,r.picked_tick,r.returned_tick});
             if(!r.grower_id.value||r.grower_id.value>=s.next_hemp_grower_id||r.grower_id.value>t.grower_id.value||r.courier_id!=c.id||r.field_id!=field.id||
-               r.ready_tick<=field.placed_tick||seasonal_work_opportunities(original::ModelBuilding::HempField,field.placed_tick,r.ready_tick)<80||
+               r.ready_tick<=field.placed_tick||seasonal_work_opportunities(original::ModelBuilding::HempField,field.placed_tick,r.ready_tick)<(irrigation?64U:80U)||
                r.dispatched_tick<=field.placed_tick||r.dispatched_tick<r.ready_tick||
                r.picked_tick<r.dispatched_tick||r.picked_tick-r.dispatched_tick+1<gap||r.returned_tick<=r.picked_tick||
                r.returned_tick-r.picked_tick+1<gap||r.returned_tick>tick||!seasonal_harvest_allowed(original::ModelBuilding::HempField,r.picked_tick,r.ready_tick))
@@ -109,8 +109,8 @@ void validate_hemp(const SeasonalAgricultureState& s,const OriginalProductionSta
     if(total==UINT64_MAX||s.next_hemp_grower_id!=total+1||maximum!=total)invalid("Seasonal Hemp monotone lifetime highwater invalid");
 }
 }
-void World::validate_seasonal_hemp_snapshot(const WorldSnapshot& s){validate_hemp(*s.seasonal_agriculture,*s.original_production,*s.original_goods,s.buildings,s.couriers,s.ticks);}
-void World::validate_seasonal_hemp_state()const{validate_hemp(*seasonal_agriculture_,*original_production_,*original_goods_,buildings_,couriers_,ticks_);}
+void World::validate_seasonal_hemp_snapshot(const WorldSnapshot& s){validate_hemp(*s.seasonal_agriculture,*s.original_production,*s.original_goods,s.buildings,s.couriers,s.ticks,s.irrigation_productivity?&*s.irrigation_productivity:nullptr);}
+void World::validate_seasonal_hemp_state()const{validate_hemp(*seasonal_agriculture_,*original_production_,*original_goods_,buildings_,couriers_,ticks_,irrigation_productivity_?&*irrigation_productivity_:nullptr);}
 int World::seasonal_hemp_grower_cargo(CourierId id)const{
     if(!seasonal_agriculture_enabled())return 0;const auto& c=courier(id);if(c.role!=CourierRole::OriginalSeasonalHempGrower)return 0;
     const auto& f=row(seasonal_agriculture_->hemp_farms,c.owner,farm_key);return f.latest_trip?seasonal_hemp_cargo(*f.latest_trip):0;
@@ -139,7 +139,8 @@ void World::advance_seasonal_hemp(){
         if(!owned.field_id||source.progress==80||!seasonal_growing(original::ModelBuilding::HempField,ticks_)||
            !source.operating_enabled||building_on_fire(source.id)||!building(*owned.field_id).operating_enabled||building_on_fire(*owned.field_id)||
            !building_staffed_for_tick(source.id)||building_entrances(source.id).empty())continue;
-        add(f.productive_ticks);++source.progress;
+        const auto increment=irrigation_growth_increment(*owned.field_id,static_cast<std::uint32_t>(80-source.progress));
+        add(f.productive_ticks);source.progress+=static_cast<int>(increment);
         if(source.progress==80){add(f.grown);f.ready_tick=ticks_;}
     }
 }
@@ -164,6 +165,7 @@ void World::dispatch_seasonal_hemp(CourierState& c){
     const auto path=std::find_if(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),[&](const auto& r){return r.first==*d.selected_target;});
     if(path==c.dynamic_target_routes.end()||!path->second)invalid("Hemp dispatch lost prepared route");
     f.latest_trip=SeasonalHempTrip{{seasonal_agriculture_->next_hemp_grower_id++},*d.selected_target,ticks_,*f.ready_tick,{},{},0};add(f.spawned);
+    if(irrigation_productivity_enabled())f.latest_trip->irrigation_ready_work=irrigation_ready_work(*d.selected_target);
     c.target=*d.selected_target;c.last_dispatched_target=c.target;c.path=*path->second;c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();c.phase=CourierPhase::ToWarehouse;
 }
 void World::arrive_seasonal_hemp(CourierState& c){
@@ -186,6 +188,7 @@ void World::arrive_seasonal_hemp(CourierState& c){
         auto result=original_goods_produce(context.view(*original_goods_,original_economy_->houses),source.id,original::Goods::Hemp,1);
         original_goods_=std::move(result.goods);add(record.harvested);t.delivered=1;
         f.last_receipt=SeasonalHempReceipt{t.grower_id,c.id,t.field_id,t.dispatched_tick,t.ready_tick,*t.picked_tick,ticks_};
+        if(irrigation_productivity_enabled())f.last_receipt->irrigation_ready_work=t.irrigation_ready_work;
     }
     c.phase=CourierPhase::IdleAtWorkshop;c.path.clear();c.path_vertex=0;c.edge_progress=0;c.route_pending=false;c.route_checked_revision.reset();
 }

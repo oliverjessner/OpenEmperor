@@ -69,29 +69,29 @@ void version_matrix() {
             profile==sim::RulesProfile::CityV11 ? 3U:
             profile==sim::RulesProfile::CityV16 ? 4U:1U;
         check(sim::current_rule_version(profile)==current,"Legacy default rule changed");
-        for (std::uint32_t version=0;version<=33;++version) {
+        for (std::uint32_t version=0;version<=34;++version) {
             const bool expected=profile==sim::RulesProfile::ProductionV2 ? version==2:
                 profile==sim::RulesProfile::CityV11 ? version>=1 && version<=4:
-                profile==sim::RulesProfile::CityV16 ? (version>=1 && version<=15) || version==16 || version==17 || version==18 || version==19 || version==20 || version==21 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32):version==1;
+                profile==sim::RulesProfile::CityV16 ? (version>=1 && version<=15) || version==16 || version==17 || version==18 || version==19 || version==20 || version==21 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33):version==1;
             check(sim::rule_version_supported(profile,version)==expected,
                 "Explicit profile/rule support matrix changed");
             check(sim::original_economy_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==7 || version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Original-economy gate escaped its exact profile/version");
             check(sim::original_influence_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==8 || version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Original-influence gate escaped its exact profile/version");
             check(sim::original_goods_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==9 || version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Original-goods gate escaped its exact profile/version");
             check(sim::original_production_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==10 || version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Original-production gate escaped its exact profile/version");
             check(sim::original_fire_protection_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==11 || version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Original-fire-protection gate escaped its explicit Rule11/12/13/14/15 opt-ins");
             check(sim::original_sustainable_economy_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==12 || version==13 || version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Sustainable economy escaped its explicit Rule12/13/14/15 opt-ins");
             check(sim::original_safe_demolition_enabled(profile,version)==
                 (profile==sim::RulesProfile::CityV16 && version==19),
@@ -106,32 +106,35 @@ void version_matrix() {
                 (profile==sim::RulesProfile::CityV16 && version==24),
                 "Agriculture escaped its exact Rule24 opt-in");
             check(sim::original_plantations_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Plantations escaped their Rule25/26 lineage");
             check(sim::original_agriculture_family_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Shared Agriculture admitted a historical or unknown generation");
             check(sim::original_irrigation_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Irrigation escaped its exact Rule26 opt-in");
             check(sim::playable_agriculture_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==27 || version==28 || version==29 || version==30 || version==31 || version==32)),
+                (profile==sim::RulesProfile::CityV16 && (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33)),
                 "Playable Agriculture escaped its Rule27/28/29/30/31 family");
             check(sim::playable_fishing_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==28 || version==29 || version==30 || version==31 || version==32)),
+                (profile==sim::RulesProfile::CityV16 && (version==28 || version==29 || version==30 || version==31 || version==32 || version==33)),
                 "Playable Fishing escaped its Rule28/29/30/31 family");
             check(sim::playable_hunting_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==29 || version==30 || version==31 || version==32)),
+                (profile==sim::RulesProfile::CityV16 && (version==29 || version==30 || version==31 || version==32 || version==33)),
                 "Playable Hunting escaped its Rule29/30/31 family");
             check(sim::multi_field_agriculture_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==30 || version==31 || version==32)),
+                (profile==sim::RulesProfile::CityV16 && (version==30 || version==31 || version==32 || version==33)),
                 "Multi-field Agriculture escaped its Rule30/31 family");
             check(sim::physical_food_growers_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==31 || version==32)),
-                "Physical Food Growers escaped their Rule31/32 family");
+                (profile==sim::RulesProfile::CityV16 && (version==31 || version==32 || version==33)),
+                "Physical Food Growers escaped their Rule31/32/33 family");
             check(sim::seasonal_agriculture_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && version==32),
-                "Seasonal Agriculture escaped its exact Rule32 selection");
+                (profile==sim::RulesProfile::CityV16 && (version==32 || version==33)),
+                "Seasonal Agriculture escaped its Rule32/33 family");
+            check(sim::irrigation_productivity_enabled(profile,version)==
+                (profile==sim::RulesProfile::CityV16 && version==33),
+                "Irrigation productivity escaped its exact Rule33 selection");
             check(sim::original_food_farm_limit(profile,version)==
                 (sim::playable_agriculture_enabled(profile,version) ? 5U:
                  sim::original_sustainable_economy_enabled(profile,version) ? 3U:2U),
@@ -152,13 +155,13 @@ void version_matrix() {
                 (profile==sim::RulesProfile::CityV16 && version==14),
                 "Historical exact Rule14 identity changed");
             check(sim::original_cardinal_terrain_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && (version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && (version==14 || version==15 || version==16 || version==17 || version==18 || version==19 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Cardinal terrain capability escaped its explicit Rule14/15 opt-ins");
             check(sim::bridges_rule_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && ((version>=5 && version<=15) || version==16 || version==17 || version==18 || version==19 || version==20 || version==21 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && ((version>=5 && version<=15) || version==16 || version==17 || version==18 || version==19 || version==20 || version==21 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Bridge gate inherited an unknown profile/version");
             check(sim::ramps_rule_enabled(profile,version)==
-                (profile==sim::RulesProfile::CityV16 && ((version>=6 && version<=15) || version==16 || version==17 || version==18 || version==19 || version==20 || version==21 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32))),
+                (profile==sim::RulesProfile::CityV16 && ((version>=6 && version<=15) || version==16 || version==17 || version==18 || version==19 || version==20 || version==21 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33))),
                 "Ramp gate inherited an unknown profile/version");
             check(sim::source_cell_ramps_enabled(profile,version)==
                 (profile==sim::RulesProfile::CityV16 && version==20),
@@ -172,7 +175,7 @@ void version_matrix() {
                 check(rules==sim::ProfileRules{version,32,64,32,5,800},
                     "City-v16 timing/prices contract changed during version reservation");
         }
-        for (const auto unknown:{33U,999U,UINT32_MAX}) {
+        for (const auto unknown:{34U,999U,UINT32_MAX}) {
             check(!sim::rule_version_supported(profile,unknown) &&
                 !sim::original_economy_enabled(profile,unknown) &&
                 !sim::original_influence_enabled(profile,unknown) &&
@@ -188,6 +191,7 @@ void version_matrix() {
                 !sim::multi_field_agriculture_enabled(profile,unknown) &&
                 !sim::physical_food_growers_enabled(profile,unknown) &&
                 !sim::seasonal_agriculture_enabled(profile,unknown) &&
+                !sim::irrigation_productivity_enabled(profile,unknown) &&
                 !sim::bridges_rule_enabled(profile,unknown) &&
                 !sim::ramps_rule_enabled(profile,unknown),
                 "Unknown rule version activated a reserved gate");
@@ -340,7 +344,8 @@ void development_gate() {
         maps::map_rules_policy_version(sim::RulesProfile::CityV16,30)==3 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV16,31)==3 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV16,32)==3 &&
-        maps::map_rules_policy_version(sim::RulesProfile::CityV16,33)==0 &&
+        maps::map_rules_policy_version(sim::RulesProfile::CityV16,33)==3 &&
+        maps::map_rules_policy_version(sim::RulesProfile::CityV16,34)==0 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV16,999)==0 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV11,7)==0 &&
         !sim::original_economy_enabled(static_cast<sim::RulesProfile>(255),7),

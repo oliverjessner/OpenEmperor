@@ -499,6 +499,14 @@ IrrigationFieldStatus World::irrigation_field_status(Cell field) const {
         if(irrigation_ditch_wet(at) && original::field_in_irrigation_range(field,at)) {
             result.water_available=true;result.wet_ditch=at;
             result.supplying_pump=irrigation_supplier_[index(at)];
+            if(irrigation_productivity_enabled()) {
+                const auto owner=building_owner_at(field);
+                result.yield_effect_active=owner&&std::any_of(irrigation_productivity_->work.begin(),irrigation_productivity_->work.end(),
+                    [&](const auto& w){return w.building_id==*owner;});
+                result.reason=result.yield_effect_active ? "Actual supplied water; eligible growth uses authored rational productivity" :
+                    "Water supplied; this cell has no paid eligible crop";
+                return result;
+            }
             result.reason=playable_agriculture_enabled() ? "Water supplied by an active paid Pump; AUTHORED base yield has no irrigation bonus":
                 "Water supplied by an active paid Pump; numeric crop effect remains locked";return result;
         }

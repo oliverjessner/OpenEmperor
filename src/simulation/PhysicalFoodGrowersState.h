@@ -9,9 +9,10 @@ enum class PhysicalFoodGrowerPhase : std::uint8_t { Outward=1,Waiting=2,Working=
 struct PhysicalFoodGrowerReceipt {
     PhysicalFoodGrowerId grower_id{};CourierId courier_id{};AgricultureCrop crop{};
     std::uint64_t dispatched_tick=0,arrived_tick=0,harvested_tick=0,returned_tick=0,work_at_harvest=0;
-    // Rule32 only; Rule31 keeps zero and its exact historical JSON.
+    // Rule32 lineage; Rule31 keeps zero and its exact historical JSON.
     std::uint64_t wasted_work_at_harvest=0;
     std::uint64_t ready_tick=0;
+    std::uint64_t irrigation_bonus_at_harvest=0;
     bool operator==(const PhysicalFoodGrowerReceipt&) const=default;
 };
 struct PhysicalFoodGrowerTrip {
@@ -23,6 +24,7 @@ struct PhysicalFoodGrowerTrip {
     std::uint8_t wait_left=0,delivered=0;bool cancel_requested=false;
     std::uint64_t wasted_work_before=0;
     std::optional<std::uint64_t> ready_tick;
+    std::uint64_t irrigation_bonus_before=0;
     bool operator==(const PhysicalFoodGrowerTrip&) const=default;
 };
 struct PhysicalFoodGrowerFarm {

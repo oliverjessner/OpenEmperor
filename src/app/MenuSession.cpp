@@ -23,7 +23,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
     OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice, AuthoredLandTradeNewGame,
     OriginalMusicVenuesNewGame, OriginalVenueHouseServiceNewGame, StarterEmptyCity, StarterChooseMap, OriginalAgricultureNewGame, OriginalIrrigationNewGame, PlayableAgricultureNewGame, PlayableFishingNewGame, PlayableHuntingNewGame, MultiFieldAgricultureNewGame, PhysicalFoodGrowersNewGame,
-    SeasonalAgricultureNewGame, MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
+    SeasonalAgricultureNewGame, IrrigationProductivityNewGame, MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
     int action;
@@ -33,6 +33,7 @@ struct OriginalChoice {
     const char* detail;
 };
 constexpr OriginalChoice original_choices[]={
+    {IrrigationProductivityNewGame,simulation::kIrrigationProductivityRuleVersion,SDLK_X,"X Irrigation yields (33)","Actual wet work earns +25% progress | Physical harvest and return | AUTHORED"},
     {SeasonalAgricultureNewGame,simulation::kSeasonalAgricultureRuleVersion,SDLK_Z,"Z Seasons (32)","Seasonal field work | Physical Food and Hemp return | AUTHORED"},
     {PhysicalFoodGrowersNewGame,simulation::kPhysicalFoodGrowersRuleVersion,SDLK_E,"E Physical Growers (31)","Field work | Real crop return | AUTHORED"},
     {MultiFieldAgricultureNewGame,simulation::kMultiFieldAgricultureRuleVersion,SDLK_C,"C Multi-field Agriculture (30)","Shared Farm labor | 8 fields/Farm | AUTHORED"},
@@ -339,6 +340,9 @@ void MenuSession::finish_loading() {
         auto view=version==simulation::kAuthoredLandTradeRuleVersion ?
             SandboxView::create_authored_land_trade(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_}) :
+            simulation::irrigation_productivity_enabled(profile,version) ?
+            SandboxView::create_irrigation_productivity(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
             simulation::seasonal_agriculture_enabled(profile,version) ?
             SandboxView::create_seasonal_agriculture(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
@@ -937,7 +941,8 @@ void MenuSession::rebuild_buttons() {
             const int step=sandbox_ ? 28:32,offset=sandbox_ ? step:0,h=sandbox_ ? 24:28;
             const auto y=[&](int row){return 100+offset+row*step;};
             if (sandbox_) add(Resume,"Enter Continue",40,100,520,h);
-            add(RecommendedOriginalNewGame,"Play Original economy",40,y(0),520,h);
+            add(RecommendedOriginalNewGame,"Play Original economy",40,y(0),250,h);
+            add(IrrigationProductivityNewGame,"X Irrigation yields (33)",300,y(0),260,h);
             add(LoadGame,"L Load Save",40,y(1),230,h);
             add(AdvancedModes,"Advanced / Legacy",280,y(1),280,h);
             add(DataFolder,"Original Data Folder",40,y(2),230,h);
@@ -962,7 +967,7 @@ void MenuSession::rebuild_buttons() {
         buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,left_y,210);left_y+=34;
         for (const auto& choice:original_choices) {
-            if (choice.action==SeasonalAgricultureNewGame || choice.action==PhysicalFoodGrowersNewGame || choice.action==MultiFieldAgricultureNewGame || choice.action==OriginalIrrigationNewGame || choice.action==PlayableAgricultureNewGame || choice.action==PlayableFishingNewGame || choice.action==PlayableHuntingNewGame) continue; // Also available directly from the regular main menu.
+            if (choice.action==IrrigationProductivityNewGame || choice.action==SeasonalAgricultureNewGame || choice.action==PhysicalFoodGrowersNewGame || choice.action==MultiFieldAgricultureNewGame || choice.action==OriginalIrrigationNewGame || choice.action==PlayableAgricultureNewGame || choice.action==PlayableFishingNewGame || choice.action==PlayableHuntingNewGame) continue; // Also available directly from the regular main menu.
             if (choice.action==OriginalAgricultureNewGame) {
                 add(choice.action,choice.label,40,40,230,28);
                 continue;
@@ -1119,7 +1124,7 @@ bool MenuSession::render() {
     };
     const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?(advanced_modes_open_?"Advanced / Legacy":"OpenEmperor"):state_==State::NewSandbox?
-            (authored_land_trade_new_game_ ? "New authored land trade":seasonal_agriculture_setup() ? "New Seasonal Agriculture":physical_food_growers_setup() ? "New Physical Food Growers":multi_field_agriculture_setup() ? "New Multi-field Agriculture":playable_hunting_setup() ? "New Playable Hunting":playable_fishing_setup() ? "New Playable Fishing":playable_agriculture_setup() ? "New Playable Agriculture":original_setup() ? "New Original economy":"New sandbox"):
+            (authored_land_trade_new_game_ ? "New authored land trade":irrigation_productivity_setup() ? "New Irrigation Productivity":seasonal_agriculture_setup() ? "New Seasonal Agriculture":physical_food_growers_setup() ? "New Physical Food Growers":multi_field_agriculture_setup() ? "New Multi-field Agriculture":playable_hunting_setup() ? "New Playable Hunting":playable_fishing_setup() ? "New Playable Fishing":playable_agriculture_setup() ? "New Playable Agriculture":original_setup() ? "New Original economy":"New sandbox"):
         state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
         state_==State::StarterUnavailable?"Paid starter unavailable":
         state_==State::ConfirmUpgrade?(upgrade_target_version_==4 ? "Enable demolition in a copy":"Enable operation controls in a copy"):
@@ -1263,7 +1268,7 @@ bool MenuSession::render() {
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
             if (e.error.empty() && simulation::original_production_enabled(
                     simulation::RulesProfile::CityV16,e.rule_version) &&
-                e.schema==(e.rule_version==simulation::kSeasonalAgricultureRuleVersion ? 48U:e.rule_version==simulation::kPhysicalFoodGrowersRuleVersion ? 47U:e.rule_version==simulation::kMultiFieldAgricultureRuleVersion ? 46U:e.rule_version==simulation::kPlayableHuntingRuleVersion ? 45U:e.rule_version==simulation::kPlayableFishingRuleVersion ? 44U:
+                e.schema==(e.rule_version==simulation::kIrrigationProductivityRuleVersion ? 49U:e.rule_version==simulation::kSeasonalAgricultureRuleVersion ? 48U:e.rule_version==simulation::kPhysicalFoodGrowersRuleVersion ? 47U:e.rule_version==simulation::kMultiFieldAgricultureRuleVersion ? 46U:e.rule_version==simulation::kPlayableHuntingRuleVersion ? 45U:e.rule_version==simulation::kPlayableFishingRuleVersion ? 44U:
                     e.rule_version==simulation::kPlayableAgricultureRuleVersion ? 43U:
                     e.rule_version==simulation::kOriginalIrrigationRuleVersion ? 42U:
                     e.rule_version==simulation::kOriginalPlantationsRuleVersion ? 41U:

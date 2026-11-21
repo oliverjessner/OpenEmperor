@@ -44,6 +44,130 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Irrigation productivity (AGRI-MAC08)
+
+Select **X Irrigation yields (33)** or `--irrigation-productivity` for explicit
+Rule33/policy3/schema49, marker `authored-irrigation-productivity-v1`, revision1.
+The [contract](original-economy/agriculture.md#irrigation-productivity-agri-mac08)
+separates actual base-work ticks from earned quarter bonuses and physical
+harvest/return. Historical generations and source assets remain exact.
+
+```sh
+cmake -S . -B .local/agri-mac08/build-release -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DOPENEMPEROR_USE_SYSTEM_SDL3=ON \
+  -DOPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT=/absolute/path/to/your/game-data
+cmake --build .local/agri-mac08/build-release --parallel 2
+ctest --test-dir .local/agri-mac08/build-release --output-on-failure \
+  -R 'irrigation-productivity|seasonal-agriculture|physical-food-growers|irrigation'
+./.local/agri-mac08/build-release/openemperor-irrigation-productivity-acceptance \
+  --data /absolute/path/to/your/game-data --map Cities/Chengdu.map \
+  --output .local/agri-mac08/creator --ticks 24000
+./.local/agri-mac08/build-release/openemperor-irrigation-productivity-acceptance \
+  --data /absolute/path/to/your/game-data --map Cities/Chengdu.map \
+  --output .local/agri-mac08/replay --replay .local/agri-mac08/creator
+```
+
+Use fresh output paths. The registered `original-irrigation-productivity-real`
+case independently creates and replays24,000 actual ticks per process. Each
+child retains its600-second bound; outer1260 covers both children and source,
+JSON and streamed-tick verification. Its sanitizer run is serial, as are the
+existing long paid multi-field and seasonal cases. The Python checker verifies
+all nine actual crop types, every pre/post tick wet/base/bonus/cap delta, actual
+staffing, physical cargo/returns, first readiness, seasonal expiry, all raw
+checkpoints, paid fire recovery and phase-delayed network restart. It uses
+**pre-tick** water, since phase27 and fire publish later in the existing tick.
+Wet masks/providers and a second clock cannot enter the saved work authority.
+
+The World tests cover matched paid dry/wet fields, all nine real return paths,
+carry3 through dry/pause/year boundaries, a clipped fourth wet bonus at79,
+unchanged five-tick Food harvest work, overlapping providers, actual zero
+staffing, exact radius5/6, full Food bins/cart return reservations and blocked
+loaded Grower repair. A natural Pump fire loses supply; a paid Watch must earn
+an actual Inspector extinguish arrival before the next source water phase.
+Save/Recovery cases cover wet/dry/reconnect, ready and Food/Hemp/material cargo,
+uint64/counter/identity/epoch mutations, duplicate keys, impossible pre-Pump or
+never-paid-ditch wet history, exact continuation and protected historical32
+writes. Coherent hostile controls also move all nine Ready epochs before
+possible water and mutate all four material witness types, including frozen
+same-epoch base/loss drift. Presentation/CLI cases cover X, conflicts with historical selectors,
+normal cached inspectors, scrolling, actual cargo picking and F5/F9/Step.
+An actual Food return on a Road covers walker-owner inspection precedence;
+Road and Ditch inspection cannot hide the selected worker's real cargo.
+
+The unchanged Normal-model Chengdu creator and separate replay in
+`.local/agri-mac08/{paid-02,replay-02}` passed24,000 ticks. All nine first ready
+cycles used **64 wet base-work ticks versus80 dry**, with actual physical
+source returns in both cohorts. The water system supplied23 paid ditch cells.
+A real Pump fire at2000 was extinguished by actual Inspector arrival2010 after
+paid Watch/road construction; refill occurred at2017. A loaded-state cut at6051
+and paid reconnect6150 resumed supply at6199. Operation off6350/restart6400
+waited until6403. Funds stayed at least6,686; the final paid city used29 bodies
+and30 movement channels. No inventory, residents, model edits, increased
+portions or source-admission shortcuts were used.
+
+Terminal wet/dry source returns were Wheat67/61, Millet22/20, Rice19/21,
+Cabbage30/30, Soy25/27, Hemp147/119 and each plantation40/40. Shared Farm target
+selection and finite downstream bins can redistribute actual output; the
+proof requires increased earned increments on the same fully staffed base-work
+ticks and genuine returns, rather than universal terminal stock dominance.
+The independent raw/stream audit passed80 checkpoints and48,000 paired trace
+ticks. Both canonical endpoints reproduced exactly in the separate process:
+dry `ca7b38ffd2df05e51a1b9fc4d7a70f566e3d76973a8d386895312a0e4efa0c92`,
+wet `a11bbc8dfebe73f8b640c9371406f332d26a08570c36e02fdb7b7d229cde4b81`.
+The full47.8MB paired tick stream is byte-identical before/after readiness
+witness strengthening (SHA256 `614a4b1c2ec54016362b4e484e729cc73b5904571b6627502ae320d322166d08`).
+Original bytes, modes and mtimes stayed unchanged. This finite result does not
+claim universal throughput, uninterrupted fire coverage, profit or Original
+runtime irrigation/yield parity. Human playtest follows MAC14.
+
+The frozen fresh Release executable was also checked independently with Cocoa
+and Metal against12 tightened schema49 checkpoints. All108 crop-inspector
+cases, actual Pump/overlay states, F5/F9 and Step replay passed. There were153
+pure observations/459 paused frames with every forbidden-work counter zero.
+Food and Hemp marker pixel-picking passed on this actual paid layout, including
+a loaded Food Grower on a Road during Pump fire. Bound plantation cargo remained
+visible through the ordinary plant/source inspector; existing plantation-role
+marker picking is explicitly `NOT_RUN`, not implied by that inspector.
+The cut retained one supplied upstream ditch while all nine crop recipients
+were actually dry. A real next work tick changed Lacquer base3→4, wet3→4,
+bonus0→1, growth3→5 and carry3→0, with exact reload continuation.
+
+Twenty-three individual final PNGs were opened, covering all nine types,
+provider/fire/recovery, dry cut, cargo and overlays. Normal inspector wheel
+scrolling exposes longer details;1440×1000 captures are readable and900×600
+scrolling has separate presentation coverage. All861 frozen code/test/resource
+files matched their recorded hashes. Fifteen selected native inputs and the
+exact Release executable retained their bytes, modes and mtimes. The summary is
+`.local/agri-mac08/view-verified-metal-summary-01.json`. Source/model/map inputs
+and generated saves remain private under ignored `.local/`. Native OS-pointer
+delivery and human acceptance are `NOT_RUN`; no Original parity is claimed.
+
+Final fresh native arm64 validation on2026-11-21 is **PASS/full_data** in
+`.local/agri-mac08/alpha-verified-check.json`: **401/401 Debug,401/401 Release
+and401/401 ASan+UBSan**, zero failures/skips (157.606s,135.182s,2137.867s).
+All three configurations complete100,000 deterministic endurance ticks with12
+real JSON roundtrips each;3,000-frame Debug and sanitizer render checks have
+zero decode/upload/tick deltas. All100 menu/session lifecycles and resource,
+save/resume and input checks pass. Total pipeline walltime was4421.043s.
+Debug and sanitizer retain assertions with the isolated `-g1 -O1` toolchain;
+macOS LeakSanitizer is disabled and owned texture counters are checked
+separately. Packaging was not requested. The15 separately guarded Original
+files retain bytes/mode/mtime; the runner's own configured input checks pass.
+
+Fresh Debug paid-save comparison against Git-verified merged MAC07
+`9c456bd91bf40ea278e6a6995974be20b52c69ed` passes **138/138 byte-identical
+artifacts /69 paid saves** for Rules24–32, including actual ready/work/cargo,
+season boundaries, pause/return and exact restore. The preserved baseline
+matches851 Git-source files and17 original archives; final current861 sources
+and17 Debug archives remain unchanged around the probe. Fresh Debug, Release
+and Sanitizer core comparisons each pass **74/74**, with public reports
+literally equal to the maintained JSON:46 parity,18 corrected bugs,6 unverified
+and4 unsupported. All historical numerical cases/classifications equal merged
+main; only reviewed source/API fingerprints change. Reports are in
+`.local/agri-mac08/run-01/historical-final-debug/` and
+`core-parity-verified-{debug,release,sanitize}/`. These checks establish their
+stated compatibility scope, independently of Original runtime or human parity.
+
 ## Seasonal Agriculture (AGRI-MAC07)
 
 Select explicit **Rule32/policy3/schema48** with **Z Seasons (32)** or
