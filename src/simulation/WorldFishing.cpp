@@ -166,7 +166,7 @@ Position World::fishing_boat_position(FishingBoatId id) const {
 
 CommandResult World::validate_fishing_command(Command command) const {
     CommandResult result{false,false,"Fishing Quay requires explicit Playable Fishing",command_sequence_,ticks_};
-    if(!playable_fishing_enabled() || !fishing_ || (!fishing_food_ && !hunting_food_) || command.type!=CommandType::PlaceOriginalFishingQuay) return result;
+    if(!playable_fishing_enabled() || !fishing_ || (!fishing_food_ && !hunting_food_ && !processed_food_) || command.type!=CommandType::PlaceOriginalFishingQuay) return result;
     if(command.orientation>3) {result.reason="Fishing Quay orientation must be0..3";return result;}
     original::FishingQuayGeometry shape;
     try {shape=original::fishing_quay_geometry(command.cell,command.orientation);} catch(const std::exception&) {
@@ -323,11 +323,13 @@ void World::advance_fishing() {
 void World::validate_fishing_snapshot(const WorldSnapshot& s) {
     const auto bodies=std::count_if(s.buildings.begin(),s.buildings.end(),[](const auto& b){return b.kind==Object::OriginalFishingQuay;});
     if(!simulation::playable_fishing_enabled(s.profile,s.rule_version)) {
-        if(s.fishing || s.fishing_food || bodies) invalid("Historical generation rejects Fishing authority");
+        if(s.fishing || s.fishing_food || s.processed_food || bodies) invalid("Historical generation rejects Fishing authority");
         return;
     }
     const bool hunting=simulation::playable_hunting_enabled(s.profile,s.rule_version);
-    if(!s.fishing || s.agriculture || (hunting ? (!s.hunting_food || s.fishing_food):(!s.fishing_food || s.hunting_food)))
+    const bool processing=simulation::food_processing_enabled(s.profile,s.rule_version);
+    if(!s.fishing || s.agriculture || (processing ? (!s.processed_food || s.hunting_food || s.fishing_food):
+        s.processed_food || (hunting ? (!s.hunting_food || s.fishing_food):(!s.fishing_food || s.hunting_food))))
         invalid("Fishing requires the sole exact-generation Food authority");
     const auto& f=*s.fishing;
     if(f.quays.size()>fishing_quay_limit || f.boats.size()>f.quays.size() || f.sites.size()>fishing_site_limit ||

@@ -44,6 +44,61 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Food processing (AGRI-MAC09)
+
+Select **Q Food processing (34)** / `--food-processing` for explicit
+Rule34/policy3/schema50. The [contract](original-economy/agriculture.md#food-processing-agri-mac09)
+uses one Food account for seven actual ingredients and grade-tagged Dinners28.
+Test paid5×5 Mill/2×2 Shop footprints, source prices/staff, permanent parent
+Market binding, four distinct-input recipes, one-time debits and actual work,
+full capacities, zero staffing, pause/fire, loaded road cuts/returns, shared raw
+and meal targeting, sole House consumption and strict causal receipt epochs.
+
+```sh
+ctest --test-dir build --output-on-failure -R 'food-processing|seasonal-agriculture|physical-food-growers|irrigation-productivity'
+./build/openemperor-food-processing-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --output "$PWD/.local/agri-mac09/paid-new" --ticks 12000
+./build/openemperor-food-processing-acceptance \
+  --data "$PWD/.local/gog-extracted/app" \
+  --replay "$PWD/.local/agri-mac09/paid-new" \
+  --output "$PWD/.local/agri-mac09/replay-new" --ticks 12000
+```
+
+Use fresh output directories. The registered `original-food-processing-real`
+case launches the creator and replay as separate processes, independently audits
+raw JSON conservation/recipe work, all seven actual origins and four consumed
+meal grades, genuine loaded-route cuts, paid repair and the full12k tick stream.
+Each child retains its600-second bound and the case1260 seconds. Original input
+bytes, modes and timestamps must remain unchanged. The fixed-size first-input,
+first-completion and per-grade Shop/House receipts must reject backdating,
+wrong-grade first consumption and contradictory previous quality. Recovery and
+cross-generation target protection are part of the Save test.
+
+The normal UI presentation test covers paid pointer placement, menu/CLI
+separation, recipe button/key agreement, actual loaded carrier picking and
+F5/F9 during work/cargo/House consumption. Native Cocoa/Metal acceptance uses
+`openemperor-food-processing-view-acceptance` with an exact schema50 checkpoint,
+fresh private output and a declared phase; inspect its screenshots and pure
+frame counters. Scripted SDL and native delivery remain separate evidence;
+OS-pointer/human play acceptance and Original reproduction are not established.
+Full fresh Debug/Release/ASan+UBSan, alpha endurance/session checks, historical
+Rules24–33 byte comparison and all74 unchanged core observations remain required.
+
+The native arm64 validation passed all 409 registered cases in each fresh Debug,
+Release and ASan+UBSan build, without skips. The alpha matrix passed with real
+Original inputs: 100,000 deterministic ticks and 12 JSON roundtrips per build,
+3,000-frame render stress in Debug and sanitizers, and 100 menu/session cycles.
+The paid 12,000-tick creator and independent replay matched all 11 checkpoints
+and the complete trace; all seven ingredients reached the Mill and all four
+meal grades reached actual House consumption. Historical comparison preserved
+158 artifacts including 79 paid Rules24–33 saves byte-for-byte; all 74 core
+observations and the public report matched in every build configuration.
+Seven Cocoa/Metal checkpoint cases produced 28 inspected captures and 84 pure
+frames with zero instrumentation deltas. Human/OS-input acceptance and separate
+native fire/zero-staff scenarios were not run; technical World tests cover
+natural fire and actual zero staffing. Original reproduction remains unproved.
+
 ## Irrigation productivity (AGRI-MAC08)
 
 Select **X Irrigation yields (33)** or `--irrigation-productivity` for explicit

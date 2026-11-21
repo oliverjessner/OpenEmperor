@@ -31,8 +31,8 @@ std::optional<original::ModelBuilding> crop_model(Object kind){
 }
 struct WorkContext {BuildingId source{};std::uint64_t base=0;std::uint32_t progress=0;
     std::optional<std::uint64_t> ready_tick;std::uint64_t wasted_work=0;};
-template<class Buildings>
-WorkContext context(BuildingId id,const Buildings& bodies,const HuntingFoodState& food,
+template<class Buildings,class Food>
+WorkContext context(BuildingId id,const Buildings& bodies,const Food& food,
     const MultiFieldAgricultureState& multi,const SeasonalAgricultureState& season,
     const PlantationsState& plants,const OriginalProductionState& production,const IrrigationProductivityState& water){
     const auto& b=find(bodies,id,body_key);
@@ -55,8 +55,8 @@ WorkContext context(BuildingId id,const Buildings& bodies,const HuntingFoodState
     if(pending>80)invalid("Irrigation Food work exceeded one bounded cycle");
     return {f.farm_id,w.productive_ticks,static_cast<std::uint32_t>(pending),cycle.ready_tick,cycle.wasted_work};
 }
-template<class Buildings>
-void validate_work(const IrrigationProductivityState& water,const Buildings& bodies,const HuntingFoodState& food,
+template<class Buildings,class Food>
+void validate_work(const IrrigationProductivityState& water,const Buildings& bodies,const Food& food,
     const MultiFieldAgricultureState& multi,const SeasonalAgricultureState& season,
     const PlantationsState& plants,const OriginalProductionState& production,const PhysicalFoodGrowersState& physical,
     const IrrigationState& irrigation,std::uint64_t tick,bool inspect_retained_ditch_epochs){
@@ -191,7 +191,7 @@ World World::restore_irrigation_productivity(const WorldSnapshot& s,std::shared_
 IrrigationWorkWitness World::irrigation_ready_work(BuildingId id)const{
     if(!irrigation_productivity_enabled())invalid("Irrigation readiness work requires Rule33");
     const auto& w=find(irrigation_productivity_->work,id,work_key);
-    const auto c=context(id,buildings_,*hunting_food_,*multi_field_agriculture_,*seasonal_agriculture_,*plantations_,*original_production_,*irrigation_productivity_);
+    const auto c=with_agriculture_food([&](const auto& food){return context(id,buildings_,food,*multi_field_agriculture_,*seasonal_agriculture_,*plantations_,*original_production_,*irrigation_productivity_);});
     if(c.progress!=80||!c.ready_tick)invalid("Irrigation readiness work cannot be captured before actual crop readiness");
     return {c.base,w.wet_work_ticks,w.bonus_work,w.clipped_bonus,c.wasted_work};
 }
@@ -227,15 +227,17 @@ void World::validate_irrigation_productivity_snapshot(const WorldSnapshot& s){
         }
         return;
     }
-    if(!s.irrigation_productivity||!s.irrigation||!s.hunting_food||!s.multi_field_agriculture||!s.seasonal_agriculture||
+    if(!s.irrigation_productivity||!s.irrigation||!s.multi_field_agriculture||
+       (simulation::food_processing_enabled(s.profile,s.rule_version)?(!s.processed_food||s.hunting_food):(!s.hunting_food||s.processed_food))||!s.seasonal_agriculture||
        !s.plantations||!s.original_production||!s.physical_food_growers)
         invalid("Irrigation productivity lacks its exact inherited physical authorities");
-    validate_work(*s.irrigation_productivity,s.buildings,*s.hunting_food,*s.multi_field_agriculture,*s.seasonal_agriculture,
-        *s.plantations,*s.original_production,*s.physical_food_growers,*s.irrigation,s.ticks,true);
+    const auto validate=[&](const auto& food){validate_work(*s.irrigation_productivity,s.buildings,food,*s.multi_field_agriculture,*s.seasonal_agriculture,
+        *s.plantations,*s.original_production,*s.physical_food_growers,*s.irrigation,s.ticks,true);};
+    if(s.processed_food)validate(*s.processed_food);else validate(*s.hunting_food);
 }
 void World::validate_irrigation_productivity_state()const{
-    if(irrigation_productivity_enabled())validate_work(*irrigation_productivity_,buildings_,*hunting_food_,*multi_field_agriculture_,
-        *seasonal_agriculture_,*plantations_,*original_production_,*physical_food_growers_,*irrigation_,ticks_,false);
+    if(irrigation_productivity_enabled())with_agriculture_food([&](const auto& food){validate_work(*irrigation_productivity_,buildings_,food,*multi_field_agriculture_,
+        *seasonal_agriculture_,*plantations_,*original_production_,*physical_food_growers_,*irrigation_,ticks_,false);});
 }
 IrrigationProductivityStatus World::irrigation_productivity_status(BuildingId id)const{
     IrrigationProductivityStatus r;r.building_id=id;
@@ -244,7 +246,7 @@ IrrigationProductivityStatus World::irrigation_productivity_status(BuildingId id
         [](const auto& w,BuildingId key){return w.building_id<key;});
     if(it==irrigation_productivity_->work.end()||it->building_id!=id){r.reason="This paid body is not a crop work recipient";return r;}
     const auto& b=building(id);const auto model=*crop_model(b.kind);
-    const auto c=context(id,buildings_,*hunting_food_,*multi_field_agriculture_,*seasonal_agriculture_,*plantations_,*original_production_,*irrigation_productivity_);
+    const auto c=with_agriculture_food([&](const auto& food){return context(id,buildings_,food,*multi_field_agriculture_,*seasonal_agriculture_,*plantations_,*original_production_,*irrigation_productivity_);});
     const auto& source=building(c.source);const auto water=irrigation_field_status(b.cell);
     r.supported=true;r.water_available=water.water_available;r.wet_ditch=water.wet_ditch;r.supplying_pump=water.supplying_pump;
     r.base_work_ticks=c.base;r.wet_work_ticks=it->wet_work_ticks;r.bonus_work=it->bonus_work;r.clipped_bonus=it->clipped_bonus;

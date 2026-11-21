@@ -32,6 +32,18 @@ inline constexpr std::uint32_t hunting_food_revision=1;
 inline constexpr const char* hunting_food_catalog="wheat7-millet5-rice6-cabbage3-beancurd1-fish2-meat4-v1";
 using HuntingFoodAmounts=std::array<std::int32_t,hunting_food_count>;
 using HuntingFoodCounters=std::array<std::uint64_t,hunting_food_count>;
+// Rule34's sole authority keeps the seven source identities and five graded
+// lots of the same Dinners28 commodity. There is no mirrored meal total.
+enum class ProcessedFoodResource : std::uint8_t {
+    Wheat=0,Millet=1,Rice=2,Cabbage=3,BeanCurd=4,Fish=5,Meat=6,
+    DinnersGrade1=7,DinnersGrade2=8,DinnersGrade3=9,DinnersGrade4=10,DinnersGrade5=11
+};
+inline constexpr std::size_t processed_food_count=12;
+inline constexpr std::size_t processed_food_first_meal=7;
+inline constexpr std::uint32_t processed_food_revision=1;
+inline constexpr const char* processed_food_catalog="wheat7-millet5-rice6-cabbage3-beancurd1-fish2-meat4-dinners28-grades1-5-v1";
+using ProcessedFoodAmounts=std::array<std::int32_t,processed_food_count>;
+using ProcessedFoodCounters=std::array<std::uint64_t,processed_food_count>;
 struct AgricultureFarm {
     BuildingId farm_id{};
     bool operator==(const AgricultureFarm&) const = default;
@@ -100,6 +112,11 @@ using HuntingFoodStock=BasicAgricultureStock<hunting_food_count>;
 using HuntingFoodTrip=BasicAgricultureTrip<hunting_food_count>;
 using HuntingFoodHousingEvaluation=BasicAgricultureHousingEvaluation<hunting_food_count>;
 using HuntingFoodState=BasicAgricultureState<hunting_food_count>;
+using ProcessedFoodQualityWitness=BasicAgricultureQualityWitness<processed_food_count>;
+using ProcessedFoodStock=BasicAgricultureStock<processed_food_count>;
+using ProcessedFoodTrip=BasicAgricultureTrip<processed_food_count>;
+using ProcessedFoodHousingEvaluation=BasicAgricultureHousingEvaluation<processed_food_count>;
+using ProcessedFoodState=BasicAgricultureState<processed_food_count>;
 // AUTHORED nutrition scores and quantity-weighted blend, not original scores.
 inline FoodBatchQuality agriculture_batch_quality(const AgricultureAmounts& amounts) {
     return {food_batch::weighted_quality(amounts,std::array<std::uint8_t,5>{20,80,60,70,90})};
@@ -109,5 +126,8 @@ inline FoodBatchQuality agriculture_batch_quality(const FishingFoodAmounts& amou
 }
 inline FoodBatchQuality agriculture_batch_quality(const HuntingFoodAmounts& amounts) {
     return {food_batch::weighted_quality(amounts,std::array<std::uint8_t,7>{20,80,60,70,90,75,85})};
+}
+inline FoodBatchQuality agriculture_batch_quality(const ProcessedFoodAmounts& amounts) {
+    return {food_batch::weighted_quality(amounts,std::array<std::uint8_t,12>{20,80,60,70,90,75,85,20,40,60,80,100})};
 }
 } // namespace openemperor::simulation

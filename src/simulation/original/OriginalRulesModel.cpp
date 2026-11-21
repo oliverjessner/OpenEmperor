@@ -20,6 +20,7 @@ constexpr std::array<ModelBuilding,24> production_buildings{
 
 constexpr std::array agriculture_buildings{ModelBuilding::RiceField,ModelBuilding::CabbageField,ModelBuilding::SoybeanField};
 constexpr std::array irrigation_buildings{ModelBuilding::IrrigationDitch,ModelBuilding::IrrigationPump};
+constexpr std::array food_processing_buildings{ModelBuilding::Mill,ModelBuilding::FoodShop};
 
 ModelProvenance checked_provenance(const ModelData& model,Difficulty difficulty) {
     if (static_cast<std::size_t>(difficulty)>=difficulty_count)
@@ -113,7 +114,7 @@ std::optional<std::array<BuildingRow,2>> prepare_irrigation_buildings(
 
 } // namespace
 
-OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture,bool agriculture,bool irrigation,bool fishing,bool hunting)
+OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficulty,bool production,bool culture,bool agriculture,bool irrigation,bool fishing,bool hunting,bool food_processing)
     : provenance_(checked_provenance(model,difficulty)),difficulty_(difficulty),
       house_rules_(model,difficulty),building_rows_(prepare_buildings(model,difficulty)),
       production_prepared_(production),
@@ -134,6 +135,15 @@ OriginalRulesModel::OriginalRulesModel(const ModelData& model,Difficulty difficu
           for (std::size_t i=0;i<row.size();++i)
               row[i]=original::building_value(model,ModelBuilding::HuntersTent,static_cast<BuildingField>(i),difficulty);
           return row;
+      }()),
+      food_processing_rows_([&]() -> std::optional<std::array<BuildingRow,2>> {
+          if (!food_processing) return std::nullopt;
+          std::array<BuildingRow,2> rows{};
+          for (std::size_t row=0;row<food_processing_buildings.size();++row)
+              for (std::size_t field=0;field<building_field_count;++field)
+                  rows[row][field]=original::building_value(model,food_processing_buildings[row],
+                      static_cast<BuildingField>(field),difficulty);
+          return rows;
       }()) {}
 
 std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare(ModelData model,Difficulty difficulty) {
@@ -163,7 +173,13 @@ std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_hunting(Mo
     return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,true,false,true,true,true,true));
 }
 
+std::shared_ptr<const OriginalRulesModel> OriginalRulesModel::prepare_food_processing(ModelData model,Difficulty difficulty) {
+    return std::shared_ptr<const OriginalRulesModel>(new OriginalRulesModel(model,difficulty,true,false,true,true,true,true,true));
+}
+
 bool OriginalRulesModel::supports_building(ModelBuilding building) const noexcept {
+    if (std::find(food_processing_buildings.begin(),food_processing_buildings.end(),building)!=food_processing_buildings.end())
+        return food_processing_rows_.has_value();
     if (building==ModelBuilding::HuntersTent) return hunting_row_.has_value();
     if (building==ModelBuilding::FishingQuay) return fishing_row_.has_value();
     if (std::find(irrigation_buildings.begin(),irrigation_buildings.end(),building)!=irrigation_buildings.end())
@@ -179,6 +195,11 @@ bool OriginalRulesModel::supports_building(ModelBuilding building) const noexcep
 std::int32_t OriginalRulesModel::building_value(ModelBuilding building,BuildingField field) const {
     const auto column=static_cast<std::size_t>(field);
     if (column>=building_field_count) throw std::out_of_range("invalid prepared original building field");
+    const auto processing=std::find(food_processing_buildings.begin(),food_processing_buildings.end(),building);
+    if (processing!=food_processing_buildings.end()) {
+        if (!food_processing_rows_) throw std::out_of_range("Food processing model was not explicitly prepared");
+        return food_processing_rows_->at(static_cast<std::size_t>(processing-food_processing_buildings.begin())).at(column);
+    }
     if (building==ModelBuilding::HuntersTent) {
         if (!hunting_row_) throw std::out_of_range("Hunting model was not explicitly prepared");
         return hunting_row_->at(column);
