@@ -209,6 +209,15 @@ work survive. Loaded returns retain cargo and reserved bin room. Historical
 Rules1–30/schemas1–46, defaults and research sessions remain exact. See
 [Agriculture](original-economy/agriculture.md#physical-food-growers-agri-mac06).
 
+The separate **Q Food processing (34)** / `--food-processing` selects
+Rule34/policy3/schema50, marker `authored-food-processing-v1`. Build a paid
+5×5 Mill with Shift-M and a paid2×2 FoodShop with Shift-K beside one unbound
+Market. Select the Mill and cycle grade1–4 with the Recipe grade button or
+Shift-G. Actual raw portions, staffed20-ticks-per-ingredient work, real meal
+transport and the existing sole House Food event form one shared account.
+Grades, quantities and timing are authored; Salt/Spices/grade5 stay unavailable.
+Older modes and saves remain exact. See [Food processing](original-economy/agriculture.md#food-processing-agri-mac09).
+
 The separate **X Irrigation yields (33)** / `--irrigation-productivity`
 selection uses Rule33/policy3/schema49 with marker
 `authored-irrigation-productivity-v1`. It inherits Rule32 and adds one bonus

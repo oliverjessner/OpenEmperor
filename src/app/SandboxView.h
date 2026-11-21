@@ -137,6 +137,10 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule34/schema50: real ingredients, graded meals and physical supply.
+    static std::unique_ptr<SandboxView> create_food_processing(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=true);
     // Explicit Rule33/schema49: actual wet work earns authored progress bonuses.
     static std::unique_ptr<SandboxView> create_irrigation_productivity(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
@@ -877,6 +881,9 @@ private:
     bool seasonal_agriculture() const {
         return simulation::seasonal_agriculture_enabled(rules_,requested_rule_version_);
     }
+    bool food_processing() const {
+        return simulation::food_processing_enabled(rules_,requested_rule_version_);
+    }
     bool irrigation_productivity() const {
         return simulation::irrigation_productivity_enabled(rules_,requested_rule_version_);
     }
@@ -999,6 +1006,7 @@ private:
     std::vector<std::pair<simulation::BuildingId,simulation::CourierDispatchDecision>> physical_grower_dispatch_status_;
     std::vector<std::pair<simulation::BuildingId,bool>> seasonal_field_eligibility_;
     std::vector<std::pair<simulation::BuildingId,std::vector<std::string>>> agriculture_calendar_lines_;
+    std::vector<std::pair<simulation::BuildingId,std::vector<std::string>>> food_processing_lines_;
     std::uint64_t agriculture_inspection_tick_=UINT64_MAX,agriculture_inspection_sequence_=UINT64_MAX;
     std::uint64_t agriculture_inspection_prepare_count_=0;
     // Inactive Rice topology is disposable presentation state. Only paid

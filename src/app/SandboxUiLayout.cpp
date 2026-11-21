@@ -138,7 +138,7 @@ InspectorLayout make_inspector_layout(Rect panel,int scale,std::size_t buildings
     return out;
 }
 
-Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health,bool income,bool service,bool bridges,bool ramps,bool original_production,bool industry_page,bool original_fire_protection,bool original_music_venues,bool original_agriculture,bool original_irrigation,bool playable_fishing,bool playable_hunting) {
+Layout make_layout(int width,int height,int window_width,int window_height,bool open,bool fire_watch,bool desirability,bool water,bool health,bool income,bool service,bool bridges,bool ramps,bool original_production,bool industry_page,bool original_fire_protection,bool original_music_venues,bool original_agriculture,bool original_irrigation,bool playable_fishing,bool playable_hunting,bool food_processing) {
     Layout out;
     out.scale=std::max(1,static_cast<int>(std::lround(std::min(
         width/static_cast<double>(std::max(1,window_width)),
@@ -182,8 +182,11 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     }
     if (playable_fishing) { tools.push_back(Action::OriginalFishingQuay);tools.push_back(Action::RotateFishingQuay); }
     if (playable_hunting) tools.push_back(Action::OriginalHuntersTent);
+    if (food_processing) {
+        tools.push_back(Action::OriginalMill);tools.push_back(Action::OriginalFoodShop);
+    }
     const int tool_count=static_cast<int>(tools.size());
-    const int tool_columns=wrapped_tools ? (original_production ? 5:health ? 4:5):tool_count;
+    const int tool_columns=wrapped_tools ? (food_processing ? 6:original_production ? 5:health ? 4:5):tool_count;
     const int tool_rows=wrapped_tools ? ((service || original_production) ? (tool_count+tool_columns-1)/tool_columns:
         (health ? 4:fire_watch ? 3:2)):1;
     const int toolbar=std::min(std::max(0,height-top-status),(tool_rows+1)*36*unit);
@@ -195,27 +198,28 @@ Layout make_layout(int width,int height,int window_width,int window_height,bool 
     out.panel={width-panel_width,top,panel_width,std::max(0,height-top-status-toolbar)};
     out.map={0,top,std::max(0,width-panel_width),out.panel.h};
     out.panel_toggle={std::max(0,width-96*unit),8*unit,88*unit,32*unit};
-    out.buttons.resize(tools.size()+(income ? 11:10));
-    constexpr std::array<Action,8> controls={Action::Pause,Action::Step,Action::Speed1,
-        Action::Speed2,Action::Speed4,Action::Reset,Action::Save,Action::Load};
+    const std::size_t control_count=food_processing ? 9U:8U;
+    out.buttons.resize(tools.size()+control_count+(income ? 3U:2U));
+    constexpr std::array<Action,9> controls={Action::Pause,Action::Step,Action::Speed1,
+        Action::Speed2,Action::Speed4,Action::Reset,Action::Save,Action::Load,Action::CycleMillRecipe};
     const int pad=4*unit;
     const int usable=std::max(0,width-2*pad);
     const int tool_w=usable/tool_columns;
-    const int control_w=usable/8;
+    const int control_w=usable/static_cast<int>(control_count);
     for (std::size_t i=0;i<tools.size();++i) {
         const int row=wrapped_tools ? static_cast<int>(i)/tool_columns:0;
         const int column=wrapped_tools ? static_cast<int>(i)%tool_columns:static_cast<int>(i);
         out.buttons[i]={tools[i],{pad+column*tool_w,
             out.toolbar.y+pad+row*36*unit,std::max(0,tool_w-pad),28*unit},true};
     }
-    for (std::size_t i=0;i<controls.size();++i)
+    for (std::size_t i=0;i<control_count;++i)
         out.buttons[tools.size()+i]={controls[i],{pad+static_cast<int>(i)*control_w,
             out.toolbar.y+tool_rows*36*unit,
             std::max(0,control_w-pad),28*unit},true};
-    out.buttons[tools.size()+8]={Action::TogglePanel,out.panel_toggle,true};
-    out.buttons[tools.size()+9]={Action::ToggleHelp,{std::max(0,width-186*unit),8*unit,
+    out.buttons[tools.size()+control_count]={Action::TogglePanel,out.panel_toggle,true};
+    out.buttons[tools.size()+control_count+1]={Action::ToggleHelp,{std::max(0,width-186*unit),8*unit,
         84*unit,32*unit},true};
-    if (income) out.buttons[tools.size()+10]={Action::ToggleIncome,
+    if (income) out.buttons[tools.size()+control_count+2]={Action::ToggleIncome,
         {std::max(0,width-298*unit),8*unit,106*unit,32*unit},true};
     return out;
 }

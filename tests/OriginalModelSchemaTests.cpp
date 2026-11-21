@@ -374,7 +374,14 @@ void functional_mapping_checks() {
     check(quay.candidate==ModelBuilding::FishingQuay && quay.functional==Status::AuthoredFallback &&
           quay.mechanics_identity==Status::AuthoredFallback && quay.presentation_identity==Status::Unknown,
           "Explicit Quay mapping lost its identity or claimed unproved Original runtime graphics");
-    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalHuntersTent) + 1U);
+    for(const auto& [object,model]:std::array{std::pair{Object::OriginalMill53,ModelBuilding::Mill},std::pair{Object::OriginalFoodShop66,ModelBuilding::FoodShop}}) {
+        for(const auto version:{0U,18U,24U,25U,27U,28U,29U,30U,31U,32U,33U,35U})
+            check(!original::functional_model_candidate(object,version).candidate,"Historical or future mode gained a processing model mapping");
+        const auto candidate=original::functional_model_candidate(object,34);
+        check(candidate.candidate==model&&candidate.functional==Status::AuthoredFallback&&candidate.mechanics_identity==Status::AuthoredFallback&&candidate.presentation_identity==Status::Unknown,
+              "Explicit processing mapping lost its identity or claimed unproved runtime/artwork");
+    }
+    constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalFoodShop66) + 1U);
     for (const auto bad : {first_invalid, static_cast<Object>(255)})
         expect_exception<std::out_of_range>([&] { (void)original::functional_model_candidate(bad); }, "invalid Object is not merely unmapped");
 }

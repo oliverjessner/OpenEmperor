@@ -1132,15 +1132,15 @@ template<std::size_t Count> json agriculture_json(const simulation::BasicAgricul
     for (const auto& row:state.housing_evaluations) housing.push_back({{"building_id",static_cast<std::uint32_t>(row.building_id)},
         {"tick",row.tick},{"quality_witness",row.quality_witness ? agriculture_quality_json(*row.quality_witness):json(nullptr)},
         {"received",row.received},{"consumed",row.consumed}});
-    return {{"revision",Count==agriculture_crop_count ? agriculture_revision:Count==fishing_food_count ? fishing_food_revision:hunting_food_revision},
-        {"catalog",Count==agriculture_crop_count ? agriculture_catalog:Count==fishing_food_count ? fishing_food_catalog:hunting_food_catalog},{"farms",std::move(farms)},
+    return {{"revision",Count==agriculture_crop_count ? agriculture_revision:Count==fishing_food_count ? fishing_food_revision:Count==processed_food_count ? processed_food_revision:hunting_food_revision},
+        {"catalog",Count==agriculture_crop_count ? agriculture_catalog:Count==fishing_food_count ? fishing_food_catalog:Count==processed_food_count ? processed_food_catalog:hunting_food_catalog},{"farms",std::move(farms)},
         {"fields",std::move(fields)},{"stocks",std::move(stocks)},{"trips",std::move(trips)},
         {"housing_evaluations",std::move(housing)}};
 }
 template<std::size_t Count> simulation::BasicAgricultureState<Count> parse_agriculture_width(const json& j) {
     using namespace simulation;
-    require(number(field(j,"revision"),UINT32_MAX)==(Count==agriculture_crop_count ? agriculture_revision:Count==fishing_food_count ? fishing_food_revision:hunting_food_revision) &&
-            str(field(j,"catalog"))==(Count==agriculture_crop_count ? agriculture_catalog:Count==fishing_food_count ? fishing_food_catalog:hunting_food_catalog),"schema40 requires its exact Agriculture revision and catalog");
+    require(number(field(j,"revision"),UINT32_MAX)==(Count==agriculture_crop_count ? agriculture_revision:Count==fishing_food_count ? fishing_food_revision:Count==processed_food_count ? processed_food_revision:hunting_food_revision) &&
+            str(field(j,"catalog"))==(Count==agriculture_crop_count ? agriculture_catalog:Count==fishing_food_count ? fishing_food_catalog:Count==processed_food_count ? processed_food_catalog:hunting_food_catalog),"schema40 requires its exact Agriculture revision and catalog");
     const auto id=[](const json& value) {
         const auto n=number(value,UINT32_MAX);require(n>0,"schema40 Agriculture identity must be positive");
         return static_cast<BuildingId>(n);
@@ -2205,7 +2205,7 @@ std::uint32_t protected_agriculture_save_target(const fs::path& path) {
     // writers may still replace their historical targets exactly as before.
     std::error_code error;const auto size=fs::file_size(path,error);
     if(error || !size) return 0;
-    // No valid historical save exceeds this bound. A later schema46/47/48/49 key in
+    // No valid historical save exceeds this bound. A later schema46/47/48/49/50 key in
     // an oversized damaged target cannot be ruled out by a bounded prefix.
     if(size>max_save_bytes) return UINT32_MAX;
     std::ifstream input(path,std::ios::binary);if(!input.good()) return 0;
@@ -2228,6 +2228,7 @@ std::uint32_t protected_agriculture_save_target(const fs::path& path) {
                 if(parsed==47 || parsed=="47") throw ProtectedTarget{47};
                 if(parsed==48 || parsed=="48") throw ProtectedTarget{48};
                 if(parsed==49 || parsed=="49") throw ProtectedTarget{49};
+                if(parsed==50 || parsed=="50") throw ProtectedTarget{50};
             }
             return true;
         },false);
@@ -2530,7 +2531,137 @@ simulation::IrrigationProductivityState parse_irrigation_productivity(const json
         "schema49 contains unknown irrigation productivity authority");
     return state;
 }
+std::uint64_t positive_processing(const json& value,std::uint64_t maximum=UINT64_MAX) {
+    const auto result=number(value,maximum);require(result>0,"schema50 requires a positive recipe sequence or grade");return result;
+}
+json food_processing_batch_json(const simulation::FoodProcessingBatch& batch) {
+    return {{"sequence",batch.sequence},{"started_tick",batch.started_tick},{"grade",batch.grade},
+        {"ingredients",batch.ingredients},{"work",batch.work}};
+}
+simulation::FoodProcessingBatch parse_food_processing_batch(const json& value) {
+    simulation::FoodProcessingBatch batch;
+    batch.sequence=positive_processing(field(value,"sequence"));batch.started_tick=number(field(value,"started_tick"));
+    batch.grade=static_cast<std::uint8_t>(positive_processing(field(value,"grade"),4));
+    const auto& ingredients=field(value,"ingredients");
+    require(ingredients.is_array() && ingredients.size()==batch.ingredients.size(),
+        "schema50 recipe requires exactly seven ingredient flags");
+    for(std::size_t i=0;i<batch.ingredients.size();++i)
+        batch.ingredients[i]=static_cast<std::uint8_t>(number(ingredients[i],1));
+    batch.work=static_cast<std::uint32_t>(number(field(value,"work"),80));
+    require(canonical_fields(value,food_processing_batch_json(batch)),"schema50 contains unknown recipe authority");
+    return batch;
+}
+json food_processing_receipt_json(const simulation::FoodProcessingReceipt& receipt) {
+    return {{"batch",food_processing_batch_json(receipt.batch)},{"completed_tick",receipt.completed_tick}};
+}
+simulation::FoodProcessingReceipt parse_food_processing_receipt(const json& value) {
+    simulation::FoodProcessingReceipt receipt{parse_food_processing_batch(field(value,"batch")),number(field(value,"completed_tick"))};
+    require(canonical_fields(value,food_processing_receipt_json(receipt)),"schema50 contains unknown completion receipt authority");
+    return receipt;
+}
+json food_processing_arrival_json(const simulation::FoodProcessingArrival& arrival) {
+    return {{"transfer",production_transfer_json(arrival.transfer)},
+        {"source",static_cast<std::uint32_t>(arrival.source)},{"tick",arrival.tick},{"amount",arrival.amount}};
+}
+simulation::FoodProcessingArrival parse_food_processing_arrival(const json& value) {
+    simulation::FoodProcessingArrival arrival;arrival.transfer=parse_production_transfer(field(value,"transfer"));
+    arrival.source=production_id(field(value,"source"));arrival.tick=number(field(value,"tick"));
+    arrival.amount=static_cast<std::int32_t>(positive_processing(field(value,"amount"),4));
+    require(canonical_fields(value,food_processing_arrival_json(arrival)),"schema50 contains unknown first arrival authority");
+    return arrival;
+}
+template<class T,std::size_t Count,class Encode> json processing_history_json(const std::array<std::optional<T>,Count>& rows,Encode encode) {
+    json result=json::array();for(const auto& row:rows)result.push_back(row ? encode(*row):json(nullptr));return result;
+}
+template<class T,std::size_t Count,class Decode> std::array<std::optional<T>,Count> parse_processing_history(const json& value,Decode decode) {
+    require(value.is_array() && value.size()==Count,"schema50 first-provenance array has wrong width");
+    std::array<std::optional<T>,Count> result{};
+    for(std::size_t i=0;i<Count;++i)if(!value[i].is_null())result[i]=decode(value[i]);
+    return result;
+}
+json food_processing_json(const simulation::FoodProcessingState& state) {
+    using namespace simulation;
+    require(state.mills.size()<=food_processing_mill_limit && state.shops.size()<=food_processing_shop_limit &&
+        state.houses.size()<=Rules::city_v10_household_limit,"schema50 processing collection exceeds bounded limits");
+    json mills=json::array(),shops=json::array(),houses=json::array();
+    for(const auto& row:state.mills) {
+        const auto receipt=row.last_receipt ? food_processing_receipt_json(*row.last_receipt):json(nullptr);
+        mills.push_back({{"mill_id",static_cast<std::uint32_t>(row.mill_id)},{"requested_grade",row.requested_grade},
+            {"started",row.started},{"completed",row.completed},{"productive_ticks",row.productive_ticks},
+            {"ingredients_consumed",row.ingredients_consumed},{"completed_by_grade",row.completed_by_grade},
+            {"first_ingredients",processing_history_json(row.first_ingredients,food_processing_arrival_json)},
+            {"first_completions",processing_history_json(row.first_completions,food_processing_receipt_json)},
+            {"active",row.active ? food_processing_batch_json(*row.active):json(nullptr)},
+            {"last_receipt",std::move(receipt)}});
+    }
+    for(const auto& row:state.shops)shops.push_back({{"shop_id",static_cast<std::uint32_t>(row.shop_id)},
+        {"market_id",static_cast<std::uint32_t>(row.market_id)},
+        {"first_meals",processing_history_json(row.first_meals,food_processing_arrival_json)}});
+    for(const auto& row:state.houses)houses.push_back({{"house_id",static_cast<std::uint32_t>(row.house_id)},
+        {"first_receipt",agriculture_quality_json(row.first_receipt)},
+        {"first_by_grade",processing_history_json(row.first_by_grade,food_processing_arrival_json)},
+        {"first_consumption",row.first_consumption ? json{{"tick",row.first_consumption->tick},
+            {"grade",row.first_consumption->grade}}:json(nullptr)}});
+    return {{"revision",food_processing_revision},{"mills",std::move(mills)},
+        {"shops",std::move(shops)},{"houses",std::move(houses)}};
+}
+simulation::FoodProcessingState parse_food_processing(const json& j) {
+    using namespace simulation;
+    require(number(field(j,"revision"),UINT32_MAX)==food_processing_revision,
+        "schema50 requires its exact Food processing revision");
+    FoodProcessingState state;
+    const auto& mills=field(j,"mills");
+    require(mills.is_array() && mills.size()<=food_processing_mill_limit,"schema50 Mill collection exceeds bound");
+    for(const auto& value:mills) {
+        MillProcessing row;row.mill_id=production_id(field(value,"mill_id"));
+        require(state.mills.empty() || state.mills.back().mill_id<row.mill_id,"schema50 Mill IDs must be sorted unique");
+        row.requested_grade=static_cast<std::uint8_t>(positive_processing(field(value,"requested_grade"),4));
+        row.started=number(field(value,"started"));row.completed=number(field(value,"completed"));
+        row.productive_ticks=number(field(value,"productive_ticks"));
+        const auto& consumed=field(value,"ingredients_consumed");
+        require(consumed.is_array() && consumed.size()==row.ingredients_consumed.size(),
+            "schema50 ingredient histories require exactly four recipe grades");
+        for(std::size_t i=0;i<row.ingredients_consumed.size();++i)
+            row.ingredients_consumed[i]=parse_production_counters<7>(consumed[i]);
+        row.completed_by_grade=parse_production_counters<4>(field(value,"completed_by_grade"));
+        row.first_ingredients=parse_processing_history<FoodProcessingArrival,7>(field(value,"first_ingredients"),parse_food_processing_arrival);
+        row.first_completions=parse_processing_history<FoodProcessingReceipt,4>(field(value,"first_completions"),parse_food_processing_receipt);
+        const auto& active=field(value,"active");if(!active.is_null())row.active=parse_food_processing_batch(active);
+        const auto& receipt=field(value,"last_receipt");
+        if(!receipt.is_null())row.last_receipt=parse_food_processing_receipt(receipt);
+        state.mills.push_back(row);
+    }
+    const auto& shops=field(j,"shops");
+    require(shops.is_array() && shops.size()<=food_processing_shop_limit,"schema50 Food Shop collection exceeds bound");
+    for(const auto& value:shops) {
+        FoodProcessingShop row;row.shop_id=production_id(field(value,"shop_id"));row.market_id=production_id(field(value,"market_id"));
+        row.first_meals=parse_processing_history<FoodProcessingArrival,4>(field(value,"first_meals"),parse_food_processing_arrival);
+        require(state.shops.empty() || state.shops.back().shop_id<row.shop_id,"schema50 Food Shop IDs must be sorted unique");
+        state.shops.push_back(row);
+    }
+    const auto& houses=field(j,"houses");
+    require(houses.is_array() && houses.size()<=Rules::city_v10_household_limit,"schema50 meal House history exceeds bound");
+    for(const auto& value:houses) {
+        MealHouseHistory row;row.house_id=production_id(field(value,"house_id"));
+        require(state.houses.empty() || state.houses.back().house_id<row.house_id,"schema50 meal House IDs must be sorted unique");
+        const auto& receipt=field(value,"first_receipt");auto& witness=row.first_receipt;
+        witness.transfer=parse_production_transfer(field(receipt,"transfer"));witness.tick=number(field(receipt,"tick"));
+        const auto& accepted=field(receipt,"accepted");
+        require(accepted.is_array() && accepted.size()==processed_food_count,"schema50 meal receipt requires twelve amounts");
+        for(std::size_t i=0;i<processed_food_count;++i)witness.accepted[i]=static_cast<std::int32_t>(number(accepted[i],INT32_MAX));
+        witness.consumed_before=parse_production_counters<processed_food_count>(field(receipt,"consumed_before"));
+        witness.previous_quality=static_cast<std::uint8_t>(number(field(receipt,"previous_quality"),UINT8_MAX));
+        row.first_by_grade=parse_processing_history<FoodProcessingArrival,4>(field(value,"first_by_grade"),parse_food_processing_arrival);
+        const auto& consumed=field(value,"first_consumption");
+        if(!consumed.is_null())row.first_consumption=MealConsumptionReceipt{number(field(consumed,"tick")),
+            static_cast<std::uint8_t>(positive_processing(field(consumed,"grade"),4))};
+        state.houses.push_back(row);
+    }
+    require(canonical_fields(j,food_processing_json(state)),"schema50 contains unknown or noncanonical processing authority");
+    return state;
+}
 json production_document_json(const SaveDocument& d) {
+    const bool processing=simulation::food_processing_enabled(d.world.profile,d.world.rule_version);
     const bool productivity=simulation::irrigation_productivity_enabled(d.world.profile,d.world.rule_version);
     const bool seasonal=simulation::seasonal_agriculture_enabled(d.world.profile,d.world.rule_version);
     const bool physical=simulation::physical_food_growers_enabled(d.world.profile,d.world.rule_version);
@@ -2544,7 +2675,7 @@ json production_document_json(const SaveDocument& d) {
     const bool fire=simulation::original_fire_protection_enabled(d.world.profile,d.world.rule_version);
     const bool culture=simulation::original_music_venues_enabled(d.world.profile,d.world.rule_version);
     const bool venue_service=simulation::original_venue_house_service_enabled(d.world.profile,d.world.rule_version);
-    const auto schema=productivity ? 49U:seasonal ? 48U:physical ? 47U:multi ? 46U:hunting ? 45U:fishing ? 44U:playable ? 43U:irrigation ? 42U:plantations ? 41U:agriculture ? 40U:venue_service ? 39U:culture ? 38U:simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version) ? 35U:
+    const auto schema=processing ? 50U:productivity ? 49U:seasonal ? 48U:physical ? 47U:multi ? 46U:hunting ? 45U:fishing ? 44U:playable ? 43U:irrigation ? 42U:plantations ? 41U:agriculture ? 40U:venue_service ? 39U:culture ? 38U:simulation::original_safe_demolition_enabled(d.world.profile,d.world.rule_version) ? 35U:
         simulation::original_deadline_food_dispatch_enabled(d.world.profile,d.world.rule_version) ? 34U:
         simulation::original_deadline_service_dispatch_enabled(d.world.profile,d.world.rule_version) ? 33U:
         simulation::original_deadline_fire_dispatch_enabled(d.world.profile,d.world.rule_version) ? 32U:
@@ -2565,6 +2696,9 @@ json production_document_json(const SaveDocument& d) {
     require(d.map_permissions_policy_version==simulation::kBridgesMapPermissionsPolicyVersion &&
             valid_hash(d.map_permissions_sha256),"schema26 requires immutable policy3 identity");
     require(d.world.agriculture.has_value()==(agriculture && !fishing),"Agriculture authority requires its exact versioned generation");
+    require(d.world.processed_food.has_value()==processing && d.world.food_processing.has_value()==processing,
+        "Food processing requires exclusive Rule34/schema50 authority");
+    if(processing) simulation::World::validate_food_processing_snapshot(d.world);
     require(d.world.irrigation_productivity.has_value()==productivity,"Irrigation productivity requires exact Rule33/schema49");
     if(productivity) simulation::World::validate_irrigation_productivity_snapshot(d.world);
     require(d.world.seasonal_agriculture.has_value()==seasonal,"Seasonal Agriculture requires exact Rule32/schema48");
@@ -2573,7 +2707,7 @@ json production_document_json(const SaveDocument& d) {
     if(physical) simulation::World::validate_physical_food_growers_snapshot(d.world);
     require(d.world.multi_field_agriculture.has_value()==multi,"Multi-field authority requires exact Rule30/schema46");
     if(multi) simulation::World::validate_multi_field_agriculture_snapshot(d.world);
-    require(d.world.hunting_food.has_value()==hunting && d.world.hunting.has_value()==hunting,
+    require(d.world.hunting_food.has_value()==(hunting && !processing) && d.world.hunting.has_value()==hunting,
         "Hunting requires exact schema45 seven-kind Food and physical Hunting authority");
     if(hunting) simulation::World::validate_hunting_snapshot(d.world);
     require(d.world.fishing_food.has_value()==(fishing && !hunting) && d.world.fishing.has_value()==fishing,
@@ -2592,12 +2726,14 @@ json production_document_json(const SaveDocument& d) {
     projected.world.plantations.reset();
     projected.world.irrigation.reset();projected.world.fishing_food.reset();projected.world.fishing.reset();
     projected.world.hunting_food.reset();projected.world.hunting.reset();
+    projected.world.processed_food.reset();projected.world.food_processing.reset();
     projected.world.multi_field_agriculture.reset();
     projected.world.physical_food_growers.reset();
     projected.world.seasonal_agriculture.reset();
     projected.world.irrigation_productivity.reset();
     for (auto& building:projected.world.buildings) {
-        if (hunting && building.kind==simulation::Object::OriginalHuntersTent) building.kind=simulation::Object::Pottery;
+        if (processing && (building.kind==simulation::Object::OriginalMill53 || building.kind==simulation::Object::OriginalFoodShop66)) building.kind=simulation::Object::Pottery;
+        else if (hunting && building.kind==simulation::Object::OriginalHuntersTent) building.kind=simulation::Object::Pottery;
         else if (fishing && building.kind==simulation::Object::OriginalFishingQuay) building.kind=simulation::Object::Pottery;
         else if (irrigation && building.kind==simulation::Object::OriginalIrrigationPump) building.kind=simulation::Object::Pottery;
         else if (culture && building.kind==simulation::Object::OriginalTheatre75) building.kind=simulation::Object::ServicePost;
@@ -2628,7 +2764,9 @@ json production_document_json(const SaveDocument& d) {
             building.kind=simulation::Object::ServicePost;
     }
     for (auto& courier:projected.world.couriers) {
-        if (physical && courier.role==simulation::CourierRole::OriginalFoodGrower)
+        if (processing && (courier.role==simulation::CourierRole::OriginalMealsToShop || courier.role==simulation::CourierRole::OriginalMealsToHouse))
+            courier.role=simulation::CourierRole::MarketFoodDistribution;
+        else if (physical && courier.role==simulation::CourierRole::OriginalFoodGrower)
             courier.role=simulation::CourierRole::Service;
         else if (seasonal && courier.role==simulation::CourierRole::OriginalSeasonalHempGrower)
             courier.role=simulation::CourierRole::Service;
@@ -2668,6 +2806,10 @@ json production_document_json(const SaveDocument& d) {
         result["rules"]["multi_field_agriculture"]=simulation::multi_field_agriculture_contract;
         result["rules"]["multi_field_agriculture_revision"]=simulation::multi_field_agriculture_revision;
     }
+    if(processing) {
+        result["rules"]["food_processing"]=simulation::food_processing_contract;
+        result["rules"]["food_processing_revision"]=simulation::food_processing_revision;
+    }
     if(productivity) {
         result["rules"]["irrigation_productivity"]=simulation::irrigation_productivity_contract;
         result["rules"]["irrigation_productivity_revision"]=simulation::irrigation_productivity_revision;
@@ -2690,12 +2832,12 @@ json production_document_json(const SaveDocument& d) {
     }
     if (culture) result["rules"]["music_venues"]=simulation::original_music_venues_contract;
     if (venue_service) result["rules"]["venue_house_service"]=simulation::original_venue_house_service_contract;
-    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) result["rules"]["market_logistics"]=simulation::original_market_logistics_contract;
-    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) result["rules"]["cardinal_water"]=simulation::original_cardinal_water_contract;
+    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) result["rules"]["market_logistics"]=simulation::original_market_logistics_contract;
+    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) result["rules"]["cardinal_water"]=simulation::original_cardinal_water_contract;
     if (schema==31) result["rules"]["inspector_coordination"]=simulation::original_inspector_coordination_contract;
-    if (schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) result["rules"]["deadline_fire_dispatch"]=simulation::original_deadline_fire_dispatch_contract;
-    if (schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) result["rules"]["deadline_service_dispatch"]=simulation::original_deadline_service_dispatch_contract;
-    if (schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) result["rules"]["deadline_food_dispatch"]=simulation::original_deadline_food_dispatch_contract;
+    if (schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) result["rules"]["deadline_fire_dispatch"]=simulation::original_deadline_fire_dispatch_contract;
+    if (schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) result["rules"]["deadline_service_dispatch"]=simulation::original_deadline_service_dispatch_contract;
+    if (schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) result["rules"]["deadline_food_dispatch"]=simulation::original_deadline_food_dispatch_contract;
     if (schema==35) result["rules"]["safe_demolition"]=simulation::original_safe_demolition_contract;
     for (std::size_t i=0;i<d.world.buildings.size();++i)
         result["world"]["buildings"][i]["kind"]=static_cast<int>(d.world.buildings[i].kind);
@@ -2725,8 +2867,12 @@ json production_document_json(const SaveDocument& d) {
     if (schema==35) result["world"]["original_production"]["safe_demolition"]=production_safe_demolition_json(*production.safe_demolition);
     if (culture) result["world"]["original_production"]["culture"]=production_culture_json(*production.culture,venue_service);
     if (agriculture && !fishing) result["world"]["agriculture"]=agriculture_json(*d.world.agriculture);
+    if(processing) {
+        result["world"]["processed_food"]=agriculture_json(*d.world.processed_food);
+        result["world"]["food_processing"]=food_processing_json(*d.world.food_processing);
+    }
     if (hunting) {
-        result["world"]["hunting_food"]=agriculture_json(*d.world.hunting_food);
+        if(!processing) result["world"]["hunting_food"]=agriculture_json(*d.world.hunting_food);
         result["world"]["hunting"]=hunting_json(*d.world.hunting);
     }
     if (multi) result["world"]["multi_field_agriculture"]=multi_field_agriculture_json(*d.world.multi_field_agriculture);
@@ -2743,7 +2889,8 @@ json production_document_json(const SaveDocument& d) {
 }
 SaveDocument parse_production_document(const json& j) {
     const auto schema=number(field(j,"schema_version"));
-    const bool productivity=schema==49;
+    const bool processing=schema==50;
+    const bool productivity=schema==49 || processing;
     const bool seasonal=schema==48 || productivity;
     const bool physical=schema==47 || seasonal;
     const bool multi=schema==46 || physical;
@@ -2753,6 +2900,10 @@ SaveDocument parse_production_document(const json& j) {
     const bool irrigation=schema==42 || playable;
     const bool plantations=schema==41 || irrigation;
     const bool agriculture=schema==40 || plantations;
+    if(processing) require(
+        str(field(field(j,"rules"),"food_processing"))==simulation::food_processing_contract &&
+        number(field(field(j,"rules"),"food_processing_revision"),UINT32_MAX)==simulation::food_processing_revision,
+        "schema50 requires its exact AUTHORED food processing contract and revision");
     if(productivity) require(
         str(field(field(j,"rules"),"irrigation_productivity"))==simulation::irrigation_productivity_contract &&
         number(field(field(j,"rules"),"irrigation_productivity_revision"),UINT32_MAX)==simulation::irrigation_productivity_revision,
@@ -2792,22 +2943,22 @@ SaveDocument parse_production_document(const json& j) {
         "schema39 requires its exact authored venue House-service contract");
     if (schema==38 || schema==39) require(str(field(field(j,"rules"),"music_venues"))==simulation::original_music_venues_contract,
         "schema38 requires its exact authored music-venue contract");
-    const bool fire=schema==27 || schema==28 || schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49;
-    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) require(str(field(field(j,"rules"),"market_logistics"))==simulation::original_market_logistics_contract,
+    const bool fire=schema==27 || schema==28 || schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50;
+    if (schema==29 || schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) require(str(field(field(j,"rules"),"market_logistics"))==simulation::original_market_logistics_contract,
         "schema29 requires its exact authored market-logistics contract");
-    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) require(str(field(field(j,"rules"),"cardinal_water"))==simulation::original_cardinal_water_contract,
+    if (schema==30 || schema==31 || schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) require(str(field(field(j,"rules"),"cardinal_water"))==simulation::original_cardinal_water_contract,
         "schema30 requires its exact verified cardinal-water contract");
     if (schema==31) require(str(field(field(j,"rules"),"inspector_coordination"))==simulation::original_inspector_coordination_contract,
         "schema31 requires its exact authored Inspector-coordination contract");
-    if (schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) require(str(field(field(j,"rules"),"deadline_fire_dispatch"))==simulation::original_deadline_fire_dispatch_contract,
+    if (schema==32 || schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) require(str(field(field(j,"rules"),"deadline_fire_dispatch"))==simulation::original_deadline_fire_dispatch_contract,
         "schema32 requires its exact authored deadline-fire-dispatch contract");
-    if (schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) require(str(field(field(j,"rules"),"deadline_service_dispatch"))==simulation::original_deadline_service_dispatch_contract,
+    if (schema==33 || schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) require(str(field(field(j,"rules"),"deadline_service_dispatch"))==simulation::original_deadline_service_dispatch_contract,
         "schema33 requires its exact authored deadline-service-dispatch contract");
-    if (schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) require(str(field(field(j,"rules"),"deadline_food_dispatch"))==simulation::original_deadline_food_dispatch_contract,
+    if (schema==34 || schema==35 || schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) require(str(field(field(j,"rules"),"deadline_food_dispatch"))==simulation::original_deadline_food_dispatch_contract,
         "schema34 requires its exact authored deadline-food-dispatch contract");
     if (schema==35) require(str(field(field(j,"rules"),"safe_demolition"))==simulation::original_safe_demolition_contract,
         "schema35 requires its exact authored safe-demolition contract");
-    const auto rule_version=productivity ? simulation::kIrrigationProductivityRuleVersion:seasonal ? simulation::kSeasonalAgricultureRuleVersion:physical ? simulation::kPhysicalFoodGrowersRuleVersion:multi ? simulation::kMultiFieldAgricultureRuleVersion:hunting ? simulation::kPlayableHuntingRuleVersion:fishing ? simulation::kPlayableFishingRuleVersion:
+    const auto rule_version=processing ? simulation::kFoodProcessingRuleVersion:productivity ? simulation::kIrrigationProductivityRuleVersion:seasonal ? simulation::kSeasonalAgricultureRuleVersion:physical ? simulation::kPhysicalFoodGrowersRuleVersion:multi ? simulation::kMultiFieldAgricultureRuleVersion:hunting ? simulation::kPlayableHuntingRuleVersion:fishing ? simulation::kPlayableFishingRuleVersion:
         playable ? simulation::kPlayableAgricultureRuleVersion:
         irrigation ? simulation::kOriginalIrrigationRuleVersion:
         plantations ? simulation::kOriginalPlantationsRuleVersion:
@@ -2874,13 +3025,13 @@ SaveDocument parse_production_document(const json& j) {
     if (schema==35) state.safe_demolition=parse_production_safe_demolition(field(production,"safe_demolition"));
     auto projected=j;
     projected["schema_version"]=22;projected["rules"]["version"]=6;
-    for (const char* key:{"original_economy","original_influence","original_goods","original_production","agriculture","plantations","irrigation","fishing_food","fishing","hunting_food","hunting","multi_field_agriculture","physical_food_growers","seasonal_agriculture","irrigation_productivity"})
+    for (const char* key:{"original_economy","original_influence","original_goods","original_production","agriculture","plantations","irrigation","fishing_food","fishing","hunting_food","hunting","multi_field_agriculture","physical_food_growers","seasonal_agriculture","irrigation_productivity","processed_food","food_processing"})
         projected["world"].erase(key);
     auto& buildings=projected["world"]["buildings"];
     require(buildings.is_array() && buildings.size()<=simulation::Rules::original_production_building_limit,
             "schema26 building collection exceeds bound");
     for (auto& building:buildings) {
-        const auto kind=number(field(building,"kind"),static_cast<unsigned>(hunting ? simulation::Object::OriginalHuntersTent:fishing ? simulation::Object::OriginalFishingQuay:irrigation ? simulation::Object::OriginalIrrigationPump:agriculture ? simulation::Object::OriginalSoybeanField:
+        const auto kind=number(field(building,"kind"),static_cast<unsigned>(processing ? simulation::Object::OriginalFoodShop66:hunting ? simulation::Object::OriginalHuntersTent:fishing ? simulation::Object::OriginalFishingQuay:irrigation ? simulation::Object::OriginalIrrigationPump:agriculture ? simulation::Object::OriginalSoybeanField:
             (schema==38 || schema==39) ? simulation::Object::OriginalTheatre75:simulation::Object::OriginalEliteHouse));
         if(multi && (kind==static_cast<unsigned>(simulation::Object::OriginalWheatField) ||
             kind==static_cast<unsigned>(simulation::Object::OriginalMilletField) ||
@@ -2893,7 +3044,9 @@ SaveDocument parse_production_document(const json& j) {
             building["operating_enabled"]=true;
             building["workforce_priority"]=static_cast<int>(simulation::WorkforcePriority::Normal);
         }
-        if (hunting && kind==static_cast<unsigned>(simulation::Object::OriginalHuntersTent))
+        if (processing && (kind==static_cast<unsigned>(simulation::Object::OriginalMill53) || kind==static_cast<unsigned>(simulation::Object::OriginalFoodShop66)))
+            building["kind"]=static_cast<int>(simulation::Object::Pottery);
+        else if (hunting && kind==static_cast<unsigned>(simulation::Object::OriginalHuntersTent))
             building["kind"]=static_cast<int>(simulation::Object::Pottery);
         else if (fishing && kind==static_cast<unsigned>(simulation::Object::OriginalFishingQuay))
             building["kind"]=static_cast<int>(simulation::Object::Pottery);
@@ -2938,8 +3091,10 @@ SaveDocument parse_production_document(const json& j) {
     require(couriers.is_array() && couriers.size()<=simulation::Rules::original_production_courier_limit,
             "schema26 courier collection exceeds bound");
     for (auto& courier:couriers) {
-        const auto role=number(field(courier,"role"),static_cast<unsigned>(seasonal ? simulation::CourierRole::OriginalSeasonalHempGrower:physical ? simulation::CourierRole::OriginalFoodGrower:plantations ? simulation::CourierRole::OriginalPlantationGrower:venue_service ? simulation::CourierRole::OriginalVenueMusic:schema==38 ? simulation::CourierRole::OriginalMusicPerformer:simulation::CourierRole::OriginalAuxSupplier));
-        if (physical && role==static_cast<unsigned>(simulation::CourierRole::OriginalFoodGrower))
+        const auto role=number(field(courier,"role"),static_cast<unsigned>(processing ? simulation::CourierRole::OriginalMealsToHouse:seasonal ? simulation::CourierRole::OriginalSeasonalHempGrower:physical ? simulation::CourierRole::OriginalFoodGrower:plantations ? simulation::CourierRole::OriginalPlantationGrower:venue_service ? simulation::CourierRole::OriginalVenueMusic:schema==38 ? simulation::CourierRole::OriginalMusicPerformer:simulation::CourierRole::OriginalAuxSupplier));
+        if (processing && (role==static_cast<unsigned>(simulation::CourierRole::OriginalMealsToShop) || role==static_cast<unsigned>(simulation::CourierRole::OriginalMealsToHouse)))
+            courier["role"]=static_cast<int>(simulation::CourierRole::MarketFoodDistribution);
+        else if (physical && role==static_cast<unsigned>(simulation::CourierRole::OriginalFoodGrower))
             courier["role"]=static_cast<int>(simulation::CourierRole::Service);
         else if (seasonal && role==static_cast<unsigned>(simulation::CourierRole::OriginalSeasonalHempGrower))
             courier["role"]=static_cast<int>(simulation::CourierRole::Service);
@@ -2986,13 +3141,17 @@ SaveDocument parse_production_document(const json& j) {
     d.world.original_goods=parse_production_goods(field(world,"original_goods"));
     if (fire) state.fire_protection=parse_fire_protection(field(production,"fire_protection"),d.world.width,d.world.height);
     d.world.original_production=state;
+    if(processing) {
+        d.world.processed_food=parse_agriculture_width<simulation::processed_food_count>(field(world,"processed_food"));
+        d.world.food_processing=parse_food_processing(field(world,"food_processing"));
+    }
     if(productivity) d.world.irrigation_productivity=parse_irrigation_productivity(field(world,"irrigation_productivity"));
     if(seasonal) d.world.seasonal_agriculture=parse_seasonal_agriculture(field(world,"seasonal_agriculture"),productivity);
     if(multi) d.world.multi_field_agriculture=parse_multi_field_agriculture(field(world,"multi_field_agriculture"));
     if(physical) d.world.physical_food_growers=parse_physical_food_growers(field(world,"physical_food_growers"),seasonal,productivity);
     if (agriculture && !fishing) d.world.agriculture=parse_agriculture(field(world,"agriculture"));
     if(hunting) {
-        d.world.hunting_food=parse_agriculture_width<simulation::hunting_food_count>(field(world,"hunting_food"));
+        if(!processing) d.world.hunting_food=parse_agriculture_width<simulation::hunting_food_count>(field(world,"hunting_food"));
         d.world.hunting=parse_hunting(field(world,"hunting"));
     }
     if(fishing) {
@@ -3004,6 +3163,7 @@ SaveDocument parse_production_document(const json& j) {
     if (plantations) d.world.plantations=parse_plantations(field(world,"plantations"),seasonal,productivity);
     if (irrigation) d.world.irrigation=parse_irrigation(field(world,"irrigation"));
     if (irrigation) simulation::World::validate_irrigation_snapshot(d.world);
+    if(processing) simulation::World::validate_food_processing_snapshot(d.world);
     if(productivity) simulation::World::validate_irrigation_productivity_snapshot(d.world);
     if(seasonal) simulation::World::validate_seasonal_agriculture_snapshot(d.world);
     if(multi) simulation::World::validate_multi_field_agriculture_snapshot(d.world);
@@ -3194,6 +3354,8 @@ SaveDocument parse_source_cell_document(const json& j) {
     return d;
 }
 json document_json(const SaveDocument& d) {
+    require((!d.world.processed_food && !d.world.food_processing) || simulation::food_processing_enabled(d.world.profile,d.world.rule_version),
+        "Food processing authority requires exact Rule34/schema50");
     require(!d.world.irrigation_productivity || simulation::irrigation_productivity_enabled(d.world.profile,d.world.rule_version),
         "Irrigation productivity authority requires exact Rule33/schema49");
     require(!d.world.seasonal_agriculture || simulation::seasonal_agriculture_enabled(d.world.profile,d.world.rule_version),
@@ -3262,31 +3424,36 @@ json document_json(const SaveDocument& d) {
 SaveDocument parse_document(const json& j,SnapshotSyntax syntax) {
     require(str(field(j,"format"))=="openemperor-sandbox-save","unknown save format");
     const auto schema=number(field(j,"schema_version"));
-    require(schema==49 || syntax==SnapshotSyntax::OriginalProduction ||
+    require(schema==50 || syntax==SnapshotSyntax::OriginalProduction ||
+            (!field(j,"rules").contains("food_processing") && !field(j,"rules").contains("food_processing_revision") &&
+             !field(j,"world").contains("processed_food") && !field(j,"world").contains("food_processing") &&
+             !j.contains("processed_food") && !j.contains("food_processing") && !j.contains("food_processing_revision")),
+            "Food processing marker and authority require exact schema50");
+    require(schema==49 || schema==50 || syntax==SnapshotSyntax::OriginalProduction ||
             (!field(j,"rules").contains("irrigation_productivity") &&
              !field(j,"rules").contains("irrigation_productivity_revision") &&
              !field(j,"world").contains("irrigation_productivity") &&
              !j.contains("irrigation_productivity") && !j.contains("irrigation_productivity_revision")),
             "Irrigation productivity marker and authority require exact schema49");
-    require(schema==48 || schema==49 || syntax==SnapshotSyntax::OriginalProduction ||
+    require(schema==48 || schema==49 || schema==50 || syntax==SnapshotSyntax::OriginalProduction ||
             (!field(j,"rules").contains("seasonal_agriculture") &&
              !field(j,"rules").contains("seasonal_agriculture_revision") &&
              !field(j,"world").contains("seasonal_agriculture") &&
              !j.contains("seasonal_agriculture") && !j.contains("seasonal_agriculture_revision")),
             "Seasonal Agriculture marker and authority require exact schema48");
-    require(schema==47 || schema==48 || schema==49 || syntax==SnapshotSyntax::OriginalProduction ||
+    require(schema==47 || schema==48 || schema==49 || schema==50 || syntax==SnapshotSyntax::OriginalProduction ||
             (!field(j,"rules").contains("physical_food_growers") &&
              !field(j,"rules").contains("physical_food_growers_revision") &&
              !field(j,"world").contains("physical_food_growers") &&
              !j.contains("physical_food_growers") && !j.contains("physical_food_growers_revision")),
             "Physical Grower marker and authority require exact schema47");
-    require(schema==46 || schema==47 || schema==48 || schema==49 || syntax==SnapshotSyntax::OriginalProduction ||
+    require(schema==46 || schema==47 || schema==48 || schema==49 || schema==50 || syntax==SnapshotSyntax::OriginalProduction ||
             (!field(j,"rules").contains("multi_field_agriculture") &&
              !field(j,"rules").contains("multi_field_agriculture_revision") &&
              !field(j,"world").contains("multi_field_agriculture") &&
              !j.contains("multi_field_agriculture") && !j.contains("multi_field_agriculture_revision")),
             "Multi-field marker and authority require exact schema46");
-    if (schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49) {
+    if (schema==38 || schema==39 || schema==40 || schema==41 || schema==42 || schema==43 || schema==44 || schema==45 || schema==46 || schema==47 || schema==48 || schema==49 || schema==50) {
         require(syntax==SnapshotSyntax::Frozen,"schema38/39/40/41 cannot select projected syntax");
         return parse_production_document(j);
     }
@@ -3527,7 +3694,9 @@ SaveDocument make_document(const fs::path& root,const fs::path& relative,
                 simulation::original_inspector_coordination_enabled(d.world.profile,d.world.rule_version) ?
                     "schema31 World terrain context differs from complete source-map SHA-256":
                     "schema30 World terrain context differs from complete source-map SHA-256");
-            if (simulation::irrigation_productivity_enabled(d.world.profile,d.world.rule_version))
+            if (simulation::food_processing_enabled(d.world.profile,d.world.rule_version))
+                (void)restore_food_processing(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,d.prepared_original_terrain_facts);
+            else if (simulation::irrigation_productivity_enabled(d.world.profile,d.world.rule_version))
                 (void)restore_irrigation_productivity(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,d.prepared_original_terrain_facts);
             else if (simulation::seasonal_agriculture_enabled(d.world.profile,d.world.rule_version))
                 (void)restore_seasonal_agriculture(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,d.prepared_original_terrain_facts);
@@ -3670,6 +3839,8 @@ SaveDocument read_save(const fs::path& path) {
         require(!duplicate_key,"schema47 duplicate save key");
     if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==48)
         require(!duplicate_key,"schema48 duplicate save key");
+    if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==50)
+        require(!duplicate_key,"schema50 duplicate save key");
     if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==49)
         require(!duplicate_key,"schema49 duplicate save key");
     if (j.is_object() && j.contains("schema_version") && j.at("schema_version")==46)
@@ -3750,6 +3921,14 @@ std::shared_ptr<const original::OriginalRulesModel> prepare_playable_hunting_rul
     if(!loaded) throw std::runtime_error("Hunting model preparation failed: "+
         (loaded.error ? loaded.error->reason:std::string("model source unavailable")));
     return original::OriginalRulesModel::prepare_hunting(std::move(*loaded.model),difficulty);
+}
+std::shared_ptr<const original::OriginalRulesModel> prepare_food_processing_rules_model(
+        const fs::path& root,original::Difficulty difficulty) {
+    require(static_cast<std::size_t>(difficulty)<original::difficulty_count,"invalid Food processing model difficulty");
+    auto loaded=original::load_model_data(root);
+    if(!loaded) throw std::runtime_error("Food processing model preparation failed: "+
+        (loaded.error ? loaded.error->reason:std::string("model source unavailable")));
+    return original::OriginalRulesModel::prepare_food_processing(std::move(*loaded.model),difficulty);
 }
 std::shared_ptr<const simulation::OriginalTerrainFacts> prepare_original_terrain_facts(
         const fs::path& root,const fs::path& relative) {
@@ -4057,7 +4236,8 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
         std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
         std::shared_ptr<const original::OriginalRulesModel> model,std::uint32_t rule_version,
         std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr) {
-    const bool productivity=rule_version==simulation::kIrrigationProductivityRuleVersion;
+    const bool processing=rule_version==simulation::kFoodProcessingRuleVersion;
+    const bool productivity=rule_version==simulation::kIrrigationProductivityRuleVersion || processing;
     const bool seasonal=rule_version==simulation::kSeasonalAgricultureRuleVersion || productivity;
     const bool physical=rule_version==simulation::kPhysicalFoodGrowersRuleVersion || seasonal;
     const bool multi=rule_version==simulation::kMultiFieldAgricultureRuleVersion || physical;
@@ -4077,7 +4257,7 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
     const bool cardinal=rule_version==simulation::kOriginalCardinalWaterRuleVersion;
     const bool logistics=rule_version==simulation::kOriginalMarketLogisticsRuleVersion;
     const bool sustainable=rule_version==simulation::kOriginalSustainableRuleVersion;
-    const auto schema=productivity ? 49U:seasonal ? 48U:physical ? 47U:multi ? 46U:hunting ? 45U:fishing ? 44U:playable ? 43U:irrigation ? 42U:plantations ? 41U:agriculture ? 40U:venue_service ? 39U:culture ? 38U:safe ? 35U:food ? 34U:service ? 33U:deadline ? 32U:coordination ? 31U:cardinal ? 30U:logistics ? 29U:sustainable ? 28U:27U;
+    const auto schema=processing ? 50U:productivity ? 49U:seasonal ? 48U:physical ? 47U:multi ? 46U:hunting ? 45U:fishing ? 44U:playable ? 43U:irrigation ? 42U:plantations ? 41U:agriculture ? 40U:venue_service ? 39U:culture ? 38U:safe ? 35U:food ? 34U:service ? 33U:deadline ? 32U:coordination ? 31U:cardinal ? 30U:logistics ? 29U:sustainable ? 28U:27U;
     require(d.world.profile==simulation::RulesProfile::CityV16 && d.world.rule_version==rule_version,
             "original fire restore requires its exact explicit City-v16 rule generation");
     require(d.source_schema_version==0 || d.source_schema_version==schema,
@@ -4086,7 +4266,7 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
             "schema27 requires an original model source identity");
     (void)production_document_json(d);
     const auto& source=*d.world.original_economy->model_source;
-    if (!model) model=hunting ? prepare_playable_hunting_rules_model(root,source.difficulty):fishing ? prepare_playable_fishing_rules_model(root,source.difficulty):
+    if (!model) model=processing ? prepare_food_processing_rules_model(root,source.difficulty):hunting ? prepare_playable_hunting_rules_model(root,source.difficulty):fishing ? prepare_playable_fishing_rules_model(root,source.difficulty):
         irrigation ? prepare_original_irrigation_rules_model(root,source.difficulty):
         agriculture ? prepare_original_agriculture_rules_model(root,source.difficulty):
         culture ? prepare_original_culture_rules_model(root,source.difficulty):
@@ -4149,6 +4329,8 @@ simulation::World restore_original_fire_generation(const SaveDocument& d,const f
                 deadline ? "schema32 document terrain facts differ from live original source":
                 coordination ? "schema31 document terrain facts differ from live original source":
                 "schema30 document terrain facts differ from live original source");
+        if (processing)
+            return simulation::World::restore_food_processing(d.world,std::move(permissions),std::move(model),std::move(live));
         if (productivity)
             return simulation::World::restore_irrigation_productivity(d.world,std::move(permissions),std::move(model),std::move(live));
         if (seasonal)
@@ -4334,6 +4516,13 @@ simulation::World restore_irrigation_productivity(const SaveDocument& d,const fs
     return restore_original_fire_generation(d,root,std::move(mask),std::move(permissions),std::move(model),
         simulation::kIrrigationProductivityRuleVersion,std::move(terrain));
 }
+simulation::World restore_food_processing(const SaveDocument& d,const fs::path& root,
+        std::vector<std::uint8_t> mask,std::shared_ptr<const simulation::MapPermissions> permissions,
+        std::shared_ptr<const original::OriginalRulesModel> model,
+        std::shared_ptr<const simulation::OriginalTerrainFacts> terrain) {
+    return restore_original_fire_generation(d,root,std::move(mask),std::move(permissions),std::move(model),
+        simulation::kFoodProcessingRuleVersion,std::move(terrain));
+}
 void validate_save_target(const fs::path& path,const fs::path& root) {
     require(!path.empty(),"save path is empty");
     const auto absolute=fs::absolute(path).lexically_normal();
@@ -4361,17 +4550,18 @@ void write_save(const fs::path& path,const SaveDocument& d,const fs::path& root,
     const bool multi=simulation::multi_field_agriculture_enabled(d.world.profile,d.world.rule_version);
     const bool seasonal=simulation::seasonal_agriculture_enabled(d.world.profile,d.world.rule_version);
     const bool productivity=simulation::irrigation_productivity_enabled(d.world.profile,d.world.rule_version);
-    const auto own_schema=productivity ? 49U:seasonal ? 48U:physical ? 47U:multi ? 46U:0U;
+    const bool processing=simulation::food_processing_enabled(d.world.profile,d.world.rule_version);
+    const auto own_schema=processing ? 50U:productivity ? 49U:seasonal ? 48U:physical ? 47U:multi ? 46U:0U;
     const auto validate_generation_target=[&](const fs::path& target) {
         const auto protected_schema=protected_agriculture_save_target(target);
         require(!protected_schema || protected_schema==own_schema,
-                "Writers cannot overwrite another schema46/47/48/49 generation or an oversized unknown target");
+                "Writers cannot overwrite another schema46/47/48/49/50 generation or an oversized unknown target");
         if(own_schema && fs::exists(target)) {
             const auto existing=read_save(target);
-            const auto expected_rule=productivity ? simulation::kIrrigationProductivityRuleVersion:seasonal ? simulation::kSeasonalAgricultureRuleVersion:physical ? simulation::kPhysicalFoodGrowersRuleVersion:simulation::kMultiFieldAgricultureRuleVersion;
+            const auto expected_rule=processing ? simulation::kFoodProcessingRuleVersion:productivity ? simulation::kIrrigationProductivityRuleVersion:seasonal ? simulation::kSeasonalAgricultureRuleVersion:physical ? simulation::kPhysicalFoodGrowersRuleVersion:simulation::kMultiFieldAgricultureRuleVersion;
             require(existing.source_schema_version==own_schema && existing.world.profile==simulation::RulesProfile::CityV16 &&
                     existing.world.rule_version==expected_rule,
-                    "Rule30/31/32/33 requires its own exact schema46/47/48/49 save target");
+                    "Rule30/31/32/33/34 requires its own exact schema46/47/48/49/50 save target");
         }
     };
     validate_generation_target(path);
@@ -4419,7 +4609,9 @@ void write_save(const fs::path& path,const SaveDocument& d,const fs::path& root,
         (void)restore_authored_land_trade(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,
             d.prepared_land_trade_boundary_facts);
     else if (simulation::original_production_enabled(d.world.profile,d.world.rule_version))
-        if (simulation::irrigation_productivity_enabled(d.world.profile,d.world.rule_version))
+        if (simulation::food_processing_enabled(d.world.profile,d.world.rule_version))
+                (void)restore_food_processing(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,d.prepared_original_terrain_facts);
+        else if (simulation::irrigation_productivity_enabled(d.world.profile,d.world.rule_version))
                 (void)restore_irrigation_productivity(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,d.prepared_original_terrain_facts);
             else if (simulation::seasonal_agriculture_enabled(d.world.profile,d.world.rule_version))
                 (void)restore_seasonal_agriculture(d,root,mask,d.prepared_permissions,d.prepared_original_rules_model,d.prepared_original_terrain_facts);

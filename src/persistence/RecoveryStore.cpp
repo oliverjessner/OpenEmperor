@@ -274,7 +274,8 @@ void validate_policy_readback(const SaveDocument& saved,const SaveDocument& sour
         return;
     }
     if (simulation::original_production_enabled(source.world.profile,source.world.rule_version)) {
-        require(saved.source_schema_version==(simulation::irrigation_productivity_enabled(source.world.profile,source.world.rule_version) ? 49U:
+        require(saved.source_schema_version==(simulation::food_processing_enabled(source.world.profile,source.world.rule_version) ? 50U:
+                simulation::irrigation_productivity_enabled(source.world.profile,source.world.rule_version) ? 49U:
                 simulation::seasonal_agriculture_enabled(source.world.profile,source.world.rule_version) ? 48U:
                 simulation::physical_food_growers_enabled(source.world.profile,source.world.rule_version) ? 47U:
                 simulation::multi_field_agriculture_enabled(source.world.profile,source.world.rule_version) ? 46U:
@@ -319,6 +320,10 @@ void validate_policy_readback(const SaveDocument& saved,const SaveDocument& sour
                 "recovery read-back differs from schema21 world or map policy");
 }
 bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access) {
+    const auto processing=simulation::food_processing_enabled(document.world.profile,document.world.rule_version);
+    require(document.world.processed_food.has_value()==processing && document.world.food_processing.has_value()==processing,
+        "Food processing recovery requires exclusive Rule34/schema50 authority");
+    if(processing) simulation::World::validate_food_processing_snapshot(document.world);
     const auto productivity=simulation::irrigation_productivity_enabled(document.world.profile,document.world.rule_version);
     require(document.world.irrigation_productivity.has_value()==productivity,
         "Irrigation productivity recovery authority requires exact Rule33/schema49");
@@ -337,7 +342,7 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
     require(document.world.multi_field_agriculture.has_value()==multi,
         "Multi-field recovery authority requires exact Rule30/schema46");
     if(multi) simulation::World::validate_multi_field_agriculture_snapshot(document.world);
-    require(document.world.hunting_food.has_value()==hunting && document.world.hunting.has_value()==hunting,
+    require(document.world.hunting_food.has_value()==(hunting && !processing) && document.world.hunting.has_value()==hunting,
         "Hunting recovery authority requires exact Rule29/schema45");
     require(document.world.fishing_food.has_value()==(fishing && !hunting) && document.world.fishing.has_value()==fishing,
         "Fishing recovery authority requires exact Rule28/schema44");
@@ -349,7 +354,8 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
             simulation::original_production_enabled(document.world.profile,document.world.rule_version),
             "schema23 development saves are unavailable in normal recovery histories");
     require((document.source_schema_version==0 || document.source_schema_version==
-                (simulation::irrigation_productivity_enabled(document.world.profile,document.world.rule_version) ? 49U:
+                (simulation::food_processing_enabled(document.world.profile,document.world.rule_version) ? 50U:
+                 simulation::irrigation_productivity_enabled(document.world.profile,document.world.rule_version) ? 49U:
                  simulation::seasonal_agriculture_enabled(document.world.profile,document.world.rule_version) ? 48U:
                  simulation::physical_food_growers_enabled(document.world.profile,document.world.rule_version) ? 47U:
                  simulation::multi_field_agriculture_enabled(document.world.profile,document.world.rule_version) ? 46U:

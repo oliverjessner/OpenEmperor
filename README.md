@@ -71,6 +71,14 @@ An actually supplied, eligible crop earns one extra growth unit per four real
 wet work ticks. Inspect a field or plant for its Pump, wet/dry state, retained
 carry and current work blocker. Harvesting and physical return still credit stock.
 
+**Q Food processing** or `--food-processing` selects separate Rule34. Build a
+Mill (Shift-M), then a FoodShop (Shift-K) beside a paid Market. Select the Mill
+and use **Recipe grade** / Shift-G to choose one to four distinct ingredients.
+Actual staffed work turns each consumed ingredient portion into one Dinners
+portion of that grade. Physical shop deliveries share the existing House Food
+stock and consumption event. Inspect recipes, cargo, returns and first receipts.
+These recipes and timing are authored; Salt, Spices and grade5 remain unavailable.
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

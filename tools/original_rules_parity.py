@@ -110,9 +110,12 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # Food bonus epochs and immutable material readiness work. Historical probes
 # keep their exact numerical observations;
 # reviewed ABI/source fingerprints establish no Original irrigation yield parity.
+# AGRI-MAC09 appends explicit Rule34 graded Food and processor provenance.
+# Historical selection/numerical observations remain exact; these API pins
+# establish no Original Mill/assistant/unit-conversion parity.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "0f7da12843346f6b682ec4c832cafebfb13f6655",
+    "World.h": "7fd8c8b10013d1f9f26688ea847e535e0974ea54",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
@@ -122,10 +125,11 @@ REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "SourceCellRamp.h": "7279cfbd61fd20ac24e35739c0f5f3138380dd38",
     "OriginalTerrainFacts.h": "b22d4fb214405dee9ce98cdfacc26d0092b5df6f",
     "MultiFieldAgricultureState.h": "8f0e0b59aa1196ceaaabaa74afbd5d8843c7b1bc",
+    "FoodProcessingState.h": "d056d675dcfa6aca3e7ba67303f5c1edf4318f17",
     "IrrigationProductivityState.h": "02087bce419492bdfabf5c0414f23a2194f185de",
     "SeasonalAgricultureState.h": "f2c216c9b9303d9ed0d4b0cffbd43fdee3beadcb",
     "PhysicalFoodGrowersState.h": "1c3705f4b188a56f602bd3b4f9fb26e5784195e6",
-    "AgricultureState.h": "8d7c4f9972d6cb9ed625c350e5090a416521bd3c",
+    "AgricultureState.h": "49c9540fa3468fd54b3192d9d8c62472e5db2127",
     "HuntingState.h": "8320925ca1dda3d9b24ae873efe6dcd2f7ced15b",
     "FishingState.h": "034e7e5aeb9ca095d7d07f3216b77e007076a7ae",
     "PlantationsState.h": "cd0897daa1c9e4c452d00b7963cc32a6dba3b0a9",
@@ -545,7 +549,7 @@ def current_source_hashes() -> dict[str,str]:
         "World.cpp", "WorldGrowerNavigation.cpp", "WorldGrowerLifecycle.cpp", "WorldOriginalProduction.cpp", "WorldIrrigation.cpp",
         "WorldOriginalFood.cpp", "WorldPhysicalFoodGrowers.cpp", "WorldSeasonalAgriculture.cpp",
         "WorldSeasonalHemp.cpp", "SeasonalAgricultureRules.cpp", "WorldPlantations.cpp",
-        "WorldOriginalHemp.cpp", "WorldIrrigationProductivity.cpp")]
+        "WorldOriginalHemp.cpp", "WorldIrrigationProductivity.cpp", "WorldFoodProcessing.cpp")]
     sources.append(ROOT / "src/persistence/OriginalGrowerContext.cpp")
     sources += [ROOT / "src/simulation" / name for name in REVIEWED_HOUSING_WORLD_API_GIT_BLOBS]
     return {str(path.relative_to(ROOT)):sha256(path) for path in sorted(sources)}
@@ -650,11 +654,11 @@ def run_comparison(args: argparse.Namespace, output: Path) -> dict[str, Any]:
     if finance_blob != "4c42d35342a89c113b44965562635421efccecd1":
         raise ValueError("Original-finance ABI drift requires reviewed compatibility contract")
     model_header_blobs = {}
-    # AGRI-MAC03 adds a separate optional Hunter33 preparation row/factory
-    # alongside Quay31. Historical prepared sets/default flags and actual
+    # AGRI-MAC09 adds separate optional Mill53/FoodShop66 rows and factory
+    # alongside the historical Hunter33 and Quay31 capabilities. Historical prepared sets/default flags and actual
     # fourth-module calls retain their contract; fresh archives match layout.
-    for name, expected in (("ModelSchema.h", "c232baf4b249d7a800a8e241b66b517a7891a3ca"),
-                           ("OriginalRulesModel.h", "69966738f192c0f380eca9c2dd7b824b5c5d040c")):
+    for name, expected in (("ModelSchema.h", "4b247e9b7191309108c7b6e5b799895c88800de2"),
+                           ("OriginalRulesModel.h", "e890f093b989d4a07d0e6b59183b8da16dbc2a16")):
         header = ROOT / "src/simulation/original" / name
         actual = hashlib.sha1(b"blob " + str(header.stat().st_size).encode() + b"\0" + header.read_bytes()).hexdigest()
         if actual != expected:

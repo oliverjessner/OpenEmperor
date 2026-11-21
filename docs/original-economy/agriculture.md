@@ -147,6 +147,114 @@ Growth art reads the selected field's progress. Rice keeps its qualified static
 paddy profile and gains no universal Pump requirement or irrigation yield bonus.
 See [validation](../testing.md#multi-field-agriculture-agri-mac05) for evidence.
 
+## Food processing (AGRI-MAC09)
+
+**Explicit AUTHORED Rule34/policy3/schema50**, marker
+`authored-food-processing-v1`, revision1, **Q Food processing** /
+`--food-processing`. It inherits Rule33's physical Food workers, seven actual
+raw Food origins, seasons, irrigation, economy and bounded transport. All
+Rules1–33/schemas1–49, Original research sessions and general defaults remain
+exact, without migration or cross-schema overwrite. Preparation requires the
+separate Mill53/FoodShop66 model capability; ordinary historical preparation
+never gains those rows.
+
+A paid **5×5 Mill53** uses the source model's cost and employee requirement.
+A paid **2×2 FoodShop66** requires exactly one unbound cardinal-adjacent paid
+Market59 when placed. Its permanent parent identity is saved; each Market can
+bind one Shop. This authored physical shop owns its own real stock and courier;
+the parent has no mirrored meal inventory or automatic stock receipt. The
+native parent-slot layout and linked Actor24/25 movement are not reconstructed.
+Both classes are bounded to two, within the unchanged82-body/58-channel limits.
+Construction, staffing, operation, fire, footprint occupancy, source admission,
+land edges and paid installed upkeep use the shared World contracts. Unqualified
+artwork uses labelled authored bodies and courier markers.
+
+The **sole `ProcessedFoodState`** replaces the seven-kind authority only in34.
+Its canonical12 columns are the existing seven ingredients plus five
+grade-tagged lots of the same **Dinners28** commodity. Grade tags are not five
+new commodities and there is no aggregate meal stock beside them. Historical
+five-, six-, seven- and two-column Food ledgers are absent/empty in34. Stock,
+Cart cargo, reservations, full-width House quality witnesses and consumption
+all use this one account. Mill and Shop total capacity is16, raw producers and
+Houses retain8, and existing Cart volume remains4.
+
+Producer carts prefer an eligible reachable Mill with real headroom, then use
+the existing Market fallback. A Mill admits at most two portions of each raw
+kind, including actual incoming reservations, so one early crop cannot block
+all other recipe inputs. The shared total also reserves active recipe output
+and real failed-delivery return room. A Mill accepts raw Food only; a FoodShop
+accepts only physical Mill Dinners. Warehouse Food storage is not activated.
+
+The selected **grade1–4 recipe** requires that many distinct obtainable raw
+kinds. Selection takes one portion from each of the first available categories
+in the catalog's canonical order. It never substitutes an unavailable category.
+At commitment the bounded job and output reservation are admitted before a
+single atomic ingredient debit. Each recipe requires **20 staffed work ticks
+per ingredient** and produces exactly the same number of Dinners portions,
+all tagged with its recipe grade. Full staffing, operation, fire and road access
+gate every work tick; paused or blocked work retains its paid inputs and
+progress. Changing selection affects the next job, never the committed one.
+There is no cancellation, refund, periodic free output or reprocessing of meals.
+A real completion receipt is the only processed-Food origin. Active ingredients
+are already consumed; reserved output is neither held nor delivered inventory.
+
+These portion quantities, work times, grade choice and meal scores20/40/60/80
+are authored. The observed base-only distinct-ingredient alternatives and
+score-to-grade mapper are documented in the
+[bounded Food contract](../reverse/original-goods-consumption-food-contract.md).
+They do not establish raw100/400-to-portion conversion or full native Mill
+semantics. Salt8 and Spices9 have no origin here; grade5's lot is required zero
+in every stock, history, trip and witness. Current FoodShop policy permits the
+four authored grades explicitly; the fresh native CommonMarket upper grade3
+is not silently generalized into a historical policy change.
+
+A real Mill courier loads Dinners, physically reaches the Shop and returns.
+The staffed, eligible Shop dispatches its own real four-portion courier to an
+occupied House. Lost eligibility causes ordinary physical cargo return;
+road cuts retain reservations, current/begun edges and repair waiting. Neither
+a dispatch, nearby body, recipe start nor restore grants a receipt or quality.
+Direct Market raw deliveries coexist, with at most four raw portions held or
+actually incoming at each House, leaving shared space for meals. A House still
+has total capacity8. At each existing Food-demand event the sole sink consumes
+**one portion**, taking meal lots by ascending grade before raw catalog order.
+It satisfies one Food demand once; there is no second meal demand, nutrition
+credit or population grant. Batch quality uses the existing actual-arrival
+blend, with grade-tagged meal provenance and empty-stock reset.
+
+Each Mill retains cumulative per-grade ingredient debits/completions, actual
+productive work, at most one active recipe and its immutable last completion.
+Bounded immutable first arrivals for each of the seven raw kinds precede all
+recipes using them; each produced grade retains its first actual completed
+recipe. A Shop retains its first real Mill arrival per meal grade, and every
+House retains its first Shop arrival per grade as well as its first full-width
+meal witness. Restore validates the causal chain through actual source/target
+IDs, transfer keys, amounts, work and physical travel bounds. First consumption
+must be the first existing Food event at or after first arrival, taking the
+lowest grade physically available by that event; a later grade or event cannot
+replace that immutable witness. Previous quality must have a possible raw Food
+origin and agree with any still-retained exact arrival. These fixed-size
+histories are provenance, never another inventory. One retained transfer key
+must agree on supplier, recipient, epoch and each asserted cargo component;
+retained sequences of one courier must preserve physical arrival order. Four
+grade-release suffix quotas and deduplicated known jobs bind the recipe prefix
+and prevent reusing one ingredient debit in different witnessed jobs. The
+bounded cross-receipt index is checked only at publication/restore, outside
+normal ticks. All stocks, transfers,
+physical return reservations, grades and witnesses survive exact save/load and
+Recovery. Restore binds complete paid/model/source identities and requires:
+
+- raw origins = held + transit + Mill-consumed + House-consumed ingredients;
+- Mill consumed inputs = completed recipe inputs + its one active recipe;
+- Dinners produced by grade = held + transit + actually House-consumed meals;
+- every dispatched portion = arrival + actual return + retained cargo.
+
+Strict nested fields, exact widths, duplicate identities, missing/foreign
+provenance, impossible work/time/capacity, grade5, orphan/duplicate parent
+bindings and mixed generations are rejected before publication. Derived UI
+summaries and target caches never enter saves. The controls show physical raw
+inputs, tagged meal stock, recipe/work, blockers, cargo and witnessed receipts;
+rendering and hover do no simulation work.
+
 ## Irrigation productivity (AGRI-MAC08)
 
 **Explicit AUTHORED Rule33/policy3/schema49**, marker
