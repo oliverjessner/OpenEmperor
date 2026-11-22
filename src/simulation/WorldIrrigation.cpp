@@ -35,7 +35,7 @@ bool infrastructure(const World& world,Cell cell) {
         world.source_cell_ramp_claim(cell) || world.fixed_passage(cell);
 }
 bool pump_context(const World& world,const original::PumpGeometry& shape,
-                  std::optional<BuildingId> owner={}) {
+                  std::optional<BuildingId> owner={},bool historical=false) {
     const auto permissions=world.map_permissions();const auto terrain=world.original_terrain_facts();
     if(!permissions || !terrain || !terrain->irrigation_complete()) return false;
     const auto occupied=[&](Cell cell) {
@@ -48,16 +48,17 @@ bool pump_context(const World& world,const original::PumpGeometry& shape,
         // claims. The observed exterior query tests water, not mutable bridge
         // or building occupancy. Exclusivity applies to the four body cells.
         const bool body=std::find(shape.footprint.begin(),shape.footprint.end(),cell)!=shape.footprint.end();
-        if(body && (infrastructure(world,cell) || occupied(cell) ||
+        if(body && !historical && (infrastructure(world,cell) || occupied(cell) ||
             (world.object_at(cell)!=Object::Empty && (!owner || world.building_owner_at(cell)!=owner)))) return false;
     }
     for(const auto cell:shape.land) {
-        if(!world.in_bounds(cell) || !permissions->building_allowed(cell) || infrastructure(world,cell) || occupied(cell) ||
+        if(!world.in_bounds(cell) || !permissions->building_allowed(cell) || (!historical&&(infrastructure(world,cell) || occupied(cell))) ||
             (terrain->raw_terrain(cell)&0x87375a6fU)!=0) return false;
-        if(world.object_at(cell)!=Object::Empty && (!owner || world.building_owner_at(cell)!=owner)) return false;
+        if(!historical&&world.object_at(cell)!=Object::Empty && (!owner || world.building_owner_at(cell)!=owner)) return false;
     }
     for(const auto cell:shape.footprint) {
         if(!world.in_bounds(cell)) return false;
+        if(historical) continue; // A retired installation retains source facts, never current cell claims.
         if(owner) {
             if(world.building_owner_at(cell)!=owner || world.object_at(cell)!=Object::OriginalIrrigationPump) return false;
         } else if(world.object_at(cell)!=Object::Empty || world.building_owner_at(cell)) return false;
@@ -80,7 +81,7 @@ bool ditch_context(const World& world,Cell cell) {
     return !(raw&0x800U) && original::ditch_terrain_allowed(raw,0,0);
 }
 bool pump_enabled_context(const World& world,const IrrigationPump& row,const BuildingState& b) {
-    return b.placed && b.kind==Object::OriginalIrrigationPump && b.operating_enabled && !world.building_on_fire(b.id) &&
+    return b.placed && b.kind==Object::OriginalIrrigationPump && b.operating_enabled && !world.agriculture_draining(b.id) && !world.building_on_fire(b.id) &&
         pump_context(world,original::pump_geometry(b.cell,row.orientation),b.id);
 }
 template<class Snapshot>
@@ -119,8 +120,10 @@ void validate_retained_irrigation(const Snapshot& s) {
         const auto& row=state.pumps[i];
         const auto b=std::lower_bound(s.buildings.begin(),s.buildings.end(),row.building_id,
             [](const auto& body,BuildingId id){return body.id<id;});
+        const auto* retired=simulation::agriculture_reconfiguration_enabled(s.profile,s.rule_version)&&s.agriculture_reconfiguration ?
+            agriculture_reconfiguration_entry(&*s.agriculture_reconfiguration,row.building_id):nullptr;
         if((i && !(state.pumps[i-1].building_id<row.building_id)) || row.orientation>3 ||
-            b==s.buildings.end() || b->id!=row.building_id || !b->placed || b->kind!=Object::OriginalIrrigationPump ||
+            b==s.buildings.end() || b->id!=row.building_id || (retired&&row.eligible_since_tick) || (!b->placed&&(!retired||!retired->removed_tick)) || b->kind!=Object::OriginalIrrigationPump ||
             b->placed_tick>s.ticks || (row.eligible_since_tick &&
                 (*row.eligible_since_tick<=b->placed_tick || *row.eligible_since_tick==0 ||
                  (*row.eligible_since_tick>s.ticks && (s.ticks==UINT64_MAX || *row.eligible_since_tick!=s.ticks+1)))))
@@ -544,7 +547,7 @@ void World::validate_irrigation_state() const {
     if(!irrigation_crossings_valid()) invalid("Restored ditch has an unsupported road crossing");
     for(const auto& row:irrigation_->pumps) {
         const auto& b=building(row.building_id);
-        if(!pump_context(*this,original::pump_geometry(b.cell,row.orientation),b.id) ||
+        if(!pump_context(*this,original::pump_geometry(b.cell,row.orientation),b.id,agriculture_retired(b.id)) ||
             irrigation_pump_eligible(b.id)!=row.eligible_since_tick.has_value())
             invalid("Restored Pump intake or current supply epoch contradicts World eligibility");
     }

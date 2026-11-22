@@ -338,6 +338,20 @@ bool World::original_finance_history_valid() const {
             maintenance=add(maintenance,multiply((ticks_-b.placed_tick)/original_worker_upkeep_interval(),
                 static_cast<std::uint64_t>(original_worker_upkeep(b.id))));
         }
+        if (agriculture_reconfiguration_enabled()) {
+            if (!agriculture_reconfiguration_) return false;
+            for (const auto& entry:agriculture_reconfiguration_->entries) if(entry.removed_tick) {
+                const auto& body=building(entry.building_id);
+                if(body.placed || body.placed_tick>*entry.removed_tick || *entry.removed_tick>ticks_) return false;
+                if(body.kind!=Object::OriginalIrrigationPump) continue;
+                // Retirement releases current staffing, not already incurred
+                // installed invoices. Bind the closed rate to the same paid model.
+                const auto workers=original_rules_model_->building_value(original::ModelBuilding::IrrigationPump,original::BuildingField::Employees);
+                if(workers<=0 || workers>INT16_MAX) return false;
+                const auto rate=multiply(static_cast<std::uint64_t>(workers),static_cast<std::uint64_t>(original_worker_upkeep_funds));
+                maintenance=add(maintenance,multiply((*entry.removed_tick-body.placed_tick)/original_worker_upkeep_interval(),rate));
+            }
+        }
         if (original_safe_demolition_enabled()) {
             if (!original_production_->safe_demolition) return false;
             for (const auto& entry:original_production_->safe_demolition->retired) {
@@ -500,6 +514,9 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
     if (state.trips.size()>2 || state.arrivals.size()>original_fire_arrival_limit || state.taxes.size()>original_fire_tax_limit)
         invalid("Rule11 fire journal collection bound exceeded");
     if (state.travelled_cells!=fire_path_cells(state)) invalid("Rule11 travelled path counter does not reconcile");
+    const bool reconfiguration=simulation::agriculture_reconfiguration_enabled(s.profile,s.rule_version);
+    if(reconfiguration && !s.agriculture_reconfiguration) invalid("Rule36 fire validation requires its exact drain/removal journal");
+    const auto* retirement=reconfiguration ? &*s.agriculture_reconfiguration:nullptr;
     const bool safe=simulation::original_safe_demolition_enabled(s.profile,s.rule_version);
     if (safe) {
         if (!s.original_production->safe_demolition) invalid("Rule19 fire validation requires its retirement journal");
@@ -528,6 +545,8 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
             invalid("Rule11 arrivals must follow actual movement order and bounded deadlines");
         const auto& target=by_id(s.buildings,event.trip.target);
         if (event.tick<=target.placed_tick) invalid("Rule11 arrival precedes its paid target");
+        if(event.tick>agriculture_retirement_tick(retirement,target.id,s.ticks))
+            invalid("Inspector arrival postdates its paid target's closed lifetime");
         auto& timeline=timelines[static_cast<std::size_t>(&target-s.buildings.data())];
         auto before=timeline.back();advance_fire(before,target.placed_tick,event.tick-1);
         if (event.extinguished!=(before.incident>event.tick))
@@ -535,6 +554,8 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
         timeline.push_back({0,event.tick+Rules::fire_protection_ticks,event.tick,event.tick});
     }
     const auto replay=[&](const BuildingSnapshot& body,std::uint64_t through) {
+        if(reconfiguration && through>agriculture_retirement_tick(retirement,body.id,s.ticks))
+            invalid("Fire replay cannot grant work after a paid target's retirement");
         const auto& timeline=timelines[static_cast<std::size_t>(&body-s.buildings.data())];
         const auto after=std::upper_bound(timeline.begin(),timeline.end(),through,
             [](std::uint64_t tick,const ReplayedFire& fire){return tick<fire.cursor;});
@@ -553,6 +574,14 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
         if (!actor || (!safe && actor>s.couriers.size()) || actor>=previous.size()) invalid("Rule11 fire trip has unknown actor");
         const auto& courier=safe ? actor_by_id(trip.courier_id):s.couriers[actor-1];
         const auto& owner=by_id(s.buildings,trip.owner);const auto& target=by_id(s.buildings,trip.target);
+        if(reconfiguration && target.kind==Object::OriginalIrrigationPump){
+            const auto* drain=agriculture_reconfiguration_entry(retirement,target.id);
+            if(drain && trip.dispatched_tick>drain->started_tick)
+                invalid("Inspector dispatched after its paid Pump began draining");
+        }
+        if(reconfiguration && (!target.placed || !owner.placed) &&
+           (!complete || !owner.placed || target.kind!=Object::OriginalIrrigationPump || through>agriculture_retirement_tick(retirement,target.id,s.ticks)))
+            invalid("Retired Pump permits only completed Inspector arrivals within its paid lifetime");
         if (courier.id!=trip.courier_id || courier.role!=CourierRole::FireInspector || courier.owner!=trip.owner ||
             owner.kind!=Object::FireWatch || trip.owner==trip.target || !fire_eligible(target.kind,s.profile,s.rule_version) ||
             !trip.dispatched_tick || trip.dispatched_tick<=owner.placed_tick || trip.dispatched_tick<=target.placed_tick ||
@@ -741,7 +770,11 @@ void World::validate_original_fire_protection_snapshot(const WorldSnapshot& s) {
         }
     }
     for (const auto& body:s.buildings) if (fire_eligible(body.kind,s.profile,s.rule_version)) {
-        const auto fire=replay(body,s.ticks);
+        const auto through=agriculture_retirement_tick(retirement,body.id,s.ticks);
+        if(through<body.placed_tick || through>s.ticks) invalid("Closed fire clock has an impossible paid lifetime");
+        const auto fire=replay(body,through);
+        if(reconfiguration && !body.placed && fire.incident>through)
+            invalid("Pump was retired during its actual natural fire");
         if (body.fire_risk!=fire.risk || body.fire_until_tick!=fire.incident || body.fire_protection_until_tick!=fire.protection)
             invalid("Rule11 fire state differs from paid-body natural clocks and actual arrivals");
     }

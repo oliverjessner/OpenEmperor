@@ -23,11 +23,15 @@ bool fire_eligible(Object kind,RulesProfile profile,std::uint32_t rule_version) 
 }
 
 bool World::building_on_fire(BuildingId id) const {
-    return fire_profile(profile_) && building(id).fire_until_tick>ticks_;
+    if(!fire_profile(profile_)) return false;
+    const auto& body=building(id);
+    return (!agriculture_reconfiguration_enabled() || body.placed) && body.fire_until_tick>ticks_;
 }
 
 bool World::building_fire_protected(BuildingId id) const {
-    return fire_profile(profile_) && building(id).fire_protection_until_tick>ticks_;
+    if(!fire_profile(profile_)) return false;
+    const auto& body=building(id);
+    return (!agriculture_reconfiguration_enabled() || body.placed) && body.fire_protection_until_tick>ticks_;
 }
 
 std::uint64_t World::fire_protection_remaining(BuildingId id) const {
@@ -77,16 +81,21 @@ bool World::fire_state_valid() const {
             if (b.fire_risk || b.fire_protection_until_tick || b.fire_until_tick) return false;
             continue;
         }
-        if (b.fire_risk<0 || b.fire_risk>=Rules::fire_risk_threshold || b.placed_tick>ticks_)
+        const auto through=agriculture_reconfiguration_enabled() ? agriculture_retirement_tick(agriculture_reconfiguration_ ? &*agriculture_reconfiguration_:nullptr,b.id,ticks_):ticks_;
+        if (b.fire_risk<0 || b.fire_risk>=Rules::fire_risk_threshold || b.placed_tick>through || through>ticks_)
             return false;
+        if(agriculture_reconfiguration_enabled() && !b.placed){
+            const auto* entry=agriculture_reconfiguration_entry(agriculture_reconfiguration_ ? &*agriculture_reconfiguration_:nullptr,b.id);
+            if(!entry || !entry->removed_tick || b.kind!=Object::OriginalIrrigationPump || b.fire_until_tick>through) return false;
+        }
         // Expired deadlines remain historical values. Subtraction is performed
         // only for future deadlines, avoiding overflow near the integer limit.
-        if ((b.fire_protection_until_tick>ticks_ &&
-             b.fire_protection_until_tick-ticks_>Rules::fire_protection_ticks) ||
-            (b.fire_until_tick>ticks_ && b.fire_until_tick-ticks_>Rules::fire_incident_ticks))
+        if ((b.fire_protection_until_tick>through &&
+             b.fire_protection_until_tick-through>Rules::fire_protection_ticks) ||
+            (b.fire_until_tick>through && b.fire_until_tick-through>Rules::fire_incident_ticks))
             return false;
-        if (building_on_fire(b.id) && (b.fire_risk || b.fire_protection_until_tick)) return false;
-        if (building_fire_protected(b.id) && b.fire_risk) return false;
+        if (b.fire_until_tick>through && (b.fire_risk || b.fire_protection_until_tick)) return false;
+        if (b.fire_protection_until_tick>through && b.fire_risk) return false;
     }
     for (const auto& c:couriers_) if (c.role==CourierRole::FireInspector) {
         if (!fire_profile(profile_) || c.good!=Good::Goods || c.cargo || c.reserved ||
@@ -95,11 +104,13 @@ bool World::fire_state_valid() const {
                 Rules::original_production_building_limit:health_profile(profile_) ?
                 Rules::city_v12_building_limit:Rules::city_v11_building_limit)) return false;
         if (c.phase!=CourierPhase::IdleAtWorkshop &&
-            !courier_can_target(c.role,building(c.target),profile_,rule_version_)) return false;
+            (!courier_can_target(c.role,building(c.target),profile_,rule_version_) ||
+             (agriculture_reconfiguration_enabled() && !building(c.target).placed))) return false;
         if (c.last_dispatched_target && !courier_can_target(c.role,building(*c.last_dispatched_target),profile_,rule_version_))
             return false;
         for (const auto& route:c.dynamic_target_routes)
-            if (!courier_can_target(c.role,building(route.first),profile_,rule_version_)) return false;
+            if (!courier_can_target(c.role,building(route.first),profile_,rule_version_) ||
+                (agriculture_reconfiguration_enabled() && !building(route.first).placed)) return false;
     }
     return true;
 }

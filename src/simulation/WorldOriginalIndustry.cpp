@@ -143,15 +143,15 @@ void validate_retired_clay(const OriginalSafeDemolitionState& history,const Buil
             invalid("retired Clay sequence, extraction or physical return history differs");
     }
 }
-template<class Building> void bounded_body(const Building& b,int width,int height) {
+template<class Building> void bounded_body(const Building& b,int width,int height,bool retired=false) {
     const auto size=building_footprint(RulesProfile::CityV16,kOriginalProductionRuleVersion,b.kind);
-    if (!b.placed || b.cell.x<0 || b.cell.y<0 || std::int64_t(b.cell.x)+size.width>width ||
+    if ((!b.placed&&!retired) || b.cell.x<0 || b.cell.y<0 || std::int64_t(b.cell.x)+size.width>width ||
         std::int64_t(b.cell.y)+size.height>height) invalid("industry footprint exceeds map bounds");
 }
 template<class Buildings,class Couriers>
 void validate_industry(const OriginalIndustryState& state,const Buildings& buildings,const Couriers& couriers,
     const OriginalGoodsState& goods,const OriginalServicesState& services,int width,int height,std::uint64_t tick,
-    bool plantations=false) {
+    bool plantations=false,const AgricultureReconfigurationState* reconfiguration=nullptr) {
     if (state.sources.size()>original_industry_source_limit || state.managed_ore.size()>original_managed_ore_limit ||
         state.auxiliary.size()>original_aux_owner_limit || state.aux_trips.size()>original_aux_courier_limit ||
         state.clay_trips.size()>original_clay_trip_limit) invalid("industry finite authority exceeded");
@@ -159,7 +159,12 @@ void validate_industry(const OriginalIndustryState& state,const Buildings& build
     for (const auto& b:buildings) {
         sources+=original_industry_source(b.kind);plants+=original_industry_plant(b.kind);
         owners+=auxiliary_owner(b.kind);smelters+=b.kind==Object::OriginalBronzeSmelter39;
-        if (original_industry_source(b.kind) || original_industry_plant(b.kind)) bounded_body(b,width,height);
+        if (original_industry_source(b.kind) || original_industry_plant(b.kind)) {
+            const auto* entry=agriculture_reconfiguration_entry(reconfiguration,b.id);
+            const bool retired=entry&&entry->removed_tick&&!b.placed&&original_industry_plant(b.kind);
+            if(retired&&(*entry->removed_tick>tick||*entry->removed_tick<b.placed_tick))invalid("Retired industry plant has impossible paid chronology");
+            bounded_body(b,width,height,retired);
+        }
     }
     for (const auto& c:couriers) actors+=c.role==CourierRole::OriginalAuxToWarehouse || c.role==CourierRole::OriginalAuxSupplier;
     if (sources!=state.sources.size() || owners!=state.auxiliary.size() || smelters!=state.managed_ore.size() ||
@@ -446,14 +451,14 @@ CommandResult World::validate_original_industry_command(Command command) const {
 void World::validate_original_industry_snapshot(const WorldSnapshot& s) {
     if (!s.original_production || !s.original_goods) invalid("industry requires active sole production/goods authority");
     validate_industry(s.original_production->industry,s.buildings,s.couriers,*s.original_goods,s.original_production->services,s.width,s.height,s.ticks,
-        simulation::original_plantations_enabled(s.profile,s.rule_version));
+        simulation::original_plantations_enabled(s.profile,s.rule_version),simulation::agriculture_reconfiguration_enabled(s.profile,s.rule_version)&&s.agriculture_reconfiguration?&*s.agriculture_reconfiguration:nullptr);
     if (simulation::original_safe_demolition_enabled(s.profile,s.rule_version)) {
         if (!s.original_production->safe_demolition) invalid("Rule19 industry requires its retired purchase journal");
         validate_retired_clay(*s.original_production->safe_demolition,s.buildings,s.couriers,s.ticks);
     }
 }
 void World::validate_original_industry_state() const {
-    validate_industry(original_production_->industry,buildings_,couriers_,*original_goods_,original_production_->services,width_,height_,ticks_,original_plantations_enabled());
+    validate_industry(original_production_->industry,buildings_,couriers_,*original_goods_,original_production_->services,width_,height_,ticks_,original_plantations_enabled(),agriculture_reconfiguration_enabled()?&*agriculture_reconfiguration_:nullptr);
     if (original_safe_demolition_enabled()) {
         if (!original_production_->safe_demolition) invalid("Rule19 industry requires its retired purchase journal");
         validate_retired_clay(*original_production_->safe_demolition,buildings_,couriers_,ticks_);

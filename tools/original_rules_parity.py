@@ -116,9 +116,11 @@ HOUSING_SIMULATION_DEPENDENCIES = ("original-rules-model", "original-desirabilit
 # AGRI-MAC10 appends explicit Rule35 Warehouse owner provenance and APIs.
 # The same Food authority and historical numeric observations remain exact;
 # these reviewed ABI pins establish no Original Warehouse storage parity.
+# AGRI-MAC11 appends explicit Rule36 paid-leaf closure provenance.
+# Closed histories remain evidence, never inventory or a new Original parity claim.
 REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalCultureState.h": "c577ef5b6111833508a718b967be649597dce55e",
-    "World.h": "1b5805a6572519a84789a849b773f83e7d917fa2",
+    "World.h": "e7161cf6364252528af6733b02248c0d37198ed2",
     "GrowerNavigationState.h": "b08f36ade9f77e064936bbe247070d4ed52302ec",
     "GrowerLifecycleState.h": "ebd1494add1e99f72948a36df5d5eea5c45a4401",
     "GrowerSourceFacts.h": "c4bbdd4ab08d1eb41bfeb87fc20c576cf8df01d1",
@@ -129,6 +131,7 @@ REVIEWED_HOUSING_WORLD_API_GIT_BLOBS = {
     "OriginalTerrainFacts.h": "b22d4fb214405dee9ce98cdfacc26d0092b5df6f",
     "MultiFieldAgricultureState.h": "8f0e0b59aa1196ceaaabaa74afbd5d8843c7b1bc",
     "FoodProcessingState.h": "d056d675dcfa6aca3e7ba67303f5c1edf4318f17",
+    "AgricultureReconfigurationState.h": "e05076575fa5c62fa3be3a4ca22e156c613bdaff",
     "FoodWarehousesState.h": "d4bf79e8230261a6aa6e51d71a50b4358df8400f",
     "IrrigationProductivityState.h": "02087bce419492bdfabf5c0414f23a2194f185de",
     "SeasonalAgricultureState.h": "f2c216c9b9303d9ed0d4b0cffbd43fdee3beadcb",
@@ -553,7 +556,9 @@ def current_source_hashes() -> dict[str,str]:
         "World.cpp", "WorldGrowerNavigation.cpp", "WorldGrowerLifecycle.cpp", "WorldOriginalProduction.cpp", "WorldIrrigation.cpp",
         "WorldOriginalFood.cpp", "WorldPhysicalFoodGrowers.cpp", "WorldSeasonalAgriculture.cpp",
         "WorldSeasonalHemp.cpp", "SeasonalAgricultureRules.cpp", "WorldPlantations.cpp",
-        "WorldOriginalHemp.cpp", "WorldIrrigationProductivity.cpp", "WorldFoodProcessing.cpp")]
+        "WorldOriginalHemp.cpp", "WorldIrrigationProductivity.cpp", "WorldFoodProcessing.cpp",
+        "WorldFoodWarehouses.cpp", "WorldAgricultureReconfiguration.cpp", "WorldOriginalIndustry.cpp",
+        "WorldOriginalFinance.cpp", "WorldFire.cpp", "WorldOriginalDemolition.cpp")]
     sources.append(ROOT / "src/persistence/OriginalGrowerContext.cpp")
     sources += [ROOT / "src/simulation" / name for name in REVIEWED_HOUSING_WORLD_API_GIT_BLOBS]
     return {str(path.relative_to(ROOT)):sha256(path) for path in sorted(sources)}

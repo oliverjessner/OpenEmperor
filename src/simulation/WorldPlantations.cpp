@@ -50,7 +50,7 @@ const std::optional<std::vector<Cell>>* plantation_cached_route(const CourierSta
 
 template<class Buildings,class Couriers>
 void validate_plantations(const PlantationsState& state,const Buildings& buildings,const Couriers& couriers,
-    const OriginalIndustryState& industry,std::uint64_t tick,const SeasonalAgricultureState* seasonal=nullptr) {
+    const OriginalIndustryState& industry,std::uint64_t tick,const SeasonalAgricultureState* seasonal=nullptr,const AgricultureReconfigurationState* reconfiguration=nullptr) {
     if(!state.next_grower_id || state.plants.size()>plantation_plant_limit || state.sources.size()>plantation_source_limit ||
         std::count_if(buildings.begin(),buildings.end(),[](const auto& b){return source_kind(b.kind);})!=static_cast<std::ptrdiff_t>(state.sources.size()) ||
         std::count_if(buildings.begin(),buildings.end(),[](const auto& b){return original_industry_plant(b.kind);})!=static_cast<std::ptrdiff_t>(state.plants.size()) ||
@@ -85,6 +85,8 @@ void validate_plantations(const PlantationsState& state,const Buildings& buildin
         }
         const auto& trip=*row.latest_trip;if(!seasonal && trip.ready_tick)invalid("Historical plantation trip has seasonal authority");const auto id=static_cast<std::uint64_t>(trip.grower_id);
         const auto& p=plant_row(state.plants,trip.plant_id);const auto& plant=body(buildings,p.plant_id);
+        const auto through=agriculture_retirement_tick(reconfiguration,p.plant_id,tick);
+        if(!plant.placed&&(!trip.returned_tick||*trip.returned_tick>through))invalid("Retired plant owns a live or later worker assignment");
         if(!row.spawned || !id || id>=state.next_grower_id || id<row.spawned || p.source_id!=source.id ||
             c.target!=plant.id || c.last_dispatched_target!=plant.id || trip.dispatched_tick<=plant.placed_tick ||
             trip.dispatched_tick<=source.placed_tick || trip.dispatched_tick>tick || trip.delivered>1 ||
@@ -125,9 +127,12 @@ void validate_plantations(const PlantationsState& state,const Buildings& buildin
     for(std::size_t i=0;i<state.plants.size();++i) {
         const auto& p=state.plants[i];const auto& plant=body(buildings,p.plant_id);const auto& source=body(buildings,p.source_id);
         const auto& worker=account(state.sources,source.id);
+        const auto through=agriculture_retirement_tick(reconfiguration,p.plant_id,tick);
+        const auto* retired=agriculture_reconfiguration_entry(reconfiguration,p.plant_id);
+        if(through>tick||through<plant.placed_tick||(!plant.placed&&(!retired||!retired->removed_tick||p.growth||p.harvested!=p.returned)))invalid("Retired plant lacks terminal closed history");
         if((i && !(state.plants[i-1].plant_id<p.plant_id)) || plant.kind!=plant_kind(source.kind) || plant.kind==Object::Empty ||
-            !plant.placed || !(source.id<plant.id) || plant.placed_tick<source.placed_tick || plant.placed_tick>tick ||
-            !work_area(source.cell,plant.cell) || p.growth>plantation_growth_ticks || p.productive_ticks>tick-plant.placed_tick ||
+            (!plant.placed&&!reconfiguration) || !(source.id<plant.id) || plant.placed_tick<source.placed_tick || plant.placed_tick>tick ||
+            !work_area(source.cell,plant.cell) || p.growth>plantation_growth_ticks || p.productive_ticks>through-plant.placed_tick ||
             (!seasonal && p.grown!=p.productive_ticks/plantation_growth_ticks) || p.harvested>p.grown || p.returned>p.harvested ||
             (!seasonal && p.grown-p.harvested!=static_cast<std::uint64_t>(p.growth==plantation_growth_ticks)) ||
             (!seasonal && (p.growth==plantation_growth_ticks ? p.productive_ticks%plantation_growth_ticks!=0:
@@ -144,7 +149,7 @@ void validate_plantations(const PlantationsState& state,const Buildings& buildin
             const auto minimum=static_cast<std::uint64_t>(dx+dy)*5;
             if(!id || id<p.returned || id>=state.next_grower_id || !worker.latest_trip || w.courier_id!=worker.courier_id ||
                 w.dispatched_tick<=plant.placed_tick || w.picked_tick<=w.dispatched_tick ||
-                w.returned_tick<=w.picked_tick || w.returned_tick>tick ||
+                w.returned_tick<=w.picked_tick || w.returned_tick>through ||
                 !minimum || w.picked_tick-w.dispatched_tick+1<minimum || w.returned_tick-w.picked_tick<minimum ||
                 static_cast<std::uint64_t>(worker.latest_trip->grower_id)<id)
                 invalid("plantation receipt lost its actual worker lifetime or chronology");
@@ -203,10 +208,10 @@ void World::validate_original_plantations_snapshot(const WorldSnapshot& s) {
         return;
     }
     if(!s.plantations || !s.original_production) invalid("plantation generation lacks explicit plant/worker authority");
-    validate_plantations(*s.plantations,s.buildings,s.couriers,s.original_production->industry,s.ticks,s.seasonal_agriculture?&*s.seasonal_agriculture:nullptr);
+    validate_plantations(*s.plantations,s.buildings,s.couriers,s.original_production->industry,s.ticks,s.seasonal_agriculture?&*s.seasonal_agriculture:nullptr,simulation::agriculture_reconfiguration_enabled(s.profile,s.rule_version)&&s.agriculture_reconfiguration?&*s.agriculture_reconfiguration:nullptr);
 }
 void World::validate_plantations_state() const {
-    if(original_plantations_enabled()) validate_plantations(*plantations_,buildings_,couriers_,original_production_->industry,ticks_,seasonal_agriculture_?&*seasonal_agriculture_:nullptr);
+    if(original_plantations_enabled()) validate_plantations(*plantations_,buildings_,couriers_,original_production_->industry,ticks_,seasonal_agriculture_?&*seasonal_agriculture_:nullptr,agriculture_reconfiguration_enabled()?&*agriculture_reconfiguration_:nullptr);
 }
 std::optional<BuildingId> World::plantation_source_for_plant(Object kind,Cell cell,std::optional<BuildingId> preferred) const {
     if(!original_plantations_enabled() || !original_industry_plant(kind) || !in_bounds(cell) || plantations_->plants.size()>=plantation_plant_limit)
@@ -266,7 +271,8 @@ void World::update_plantations() {
             if(!seasonal_growing(model,ticks_))continue;
         }
         const auto& source=building(p.source_id);
-        if(p.growth==plantation_growth_ticks || !source.operating_enabled || building_on_fire(source.id) ||
+        if(!source.placed || !building(p.plant_id).placed || (agriculture_draining(p.plant_id)&&p.growth==0) ||
+            p.growth==plantation_growth_ticks || !source.operating_enabled || building_on_fire(source.id) ||
             !building(p.plant_id).operating_enabled || !building_staffed_for_tick(source.id) || building_entrances(source.id).empty()) continue;
         const auto increment=irrigation_growth_increment(p.plant_id,plantation_growth_ticks-p.growth);
         add(p.productive_ticks,1);p.growth+=increment;
@@ -292,7 +298,7 @@ CourierDispatchDecision World::plantation_dispatch_status(const CourierState& c)
     bool ready=false;
     // Complete canonical plant cursor, so regrowth cannot starve later plants.
     for(int pass=0;pass<2;++pass) for(const auto& p:plantations_->plants) {
-        if(p.source_id!=source.id || p.growth!=plantation_growth_ticks || !building(p.plant_id).operating_enabled ||
+        if(p.source_id!=source.id || !building(p.plant_id).placed || p.growth!=plantation_growth_ticks || !building(p.plant_id).operating_enabled ||
             (c.last_dispatched_target && (pass==0 ? p.plant_id<=*c.last_dispatched_target:p.plant_id>*c.last_dispatched_target)) ||
             (!c.last_dispatched_target && pass==1)) continue;
         ready=true;const auto* path=plantation_cached_route(c,p.plant_id);

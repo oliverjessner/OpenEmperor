@@ -205,8 +205,8 @@ template<class Buildings,class Bridges> std::uint64_t spending(const Buildings& 
     }
     return result;
 }
-template<class Building> void validate_neutral_fields(const Building& b,bool multi_field) {
-    BuildingSnapshot expected{b.id,b.kind,b.cell,true};expected.placed_tick=b.placed_tick;
+template<class Building> void validate_neutral_fields(const Building& b,bool multi_field,bool closed) {
+    BuildingSnapshot expected{b.id,b.kind,b.cell,!closed};expected.placed_tick=b.placed_tick;
     const bool field=b.kind==Object::OriginalHempField || b.kind==Object::OriginalWheatField || b.kind==Object::OriginalMilletField || b.kind==Object::OriginalRiceField || b.kind==Object::OriginalCabbageField || b.kind==Object::OriginalSoybeanField;
     if (b.kind!=Object::OriginalInfluenceSource && !field) {
         expected.fire_risk=b.fire_risk;expected.fire_protection_until_tick=b.fire_protection_until_tick;
@@ -537,6 +537,7 @@ World World::restore_original_production_development(const WorldSnapshot& snapsh
 }
 
 void World::validate_original_production_snapshot(const WorldSnapshot& s) {
+    validate_agriculture_reconfiguration_snapshot(s);
     validate_original_plantations_snapshot(s);
     validate_original_music_venues_snapshot(s);
     validate_original_agriculture_snapshot(s);
@@ -618,7 +619,7 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
             invalid("original production buildings must be sorted with valid placement time");
         if (b.kind==Object::FireWatch && !simulation::original_fire_protection_enabled(s.profile,s.rule_version))
             invalid("Rule10 does not admit FireWatch");
-        (void)paid_cost(b.kind);validate_neutral_fields(b,simulation::multi_field_agriculture_enabled(s.profile,s.rule_version));
+        (void)paid_cost(b.kind);validate_neutral_fields(b,simulation::multi_field_agriculture_enabled(s.profile,s.rule_version),simulation::agriculture_reconfiguration_enabled(s.profile,s.rule_version) && !b.placed);
         const auto footprint=building_footprint(s.profile,s.rule_version,b.kind);
         // Check by subtraction before any helper adds footprint offsets to an
         // untrusted origin. In particular, INT_MAX must never reach cell+1.
@@ -751,7 +752,8 @@ void World::validate_original_production_snapshot(const WorldSnapshot& s) {
         !original_finance_accounting_valid(s.treasury,s.taxes_collected_total,s.construction_spent_total,s.maintenance_spent_total) ||
         s.roads_removed_total>s.roads_placed_total || s.roads_placed_total-s.roads_removed_total!=s.roads.size() ||
         s.road_revision!=s.roads_placed_total+s.roads_removed_total+s.buildings.size()+2*removed.size()+2*retired_count+s.bridges.size()+s.ramps.size()+materialized+
-            (s.irrigation ? s.irrigation->ditches_placed_total+s.irrigation->ditches_removed_total:0))
+            (s.irrigation ? s.irrigation->ditches_placed_total+s.irrigation->ditches_removed_total:0)+
+            (s.agriculture_reconfiguration ? static_cast<std::uint64_t>(std::count_if(s.agriculture_reconfiguration->entries.begin(),s.agriculture_reconfiguration->entries.end(),[](const auto& e){return e.removed_tick.has_value();})):0))
         invalid("original production finances or placement revision mismatch");
     validate_original_hemp_snapshot(s);
     validate_original_food_snapshot(s);
@@ -977,6 +979,7 @@ void World::tick_original_production() {
     if (dispatch.evolution) evaluate_original_houses();
     if (dispatch.consumption) {consume_original_house_goods();consume_original_food();}
     if (irrigation_enabled()) refresh_irrigation();
+    validate_agriculture_reconfiguration_state();
     validate_original_food_state();validate_food_processing_state();validate_food_warehouses_state();validate_original_industry_state();
     validate_irrigation_productivity_state();validate_plantations_state();validate_physical_food_growers_state();validate_seasonal_agriculture_state();
     validate_original_services_state();validate_original_water_state();validate_original_housing_state();validate_original_music_venues_state();validate_original_venue_house_service_state();

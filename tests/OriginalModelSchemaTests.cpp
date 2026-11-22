@@ -375,9 +375,9 @@ void functional_mapping_checks() {
           quay.mechanics_identity==Status::AuthoredFallback && quay.presentation_identity==Status::Unknown,
           "Explicit Quay mapping lost its identity or claimed unproved Original runtime graphics");
     for(const auto& [object,model]:std::array{std::pair{Object::OriginalMill53,ModelBuilding::Mill},std::pair{Object::OriginalFoodShop66,ModelBuilding::FoodShop}}) {
-        for(const auto version:{0U,18U,24U,25U,27U,28U,29U,30U,31U,32U,33U,36U})
+        for(const auto version:{0U,18U,24U,25U,27U,28U,29U,30U,31U,32U,33U,37U})
             check(!original::functional_model_candidate(object,version).candidate,"Historical or future mode gained a processing model mapping");
-        for (const auto version:{34U,35U}) {
+        for (const auto version:{34U,35U,36U}) {
             const auto candidate=original::functional_model_candidate(object,version);
             check(candidate.candidate==model&&candidate.functional==Status::AuthoredFallback&&candidate.mechanics_identity==Status::AuthoredFallback&&candidate.presentation_identity==Status::Unknown,
                   "Explicit processing mapping lost its identity or claimed unproved runtime/artwork");
@@ -386,11 +386,11 @@ void functional_mapping_checks() {
     for (const auto object:{Object::OriginalRiceField,Object::OriginalCabbageField,Object::OriginalSoybeanField,
                            Object::OriginalHuntersTent,Object::OriginalFishingQuay,Object::OriginalIrrigationPump}) {
         const auto previous=original::functional_model_candidate(object,34);
-        const auto successor=original::functional_model_candidate(object,35);
+        const auto successor=original::functional_model_candidate(object,36);
         check(previous.candidate&&successor.candidate==previous.candidate&&successor.functional==previous.functional&&
             successor.mechanics_identity==previous.mechanics_identity&&successor.presentation_identity==previous.presentation_identity,
             "Food Warehouse successor lost or overstated an inherited source model mapping");
-        check(!original::functional_model_candidate(object,36).candidate,"Future rule gained an inherited Food Warehouse mapping");
+        check(!original::functional_model_candidate(object,37).candidate,"Future rule gained an inherited Food Warehouse mapping");
     }
     constexpr auto first_invalid = static_cast<Object>(static_cast<unsigned>(Object::OriginalFoodShop66) + 1U);
     for (const auto bad : {first_invalid, static_cast<Object>(255)})

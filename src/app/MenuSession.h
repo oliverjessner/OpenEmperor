@@ -58,7 +58,9 @@ public:
         original_rule_version_==simulation::kSeasonalAgricultureRuleVersion ||
         original_rule_version_==simulation::kIrrigationProductivityRuleVersion ||
         original_rule_version_==simulation::kFoodProcessingRuleVersion ||
-        original_rule_version_==simulation::kFoodWarehousesRuleVersion; }
+        original_rule_version_==simulation::kFoodWarehousesRuleVersion ||
+        original_rule_version_==simulation::kAgricultureReconfigurationRuleVersion; }
+    bool agriculture_reconfiguration_setup() const { return original_rule_version_==simulation::kAgricultureReconfigurationRuleVersion; }
     bool food_warehouses_setup() const { return original_rule_version_==simulation::kFoodWarehousesRuleVersion; }
     bool food_processing_setup() const { return original_rule_version_==simulation::kFoodProcessingRuleVersion; }
     bool irrigation_productivity_setup() const { return original_rule_version_==simulation::kIrrigationProductivityRuleVersion; }

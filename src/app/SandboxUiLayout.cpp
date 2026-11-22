@@ -85,7 +85,7 @@ std::optional<std::size_t> InspectorLayout::list_row_at(double x,double y) const
 
 InspectorLayout make_inspector_layout(Rect panel,int scale,std::size_t buildings,
     std::size_t details,std::size_t hint_rows,bool status_first,bool operations,
-    bool demolition,int scroll,int hint_scroll) {
+    bool demolition,int scroll,int hint_scroll,bool compact_reconfiguration) {
     InspectorLayout out;
     // Actual UI scales are small; this also keeps every fixed offset bounded.
     out.scale=std::clamp(scale,1,std::numeric_limits<int>::max()/1024);
@@ -102,7 +102,7 @@ InspectorLayout make_inspector_layout(Rect panel,int scale,std::size_t buildings
     // hints may use at most four rows / one quarter of the panel; the remainder
     // is a separate bounded scroll document instead of displacing all details.
     const int hint_budget=std::min(68*unit,panel.h/4);
-    const int hint_height=demolition ? std::min(hint_budget,
+    const int hint_height=demolition ? std::min(compact_reconfiguration ? 34*unit:hint_budget,
         std::max(34*unit,row_height(hint_rows,17*unit))):0;
     const int extra=std::max(0,hint_height-34*unit);
     int content_bottom=bottom-8*unit;
@@ -119,6 +119,24 @@ InspectorLayout make_inspector_layout(Rect panel,int scale,std::size_t buildings
         for (int i=0;i<3;++i) out.operation_priorities[static_cast<std::size_t>(i)]=
             contained_rect({text_x+i*(width+gap),bottom-(demolition ? 124:48)*unit-extra,
                 width,28*unit},fixed_bounds);
+    }
+    if (demolition && compact_reconfiguration) {
+        // Rule36 shares the existing action path, with two control rows so the
+        // inherited 900x600 agriculture viewport keeps three complete details.
+        const int gap=4*unit,half=std::max(0,(text_width-gap)/2);
+        out.hints=contained_rect({text_x,bottom-38*unit,text_width,hint_height},fixed_bounds);
+        out.hint_y=out.hints.y;
+        if (operations) {
+            out.operation_toggle=contained_rect({text_x,bottom-105*unit,half,28*unit},fixed_bounds);
+            out.demolition=contained_rect({text_x+half+gap,bottom-105*unit,text_width-half-gap,28*unit},fixed_bounds);
+            const int priority_width=std::max(0,(text_width-2*gap)/3);
+            for (int i=0;i<3;++i) out.operation_priorities[static_cast<std::size_t>(i)]=
+                contained_rect({text_x+i*(priority_width+gap),bottom-71*unit,priority_width,28*unit},fixed_bounds);
+            content_bottom=bottom-111*unit;
+        } else {
+            out.demolition=contained_rect({text_x,bottom-71*unit,text_width,28*unit},fixed_bounds);
+            content_bottom=bottom-77*unit;
+        }
     }
     const int content_top=std::min(bottom,bounded_int(std::int64_t{panel.y}+40*unit));
     out.content={text_x,content_top,text_width,std::max(0,content_bottom-content_top)};

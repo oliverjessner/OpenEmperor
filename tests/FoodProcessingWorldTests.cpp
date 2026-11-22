@@ -20,7 +20,7 @@ void separately_prepared_model_capability(){
 }
 void explicit_paid_identity_and_atomic_refusals(){
     t::Fixture f;auto w=f.world();const auto initial=w.snapshot();
-    check(w.rule_version()==34&&sim::rule_version_supported(w.profile(),34)&&sim::rule_version_supported(w.profile(),35)&&!sim::rule_version_supported(w.profile(),36),"Processing selection changed supported-generation boundary");
+    check(w.rule_version()==34&&sim::rule_version_supported(w.profile(),34)&&sim::rule_version_supported(w.profile(),35)&&sim::rule_version_supported(w.profile(),36)&&!sim::rule_version_supported(w.profile(),37),"Processing selection changed supported-generation boundary");
     check(sim::building_footprint(w.profile(),34,sim::Object::OriginalMill53)==sim::BuildingFootprint{5,5}&&
           sim::building_footprint(w.profile(),34,sim::Object::OriginalFoodShop66)==sim::BuildingFootprint{2,2},"Processing lost the complete source-registered footprint");
     check(!w.execute({sim::CommandType::PlaceOriginalFoodShop,{98,110}}).accepted&&w.snapshot()==initial,"Orphan FoodShop changed IDs, funds or state");
