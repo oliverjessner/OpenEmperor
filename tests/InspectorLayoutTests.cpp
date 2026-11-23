@@ -195,15 +195,28 @@ int main() {
         check(empty(ui::visible_text_row(29,17,viewport)) &&
               empty(ui::visible_text_row(54,17,viewport)) &&
               !empty(ui::visible_text_row(53,17,viewport)),"Full text-row clip boundary is incorrect");
-        const auto empty=ui::make_inspector_layout({},1,0,0,0,false,true,true);
-        check(empty.content.h==0 && empty.operation_toggle.h==0 && empty.demolition.h==0 &&
-              !empty.list_row_at(0,0),"Hidden inspector retained controls or building hits");
+        const auto hidden=ui::make_inspector_layout({},1,0,0,0,false,true,true);
+        check(hidden.content.h==0 && hidden.operation_toggle.h==0 && hidden.demolition.h==0 &&
+              !hidden.list_row_at(0,0),"Hidden inspector retained controls or building hits");
         const auto short_panel=ui::make_inspector_layout({100,50,304,80},1,20,30,2,false,true,true);
         check(short_panel.content.h==0 && short_panel.operation_toggle.h==0 &&
               short_panel.demolition.h==0 && short_panel.hints.h==0 &&
               short_panel.operation_priorities[0].h==0,
             "Short inspector controls overwrite its header or retain hidden hitboxes");
         small_panels();
+        for (const int scale:{1,2}) for (const bool operations:{false,true}) {
+            const ui::Rect panel{600*scale,80*scale,300*scale,208*scale};
+            const auto layout=ui::make_inspector_layout(panel,scale,82,90,20,true,operations,true,0,0,true);
+            bounded(layout,panel);
+            check(!empty(layout.detail_row_rect(0))&&!empty(layout.detail_row_rect(1))&&!empty(layout.detail_row_rect(2)),
+                "Rule36 compact footer hid the required three complete detail rows");
+            check(!empty(layout.demolition)&&!empty(layout.hint_row_rect(0))&&!empty(layout.hint_row_rect(1)),
+                "Rule36 compact action or two-row drain explanation is unavailable");
+            for (std::size_t row=0;row<20;++row) {
+                const auto scrolled=ui::make_inspector_layout(panel,scale,82,90,20,true,operations,true,0,static_cast<int>(row)*17*scale,true);
+                check(!empty(scrolled.hint_row_rect(row)),"A precise Rule36 drain blocker became unreachable");
+            }
+        }
         const auto wrapped=ui::wrap_text({"A complete demolition warning with "
             "a_very_long_unbroken_token_that_must_remain_accessible"},28);
         for (const auto& line:wrapped) check(line.size()<=28,"A long hint escaped its glyph column budget");

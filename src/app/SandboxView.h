@@ -137,6 +137,10 @@ public:
         maps::StoredMapSession session,
         std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=false);
+    // Explicit Rule36/schema52: drain paid agriculture leaves before removal.
+    static std::unique_ptr<SandboxView> create_agriculture_reconfiguration(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=true);
     // Explicit Rule35/schema51: one Food account and physical Warehouse redistribution.
     static std::unique_ptr<SandboxView> create_food_warehouses(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
@@ -548,6 +552,7 @@ private:
     bool fire_watch_selected() const;
     bool agriculture_inspector_selected() const;
     void prepare_agriculture_inspection(bool force=false);
+    simulation::DemolitionStatus inspection_demolition_status(simulation::BuildingId) const;
     void prepare_fishing_visuals(bool force=false);
     void prepare_hunting_visuals(bool force=false);
     void append_agriculture_calendar_lines(std::vector<std::string>& lines,simulation::BuildingId id) const;
@@ -891,6 +896,9 @@ private:
     bool food_warehouses() const {
         return simulation::food_warehouses_enabled(rules_,requested_rule_version_);
     }
+    bool agriculture_reconfiguration() const {
+        return simulation::agriculture_reconfiguration_enabled(rules_,requested_rule_version_);
+    }
     bool irrigation_productivity() const {
         return simulation::irrigation_productivity_enabled(rules_,requested_rule_version_);
     }
@@ -1015,6 +1023,7 @@ private:
     std::vector<std::pair<simulation::BuildingId,std::vector<std::string>>> agriculture_calendar_lines_;
     std::vector<std::pair<simulation::BuildingId,std::vector<std::string>>> food_processing_lines_;
     std::vector<std::pair<simulation::BuildingId,std::vector<std::string>>> food_warehouse_lines_;
+    std::vector<std::pair<simulation::BuildingId,simulation::DemolitionStatus>> agriculture_demolition_status_;
     std::uint64_t agriculture_inspection_tick_=UINT64_MAX,agriculture_inspection_sequence_=UINT64_MAX;
     std::uint64_t agriculture_inspection_prepare_count_=0;
     // Inactive Rice topology is disposable presentation state. Only paid

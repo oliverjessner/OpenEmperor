@@ -5,6 +5,7 @@
 #include "core/PerformanceDiagnostics.h"
 
 #include <iterator>
+#include <charconv>
 #include <set>
 
 namespace {
@@ -12,16 +13,22 @@ namespace p=oe_food_playtest;
 namespace perf=oe::performance;
 namespace save=oe::persistence;
 using p::require;
-#if defined(OPENEMPEROR_FOOD_WAREHOUSES_ACCEPTANCE)
+#if defined(OPENEMPEROR_AGRICULTURE_RECONFIGURATION_ACCEPTANCE)
+constexpr bool reconfiguration_mode=true;
+constexpr bool warehouse_mode=true;
+constexpr const char* usage="openemperor-agriculture-reconfiguration-view-acceptance --data ABS --resources ABS --input EXACT52_CHECKPOINT --output NEW_ABS_.local/agri-mac11/SUBDIR --target PAID_ID [--renderer software|metal] [--phase checkpoint|drainable|draining|ready|blocked|retired|rebuilt] [--width 900..1920] [--height 600..1280]";
+#elif defined(OPENEMPEROR_FOOD_WAREHOUSES_ACCEPTANCE)
+constexpr bool reconfiguration_mode=false;
 constexpr bool warehouse_mode=true;
 constexpr const char* usage="openemperor-food-warehouses-view-acceptance --data ABS --resources ABS --input EXACT51_CHECKPOINT --output NEW_ABS_.local/agri-mac10/SUBDIR [--renderer software|metal] [--phase checkpoint|warehouse-stock|warehouse-inbound|warehouse-outbound|warehouse-returning|warehouse-returned|warehouse-market|warehouse-mill|warehouse-shop|warehouse-raw-consumed|processing|ingredient-cargo|meal-cargo|consumed|paused|fire|unstaffed]";
 #else
+constexpr bool reconfiguration_mode=false;
 constexpr bool warehouse_mode=false;
 constexpr const char* usage="openemperor-food-processing-view-acceptance --data ABS --resources ABS --input EXACT50_CHECKPOINT --output NEW_ABS_.local/agri-mac09/SUBDIR [--renderer software|metal] [--phase checkpoint|processing|ingredient-cargo|meal-cargo|consumed|paused|fire|unstaffed]";
 #endif
-constexpr auto selected_rule=warehouse_mode ? sim::kFoodWarehousesRuleVersion:sim::kFoodProcessingRuleVersion;
-constexpr unsigned selected_schema=warehouse_mode ? 51:50;
-constexpr const char* mode_selector=warehouse_mode ? "V Food warehouses (35)":"Q Food processing (34)";
+constexpr auto selected_rule=reconfiguration_mode ? sim::kAgricultureReconfigurationRuleVersion:warehouse_mode ? sim::kFoodWarehousesRuleVersion:sim::kFoodProcessingRuleVersion;
+constexpr unsigned selected_schema=reconfiguration_mode ? 52:warehouse_mode ? 51:50;
+constexpr const char* mode_selector=reconfiguration_mode ? "R Reconfigure (36)":warehouse_mode ? "V Food warehouses (35)":"Q Food processing (34)";
 bool watch_native=false;
 void no_symlinks(const fs::path& path) {
     fs::path cursor;
@@ -31,7 +38,7 @@ void no_symlinks(const fs::path& path) {
         require(error||!fs::is_symlink(status),"Acceptance inputs must not traverse symlinks");
     }
 }
-struct Options {fs::path data,resources,input,output;std::string renderer="software",phase="checkpoint";};
+struct Options {fs::path data,resources,input,output;std::string renderer="software",phase="checkpoint";std::optional<sim::BuildingId> target;int width=1440,height=1000;};
 Options options(int argc,char** argv) {
     Options result;std::set<std::string> seen;
     for(int i=1;i<argc;++i) {
@@ -43,12 +50,26 @@ Options options(int argc,char** argv) {
         else if(name=="--output")result.output=value;
         else if(name=="--renderer")result.renderer=value;
         else if(name=="--phase")result.phase=value;
+        else if(name=="--target"&&reconfiguration_mode) {
+            std::uint32_t target=0;const auto parsed=std::from_chars(value.data(),value.data()+value.size(),target);
+            require(parsed.ec==std::errc{}&&parsed.ptr==value.data()+value.size()&&target>0,"Target must be a positive paid ID");
+            result.target=static_cast<sim::BuildingId>(target);
+        }
+        else if((name=="--width"||name=="--height")&&reconfiguration_mode) {
+            int dimension=0;const auto parsed=std::from_chars(value.data(),value.data()+value.size(),dimension);
+            const bool width=name=="--width";const int minimum=width?900:600,maximum=width?1920:1280;
+            require(parsed.ec==std::errc{}&&parsed.ptr==value.data()+value.size()&&dimension>=minimum&&dimension<=maximum,
+                name+" is outside its bounded native viewport range");
+            (width?result.width:result.height)=dimension;
+        }
         else throw std::runtime_error("Unknown option "+name);
     }
     require(result.data.is_absolute()&&result.resources.is_absolute()&&result.input.is_absolute()&&result.output.is_absolute(),usage);
     require(result.renderer=="software"||result.renderer=="metal","Renderer must be software or metal");
+    require(!reconfiguration_mode||result.target.has_value(),"Reconfiguration requires an explicit paid target ID");
     const bool warehouse_phase=warehouse_mode&&std::set<std::string>{"warehouse-stock","warehouse-inbound","warehouse-outbound","warehouse-returning","warehouse-returned","warehouse-market","warehouse-mill","warehouse-shop","warehouse-raw-consumed"}.contains(result.phase);
-    require(warehouse_phase||std::set<std::string>{"checkpoint","processing","ingredient-cargo","meal-cargo","consumed","paused","fire","unstaffed"}.contains(result.phase),"Unknown processing checkpoint phase");
+    const bool reconfiguration_phase=reconfiguration_mode&&std::set<std::string>{"checkpoint","drainable","draining","ready","blocked","retired","rebuilt"}.contains(result.phase);
+    require(reconfiguration_mode ? reconfiguration_phase:warehouse_phase||std::set<std::string>{"checkpoint","processing","ingredient-cargo","meal-cargo","consumed","paused","fire","unstaffed"}.contains(result.phase),"Unknown processing checkpoint phase");
     no_symlinks(result.data);no_symlinks(result.resources);no_symlinks(result.input);
     result.data=fs::canonical(result.data);result.resources=fs::canonical(result.resources);result.input=fs::canonical(result.input);
     require(!p::below(result.input,result.data),"Explicit checkpoint must be outside Original data");return result;
@@ -306,15 +327,51 @@ Json actual_warehouses(const sim::World& world,const std::string& phase) {
         {"loaded_returning",returning},{"real_return_settled",returned},{"raw_house",raw_house},
         {"actual_market_receipt",market},{"actual_mill_receipt",mill},{"actual_shop_receipt",shop},{"warehouses",warehouses},{"markets",markets}};
 }
+Json actual_reconfiguration(const sim::World& world,sim::BuildingId target,const std::string& phase) {
+    require(world.agriculture_reconfiguration_enabled()&&world.agriculture_reconfiguration_state(),"Checkpoint lacks exact reconfiguration authority");
+    const auto& body=world.building(target);const bool retired=world.agriculture_retired(target);
+    const auto status=world.demolition_status(target);
+    std::optional<sim::BuildingId> predecessor;
+    if (body.placed) for (const auto& previous:world.buildings())
+        if (previous.cell==body.cell&&previous.id<target&&world.agriculture_retired(previous.id)&&previous.placed_tick<=body.placed_tick)
+            predecessor=previous.id;
+    require(phase=="checkpoint"||(phase=="drainable"&&body.placed&&!status.allowed&&status.drain_supported&&!status.draining)||
+        (phase=="draining"&&body.placed&&status.draining)||(phase=="ready"&&body.placed&&status.allowed)||
+        (phase=="blocked"&&body.placed&&!status.allowed&&!status.drain_supported)||(phase=="retired"&&!body.placed&&retired)||
+        (phase=="rebuilt"&&body.placed&&predecessor.has_value()),"Paid checkpoint does not establish its requested reconfiguration phase");
+    Json journal=Json::array();for (const auto& entry:world.agriculture_reconfiguration_state()->entries)
+        journal.push_back({{"id",static_cast<unsigned>(entry.building_id)},{"started_tick",entry.started_tick},{"started_sequence",entry.started_sequence},
+            {"removed_tick",entry.removed_tick ? Json(*entry.removed_tick):Json(nullptr)},
+            {"removed_sequence",entry.removed_sequence ? Json(*entry.removed_sequence):Json(nullptr)}});
+    Json workers=Json::array();
+    for (const auto& farm:world.physical_food_growers_state()->farms) if (farm.latest_trip&&!farm.latest_trip->returned_tick&&
+        (farm.farm_id==target||farm.latest_trip->field_id==target)) {
+        const auto& actor=world.courier(farm.courier_id);
+        workers.push_back({{"kind","FoodGrower"},{"id",farm.latest_trip->grower_id.value},{"courier",static_cast<unsigned>(actor.id)},
+            {"field",static_cast<unsigned>(farm.latest_trip->field_id)},{"phase",static_cast<unsigned>(farm.latest_trip->phase)},
+            {"cargo",world.physical_food_grower_cargo(actor.id)},{"edge_progress",actor.edge_progress},{"route_pending",actor.route_pending}});
+    }
+    for (const auto& boat:world.fishing_state()->boats) if (boat.quay_id==target)
+        workers.push_back({{"kind","FishingBoat"},{"id",boat.id.value},{"phase",static_cast<unsigned>(boat.phase)},
+            {"cargo",boat.cargo},{"reserved",boat.reserved},{"edge_progress",boat.edge_progress},{"return_requested",boat.return_requested}});
+    for (const auto& hunter:world.hunting_state()->hunters) if (hunter.tent_id==target)
+        workers.push_back({{"kind","Hunter"},{"id",hunter.id.value},{"phase",static_cast<unsigned>(hunter.phase)},
+            {"cargo",hunter.cargo},{"reserved",hunter.reserved},{"edge_progress",hunter.edge_progress},{"return_requested",hunter.return_requested}});
+    return {{"requested",phase},{"target",static_cast<unsigned>(target)},{"placed",body.placed},{"retired",retired},
+        {"allowed",status.allowed},{"drain_supported",status.drain_supported},{"draining",status.draining},
+        {"reason",status.reason},{"drain_reason",status.drain_reason},{"active_channels",status.active_couriers},
+        {"incoming_deliveries",status.incoming_deliveries},{"stored_goods",status.stored_goods_summary},
+        {"predecessor",predecessor ? Json(static_cast<unsigned>(*predecessor)):Json(nullptr)},{"journal",journal},{"actual_workers",workers}};
+}
 Json regular_q(const fs::path& data,const fs::path& resources,const fs::path& output,SDL_Window* window,SDL_Renderer* renderer) {
     oe::menu::MenuSession menu(data,output/"menu",std::make_unique<oe::menu::NativeDialog>(),resources);menu.initialize(window,renderer);
     require(menu.state()==oe::menu::MenuSession::State::MainMenu&&!menu.food_processing_setup(),"General menu default changed");
     const auto button=menu.diagnostic_button_rect(mode_selector);require(button.has_value(),"Regular main menu omits the selected Food mode");
-    require(menu.render(),SDL_GetError());SDL_Event value{};value.type=SDL_EVENT_KEY_DOWN;value.key.key=warehouse_mode ? SDLK_V:SDLK_Q;
+    require(menu.render(),SDL_GetError());SDL_Event value{};value.type=SDL_EVENT_KEY_DOWN;value.key.key=reconfiguration_mode ? SDLK_R:warehouse_mode ? SDLK_V:SDLK_Q;
     user_takeover();menu.handle_event(value);menu.advance();user_takeover();
-    require(menu.state()==oe::menu::MenuSession::State::NewSandbox&&(warehouse_mode ? menu.food_warehouses_setup():menu.food_processing_setup())&&menu.original_agriculture_setup(),"Food menu key did not select its exact rule");
+    require(menu.state()==oe::menu::MenuSession::State::NewSandbox&&(reconfiguration_mode ? menu.agriculture_reconfiguration_setup():warehouse_mode ? menu.food_warehouses_setup():menu.food_processing_setup())&&menu.original_agriculture_setup(),"Food menu key did not select its exact rule");
     require(menu.render(),SDL_GetError());menu.shutdown();return {{"selector",mode_selector},{"regular_main_menu",true},
-        {warehouse_mode ? "scripted_key_rule35":"scripted_key_rule34",true},{"general_default_unchanged",true}};
+        {reconfiguration_mode ? "scripted_key_rule36":warehouse_mode ? "scripted_key_rule35":"scripted_key_rule34",true},{"general_default_unchanged",true}};
 }
 Json processing_inspector(oe::SandboxView& view,sim::BuildingId id) {
     require(!view.debug_diagnostics()&&view.selected_building()==id,"Normal processing inspector selected another owner");
@@ -353,6 +410,50 @@ void house_goods(oe::SandboxView& view,SDL_Renderer* renderer,const std::string&
     const auto content=view.original_house_content_rect();const auto row=content.y+static_cast<int>(index)*17*view.layout().scale-view.original_house_scroll();
     require(row>=content.y&&row+static_cast<int>(shown)*17*view.layout().scale<=content.y+content.h,"Complete House meal witness cannot be reached by normal scrolling");require(view.render(),SDL_GetError());
 }
+Json exercise_reconfiguration(oe::SandboxView& view,SDL_Renderer* renderer,sim::BuildingId target,
+                             std::uint32_t border,const fs::path& output,Json& captures) {
+    const auto before=view.world().snapshot();const auto body=view.world().building(target);
+    const auto status=view.world().demolition_status(target);
+    const auto record=[&](const char* suffix) {
+        const auto name="reconfiguration-target-"+std::to_string(static_cast<unsigned>(target))+"-"+suffix+".png";
+        const auto purity=pure_frames(view);capture(view,renderer,output/name);
+        captures.push_back({{"kind",std::string("reconfiguration_")+suffix},{"path",name},{"id",static_cast<unsigned>(target)},
+            {"lines",view.inspection_lines()},{"purity",purity}});
+    };
+    if (!body.placed) {
+        view.set_tool(5);p::center(view,oe::maps::terrain_ground({static_cast<unsigned>(body.cell.x),static_cast<unsigned>(body.cell.y)},border));
+        require(view.render(),SDL_GetError());
+        for (const auto cell:sim::building_footprint_cells(view.world().profile(),view.world().rule_version(),body.kind,body.cell))
+            require(view.world().building_owner_at(cell)!=target,"Retired footprint retains its paid owner");
+        record("retired");return {{"retired_footprint_released",true},{"normal_action","none"}};
+    }
+    select(view,renderer,target,border);require(view.inspector_layout().demolition.h>0,"Reconfiguration target lacks shared footer action");record("before");
+    const auto press=[&]{const auto rect=view.inspector_layout().demolition;click(view,renderer,{rect.x+rect.w*.5,rect.y+rect.h*.5});};
+    if (status.allowed) {
+        press();require(view.demolition_pending()&&!view.recovery_safe_point(),"Ready footer did not open existing blocking confirmation");
+        view.tick_once();require(view.world().snapshot()==before,"Pending removal confirmation advanced World");
+        key(view,SDLK_ESCAPE);require(view.world().snapshot()==before&&!view.demolition_pending(),"Cancelled removal changed paid authority");
+        press();key(view,SDLK_RETURN);
+        require(!view.world().building(target).placed&&view.world().agriculture_retired(target)&&view.world().ticks()==before.ticks&&
+            view.world().treasury()==before.treasury&&view.world().snapshot().next_building_id==before.next_building_id,
+            "Confirmed removal lost its tombstone, refunded money or reused IDs");
+        require(view.render(),SDL_GetError());record("removed");key(view,SDLK_F9);
+        require(view.world().snapshot()==before,"F9 failed to restore exact ready checkpoint after private removal");
+        return {{"normal_action","confirm_remove"},{"cancel_atomic",true},{"modal_blocks_ticks_and_recovery",true},{"no_refund",true},{"f9_restored",true}};
+    }
+    press();
+    if (status.drain_supported&&!status.draining) {
+        require(!view.demolition_pending()&&(view.world().agriculture_draining(target)||view.world().demolition_status(target).allowed),
+            "Drain footer did not start authoritative physical drainage");
+        require(view.world().ticks()==before.ticks&&view.world().treasury()==before.treasury,"Drain granted time or refund");
+        require(view.render(),SDL_GetError());record("drain-started");key(view,SDLK_F9);
+        require(view.world().snapshot()==before,"F9 failed to restore exact checkpoint after private drain request");
+        return {{"normal_action","begin_drain"},{"no_automatic_removal",true},{"f9_restored",true}};
+    }
+    require(view.world().snapshot()==before&&!view.demolition_pending()&&view.last_message()==status.reason,
+        "Blocked or pending drain footer changed World or opened removal confirmation");
+    return {{"normal_action","refused"},{"atomic",true},{"reason",status.reason}};
+}
 } // namespace
 int main(int argc,char** argv) {
     SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;std::unique_ptr<oe::SandboxView> view;fs::path output;
@@ -360,11 +461,11 @@ int main(int argc,char** argv) {
         if(argc==2&&std::string_view(argv[1])=="--help"){std::cout<<usage<<'\n';return 0;}
         const auto selected=options(argc,argv);const InputGuard input(selected.input);const auto document=save::read_save(selected.input);
         require(document.source_schema_version==selected_schema&&document.world.rule_version==selected_rule&&document.world.processed_food&&document.world.food_processing&&
-            (!warehouse_mode||document.world.food_warehouses)&&
+            (!warehouse_mode||document.world.food_warehouses)&&(!reconfiguration_mode||document.world.agriculture_reconfiguration)&&
             !document.world.hunting_food&&document.world.original_economy&&document.world.original_economy->model_source,
             "Input must be an exact paid checkpoint for the selected Food rule/schema");
         const SourceGuard sources(selected.data,document.map_relative);output=p::output_root(selected.output,selected.data,
-            warehouse_mode ? ".local/agri-mac10":".local/agri-mac09");
+            reconfiguration_mode ? ".local/agri-mac11":warehouse_mode ? ".local/agri-mac10":".local/agri-mac09");
         watch_native=selected.renderer=="metal";if(!watch_native)require(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy"),SDL_GetError());
 #if defined(__APPLE__)
         else require(SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"cocoa"),SDL_GetError());
@@ -372,19 +473,22 @@ int main(int argc,char** argv) {
         require(!watch_native,"Metal acceptance requires native macOS");
 #endif
         require(SDL_SetHint(SDL_HINT_RENDER_DRIVER,selected.renderer.c_str())&&SDL_Init(SDL_INIT_VIDEO),SDL_GetError());
-        require(SDL_CreateWindowAndRenderer(warehouse_mode ? "AGRI-MAC10 scripted paid Food Warehouse verification":"AGRI-MAC09 scripted paid Food processing verification",1440,1000,
+        require(SDL_CreateWindowAndRenderer(reconfiguration_mode ? "AGRI-MAC11 scripted paid reconfiguration verification":warehouse_mode ? "AGRI-MAC10 scripted paid Food Warehouse verification":"AGRI-MAC09 scripted paid Food processing verification",selected.width,selected.height,
             watch_native?SDL_WINDOW_RESIZABLE:SDL_WINDOW_HIDDEN,&window,&renderer),SDL_GetError());
         const std::string renderer_name=SDL_GetRendererName(renderer)?SDL_GetRendererName(renderer):"";require(renderer_name==selected.renderer,"Requested renderer was not selected");user_takeover();
+        int output_width=0,output_height=0;require(SDL_GetRenderOutputSize(renderer,&output_width,&output_height)&&output_width>0&&output_height>0,SDL_GetError());
         const auto menu=regular_q(selected.data,selected.resources,output,window,renderer);
         auto session=oe::maps::load_stored_map_session(selected.data,document.map_relative,oe::maps::FootprintPolicy::EdgeByte4x4Preview,
             oe::maps::StoredGraphicsProfile::Slot8,oe::maps::GreatWallPresentationMode::Automatic,{},true);const auto border=session.plan.border;
-        view=warehouse_mode ? oe::SandboxView::create_food_warehouses(std::move(session),document.world.original_economy->model_source->difficulty,false):
+        view=reconfiguration_mode ? oe::SandboxView::create_agriculture_reconfiguration(std::move(session),document.world.original_economy->model_source->difficulty,false):
+            warehouse_mode ? oe::SandboxView::create_food_warehouses(std::move(session),document.world.original_economy->model_source->difficulty,false):
             oe::SandboxView::create_food_processing(std::move(session),document.world.original_economy->model_source->difficulty,false);
         view->configure_save(selected.data,document.map_relative,selected.input);p::configure(*view,oe::detect_and_select_visual_profiles(selected.data,selected.resources));
         view->initialize(window,renderer);SDL_Event focus{};focus.type=SDL_EVENT_WINDOW_FOCUS_GAINED;event(*view,focus);
         const auto generation=view->load_generation();key(*view,SDLK_F9);require(view->load_generation()==generation+1&&view->paused()&&view->world().snapshot()==document.world,"F9 did not restore exact supplied processing checkpoint: "+view->last_message());
-        const auto evidence=actual_processing(view->world(),selected.phase.starts_with("warehouse-") ? "checkpoint":selected.phase);
-        const auto warehouse_evidence=warehouse_mode ? actual_warehouses(view->world(),selected.phase):Json(nullptr);
+        const auto evidence=actual_processing(view->world(),reconfiguration_mode||selected.phase.starts_with("warehouse-") ? "checkpoint":selected.phase);
+        const auto warehouse_evidence=warehouse_mode ? actual_warehouses(view->world(),reconfiguration_mode ? "checkpoint":selected.phase):Json(nullptr);
+        const auto reconfiguration_evidence=reconfiguration_mode ? actual_reconfiguration(view->world(),*selected.target,selected.phase):Json(nullptr);
         input.unchanged();sources.unchanged();
         const auto manual=output/"saves/manual.save.json";view->configure_save(selected.data,document.map_relative,manual);
         const auto saved=view->save_generation();key(*view,SDLK_F5);const auto private_document=save::read_save(manual);
@@ -395,6 +499,9 @@ int main(int argc,char** argv) {
         key(*view,SDLK_SPACE);require(!view->paused(),"Space did not resume");key(*view,SDLK_SPACE);require(view->paused(),"Space did not pause");
         for(unsigned i=0;i<3&&view->camera().zoom!=1.;++i)key(*view,SDLK_Z);
         Json captures=Json::array();
+        const auto reconfiguration_action=reconfiguration_mode ?
+            exercise_reconfiguration(*view,renderer,*selected.target,border,output,captures):Json(nullptr);
+        require(view->world().snapshot()==document.world,"Reconfiguration UI probe failed to restore its exact protected checkpoint");
         if (warehouse_mode) {
             for (const auto& body:view->world().buildings()) if (body.kind==sim::Object::Warehouse) {
                 for (unsigned zoom=0;zoom<3;++zoom) {
@@ -455,23 +562,62 @@ int main(int argc,char** argv) {
             }
         }
         Json cargos=Json::array();bool cargo_checked=false;
-        for(const auto& actor:view->world().couriers())if(view->world().original_food_cargo(actor.id)>0) {
-            bool relevant=false;for(const auto& trip:view->world().processed_food_state()->trips)if(trip.transfer.courier_id==actor.id)
+        for(const auto& actor:view->world().couriers()) {
+            const int physical=reconfiguration_mode ? actor.role==sim::CourierRole::OriginalFoodGrower ? view->world().physical_food_grower_cargo(actor.id):
+                actor.role==sim::CourierRole::OriginalSeasonalHempGrower ? view->world().seasonal_hemp_grower_cargo(actor.id):
+                actor.role==sim::CourierRole::OriginalPlantationGrower ? view->world().plantation_grower_cargo(actor.id):0:0;
+            const int actual_cargo=std::max(physical,view->world().original_food_cargo(actor.id));
+            if (!actual_cargo) continue;
+            bool relevant=physical>0;for(const auto& trip:view->world().processed_food_state()->trips)if(trip.transfer.courier_id==actor.id)
                 relevant|=view->world().building(trip.target).kind==sim::Object::OriginalMill53||actor.role==sim::CourierRole::OriginalMealsToShop||actor.role==sim::CourierRole::OriginalMealsToHouse||
                     (warehouse_mode&&(view->world().building(trip.target).kind==sim::Object::Warehouse||actor.role==sim::CourierRole::OriginalWarehouseFood));
             if(!relevant)continue;const bool picked=select_grower(*view,renderer,actor.id);require(picked,"Loaded processing courier could not be picked through submitted marker pixels");
-            const auto lines=view->inspection_lines();require(combined(lines).find("cargo")!=std::string::npos,"Selected physical processing carrier hides actual cargo");
+            const auto lines=view->inspection_lines();require(combined(lines).find("cargo")!=std::string::npos||
+                (reconfiguration_mode&&combined(lines).find("Cargo")!=std::string::npos),"Selected physical processing carrier hides actual cargo");
+            if(physical>0) {
+                const auto add_section=[&](const std::string& needle,const char* suffix) {
+                    show_inspector_row(*view,renderer,needle);const auto section_purity=pure_frames(*view);
+                    const auto name="physical-worker-"+std::to_string(static_cast<unsigned>(actor.id))+"-"+suffix+".png";
+                    capture(*view,renderer,output/name);captures.push_back({{"kind","physical_worker_witness"},{"path",name},
+                        {"courier",static_cast<unsigned>(actor.id)},{"visible_row",needle},{"actual_cargo",physical},{"purity",section_purity}});
+                };
+                if(actor.role==sim::CourierRole::OriginalFoodGrower) {
+                    const auto& farms=view->world().physical_food_growers_state()->farms;
+                    const auto farm=std::find_if(farms.begin(),farms.end(),[&](const auto& row){return row.courier_id==actor.id;});
+                    require(farm!=farms.end()&&farm->latest_trip,"Selected Food Grower lacks its actual latest lifetime");
+                    const auto& trip=*farm->latest_trip;
+                    constexpr std::array crop_names{"Wheat","Millet","Rice","Cabbage","Bean Curd (Soy)"};
+                    const auto expected="Grower crop cargo "+std::to_string(physical)+"/1";
+                    const auto reserved="Farm return reserved "+std::to_string(sim::physical_food_grower_reservations(&*view->world().physical_food_growers_state(),actor.owner));
+                    require(combined(lines).find(expected)!=std::string::npos&&
+                        combined(lines).find("Grower channel #"+std::to_string(static_cast<unsigned>(actor.id)))!=std::string::npos&&
+                        combined(lines).find("Grower lifetime #"+std::to_string(trip.grower_id.value))!=std::string::npos&&
+                        combined(lines).find("Assigned field #"+std::to_string(static_cast<unsigned>(trip.field_id)))!=std::string::npos&&
+                        combined(lines).find(std::string("Crop: ")+crop_names.at(static_cast<std::size_t>(trip.crop)))!=std::string::npos&&
+                        combined(lines).find(reserved)!=std::string::npos,
+                        "Selected Food Grower inspector differs from its actual channel, lifetime, Field, crop or cargo");
+                    add_section("Assigned field #","identity");add_section(expected,"crop-cargo");
+                    show_inspector_row(*view,renderer,reserved);
+                } else if(actor.role==sim::CourierRole::OriginalPlantationGrower) {
+                    require(combined(lines).find("Grower channel #"+std::to_string(static_cast<unsigned>(actor.id)))!=std::string::npos&&
+                        combined(lines).find("cargo "+std::to_string(physical))!=std::string::npos,
+                        "Selected plantation Grower inspector differs from its real channel or cargo");
+                    add_section("Grower channel #","identity");show_inspector_row(*view,renderer,"Grower state:");
+                } else show_inspector_row(*view,renderer,"Hemp cargo ");
+            }
             const auto purity=pure_frames(*view);const auto name="processing-courier-"+std::to_string(static_cast<unsigned>(actor.id))+"-cargo.png";capture(*view,renderer,output/name);
-            cargos.push_back({{"courier",static_cast<unsigned>(actor.id)},{"actual_cargo",view->world().original_food_cargo(actor.id)},{"pixel_pick","PASS"},{"path",name},{"lines",lines},{"purity",purity}});cargo_checked=true;
+            cargos.push_back({{"courier",static_cast<unsigned>(actor.id)},{"actual_cargo",actual_cargo},{"pixel_pick","PASS"},{"path",name},{"lines",lines},{"purity",purity}});cargo_checked=true;
         }
         require((selected.phase!="ingredient-cargo"&&selected.phase!="meal-cargo"&&selected.phase!="warehouse-inbound"&&selected.phase!="warehouse-outbound"&&selected.phase!="warehouse-returning")||cargo_checked,"Requested cargo phase lacks a real selected carrier");
         input.unchanged();sources.unchanged();require(view->world().snapshot()==document.world,"Scripted inspectors changed paid processing authority");
-        const Json report{{"format",warehouse_mode ? "openemperor-food-warehouses-view-v1":"openemperor-food-processing-view-v1"},{"status","PASS"},{"rule",selected_rule},{"schema",selected_schema},{"renderer",renderer_name},{"video_driver",SDL_GetCurrentVideoDriver()},
+        const Json report{{"format",reconfiguration_mode ? "openemperor-agriculture-reconfiguration-view-v1":warehouse_mode ? "openemperor-food-warehouses-view-v1":"openemperor-food-processing-view-v1"},{"status","PASS"},{"rule",selected_rule},{"schema",selected_schema},{"renderer",renderer_name},{"video_driver",SDL_GetCurrentVideoDriver()},
             {"tier",watch_native?"NATIVE_METAL_SCRIPTED_SDL":"HIDDEN_SOFTWARE_SCRIPTED_SDL"},{"native_os_input","NOT_RUN"},{"human_acceptance","NOT_RUN"},{"original_runtime_parity","NOT_CLAIMED"},
             {"user_takeover_stops_automation",true},{"input",selected.input.string()},{"input_preserved",true},{"source_bytes_mode_mtime_unchanged",true},{"tick",document.world.ticks},
-            {"supplied_model_sha256",document.world.original_economy->model_source->sha256},{warehouse_mode ? "regular_v_menu":"regular_q_menu",menu},{"checkpoint",evidence},{"warehouse_checkpoint",warehouse_evidence},
+            {"supplied_model_sha256",document.world.original_economy->model_source->sha256},{reconfiguration_mode ? "regular_r_menu":warehouse_mode ? "regular_v_menu":"regular_q_menu",menu},{"checkpoint",evidence},{"warehouse_checkpoint",warehouse_evidence},
+            {"reconfiguration_checkpoint",reconfiguration_evidence},{"reconfiguration_ui_action",reconfiguration_action},
             {"input_f9_exact",true},{"private_f5_f9_exact",true},{"step_reload_replay_exact",true},{"pause_resume",true},{"captures",captures},{"cargo_captures",cargos}};
-        write_json(output/"report.json",report);view->shutdown();view.reset();SDL_DestroyRenderer(renderer);renderer=nullptr;SDL_DestroyWindow(window);window=nullptr;SDL_Quit();std::cout<<report.dump(2)<<'\n';return 0;
+        auto final_report=report;if(reconfiguration_mode)final_report["viewport"]={{"requested_width",selected.width},{"requested_height",selected.height},{"drawable_width",output_width},{"drawable_height",output_height}};
+        write_json(output/"report.json",final_report);view->shutdown();view.reset();SDL_DestroyRenderer(renderer);renderer=nullptr;SDL_DestroyWindow(window);window=nullptr;SDL_Quit();std::cout<<final_report.dump(2)<<'\n';return 0;
     }catch(const std::exception& error){perf::set_enabled(false);if(view)view->shutdown();view.reset();if(renderer)SDL_DestroyRenderer(renderer);if(window)SDL_DestroyWindow(window);SDL_Quit();
         std::cerr<<"Food processing View acceptance FAIL: "<<error.what()<<'\n';if(!output.empty())try{write_json(output/"failure.json",{{"status","FAIL"},{"reason",error.what()},{"native_os_input","NOT_RUN"},{"human_acceptance","NOT_RUN"}});}catch(...){}return 1;}
 }

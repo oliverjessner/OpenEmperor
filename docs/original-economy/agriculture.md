@@ -147,6 +147,77 @@ Growth art reads the selected field's progress. Rice keeps its qualified static
 paddy profile and gains no universal Pump requirement or irrigation yield bonus.
 See [validation](../testing.md#multi-field-agriculture-agri-mac05) for evidence.
 
+## Safe Agriculture reconfiguration (AGRI-MAC11)
+
+**Explicit AUTHORED Rule36/policy3/schema52**, marker
+`authored-agriculture-reconfiguration-v1`, revision1. Select **R Reconfigure**
+or `--agriculture-reconfiguration`. This inherits Rule35's sole twelve-kind
+Food account, real Growers, processing, Warehouses, seasons, irrigation,
+fishing/hunting and economy. Rules1–35/schemas1–51 and the separate Rule19
+limited demolition contract remain exact. There is no migration, cross-schema
+overwrite, refund or Original demolition-parity claim.
+
+`World::demolition_status`, the typed `BeginAgricultureDrain` command and the
+existing `DemolishBuilding` command own the decisions. A ready empty paid leaf
+can be removed directly. **Drain** records a persistent commitment to stop new
+cycles; it does not remove the body or its output. Existing partial/ready work
+may complete through ordinary staffing, seasons, source capacity and physical
+movement. Ordinary seasonal expiry remains possible. When the actual worker
+and cargo have returned and work is zero, the player separately confirms
+**Demolish**. A blocked route, paused/unavailable source or full return capacity
+must be repaired through the existing commands. There is no automatic removal,
+empty-cargo teleport, inventory evacuation, work reset or hidden grant.
+
+| Paid target/state | Rule36 decision |
+| --- | --- |
+| Food Field195–199, zero pending work, no live assignment or occupying/begun-edge actor | Remove its complete cell; retain crop, paid parent, work, harvest and actual-return history |
+| Food Field with partial/ready work or an actual Grower | Drain; finish the current cycle/ordinary expiry and real return. An outward empty assignment to zero work returns without starting another cycle |
+| Tea26/Lacquer27/Mulberry28 plant, zero growth and all pickups returned | Remove the complete cell; retain paid source, growth-work, pickup/return and receipt histories |
+| Plant with partial/ready growth or real returning Grower cargo | Drain; current growth/pickup/return proceeds normally, then regrowth stays stopped at zero |
+| Pump203, complete paid oriented footprint, no real fire/Inspector/occupying actor | Remove all four claims and invalidate supplied water immediately; retain orientation, paid installation, closed upkeep and fire history |
+| Pending Pump drain | Stop water eligibility and new Inspector dispatches immediately; existing actual trips may arrive/return while waiting for footprint clearance |
+| Ditch202 / mutable Road | Existing separate remove commands and begun-edge protection apply; water cuts invalidate immediately, reconstruction waits for the next actual phase27 fill |
+| Farmhouse / plantation shed | Refuse, including idle/empty: child, stock-owner, output-channel and historical-source closure is unsupported. Reconfigure its supported leaves instead |
+| Fishing Quay / Hunter Tent | Refuse, including idle/empty. Actual Boat/Hunter/cargo/dock/prey reservations remain authoritative; active cases identify the unsettled commitment |
+| Mill / FoodShop / Food Warehouse | Refuse, including idle/empty. Active recipes, actual transfer reservations and stored Food require physical completion/evacuation; this contract supplies no owner retirement |
+| Hemp/other production, House, service, original/protected/foreign object | Refuse broader productive retirement; no residents, source admission or historical permission is reset |
+| Existing neutral typed Well72 influence source | Retain its separate inherited removal/history path |
+| Full journal, exhausted counters, absent/retired ID or occupied/begun-edge footprint | Refuse atomically with the shared live reason |
+
+A removed leaf remains as a **closed paid identity** with `placed=false`, alongside
+its existing typed rows. It owns no physical cells, work, live assignment or
+future supply. Those rows preserve the sole Food/Goods/Aux origin equations,
+actual receipts, complete Farm/source cursor and monotone worker lifetimes.
+They do not store a second inventory. Later seasons cannot alter closed work;
+water-work and fire/upkeep validation end at the actual removal tick. Completed
+historical cursors may reference that closed identity; actual moving commitments
+and route-cache targets may not.
+
+The sorted reconfiguration journal holds at most **eight pending plus closed
+entries**. Each binds its paid BuildingId, drain tick/command sequence, paired
+optional removal tick/sequence and immutable initial crop-work observation.
+The observation reuses the existing five irrigation-work counters and actual
+harvest count; Pumps require null. Its earned work must fit the request time
+and shared Farm labor. A zero-work request permits no new growth; a partial
+request permits only its remaining current cycle. Ordinary expiry closes that
+cycle without another harvest. This provenance contains no Food inventory. Direct ready removal records one instantaneous
+closed entry. All **82 lifetime body purchases, 58 channels, 32 lifetime Food
+Fields and 32 lifetime plantation plants** remain bounded. A Farm's eight-field
+active quota excludes its closed leaves, while their work still counts against
+its lifetime labor. Rebuilding uses normal complete source permission, original
+Rice fertility100, full model price and a fresh monotone ID. It does not recover
+the old journal/body/field budget. Retired Pump history remains evidence for
+previous earned wet work; only a new paid live Pump can restore water, after the
+next ordinary fill phase.
+
+Schema52 requires the exact complete lineage and new marker/revision/state.
+Pending and closed identities, paired nullable closure fields, command chronology,
+terminal work/cargo, actual return receipts, source/model/map hashes and complete
+inherited accounting are checked before publication. An unplaced paid body
+without a matching permitted closed leaf is invalid. Historical saves and
+original source bytes remain read-only. Inspectors show ready/draining/blocked,
+actual cargo/commitments and repair reasons; cached presentation grants nothing.
+
 ## Food Warehouses (AGRI-MAC10)
 
 **Explicit AUTHORED Rule35/policy3/schema51**, marker

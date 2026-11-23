@@ -152,7 +152,7 @@ World World::create_food_warehouses(std::shared_ptr<const MapPermissions> p,std:
     w.validate_food_processing_model();w.initialize_fishing_sites();w.initialize_hunting_habitats();w.validate_fishing_context();w.validate_hunting_context();return w;
 }
 World World::restore_food_warehouses(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> p,std::shared_ptr<const original::OriginalRulesModel> m,std::shared_ptr<const OriginalTerrainFacts> t){
-    if(!simulation::food_warehouses_enabled(s.profile,s.rule_version))invalid("Food Warehouse restore requires exact Rule35");
+    if(s.profile!=RulesProfile::CityV16 || s.rule_version!=kFoodWarehousesRuleVersion)invalid("Food Warehouse restore requires exact Rule35");
     validate_food_warehouses_snapshot(s);validate_food_processing_snapshot(s);
     auto w=restore_irrigation_generation(kFoodWarehousesRuleVersion,s,std::move(p),std::move(m),std::move(t));
     w.validate_food_processing_model();w.validate_fishing_context();w.validate_hunting_context();return w;

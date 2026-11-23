@@ -59,11 +59,14 @@ template<class Buildings,class Food>
 void validate_work(const IrrigationProductivityState& water,const Buildings& bodies,const Food& food,
     const MultiFieldAgricultureState& multi,const SeasonalAgricultureState& season,
     const PlantationsState& plants,const OriginalProductionState& production,const PhysicalFoodGrowersState& physical,
-    const IrrigationState& irrigation,std::uint64_t tick,bool inspect_retained_ditch_epochs){
-    const auto expected=std::count_if(bodies.begin(),bodies.end(),[](const auto& b){return b.placed&&crop_model(b.kind).has_value();});
+    const IrrigationState& irrigation,std::uint64_t tick,bool inspect_retained_ditch_epochs,const AgricultureReconfigurationState* reconfiguration=nullptr){
+    const auto expected=std::count_if(bodies.begin(),bodies.end(),[&](const auto& b){return (b.placed||reconfiguration)&&crop_model(b.kind).has_value();});
     if(water.work.size()>66||static_cast<std::ptrdiff_t>(water.work.size())!=expected)
         invalid("Irrigation work must bind every paid eligible crop exactly once");
     std::optional<std::uint64_t> first_possible_supply;
+    struct SupplyInterval{std::uint64_t after,through;};
+    std::vector<SupplyInterval> supply;
+    if(reconfiguration){if(irrigation.pumps.size()>Rules::original_production_building_limit)invalid("Reconfiguration Pump history exceeds lifetime bound");supply.reserve(irrigation.pumps.size());}
     for(const auto& pump:irrigation.pumps){
         const auto placed=find(bodies,pump.building_id,body_key).placed_tick;
         std::uint64_t phase=28;
@@ -71,6 +74,14 @@ void validate_work(const IrrigationProductivityState& water,const Buildings& bod
             const auto periods=(placed-28)/51+1;
             if(periods>(UINT64_MAX-28)/51)continue;
             phase=28+periods*51;
+        }
+        if(reconfiguration){
+            auto through=agriculture_retirement_tick(reconfiguration,pump.building_id,tick);
+            const auto* entry=agriculture_reconfiguration_entry(reconfiguration,pump.building_id);
+            if(entry)through=std::min(through,entry->started_tick);
+            if(through>tick)invalid("Pump supply interval exceeds current clock");
+            if(phase<through)supply.push_back({phase,through});
+            if(through<phase)continue;
         }
         if(!first_possible_supply||phase<*first_possible_supply)first_possible_supply=phase;
     }
@@ -91,21 +102,46 @@ void validate_work(const IrrigationProductivityState& water,const Buildings& bod
             if(first_possible_supply)*first_possible_supply=std::max(*first_possible_supply,phase);
         }
     }
+    if(reconfiguration){
+        std::sort(supply.begin(),supply.end(),[](const auto& a,const auto& b){return a.after!=b.after?a.after<b.after:a.through<b.through;});
+        std::size_t merged=0;
+        for(const auto interval:supply){
+            if(merged&&interval.after<=supply[merged-1].through)supply[merged-1].through=std::max(supply[merged-1].through,interval.through);
+            else supply[merged++]=interval;
+        }
+        supply.resize(merged);
+    }
     const auto wet_capacity=[&](BuildingId id,std::uint64_t through){
+        through=std::min(through,agriculture_retirement_tick(reconfiguration,id,tick));
         if(!irrigation.ditches_placed_total||!first_possible_supply||*first_possible_supply>=through)return std::uint64_t{0};
         const auto& b=find(bodies,id,body_key);
-        return seasonal_work_opportunities(*crop_model(b.kind),std::max(b.placed_tick,*first_possible_supply),through);
+        if(!reconfiguration)return seasonal_work_opportunities(*crop_model(b.kind),std::max(b.placed_tick,*first_possible_supply),through);
+        std::uint64_t result=0;
+        for(const auto interval:supply){
+            const auto after=std::max({b.placed_tick,*first_possible_supply,interval.after});
+            const auto end=std::min(through,interval.through);
+            if(after>=end)continue;
+            const auto count=seasonal_work_opportunities(*crop_model(b.kind),after,end);
+            if(count>UINT64_MAX-result)invalid("Merged Pump supply opportunities overflow");result+=count;
+        }
+        return result;
     };
     for(std::size_t i=0;i<water.work.size();++i){
         const auto& w=water.work[i];const auto& b=find(bodies,w.building_id,body_key);
-        if((i&&!(water.work[i-1].building_id<w.building_id))||!b.placed||!crop_model(b.kind)||b.placed_tick>tick)
+        const auto through=agriculture_retirement_tick(reconfiguration,w.building_id,tick);
+        const auto* retired=agriculture_reconfiguration_entry(reconfiguration,w.building_id);
+        if(through>tick||through<b.placed_tick||(!b.placed&&(!retired||!retired->removed_tick)))invalid("Irrigation crop lacks closed retirement chronology");
+        if((i&&!(water.work[i-1].building_id<w.building_id))||(!b.placed&&!reconfiguration)||!crop_model(b.kind)||b.placed_tick>through)
             invalid("Irrigation work lost its sorted complete paid crop identity");
         const auto c=context(w.building_id,bodies,food,multi,season,plants,production,water);
+        if(!b.placed&&(c.progress||c.ready_tick))invalid("Retired irrigation crop owns unfinished work");
         if(w.wet_work_ticks>c.base||w.bonus_work>w.wet_work_ticks/4||w.clipped_bonus!=w.wet_work_ticks/4-w.bonus_work||
-           c.base>seasonal_work_opportunities(*crop_model(b.kind),b.placed_tick,tick))
+           c.base>seasonal_work_opportunities(*crop_model(b.kind),b.placed_tick,through))
             invalid("Irrigation rational carry or actual eligible work history invalid");
         if(w.wet_work_ticks>wet_capacity(w.building_id,tick))
             invalid("Wet work predates possible paid Pump/ditch supply");
+        if(retired&&retired->initial_work&&retired->initial_work->work.wet_work_ticks>wet_capacity(w.building_id,retired->started_tick))
+            invalid("Initial drain wet work borrowed later Pump supply");
         if(c.ready_tick&&(*c.ready_tick>tick||w.wet_work_ticks>wet_capacity(w.building_id,*c.ready_tick)))
             invalid("Ready crop borrowed wet work from after its immutable ready epoch");
         // Cap80 may discard at most one bonus per completed/expired cycle.
@@ -116,7 +152,8 @@ void validate_work(const IrrigationProductivityState& water,const Buildings& bod
         if(!value)invalid("Material trip/receipt lacks its immutable irrigation readiness work");
         const auto& v=*value;const auto& w=find(water.work,id,work_key);const auto& b=find(bodies,id,body_key);
         const auto c=context(id,bodies,food,multi,season,plants,production,water);
-        if(!ordinal||ready<=b.placed_tick||ready>tick||v.base_work>c.base||v.wet_work_ticks>w.wet_work_ticks||
+        const auto through=agriculture_retirement_tick(reconfiguration,id,tick);
+        if(!ordinal||ready<=b.placed_tick||ready>through||v.base_work>c.base||v.wet_work_ticks>w.wet_work_ticks||
            v.bonus_work>w.bonus_work||v.clipped_bonus>w.clipped_bonus||v.wasted_work>c.wasted_work||
            v.wet_work_ticks>v.base_work||v.bonus_work>v.wet_work_ticks/4||v.clipped_bonus!=v.wet_work_ticks/4-v.bonus_work||
            v.bonus_work>UINT64_MAX-v.base_work||v.base_work>seasonal_work_opportunities(*crop_model(b.kind),b.placed_tick,ready)||
@@ -128,7 +165,7 @@ void validate_work(const IrrigationProductivityState& water,const Buildings& bod
             invalid("Material witness contradicts its still-current frozen ready cycle");
         const auto earned=v.base_work+v.bonus_work;
         if(v.wasted_work>earned||(earned-v.wasted_work)%80||(earned-v.wasted_work)/80!=ordinal||
-           v.clipped_bonus>earned/80||c.base-v.base_work>seasonal_work_opportunities(*crop_model(b.kind),ready,tick)||
+           v.clipped_bonus>earned/80||c.base-v.base_work>seasonal_work_opportunities(*crop_model(b.kind),ready,through)||
            w.wet_work_ticks-v.wet_work_ticks>wet_capacity(id,tick)-wet_capacity(id,ready))
             invalid("Material readiness work lost its exact crop ordinal or borrowed later regrowth");
     };
@@ -196,6 +233,7 @@ IrrigationWorkWitness World::irrigation_ready_work(BuildingId id)const{
     return {c.base,w.wet_work_ticks,w.bonus_work,w.clipped_bonus,c.wasted_work};
 }
 std::uint32_t World::irrigation_growth_increment(BuildingId id,std::uint32_t remaining){
+    if(agriculture_retired(id))invalid("Retired crop cannot earn irrigation work");
     if(!remaining||remaining>80)invalid("Irrigation work requires a real unfinished crop cycle");
     if(!irrigation_productivity_enabled())return 1;
     auto& w=find(irrigation_productivity_->work,id,work_key);
@@ -232,12 +270,12 @@ void World::validate_irrigation_productivity_snapshot(const WorldSnapshot& s){
        !s.plantations||!s.original_production||!s.physical_food_growers)
         invalid("Irrigation productivity lacks its exact inherited physical authorities");
     const auto validate=[&](const auto& food){validate_work(*s.irrigation_productivity,s.buildings,food,*s.multi_field_agriculture,*s.seasonal_agriculture,
-        *s.plantations,*s.original_production,*s.physical_food_growers,*s.irrigation,s.ticks,true);};
+        *s.plantations,*s.original_production,*s.physical_food_growers,*s.irrigation,s.ticks,true,simulation::agriculture_reconfiguration_enabled(s.profile,s.rule_version)&&s.agriculture_reconfiguration?&*s.agriculture_reconfiguration:nullptr);};
     if(s.processed_food)validate(*s.processed_food);else validate(*s.hunting_food);
 }
 void World::validate_irrigation_productivity_state()const{
     if(irrigation_productivity_enabled())with_agriculture_food([&](const auto& food){validate_work(*irrigation_productivity_,buildings_,food,*multi_field_agriculture_,
-        *seasonal_agriculture_,*plantations_,*original_production_,*physical_food_growers_,*irrigation_,ticks_,false);});
+        *seasonal_agriculture_,*plantations_,*original_production_,*physical_food_growers_,*irrigation_,ticks_,false,agriculture_reconfiguration_enabled()?&*agriculture_reconfiguration_:nullptr);});
 }
 IrrigationProductivityStatus World::irrigation_productivity_status(BuildingId id)const{
     IrrigationProductivityStatus r;r.building_id=id;
@@ -251,6 +289,8 @@ IrrigationProductivityStatus World::irrigation_productivity_status(BuildingId id
     r.supported=true;r.water_available=water.water_available;r.wet_ditch=water.wet_ditch;r.supplying_pump=water.supplying_pump;
     r.base_work_ticks=c.base;r.wet_work_ticks=it->wet_work_ticks;r.bonus_work=it->bonus_work;r.clipped_bonus=it->clipped_bonus;
     r.progress=c.progress;r.carry=static_cast<std::uint8_t>(it->wet_work_ticks%4);r.next_opening_tick=seasonal_next_opening(model,ticks_);
+    if(!b.placed){r.water_available=false;r.wet_ditch.reset();r.supplying_pump.reset();r.reason="Retired crop; earned work history retained";return r;}
+    if(agriculture_draining(id)&&c.progress==0){r.reason="Drain complete; no new crop cycle";return r;}
     if(c.progress==80)r.reason="Ready crop; physical harvest/pickup earns no irrigation bonus";
     else if(!seasonal_growing(model,ticks_))r.reason="Outside the crop growing window";
     else if(!source.operating_enabled||!b.operating_enabled)r.reason="Source or crop paused";

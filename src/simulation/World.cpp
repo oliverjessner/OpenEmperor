@@ -312,6 +312,11 @@ bool courier_can_target(CourierRole role,const BuildingState& target) {
 
 bool courier_can_target(CourierRole role,const BuildingState& target,
                         RulesProfile profile,std::uint32_t rule_version) {
+    if(!target.placed && agriculture_reconfiguration_enabled(profile,rule_version)) {
+        if(role==CourierRole::OriginalFoodGrower) return target.kind==Object::OriginalWheatField || target.kind==Object::OriginalMilletField || target.kind==Object::OriginalRiceField || target.kind==Object::OriginalCabbageField || target.kind==Object::OriginalSoybeanField;
+        if(role==CourierRole::OriginalPlantationGrower) return original_industry_plant(target.kind);
+        if(role==CourierRole::FireInspector) return target.kind==Object::OriginalIrrigationPump;
+    }
     if(role==CourierRole::OriginalWarehouseFood) return food_warehouses_enabled(profile,rule_version) && target.placed &&
         (target.kind==Object::OriginalMill53 || target.kind==Object::Market || target.kind==Object::OriginalFoodShop66);
     if(role==CourierRole::OriginalFoodToMarket && food_warehouses_enabled(profile,rule_version) && target.placed && target.kind==Object::Warehouse) return true;
@@ -561,6 +566,8 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v28{28,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v36{36,32,64,32,5,800};
+    if (agriculture_reconfiguration_enabled(profile,version)) return city_v16_v36;
     static constexpr ProfileRules city_v16_v35{35,32,64,32,5,800};
     if (food_warehouses_enabled(profile,version)) return city_v16_v35;
     static constexpr ProfileRules city_v16_v34{34,32,64,32,5,800};
@@ -663,6 +670,7 @@ World::World(int width,int height,std::vector<std::uint8_t> buildable,RulesProfi
         else agriculture_.emplace();
     }
     if(food_warehouses_enabled()) food_warehouses_.emplace();
+    if(agriculture_reconfiguration_enabled()) agriculture_reconfiguration_.emplace();
     if(multi_field_agriculture_enabled()) multi_field_agriculture_.emplace();
     if(physical_food_growers_enabled()) physical_food_growers_.emplace();
     if(seasonal_agriculture_enabled()) seasonal_agriculture_.emplace();
@@ -995,6 +1003,7 @@ std::int64_t World::construction_cost(CommandType type) const {
     case CommandType::RemoveRoad:
     case CommandType::SetBuildingOperation:
     case CommandType::SetBuildingWorkforcePriority:
+    case CommandType::BeginAgricultureDrain:
     case CommandType::SetMillRecipe: return 0;
     case CommandType::ConfigureLandTrade: return authored_land_trade_enabled()?land_trade_license_cost:0;
     case CommandType::ImportPottery:
@@ -1006,6 +1015,7 @@ std::int64_t World::construction_cost(CommandType type) const {
 
 int World::workforce_required(BuildingId id) const {
     const auto& value=building(id);
+    if(agriculture_reconfiguration_enabled() && !value.placed) return 0;
     if(value.kind==Object::OriginalMill53 || value.kind==Object::OriginalFoodShop66)
         return food_processing_enabled() ? original_rules_model_->building_value(value.kind==Object::OriginalMill53 ? original::ModelBuilding::Mill:original::ModelBuilding::FoodShop,original::BuildingField::Employees):0;
     if (value.kind==Object::OriginalHuntersTent)
@@ -1479,7 +1489,8 @@ bool World::city_economy_valid() const {
     return true;
 }
 DemolitionStatus World::demolition_status(BuildingId id) const {
-    if(land_trade_protected_building(id))return {false,DemolitionBlocker::HistoricalReference,"Bound trade Warehouses are permanent in this contract; no refund",{},0,0};
+    if(land_trade_protected_building(id))return {false,DemolitionBlocker::HistoricalReference,"Bound trade Warehouses are permanent in this contract; no refund",{},0,0,false,false,{}};
+    if (agriculture_reconfiguration_enabled()) return agriculture_demolition_status(id);
     if (original_safe_demolition_enabled()) return original_safe_demolition_status(id);
     DemolitionStatus status;
     if (original_influence_enabled()) {
@@ -1614,6 +1625,9 @@ CommandResult World::validate_impl(Command command,bool check_irrigation_crossin
     if (command.type==CommandType::PlaceOriginalHempFarm || command.type==CommandType::PlaceOriginalHempField) {
         const auto checked=validate_original_hemp_command(command);if (!checked.accepted) return checked;
     }
+    if (command.type==CommandType::BeginAgricultureDrain ||
+        (agriculture_reconfiguration_enabled() && command.type==CommandType::DemolishBuilding))
+        return validate_agriculture_reconfiguration_command(command);
     if (original_safe_demolition_enabled() && command.type==CommandType::DemolishBuilding) {
         const auto status=original_safe_demolition_status(command.building_id);
         return {status.allowed,status.allowed,status.reason,
@@ -2121,6 +2135,9 @@ CommandResult World::execute_impl(Command command,bool refresh_after,bool influe
         if (result.accepted && result.changed) *this=std::move(candidate);
         return result;
     }
+    if (command.type==CommandType::BeginAgricultureDrain ||
+        (agriculture_reconfiguration_enabled() && command.type==CommandType::DemolishBuilding))
+        return execute_agriculture_reconfiguration_command(command,refresh_after);
     if (original_safe_demolition_enabled() && command.type==CommandType::DemolishBuilding)
         return execute_original_safe_demolition(command,refresh_after);
     if (command.type==CommandType::PlaceOriginalInfluenceSource ||
@@ -2695,6 +2712,7 @@ bool building_footprint_contains(const WorldSnapshot& state,BuildingId id,Cell c
 }
 bool World::building_contains(BuildingId id,Cell cell) const {
     const auto& body=building(id);
+    if(agriculture_reconfiguration_enabled() && !body.placed) return false;
     if(body.kind==Object::OriginalFishingQuay) {
         if(!fishing_) return false;
         const auto quay=std::find_if(fishing_->quays.begin(),fishing_->quays.end(),[&](const auto& q){return q.quay_id==id;});
@@ -2757,6 +2775,7 @@ CommandResult World::execute_hunting_command(Command command) {
 }
 std::vector<Cell> World::building_cells(BuildingId id) const {
     const auto& b=building(id);
+    if(agriculture_reconfiguration_enabled() && !b.placed) return {};
     return b.kind==Object::OriginalFishingQuay ? fishing_quay_cells(id):building_footprint_cells(profile_,rule_version_,b.kind,b.cell);
 }
 std::vector<BuildingEntrance> World::building_entrances(BuildingId id) const {
@@ -2980,7 +2999,7 @@ void World::refresh_routes() {
         for (auto& courier:couriers_) {
             courier.dynamic_target_routes.clear();
             if(courier.role==CourierRole::OriginalFoodGrower) {
-                for(const auto& field:agriculture_fields()) if(field.farm_id==courier.owner)
+                for(const auto& field:agriculture_fields()) if(field.farm_id==courier.owner && building(field.field_id).placed)
                     courier.dynamic_target_routes.emplace_back(field.field_id,
                         physical_food_grower_route({-1,-1},courier.owner,field.field_id,false));
                 courier.cached_route.reset();courier.cached_revision=road_revision_;continue;
@@ -2992,14 +3011,14 @@ void World::refresh_routes() {
                 courier.cached_route.reset();courier.cached_revision=road_revision_;continue;
             }
             if(courier.role==CourierRole::OriginalPlantationGrower) {
-                for(const auto& plant:plantations_->plants) if(plant.source_id==courier.owner)
+                for(const auto& plant:plantations_->plants) if(plant.source_id==courier.owner && building(plant.plant_id).placed)
                     courier.dynamic_target_routes.emplace_back(plant.plant_id,
                         plantation_route({-1,-1},courier.owner,plant.plant_id,false));
                 courier.cached_route.reset();courier.cached_revision=road_revision_;continue;
             }
             const auto& source=building(courier.owner);
             if (source.placed) for (const auto& target:buildings_)
-                if (courier_can_target(courier.role,target,profile_,rule_version_) && target.id!=source.id)
+                if (target.placed && courier_can_target(courier.role,target,profile_,rule_version_) && target.id!=source.id)
                     courier.dynamic_target_routes.emplace_back(target.id,
                         find_building_route(source.id,target.id));
             courier.cached_route.reset();
@@ -3128,7 +3147,8 @@ CourierDispatchDecision World::courier_dispatch_status(CourierId id) const {
         if (!service && source_stock<=0) return {CourierDispatchStatus::NoStock,std::nullopt};
         std::vector<const BuildingState*> targets;
         for (const auto& b:buildings_)
-            if (courier_can_target(c.role,b,profile_,rule_version_) && b.id!=source.id) targets.push_back(&b);
+            if (b.placed && courier_can_target(c.role,b,profile_,rule_version_) && b.id!=source.id &&
+                !(c.role==CourierRole::FireInspector && agriculture_draining(b.id))) targets.push_back(&b);
         if (targets.empty()) return {CourierDispatchStatus::NoTarget,std::nullopt};
         if (c.role==CourierRole::HealthWorker) {
             // Reachability comes exclusively from the ordinary topology cache.
@@ -4162,7 +4182,7 @@ bool World::industry_balance_valid() const {
         std::vector<std::pair<BuildingId,int>> pottery_reservations,food_reservations;
         for (std::size_t i=0;i<buildings_.size();++i) {
             const auto& b=buildings_[i];
-            if (!b.placed || static_cast<std::uint32_t>(b.id)==0 ||
+            if ((!b.placed && !agriculture_retired(b.id)) || static_cast<std::uint32_t>(b.id)==0 ||
                 (i && !(buildings_[i-1].id<b.id)) || b.placed_tick>ticks_ ||
                 b.reserved_incoming<0 || b.reserved_food_incoming<0) return false;
             for (const auto cell:building_cells(b.id))
@@ -5167,6 +5187,13 @@ std::string World::canonical_state() const {
                 if(seasonal_agriculture_enabled())out<<','<<t.ready_tick;}
         }
     }
+    if(agriculture_reconfiguration_) {
+        out<<'|'<<agriculture_reconfiguration_contract<<':'<<agriculture_reconfiguration_revision;
+        for(const auto& e:agriculture_reconfiguration_->entries) {
+            out<<'|'<<static_cast<std::uint32_t>(e.building_id)<<','<<e.started_tick<<','<<e.started_sequence<<','<<(e.removed_tick?std::to_string(*e.removed_tick):"-")<<','<<(e.removed_sequence?std::to_string(*e.removed_sequence):"-");
+            if(e.initial_work){const auto& w=e.initial_work->work;out<<','<<w.base_work<<','<<w.wet_work_ticks<<','<<w.bonus_work<<','<<w.clipped_bonus<<','<<w.wasted_work<<','<<e.initial_work->harvested;}else out<<",-";
+        }
+    }
     if(food_warehouses_) {
         out<<'|'<<food_warehouses_contract<<':'<<food_warehouses_revision;
         const auto arrival=[&](const std::optional<FoodProcessingArrival>& value){
@@ -5469,7 +5496,7 @@ WorldSnapshot World::snapshot() const {
     s.original_goods=original_goods_;
     s.original_production=original_production_;
     s.agriculture=agriculture_;
-    s.hunting_food=hunting_food_;s.hunting=hunting_;s.processed_food=processed_food_;s.food_processing=food_processing_;s.food_warehouses=food_warehouses_;
+    s.hunting_food=hunting_food_;s.hunting=hunting_;s.processed_food=processed_food_;s.food_processing=food_processing_;s.food_warehouses=food_warehouses_;s.agriculture_reconfiguration=agriculture_reconfiguration_;
     s.multi_field_agriculture=multi_field_agriculture_;
     s.physical_food_growers=physical_food_growers_;
     s.seasonal_agriculture=seasonal_agriculture_;
@@ -5522,6 +5549,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     if(s.navigation_session_present)
         throw std::invalid_argument("Transient grower navigation cannot be restored as historical saved authority");
     performance::increment(performance::Counter::WorldRestores);
+    validate_agriculture_reconfiguration_snapshot(s);
     validate_irrigation_productivity_snapshot(s);validate_food_processing_snapshot(s);validate_food_warehouses_snapshot(s);
     validate_seasonal_agriculture_snapshot(s);
     validate_physical_food_growers_snapshot(s);
@@ -5553,7 +5581,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
     w.original_goods_=s.original_goods;
     w.original_production_=s.original_production;
     w.agriculture_=s.agriculture;
-    w.hunting_food_=s.hunting_food;w.hunting_=s.hunting;w.processed_food_=s.processed_food;w.food_processing_=s.food_processing;w.food_warehouses_=s.food_warehouses;
+    w.hunting_food_=s.hunting_food;w.hunting_=s.hunting;w.processed_food_=s.processed_food;w.food_processing_=s.food_processing;w.food_warehouses_=s.food_warehouses;w.agriculture_reconfiguration_=s.agriculture_reconfiguration;
     w.multi_field_agriculture_=s.multi_field_agriculture;
     w.physical_food_growers_=s.physical_food_growers;
     w.seasonal_agriculture_=s.seasonal_agriculture;
@@ -5588,15 +5616,16 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
         (s.road_revision>s.command_sequence && s.road_revision-s.command_sequence>materialized) ||
         s.roads.size()>w.objects_.size() || s.command_sequence<s.roads.size())
         fail("invalid sandbox counters or road count");
-    const auto put=[&](Cell cell,Object object,BuildingId owner) {
-        if(object!=Object::Road && (w.bridge_at(cell)||w.bridge_bank_at(cell)||w.ramp_endpoint(cell)))fail("saved building overlaps bridge span or bank");
-        if(object!=Object::Road&&w.source_cell_ramp_claim(cell))fail("saved building overlaps source-cell ramp axial claim");
+    const auto put=[&](Cell cell,Object object,BuildingId owner,bool publish=true) {
+        if(publish && object!=Object::Road && (w.bridge_at(cell)||w.bridge_bank_at(cell)||w.ramp_endpoint(cell)))fail("saved building overlaps bridge span or bank");
+        if(publish && object!=Object::Road&&w.source_cell_ramp_claim(cell))fail("saved building overlaps source-cell ramp axial claim");
         const bool pump_water=((object==Object::OriginalIrrigationPump && w.irrigation_enabled()) ||
             (object==Object::OriginalFishingQuay && w.playable_fishing_enabled())) &&
             w.permissions_ && w.permissions_->bridge_water(cell);
         if (object==Object::Road ? (!w.road_buildable(cell) || w.fixed_passage(cell) || w.original_road(cell)):
             (!w.buildable(cell) && !pump_water)) fail(w.permissions_ ? "saved object outside permitted map cells":
                 "saved object outside buildable mask");
+        if(!publish) return; // Closed leaves retain source admission, never current claims.
         const auto i=w.index(cell);
         if (w.objects_[i]!=Object::Empty) fail("overlapping or duplicate saved objects");
         w.objects_[i]=object;
@@ -5659,7 +5688,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
         for (std::size_t i=0;i<s.buildings.size();++i) {
             const auto& b=s.buildings[i];
             if (static_cast<std::uint32_t>(b.id)==0 || (i && !(s.buildings[i-1].id<b.id)) ||
-                !b.placed || b.kind==Object::Empty || b.kind==Object::Road ||
+                (!b.placed && !w.agriculture_retired(b.id)) || b.kind==Object::Empty || b.kind==Object::Road ||
                 b.kind==Object::Workshop ||
                 ((original_elite_house_kind(b.kind) || original_industry_model(b.kind) || b.kind==Object::OriginalHempFarm || b.kind==Object::OriginalHempField || b.kind==Object::OriginalFoodFarm ||
                   b.kind==Object::OriginalWheatField || b.kind==Object::OriginalMilletField ||
@@ -5694,7 +5723,7 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
                 if (b.kind==Object::OriginalEliteHouse && w.permissions_ &&
                     w.permissions_->cell_height(cell)!=w.permissions_->cell_height(b.cell))
                     fail("saved materialized Elite House has a nonlevel foundation");
-                put(cell,b.kind,b.id);
+                put(cell,b.kind,b.id,b.placed);
             }
             if (b.kind==Object::OriginalFishingQuay) {
                 const auto q=std::find_if(s.fishing->quays.begin(),s.fishing->quays.end(),[&](const auto& row){return row.quay_id==b.id;});
@@ -5824,7 +5853,8 @@ World World::restore_impl(const WorldSnapshot& s,std::vector<std::uint8_t> mask,
             s.road_revision-s.roads_placed_total-s.roads_removed_total!=
                 s.buildings.size()+2*s.demolition_history.buildings+s.bridges.size()+s.ramps.size()+s.source_cell_ramps.size()+
                     (w.original_influence_enabled() ? 2*s.original_influence->removed_sources.size():0)+materialized+2*retired_count+
-                    (s.irrigation ? s.irrigation->ditches_placed_total+s.irrigation->ditches_removed_total:0) ||
+                    (s.irrigation ? s.irrigation->ditches_placed_total+s.irrigation->ditches_removed_total:0)+
+                    (s.agriculture_reconfiguration ? static_cast<std::uint64_t>(std::count_if(s.agriculture_reconfiguration->entries.begin(),s.agriculture_reconfiguration->entries.end(),[](const auto& e){return e.removed_tick.has_value();})):0) ||
             (w.demolition_supported() && (s.demolition_history.buildings>=UINT32_MAX ||
                 s.buildings.size()+s.demolition_history.buildings+1+
                     (w.original_influence_enabled() ? s.original_influence->removed_sources.size():0)+retired_count!=s.next_building_id)))

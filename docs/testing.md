@@ -44,6 +44,73 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Agriculture reconfiguration (AGRI-MAC11)
+
+Select **R Reconfigure (36)** / `--agriculture-reconfiguration` for explicit
+Rule36/policy3/schema52. The [support/drain/refusal matrix](original-economy/agriculture.md#safe-agriculture-reconfiguration-agri-mac11)
+retains the sole Food/Goods/Aux accounts, immutable paid leaf histories and all
+lifetime limits. This is authored removal, separate from Rule19.
+
+```sh
+ctest --test-dir build --output-on-failure -R 'agriculture-reconfiguration|original-safe-demolition|inspector-layout'
+python3 tests/test_agriculture_reconfiguration_replay.py \
+  --executable "$PWD/build/openemperor-agriculture-reconfiguration-acceptance" \
+  --seed-executable "$PWD/build/openemperor-food-warehouses-acceptance" \
+  --data "$PWD/.local/gog-extracted/app"
+```
+
+The independent Python case first earns a fresh actual-data seed command plan,
+then repurchases its commands into a fresh Rule36 city. It never converts that
+seed's Save or imports work/population/stock. Separate creator/replay processes
+retain their own 600-second deadlines; the outer CTest case has 1860 seconds.
+Outputs use fresh ignored directories. Each actual tick is checked for the
+single twelve-kind Food equation, physical cargo/returns, paid budgets and
+closed histories. Checkpoints cover idle and worked Field removal/rebuild,
+partial/loaded pending Growers, a real Tea pickup/return, Pump/ditch cuts and
+wet recovery, plus loaded Hunter/Boat/Food, active Mill and stocked Warehouse
+refusals. `initial_work` must equal the real command-time observation and remain
+immutable. Creator/replay traces and final canonical bytes must match.
+
+World/Edge cases also earn a fully held32-portion Warehouse, an unrelated actor
+crossing a candidate's current/begun footprint, real paid road repair during a
+Field drain and normal resumption of paused loaded sources. Save/Recovery cases
+cover pending/loaded/returned/closed/rebuilt states, shared labor, known wet
+supply intervals, backdated requests/rebuilds, source-blocked closed geometry,
+paired nullable closure fields, clipped-work forgery, closed Pump invoices/fire
+and actual Inspector commitments. Rejected commands, restores and writes must
+preserve live state, funds, IDs and supplied bytes. Historical51 writers/loaders
+remain exact and cannot overwrite52.
+
+`agriculture-reconfiguration-presentation` exercises normal R/pointer selection,
+shared Drain/confirmation/cancellation, genuine loaded Growers, no-refund paid
+rebuild, F5/F9 and pure frames at900/1280 widths. The real-window companion is
+`openemperor-agriculture-reconfiguration-view-acceptance`: use `--input` with an
+actual schema52 checkpoint and `--target` with its paid ID, fresh `--output`,
+`--renderer metal`, and optional36-only `--width 900 --height 600`. It validates
+normal selection and visible scrolled cargo witnesses rather than treating JSON
+or screenshot existence as visual acceptance. Inspect the PNGs. Cocoa/Metal
+render delivery, scripted SDL events and human/OS-input acceptance stay separate.
+
+The frozen macOS arm64 source (891 files) passed all 425 cases in each fresh
+Debug, Release and ASan+UBSan build, without skips. Full-data alpha passed
+100,000 deterministic ticks and 12 real JSON roundtrips per configuration,
+3,000-frame Debug/sanitizer render stress and 100 menu/session cycles. All 74
+core comparisons passed against each matching fresh archive set; the numeric
+cases and literal public report retain 46 parity, 18 corrected_bug, 6 unverified
+and 4 unsupported classifications. This does not widen Original parity.
+
+The actual Rule36 creator and separate replay each ran 24,000 ticks with 20
+canonical checkpoints and identical trace/final bytes; their independent
+real-data case passed in all three full suites. Fresh historical Rules24–35
+comparisons preserved 246 artifacts, 137 paid saves and 28 actual F5/Recovery
+byte comparisons. Older rule families retain their registered compatibility
+checks. Native Cocoa/Metal passed 17 cases including 900×600, with 188 reviewed
+PNGs and 564 pure frames whose 12 counters stayed zero. All 36 native guarded
+files and all 15 supplied Original inputs retained their bytes, mode and mtime.
+Human/OS-input acceptance remains NOT_RUN until the planned post-MAC14 playtest;
+isolated native fire/zero-staff cases are also NOT_RUN, with staffing/fire
+behavior covered separately by World tests.
+
 ## Food Warehouses (AGRI-MAC10)
 
 Select **V Food Warehouses (35)** / `--food-warehouses` for explicit

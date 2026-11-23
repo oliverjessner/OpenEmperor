@@ -228,6 +228,16 @@ sole consumption event remain necessary. Legacy advanced V still selects
 Rule19 safe demolition. Rules1–34/schemas1–50/defaults remain exact. See
 [Food Warehouses](original-economy/agriculture.md#food-warehouses-agri-mac10).
 
+The separate regular **R Reconfigure (36)** / `--agriculture-reconfiguration`
+selects Rule36/policy3/schema52, marker
+`authored-agriculture-reconfiguration-v1`. It inherits35 and admits only settled
+paid Food-field, plantation-plant and Pump retirement. Persistent Drain stops
+new cycles while real work/returns finish. Closed typed histories and initial
+work observations preserve resource equations, source identity and all lifetime
+budgets; rebuilding costs the full price and allocates a new ID. Stock/source
+owners remain refused. Rules1–35/schemas1–51, advanced Rule19 and defaults stay
+exact without migration. See the [matrix](original-economy/agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
+
 The separate **X Irrigation yields (33)** / `--irrigation-productivity`
 selection uses Rule33/policy3/schema49 with marker
 `authored-irrigation-productivity-v1`. It inherits Rule32 and adds one bonus

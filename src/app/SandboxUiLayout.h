@@ -63,7 +63,7 @@ struct InspectorLayout {
 Rect visible_text_row(int y,int height,Rect viewport);
 InspectorLayout make_inspector_layout(Rect panel,int scale,std::size_t buildings,
     std::size_t details,std::size_t hints,bool status_first,bool operations,
-    bool demolition,int scroll=0,int hint_scroll=0);
+    bool demolition,int scroll=0,int hint_scroll=0,bool compact_reconfiguration=false);
 
 Layout make_layout(int output_width,int output_height,int window_width,int window_height,
                    bool panel_open,bool fire_watch=false,bool desirability=false,bool water=false,bool health=false,

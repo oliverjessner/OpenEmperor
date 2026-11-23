@@ -85,6 +85,12 @@ Raw Food travels to Mills or Markets; stored Dinners travel to FoodShops.
 Inspect the Warehouse for typed stock, capacity, cargo and actual receipts.
 Goods/Aux storage and older modes retain their existing contracts.
 
+**R Reconfigure** or `--agriculture-reconfiguration` selects Rule36. Drain and
+remove settled paid Food fields, plantation plants and Pumps, then rebuild at
+full cost with new identities. Real work, cargo and histories remain conserved;
+Farmhouses, Quays, Tents, processors and stock owners remain protected. See the
+[reconfiguration guide](docs/original-economy/agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

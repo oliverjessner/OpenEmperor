@@ -373,6 +373,23 @@
   all Rules1–34/schemas1–50 and defaults stay exact without migration or overwrite.
   Warehouse demolition remains refused. See
   [Food Warehouses](docs/original-economy/agriculture.md#food-warehouses-agri-mac10).
+- Safe Agriculture reconfiguration is an explicit Rule36/policy3/schema52
+  successor, `authored-agriculture-reconfiguration-v1`, revision1, regular R /
+  `--agriculture-reconfiguration`. Inherit Rule35's sole Food and all economy.
+  Only paid Food Fields195–199, plantation plants26–28 and Pumps203 may retire;
+  preserve every typed work/origin/receipt row as a closed placed=false identity.
+  Eight pending/closed entries bind actual drain/removal ticks and sequences,
+  immutable earned initial crop-work/harvest observations and shared Farm labor.
+  Stop new cycles, finish actual work/seasonal expiry and physical cargo return;
+  only settled work and cleared current/begun footprints permit explicit removal.
+  Pump loss invalidates water immediately; rebuild pays full price/new ID and
+  waits for ordinary phase27. Closed work, fire and installed upkeep retain their
+  exact removal horizon. Keep lifetime82/58 and32 Field/plant budgets; only each
+  Farm's active8 quota excludes closed leaves. Source/stock-owner retirement
+  remains refused, including empty Farm/shed/Quay/Tent/Mill/Shop/Warehouse;
+  retain existing neutral Well/Road/Ditch paths. No refund, stock transfer,
+  cargo/work reset, migration or default change. Rules1–35/schemas1–51 stay exact.
+  See [reconfiguration](docs/original-economy/agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

@@ -200,6 +200,18 @@ courier per Warehouse uses the shared navigator; derived UI/status caches add
 no saved inventory. Rules1–34/defaults remain exact. See
 [the Warehouse contract](agriculture.md#food-warehouses-agri-mac10).
 
+**Agriculture reconfiguration** is separately explicit Rule36/policy3/schema52,
+`authored-agriculture-reconfiguration-v1`, revision1, R/`--agriculture-reconfiguration`.
+`WorldAgricultureReconfiguration` extends the shared command/status/restore path;
+it retires only settled Food Fields, material plants and Pumps. Existing typed
+work, receipts, Farm/source cursors and origin accounts stay authoritative.
+A bounded eight-entry journal retains pending/closed paid IDs and immutable
+request-time work observations, never inventory. Closed leaves publish no cells,
+new work, water or worker commitment. Publication validates their source admission
+and paid footprint lifetimes separately from today's occupancy. Runtime dispatch,
+water invalidation, field work, physical returns, fire and finance reuse their
+existing owners. Rules1–35/defaults remain exact. See [the matrix](agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
+
 **Irrigation productivity** is separately explicit Rule33/policy3/schema49,
 `authored-irrigation-productivity-v1`, revision1. `WorldIrrigationProductivity`
 records per-crop wet work, earned/clipped bonus and derived quarter carry;
@@ -241,6 +253,7 @@ Historical Rules1–32 stay exact. See
 | Rule33 / schema49 / irrigation productivity revision1 | Explicit authored water-driven growth; inherits Rule32 and retains actual base-work ticks, per-crop wet/bonus/clipped history and fractional carry. Existing phase27 paid supply alone permits +25% bounded growth work; actual harvest/pickup/return remains sole inventory authority. All older saves/defaults stay exact. |
 | Rule34 / schema50 / Food processing revision1 | Explicit paid Mill53/FoodShop66 successor to33. One12-column Food authority preserves seven raw ingredients and graded Dinners28, finite physical transport/reservations, one-time recipe inputs, staffed work, actual output and sole House consumption. Exact first meal provenance and strict source-bound restore; no defaults or historical migrations. |
 | Rule35 / schema51 / Food Warehouses revision1 | Explicit successor to34. Paid Warehouses join the same twelve-column Food account with bounded storage, physical source debits, another real forwarding leg and immutable first receipts. Existing construction/Goods/Aux, historical generations, defaults and82/58 limits remain exact. |
+| Rule36 / schema52 / Agriculture reconfiguration revision1 | Explicit successor to35. Settled paid Food Fields, material plants and Pumps close without refund or erased work/cargo/history. Persistent Drain and request-time observations bind actual work and returns; exact source/footprint lifetimes, closed Pump clocks/upkeep and unchanged lifetime82/58/32 limits precede publication. Source/stock owners stay refused; historical saves/defaults do not migrate. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy

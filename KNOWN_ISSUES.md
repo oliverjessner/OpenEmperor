@@ -3,6 +3,14 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
+- **Agriculture reconfiguration is bounded.** Explicit Rule36/schema52 supports
+  Food-field, plantation-plant and Pump retirement after real drainage. It keeps
+  eight pending/closed entries and all lifetime purchase budgets. Farmhouses,
+  sheds, Quays, Tents, Mills, FoodShops and Warehouses remain refused, including
+  empty owners; their stock/channel/source closure is not implemented. Existing
+  Road/Ditch removal remains separate. No refund, cargo cancellation or automatic
+  removal is provided. See the [matrix](docs/original-economy/agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
+
 - **Further production chains remain research-only.** The existing Wheat/Millet,
   Hemp, Clay/Ceramics, Tea, Silk, Bronzeware, Lacquerware and Paper paths include
   authored harvest periods, recipes or resource management. Additional model
