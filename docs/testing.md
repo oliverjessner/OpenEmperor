@@ -44,6 +44,99 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Agriculture state presentation (AGRI-MAC12)
+
+This is presentation of the existing explicitly selected Rule36/policy3/schema52
+World. The [building](building-visual-profile.md#rule36-agriculture-state-presentation-agri-mac12)
+and [walker](walker-visual-profile.md) matrices distinguish qualified Original
+art from authored geometry; no new gameplay generation is allocated.
+
+```sh
+ctest --test-dir build --output-on-failure -R 'agriculture-visual|agriculture-actor|agriculture-fallback'
+python3 tests/test_agriculture_visual_replay.py \
+  --executable "$PWD/build/openemperor-agriculture-visual-acceptance" \
+  --seed-executable "$PWD/build/openemperor-food-warehouses-acceptance" \
+  --view-executable "$PWD/build/openemperor-agriculture-visual-view-acceptance" \
+  --data "$PWD/.local/gog-extracted/app"
+```
+
+The actual-data case repurchases an earned command plan into a fresh Rule36
+city. It includes all nine crop kinds, multiple physical Food Growers, the
+Hemp/plantation workers, Quay/Boat, Tent/Hunter, all three animal species,
+Mill/FoodShop, Food Warehouses and actual Food couriers. Creator and separate
+replay retain600-second child deadlines; CTest retains1860 seconds. The Python
+audit independently derives saved crop/bonus/harvest/return equations, real
+actor phases, complete command epochs and all required stage bands. Natural
+Pump fire, actual Inspector arrival and a later real wet refill are separate
+checkpoints. Save/roundtrip bytes and the entire replay trace must match.
+The registered real-data case also exercises ten normal software views,
+including a field with a promoted painter key, Food and Hemp ready80, loaded Grower,
+Rice, Boat work/unload, Hunter return, wildlife and committed Mill work. Paid
+identity and painter keys stay separate; all three zooms, typed pixel picks,
+literal private F5 bytes and the12 purity counters are checked.
+The Hemp-ready case requires the admitted last bank2463 at actual80/80,
+preventing an unintended switch to fallback geometry at physical-pickup readiness.
+Diagnostic pixel probes also cover the submitted rectangle when a visible
+edge lies between the initial probes. Ordinary alpha/roof selection still
+decides every click; some fields and docked actors are partly occluded. A
+selected inspector does not prove that the whole body or its cargo is visible.
+
+`agriculture-visual-state` and `agriculture-actor-presentation` cover actual
+IDs, source staffing, saved work/cargo, pause, return and cold-restore poses.
+`agriculture-fallback-pixels` checks drawn triangle pixels, four directions,
+stationary phases, distinct work/unload art and3,000 pure frames. The normal
+`agriculture-visual-presentation` case covers body/roof/actor selection at
+1×/2×/4×, ready80, pause, exact F5/F9 and historical Rule35 isolation. Synthetic
+fixtures and software pixels do not establish actual-data/native acceptance.
+
+Use `openemperor-agriculture-visual-view-acceptance --help` for the read-only
+actual-checkpoint companion. Supply explicit `--data`, `--resources`,
+`--input`, fresh `--output`, typed `--domain` and actual `--id`. Select
+`--renderer software` or native macOS `--renderer metal`; `--frames 3` checks
+one pure frame per zoom, while `--frames 3000` runs the dedicated stress case.
+The companion uses production painter/alpha picking, actual submitted bounds,
+private exact-generation F5/F9 and one-step/reload continuation. Reports retain
+actual overlaps, art provenance, resource measurements and all12 purity
+counters. Open its PNGs; report existence alone is not visual acceptance.
+Native Cocoa/Metal, scripted SDL events and the planned post-MAC14 human/OS
+input playtest remain separate evidence tiers.
+
+Recorded MAC12 validation covers the frozen 906-file source manifest
+`c695b41a1362ae80d39377f77a056e50bd87c7dc0ce33a87acb219f660b46835`.
+Debug and Release each passed all 433 registered tests without skips. The
+ASan+UBSan suite passed 428 cases and recorded five signal-terminated cases;
+those exact five subsequently passed a sequential rerun with unchanged
+assertions, deadlines, executables and inputs. The original failed Alpha
+report and JUnit remain preserved: this is cumulative coverage, not a clean
+single full-suite run. An earlier ASan run found a lifetime error in the
+acceptance helper, where a World transaction invalidated an iterated building
+reference. Copying command identities before transactions fixed it; a fresh
+sanitized 24,000-tick creator and separate replay each passed 165 checkpoints,
+with exact final saves and complete traces.
+
+Independent core checks reproduced all 74 cases in each configuration with
+unchanged classifications and literal public-report bytes. Historical
+Rules24–35 retained 246 artifacts, including 137 paid saves. A fresh old-Rule36
+24,000-tick replay retained all 20 checkpoints, 40 save/roundtrip files, six
+Recovery payloads and the complete work trace byte-for-byte. These checks used
+the disclosed coverage-after-rerun gate; original inputs and baseline artifacts
+remained unchanged.
+
+The remaining unchanged public Alpha functions passed separately: 100,000-tick
+endurance with 12 JSON roundtrips in all three configurations, 3,000-frame
+Debug and sanitized render stress, 100 menu sessions, actual-data Industry
+and City-v11 supply/tax/resume checks, and the Release arm64 architecture check.
+No package or release was produced by this validation.
+
+Actual-data presentation checks passed 165 cases per software and Cocoa/Metal
+backend at three zooms. All 990 captures were opened through indexed contact
+sheets and selected full originals; the 12 frame counters stayed zero, and
+both backends separately passed 3,000 pure frames. Historical controls retained
+all 25 Rule18/23 Walker images and all 54 field images byte-for-byte; all 25
+Walker images and 18 fresh Debug field originals were opened individually.
+These results retain the documented roof/viewport visibility limits and do
+not establish Original animation parity or the later human/OS input playtest.
+
 ## Agriculture reconfiguration (AGRI-MAC11)
 
 Select **R Reconfigure (36)** / `--agriculture-reconfiguration` for explicit

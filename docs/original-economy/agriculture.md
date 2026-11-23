@@ -20,6 +20,33 @@ keep their exact contracts; the new gameplay supplies no raw Harvest parity.
 **X Irrigation yields, Rule33/schema49**, separately adds authored water-driven
 productive work; see [AGRI-MAC08](#irrigation-productivity-agri-mac08).
 
+## Agriculture state presentation (AGRI-MAC12)
+
+The explicitly selected Rule36 mode uses prepared, read-only presentation of
+the existing paid World. There is no Rule37, schema53, new production clock or
+saved display authority. Rules1–35, their visual selectors and every historical
+save retain their existing contracts.
+
+The [building matrix](../building-visual-profile.md#rule36-agriculture-state-presentation-agri-mac12)
+and [actor matrix](../walker-visual-profile.md) distinguish qualified Original
+pixels from authored geometry. All five Food fields, Hemp and the three
+plantation kinds bind their actual paid source/field IDs, growth, readiness,
+harvest work and physical pickup/return. Rice retains the qualified static paddy
+art; actual growth/water overlays do not qualify an Original growth bank.
+At readiness80, Food and Hemp retain the last qualified field stage and the real
+80/80 display. Food also shows its separate five-tick harvest work.
+
+Growers, Food couriers, Boats, Hunters and animals use saved physical positions,
+begun edges, directions, work counters and cargo. No frame clock advances a
+stationary pose. Instant material pickup has no invented tending animation.
+Submitted geometry and sprite alpha share normal painter order and picking;
+transient actors retain their actual lifetime identity across channel reuse.
+Work/wet/blocker/processor overlays and selected incoming routes read prepared
+descriptors and existing paths, never run a navigator or grant an arrival.
+Source admission, eager deduplication and texture/body/channel limits are
+unchanged. Maintained [test instructions](../testing.md) separate synthetic
+software, actual-data Cocoa/Metal and post-MAC14 human evidence.
+
 ## Playable Agriculture (AGRI-MAC01)
 
 **Explicit AUTHORED macOS gameplay: Rule27/policy3/schema43.** Select

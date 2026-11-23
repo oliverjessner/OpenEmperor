@@ -90,6 +90,9 @@ remove settled paid Food fields, plantation plants and Pumps, then rebuild at
 full cost with new identities. Real work, cargo and histories remain conserved;
 Farmhouses, Quays, Tents, processors and stock owners remain protected. See the
 [reconfiguration guide](docs/original-economy/agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
+This mode also shows actual field/plant stages, work and water overlays, and
+physical workers, boats and wildlife. Qualified Original art and labelled
+authored geometry are distinguished in the [visual guide](docs/building-visual-profile.md#rule36-agriculture-state-presentation-agri-mac12).
 
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.

@@ -368,7 +368,8 @@ void append_seasonal_hemp_lines(const simulation::World& world,simulation::Build
     if(!world.seasonal_agriculture_enabled())return;
     for(const auto& source:world.seasonal_agriculture_state()->hemp_farms) if(source.farm_id==farm) {
         const auto& actor=world.courier(source.courier_id);
-        lines.push_back("Hemp Grower* AUTHORED marker");
+        lines.push_back(world.agriculture_reconfiguration_enabled() ?
+            "Hemp Grower: AUTHORED state-driven art":"Hemp Grower* AUTHORED marker");
         lines.push_back("Grower channel #"+std::to_string(static_cast<unsigned>(source.courier_id))+" | "+
             simulation::courier_phase_name(actor.phase));
         lines.push_back("Grown "+std::to_string(source.grown)+" | picked "+std::to_string(source.picked));
@@ -2428,7 +2429,11 @@ SandboxView::OriginalFieldVisualSelection SandboxView::original_field_visual_sel
             if (original_plantations() && (playable_agriculture() || field.crop==simulation::AgricultureCrop::Wheat || field.crop==simulation::AgricultureCrop::Millet)) {
                 const auto& farm=world_->building(field.farm_id);
                 const auto progress=world_->agriculture_field_progress(field.field_id);
-                const auto stage=assets::authored_farm_progress_stage(progress);
+                // Rule36 can retain actual80 during ready/physical harvest.
+                // Keep the last qualified image; the separate overlay retains
+                // the true80/80 and harvest counters. Historical selectors stay exact.
+                const auto stage=assets::authored_farm_progress_stage(
+                    agriculture_reconfiguration() ? std::min(progress,79):progress);
                 if (!stage || farm.kind!=simulation::Object::OriginalFoodFarm) return result;
                 result.farm=field.farm_id;result.progress=progress;result.stage=stage;
                 result.entry=building_profile_->find_original_field(*role,1,*stage);return result;
@@ -2455,7 +2460,10 @@ SandboxView::OriginalFieldVisualSelection SandboxView::original_field_visual_sel
     const auto bind=[&](simulation::BuildingId farm_id,simulation::Object expected_kind) {
         const auto& farm=world_->building(farm_id);
         if (farm.kind!=expected_kind) return;
-        const auto stage=assets::authored_farm_progress_stage(farm.progress);
+        // Rule36 holds Hemp at actual80 until physical pickup. Keep its last
+        // qualified image while preserving the real progress in the descriptor.
+        const auto stage=assets::authored_farm_progress_stage(
+            agriculture_reconfiguration() ? std::min(farm.progress,79):farm.progress);
         if (!stage) return;
         result.farm=farm_id;result.progress=farm.progress;result.stage=stage;
         result.entry=building_profile_->find_original_field(*role,1,*stage);
@@ -2660,6 +2668,7 @@ void SandboxView::prepare_original_field_order(bool force) {
     prepare_fishing_visuals(force);
     prepare_hunting_visuals(force);
     prepare_agriculture_inspection(force);
+    prepare_agriculture_visuals(force);
     if (!force && world_ && original_field_order_revision_==world_->road_revision()) return;
     original_field_order_count_=0;
     original_rice_visual_count_=0;
@@ -3069,6 +3078,8 @@ void SandboxView::prepare_original_road_visuals() {
     std::sort(original_road_visuals_.begin(),original_road_visuals_.end(),[](const auto& a,const auto& b) {
         return std::pair{a.cell.y,a.cell.x}<std::pair{b.cell.y,b.cell.x};
     });
+    if(agriculture_reconfiguration())agriculture_road_replacement_cells_.reserve(
+        agriculture_world_objects_.size()+original_road_visuals_.size()+256U);
     refresh_original_road_visuals();
 }
 void SandboxView::refresh_original_road_visuals(std::span<const simulation::Cell> changed) {
@@ -5113,7 +5124,8 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         if (selecting && playable_fishing() && pointer_ && visual_frame_valid_) {
             const auto point=visual_hit_camera_.screen_to_world(*pointer_);
             boat_pixel=std::any_of(visual_hits_.begin(),visual_hits_.end(),[&](const auto& hit) {
-                return (hit.boat || hit.hunter || hit.animal || hit.mesh==simulation::Object::OriginalHuntersTent ||
+                return ((agriculture_reconfiguration() && (hit.agriculture_mesh || hit.image || hit.mesh!=simulation::Object::Empty)) ||
+                    hit.boat || hit.hunter || hit.animal || hit.mesh==simulation::Object::OriginalHuntersTent ||
                     (food_processing() && hit.walker && processing_food_courier(world_->courier(*hit.walker).role)) ||
                     (agriculture_reconfiguration() && hit.walker && world_->courier(*hit.walker).role==simulation::CourierRole::OriginalPlantationGrower) ||
                     (physical_food_growers() && hit.walker && (world_->courier(*hit.walker).role==simulation::CourierRole::OriginalFoodGrower ||
@@ -5350,8 +5362,13 @@ int SandboxView::walker_marker_shift(simulation::Position position,simulation::C
 }
 void SandboxView::clear_visual_selection() {
     selected_landscape_=false; selected_walker_.reset();selected_hunting_animal_.reset();
+    selected_agriculture_actor_.reset();
+    selected_agriculture_lifetime_=0;
 }
 void SandboxView::clear_hidden_walker_selection() {
+    if (selected_agriculture_lifetime_ && !selected_agriculture_actor()) {
+        clear_visual_selection();selected_.reset();panel_scroll_=0;inspector_hint_scroll_=0;
+    }
     if (selected_hunting_animal_) {
         const auto* state=world_->hunting_state() ? &*world_->hunting_state():nullptr;
         const auto animal=state ? std::find_if(state->animals.begin(),state->animals.end(),
@@ -5368,12 +5385,17 @@ void SandboxView::clear_hidden_walker_selection() {
 void SandboxView::record_visual_hit(const DrawInstance& instance) {
     if (instance.irrigation_ditch) return;
     if (instance.placement_preview || instance.object==simulation::Object::Road) return;
-    const auto append=[&](const VisualHit& next) {
+    const auto append=[&](VisualHit next) {
+        if(next.agriculture_mesh) {
+            // Same subpixel boundary policy as the prepared-triangle query.
+            const auto pixel=1./camera_.zoom;next.origin.x-=pixel;next.origin.y-=pixel;
+            next.width+=2*pixel;next.height+=2*pixel;
+        }
         const auto top=camera_.world_to_screen(next.origin);
         if (top.x+next.width*camera_.zoom<=layout_.map.x ||
             top.y+next.height*camera_.zoom<=layout_.map.y ||
             top.x>=layout_.map.x+layout_.map.w || top.y>=layout_.map.y+layout_.map.h) return;
-        visual_hits_.push_back(next);
+        visual_hits_.push_back(std::move(next));
     };
     VisualHit hit; hit.key=instance.key; hit.cell=instance.cell;
     if(instance.source_cell_ramp) {
@@ -5396,6 +5418,17 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         hit.origin={hit.mesh_ground.x-40,hit.mesh_ground.y-40};hit.width=80;hit.height=80;
         append(hit);return;
     }
+    if(agriculture_reconfiguration() && (instance.hunter || instance.animal || instance.boat)) {
+        const auto domain=instance.hunter ? AgricultureActorDomain::Hunter:instance.animal ?
+            AgricultureActorDomain::Animal:AgricultureActorDomain::Boat;
+        const auto id=instance.hunter ? instance.hunter->value:instance.animal ? instance.animal->value:instance.boat->value;
+        if(auto mesh=agriculture_actor_mesh_owner(domain,id)) {
+            hit.hunter=instance.hunter;hit.animal=instance.animal;hit.boat=instance.boat;
+            hit.mesh_ground=world_for(instance.position);hit.agriculture_mesh=std::move(mesh);
+            hit.origin={hit.mesh_ground.x+hit.agriculture_mesh->left,hit.mesh_ground.y+hit.agriculture_mesh->top};
+            hit.width=hit.agriculture_mesh->width;hit.height=hit.agriculture_mesh->height;append(hit);return;
+        }
+    }
     if (instance.hunter || instance.animal) {
         hit.hunter=instance.hunter;hit.animal=instance.animal;const auto ground=world_for(instance.position);
         hit.origin={ground.x-8,ground.y-12};hit.width=17;hit.height=20;append(hit);return;
@@ -5409,6 +5442,9 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         hit.cell={static_cast<int>(std::floor(instance.position.x)),
                   static_cast<int>(std::floor(instance.position.y))};
         const auto ground=world_for(instance.position);
+        hit.mesh_ground=ground;
+        if(agriculture_reconfiguration())if(const auto* actor=agriculture_actor_state_.find_courier(instance.courier))
+            hit.agriculture_lifetime=actor->lifetime_id;
         if (simulation::production_profile(rules_)) {
             const auto& courier=world_->courier(instance.courier);
             const auto role=walker_visual_role(courier.role);
@@ -5431,6 +5467,12 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
                     return;
                 }
             }
+        }
+        if(agriculture_reconfiguration())if(auto mesh=agriculture_actor_mesh_owner(
+            AgricultureActorDomain::Courier,static_cast<std::uint64_t>(instance.courier))) {
+            hit.mesh_ground=ground;hit.agriculture_mesh=std::move(mesh);
+            hit.origin={ground.x+hit.agriculture_mesh->left,ground.y+hit.agriculture_mesh->top};
+            hit.width=hit.agriculture_mesh->width;hit.height=hit.agriculture_mesh->height;append(hit);return;
         }
         const int shift=walker_marker_shift(instance.position,instance.courier);
         const double size=std::max(debug_open_ ? 5.0:4.0,(debug_open_ ? 10.0:7.0)*camera_.zoom)/camera_.zoom;
@@ -5458,12 +5500,20 @@ void SandboxView::record_visual_hit(const DrawInstance& instance) {
         return;
     }
     const auto ground=building_visual_ground(instance.cell,instance.object);
+    hit.mesh_ground=ground;
+    if(agriculture_reconfiguration())hit.agriculture_building=world_->building_owner_at(instance.cell);
     const auto* selected=resolved_building_entry(instance.cell,instance.object);
     if (selected && building_visuals_active() && building_sprite_) {
         const auto& entry=*selected;const auto& image=building_profile_->unique_images[entry.image_index];
         hit.image=entry.image_index;hit.origin={ground.x-entry.ground_x,ground.y-entry.ground_y};
         hit.width=image.width;hit.height=image.height;append(hit);return;
     }
+    if(agriculture_reconfiguration())if(const auto owner=world_->building_owner_at(instance.cell))
+        if(auto mesh=agriculture_building_mesh(*owner)) {
+            hit.mesh_ground=ground;hit.agriculture_mesh=std::move(mesh);
+            hit.origin={ground.x+hit.agriculture_mesh->left,ground.y+hit.agriculture_mesh->top};
+            hit.width=hit.agriculture_mesh->width;hit.height=hit.agriculture_mesh->height;append(hit);return;
+        }
     const auto house=original_house_visual_selection(instance.cell,instance.object);
     if (instance.object==simulation::Object::OriginalHuntersTent) {
         hit.mesh=simulation::Object::OriginalHuntersTent;hit.mesh_ground=ground;
@@ -5531,6 +5581,12 @@ bool SandboxView::select_visual(scene::Point screen) {
     const auto world=visual_hit_camera_.screen_to_world(screen);
     const VisualHit* dynamic=nullptr;
     for (auto it=visual_hits_.rbegin();it!=visual_hits_.rend();++it) {
+        if(agriculture_reconfiguration() && it->agriculture_building) {
+            const auto body=std::find_if(world_->buildings().begin(),world_->buildings().end(),[&](const auto& row){
+                return row.id==*it->agriculture_building;
+            });
+            if(body==world_->buildings().end() || !body->placed || body->cell!=it->cell)continue;
+        }
         if (it->hunter && (!world_->hunting_state() || std::none_of(world_->hunting_state()->hunters.begin(),world_->hunting_state()->hunters.end(),
             [&](const auto& hunter){return hunter.id==*it->hunter;}))) continue;
         if (it->animal && (!world_->hunting_state() || std::none_of(world_->hunting_state()->animals.begin(),world_->hunting_state()->animals.end(),
@@ -5546,10 +5602,16 @@ bool SandboxView::select_visual(scene::Point screen) {
                 });
             if (current==couriers.end() || current->id!=*it->walker ||
                 !walker_live_visible(*current)) continue;
+            if(agriculture_reconfiguration() && it->agriculture_lifetime) {
+                const auto* actor=agriculture_actor_state_.find_courier(*it->walker);
+                if(!actor || actor->lifetime_id!=it->agriculture_lifetime)continue;
+            }
         }
         const double x=world.x-it->origin.x,y=world.y-it->origin.y;
         if (x<0 || y<0 || x>=it->width || y>=it->height) continue;
         if (it->diamond && std::abs(x-40)/40+std::abs(y-20)/20>1) continue;
+        if(it->agriculture_mesh && !hit_agriculture_mesh(*it->agriculture_mesh,
+            {world.x-it->mesh_ground.x,world.y-it->mesh_ground.y},1./visual_hit_camera_.zoom))continue;
         if(it->source_cell_ramp && !source_cell_ramp_presentation_.hit_part(world,it->mesh_ground,
                 *it->source_cell_ramp,it->ramp_front,background_.elevated()))continue;
         if(it->ramp) {
@@ -5595,6 +5657,23 @@ bool SandboxView::select_visual(scene::Point screen) {
     clear_visual_selection(); panel_scroll_=0;inspector_hint_scroll_=0;original_house_scroll_=0;
     if (dynamic && (!stored || !visual_hit_unified_ || stored->key<dynamic->key)) {
         selected_=dynamic->cell; selected_walker_=dynamic->walker;selected_hunting_animal_=dynamic->animal;
+        if(agriculture_reconfiguration()) {
+            if(dynamic->walker) {
+                if(const auto* actor=agriculture_actor_state_.find_courier(*dynamic->walker)) {
+                    selected_agriculture_actor_={{AgricultureVisualDiagnostic::Domain::Courier,actor->id}};
+                    selected_agriculture_lifetime_=actor->lifetime_id;
+                }
+            } else if(dynamic->boat) {
+                selected_agriculture_actor_={{AgricultureVisualDiagnostic::Domain::Boat,dynamic->boat->value}};
+                selected_agriculture_lifetime_=dynamic->boat->value;
+            } else if(dynamic->hunter) {
+                selected_agriculture_actor_={{AgricultureVisualDiagnostic::Domain::Hunter,dynamic->hunter->value}};
+                selected_agriculture_lifetime_=dynamic->hunter->value;
+            } else if(dynamic->animal) {
+                selected_agriculture_actor_={{AgricultureVisualDiagnostic::Domain::Animal,dynamic->animal->value}};
+                selected_agriculture_lifetime_=dynamic->animal->value;
+            }
+        }
     } else {
         selected_=simulation::Cell{static_cast<int>(stored->cell.x),static_cast<int>(stored->cell.y)};
         selected_landscape_=true;
@@ -5634,7 +5713,17 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     const auto maximum=static_cast<std::size_t>(world_->width())*
         static_cast<std::size_t>(world_->height())+road_preview_.cells.size()+6U;
     if (instances.capacity()<maximum) instances.reserve(maximum);
-    for (int y=0;y<world_->height();++y) for (int x=0;x<world_->width();++x) {
+    if(agriculture_reconfiguration())for(const auto& row:agriculture_world_objects_) {
+        const auto cell=row.cell;
+        if(row.kind==simulation::Object::Road && !irrigation_visual_mask_.empty() &&
+            irrigation_visual_mask_[static_cast<std::size_t>(cell.y)*static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(cell.x)])continue;
+        const auto ground=row.kind==simulation::Object::Road ? world_for({double(cell.x),double(cell.y)}):
+            building_visual_ground(cell,row.kind);
+        instances.push_back({{ground.y,ground.x,row.kind==simulation::Object::Road ?
+            scene::WorldVisualLayer::SandboxRoad:scene::WorldVisualLayer::SandboxBuilding,row.id},cell,row.kind});
+        if(!background_.elevated())apply_original_field_order(instances.back());
+    }
+    else for (int y=0;y<world_->height();++y) for (int x=0;x<world_->width();++x) {
         const simulation::Cell cell{x,y};
         const auto object=world_->object_at(cell);
         if (object==simulation::Object::Empty) continue;
@@ -5729,17 +5818,22 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
     }
     road_ground_replacements_.resize(static_cast<std::size_t>(world_->width())*
                                      static_cast<std::size_t>(world_->height()));
-    std::fill(road_ground_replacements_.begin(),road_ground_replacements_.end(),0);
+    if(agriculture_reconfiguration()) {
+        for(const auto index:agriculture_road_replacement_cells_)road_ground_replacements_[index]=0;
+        agriculture_road_replacement_cells_.clear();
+    } else std::fill(road_ground_replacements_.begin(),road_ground_replacements_.end(),0);
     if (road_visuals_active() && road_sprites_ && road_profile_->replaces_ground) {
         for (const auto& instance:instances) if (instance.object==simulation::Object::Road) {
             const auto cell=instance.cell;
             const auto mask=road_start_ && road_preview_.valid ?
                 sandbox_ui::road_neighbor_mask_for_preview(*world_,road_preview_.cells,cell):
-                sandbox_ui::road_neighbor_mask(*world_,cell);
-            if (road_profile_->find(mask))
-                road_ground_replacements_[static_cast<std::size_t>(cell.y)*
-                    static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(cell.x)]=
+                agriculture_reconfiguration() ? agriculture_road_mask(cell):sandbox_ui::road_neighbor_mask(*world_,cell);
+            if (road_profile_->find(mask)) {
+                const auto index=static_cast<std::size_t>(cell.y)*static_cast<std::size_t>(world_->width())+static_cast<std::size_t>(cell.x);
+                road_ground_replacements_[index]=
                     world_->road_cell(cell) ? 1:2;
+                if(agriculture_reconfiguration())agriculture_road_replacement_cells_.push_back(index);
+            }
         }
     }
     const auto draw_fire_overlay=[&](simulation::Cell cell,scene::Point center,
@@ -5823,7 +5917,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
                 !world_->road_cell(cell);
             const auto mask=road_start_ && road_preview_.valid ?
                 sandbox_ui::road_neighbor_mask_for_preview(*world_,road_preview_.cells,cell):
-                sandbox_ui::road_neighbor_mask(*world_,cell);
+                agriculture_reconfiguration() ? agriculture_road_mask(cell):sandbox_ui::road_neighbor_mask(*world_,cell);
             road_masks_seen_[mask]=true;
             const auto* entry=road_profile_ ? road_profile_->find(mask):nullptr;
             if (entry && road_visuals_active() && road_sprites_) {
@@ -5892,6 +5986,10 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             }
             if (role && !placement_preview) ++building_placeholder_fallbacks_[assets::role_index(*role)];
             const auto side=simulation::building_footprint(rules_,world_->rule_version(),object).width;
+            if(agriculture_reconfiguration() && !placement_preview)
+                if(const auto owner=world_->building_owner_at(cell))if(const auto mesh=agriculture_building_mesh(*owner))
+                    return draw_agriculture_mesh(renderer_,*mesh,center,camera_.zoom) &&
+                        draw_fire_overlay(cell,center,false) && draw_sickness(cell,center,false);
             if (object==simulation::Object::OriginalTheatre75) {
                 // Authored ground-stage fallback; no original Theatre sprite is claimed.
                 for (const auto offset:theatre_ground_offsets) {
@@ -6066,10 +6164,20 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             if (food_market_visual(visual_role)) ++market_walker_fallback_draws_;
             if (visual_role==assets::WalkerVisualRole::Service) ++service_walker_fallback_draws_;
             if (visual_role==assets::WalkerVisualRole::HealthWorker) ++health_walker_fallback_draws_;
+            if(agriculture_reconfiguration())if(const auto* mesh=agriculture_actor_mesh(
+                AgricultureActorDomain::Courier,static_cast<std::uint64_t>(id))) {
+                ++last_courier_draws_;
+                return draw_agriculture_mesh(renderer_,*mesh,ground,camera_.zoom);
+            }
             if (!draw_agent(position,missing,cargo_color,displayed_courier_cargo(*world_,courier),
                             marker_shift)) return false;
             return !debug_open_ || SDL_RenderDebugText(renderer_,static_cast<float>(ground.x)+5,
                 static_cast<float>(ground.y)-20,"W?");
+        }
+        if(agriculture_reconfiguration())if(const auto* mesh=agriculture_actor_mesh(
+            AgricultureActorDomain::Courier,static_cast<std::uint64_t>(id))) {
+            ++last_courier_draws_;
+            return draw_agriculture_mesh(renderer_,*mesh,camera_.world_to_screen(world_for(position)),camera_.zoom);
         }
         if(courier.role==simulation::CourierRole::OriginalFoodGrower || courier.role==simulation::CourierRole::OriginalSeasonalHempGrower) {
             if(!draw_agent(position,{102,196,132,255},cargo_color,displayed_courier_cargo(*world_,courier),marker_shift)) return false;
@@ -6268,13 +6376,20 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             return draw_bridge_cell(renderer_,camera_,ground,bridge,cell,
                 instance.bridge_front_rail?BridgePart::FrontRail:BridgePart::DeckAndBackRail,tint);
         }
-        if (instance.key.layer!=scene::WorldVisualLayer::SandboxWalker)
-            return draw_object(instance.cell,instance.object,instance.placement_preview);
+        if (instance.key.layer!=scene::WorldVisualLayer::SandboxWalker) {
+            if(!draw_object(instance.cell,instance.object,instance.placement_preview))return false;
+            return instance.placement_preview || instance.object==simulation::Object::Road ||
+                draw_agriculture_state(instance.cell,camera_.world_to_screen(building_visual_ground(instance.cell,instance.object)));
+        }
         if (instance.hunter) {
             ++last_courier_draws_;
+            if(agriculture_reconfiguration())if(const auto* mesh=agriculture_actor_mesh(AgricultureActorDomain::Hunter,instance.hunter->value))
+                return draw_agriculture_mesh(renderer_,*mesh,camera_.world_to_screen(world_for(instance.position)),camera_.zoom);
             return draw_agent(instance.position,{202,151,72,255},{161,76,63,255},instance.hunting_cargo,0);
         }
         if (instance.animal) {
+            if(agriculture_reconfiguration())if(const auto* mesh=agriculture_actor_mesh(AgricultureActorDomain::Animal,instance.animal->value))
+                return draw_agriculture_mesh(renderer_,*mesh,camera_.world_to_screen(world_for(instance.position)),camera_.zoom);
             const auto p=camera_.world_to_screen(world_for(instance.position));const auto z=camera_.zoom;
             const bool bird=instance.hunting_species==simulation::HuntingSpecies::Pheasant76;
             const bool antelope=instance.hunting_species==simulation::HuntingSpecies::Antelope77;
@@ -6286,6 +6401,10 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
             return SDL_RenderGeometry(renderer_,nullptr,points,4,triangles,6);
         }
         if (instance.boat) {
+            if(agriculture_reconfiguration())if(const auto* mesh=agriculture_actor_mesh(AgricultureActorDomain::Boat,instance.boat->value)) {
+                ++last_courier_draws_;
+                return draw_agriculture_mesh(renderer_,*mesh,camera_.world_to_screen(world_for(instance.position)),camera_.zoom);
+            }
             const auto& boats=world_->fishing_state()->boats;
             const auto boat=std::find_if(boats.begin(),boats.end(),[&](const auto& value){return value.id==*instance.boat;});
             if (boat==boats.end()) return true;
@@ -6556,7 +6675,7 @@ bool SandboxView::draw_world(const scene::Camera2D& render_camera) {
         }
         if (!SDL_SetRenderDrawBlendMode(renderer_,previous) || !ok) return false;
     }
-    if (!draw_original_house_overlay()) return false;
+    if (!draw_original_house_overlay() || !draw_agriculture_routes()) return false;
     if (selected_) {
         const auto owner=world_->building_owner_at(*selected_);
         if (owner) {
@@ -7467,7 +7586,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back("Route overlay "+std::to_string(visual->route.size())+"/"+std::to_string(visual->route_total_edges)+" upcoming actual edges (max256)");
             lines.push_back("One Fish = one AUTHORED World Food portion");
             lines.push_back(building_visuals_active() && building_sprite_ && building_profile_ && building_profile_->fishing_prepared ?
-                "Quay art: curated Original pixels; authored static pose/anchor":"Quay art: authored marker; Original static art disabled/unavailable");
+                "Quay art: curated Original pixels; authored static pose/anchor":agriculture_reconfiguration() ?
+                "Quay art: AUTHORED geometry; Original static art unavailable":"Quay art: authored marker; Original static art disabled/unavailable");
             lines.push_back("Boat art: explicit authored fallback; Original clip unqualified");
             return wrap_panel_lines(lines);
         }
@@ -7489,7 +7609,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 irrigation_productivity() ? "Eligible wet growth earns +1 progress per4 actual wet growth ticks":
                 playable_agriculture() ? "AUTHORED base yields; all five Food crops active; no irrigation bonus":
                     "Yield bonuses PARTIAL; Rice/Cabbage/Soy remain locked"};
-            if (!building_profile_ || !building_profile_->irrigation_prepared) lines.push_back("Original irrigation art unavailable; authored marker");
+            if (!building_profile_ || !building_profile_->irrigation_prepared) lines.push_back(agriculture_reconfiguration() ?
+                "Irrigation art: AUTHORED geometry; supply is World-owned":"Original irrigation art unavailable; authored marker");
             return wrap_panel_lines(lines);
         }
         const bool installed=selected_->x>=0 && selected_->y>=0 && selected_->x<world_->width() && selected_->y<world_->height() &&
@@ -7860,7 +7981,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             lines.push_back(plant_art.active ? "Art: Original plant; authored growth projection":"Art: "+plant_art.fallback_reason);
             if (plant_art.stage) lines.push_back("Canonical plant image offset "+std::to_string(*plant_art.stage));
         } else if (!append_original_building_visual_diagnostic(lines,id)) {
-            lines.push_back("Art: authored marker");
+            lines.push_back(agriculture_reconfiguration() ? "Art: AUTHORED state-driven geometry":"Art: authored marker");
             lines.push_back("Original static lifecycle unverified");
         }
         add_fire_status(id);add_connectivity();return wrap_panel_lines(lines);
@@ -8355,7 +8476,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 "Last worked field: none");
         if(grower) {
             const auto& actor=world_->courier(grower->courier_id);
-            lines.push_back("Grower* AUTHORED marker");
+            lines.push_back(agriculture_reconfiguration() ? "Grower: AUTHORED state-driven art":"Grower* AUTHORED marker");
             lines.push_back("Grower channel #"+std::to_string(static_cast<unsigned>(actor.id)));
             lines.push_back("Spawned "+std::to_string(grower->spawned)+" | retired "+std::to_string(grower->retired));
             const auto diagnosis=std::lower_bound(physical_grower_dispatch_status_.begin(),physical_grower_dispatch_status_.end(),farm_id,
@@ -10081,7 +10202,8 @@ std::string SandboxView::walker_clip_status(const simulation::CourierState& cour
         else if (pose.fallback==WalkerFallback::UnmappedDirection) reason="Unmapped path direction";
     }
     if (!visual && reason.empty()) reason="No configured visual family";
-    if (!reason.empty()) return "Marker fallback: "+reason;
+    if (!reason.empty()) return agriculture_reconfiguration() && agriculture_actor_state_.find_courier(courier.id) ?
+        "AUTHORED actor art; actual work/edge/cargo: "+reason:"Marker fallback: "+reason;
     const auto pose=resolved_walker_pose(*world_,courier,*visual);
     const auto* frame=pose.frame ? &visual->frames[*pose.frame]:nullptr;
     const bool profession_bound=walker_animation_active_ && world_->original_production_enabled() &&
@@ -10252,6 +10374,7 @@ bool SandboxView::draw_help_overlay() {
                 original_venue_house_service() ? "Theatre visits: current Music -> House96":
             original_music_venues() ? "Music arrival: Venue32; no House effect":"Schools: experimental direct visits", world_->original_worker_upkeep_interval()==816 ?
                 "T:816t tax;2/worker/816t upkeep":"T:816t tax;2/worker/400t upkeep",
+            agriculture_reconfiguration() ? "AUTHORED actors/Mill/Shop; saved work/water bars":
             food_processing() ? "Mill/Shop labelled bodies: AUTHORED fallback":
             playable_hunting() ? "Hunter/animal markers: AUTHORED fallback":
                 playable_fishing() ? "Boat marker: authored fallback; click for Quay":

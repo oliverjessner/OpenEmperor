@@ -4,8 +4,47 @@ The current [OE61 inventory](rendering/oe61-original-building-visuals.md)
 distinguishes source-qualified static bodies, generic core previews and named
 authored fallbacks. Its separate schema4 adds the seven already typed industry
 sources and Ancestor214; the core schema1 and all historical supplements retain
-their exact roles and geometry. Animation and stock/lifecycle variants remain
-unreconstructed.
+their exact roles and geometry. Original animation and stock/lifecycle variants
+remain unreconstructed.
+
+## Rule36 Agriculture state presentation (AGRI-MAC12)
+
+MAC12 changes presentation in the explicitly selected Rule36 World only.
+Rules1–35 retain their visual selectors. `AgricultureVisualState` prepares
+bounded read-only descriptors from actual paid IDs, saved work/ready/pickup
+histories, source associations, water, staffing, fire and physical cargo.
+Drawing consumes these descriptors; an image or status overlay grants no work,
+inventory, supply, occupancy or arrival. No World rule, save schema or migration
+is added. The [Agriculture contract](original-economy/agriculture.md) retains
+the distinction between observed source selectors and authored gameplay.
+
+| Entity | Pixels / provenance | Actual state displayed |
+| --- | --- | --- |
+| Wheat, Millet, Cabbage, Soy and Hemp fields | Existing qualified [field banks](rendering/oe60-original-farm-visuals.md); mapping authored80 growth units to their stages is `AUTHORED` | Initial/growing/ready and subsequent resting/regrowth derive from the bound Field/Farm, not placement age. Rule36 Food and Hemp readiness80 retain the last qualified stage via the79 selector input; the overlay still shows actual80/80 and Food's separate harvest work. |
+| Rice197 | Existing exact static paddy/topology art | Actual growth, readiness, harvest work and wet state are overlays. No unverified Rice growth bank is substituted. |
+| Tea26, Lacquer27, Mulberry28 | Source quantity banks, canonical unharvested variation; authored80-to-quantity adapter | Actual bound plant growth, ready/picked cargo and regrowth. Lacquer stage5 occurs only at growth80; a selected source stage alone does not establish readiness or pickup. |
+| Farmhouse and plantation sheds | Existing admitted source-qualified static bodies | Actual work, stock, workers and blockers appear separately; no Original operating-animation claim. |
+| Pump203 / Ditch202 | Existing qualified static orientations and wet/dry banks | Actual World supply and blockage; any authored work indicator follows real saved counters, not an ambient clock. |
+| Quay31 | Existing Original rasters with authored static pose order and anchors | Paid orientation, complete body/dock, actual Boat/cargo and work status; native31 animation registration remains unproved. |
+| Food Warehouse | Existing curated core Warehouse pixels | Sole Food/Goods/Aux status and real incoming/return commitments. These pixels do not qualify native Model54 geometry; the inherited paid2×2 footprint remains exact. |
+| Mill53 / FoodShop66 / Hunter Tent33 | Recognizable `AUTHORED` geometry when no qualified body is admitted | Existing paid5×5 /2×2 /2×2 footprints, actual processing/distribution/blockers. Source labels do not admit unrelated Original art. |
+
+Missing or unsupported art uses an explicit authored fallback. Source packs
+still require atomic complete SHA-256/path/geometry admission, eager decoding
+and physical-asset deduplication within the unchanged combined64MiB budget.
+MAC12 adds no Original pixels or texture allowance. New prepared procedural
+meshes have at most128 triangles each, with at most82 paid body descriptors;
+actor limits are documented in the [walker contract](walker-visual-profile.md).
+Preparation occurs after World publication; frame/hover does no file access,
+decode/upload, World mutation, route search or full-map preparation.
+
+Drawing and picking share immutable prepared triangles, feet and painter keys.
+Only authored mesh edges permit a one-display-pixel-per-axis SDL raster-rounding
+envelope at1×/2×/4×; Original sprite alpha remains exact. This is no DPI, camera
+or anchor offset. Submitted meshes retain their lifetime through selection of
+that frame. Implementation coverage is not completed acceptance: final
+actual-data/native/performance results belong in [testing](testing.md), and
+human acceptance remains `NOT_RUN` until the user's post-MAC14 playtest.
 
 ## Playable Fishing static quay presentation (Rule28)
 

@@ -97,6 +97,12 @@ find_package(Threads REQUIRED)
 
 include(cmake/OpenEmperorWarnings.cmake)
 
+set(agriculture_visual_sources
+    src/app/AgricultureVisualState.cpp
+    src/app/AgricultureActorPresentation.cpp
+    src/app/SandboxAgricultureVisuals.cpp
+    src/renderer/AgricultureFallbackRenderer.cpp)
+
 add_executable(openemperor
     src/app/main.cpp
     src/app/Application.cpp
@@ -106,7 +112,7 @@ add_executable(openemperor
     src/app/MapDebugView.cpp
     src/app/MapBrowser.cpp
     src/app/MapRenderCheck.cpp
-    src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp
+    src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp
     src/app/WalkerPose.cpp
     src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MenuSession.cpp src/app/MapRulesPreflight.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
@@ -588,8 +594,26 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-inspector-layout-tests)
     add_test(NAME inspector-layout COMMAND openemperor-inspector-layout-tests)
     set_tests_properties(inspector-layout PROPERTIES TIMEOUT 20)
+    add_executable(openemperor-agriculture-visual-state-tests
+        tests/AgricultureVisualStateTests.cpp src/app/AgricultureVisualState.cpp)
+    target_link_libraries(openemperor-agriculture-visual-state-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-agriculture-visual-state-tests)
+    add_test(NAME agriculture-visual-state COMMAND openemperor-agriculture-visual-state-tests)
+    set_tests_properties(agriculture-visual-state PROPERTIES TIMEOUT 600)
+    add_executable(openemperor-agriculture-actor-presentation-tests
+        tests/AgricultureActorPresentationTests.cpp src/app/AgricultureActorPresentation.cpp)
+    target_link_libraries(openemperor-agriculture-actor-presentation-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-agriculture-actor-presentation-tests)
+    add_test(NAME agriculture-actor-presentation COMMAND openemperor-agriculture-actor-presentation-tests)
+    set_tests_properties(agriculture-actor-presentation PROPERTIES TIMEOUT 600)
+    add_executable(openemperor-agriculture-fallback-renderer-tests
+        tests/AgricultureFallbackRendererTests.cpp src/renderer/AgricultureFallbackRenderer.cpp)
+    target_link_libraries(openemperor-agriculture-fallback-renderer-tests PRIVATE openemperor-simulation SDL3::SDL3)
+    openemperor_enable_warnings(openemperor-agriculture-fallback-renderer-tests)
+    add_test(NAME agriculture-fallback-pixels COMMAND openemperor-agriculture-fallback-renderer-tests)
+    set_tests_properties(agriculture-fallback-pixels PROPERTIES TIMEOUT 180 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
     add_executable(openemperor-sandbox-view-tests tests/SandboxViewTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
@@ -599,7 +623,7 @@ if(BUILD_TESTING)
         openemperor-version)
     openemperor_enable_warnings(openemperor-sandbox-view-tests)
     add_executable(openemperor-original-economy-save-view-tests tests/OriginalEconomySaveViewTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
@@ -615,7 +639,7 @@ if(BUILD_TESTING)
 
     add_executable(openemperor-sandbox-gate-budget-view-tests
         tests/SandboxGateBudgetViewTests.cpp tests/GateBudgetPreflightShim.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp
@@ -648,7 +672,7 @@ if(BUILD_TESTING)
     add_test(NAME animated-fire-clip-pixels COMMAND openemperor-fire-visual-tests)
     set_tests_properties(animated-fire-clip-pixels PROPERTIES TIMEOUT 45)
     add_executable(openemperor-fire-overlay-pixel-tests tests/FireOverlayPixelTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -659,7 +683,7 @@ if(BUILD_TESTING)
     add_test(NAME fire-overlay-production-pixels COMMAND openemperor-fire-overlay-pixel-tests)
     set_tests_properties(fire-overlay-production-pixels PROPERTIES TIMEOUT 45)
     add_executable(openemperor-fire-inspector-view-tests tests/FireInspectorViewTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -672,7 +696,7 @@ if(BUILD_TESTING)
     add_executable(openemperor-menu-session-tests tests/MenuSessionTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
     target_sources(openemperor-menu-session-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -771,6 +795,13 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-agriculture-reconfiguration-presentation-tests)
     add_test(NAME agriculture-reconfiguration-presentation COMMAND openemperor-agriculture-reconfiguration-presentation-tests)
     set_tests_properties(agriculture-reconfiguration-presentation PROPERTIES TIMEOUT 600)
+    add_executable(openemperor-agriculture-visual-presentation-tests
+        tests/AgricultureVisualPresentationTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-agriculture-visual-presentation-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-agriculture-visual-presentation-tests)
+    add_test(NAME agriculture-visual-presentation COMMAND openemperor-agriculture-visual-presentation-tests)
+    set_tests_properties(agriculture-visual-presentation PROPERTIES TIMEOUT 600)
     add_executable(openemperor-food-warehouses-presentation-tests
         tests/FoodProcessingPresentationTests.cpp ${original_menu_test_sources})
     target_compile_definitions(openemperor-food-warehouses-presentation-tests PRIVATE OPENEMPEROR_FOOD_WAREHOUSES_ACCEPTANCE=1)
@@ -831,7 +862,7 @@ if(BUILD_TESTING)
     add_executable(openemperor-sandbox-economy-guidance-view-tests tests/SandboxEconomyGuidanceViewTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp)
     target_sources(openemperor-sandbox-economy-guidance-view-tests PRIVATE src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -844,7 +875,7 @@ if(BUILD_TESTING)
     add_executable(openemperor-menu-map-rules-tests tests/MenuMapRulesTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -872,7 +903,7 @@ if(BUILD_TESTING)
     add_executable(openemperor-menu-input-tests tests/MenuInputTests.cpp
         src/app/MenuSession.cpp src/app/MenuStorage.cpp src/app/MenuDialog.cpp src/app/MapRulesPreflight.cpp
         src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/renderer/StoredGraphicsRenderer.cpp
         src/renderer/StoredCamera.cpp src/renderer/WalkerSpriteSet.cpp
         src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -1867,7 +1898,7 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-market-walker-pose-tests)
     add_test(NAME market-walker-pose COMMAND openemperor-market-walker-pose-tests)
     add_executable(openemperor-market-walker-resource-tests tests/MarketWalkerResourceTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -1877,7 +1908,7 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-market-walker-resource-tests)
     add_test(NAME market-walker-optional-resources COMMAND openemperor-market-walker-resource-tests)
     add_executable(openemperor-service-walker-resource-tests tests/ServiceWalkerResourceTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -1887,7 +1918,7 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-service-walker-resource-tests)
     add_test(NAME service-walker-optional-resources COMMAND openemperor-service-walker-resource-tests)
     add_executable(openemperor-health-walker-resource-tests tests/HealthWalkerResourceTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -1897,7 +1928,7 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-health-walker-resource-tests)
     add_test(NAME health-walker-optional-resources COMMAND openemperor-health-walker-resource-tests)
     add_executable(openemperor-market-walker-view-tests tests/MarketWalkerViewTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
         src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/app/VisualSelection.cpp src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -1907,7 +1938,7 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-market-walker-view-tests)
     add_test(NAME market-walker-production-view COMMAND openemperor-market-walker-view-tests)
     add_executable(openemperor-service-walker-view-tests tests/ServiceWalkerViewTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
         src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/app/VisualSelection.cpp src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -1917,7 +1948,7 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-service-walker-view-tests)
     add_test(NAME service-walker-production-view COMMAND openemperor-service-walker-view-tests)
     add_executable(openemperor-health-walker-view-tests tests/HealthWalkerViewTests.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
         src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
         src/app/VisualSelection.cpp src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -1927,6 +1958,7 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-health-walker-view-tests)
     add_test(NAME health-walker-production-view COMMAND openemperor-health-walker-view-tests)
     add_executable(openemperor-road-ground-occlusion-tests tests/RoadGroundOcclusionTests.cpp
+        ${agriculture_visual_sources}
         src/app/WalkerAnimationSelection.cpp
         src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp
         src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
@@ -2075,7 +2107,7 @@ if(BUILD_TESTING)
 
     add_executable(openemperor-scene-composition-tests tests/SceneCompositionTests.cpp
         src/app/MapDebugView.cpp src/renderer/TerrainPreviewRenderer.cpp
-        src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
+        src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp src/app/SandboxUiLayout.cpp
         src/app/RoadDrag.cpp src/app/RoadTopology.cpp src/app/VisualSelection.cpp
         src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
         src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -2138,7 +2170,7 @@ endif()
 # Explicit local diagnostic starter; not a gameplay command or shipped app mode.
 add_executable(openemperor-fire-visual-fixture EXCLUDE_FROM_ALL tools/FireVisualFixture.cpp
     src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-    src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -2149,7 +2181,7 @@ openemperor_enable_warnings(openemperor-fire-visual-fixture)
 
 add_executable(openemperor-fire-inspector-fixture EXCLUDE_FROM_ALL tools/FireInspectorFixture.cpp
     src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-    src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -2160,7 +2192,7 @@ openemperor_enable_warnings(openemperor-fire-inspector-fixture)
 
 add_executable(openemperor-economy-start-fixture EXCLUDE_FROM_ALL tools/EconomyStartFixture.cpp
     src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-    src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -2171,7 +2203,7 @@ openemperor_enable_warnings(openemperor-economy-start-fixture)
 
 add_executable(openemperor-market-walker-fixture EXCLUDE_FROM_ALL tools/MarketWalkerFixture.cpp
     src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-    src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -2182,7 +2214,7 @@ openemperor_enable_warnings(openemperor-market-walker-fixture)
 
 add_executable(openemperor-service-walker-fixture EXCLUDE_FROM_ALL tools/ServiceWalkerFixture.cpp
     src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-    src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -2193,7 +2225,7 @@ openemperor_enable_warnings(openemperor-service-walker-fixture)
 
 add_executable(openemperor-health-walker-fixture EXCLUDE_FROM_ALL tools/HealthWalkerFixture.cpp
     src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-    src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -2206,7 +2238,7 @@ openemperor_enable_warnings(openemperor-health-walker-fixture)
 # Xia bytes and generated saves never enter the authored CTest fixtures/bundle.
 add_executable(openemperor-city-v16-playthrough-fixture EXCLUDE_FROM_ALL tools/CityV16PlaythroughFixture.cpp
     src/app/MenuStorage.cpp src/app/ResourceLocator.cpp src/app/VisualSelection.cpp
-    src/app/SandboxView.cpp src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
+    src/app/SandboxView.cpp ${agriculture_visual_sources} src/app/WalkerAnimationSelection.cpp src/renderer/BridgeRenderer.cpp src/renderer/RampRenderer.cpp src/renderer/SourceCellRampRenderer.cpp src/renderer/AuthoredTerrainSides.cpp src/renderer/FireSpriteSet.cpp src/app/WalkerPose.cpp
     src/app/SandboxUiLayout.cpp src/app/RoadDrag.cpp src/app/RoadTopology.cpp
     src/renderer/StoredGraphicsRenderer.cpp src/renderer/StoredCamera.cpp
     src/renderer/WalkerSpriteSet.cpp src/renderer/BuildingSprite.cpp src/renderer/RoadSpriteSet.cpp
@@ -2378,6 +2410,23 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-agriculture-reconfiguration-acceptance)
     add_test(NAME agriculture-reconfiguration-acceptance-cli COMMAND openemperor-agriculture-reconfiguration-acceptance --help)
     set_tests_properties(agriculture-reconfiguration-acceptance-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-agriculture-visual-acceptance tools/AgricultureVisualAcceptance.cpp)
+    target_link_libraries(openemperor-agriculture-visual-acceptance PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
+    openemperor_enable_warnings(openemperor-agriculture-visual-acceptance)
+    add_test(NAME agriculture-visual-acceptance-cli COMMAND openemperor-agriculture-visual-acceptance --help)
+    set_tests_properties(agriculture-visual-acceptance-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-agriculture-visual-view-acceptance tools/AgricultureVisualViewAcceptance.cpp)
+    target_link_libraries(openemperor-agriculture-visual-view-acceptance PRIVATE openemperor-original-longplay-view-support Threads::Threads)
+    openemperor_enable_warnings(openemperor-agriculture-visual-view-acceptance)
+    add_test(NAME agriculture-visual-view-cli COMMAND openemperor-agriculture-visual-view-acceptance --help)
+    set_tests_properties(agriculture-visual-view-cli PROPERTIES TIMEOUT 30)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME agriculture-visual-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/AgricultureVisualCliTests.py
+            $<TARGET_FILE:openemperor-agriculture-visual-acceptance>
+            $<TARGET_FILE:openemperor-agriculture-visual-view-acceptance>)
+        set_tests_properties(agriculture-visual-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+    endif()
     add_executable(openemperor-food-warehouses-acceptance tools/FoodWarehouseAcceptance.cpp)
     target_link_libraries(openemperor-food-warehouses-acceptance PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
     openemperor_enable_warnings(openemperor-food-warehouses-acceptance)
@@ -2469,6 +2518,14 @@ if(BUILD_TESTING)
             --seed-executable $<TARGET_FILE:openemperor-food-warehouses-acceptance>
             --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
         set_tests_properties(original-agriculture-reconfiguration-real PROPERTIES TIMEOUT 1860 RUN_SERIAL TRUE
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME original-agriculture-visual-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_agriculture_visual_replay.py
+            --executable $<TARGET_FILE:openemperor-agriculture-visual-acceptance>
+            --seed-executable $<TARGET_FILE:openemperor-food-warehouses-acceptance>
+            --view-executable $<TARGET_FILE:openemperor-agriculture-visual-view-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        set_tests_properties(original-agriculture-visual-real PROPERTIES TIMEOUT 1860 RUN_SERIAL TRUE
             SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME original-food-warehouses-real COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_food_warehouses_replay.py
