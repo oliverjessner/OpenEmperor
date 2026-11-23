@@ -3,6 +3,13 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
+- **Agriculture animation is authored.** Rule36 displays actual saved growth,
+  movement, work and cargo with qualified static/stage art or authored geometry.
+  Original Grower/Boat/Hunter/animal animation registration and Mill/FoodShop
+  artwork remain unqualified. Rice keeps its static paddy art with actual-state
+  overlays. Earlier modes retain their historical visuals. See the
+  [provenance matrix](docs/building-visual-profile.md#rule36-agriculture-state-presentation-agri-mac12).
+
 - **Agriculture reconfiguration is bounded.** Explicit Rule36/schema52 supports
   Food-field, plantation-plant and Pump retirement after real drainage. It keeps
   eight pending/closed entries and all lifetime purchase budgets. Farmhouses,

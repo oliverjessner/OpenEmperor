@@ -8,6 +8,49 @@ fingerprinted complete built-in pack replaces the historical configuration
 only after atomic preparation; the existing profiles below remain its fallback.
 See the [OE62 source and role inventory](rendering/oe62-original-walker-animations.md).
 
+## Rule36 Agriculture actors (AGRI-MAC12)
+
+Only the latest explicitly selected Rule36 presentation uses MAC12's prepared
+actor cache and recognizable authored geometry. Historical Rules1–35 keep their
+existing sprites, markers, role assignments and visibility. Actual World
+channels/lifetime IDs, interpolated positions, current edges, work counters and
+sole typed cargo remain authoritative; no actor, gameplay rule or save schema
+is added.
+
+| Actual actor | Pixels / provenance | State selection |
+| --- | --- | --- |
+| Raw Food supplier/distributor couriers | Existing admitted Original clip pixels with their existing curated profession mapping | Existing profile clips remain unchanged and preferred; no loaded-family or native profession inference. |
+| Physical Food Grower / Hemp Grower | `AUTHORED` person and tool/cargo geometry; no qualified Original animation role | Real assigned plot, lifetime, edge and Food tending/harvest counters. Hemp pickup is instantaneous and gets no invented tending loop. |
+| Plantation Grower | `AUTHORED` person/cargo geometry | Actual paid source, assigned plant, monotone lifetime, pickup and return. Documented source-specific walking families are not newly admitted: all three together exceed the unchanged profile budget. |
+| Mill/Shop meal couriers and Warehouse Food courier | `AUTHORED` cart/person/cargo geometry | Actual path, transfer sequence, return leg and picked-but-unsettled cargo; no stock or delivery inferred from a cart. |
+| Boat49 / Hunter40 | `AUTHORED` hull/person, equipment and cargo geometry | Actual outward/pursuit, fishing/hunting work, return and unload phases; unloading is distinct from fishing/hunting. Original animation registrations remain unqualified. |
+| Wild Pig75 / Pheasant76 / Antelope77 | Distinct `AUTHORED` animal geometry | Actual saved species, living ID, current/begun edge and direction. No decorative population, kill or birth is created by rendering. |
+
+Four storage directions distinguish front/back as well as left/right. Authored
+pose phases use current saved edge/work progress only, never ambient World-tick
+or frame-time modulus. Paused/frozen counters retain the same pose; road-waiting
+actors stand, while an already begun physical return remains movement. Food,
+Hemp and plantation idle channels have no visible actor. Picked cargo stays
+visible until its actual return. A fresh F5/F9 view derives the same pose without
+previous-frame observations. These authored poses do not establish Original
+cadence, action-bank, foot-anchor or animation parity.
+
+`AgricultureActorPresentationCache` holds at most58 value descriptors. Meshes
+are prepared outside drawing/hover, each bounded to128 triangles and requiring
+zero source assets/textures. The existing atomic SHA-qualified, eagerly
+deduplicated walker packs keep their64MiB,320-alias and256-physical-asset limits;
+no incomplete source family or budget increase is used to make a role appear
+qualified. Shared immutable mesh ownership preserves the submitted draw/hit
+silhouette across intervening updates. Only authored triangle edges have the
+one-display-pixel-per-axis SDL raster-rounding envelope; native sprite alpha
+and historical hit behavior remain exact, without DPI/camera offsets.
+
+The [building contract](building-visual-profile.md#rule36-agriculture-state-presentation-agri-mac12)
+records fields, sources and infrastructure. This matrix describes implementation,
+not a completed validation claim; [testing](testing.md) records actual-data,
+scripted SDL, native Metal and performance evidence separately. Human acceptance
+remains `NOT_RUN` until the user's post-MAC14 playtest.
+
 Rule31's [physical Food Grower](original-economy/agriculture.md#physical-food-growers-agri-mac06)
 has no qualified Original animation role. Its live shared courier channel draws
 a green marker and `Grower*` label at the actual World feet, without the older

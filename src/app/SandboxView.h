@@ -17,6 +17,9 @@
 #include "app/RoadDrag.h"
 #include "app/RoadTopology.h"
 #include "app/VisualSelection.h"
+#include "app/AgricultureVisualState.h"
+#include "app/AgricultureActorPresentation.h"
+#include "renderer/AgricultureFallbackRenderer.h"
 #include "assets/WalkerVisualProfile.h"
 #include "renderer/WalkerSpriteSet.h"
 #include "renderer/BuildingSprite.h"
@@ -471,6 +474,35 @@ public:
         double image_width=0,image_height=0;
     };
     std::vector<WalkerDiagnostic> walker_diagnostics() const;
+    struct AgricultureVisualDiagnostic {
+        enum class Domain { Building,Courier,Boat,Hunter,Animal };
+        Domain domain=Domain::Building;
+        std::uint64_t id=0;
+        std::uint64_t lifetime_id=0;
+        simulation::BuildingId source{};
+        std::optional<simulation::BuildingId> target;
+        std::string kind,state,art;
+        simulation::Object object=simulation::Object::Empty;
+        simulation::Position position{};
+        unsigned progress=0,target_progress=0;
+        unsigned harvest_progress=0,harvest_target=0;
+        int dx=0,dy=0;
+        int cargo=0;
+        bool wet=false,moving=false,working=false,blocked=false,sprite_drawn=false,submitted=false;
+        std::optional<assets::AssetId> asset;
+        scene::Point screen_ground{},image_origin{};
+        double image_width=0,image_height=0;
+        scene::WorldDrawKey key{};
+    };
+    struct AgricultureDisplayStats {
+        bool active=false;
+        std::size_t cached_entities=0,cached_actors=0,prepared_meshes=0,cpu_mesh_bytes=0;
+        std::uint64_t prepare_count=0,prepared_tick=0,prepared_sequence=0;
+    };
+    // Explicit diagnostics only: never called from normal frame/hover work.
+    std::vector<AgricultureVisualDiagnostic> agriculture_visual_diagnostics() const;
+    AgricultureDisplayStats agriculture_display_stats() const;
+    std::optional<std::pair<AgricultureVisualDiagnostic::Domain,std::uint64_t>> selected_agriculture_actor() const;
     std::uint64_t io_generation() const { return io_generation_; }
     std::uint64_t save_generation() const { return save_generation_; }
     std::uint64_t load_generation() const { return load_generation_; }
@@ -620,6 +652,9 @@ private:
         simulation::Object mesh=simulation::Object::Empty;
         scene::Point mesh_ground;
         int footprint_side=1;
+        std::shared_ptr<const AgricultureMesh> agriculture_mesh;
+        std::optional<simulation::BuildingId> agriculture_building;
+        std::uint64_t agriculture_lifetime=0;
     };
     void record_visual_hit(const DrawInstance& instance);
     void apply_original_field_order(DrawInstance& instance) const;
@@ -690,6 +725,13 @@ private:
     OriginalFieldVisualSelection original_field_visual_selection(simulation::Cell cell,
         simulation::Object kind,bool placement_preview=false) const;
     void prepare_original_field_order(bool force=false);
+    void prepare_agriculture_visuals(bool force=false);
+    bool draw_agriculture_state(simulation::Cell,scene::Point ground);
+    bool draw_agriculture_routes();
+    const AgricultureMesh* agriculture_actor_mesh(AgricultureActorDomain,std::uint64_t) const;
+    std::shared_ptr<const AgricultureMesh> agriculture_actor_mesh_owner(AgricultureActorDomain,std::uint64_t) const;
+    std::shared_ptr<const AgricultureMesh> agriculture_building_mesh(simulation::BuildingId) const;
+    std::uint8_t agriculture_road_mask(simulation::Cell) const;
     void prepare_irrigation_visuals(bool force=false);
     bool draw_irrigation_overlay();
     std::uint8_t original_rice_neighbor_mask(simulation::Cell cell) const;
@@ -732,6 +774,8 @@ private:
     std::optional<simulation::Cell> hovered_;
     std::optional<simulation::Cell> selected_;
     bool selected_landscape_=false;
+    std::optional<std::pair<AgricultureVisualDiagnostic::Domain,std::uint64_t>> selected_agriculture_actor_;
+    std::uint64_t selected_agriculture_lifetime_=0;
     std::optional<simulation::CourierId> selected_walker_;
     std::optional<simulation::RoadConnectivityReport> road_connectivity_report_;
     const simulation::World* road_connectivity_world_=nullptr;
@@ -1026,6 +1070,40 @@ private:
     std::vector<std::pair<simulation::BuildingId,simulation::DemolitionStatus>> agriculture_demolition_status_;
     std::uint64_t agriculture_inspection_tick_=UINT64_MAX,agriculture_inspection_sequence_=UINT64_MAX;
     std::uint64_t agriculture_inspection_prepare_count_=0;
+    agriculture_visual::Cache agriculture_visual_state_;
+    AgricultureActorPresentationCache agriculture_actor_state_;
+    struct AgriculturePreparedActor {
+        AgricultureActorVisual actor;
+        std::shared_ptr<const AgricultureMesh> mesh;
+    };
+    std::vector<AgriculturePreparedActor> agriculture_actor_meshes_;
+    struct AgriculturePreparedBuilding {
+        simulation::BuildingId id{};
+        simulation::Object kind{};
+        unsigned side=0,progress=0,target=0;
+        bool wet=false;
+        std::shared_ptr<const AgricultureMesh> mesh;
+        std::string label;
+    };
+    std::vector<AgriculturePreparedBuilding> agriculture_building_meshes_;
+    struct AgricultureWorldObject {
+        simulation::Cell cell{};
+        simulation::Object kind{};
+        std::uint32_t id=0;
+        std::uint8_t road_mask=0;
+    };
+    // Occupied cells only; rebuild after paid topology publication, never draw.
+    std::vector<AgricultureWorldObject> agriculture_world_objects_;
+    std::uint64_t agriculture_object_revision_=UINT64_MAX;
+    std::vector<std::size_t> agriculture_road_replacement_cells_;
+    struct AgricultureRouteVisual {
+        simulation::BuildingId source{},destination{};
+        std::vector<std::pair<scene::Point,scene::Point>> segments;
+        std::size_t total_edges=0;
+    };
+    std::vector<AgricultureRouteVisual> agriculture_routes_;
+    std::uint64_t agriculture_visual_tick_=UINT64_MAX,agriculture_visual_sequence_=UINT64_MAX;
+    std::uint64_t agriculture_visual_prepare_count_=0;
     // Inactive Rice topology is disposable presentation state. Only paid
     // Rice objects join; no neighbor query or source decode occurs in render.
     struct OriginalRiceVisual {
