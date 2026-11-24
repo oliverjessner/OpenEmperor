@@ -87,6 +87,20 @@ void drain_if_needed(oe::SandboxView& view,SDL_Renderer* renderer,sim::BuildingI
         check(!view.demolition_pending()&&view.selected_building()==target&&(view.world().agriculture_draining(target)||view.world().demolition_status(target).allowed),
             "Drain did not use the shared action or changed selection");}
 }
+void retired_field_inspection(oe::SandboxView& view,SDL_Renderer* renderer,sim::BuildingId farm,
+        sim::BuildingId retired,std::size_t active,std::size_t closed){
+    select(view,renderer,farm);
+    const auto lines=view.inspection_lines();
+    const auto contains=[&](const std::string& text){return std::any_of(lines.begin(),lines.end(),
+        [&](const auto& line){return line.find(text)!=std::string::npos;});};
+    check(contains("Bound fields "+std::to_string(active)+"/8"),"Retired field consumed an active Farm slot in the inspector");
+    check(contains("Retired fields "+std::to_string(closed)),"Farm inspector hid its closed paid field count");
+    check(contains("Retired Field #"+std::to_string(static_cast<unsigned>(retired)))&&
+        contains("Retired; no active work"),"Closed field appeared as live or off-season work");
+    check(view.world().agriculture_retired(retired)&&!view.world().building(retired).placed,
+        "Inspector changed the actual closed field identity");
+    pure(view);
+}
 void menu(const fs::path& data,const fs::path& app,SDL_Window* window,SDL_Renderer* renderer){
     oe::menu::MenuSession menu(data,app);menu.initialize(window,renderer);
     for(const char* label:{"R Reconfigure (36)","V Food warehouses (35)","Q Food processing (34)","Quit"}){const auto rect=menu.diagnostic_button_rect(label);
@@ -120,9 +134,11 @@ int main(){SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;try{
     for(int x:{109,112})buy(sim::CommandType::PlaceFireWatch,{x,110});
     const auto output=fs::current_path()/".local/agri-mac11/presentation";fs::create_directories(output);
     select(*view,renderer,idle);pure(*view);capture(*view,renderer,output/"field-ready.png");remove(*view,renderer,idle);
+    retired_field_inspection(*view,renderer,farm,idle,0,1);
     const auto funds=view->world().treasury();const auto price=view->world().construction_cost(sim::CommandType::PlaceOriginalSoybeanField);
     const auto replacement=buy(sim::CommandType::PlaceOriginalSoybeanField,{93,110},farm);
     check(replacement>idle&&view->world().treasury()==funds-price&&view->world().building(idle).placed==false,"Rebuild evaded price or reused paid identity");
+    retired_field_inspection(*view,renderer,farm,idle,1,1);
     select(*view,renderer,replacement);capture(*view,renderer,output/"field-rebuilt.png");roundtrip(*view);
     const auto target=buy(sim::CommandType::PlaceOriginalWheatField,{93,111},farm);
     const auto shed=buy(sim::CommandType::PlaceOriginalTeaCuringShed,{115,110});const auto plant=buy(sim::CommandType::PlaceOriginalTeaBush,{115,114},shed);
@@ -141,8 +157,11 @@ int main(){SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;try{
     select(*view,renderer,target);capture(*view,renderer,output/"field-loaded-return.png");roundtrip(*view);
     for(unsigned tick=0;tick<2000&&!view->world().demolition_status(target).allowed;++tick)view->tick_once();
     check(view->world().demolition_status(target).allowed&&t::receipt(view->world(),target).returned>0,"Field never settled through actual Farm return");
-    const auto receipt=t::receipt(view->world(),target);select(*view,renderer,target);capture(*view,renderer,output/"field-settled.png");remove(*view,renderer,target);
-    check(t::receipt(view->world(),target)==receipt,"Removal erased earned physical return history");roundtrip(*view);
+    const auto receipt=t::receipt(view->world(),target);const auto closed_work=t::work(view->world(),target);
+    select(*view,renderer,target);capture(*view,renderer,output/"field-settled.png");remove(*view,renderer,target);
+    retired_field_inspection(*view,renderer,farm,target,1,2);
+    check(t::receipt(view->world(),target)==receipt&&t::work(view->world(),target)==closed_work,
+        "Removal or normal Farm inspection erased earned work or physical return history");roundtrip(*view);
     std::optional<sim::CourierId> plantation_worker;
     for(unsigned tick=0;tick<14000&&!plantation_worker;++tick){
         for(const auto& plant_source:view->world().plantations_state()->sources)if(plant_source.building_id==shed&&plant_source.latest_trip&&

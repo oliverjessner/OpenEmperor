@@ -13,6 +13,15 @@ namespace openemperor {
 // Opt-in event-boundary observation only. No event is rewritten or replayed.
 class InputDiagnostics {
 public:
+    enum class ActorDomain : std::uint8_t { Courier, Boat, Hunter, Animal };
+    struct ActorSelection {
+        ActorDomain domain=ActorDomain::Courier;
+        // Courier IDs name a reusable movement channel. lifetime_id instead
+        // names its actual trip/worker; other domains already use actor IDs.
+        std::uint64_t id=0,lifetime_id=0;
+        std::optional<std::uint32_t> source,target;
+        bool operator==(const ActorSelection&) const=default;
+    };
     struct State {
         std::string_view view="other";
         int menu_state=-1,tool=-1,requested_action=-1;
@@ -23,9 +32,10 @@ public:
         scene::Point camera_offset{};
         double zoom=1;
         SDL_Rect map{};
-        std::uint64_t command_sequence=0,tick=0;
+        std::uint64_t command_sequence=0,tick=0,io_generation=0,save_generation=0,load_generation=0;
         std::uint32_t selected_building=0;
         std::uint32_t selected_walker=0;
+        std::optional<ActorSelection> selected_actor;
         bool selected_landscape=false;
         bool ui=false,map_pressed=false,ui_pressed=false,road_drag=false;
         bool paused=false,help=false,budget=false,demolition=false,focused=true;
@@ -47,6 +57,7 @@ private:
         float relative_x=0,relative_y=0,wheel_x=0,wheel_y=0;
         std::uint8_t button=0;
         int navigation_key=0;
+        std::string_view control_key;
         int window_w=0,window_h=0,pixel_w=0,pixel_h=0,output_w=0,output_h=0;
         int logical_w=0,logical_h=0,runtime=0;
         SDL_RendererLogicalPresentation logical_mode=SDL_LOGICAL_PRESENTATION_DISABLED;

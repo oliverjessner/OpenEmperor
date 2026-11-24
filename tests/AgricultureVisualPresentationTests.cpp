@@ -214,6 +214,21 @@ std::vector<Color> palette(const std::string& kind) {
     if(person)for(const Color color:std::array<Color,3>{{{220,176,124,255},{113,83,55,255},{209,180,105,255}}})result.push_back(color);
     return result;
 }
+void selected_actor_diagnostic(const oe::SandboxView& view,const Diagnostic& row) {
+    using ActorDomain=oe::InputDiagnostics::ActorDomain;
+    const auto expected=row.domain==Domain::Courier ? ActorDomain::Courier:
+        row.domain==Domain::Boat ? ActorDomain::Boat:
+        row.domain==Domain::Hunter ? ActorDomain::Hunter:ActorDomain::Animal;
+    const auto state=view.input_diagnostic_state();
+    check(state.selected_actor.has_value(),"Ordinary opaque actor selection is absent from boundary diagnostics");
+    const auto& actor=*state.selected_actor;
+    check(actor.domain==expected&&actor.id==row.id&&actor.lifetime_id==row.lifetime_id&&
+        actor.source.value_or(0)==static_cast<std::uint32_t>(row.source)&&
+        actor.target.value_or(0)==static_cast<std::uint32_t>(row.target.value_or(sim::BuildingId{})),
+        "Input boundary selected another typed actor, owner, target or reusable-channel lifetime");
+    if(!static_cast<std::uint32_t>(row.source))check(!actor.source,"Ownerless wildlife acquired a paid source in diagnostics");
+    if(row.domain!=Domain::Courier)check(!actor.target,"Boat/Hunter/Animal acquired an invented building target in diagnostics");
+}
 Point select_actor(Harness& h,Domain domain,std::uint64_t id,bool subpixel=false) {
     h.view->set_tool(5);center_entity(h,domain,id);const auto row=diagnostic(*h.view,domain,id);
     check(row.submitted&&!row.sprite_drawn&&row.art.find("AUTHORED")!=std::string::npos,"Synthetic actor borrowed unqualified Original art or has no submitted body");
@@ -265,11 +280,86 @@ Point select_actor(Harness& h,Domain domain,std::uint64_t id,bool subpixel=false
     check(h.view->selected_agriculture_actor()!=std::make_optional(std::make_pair(domain,id)),"Transparent bounding-box corner stole actor selection");
     click(*h.view,h.renderer.get(),chosen);
     check(h.view->selected_agriculture_actor()==std::make_optional(std::make_pair(domain,id)),"Normal actor re-selection failed");
+    selected_actor_diagnostic(*h.view,row);
     return chosen;
 }
 void toggle_operation(Harness& h,sim::BuildingId id) {
     check(h.view->selected_building()==id,"Normal operation control is bound to another owner");const auto button=h.view->inspector_layout().operation_toggle;
     check(button.h>0&&button.w>0,"Normal operation control is hidden");click(*h.view,h.renderer.get(),{button.x+button.w*.5,button.y+button.h*.5});
+}
+
+void agriculture_help_uses_bounded_normal_controls() {
+    Harness h;crop_city(h);auto& view=*h.view;auto* renderer=h.renderer.get();
+    const auto before=view.world().snapshot();
+    const auto inside=[](oe::sandbox_ui::Rect outer,oe::sandbox_ui::Rect inner) {
+        return inner.w>0&&inner.h>0&&inner.x>=outer.x&&inner.y>=outer.y&&
+            inner.x+inner.w<=outer.x+outer.w&&inner.y+inner.h<=outer.y+outer.h;
+    };
+    const auto middle=[](oe::sandbox_ui::Rect r){return Point{r.x+r.w*.5,r.y+r.h*.5};};
+    const auto button=[&](Uint32 type,oe::sandbox_ui::Rect rect) {
+        const auto point=middle(rect);float x=0,y=0;
+        check(SDL_RenderCoordinatesToWindow(renderer,float(point.x),float(point.y),&x,&y),"Invert Help pointer event");
+        SDL_Event input{};input.type=type;input.button.button=SDL_BUTTON_LEFT;input.button.x=x;input.button.y=y;event(view,input);
+    };
+    const auto resize=[&](int width,int height) {
+        check(SDL_SetWindowSize(h.window.get(),width,height),"Resize normal Agriculture Help viewport");
+        SDL_Event boundary{};boundary.type=SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED;
+        boundary.window.windowID=SDL_GetWindowID(h.window.get());
+        check(SDL_GetWindowSizeInPixels(h.window.get(),&boundary.window.data1,&boundary.window.data2),"Measure actual resize pixels");
+        event(view,boundary);view.update(0);
+    };
+    for(const auto size:{SDL_Point{900,600},SDL_Point{1440,1000}}) {
+        resize(size.x,size.y);
+        key(view,SDLK_H);check(view.help_open()&&view.render(),"Open ordinary Agriculture Help");
+        const auto& help=view.agriculture_help();const auto count=help.pages().size();
+        check(count>=9&&help.page_index()==0&&inside(view.layout().map,help.panel()),"Latest Help is absent or escapes the map viewport");
+        for(const auto rect:{help.previous_button(),help.next_button(),help.close_button()})
+            check(inside(help.panel(),rect),"Help has an invisible or clipped navigation hit region");
+        std::string all_text;
+        for(std::size_t index=0;index<count;++index) {
+            const auto* page=view.agriculture_help().page();
+            check(page&&view.agriculture_help().page_index()==index&&inside(help.panel(),page->heading.rect)&&
+                inside(help.panel(),page->footer.rect)&&!page->rows.empty(),"Help page skipped a heading, complete body or footer");
+            int bottom=page->heading.rect.y+page->heading.rect.h;
+            all_text+=page->heading.text+'\n';
+            for(const auto& row:page->rows) {
+                check(!row.text.empty()&&inside(help.panel(),row.rect)&&row.rect.y>=bottom&&
+                    row.rect.y+row.rect.h<=page->footer.rect.y,"Help text clipped or overlaps a heading/footer");
+                bottom=row.rect.y+row.rect.h;all_text+=row.text+'\n';
+            }
+            check(view.render(),"Render complete ordinary Help page");
+            if(size.x==900)capture(view,renderer,h.output/("help-900-page-"+std::to_string(index+1)+".png"));
+            if(index+1<count)key(view,SDLK_PAGEDOWN);
+        }
+        for(const char* fragment:{"F5 save", "F9 load", "single step", "Food fields", "Work and seasons", "Water", "Fish and hunting",
+                "Food processing", "Materials", "Inspect and needs", "Reconfigure", "Tea", "Silk", "Lacquerware"})
+            check(all_text.find(fragment)!=std::string::npos,"Help omitted a required playable control or inspection topic");
+        key(view,SDLK_PAGEDOWN);check(view.agriculture_help().page_index()==count-1,"Help advanced beyond its last complete page");
+        for(std::size_t index=1;index<count;++index)key(view,SDLK_PAGEUP);
+        check(view.agriculture_help().page_index()==0,"Help keyboard navigation did not return to first page");
+        key(view,SDLK_PAGEUP);check(view.agriculture_help().page_index()==0,"Help went before its first complete page");
+        click(view,renderer,middle(help.next_button()));check(view.agriculture_help().page_index()==1,"Normal Next button disagrees with PageDown");
+        click(view,renderer,middle(help.previous_button()));check(view.agriculture_help().page_index()==0,"Normal Previous button disagrees with PageUp");
+        button(SDL_EVENT_MOUSE_BUTTON_DOWN,help.next_button());button(SDL_EVENT_MOUSE_BUTTON_UP,help.close_button());
+        check(view.help_open()&&view.agriculture_help().page_index()==0,"Mismatched Help release navigated or closed the modal");
+        button(SDL_EVENT_MOUSE_BUTTON_DOWN,help.next_button());
+        SDL_Event focus{};focus.type=SDL_EVENT_WINDOW_FOCUS_LOST;event(view,focus);focus.type=SDL_EVENT_WINDOW_FOCUS_GAINED;event(view,focus);
+        button(SDL_EVENT_MOUSE_BUTTON_UP,help.next_button());
+        check(view.help_open()&&view.agriculture_help().page_index()==0,"Focus loss preserved a pending Help navigation");
+        const auto saved=view.save_generation(),loaded=view.load_generation();
+        key(view,SDLK_F5);key(view,SDLK_F9);key(view,SDLK_PERIOD);key(view,SDLK_O);
+        check(view.save_generation()==saved&&view.load_generation()==loaded&&view.world().snapshot()==before,
+            "Help modal allowed save/load, step or a paid action to change World authority");
+        const auto prepared=view.agriculture_help_prepare_count();pure(view,renderer,3);
+        check(view.agriculture_help_prepare_count()==prepared,"Help frames rebuilt their prepared page document");
+        button(SDL_EVENT_MOUSE_BUTTON_DOWN,help.next_button());
+        resize(size.x+40,size.y+40);
+        button(SDL_EVENT_MOUSE_BUTTON_UP,view.agriculture_help().next_button());
+        check(view.help_open()&&view.agriculture_help().page_index()==0,"Resize preserved a pending Help navigation");
+        click(view,renderer,middle(view.agriculture_help().close_button()));
+        check(!view.help_open()&&view.world().snapshot()==before,"Help Close changed funds, IDs, stock or simulation time");
+    }
+    h.save_restore();pure(view,renderer,3);t::valid(view.world());
 }
 
 void paid_roofs_budgets_and_historical_boundary() {
@@ -335,11 +425,12 @@ void food_work_ready_loaded_pick_and_exact_f5_f9() {
         "Same real Grower channel never earned its next working lifetime");
     const auto& replacement=t::worker(view.world(),city.farm);
     check(replacement.courier_id==worker.courier_id&&replacement.retired>retired_before&&
-        !view.selected_agriculture_actor(),"Already-selected retired lifetime silently became the new same-channel actor");
+        !view.selected_agriculture_actor()&&!view.input_diagnostic_state().selected_actor,
+        "Already-selected retired lifetime silently became the new same-channel actor");
     const auto new_life=diagnostic(view,Domain::Courier,static_cast<unsigned>(worker.courier_id));
     check(new_life.lifetime_id>old_life&&!new_life.submitted,"New lifetime inherited old-frame submitted geometry/provenance");
     const auto untouched=view.world().snapshot();click(view,h.renderer.get(),old_pixel);
-    check(!view.selected_agriculture_actor()&&view.world().snapshot()==untouched,
+    check(!view.selected_agriculture_actor()&&!view.input_diagnostic_state().selected_actor&&view.world().snapshot()==untouched,
         "Clicking an obsolete painted actor selected its new same-channel lifetime or mutated World");
     select_actor(h,Domain::Courier,static_cast<unsigned>(worker.courier_id));
     check(diagnostic(view,Domain::Courier,static_cast<unsigned>(worker.courier_id)).lifetime_id==new_life.lifetime_id,
@@ -421,11 +512,12 @@ int main() {
     try {
         std::cout<<"Synthetic presentation output: "<<presentation_output()<<'\n';
         SDL_SetHint(SDL_HINT_VIDEO_DRIVER,"dummy");SDL_SetHint(SDL_HINT_RENDER_DRIVER,"software");check(SDL_Init(SDL_INIT_VIDEO),"Initialize independent scripted visual SDL");
+        agriculture_help_uses_bounded_normal_controls();
         paid_roofs_budgets_and_historical_boundary();
         food_work_ready_loaded_pick_and_exact_f5_f9();
         boat_hunter_work_unload_and_source_pause();
         wildlife_and_material_workers_use_live_silhouettes();
-        SDL_Quit();std::cout<<"Agriculture visual presentation4 cases: normal roof/body/raster-boundary picking1/2/4, actual states, paused pixels/caches, exact F5/F9 and historical35 isolation PASS; synthetic scripted SDL only; qualified ready80 Original bank/native/human acceptance NOT_RUN here\n";return 0;
+        SDL_Quit();std::cout<<"Agriculture visual presentation5 cases: bounded paged Help and modal controls, typed boundary actor identities, normal roof/body/raster-boundary picking1/2/4, actual states, paused pixels/caches, exact F5/F9 and historical35 isolation PASS; synthetic scripted SDL only; qualified ready80 Original bank/native/human acceptance NOT_RUN here\n";return 0;
     } catch(const std::exception& error) {
         perf::set_enabled(false);SDL_Quit();std::cerr<<error.what()<<'\n';return 1;
     }

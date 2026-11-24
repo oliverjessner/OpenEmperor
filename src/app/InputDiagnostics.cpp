@@ -7,16 +7,29 @@ using Json=nlohmann::json;
 Json point(const std::optional<scene::Point>& p) {
     return p ? Json::array({p->x,p->y}) : Json(nullptr);
 }
+Json actor(const std::optional<InputDiagnostics::ActorSelection>& selection) {
+    if (!selection) return nullptr;
+    const auto& selected=*selection;
+    const auto domain=selected.domain==InputDiagnostics::ActorDomain::Courier ? "courier":
+        selected.domain==InputDiagnostics::ActorDomain::Boat ? "boat":
+        selected.domain==InputDiagnostics::ActorDomain::Hunter ? "hunter":"animal";
+    return {{"domain",domain},{"id",selected.id},{"lifetime_id",selected.lifetime_id},
+        {"id_kind",selected.domain==InputDiagnostics::ActorDomain::Courier ? "courier_channel":"actor"},
+        {"source",selected.source ? Json(*selected.source):Json(nullptr)},
+        {"target",selected.target ? Json(*selected.target):Json(nullptr)}};
+}
 Json state_json(const InputDiagnostics::State& s) {
     return {{"view",s.view},{"menu_state",s.menu_state},{"requested_action",s.requested_action},
         {"render",point(s.render_position)},
         {"ground",s.ground_cell ? Json::array({s.ground_cell->x,s.ground_cell->y}):Json(nullptr)},
         {"selected_cell",s.selected_cell ? Json::array({s.selected_cell->x,s.selected_cell->y}):Json(nullptr)},
         {"selected_landscape",s.selected_landscape},{"selected_walker",s.selected_walker},
+        {"selected_actor",actor(s.selected_actor)},
         {"ui",s.ui},{"ui_action",s.ui_action ? Json(*s.ui_action):Json(nullptr)},
         {"camera",{s.camera_offset.x,s.camera_offset.y}},{"zoom",s.zoom},
         {"map",{s.map.x,s.map.y,s.map.w,s.map.h}},{"tool",s.tool},
         {"command_sequence",s.command_sequence},{"tick",s.tick},
+        {"io_generation",s.io_generation},{"save_generation",s.save_generation},{"load_generation",s.load_generation},
         {"selected_building",s.selected_building},{"map_pressed",s.map_pressed},
         {"ui_pressed",s.ui_pressed},{"road_drag",s.road_drag},{"focused",s.focused},
         {"paused",s.paused},{"help",s.help},{"budget",s.budget},{"demolition",s.demolition}};
@@ -24,12 +37,16 @@ Json state_json(const InputDiagnostics::State& s) {
 Json actions(const InputDiagnostics::State& a,const InputDiagnostics::State& b) {
     Json value=Json::array();
     if (a.command_sequence!=b.command_sequence) value.push_back("world_command");
+    if (a.io_generation!=b.io_generation) value.push_back("persistence_attempt");
+    if (a.save_generation!=b.save_generation) value.push_back("save");
+    if (a.load_generation!=b.load_generation) value.push_back("load");
     if (a.menu_state!=b.menu_state) value.push_back("menu_transition");
     if (a.requested_action!=b.requested_action && b.requested_action>=0) value.push_back("menu_request");
     if (a.camera_offset.x!=b.camera_offset.x || a.camera_offset.y!=b.camera_offset.y || a.zoom!=b.zoom)
         value.push_back("camera");
     if (a.selected_building!=b.selected_building || a.selected_cell!=b.selected_cell ||
-        a.selected_landscape!=b.selected_landscape || a.selected_walker!=b.selected_walker)
+        a.selected_landscape!=b.selected_landscape || a.selected_walker!=b.selected_walker ||
+        a.selected_actor!=b.selected_actor)
         value.push_back("selection");
     if (a.tool!=b.tool) value.push_back("tool");
     if (a.help!=b.help || a.budget!=b.budget || a.demolition!=b.demolition)
@@ -80,6 +97,16 @@ void InputDiagnostics::begin(const SDL_Event& e,SDL_Window* window,SDL_Renderer*
         if (e.key.scancode==SDL_SCANCODE_LEFT || e.key.scancode==SDL_SCANCODE_RIGHT ||
             e.key.scancode==SDL_SCANCODE_UP || e.key.scancode==SDL_SCANCODE_DOWN)
             r.navigation_key=static_cast<int>(e.key.scancode);
+        // A strict non-text control whitelist makes native save/load and
+        // inspector navigation delivery observable without logging typing.
+        switch (e.key.scancode) {
+        case SDL_SCANCODE_F5: r.control_key="F5";break;
+        case SDL_SCANCODE_F9: r.control_key="F9";break;
+        case SDL_SCANCODE_SPACE: r.control_key="Space";break;
+        case SDL_SCANCODE_PAGEUP: r.control_key="PageUp";break;
+        case SDL_SCANCODE_PAGEDOWN: r.control_key="PageDown";break;
+        default: break;
+        }
     } else if (e.type>=SDL_EVENT_WINDOW_FIRST && e.type<=SDL_EVENT_WINDOW_LAST)
         r.window_id=e.window.windowID;
     r.dimensions_valid=SDL_GetWindowSize(window,&r.window_w,&r.window_h) &&
@@ -122,6 +149,7 @@ void InputDiagnostics::print(std::ostream& out) {
             {"window_id",r.window_id},{"app_window_id",r.observed_window_id},{"raw",point(r.raw)},
             {"relative",{r.relative_x,r.relative_y}},{"wheel",{r.wheel_x,r.wheel_y}},
             {"button",r.button},{"navigation_scancode",r.navigation_key},{"motions",r.motions},
+            {"control_key",r.control_key.empty() ? Json(nullptr):Json(r.control_key)},
             {"window",{r.window_w,r.window_h}},{"pixels",{r.pixel_w,r.pixel_h}},
             {"output",{r.output_w,r.output_h}},{"dimensions_valid",r.dimensions_valid},
             {"viewport",{r.viewport.x,r.viewport.y,r.viewport.w,r.viewport.h}},

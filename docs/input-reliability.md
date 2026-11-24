@@ -128,7 +128,57 @@ road preview remains pure and commit retains its existing transaction.
 External display switching and clean-Mac acceptance require separate
 hardware/user checks.
 
-## Final technical validation
+## Agriculture input and Help (AGRI-MAC13)
+
+This input/UI pass starts from merged MAC12 `78b334e`. It retains
+Rule36/policy3/schema52, all historical save contracts and the existing
+window-to-render conversion. A reproduced sequence armed a road or UI press,
+then delivered a second left-button Down outside the window or with nonfinite
+coordinates. The later valid Up could still use the older armed press. Invalid
+new presses now cancel that existing gesture; they remain rejected and are
+never replaced by a guessed coordinate. Cancellation preserves funds, IDs and
+the command sequence. The ordinary input regressions cover the same shared
+path used by Agriculture tools.
+An independently reproduced Help press followed by Escape and a stale release
+could reopen the modal. Escape now uses the same cancelling close action as
+the visible button and keyboard toggle.
+
+Rule36 Help is a prepared, paged controls guide. H, ?, and the Help button use
+the same action. PageUp/PageDown, the panel wheel and visible Prev/Next buttons
+page the guide; H, ?, Escape or Close dismiss it. Mouse controls require a
+matching Down/Up and consume the gesture. Text wrapping and complete-row/button
+geometry are prepared on opening or layout changes, outside rendering and hover.
+The guide stays inside the actual map viewport, including the 900×600 layout
+and measured UI scale; unavailable tiny viewports retain no clipped controls.
+Rules1–35 keep their historical Help content and defaults.
+
+The guide covers selected-Farm field placement, physical Growers, seasons,
+water, Quays, hunting, processing, twelve-column Food inventory, material
+plantations, House needs and drainage/removal. A Farm inspector separates its
+active field quota from retired leaves. Retired rows keep earned work,
+harvest and return history, are labelled retired and cannot be shown as eligible
+or selected as the next field for work. These are read-only presentations of
+existing World authority, not additional saved state or removal permission.
+
+The existing optional 512-record observer also records typed Agriculture
+selection: courier channel versus actual 64-bit lifetime, Boat/Hunter/animal
+identity, and optional source/target from the prepared actor cache. A retired
+selection cannot identify a replacement lifetime on the same channel.
+Before/after states include I/O-attempt, successful-save and successful-load
+generations; persistence attempts and successful publication/restoration are
+distinct actions. A fixed control-key whitelist identifies F5, F9, Space,
+PageUp and PageDown alongside the existing arrow scancodes. Other typed key
+identities and all text events remain excluded. Disabled diagnostics still
+allocate no observer or buffer and query no diagnostic state.
+
+Use the [MAC13 regression commands](testing.md#agriculture-input-and-help-agri-mac13)
+and [Rule36 manual checklist](testing-input-acceptance.md#agriculture-rule36-input-checklist-agri-mac13).
+Scripted SDL, scripted Metal rendering, actual OS delivery and human acceptance
+remain separate. Missing, zero or mismatched automation coordinates leave
+native mouse delivery **NOT_VERIFIED**; they do not establish a DPI/camera defect.
+The human playtest remains **NOT_RUN** until after MAC14.
+
+## Historical native-input validation (101-test snapshot)
 
 The same 269 source/CMake/resource files were hashed for all three runs and
 remained unchanged through testing. Each run executed every one of its 101

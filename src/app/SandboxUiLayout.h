@@ -27,7 +27,7 @@ enum class Action {
     OriginalSilkwormShed, OriginalTeaBush, OriginalLacquerTree, OriginalMulberryTree, ToggleIndustryPage,
     OriginalElitePlot, OriginalTheatre, OriginalRiceField, OriginalCabbageField, OriginalSoybeanField,
     IrrigationDitch, IrrigationPump, RemoveIrrigationDitch, RotateIrrigationPump, IrrigationOverlay, OriginalFishingQuay, RotateFishingQuay, OriginalHuntersTent,
-    OriginalMill, OriginalFoodShop, CycleMillRecipe
+    OriginalMill, OriginalFoodShop, CycleMillRecipe, HelpPrevious, HelpNext
 };
 
 struct Button { Action action; Rect rect; bool enabled=true; };

@@ -1273,6 +1273,17 @@ void input_reliability_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* 
         const auto committed=view.world().snapshot();up(end);check(view.world().snapshot()==committed,"duplicate Up does not recommit");
         perf::set_enabled(false);
         const auto empty=screen(112),last=screen(115);
+        // A second invalid press replaces, rather than resumes, the first
+        // gesture. Its later valid release cannot commit the older road.
+        for (const auto invalid:std::array<openemperor::scene::Point,5>{{
+            {-1,200},{1100,200},{200,700},
+            {std::numeric_limits<double>::quiet_NaN(),200},
+            {200,std::numeric_limits<double>::infinity()}}}) {
+            down(empty);down(invalid);up(last);
+            check(view.world().snapshot()==committed && !view.input_diagnostic_state().map_pressed &&
+                !view.input_diagnostic_state().road_drag,
+                "second invalid Down must disarm the earlier road without spending funds or IDs");
+        }
         const auto road_button=action_point(view,A::Road);
         down(road_button);up(empty);check(view.world().snapshot()==committed,"toolbar to map cannot build");
         for(const auto release_point:std::array<openemperor::scene::Point,5>{{
@@ -1300,6 +1311,13 @@ void input_reliability_checks(const Temp& temp,SDL_Window* window,SDL_Renderer* 
         down(help);resize(view,1290,780);up(help);check(view.help_open(),"Help resize disarms old button");
         resize(view,1100,700);mouse_click(view,float(help.x),float(help.y),running);
         check(!view.help_open()&&view.world().snapshot()==committed,"matched Help close does not click through");
+        view.handle_event(key(SDLK_H),running);
+        down(help);view.handle_event(key(SDLK_ESCAPE),running);up(help);
+        check(!view.help_open() && view.world().snapshot()==committed,
+              "Escape closes Help and cancels its armed button before a stale release");
+        down(help);down({-1,200});up(help);
+        check(!view.help_open() && view.world().snapshot()==committed,
+            "invalid second Down also disarms an earlier UI press");
         const auto stable=view.camera();
         for(float delta:{std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity(),
                          -std::numeric_limits<float>::infinity(),std::numeric_limits<float>::max(),-std::numeric_limits<float>::max()}) {
