@@ -44,6 +44,172 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Final Agriculture integration (AGRI-MAC14)
+
+The current technical evaluation uses merged base
+`a45edd38a4813ca07e4fc6de219fe388d4e2da78`, **Rule36/policy3/schema52**.
+The 910-file source/test/resource manifest is
+`054185413a085b29a38409dbd7d58605842e235ff1f971834349a74011bbd528`.
+Gameplay, persistence, source models, defaults and the82/58 limits are unchanged.
+The new executable observes the existing World; it adds no inventory or commands.
+Human checks remain **NOT_RUN**; use [HUMAN_PLAYTEST](../HUMAN_PLAYTEST.md).
+
+Build the current source, then continue an explicitly supplied, legitimately
+earned schema52 city into a fresh private directory:
+
+```sh
+./build/openemperor-agriculture-integration-acceptance \
+  --data /absolute/emperor --input /absolute/earned-rule36.save.json \
+  --output "$PWD/.local/agri-mac14/city-01" --ticks 100000
+./build/openemperor-agriculture-integration-acceptance \
+  --data /absolute/emperor --input /absolute/earned-rule36.save.json \
+  --output "$PWD/.local/agri-mac14/replay-01" --ticks 100000 \
+  --replay "$PWD/.local/agri-mac14/city-01"
+```
+
+The input map/difficulty/model are bound by exact restore. Duration is bounded
+20400–200000 ticks; existing outputs, duplicate arguments, wrong maps and
+historical generations are refused. A valid save alone does not prove its paid
+creation: retain and independently replay the creator's actual command plan.
+The observer runs no commands after restore. It streams deterministic samples
+every816 ticks, retains twelve canonical JSON/Recovery checkpoints and checks
+an independent restored World. A separate process must reproduce the complete
+initial/final canonical bytes and telemetry, excluding measured timing.
+
+For each Food kind, actual source-return/unload or completed Mill output equals
+physical stock + real transit + House consumption/processor debit. Field
+harvest and loaded returning Growers are outside inventory until source return.
+New House consumption is measured against the input counters. Goods/Aux,
+residents, staffing, fire, paths, reserved channels and World invariants are
+checked separately. The report's **technical `status` and `gameplay_coverage`
+are distinct**: exit0 never means missing Tea, meals or high-House retention
+passed. `food_and_meal_maturity_tick` means new consumption of seven raw Foods
+and a meal; it does not establish luxury maturity or a House stage.
+
+The measured paid Chengdu continuation starts at tick24000 and runs100000
+further ticks, crossing ten year boundaries. Actual new House consumption is
+Wheat154, Millet36, Rice29, Cabbage31, BeanCurd168, Fish587, Meat45 and grade2
+Dinners910. It retains37 lifetime bodies/42 channels; the separate process
+reproduces initial/final saves and the entire telemetry exactly. Twelve
+canonical/Recovery checkpoints pass. The diagnostic Debug run measured mean
+primary tick101µs and process peak RSS112MB; concurrent compilation affects
+wall-clock values, and this is no performance threshold or leak proof.
+
+This is **not a sustainable-city success claim**: Funds reach−18180 with30
+House devolutions and no burning-House ticks in this continuation. All source,
+transit and consumption equations remain conserved. The city contains no
+Silk/Lacquerware processors or sufficient high-House providers, so its luxury
+coverage is partial. Do not interpret absent current-row demand as a failed
+House delivery.
+
+The luxury tool separately accepts `--latest-agriculture` with fresh MAC14
+outputs; its historical default remains Rule29/schema45 under MAC04 outputs.
+The finite latest-only Xia plan omits redundant purchases explicitly listed in
+its report. It pays normal prices, retains the supplied model and uses the
+current physical/seasonal Food authority. Actual100000-tick observation reaches
+Elite15 and consumes Silk/Lacquerware, but **Tea remains zero**. At the first
+Elite15 progression opportunity all non-DES next needs pass and FoodQuality
+is80, while actual DES66 misses70. Further progression needs DES80; this
+particular plan provides no Tea-eligible House. Tea40 is physically produced
+and stored, not consumed. Later off-season Food loss causes further devolutions.
+Both actual Millet Farms are fully staffed; final FoodQuality is0 and Funds
+are−28151. No luxury maturity or20400-tick post-maturity retention is earned.
+This is a measured player-plan gate, not a universal impossibility or a reason
+to alter source thresholds, grants or historical saves.
+
+A bounded next scenario should preserve adequate paid DES while fitting58
+channels and add complementary-season crops to the existing Farms. Extra
+fields share the same finite labor. Placement, water/service coverage, annual
+Food reserves and net finances still require actual paid validation; arithmetic
+or a proposed layout does not close these gates.
+
+The latest36 source-map matrix passes exact map rules and empty schema52
+save/read/fresh restore on supplied Xia, Chengdu and Loulan. Chengdu's ordinary
+paid starter executes87 commands, spends1404 and retains10596 Funds at tick0
+with no residents. Loulan refuses the missing legal empty24×13 level area.
+Xia's fixed starter road plan overlaps actual wildlife after36 paid Roads in
+an unpublished candidate. The helper documents sequential candidate construction;
+MenuSession publishes only after successful initialization and discards failed
+candidates. The private direct-call probe records its partial candidate, not a
+false claim that this helper itself is transactional. These checks establish
+bounded start/persistence support, not every commodity/layout or observed menu
+publication behavior.
+
+The milestone matrix distinguishes merged feature acceptance from the remaining
+latest-generation integration gates. Historical evidence never migrates a save
+or proves a newer generation's city stability.
+
+| Milestone | Rule/schema boundary | Evidence and remaining scope | Result |
+| --- | --- | --- | --- |
+| MAC04 luxury | 29/45; separate36/52 observation | Supplied-model paid29 consumes Tea/Silk/Lacquerware and earns20400 post-maturity ticks. Latest36 consumes Silk/Lacquerware; Tea/DES/Food/finance gates remain open. | PASS historical / PARTIAL latest |
+| MAC05 multiple fields | 30/46, inherited36/52 | Paid shared labor and five-crop consumption pass; current sanitized separate14k replay times out in its final validation/report tail. | PASS historical/Debug/Release; PARTIAL current sanitizer |
+| MAC06 physical Growers | 31/47, inherited36/52 | At-field work, typed loaded return, reservations, actual source receipts and independent persistence; no raw Actor26 parity claim. | PASS |
+| MAC07 seasons | 32/48, inherited36/52 | Nine crop windows, expiry/return guards and latest ten-year-boundary continuation. Sustainable reserves remain a separate open city gate. | PASS bounded mechanics |
+| MAC08 water productivity | 33/49, inherited36/52 | Paid matched wet/dry work,21 supplied cells, real Pump fire/recovery, carry/clipping and exact replay; no Original yield claim. | PASS bounded mechanics |
+| MAC09 processing | 34/50, inherited36/52 | Actual ingredient debits, grades1–4 suites; latest grade2 meals physically arrive and are consumed910 further times. | PASS |
+| MAC10 Warehouses | 35/51, inherited36/52 | Typed physical input/output, return room, actual Market/Shop receipt and exact replay in the sole Food account. | PASS |
+| MAC11 reconfiguration | 36/52 | Paid leaf drainage/removal/rebuild and hostile saves; source/stock-owner retirement remains deliberately refused. | PASS scoped contract |
+| MAC12 presentation | 36/52 | Earned165-state corpus, saved work/cargo art and pure frames. Unqualified Original actor animation remains authored fallback. | PASS scoped presentation |
+| MAC13 input | 36/52 | Shared cancellation, prepared Help, scripted paid input and recorded native keyboard checks. Native automated pointer acceptance remains unverified. | PASS scoped input |
+| MAC14 complete city | 36/52 | One full-Alpha timeout remains. Additional endurance/persistence passes; no single stable all-chain city, latest Tea maturity/retention or complete native matrix has passed. | PARTIAL |
+| User human playtest | Explicit selected generation | Follow HUMAN_PLAYTEST only as manual observations; no automated run fills these rows. | NOT_RUN |
+
+The complete unchanged public Alpha ran once on three fresh arm64 builds:
+Debug **435/435**, Release **435/435**, ASan/UBSan **434/435**. No registered
+case was skipped or retried, no assertion or deadline changed. The full Alpha
+result is **FAIL**, retained at `.local/agri-mac14/alpha-final-01.json` with SHA
+`8d0ae508d79a693fa7f27276273d7a968b07c5dfbe6e1a713c9f52840c958f2a`.
+Its source, Original input and historical before/after guards match.
+
+The sole failed case is `original-multi-field-agriculture-real`. Its Python
+wrapper kills a child after240 seconds. The sanitized creator took234.13s;
+the replay completed all14000 ticks and wrote exact final/roundtrip JSON and
+Recovery payloads, but did not finish its final Recovery comparison/report.
+The five corresponding creator/replay JSON payloads match literally, with final
+SHA `97017f9b5ab57060b06cb167150a9cbb6ed2a0604ee3c959de84f9896b0a0033`.
+Recovery metadata committed about0.46s before the deadline. This establishes
+a narrow runtime-headroom failure, not a demonstrated gameplay divergence or
+sanitizer finding; exact host/thermal/code-layout attribution is **UNVERIFIED**.
+Profiling and a behavior-preserving performance fix still need validation.
+The failed test remains failed; completed files are not a substitute for its
+unfinished assertions, independent wrapper audit or final report.
+
+Additional checks use a separate, explicitly **incomplete-Alpha** scope. Their
+passes do not reclassify this public failure or establish a green full run.
+Fresh independent core probes pass74 cases per configuration with unchanged
+46 parity /18 corrected /6 unverified /4 unsupported classifications and literal
+public-report bytes. Historical Rules24–35 retain246 artifacts/137 paid saves;
+the Rule36 replay retains24000 ticks,20 checkpoints,40 canonical/roundtrip files,
+six Recovery payloads, the command plan and entire work trace byte-exact.
+
+The current native probe visibly loaded the earned Chengdu tick1715/loaded
+Grower city, handled OS keyboard Save/Load and opened Help. Final private F5
+bytes equal the protected source checkpoint. Its forced Cocoa/Metal backend
+request was not confirmed from retained raw renderer logs: the paused process
+remained open with buffered stdout after desktop automation aborted before
+PageDown dispatch. Exact single-step tick, Help navigation, camera/zoom and
+valid automated mouse remain **NOT_VERIFIED / NOT_RUN** in this probe. Screenshots
+were opened in the conversation; no retained native PNG artifact is claimed.
+The earlier MAC13 native evidence below remains its separate historical run.
+No human acceptance, installed package, notarization or release is claimed.
+
+The previously unexecuted public Alpha helpers separately passed general-profile
+100000-tick endurance with12 real JSON roundtrips in each configuration,
+3000-frame Debug/sanitized render stress,100 menu sessions, the actual-data
+Industry/City-v11 supply/tax/resume smoke and Release arm64 verification.
+These are additional scoped results, not a resumed or completed full Alpha.
+
+The new Rule36 observer independently passed100000-tick continuation in all
+three matching fresh builds. Their complete initial/final JSON, twelve
+canonical/Recovery checkpoints and deterministic telemetry are literal-equal;
+a separate Release process reproduces them again. Every configuration also
+reproduces the same latest-luxury canonical final/commands and **PARTIAL**
+Tea/retention result, and the unchanged default Rule29 tool repeats the original
+paid mid-cargo2284→maturity4477 endpoint exactly, including hostile saves and
+Recovery. All frozen910,330 source-city checkpoints, supplied inputs, old
+archives and historical before/after guards match. The registered timed-out
+case was not rerun; no deadline, test assertion, model or gameplay rule changed.
+
 ## Agriculture input and Help (AGRI-MAC13)
 
 This is input/UI work on the existing Rule36/policy3/schema52 World. It adds

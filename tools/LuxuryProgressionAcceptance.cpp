@@ -6,17 +6,30 @@
 
 namespace l=oe_luxury_progression;
 namespace {
-constexpr const char* usage="openemperor-luxury-progression-acceptance --data ABS --output FRESH_.local/agri-mac04/SUBDIR [--ticks 30000] [--hold 20400] [--input EXACT_RULE29_SAVE --expected CREATOR_FINAL_SAVE]";
-struct Options {l::fs::path data,output,input,expected;unsigned ticks=30000,hold=20400;};
+constexpr const char* usage="openemperor-luxury-progression-acceptance --data ABS --output FRESH_PRIVATE_SUBDIR [--ticks 30000] [--hold 20400] [--input EXACT_SAVE --expected CREATOR_FINAL_SAVE] [--latest-agriculture] (default Rule29/schema45: .local/agri-mac04; latest Rule36/schema52: .local/agri-mac14)";
+struct Options {l::fs::path data,output,input,expected;unsigned ticks=30000,hold=20400;bool latest_agriculture=false;};
 Options parse(int argc,char** argv) {
     Options result;std::map<std::string,std::string> arguments;
-    for(int i=1;i<argc;i+=2) {
-        l::check(i+1<argc,usage);const std::string key=argv[i];
+    for(int i=1;i<argc;++i) {
+        const std::string key=argv[i];
+        if(key=="--latest-agriculture") {
+            l::check(!result.latest_agriculture,"Duplicate acceptance argument");result.latest_agriculture=true;continue;
+        }
+        l::check(i+1<argc,usage);
         l::check(key=="--data"||key=="--output"||key=="--ticks"||key=="--hold"||key=="--input"||key=="--expected",usage);
-        l::check(arguments.emplace(key,argv[i+1]).second,"Duplicate acceptance argument");
+        l::check(arguments.emplace(key,argv[++i]).second,"Duplicate acceptance argument");
     }
     l::check(arguments.contains("--data")&&arguments.contains("--output"),usage);
-    result.data=l::fs::canonical(arguments.at("--data"));result.output=l::output_root(arguments.at("--output"),result.data);
+    result.data=l::fs::canonical(arguments.at("--data"));
+    if(result.latest_agriculture) {
+        l::no_symlinks(arguments.at("--output"));
+        result.output=l::fs::weakly_canonical(l::fs::absolute(arguments.at("--output")));
+        const auto allowed=l::fs::weakly_canonical(l::fs::path(__FILE__).parent_path().parent_path()/".local/agri-mac14");
+        l::check(result.output!=allowed&&l::below(result.output,allowed)&&!l::below(result.output,result.data)&&
+            !l::below(result.data,result.output)&&!l::fs::exists(result.output),
+            "Use a fresh .local/agri-mac14 subdirectory disjoint from Original data");
+        l::save::validate_save_target(result.output/"final.save.json",result.data);
+    } else result.output=l::output_root(arguments.at("--output"),result.data);
     for(const auto& [name,destination]:{std::pair{"--input",&result.input},{"--expected",&result.expected}})
         if(arguments.contains(name)) {
             *destination=l::fs::absolute(arguments.at(name));l::no_symlinks(*destination);
@@ -44,11 +57,13 @@ l::Json hostile_and_recovery(const l::Context& context,const l::sim::World& worl
     reject([](auto& state){++state.treasury;});
     reject([](auto& state){++state.original_goods->totals[static_cast<unsigned>(l::orig::Goods::Tea)].consumed;});
     reject([](auto& state){state.rule_version=28;});
-    if(!document.world.hunting_food->fields.empty())reject([](auto& state){++state.hunting_food->fields.front().harvested;});
+    if(context.latest_agriculture) {
+        if(!document.world.processed_food->fields.empty())reject([](auto& state){++state.processed_food->fields.front().harvested;});
+    } else if(!document.world.hunting_food->fields.empty())reject([](auto& state){++state.hunting_food->fields.front().harvested;});
     l::save::RecoveryStore recovery(output/"recovery",context.map.data,l::save::recovery_storage_budget_bytes,l::save::RecoveryAccess::OriginalProduction);
     const auto history=recovery.create_history(document,context.map.mask);
     const auto entry=recovery.write_checkpoint(history,document,context.map.mask);
-    l::check(entry.loadable()&&entry.schema==45&&context.restore(l::save::read_save(entry.path)).snapshot()==world.snapshot(),"Recovery lost exact Rule29 state");
+    l::check(entry.loadable()&&entry.schema==context.schema()&&context.restore(l::save::read_save(entry.path)).snapshot()==world.snapshot(),"Recovery lost exact selected luxury generation");
     return {{"hostile_controls",rejected},{"rejection_preserved_existing_save",true},{"recovery_exact",true}};
 }
 }
@@ -56,7 +71,7 @@ int main(int argc,char** argv) {
     l::fs::path output;
     try {
         if(argc==2&&std::string_view(argv[1])=="--help"){std::cout<<usage<<'\n';return 0;}
-        const auto options=parse(argc,argv);l::SourceGuard sources(options.data);l::Context context(options.data);
+        const auto options=parse(argc,argv);l::SourceGuard sources(options.data);l::Context context(options.data,options.latest_agriculture);
         const auto loaded=l::orig::load_model_data(options.data);l::check(bool(loaded),"Cannot independently parse supplied model");
         const l::orig::HouseEvolutionRules independent(*loaded.model,l::orig::Difficulty::Normal);
         l::check(independent.model_sha256()==context.model->provenance().sha256,"Independent model identity differs");
@@ -104,12 +119,14 @@ int main(int argc,char** argv) {
             l::check(l::q::f::read_text(options.expected)==l::q::f::read_text(output/"final.save.json"),"Separate creator/restore canonical save bytes differ");separate_replay=true;
         }
         const auto persistence=hostile_and_recovery(context,world,output);sources.unchanged();
-        const bool positive=std::all_of(observation.earned.begin(),observation.earned.end(),[](bool value){return value;});
+        bool positive=std::all_of(observation.earned.begin(),observation.earned.end(),[](bool value){return value;});
+        if(options.latest_agriculture)positive=positive&&observation.maturity&&
+            world.ticks()-*observation.maturity>=options.hold&&observation.minimum_funds>=0;
         const auto status=positive&&recipe_ok?"PASS":"PARTIAL";
         l::Json transient_refusals=l::Json::array();for(const auto& command:commands)
             if(command.value("retry_after_real_ticks",false))transient_refusals.push_back(command);
         const auto remaining=l::remaining_plan(world);
-        l::Json report={{"format","openemperor-luxury-progression-v1"},{"status",status},{"rule",29},{"schema",45},
+        l::Json report={{"format","openemperor-luxury-progression-v1"},{"status",status},{"rule",context.rule()},{"schema",context.schema()},
             {"recipe",l::recipe},{"map","Cities/Xia.map"},{"model_sha256",independent.model_sha256()},
             {"local_omitted_plan_ids",{13,15}},{"local_omission_reason","Two paused duplicate western schools; real wildlife and paid Tea retain the58-channel budget. Primary Drama, Confucian and Paper remain for natural Elite17 Tea progression."},
             {"unchanged_supplied_model",true},{"source_bytes_mode_mtime_unchanged",true},{"snapshot_or_stock_injection",false},
@@ -132,8 +149,19 @@ int main(int argc,char** argv) {
             {"fresh_restore_continuation_exact",true},{"separate_process_replay_exact",separate_replay},
             {"native_metal","NOT_RUN"},{"f5_f9_input","NOT_RUN; strict same persistence API exercised"},{"human_acceptance","NOT_RUN"},
             {"claim_scope","Paid Rule29 finite supplied-model city. Unmet current/next requirements and refused commands are evidence, never a universal impossibility claim."}};
+        if(options.latest_agriculture) {
+            report["format"]="openemperor-latest-agriculture-luxury-v1";
+            report["recipe"]="authored-latest-agriculture-xia-compact-luxury-v1";
+            report["local_omitted_plan_ids"]=l::Json::array({13,15});
+            for(const auto id:l::latest_omitted_plan_ids)report["local_omitted_plan_ids"].push_back(id);
+            report["local_omission_reason"]="Finite paid player plan: omit the historically unbought wildlife-blocked Farm, second Warehouse/Clay/Pottery pair, and paused duplicate Daoist/Buddhist shrines to retain the unchanged58-channel budget with physical Food/Hemp Growers. Any changed DES and unmet needs remain actual report observations.";
+            report["claim_scope"]="Paid Rule36/schema52 finite supplied-model city, authored seasons and physical Food/Hemp Growers. Exact historical modes remain separate; no Original parity or universal retention claim.";
+            const auto channels=world.couriers().size()+world.fishing_state()->quays.size()+world.hunting_state()->tents.size()+3*world.hunting_state()->habitats.size();
+            report["resource_bounds"]={{"bodies",world.buildings().size()},{"channels",channels},{"body_limit",82},{"channel_limit",58},
+                {"research_navigation_tracks",world.grower_navigation_tracks().size()},{"research_navigation_session",world.has_grower_navigation_session()}};
+        }
         l::write(output/"commands.json",commands);l::write(output/"report.json",report);
-        std::cout<<status<<" Rule29/schema45 luxury progression; tick="<<world.ticks()<<" population="<<world.total_population()
+        std::cout<<status<<" Rule"<<context.rule()<<"/schema"<<context.schema()<<" luxury progression; tick="<<world.ticks()<<" population="<<world.total_population()
             <<" Tea/Silk/Lacquerware="<<observation.earned[0]<<'/'<<observation.earned[1]<<'/'<<observation.earned[2]<<" report="<<output/"report.json"<<'\n';return positive&&recipe_ok?0:2;
     } catch(const std::exception& error) {
         if(!output.empty()&&!l::fs::exists(output/"report.json"))try{l::write(output/"report.json",{{"status","FAIL"},{"reason",error.what()}});}catch(...){}
