@@ -1210,6 +1210,12 @@ if(BUILD_TESTING)
     add_test(NAME original-economy-save COMMAND openemperor-original-economy-save-tests)
     set_tests_properties(original-economy-save PROPERTIES TIMEOUT 30)
 
+    add_executable(openemperor-fixture-check-tests tests/FixtureCheckTests.cpp)
+    target_link_libraries(openemperor-fixture-check-tests PRIVATE openemperor-persistence)
+    openemperor_enable_warnings(openemperor-fixture-check-tests)
+    add_test(NAME fixture-check-no-allocation COMMAND openemperor-fixture-check-tests)
+    set_tests_properties(fixture-check-no-allocation PROPERTIES TIMEOUT 30)
+
     add_executable(openemperor-original-influence-world-tests tests/OriginalInfluenceWorldTests.cpp)
     target_link_libraries(openemperor-original-influence-world-tests PRIVATE openemperor-persistence)
     openemperor_enable_warnings(openemperor-original-influence-world-tests)
@@ -2595,6 +2601,15 @@ if(BUILD_TESTING)
             --real "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
         set_tests_properties(original-luxury-progression-real PROPERTIES TIMEOUT 600
             SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME original-latest-luxury-progression-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_latest_luxury_progression_replay.py
+            --executable $<TARGET_FILE:openemperor-luxury-progression-acceptance>
+            --real "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        set_tests_properties(original-latest-luxury-progression-real PROPERTIES TIMEOUT 600
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        if(OPENEMPEROR_ENABLE_SANITIZERS)
+            set_tests_properties(original-latest-luxury-progression-real PROPERTIES RUN_SERIAL TRUE)
+        endif()
     endif()
     add_executable(openemperor-market-distribution-acceptance tools/MarketDistributionAcceptance.cpp)
     target_link_libraries(openemperor-market-distribution-acceptance PRIVATE openemperor-original-longplay-view-support)

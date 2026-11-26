@@ -16,6 +16,9 @@ namespace save=openemperor::persistence;
 inline constexpr int width=24,height=20;
 inline constexpr const char* map_relative="Cities/Influence.map";
 inline void check(bool ok,const std::string& message) { if (!ok) throw std::runtime_error(message); }
+// Most fixture checks use literals. Keep their successful path free of a
+// temporary std::string while retaining the dynamic-message overload above.
+inline void check(bool ok,const char* message) { if (!ok) throw std::runtime_error(message); }
 inline std::string read_text(const fs::path& path) {
     std::ifstream in(path,std::ios::binary);check(in.good(),"Missing fixture input: "+path.string());
     return {std::istreambuf_iterator<char>(in),{}};

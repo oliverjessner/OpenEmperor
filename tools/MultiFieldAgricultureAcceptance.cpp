@@ -77,8 +77,9 @@ Json conservation(const l::sim::World& world) {
         l::check(produced[g]==held[g]+cargo[g]+consumed[g],"Food source/stock/cargo/consumption conservation failed");
         l::check(departed[g]==received[g]+returned[g]+cargo[g],"Food departures/receipts/returns/cargo conservation failed");
     }
-    l::sim::World::validate_multi_field_agriculture_snapshot(world.snapshot());
-    l::sim::World::validate_hunting_snapshot(world.snapshot());
+    const auto snapshot=world.snapshot();
+    l::sim::World::validate_multi_field_agriculture_snapshot(snapshot);
+    l::sim::World::validate_hunting_snapshot(snapshot);
     return {{"produced",produced},{"held",held},{"physical_cart_cargo",cargo},{"consumed",consumed},
         {"departed",departed},{"received",received},{"returned",returned},{"conserved",true}};
 }

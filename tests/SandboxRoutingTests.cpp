@@ -1,5 +1,6 @@
 #include "persistence/SandboxSave.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -25,6 +26,16 @@ sim::World chain() {
     place(w,sim::CommandType::PlaceWarehouse,12,2);
     // The upper branch is a real, equal-cost-free detour around (3,2).
     for (int x=2;x<=4;++x) place(w,sim::CommandType::PlaceRoad,x,1);
+    return w;
+}
+sim::World overlapping_chain() {
+    sim::World w(15,5,mask(),sim::RulesProfile::ProductionV2);
+    place(w,sim::CommandType::PlaceClaySource,0,2);
+    for (int x=1;x<=11;++x) place(w,sim::CommandType::PlaceRoad,x,2);
+    place(w,sim::CommandType::PlacePottery,12,2);
+    place(w,sim::CommandType::PlaceRoad,1,3);
+    place(w,sim::CommandType::PlaceRoad,1,4);
+    place(w,sim::CommandType::PlaceWarehouse,0,4);
     return w;
 }
 template<class F> void until(sim::World& w,int limit,F condition,const char* failure) {
@@ -247,6 +258,47 @@ int main() {
         check(!other.execute({sim::CommandType::RemoveRoad,{8,2}}).accepted &&
               other.road_revision()==other_revision,
               "pottery courier's protected endpoint was removed");
+
+        // Each path must be simple independently; different couriers may
+        // retain the same physical road cells in their actual routes.
+        auto overlapping=overlapping_chain();
+        until(overlapping,3000,[&] {
+            const auto& clay=overlapping.courier(sim::CourierId::Clay);
+            const auto& pottery=overlapping.courier(sim::CourierId::Pottery);
+            return clay.phase!=sim::CourierPhase::IdleAtWorkshop &&
+                pottery.phase!=sim::CourierPhase::IdleAtWorkshop &&
+                pottery.path.size()>pottery.path_vertex+4;
+        },"no simultaneous couriers on overlapping routes");
+        const auto& clay_path=overlapping.courier(sim::CourierId::Clay).path;
+        const auto& pottery_path=overlapping.courier(sim::CourierId::Pottery).path;
+        std::size_t shared_roads=0;
+        for (const auto point:clay_path)
+            if (overlapping.object_at(point)==sim::Object::Road && contains(pottery_path,point)) ++shared_roads;
+        check(shared_roads>1,"courier routes did not share actual road cells");
+        const auto shared_state=overlapping.snapshot();
+        for (unsigned repeat=0;repeat<8;++repeat)
+            check(overlapping.navigation_valid(),"another courier retained the previous path's visit marks");
+        check(overlapping.snapshot()==shared_state,"navigation validation changed authoritative routing state");
+
+        auto looped_state=shared_state;
+        auto& looped_path=looped_state.couriers[1].path;
+        const auto loop_at=looped_state.couriers[1].path_vertex+1;
+        check(loop_at+1<looped_path.size()-1 &&
+              overlapping.object_at(looped_path[loop_at])==sim::Object::Road &&
+              overlapping.object_at(looped_path[loop_at+1])==sim::Object::Road,
+              "self-loop control lacks a future real road edge");
+        // Preserve the current/begun edge, endpoint and cardinal adjacency;
+        // the added out-and-back step repeats cells within this one path.
+        looped_path.insert(looped_path.begin()+static_cast<std::ptrdiff_t>(loop_at+1),
+            {looped_path[loop_at+1],looped_path[loop_at]});
+        auto looped=overlapping;
+        const_cast<sim::CourierState&>(looped.courier(sim::CourierId::Pottery)).path=looped_path;
+        check(!looped.navigation_valid(),"one courier's self-intersecting path was accepted");
+        try { overlapping.import_snapshot(looped_state);
+              throw std::runtime_error("self-intersecting courier path import was accepted"); }
+        catch (const std::invalid_argument&) {}
+        check(overlapping.snapshot()==shared_state && overlapping.navigation_valid(),
+              "refused self-intersecting path changed the valid shared routes");
 
         sim::World tie(8,5,std::vector<std::uint8_t>(40,1),sim::RulesProfile::ProductionV2);
         place(tie,sim::CommandType::PlacePottery,6,2);

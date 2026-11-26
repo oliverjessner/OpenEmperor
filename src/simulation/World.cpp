@@ -4792,6 +4792,9 @@ bool World::service_state_valid() const {
 
 bool World::navigation_valid() const {
     if (!production_profile(profile_)) return true;
+    // Duplicate cells are forbidden within a path, not across couriers. Reuse
+    // one lazily allocated plane and clear only the path just checked.
+    std::vector<std::uint8_t> visited;
     for (const auto& c:couriers_) {
         if (c.phase==CourierPhase::IdleAtWorkshop) {
             if (!c.path.empty() || c.path_vertex || c.edge_progress || c.route_pending ||
@@ -4815,7 +4818,7 @@ bool World::navigation_valid() const {
                    (scalable(profile_) ?
                     !building_contains(destination.id,c.path.back()):
                     c.path.back()!=destination.cell) || c.route_checked_revision) return false;
-        std::vector<std::uint8_t> visited(objects_.size(),0);
+        if (visited.empty()) visited.resize(objects_.size(),0);
         for (std::size_t i=0;i<c.path.size();++i) {
             const auto point=c.path[i];
             if (!in_bounds(point) || visited[index(point)]++) return false;
@@ -4861,6 +4864,7 @@ bool World::navigation_valid() const {
                     point!=destination.cell) return false;
             } else if (!transport_cell(point)) return false;
         }
+        for (const auto point:c.path) visited[index(point)]=0;
     }
     return true;
 }

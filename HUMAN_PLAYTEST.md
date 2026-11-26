@@ -4,19 +4,21 @@ All human checks below are **NOT_RUN**. Mark each **PASS / FAIL / NOT_RUN**
 only after you perform it. Automated World tests, scripted SDL and native Metal
 captures have separate results in the [technical acceptance](docs/testing.md).
 
-Technical acceptance remains **PARTIAL**: one sanitizer replay timeout and the
-latest city's Tea/retention/finance gates remain open. This checklist is a handoff
-draft; manual observations do not replace the unfinished automated checks.
+Technical integration remains **PARTIAL**: all 437 automated tests pass in each
+configuration, and latest V2 earns Tea/Silk/Lacquerware consumption plus20400
+post-maturity ticks with nonnegative Funds. A stable single all-chain city,
+uninterrupted Elite17 and the complete native matrix remain open. This checklist
+is a handoff draft; manual observations do not replace those distinct gates.
 
 ## Build and isolated session
 
 The integration baseline is merged commit
-`a45edd38a4813ca07e4fc6de219fe388d4e2da78` (AGRI-MAC13). Record the actual
+`915cfaa2ca5f651a5d7b9f45e7cdb0bdb8c089e4` (merged PR75). Record the actual
 checkout with `git rev-parse HEAD`; use the tested build and source manifest
 identified in the [technical acceptance](docs/testing.md#final-agriculture-integration-agri-mac14).
-Its 910-file manifest is
-`054185413a085b29a38409dbd7d58605842e235ff1f971834349a74011bbd528`;
-the validated build metadata records the baseline plus uncommitted QA changes,
+Its 912-file manifest, also binding the public core report, is
+`a0f138ea63434707b4f663d905d0dedda625deaf1f4fe0301d806a2af463875d`;
+the validated build metadata records the baseline plus uncommitted performance/QA changes,
 not an installed release. Target: native
 macOS **arm64**, SDL3/Metal, **Rule36 / policy3 / schema52**, marker
 `authored-agriculture-reconfiguration-v1`. Loading an older save retains its
@@ -26,7 +28,7 @@ From the repository root, launch the validated Release executable with your
 own read-only Emperor data and a fresh private session directory:
 
 ```sh
-.local/agri-mac14/final-release/openemperor \
+.local/agri-mac14-perf/final02-release/openemperor \
   --data "$PWD/.local/gog-extracted/app" \
   --app-root "$PWD/.local/agri-mac14/manual-01"
 ```

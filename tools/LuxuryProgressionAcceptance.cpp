@@ -3,11 +3,12 @@
 
 #include <charconv>
 #include <iostream>
+#include <openssl/evp.h>
 
 namespace l=oe_luxury_progression;
 namespace {
-constexpr const char* usage="openemperor-luxury-progression-acceptance --data ABS --output FRESH_PRIVATE_SUBDIR [--ticks 30000] [--hold 20400] [--input EXACT_SAVE --expected CREATOR_FINAL_SAVE] [--latest-agriculture] (default Rule29/schema45: .local/agri-mac04; latest Rule36/schema52: .local/agri-mac14)";
-struct Options {l::fs::path data,output,input,expected;unsigned ticks=30000,hold=20400;bool latest_agriculture=false;};
+constexpr const char* usage="openemperor-luxury-progression-acceptance --data ABS --output FRESH_PRIVATE_SUBDIR [--ticks 30000] [--hold 20400] [--input EXACT_SAVE --expected CREATOR_FINAL_SAVE] [--latest-agriculture [--latest-plan-v2]] (default Rule29/schema45: .local/agri-mac04; latest Rule36/schema52: .local/agri-mac14)";
+struct Options {l::fs::path data,output,input,expected;unsigned ticks=30000,hold=20400;bool latest_agriculture=false,latest_plan_v2=false;};
 Options parse(int argc,char** argv) {
     Options result;std::map<std::string,std::string> arguments;
     for(int i=1;i<argc;++i) {
@@ -15,10 +16,14 @@ Options parse(int argc,char** argv) {
         if(key=="--latest-agriculture") {
             l::check(!result.latest_agriculture,"Duplicate acceptance argument");result.latest_agriculture=true;continue;
         }
+        if(key=="--latest-plan-v2") {
+            l::check(!result.latest_plan_v2,"Duplicate acceptance argument");result.latest_plan_v2=true;continue;
+        }
         l::check(i+1<argc,usage);
         l::check(key=="--data"||key=="--output"||key=="--ticks"||key=="--hold"||key=="--input"||key=="--expected",usage);
         l::check(arguments.emplace(key,argv[++i]).second,"Duplicate acceptance argument");
     }
+    l::check(!result.latest_plan_v2||result.latest_agriculture,"--latest-plan-v2 requires --latest-agriculture");
     l::check(arguments.contains("--data")&&arguments.contains("--output"),usage);
     result.data=l::fs::canonical(arguments.at("--data"));
     if(result.latest_agriculture) {
@@ -42,6 +47,57 @@ Options parse(int argc,char** argv) {
     }
     return result;
 }
+std::string checkpoint_sha256(const l::fs::path& path) {
+    l::no_symlinks(path);
+    l::check(l::fs::is_regular_file(path)&&l::fs::file_size(path)<=16U*1024U*1024U,"Bounded regular QA replay artifact required");
+    const auto bytes=l::q::f::read_text(path);std::array<unsigned char,EVP_MAX_MD_SIZE> digest{};unsigned length=0;
+    l::check(EVP_Digest(bytes.data(),bytes.size(),digest.data(),&length,EVP_sha256(),nullptr)==1&&length==32,"QA checkpoint SHA256 failed");
+    constexpr char hex[]="0123456789abcdef";std::string result;result.reserve(64);
+    for(unsigned i=0;i<length;++i) {result.push_back(hex[digest[i]>>4U]);result.push_back(hex[digest[i]&15U]);}
+    return result;
+}
+struct ReplayPlanGuard {
+    struct Input {l::fs::path path;std::string sha256;l::fs::perms mode;l::fs::file_time_type modified;};
+    std::vector<Input> inputs;
+    void retain(const l::fs::path& path) {
+        if(std::any_of(inputs.begin(),inputs.end(),[&](const auto& row){return row.path==path;}))return;
+        inputs.push_back({path,checkpoint_sha256(path),l::fs::status(path).permissions(),l::fs::last_write_time(path)});
+    }
+    void verify(const l::fs::path& path,const l::save::SaveDocument& document,bool latest_plan_v2,std::string_view model_sha256) {
+        const auto report_path=path.parent_path()/"report.json";
+        if(!latest_plan_v2) {
+            // Legacy replay inputs do not acquire a new sidecar requirement.
+            // Reject a known V2 creator rather than silently changing its plan.
+            std::error_code error;const auto status=l::fs::symlink_status(report_path,error);
+            if(error||!l::fs::is_regular_file(status)||l::fs::file_size(report_path)>16U*1024U*1024U)return;
+            l::no_symlinks(report_path);
+            const auto report=l::Json::parse(l::q::f::read_text(report_path),nullptr,false);
+            if(report.is_object()&&report.contains("recipe")&&report.at("recipe").is_string())
+                l::check(report.at("recipe").get<std::string>()!=l::latest_v2_recipe,"V2 creator replay requires --latest-plan-v2");
+            return;
+        }
+        retain(path);retain(report_path);
+        const auto report=l::Json::parse(l::q::f::read_text(report_path));
+        l::check(report.is_object()&&report.value("format",std::string{})=="openemperor-latest-agriculture-luxury-v2"&&
+            report.value("recipe",std::string{})==l::latest_v2_recipe&&report.value("rule",0U)==36&&report.value("schema",0U)==52&&
+            report.value("map",std::string{})=="Cities/Xia.map"&&report.value("model_sha256",std::string{})==model_sha256&&
+            report.contains("snapshot_or_stock_injection")&&report.at("snapshot_or_stock_injection")==false,
+            "V2 replay requires matching explicit creator QA plan provenance; saves retain their own authority");
+        const auto& checkpoints=report.at("checkpoints");
+        l::check(checkpoints.is_array()&&checkpoints.size()<=16,"Bounded V2 creator checkpoint manifest required");
+        unsigned matches=0;const auto hash=checkpoint_sha256(path);
+        for(const auto& row:checkpoints)if(row.is_object()&&row.value("file",std::string{})==path.filename().string()) {
+            l::check(row.at("tick")==document.world.ticks&&row.value("sha256",std::string{})==hash,"V2 replay checkpoint bytes/tick do not match selected creator plan");
+            ++matches;
+        }
+        l::check(matches==1,"V2 replay requires one exact creator checkpoint record");
+    }
+    void unchanged()const {
+        for(const auto& input:inputs)l::check(checkpoint_sha256(input.path)==input.sha256&&
+            l::fs::status(input.path).permissions()==input.mode&&l::fs::last_write_time(input.path)==input.modified,
+            "V2 creator QA metadata or replay input changed during the run");
+    }
+};
 template<class Action> void refuses(Action action) {
     bool rejected=false;try{action();}catch(const std::exception&){rejected=true;}l::check(rejected,"Hostile authority was admitted");
 }
@@ -77,25 +133,38 @@ int main(int argc,char** argv) {
         l::check(independent.model_sha256()==context.model->provenance().sha256,"Independent model identity differs");
         l::check(independent.model_sha256()==l::base::model_sha&&context.terrain->source_map_sha256()==l::base::map_sha,
             "MAC04 positive acceptance requires unchanged supplied Xia/Normal source identities");
-        auto world=options.input.empty()?context.world():context.restore(l::save::read_save(options.input));
+        ReplayPlanGuard replay_plan;
+        if(options.latest_plan_v2&&!options.input.empty()) {replay_plan.retain(options.input);replay_plan.retain(options.expected);}
+        std::optional<l::save::SaveDocument> input_document;
+        if(!options.input.empty())input_document=l::save::read_save(options.input);
+        auto world=input_document?context.restore(*input_document):context.world();
         std::optional<l::save::SaveDocument> expected_document;
         if(!options.expected.empty()) {
             expected_document=l::save::read_save(options.expected);(void)context.restore(*expected_document);
             l::check(expected_document->world.ticks>world.ticks()&&expected_document->world.ticks-world.ticks()<=100000,
                 "Expected replay endpoint outside bound");
         }
+        if(options.latest_agriculture&&input_document) {
+            replay_plan.verify(options.input,*input_document,options.latest_plan_v2,independent.model_sha256());
+            replay_plan.verify(options.expected,*expected_document,options.latest_plan_v2,independent.model_sha256());
+        }
+        input_document.reset();
         l::fs::create_directories(options.output);output=options.output;
         l::Json commands=l::Json::array(),blocked=nullptr,manifest=l::Json::array();bool recipe_ok=true;
-        if(options.input.empty())recipe_ok=l::apply_recipe(world,commands,blocked);
-        l::checkpoint(context,world,output,"seed",manifest);const auto initial=l::city_report(world);
+        const auto checkpoint=[&](const char* label) {
+            l::checkpoint(context,world,output,label,manifest);
+            if(options.latest_plan_v2)manifest.back()["sha256"]=checkpoint_sha256(output/manifest.back().at("file").get<std::string>());
+        };
+        if(options.input.empty())recipe_ok=l::apply_recipe(world,commands,blocked,options.latest_plan_v2);
+        checkpoint("seed");const auto initial=l::city_report(world);
         const auto begin=world.ticks();l::Observation observation;observation.minimum_funds=world.treasury();std::optional<std::uint64_t> cargo_tick;
         auto replay=context.restore(l::save::read_save(output/"seed.save.json"));
         std::uint64_t end=begin+options.ticks;
         if(expected_document)end=expected_document->world.ticks;
         while(recipe_ok&&world.ticks()<end) {
             l::Json replay_commands=l::Json::array(),replay_blocked=nullptr;
-            recipe_ok=l::apply_recipe(world,commands,blocked);
-            const auto repeated=l::apply_recipe(replay,replay_commands,replay_blocked);
+            recipe_ok=l::apply_recipe(world,commands,blocked,options.latest_plan_v2);
+            const auto repeated=l::apply_recipe(replay,replay_commands,replay_blocked,options.latest_plan_v2);
             l::check(repeated==recipe_ok&&replay_blocked==blocked,"Restored paid player command decisions diverged");
             if(!recipe_ok)break;
             observation.before(world);world.tick();replay.tick();observation.after(world);
@@ -104,28 +173,28 @@ int main(int argc,char** argv) {
             if(!cargo_tick)for(const auto& trip:world.original_goods_state()->reservations)
                 if(std::find(l::luxury_goods.begin(),l::luxury_goods.end(),trip.good)!=l::luxury_goods.end()&&trip.phase==l::sim::OriginalGoodsTransferPhase::Loaded&&
                     trip.loaded>trip.delivered+trip.returned&&world.courier(trip.transfer.courier_id).edge_progress>0) {
-                    l::checkpoint(context,world,output,"mid-cargo",manifest);cargo_tick=world.ticks();break;
+                    checkpoint("mid-cargo");cargo_tick=world.ticks();break;
                 }
             if(options.expected.empty()&&observation.maturity) {
                 end=*observation.maturity+options.hold;
-                if(world.ticks()==*observation.maturity)l::checkpoint(context,world,output,"maturity",manifest);
+                if(world.ticks()==*observation.maturity)checkpoint("maturity");
             }
         }
         l::valid(world);l::check(world.snapshot()==replay.snapshot(),"Terminal independent continuation differs");
-        l::checkpoint(context,world,output,"final",manifest);
+        checkpoint("final");
         bool separate_replay=false;
         if(!options.expected.empty()) {
             l::check(expected_document->world==world.snapshot(),"Separate creator/restore endpoint differs");
             l::check(l::q::f::read_text(options.expected)==l::q::f::read_text(output/"final.save.json"),"Separate creator/restore canonical save bytes differ");separate_replay=true;
         }
-        const auto persistence=hostile_and_recovery(context,world,output);sources.unchanged();
+        const auto persistence=hostile_and_recovery(context,world,output);sources.unchanged();replay_plan.unchanged();
         bool positive=std::all_of(observation.earned.begin(),observation.earned.end(),[](bool value){return value;});
         if(options.latest_agriculture)positive=positive&&observation.maturity&&
             world.ticks()-*observation.maturity>=options.hold&&observation.minimum_funds>=0;
         const auto status=positive&&recipe_ok?"PASS":"PARTIAL";
         l::Json transient_refusals=l::Json::array();for(const auto& command:commands)
             if(command.value("retry_after_real_ticks",false))transient_refusals.push_back(command);
-        const auto remaining=l::remaining_plan(world);
+        const auto remaining=l::remaining_plan(world,options.latest_plan_v2);
         l::Json report={{"format","openemperor-luxury-progression-v1"},{"status",status},{"rule",context.rule()},{"schema",context.schema()},
             {"recipe",l::recipe},{"map","Cities/Xia.map"},{"model_sha256",independent.model_sha256()},
             {"local_omitted_plan_ids",{13,15}},{"local_omission_reason","Two paused duplicate western schools; real wildlife and paid Tea retain the58-channel budget. Primary Drama, Confucian and Paper remain for natural Elite17 Tea progression."},
@@ -159,6 +228,14 @@ int main(int argc,char** argv) {
             const auto channels=world.couriers().size()+world.fishing_state()->quays.size()+world.hunting_state()->tents.size()+3*world.hunting_state()->habitats.size();
             report["resource_bounds"]={{"bodies",world.buildings().size()},{"channels",channels},{"body_limit",82},{"channel_limit",58},
                 {"research_navigation_tracks",world.grower_navigation_tracks().size()},{"research_navigation_session",world.has_grower_navigation_session()}};
+        }
+        if(options.latest_plan_v2) {
+            report["format"]="openemperor-latest-agriculture-luxury-v2";report["recipe"]=l::latest_v2_recipe;
+            report["local_omitted_plan_ids"]=l::Json::array({13,15});
+            for(const auto id:l::latest_v2_omitted_plan_ids)report["local_omitted_plan_ids"].push_back(id);
+            report["local_omission_reason"]="Explicit V2 paid player plan: retain Daoist20/Buddhist22 and Market143, omit Market125 plus the historically unbought wildlife-blocked Farm and second Warehouse/Clay/Pottery pair. Add exactly two ordinary paid Wheat fields, with actual parent binding and prepared physical Grower routes; costs, limits and source admission remain unchanged.";
+            report["v2_extra_paid_wheat"]=l::latest_v2_wheat_report(world);
+            report["claim_scope"]="Paid Rule36/schema52 V2 finite supplied-model city. PASS requires actual Tea/Silk/Lacquerware consumption, the requested post-maturity hold and nonnegative observed Funds. Devolutions, unmet needs and seasonal Food gaps remain visible; no uninterrupted Elite17, citywide reliability, all-Food/meal integration or Original parity claim. Checkpoint digests bind QA plan selection only, never saved gameplay authority.";
         }
         l::write(output/"commands.json",commands);l::write(output/"report.json",report);
         std::cout<<status<<" Rule"<<context.rule()<<"/schema"<<context.schema()<<" luxury progression; tick="<<world.ticks()<<" population="<<world.total_population()

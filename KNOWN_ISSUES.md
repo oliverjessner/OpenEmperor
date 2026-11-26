@@ -3,19 +3,15 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
-- **Current sanitizer acceptance is incomplete.** Debug/Release pass435 tests
-  each; the sanitized Multi-Field replay hits its unchanged240-second child
-  deadline after completing14000ticks and canonical/Recovery output. Its final
-  verification/report is incomplete, so the full Alpha remains FAIL (434/435
-  sanitizer tests). See the [technical result](docs/testing.md#final-agriculture-integration-agri-mac14);
-  completed files do not turn the timed-out case into a pass.
-
 - **Latest Agriculture city reliability remains partial.** A paid Rule36 city
   consumes all seven raw Foods and meals over100000 further ticks, but records
-  deficits and House devolutions. A separate supplied-model Xia plan consumes
-  Silk/Lacquerware but misses the paid DES/Food gates for Tea and has no earned
-  luxury retention window. These finite scenarios do not establish sustainable
-  citywide supply. See the [measured gates and next scenario](docs/testing.md#final-agriculture-integration-agri-mac14)
+  deficits and House devolutions. The separate supplied-model Xia V2 plan now
+  consumes Tea/Silk/Lacquerware and completes20400 post-maturity ticks with
+  nonnegative Funds, but its Elite House devolves8 times and lacks uninterrupted
+  FoodQuality70. It does not contain all Food/meal chains. These finite scenarios
+  do not establish sustainable citywide supply. The complete Alpha now passes
+  437 tests per Debug/Release/sanitizer configuration; its prior timeout and
+  stale-fingerprint failures remain retained separately. See the [measured gates](docs/testing.md#final-agriculture-integration-agri-mac14)
   and the [human checklist](HUMAN_PLAYTEST.md); human acceptance remains NOT_RUN.
 
 - **Agriculture animation is authored.** Rule36 displays actual saved growth,

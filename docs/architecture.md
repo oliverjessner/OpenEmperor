@@ -55,6 +55,12 @@ Active movement retains its real waypoint, begun-edge progress, cargo and target
 removing a future road cannot erase cargo or move an actor to an invented position.
 Waiting couriers retry after a relevant topology change. No renderer owns navigation.
 
+Navigation validation allocates one local visit plane lazily per invocation and
+clears each successfully checked path before checking the next courier. Different
+couriers may share roads; a repeated cell within one path remains invalid. Every
+existing cell, edge, endpoint and begun-edge check still runs in order. This
+scratch storage is neither retained by World nor saved.
+
 The fixed-step driver advances World at 20 Hz. Rule-specific update order and
 pre-tick staffing govern production, demand, arrivals and dispatch. Reservations
 reserve space without adding stock; real loading and arrival move goods. Checked
