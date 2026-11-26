@@ -13,12 +13,14 @@
 #include "simulation/RoadConnectivity.h"
 #include "persistence/SandboxSave.h"
 #include "app/SandboxUiLayout.h"
+#include "app/AgricultureHelp.h"
 #include "app/OriginalHouseInspection.h"
 #include "app/RoadDrag.h"
 #include "app/RoadTopology.h"
 #include "app/VisualSelection.h"
 #include "app/AgricultureVisualState.h"
 #include "app/AgricultureActorPresentation.h"
+#include "app/InputDiagnostics.h"
 #include "renderer/AgricultureFallbackRenderer.h"
 #include "assets/WalkerVisualProfile.h"
 #include "renderer/WalkerSpriteSet.h"
@@ -229,6 +231,7 @@ public:
         std::optional<simulation::Cell> selected_cell;
         bool selected_landscape=false;
         std::uint32_t selected_walker=0;
+        std::optional<InputDiagnostics::ActorSelection> selected_actor;
         bool ui=false,map_pressed=false,ui_pressed=false,road_drag=false,input_focused=true;
     };
     InputDiagnosticState input_diagnostic_state(
@@ -513,6 +516,8 @@ public:
     const std::filesystem::path& save_path() const { return save_path_; }
     bool paused() const { return clock_.paused(); }
     bool help_open() const { return help_open_; }
+    const sandbox_ui::AgricultureHelp& agriculture_help() const { return agriculture_help_; }
+    std::uint64_t agriculture_help_prepare_count() const { return agriculture_help_prepare_count_; }
     bool income_open() const { return income_open_; }
     bool water_overlay() const { return water_overlay_; }
     bool health_overlay() const { return health_overlay_; }
@@ -862,6 +867,10 @@ private:
     bool panel_open_=true;
     bool debug_open_=false;
     bool help_open_=false;
+    sandbox_ui::AgricultureHelp agriculture_help_;
+    std::uint64_t agriculture_help_prepare_count_=0;
+    void prepare_agriculture_help(bool reset_page);
+    std::optional<sandbox_ui::Action> help_action_at(scene::Point point) const;
     bool income_open_=false;
     OriginalHouseSection original_house_section_=OriginalHouseSection::State;
     OriginalHouseOverlay original_house_overlay_=OriginalHouseOverlay::Off;

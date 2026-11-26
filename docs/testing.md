@@ -44,6 +44,92 @@ documented with the affected feature, for example
 [joined ramp rendering](rendering/multi-ramp-integration.md). A finite scripted
 scenario does not prove every layout, long-play outcome or original-game parity.
 
+## Agriculture input and Help (AGRI-MAC13)
+
+This is input/UI work on the existing Rule36/policy3/schema52 World. It adds
+prepared, bounded Help pages and read-only diagnosis; it allocates no new
+gameplay rule or save generation. The
+[input contract](input-reliability.md#agriculture-input-and-help-agri-mac13)
+describes cancellation after a second invalid press and the bounded observer.
+
+After building the current source, run the focused controls and presentation
+checks:
+
+```sh
+ctest --test-dir build --output-on-failure \
+  -R '^(input-coordinate-contract|input-diagnostics-bounded|menu-input-boundaries|sandbox-input-reliability|agriculture-help-layout|agriculture-reconfiguration-presentation|agriculture-visual-presentation)$'
+```
+
+`agriculture-help-layout` checks that every controls topic remains reachable
+through pagination at 900×600 through 1920×1080 and 1×/2× UI density, with only
+complete contained rows and matching visible button rectangles. Navigation
+reuses prepared strings/geometry. The input suite covers a valid armed press,
+second invalid Down, later valid Up, and a subsequent valid click; cancellation
+must retain the complete World, funds, IDs and command sequence. Existing
+coordinate tests retain fractional/viewport/logical-scale cases and actual
+window resize; synthetic logical scaling is not physical Retina acceptance.
+
+The bounded diagnostics regression covers typed actor channel/lifetime and
+source/target, channel reuse, I/O attempt versus successful F5/F9 generations,
+the fixed non-text control whitelist, motion coalescing and the 512-record
+ring. Help keyboard and UI actions use production handlers; actual paid
+construction, actor picking and state inspection remain separate from pure
+layout tests. Paused frame/hover checks must retain zero World, I/O, decode,
+upload and navigator counters and unchanged prepared Help/actor geometry.
+
+For native checks, use an explicit earned Rule36 save copied into a fresh
+ignored test root. Never load a protected checkpoint directly for an F5 check:
+`--load-sandbox` makes the loaded file the save target. The ordinary menu's
+`--app-root` is a separate menu-only option. Enable
+`OPENEMPEROR_INPUT_DIAGNOSTICS=1`, keep stdout input JSON and platform stderr in
+separate private logs, and record the actual Cocoa/Metal renderer and measured
+window/pixel/output dimensions. Delivered OS keys/mouse, queued SDL and direct
+handler events must be reported separately; `(0,0)` or mismatched automation
+delivery is **NOT_VERIFIED**, not a reason to add offsets or bypass a gesture.
+
+Full Debug, Release and ASan/UBSan validation uses isolated build/report paths
+and the unchanged Alpha pipeline above. Preserve failed attempts, inventory
+and raw JUnit; a later selected retry is not a clean full-suite run. The MAC12
+433-case results below are their historical snapshot, not MAC13 results.
+The [manual mouse checklist](testing-input-acceptance.md#agriculture-rule36-input-checklist-agri-mac13)
+remains **NOT_RUN** for the post-MAC14 human playtest.
+
+MAC13 recorded a full Alpha pass against the same 909 frozen source, test and
+resource files, manifest
+`ffb24b680e5af940c38dd8ea212186504f236fd79113b0e357341e468fe7396d`.
+Fresh isolated Debug, Release and ASan/UBSan builds each passed 434/434 tests,
+without failures, errors, skips or selected retries. The unchanged public
+Alpha entry point also passed 100,000-tick endurance with 12 JSON roundtrips per
+configuration, 3,000-frame Debug and sanitized render stress, 100 menu sessions,
+actual-data Industry/City-v11 supply/tax/resume checks and Release arm64
+verification. Protected Original inputs and historical artifacts stayed exact.
+All 30 fresh 900×600 Help pages were opened through indexed unscaled sheets;
+ten full originals were additionally inspected. The source remains
+Rule36/policy3/schema52; this validation produced no package or release.
+
+Independent core probes reproduced 74 cases per configuration with unchanged
+classifications and literal public-report bytes. Historical Rules24–35 retained
+246 artifacts, including 137 paid saves. The old Rule36 replay completed 24,000
+ticks and 20 checkpoints, with 40 save/roundtrip files, six Recovery payloads,
+the command plan and complete work trace byte-identical. All source, Original
+input and baseline before/after guards matched.
+
+The recorded MAC13 native keyboard probe used actual Cocoa/Metal at 1100×700
+with an earned Rule36/schema52 Chengdu checkpoint at tick 1715. Its retained
+46-event log records two successful F5 saves, two F9 restores, a real single
+step to 1716, play to 1882, restoration to 1715 and zoom 1×→2×→4×→1×. Final private
+F5 bytes equal the protected earned checkpoint. Help and its next page were
+also opened and inspected through the native window. These are OS keyboard
+and rendered-UI observations, not queued SDL input.
+
+The pointer automation request returned `noWindowsAvailable`; native mouse
+delivery remains **NOT_VERIFIED**. The retained keyboard run has no button
+events or actor picks. An earlier probe's post-quit AX query relaunched the
+app and lost its raw log; relevant keys were repeated in the retained run,
+and subsequent launches use separate fresh log directories. Screenshot
+observations remain separate from raw-event proof. No game coordinate or
+keyboard-layout mapping was changed to accommodate the automation.
+
 ## Agriculture state presentation (AGRI-MAC12)
 
 This is presentation of the existing explicitly selected Rule36/policy3/schema52

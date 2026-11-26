@@ -162,11 +162,14 @@ int Application::run() {
                     state.road_drag=view.road_drag;state.focused=view.input_focused;
                     if (view.selected_cell) state.selected_cell=scene::Cell{view.selected_cell->x,view.selected_cell->y};
                     state.selected_landscape=view.selected_landscape;state.selected_walker=view.selected_walker;
+                    state.selected_actor=view.selected_actor;
                     const auto camera=active->camera();state.camera_offset=camera.offset;state.zoom=camera.zoom;
                     const auto map=active->layout().map;state.map={map.x,map.y,map.w,map.h};
                     state.tool=active->tool();state.paused=active->paused();state.help=active->help_open();
                     state.budget=active->budget_warning_pending();state.demolition=active->demolition_pending();
                     state.command_sequence=active->world().command_sequence();state.tick=active->world().ticks();
+                    state.io_generation=active->io_generation();state.save_generation=active->save_generation();
+                    state.load_generation=active->load_generation();
                     if (const auto selected=active->selected_building())
                         state.selected_building=static_cast<std::uint32_t>(*selected);
                 }

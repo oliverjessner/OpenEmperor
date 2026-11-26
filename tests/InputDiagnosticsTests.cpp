@@ -2,11 +2,13 @@
 #include <nlohmann/json.hpp>
 
 #include <cmath>
+#include <array>
 #include <iostream>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -123,6 +125,73 @@ int main() {
         check(key_rows[1]["navigation_scancode"]==0&&key_rows[2]["navigation_scancode"]==SDL_SCANCODE_LEFT,
             "only navigation key identity retained");
         check(!key_rows[1].contains("text")&&!key_rows[1].contains("keycode"),"no typed content field");
+        check(key_rows[1]["control_key"].is_null(),"ordinary typed key is not a control identity");
+        InputDiagnostics controls;
+        const std::array<std::pair<SDL_Scancode,const char*>,5> control_cases{{
+            {SDL_SCANCODE_F5,"F5"},{SDL_SCANCODE_F9,"F9"},{SDL_SCANCODE_SPACE,"Space"},
+            {SDL_SCANCODE_PAGEUP,"PageUp"},{SDL_SCANCODE_PAGEDOWN,"PageDown"}}};
+        for (const auto& [scancode,name]:control_cases) {
+            (void)name;
+            ordinary_key.key.scancode=scancode;
+            controls.begin(ordinary_key,window,renderer,before);controls.end(before);
+        }
+        std::ostringstream control_output;controls.print(control_output);const auto control_rows=lines(control_output.str());
+        for (std::size_t i=0;i<control_cases.size();++i)
+            check(control_rows[i+1]["control_key"]==control_cases[i].second &&
+                !control_rows[i+1].contains("keycode") && !control_rows[i+1].contains("text"),
+                "only whitelisted control identity is exported");
+
+        InputDiagnostics actors;
+        const std::array<InputDiagnostics::ActorDomain,4> domains{{InputDiagnostics::ActorDomain::Courier,
+            InputDiagnostics::ActorDomain::Boat,InputDiagnostics::ActorDomain::Hunter,InputDiagnostics::ActorDomain::Animal}};
+        const std::array<const char*,4> domain_names{{"courier","boat","hunter","animal"}};
+        constexpr std::uint64_t lifetime=(std::uint64_t{1}<<40U)+3;
+        auto selected=before;selected.selected_cell=openemperor::scene::Cell{110,114};
+        for (const auto domain:domains) {
+            auto after=selected;
+            after.selected_actor=InputDiagnostics::ActorSelection{domain,7,lifetime,42,46};
+            if (domain==InputDiagnostics::ActorDomain::Animal) {
+                after.selected_actor->source.reset();after.selected_actor->target.reset();
+            }
+            actors.begin(down,window,renderer,selected);actors.end(after);
+        }
+        std::ostringstream actor_output;actors.print(actor_output);const auto actor_rows=lines(actor_output.str());
+        for (std::size_t i=0;i<domains.size();++i) {
+            const auto& row=actor_rows[i+1];const auto& actor=row["after"]["selected_actor"];
+            check(row["before"]["selected_actor"].is_null() && actor["domain"]==domain_names[i] &&
+                actor["id"]==7 && actor["lifetime_id"]==lifetime &&
+                actor["id_kind"]==(i==0 ? "courier_channel":"actor") && row["actions"]==Json::array({"selection"}),
+                "same-cell typed actor selection retains distinct channel and64-bit lifetime");
+            check(i==3 ? actor["source"].is_null() && actor["target"].is_null():
+                actor["source"]==42 && actor["target"]==46,"cached actor source/target or unowned wildlife");
+        }
+        InputDiagnostics reuse;
+        selected.selected_actor=InputDiagnostics::ActorSelection{InputDiagnostics::ActorDomain::Courier,7,lifetime,42,46};
+        auto successor=selected;++successor.selected_actor->lifetime_id;
+        reuse.begin(down,window,renderer,selected);reuse.end(successor);
+        auto cleared=selected;cleared.selected_actor.reset();
+        reuse.begin(down,window,renderer,selected);reuse.end(cleared);
+        std::ostringstream reuse_output;reuse.print(reuse_output);const auto reuse_rows=lines(reuse_output.str());
+        check(reuse_rows[1]["actions"]==Json::array({"selection"}) &&
+            reuse_rows[1]["before"]["selected_actor"]["id"]==reuse_rows[1]["after"]["selected_actor"]["id"] &&
+            reuse_rows[1]["after"]["selected_actor"]["lifetime_id"]==lifetime+1 &&
+            reuse_rows[2]["actions"]==Json::array({"selection"}) && reuse_rows[2]["after"]["selected_actor"].is_null(),
+            "channel reuse and selection retirement are observable without changing cells");
+
+        InputDiagnostics persistence;
+        auto attempted=before;attempted.io_generation=1;
+        persistence.begin(down,window,renderer,before);persistence.end(attempted);
+        auto saved=attempted;saved.save_generation=1;
+        persistence.begin(down,window,renderer,before);persistence.end(saved);
+        auto loaded=saved;++loaded.io_generation;++loaded.load_generation;
+        persistence.begin(down,window,renderer,saved);persistence.end(loaded);
+        std::ostringstream persistence_output;persistence.print(persistence_output);const auto io_rows=lines(persistence_output.str());
+        check(io_rows[1]["actions"]==Json::array({"persistence_attempt"}) &&
+            io_rows[2]["actions"]==Json::array({"persistence_attempt","save"}) &&
+            io_rows[3]["actions"]==Json::array({"persistence_attempt","load"}) &&
+            io_rows[3]["after"]["io_generation"]==2 && io_rows[3]["after"]["save_generation"]==1 &&
+            io_rows[3]["after"]["load_generation"]==1,
+            "failed attempts and successful same-state save/load remain distinct");
         SDL_DestroyRenderer(renderer);renderer=nullptr;SDL_DestroyWindow(window);window=nullptr;SDL_Quit();
         std::cout<<"bounded input diagnostics checks passed\n";return 0;
     } catch(const std::exception& error) {

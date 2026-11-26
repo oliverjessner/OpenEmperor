@@ -4518,7 +4518,13 @@ void SandboxView::perform_action(sandbox_ui::Action action) {
         update_layout(true);
     } else if (action==A::ToggleHelp) {
         cancel_gesture(); help_open_=!help_open_;
+        if (help_open_ && agriculture_reconfiguration()) prepare_agriculture_help(true);
         last_message_=help_open_ ? "Help opened; press H or ? to close":"Help closed";
+    } else if (action==A::HelpPrevious || action==A::HelpNext) {
+        if (!help_open_ || !agriculture_reconfiguration()) return;
+        cancel_gesture();
+        if (action==A::HelpPrevious) agriculture_help_.previous_page();
+        else agriculture_help_.next_page();
     } else if (action==A::ToggleIncome) {
         cancel_gesture();
         income_open_=!(income_open_ && layout_.panel_open);
@@ -4550,6 +4556,31 @@ SandboxView::InputDiagnosticState SandboxView::input_diagnostic_state(
     state.selected_cell=selected_;
     state.selected_landscape=selected_landscape_;
     state.selected_walker=selected_walker_ ? static_cast<std::uint32_t>(*selected_walker_):0;
+    if (selected_agriculture_actor_ && agriculture_reconfiguration()) {
+        const auto [domain,id]=*selected_agriculture_actor_;
+        // Read the already prepared bounded actor cache. Channel reuse must
+        // never make a retired selection describe its successor lifetime.
+        for (const auto& selected:agriculture_actor_state_.entries()) {
+            const bool matches=domain==AgricultureVisualDiagnostic::Domain::Courier ?
+                selected.domain==AgricultureActorDomain::Courier:
+                domain==AgricultureVisualDiagnostic::Domain::Boat ? selected.domain==AgricultureActorDomain::Boat:
+                domain==AgricultureVisualDiagnostic::Domain::Hunter ? selected.domain==AgricultureActorDomain::Hunter:
+                domain==AgricultureVisualDiagnostic::Domain::Animal && selected.domain==AgricultureActorDomain::Animal;
+            if (!matches || selected.id!=id || selected.lifetime_id!=selected_agriculture_lifetime_) continue;
+            InputDiagnostics::ActorSelection actor;
+            switch (selected.domain) {
+            case AgricultureActorDomain::Courier: actor.domain=InputDiagnostics::ActorDomain::Courier;break;
+            case AgricultureActorDomain::Boat: actor.domain=InputDiagnostics::ActorDomain::Boat;break;
+            case AgricultureActorDomain::Hunter: actor.domain=InputDiagnostics::ActorDomain::Hunter;break;
+            case AgricultureActorDomain::Animal: actor.domain=InputDiagnostics::ActorDomain::Animal;break;
+            }
+            actor.id=selected.id;actor.lifetime_id=selected.lifetime_id;
+            if (const auto source=static_cast<std::uint32_t>(selected.owner)) actor.source=source;
+            if (selected.target) actor.target=static_cast<std::uint32_t>(*selected.target);
+            state.selected_actor=actor;
+            break;
+        }
+    }
     if (raw_window_position && std::isfinite(raw_window_position->x) &&
         std::isfinite(raw_window_position->y))
         state.render_position=render_point(static_cast<float>(raw_window_position->x),
@@ -4557,7 +4588,8 @@ SandboxView::InputDiagnosticState SandboxView::input_diagnostic_state(
     if (state.render_position) {
         state.ui=layout_.ui_at(state.render_position->x,state.render_position->y) ||
             help_open_ || budget_warning_.has_value() || pending_demolition_.has_value();
-        state.ui_action=layout_.button_at(state.render_position->x,state.render_position->y);
+        state.ui_action=help_open_ ? help_action_at(*state.render_position):
+            layout_.button_at(state.render_position->x,state.render_position->y);
         state.ground_cell=pick(*state.render_position);
     }
     return state;
@@ -4684,7 +4716,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         cancel_gesture(); budget_button_pressed_.reset(); demolition_button_pressed_.reset();
         if (pending_demolition_) (void)resolve_demolition(false);
         visual_frame_valid_=false;
-        resize_camera(); return;
+        resize_camera();
+        if (help_open_ && agriculture_reconfiguration()) prepare_agriculture_help(false);
+        return;
     }
     if (pending_demolition_) {
         if (event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat) {
@@ -4744,20 +4778,22 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
             perform_action(sandbox_ui::Action::OriginalHuntersTent);return;
         }
         if (event.key.key==SDLK_H || event.key.key==SDLK_QUESTION) {
-            cancel_gesture();
-            help_open_=!help_open_;
-            last_message_=help_open_ ? "Help opened; press H or ? to close":"Help closed";
+            perform_action(sandbox_ui::Action::ToggleHelp);
             return;
         }
         if (event.key.key==SDLK_ESCAPE) {
-            if (help_open_) { help_open_=false; last_message_="Help closed"; return; }
+            if (help_open_) { perform_action(sandbox_ui::Action::ToggleHelp); return; }
             if (map_pressed_ || road_start_ || irrigation_start_ || bridge_start_ || ramp_start_ || pressed_button_ || ui_pressed_ || menu_pressed_)
                 cancel_gesture();
             else if (managed_) menu_requested_=true;
             else running=false;
             return;
         }
-        if (help_open_) return;
+        if (help_open_) {
+            if (agriculture_reconfiguration() && (event.key.key==SDLK_PAGEUP || event.key.key==SDLK_PAGEDOWN))
+                perform_action(event.key.key==SDLK_PAGEUP ? sandbox_ui::Action::HelpPrevious:sandbox_ui::Action::HelpNext);
+            return;
+        }
         if (food_processing() && !walker_diagnostic_open_ && (event.key.mod&SDL_KMOD_SHIFT)) {
             if (event.key.key==SDLK_M) {perform_action(sandbox_ui::Action::OriginalMill);return;}
             if (event.key.key==SDLK_K) {perform_action(sandbox_ui::Action::OriginalFoodShop);return;}
@@ -4922,18 +4958,22 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         }
     }
     if (help_open_) {
-        if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button==SDL_BUTTON_LEFT) {
+        if (event.type==SDL_EVENT_MOUSE_WHEEL && agriculture_reconfiguration()) {
+            cancel_gesture();
+            const auto point=render_point(event.wheel.mouse_x,event.wheel.mouse_y);
+            if (std::isfinite(event.wheel.y) && event.wheel.y!=0 && point &&
+                agriculture_help_.panel().contains(point->x,point->y))
+                perform_action(event.wheel.y>0 ? sandbox_ui::Action::HelpPrevious:sandbox_ui::Action::HelpNext);
+        } else if (event.type==SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button==SDL_BUTTON_LEFT) {
             pressed_button_.reset();
             const auto point=render_point(event.button.x,event.button.y);
-            if (point && layout_.button_at(point->x,point->y)==sandbox_ui::Action::ToggleHelp)
-                pressed_button_=sandbox_ui::Action::ToggleHelp;
+            if (point) pressed_button_=help_action_at(*point);
         } else if (event.type==SDL_EVENT_MOUSE_BUTTON_UP && event.button.button==SDL_BUTTON_LEFT) {
             const auto point=render_point(event.button.x,event.button.y);
-            const bool matching=pressed_button_==sandbox_ui::Action::ToggleHelp && point &&
-                layout_.button_at(point->x,point->y)==sandbox_ui::Action::ToggleHelp;
+            const auto action=pressed_button_;
+            const bool matching=action && point && help_action_at(*point)==action;
             cancel_gesture();
-            if (matching)
-                perform_action(sandbox_ui::Action::ToggleHelp);
+            if (matching) perform_action(*action);
         }
         return;
     }
@@ -5002,7 +5042,9 @@ void SandboxView::handle_event(const SDL_Event& event,bool& running) {
         pointer_=render_point(event.button.x,event.button.y);
         if (managed_ && pointer_ && menu_button_rect().contains(pointer_->x,pointer_->y)) { menu_pressed_=true; return; }
         refresh_hover();
-        if (!pointer_) return;
+        // An invalid new press cannot leave an older map/UI press armed for
+        // a later valid release. Coordinates stay unmodified and rejected.
+        if (!pointer_) { cancel_gesture();return; }
         if(const auto action=land_trade_action_at(pointer_->x,pointer_->y)) {
             pressed_land_trade_action_=action;ui_pressed_=true;return;
         }
@@ -8498,17 +8540,20 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 if(actor.route_pending) lines.push_back("Grower route blocked; cargo retained for repair");
             } else lines.push_back("Grower idle; no visible actor");
         }
-        std::size_t field_count=0,eligible=0;
+        std::size_t field_count=0,retired_fields=0,eligible=0;
         std::optional<simulation::BuildingId> first,next;
         for (const auto& field:food.fields) {
             if (field.farm_id!=farm_id) continue;
-            ++field_count;
             const auto& body=world_->building(field.field_id);
+            const bool retired=agriculture_reconfiguration() && !body.placed;
+            if (retired) ++retired_fields;
+            else ++field_count;
             const auto season=std::lower_bound(seasonal_field_eligibility_.begin(),seasonal_field_eligibility_.end(),field.field_id,
                 [](const auto& row,auto wanted){return row.first<wanted;});
             const bool in_season=!seasonal_agriculture() || (season!=seasonal_field_eligibility_.end() &&
                 season->first==field.field_id && season->second);
-            const char* blocker=farm_blocker ? farm_blocker:world_->building_on_fire(field.field_id) ? "Field on fire":
+            const char* blocker=retired ? "Retired; no active work":
+                farm_blocker ? farm_blocker:world_->building_on_fire(field.field_id) ? "Field on fire":
                 !body.operating_enabled ? "Field paused":!in_season ? "Off-season: field work blocked":nullptr;
             if (!blocker) {
                 ++eligible;
@@ -8519,7 +8564,7 @@ std::vector<std::string> SandboxView::inspection_lines() const {
             const auto row=std::find_if(work.fields.begin(),work.fields.end(),[&](const auto& value) {
                 return value.field_id==field.field_id;
             });
-            lines.push_back("Field #"+std::to_string(static_cast<unsigned>(field.field_id))+" "+
+            lines.push_back(std::string(retired ? "Retired Field #":"Field #")+std::to_string(static_cast<unsigned>(field.field_id))+" "+
                 agriculture_food_names[static_cast<std::size_t>(field.crop)]+" | progress "+
                 std::to_string(world_->agriculture_field_progress(field.field_id))+"/80");
             if (row!=work.fields.end()) lines.push_back(std::string(irrigation_productivity() ? "Base work total ":"Work total ")+std::to_string(row->productive_ticks));
@@ -8535,6 +8580,8 @@ std::vector<std::string> SandboxView::inspection_lines() const {
                 lines.push_back("Rice fertility100; no universal Pump requirement");
         }
         lines.push_back("Bound fields "+std::to_string(field_count)+"/8 | eligible "+std::to_string(eligible));
+        if (agriculture_reconfiguration() && retired_fields)
+            lines.push_back("Retired fields "+std::to_string(retired_fields)+" | work and receipts retained");
         const auto next_field=next ? next:first;
         if(physical_food_growers()) {
             const auto diagnosis=std::lower_bound(physical_grower_dispatch_status_.begin(),physical_grower_dispatch_status_.end(),farm_id,
@@ -9751,6 +9798,8 @@ bool SandboxView::draw_hud() {
         case A::Load: return "Load F9";
         case A::TogglePanel: return layout_.panel_open ? "Hide info":"Show info";
         case A::ToggleHelp: return help_open_ ? "Hide help":"Help";
+        case A::HelpPrevious: return "Prev";
+        case A::HelpNext: return "Next";
         case A::ToggleIncome: return income_open_ ? "Inspect T":"Income T";
         case A::ToggleIndustryPage:return industry_page_ ? "Back to city":"Industry";
         case A::OriginalLoggingShed:
@@ -10322,8 +10371,50 @@ bool SandboxView::draw_walker_diagnostic() {
         SDL_RenderLine(renderer_,gx-5*scale,gy,gx+5*scale,gy) &&
         SDL_RenderLine(renderer_,gx,gy-5*scale,gx,gy+5*scale);
 }
+void SandboxView::prepare_agriculture_help(bool reset_page) {
+    const auto old_page=reset_page ? 0U:agriculture_help_.page_index();
+    agriculture_help_=sandbox_ui::prepare_agriculture_help(layout_.map,layout_.scale);
+    if (!agriculture_help_.pages().empty())
+        (void)agriculture_help_.select_page(std::min(old_page,agriculture_help_.pages().size()-1));
+    ++agriculture_help_prepare_count_;
+}
+std::optional<sandbox_ui::Action> SandboxView::help_action_at(scene::Point point) const {
+    using A=sandbox_ui::Action;
+    if (agriculture_reconfiguration()) {
+        if (const auto action=agriculture_help_.button_at(point.x,point.y)) {
+            if (*action==sandbox_ui::AgricultureHelpAction::Previous) return A::HelpPrevious;
+            if (*action==sandbox_ui::AgricultureHelpAction::Next) return A::HelpNext;
+            return A::ToggleHelp;
+        }
+    }
+    return layout_.button_at(point.x,point.y)==A::ToggleHelp ? std::optional{A::ToggleHelp}:std::nullopt;
+}
 bool SandboxView::draw_help_overlay() {
     if (!help_open_) return true;
+    if (agriculture_reconfiguration()) {
+        const auto* page=agriculture_help_.page();
+        if (!page) return true;
+        const auto box=agriculture_help_.panel();
+        const SDL_FRect panel{static_cast<float>(box.x),static_cast<float>(box.y),
+            static_cast<float>(box.w),static_cast<float>(box.h)};
+        if (!SDL_SetRenderDrawColor(renderer_,12,19,30,248) || !SDL_RenderFillRect(renderer_,&panel) ||
+            !SDL_SetRenderDrawColor(renderer_,235,241,248,255)) return false;
+        const auto row=[&](const sandbox_ui::AgricultureHelpRow& value) {
+            return draw_text(value.rect.x,value.rect.y,value.text,value.rect.w);
+        };
+        if (!row(page->heading) || !row(page->footer)) return false;
+        for (const auto& value:page->rows) if (!row(value)) return false;
+        const auto button=[&](sandbox_ui::Rect rect,const char* label,bool enabled) {
+            const SDL_FRect bounds{static_cast<float>(rect.x),static_cast<float>(rect.y),
+                static_cast<float>(rect.w),static_cast<float>(rect.h)};
+            return SDL_SetRenderDrawColor(renderer_,enabled ? 76:40,enabled ? 103:50,enabled ? 139:65,255) &&
+                SDL_RenderFillRect(renderer_,&bounds) && SDL_SetRenderDrawColor(renderer_,235,241,248,255) &&
+                draw_text(rect.x+6*layout_.scale,rect.y+6*layout_.scale,label,rect.w-12*layout_.scale);
+        };
+        return button(agriculture_help_.previous_button(),"Prev",agriculture_help_.page_index()>0) &&
+            button(agriculture_help_.next_button(),"Next",agriculture_help_.page_index()+1<agriculture_help_.pages().size()) &&
+            button(agriculture_help_.close_button(),"Close",true);
+    }
     const int margin=12*layout_.scale;
     const int x=layout_.map.x+margin;
     const int y=layout_.map.y+margin;

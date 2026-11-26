@@ -98,6 +98,7 @@ find_package(Threads REQUIRED)
 include(cmake/OpenEmperorWarnings.cmake)
 
 set(agriculture_visual_sources
+    src/app/AgricultureHelp.cpp
     src/app/AgricultureVisualState.cpp
     src/app/AgricultureActorPresentation.cpp
     src/app/SandboxAgricultureVisuals.cpp
@@ -594,6 +595,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-inspector-layout-tests)
     add_test(NAME inspector-layout COMMAND openemperor-inspector-layout-tests)
     set_tests_properties(inspector-layout PROPERTIES TIMEOUT 20)
+    add_executable(openemperor-agriculture-help-tests tests/AgricultureHelpTests.cpp
+        src/app/AgricultureHelp.cpp src/app/SandboxUiLayout.cpp)
+    target_include_directories(openemperor-agriculture-help-tests PRIVATE src)
+    openemperor_enable_warnings(openemperor-agriculture-help-tests)
+    add_test(NAME agriculture-help-layout COMMAND openemperor-agriculture-help-tests)
+    set_tests_properties(agriculture-help-layout PROPERTIES TIMEOUT 20)
     add_executable(openemperor-agriculture-visual-state-tests
         tests/AgricultureVisualStateTests.cpp src/app/AgricultureVisualState.cpp)
     target_link_libraries(openemperor-agriculture-visual-state-tests PRIVATE openemperor-recovery ZLIB::ZLIB)

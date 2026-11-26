@@ -1,6 +1,6 @@
 # Human input checklist
 
-The current end-to-end human handoff is the
+The historical end-to-end human handoff is the
 [OE50 checklist](qa/oe50-human-checklist.md), including direct CMake/app launch,
 isolated save copies, paid Rule18 play and restart. Its human rows remain
 **NOT_RUN**. The checks below retain the focused historical input contract.
@@ -98,3 +98,46 @@ pause/speed and window size. Optional `OPENEMPEROR_INPUT_DIAGNOSTICS=1` retains
 bounded application input diagnostics. Incorrect automation delivery is an
 automation limitation; correctly delivered input handled incorrectly is an
 application defect. See [the input contract](input-reliability.md).
+
+## Agriculture Rule36 input checklist (AGRI-MAC13)
+
+This procedure prepares the latest Agriculture UI for the user's human
+playtest **after MAC14**. Every row remains **NOT_RUN**. Automated tests,
+scripted Metal captures and requested computer-control coordinates cannot
+complete a human row. Actual OS mouse delivery remains **NOT_VERIFIED** until
+matching valid raw SDL events and the resulting selection/action are observed.
+
+Build the current source, record its commit and use an isolated menu session:
+
+```sh
+build/openemperor --data /path/to/emperor \
+  --app-root "$PWD/.local/agri-mac13/manual-input-01"
+```
+
+Choose **R Reconfigure (36)** and a supported map, or load an explicit earned
+Rule36/schema52 city copied into this fresh test root. Keep the original save
+untouched: direct `--load-sandbox` uses that supplied path as the F5 target.
+Do not search other saves or edit funds, crops, goods or residents. Reuse the
+same test root only for the intentional restart check; use a fresh destination
+for another attempt. Original game data stay read-only.
+
+| Check | Expected behavior | Human result |
+| --- | --- | --- |
+| Help and discovery | H/? and Help open the same guide. PageUp/Down, wheel, Prev/Next reach all pages. Close/Escape consumes its own gesture; no construction acts behind it. Repeat at 900×600 and larger sizes, 1×/2×/4× zoom. | **NOT_RUN** |
+| Paid tools and Farm ownership | Use toolbar and shortcuts for Road, Food Farm, all five Fields, Hemp, Industry plantations, Pump/Ditch, Quay, Tent, Mill, Shop and Warehouse. Select the intended paid source before its Field/plant; the inspector shows the actual owner. | **NOT_RUN** |
+| Refusal and cancellation | An occupied/unsupported placement spends no funds and allocates no ID. Mismatched Down/Up, focus loss, resize, invalid outside press and release over UI cancel without a partial road or charge; the next valid gesture works. | **NOT_RUN** |
+| Physical selection | At each zoom select visible Grower, Boat, Hunter, each living animal species, Farm, Field, Quay, Tent, Mill, Shop and Warehouse. The inspector identifies the intended real owner/channel/lifetime; transparent holes and overlapping UI do not steal the hit. | **NOT_RUN** |
+| Work, season, water and routes | Inspect actual worker phase/cargo and source/target, crop progress/harvest/return, current season/next opportunity, wet/bonus status and a concrete pause/staff/fire/access blocker. Incoming trips are separate from completed receipts. | **NOT_RUN** |
+| Inventories and House needs | Scroll seven raw Foods and five Dinners grade columns, shared Warehouse volume, Goods/materials, Mill inputs/work and Shop binding. House State/Needs/Goods/Visits shows current/next needs and actual Tea/Silk/Lacquerware consumption witnesses. | **NOT_RUN** |
+| Retired Field and active quota | Drain and safely remove an eligible paid leaf. Its old work/receipts remain visible as retired while the active Farm quota excludes it; rebuild pays full cost with a new ID. Stock owners remain protected. | **NOT_RUN** |
+| Loaded F5/F9 and restart | Pause during real Grower/Boat/Hunter/Food cargo. F5, one Step and F9 restore the exact cargo/identity/work state; continuation has no duplicated receipt. Quit, restart the same isolated menu root and load that save paused. | **NOT_RUN** |
+
+Optional bounded diagnosis uses `OPENEMPEROR_INPUT_DIAGNOSTICS=1`; retain its
+stdout JSON separately from platform stderr under the ignored test root.
+Record actual window/pixel/output sizes, renderer, scale, raw Down/Up and
+converted coordinates plus selected domain/ID/lifetime and action deltas.
+If automation delivers `(0,0)`, stale/mismatched coordinates or no events,
+record automation **NOT_VERIFIED** and leave the mouse row open. A correctly
+delivered event handled incorrectly is the reproducible product defect.
+External displays, a physical Retina configuration, held-key behavior and
+clean-Mac launch need their own observations.
