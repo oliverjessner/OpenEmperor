@@ -46,12 +46,49 @@ scenario does not prove every layout, long-play outcome or original-game parity.
 
 ## Final Agriculture integration (AGRI-MAC14)
 
-The current technical evaluation uses merged base
+The follow-up uses merged base `915cfaa2ca5f651a5d7b9f45e7cdb0bdb8c089e4`,
+**Rule36/policy3/schema52**. Its frozen 912-file source/test/resource manifest is
+`a0f138ea63434707b4f663d905d0dedda625deaf1f4fe0301d806a2af463875d`.
+It additionally binds the public core report SHA
+`ca1b698d4bf0379fdcb4dfc733f5938defcafe97a3a8d1b78c7111b786829039`.
+Only transient validation allocations and QA scenarios change; there is no new
+gameplay generation, saved authority, migration, default or budget increase.
+
+The complete public Alpha now **passes 437/437 cases in each of Debug, Release
+and ASan/UBSan**, with no skips. It ran from three new cold arm64 builds and
+retained all 435 prior cases plus the allocation and explicit V2 regressions.
+The result is `.local/agri-mac14-perf/alpha-final-02.json`, SHA
+`039ba35a14f81530eada72a2a9a90b1d420763a92f24e18d61f5d761ae3f3f25`;
+the supervisor confirms one complete run, exit0 and unchanged source, public
+core-report, Original, prompt and historical guards. General-profile100000-tick
+endurance/12 JSON roundtrips per configuration,3000-frame Debug/sanitizer stress,
+100 menu sessions, actual-data smoke and Release arm64 checks also complete.
+This closes technical regression, not the stable all-chain city or native/human
+acceptance gates below. Both earlier failed Alpha attempts remain retained.
+
+Independent probes linked to these final builds also pass 74 cases per
+configuration, preserving 46 parity /18 corrected /6 unverified /4 unsupported
+classifications and literal current public-report bytes. Historical Rules24–35
+retain all246 artifacts/137 paid saves. The independent Rule36 continuation
+reproduces24000 ticks,20 checkpoints,40 canonical/roundtrip files, six Recovery
+payloads, the paid plan and complete work trace exactly.
+
+The final-build paid observer separately completes100000 further ticks in all
+three configurations and a second Release process. Initial/final saves, twelve
+canonical/Recovery checkpoints and the whole deterministic telemetry are
+byte-identical to the preserved pre-optimization continuation. Its actual
+seven-Food/meal consumption and negative Funds/devolutions remain unchanged;
+`gameplay_coverage` stays PARTIAL. Source/core-report/Original/prompt and
+historical guards match before and after these proofs. Private receipts are
+`run-02/independent-verification.json`, `run-02/continuation-verification.json`
+and `run-02/full-v2-matrix-verification.json` under `.local/agri-mac14-perf/`.
+
+The prior PR75 technical evaluation used merged base
 `a45edd38a4813ca07e4fc6de219fe388d4e2da78`, **Rule36/policy3/schema52**.
 The 910-file source/test/resource manifest is
 `054185413a085b29a38409dbd7d58605842e235ff1f971834349a74011bbd528`.
 Gameplay, persistence, source models, defaults and the82/58 limits are unchanged.
-The new executable observes the existing World; it adds no inventory or commands.
+The integration observer observes the existing World; it adds no inventory or commands.
 Human checks remain **NOT_RUN**; use [HUMAN_PLAYTEST](../HUMAN_PLAYTEST.md).
 
 Build the current source, then continue an explicitly supplied, legitimately
@@ -104,7 +141,7 @@ House delivery.
 
 The luxury tool separately accepts `--latest-agriculture` with fresh MAC14
 outputs; its historical default remains Rule29/schema45 under MAC04 outputs.
-The finite latest-only Xia plan omits redundant purchases explicitly listed in
+The original V1 latest-only Xia plan omits redundant purchases explicitly listed in
 its report. It pays normal prices, retains the supplied model and uses the
 current physical/seasonal Food authority. Actual100000-tick observation reaches
 Elite15 and consumes Silk/Lacquerware, but **Tea remains zero**. At the first
@@ -117,11 +154,46 @@ are−28151. No luxury maturity or20400-tick post-maturity retention is earned.
 This is a measured player-plan gate, not a universal impossibility or a reason
 to alter source thresholds, grants or historical saves.
 
-A bounded next scenario should preserve adequate paid DES while fitting58
-channels and add complementary-season crops to the existing Farms. Extra
-fields share the same finite labor. Placement, water/service coverage, annual
-Food reserves and net finances still require actual paid validation; arithmetic
-or a proposed layout does not close these gates.
+A separately selected `--latest-agriculture --latest-plan-v2` player plan now
+executes that bounded next scenario. It retains the paid Daoist/Buddhist shrines
+and nearer southern Market, omits the other southern Market and buys two
+ordinary complementary-season Wheat fields on the existing Farms. Every
+purchase, parent binding and prepared physical Grower route is checked against
+World; no admission, price, staffing, work or limit exception is added.
+
+All three fresh follow-up creators and separate seed-to-final replays pass. Tea21,
+Silk45 and Lacquerware38 are actually consumed by Houses; maturity17992 is
+followed by20400 real ticks, ending at38392 with60 bodies/57 channels. Minimum
+Funds are2116 and final Funds3772. Post-maturity taxes15067 minus upkeep14600
+leave467, with Funds3305 at maturity and no later construction. The creator's
+four canonical checkpoints and command list match across configurations and
+also match the earlier private plan experiment byte-for-byte. Both additional
+Wheat fields actually harvest132 portions each. V2-only SHA-bound checkpoint metadata records
+QA plan provenance; it grants no saved authority. Missing/wrong metadata or a
+known V2 replay without its explicit flag is refused before output publication.
+Rule29 and latest V1 acquire no required sidecar and keep their own scenarios.
+A separate latest-V1 replay without a report sidecar reproduces its old tick6304
+canonical endpoint and retains its actual PARTIAL gameplay result.
+
+To reproduce the distinct V2 proof with the supplied unchanged Normal/Xia data:
+
+```sh
+./build/openemperor-luxury-progression-acceptance \
+  --data /absolute/emperor --latest-agriculture --latest-plan-v2 \
+  --output "$PWD/.local/agri-mac14/luxury-v2-01" --ticks 30000 --hold 20400
+./build/openemperor-luxury-progression-acceptance \
+  --data /absolute/emperor --latest-agriculture --latest-plan-v2 \
+  --output "$PWD/.local/agri-mac14/luxury-v2-replay-01" --ticks 30000 --hold 20400 \
+  --input "$PWD/.local/agri-mac14/luxury-v2-01/seed.save.json" \
+  --expected "$PWD/.local/agri-mac14/luxury-v2-01/final.save.json"
+```
+
+This is **finite luxury/finance acceptance, not uninterrupted Elite17 retention**.
+The city records109 total devolutions, including69 after maturity, and zero
+burning-House ticks. Elite39 has8 post-maturity devolutions and spends only7803
+of20400 ticks at17; it ends at17 with FoodQuality0 versus required70. Only Wheat
+and Millet feed this plan. It does not integrate Rice/Cabbage/BeanCurd/Fish/Meat
+or meals, and does not establish a stable all-chain city or Original parity.
 
 The latest36 source-map matrix passes exact map rules and empty schema52
 save/read/fresh restore on supplied Xia, Chengdu and Loulan. Chengdu's ordinary
@@ -141,8 +213,8 @@ or proves a newer generation's city stability.
 
 | Milestone | Rule/schema boundary | Evidence and remaining scope | Result |
 | --- | --- | --- | --- |
-| MAC04 luxury | 29/45; separate36/52 observation | Supplied-model paid29 consumes Tea/Silk/Lacquerware and earns20400 post-maturity ticks. Latest36 consumes Silk/Lacquerware; Tea/DES/Food/finance gates remain open. | PASS historical / PARTIAL latest |
-| MAC05 multiple fields | 30/46, inherited36/52 | Paid shared labor and five-crop consumption pass; current sanitized separate14k replay times out in its final validation/report tail. | PASS historical/Debug/Release; PARTIAL current sanitizer |
+| MAC04 luxury | 29/45; explicit V2 plan36/52 | Supplied-model paid29 and latest V2 consume Tea/Silk/Lacquerware and earn20400 post-maturity ticks. V2 keeps nonnegative Funds; uninterrupted Elite17 remains unproved. | PASS finite historical/latest V2 |
+| MAC05 multiple fields | 30/46, inherited36/52 | Paid shared labor, five-crop consumption and both independent14k processes pass in all configurations at the unchanged240s child deadlines. | PASS |
 | MAC06 physical Growers | 31/47, inherited36/52 | At-field work, typed loaded return, reservations, actual source receipts and independent persistence; no raw Actor26 parity claim. | PASS |
 | MAC07 seasons | 32/48, inherited36/52 | Nine crop windows, expiry/return guards and latest ten-year-boundary continuation. Sustainable reserves remain a separate open city gate. | PASS bounded mechanics |
 | MAC08 water productivity | 33/49, inherited36/52 | Paid matched wet/dry work,21 supplied cells, real Pump fire/recovery, carry/clipping and exact replay; no Original yield claim. | PASS bounded mechanics |
@@ -151,17 +223,17 @@ or proves a newer generation's city stability.
 | MAC11 reconfiguration | 36/52 | Paid leaf drainage/removal/rebuild and hostile saves; source/stock-owner retirement remains deliberately refused. | PASS scoped contract |
 | MAC12 presentation | 36/52 | Earned165-state corpus, saved work/cargo art and pure frames. Unqualified Original actor animation remains authored fallback. | PASS scoped presentation |
 | MAC13 input | 36/52 | Shared cancellation, prepared Help, scripted paid input and recorded native keyboard checks. Native automated pointer acceptance remains unverified. | PASS scoped input |
-| MAC14 complete city | 36/52 | One full-Alpha timeout remains. Additional endurance/persistence passes; no single stable all-chain city, latest Tea maturity/retention or complete native matrix has passed. | PARTIAL |
+| MAC14 complete city | 36/52 | Complete437-case Alpha passes in all configurations and finite latest luxury/finance passes. No single stable all-chain city, uninterrupted Elite17 or complete native matrix has passed. | PARTIAL |
 | User human playtest | Explicit selected generation | Follow HUMAN_PLAYTEST only as manual observations; no automated run fills these rows. | NOT_RUN |
 
-The complete unchanged public Alpha ran once on three fresh arm64 builds:
+The prior unchanged public Alpha ran once on three fresh arm64 builds:
 Debug **435/435**, Release **435/435**, ASan/UBSan **434/435**. No registered
 case was skipped or retried, no assertion or deadline changed. The full Alpha
 result is **FAIL**, retained at `.local/agri-mac14/alpha-final-01.json` with SHA
 `8d0ae508d79a693fa7f27276273d7a968b07c5dfbe6e1a713c9f52840c958f2a`.
 Its source, Original input and historical before/after guards match.
 
-The sole failed case is `original-multi-field-agriculture-real`. Its Python
+The sole failed case in that prior run was `original-multi-field-agriculture-real`. Its Python
 wrapper kills a child after240 seconds. The sanitized creator took234.13s;
 the replay completed all14000 ticks and wrote exact final/roundtrip JSON and
 Recovery payloads, but did not finish its final Recovery comparison/report.
@@ -170,19 +242,37 @@ SHA `97017f9b5ab57060b06cb167150a9cbb6ed2a0604ee3c959de84f9896b0a0033`.
 Recovery metadata committed about0.46s before the deadline. This establishes
 a narrow runtime-headroom failure, not a demonstrated gameplay divergence or
 sanitizer finding; exact host/thermal/code-layout attribution is **UNVERIFIED**.
-Profiling and a behavior-preserving performance fix still need validation.
-The failed test remains failed; completed files are not a substitute for its
-unfinished assertions, independent wrapper audit or final report.
+The follow-up profiles the real replay and reuses one local navigation visit
+plane per validation, clearing only each successfully checked path before the
+next courier. It preserves all existing checks and their order. The shared
+fixture helper avoids temporary strings for successful literal checks, while
+retaining the original dynamic-message signature and exact failure text. The
+Multi-Field diagnostic shares one immutable snapshot between its two unchanged
+validators. The focused new-source ASan/UBSan wrapper passes both14k processes
+at the original240-second child deadline; all8 canonical/roundtrip files match
+the old creator exactly, and its Recovery assertions complete. This scoped
+pass does not reclassify the retained prior full-Alpha failure.
 
-Additional checks use a separate, explicitly **incomplete-Alpha** scope. Their
-passes do not reclassify this public failure or establish a green full run.
-Fresh independent core probes pass74 cases per configuration with unchanged
+The first follow-up full attempt is separately retained at
+`.local/agri-mac14-perf/alpha-final-01.json`: all three builds completed, but
+Debug passed436/437 with `original-rules-parity-contract` rejecting the stale
+public `World.cpp` source fingerprint. Release/sanitizer CTest did not run after
+that failure. Three actual independent74-case comparisons then passed with
+unchanged classifications, observations and canonical vectors; their portable
+reports agree exactly. Only that source fingerprint changes in the public
+report. All30 parity-contract controls pass after the evidence refresh. The
+replacement full run uses new cold build/output paths and binds the refreshed
+report in its freeze; the first failure is not relabelled or resumed.
+
+In the prior PR75 evaluation, additional checks used a separate, explicitly
+**incomplete-Alpha** scope. Their passes did not reclassify its failed full run.
+Those independent core probes passed74 cases per configuration with unchanged
 46 parity /18 corrected /6 unverified /4 unsupported classifications and literal
-public-report bytes. Historical Rules24–35 retain246 artifacts/137 paid saves;
-the Rule36 replay retains24000 ticks,20 checkpoints,40 canonical/roundtrip files,
+then-current public-report bytes. Historical Rules24–35 retained246 artifacts/137 paid saves;
+the Rule36 replay retained24000 ticks,20 checkpoints,40 canonical/roundtrip files,
 six Recovery payloads, the command plan and entire work trace byte-exact.
 
-The current native probe visibly loaded the earned Chengdu tick1715/loaded
+The prior native probe visibly loaded the earned Chengdu tick1715/loaded
 Grower city, handled OS keyboard Save/Load and opened Help. Final private F5
 bytes equal the protected source checkpoint. Its forced Cocoa/Metal backend
 request was not confirmed from retained raw renderer logs: the paused process
@@ -191,16 +281,16 @@ PageDown dispatch. Exact single-step tick, Help navigation, camera/zoom and
 valid automated mouse remain **NOT_VERIFIED / NOT_RUN** in this probe. Screenshots
 were opened in the conversation; no retained native PNG artifact is claimed.
 The earlier MAC13 native evidence below remains its separate historical run.
-No human acceptance, installed package, notarization or release is claimed.
+No new native/human acceptance, installed package, notarization or release is claimed.
 
-The previously unexecuted public Alpha helpers separately passed general-profile
+During that prior failed-Alpha evaluation, public Alpha helpers separately passed general-profile
 100000-tick endurance with12 real JSON roundtrips in each configuration,
 3000-frame Debug/sanitized render stress,100 menu sessions, the actual-data
 Industry/City-v11 supply/tax/resume smoke and Release arm64 verification.
-These are additional scoped results, not a resumed or completed full Alpha.
+Those were additional scoped results, not a resumed or completed full Alpha.
 
-The new Rule36 observer independently passed100000-tick continuation in all
-three matching fresh builds. Their complete initial/final JSON, twelve
+The prior Rule36 observer independently passed100000-tick continuation in all
+three then-matching fresh builds. Their complete initial/final JSON, twelve
 canonical/Recovery checkpoints and deterministic telemetry are literal-equal;
 a separate Release process reproduces them again. Every configuration also
 reproduces the same latest-luxury canonical final/commands and **PARTIAL**
@@ -208,7 +298,10 @@ Tea/retention result, and the unchanged default Rule29 tool repeats the original
 paid mid-cargo2284→maturity4477 endpoint exactly, including hostile saves and
 Recovery. All frozen910,330 source-city checkpoints, supplied inputs, old
 archives and historical before/after guards match. The registered timed-out
-case was not rerun; no deadline, test assertion, model or gameplay rule changed.
+case was not rerun in that prior evaluation. The present source-fixed complete
+Alpha runs it normally:47.322s Debug,33.011s Release and277.373s sanitizer for
+the entire Creator+Replay Python wrapper. Each child retains240s and CTest
+retains600s. No deadline, test assertion, model or gameplay rule changed.
 
 ## Agriculture input and Help (AGRI-MAC13)
 

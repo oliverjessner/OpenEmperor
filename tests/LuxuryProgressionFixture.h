@@ -37,9 +37,19 @@ inline bool included(const base::Planned& node) {return paid::included(node)&&no
 // sources keep their ordinary costs, staff, DES and physical routes. Any lost
 // DES or unmet need is measured by the observer, never compensated in World.
 inline constexpr std::array<unsigned,7> latest_omitted_plan_ids{101,102,123,128,129,20,22};
-inline bool included(const sim::World& world,const base::Planned& node) {
-    return included(node)&&(world.rule_version()!=36||
-        std::find(latest_omitted_plan_ids.begin(),latest_omitted_plan_ids.end(),node.plan_id)==latest_omitted_plan_ids.end());
+// V2 is a separately selected player plan, never a reinterpretation of V1.
+// It keeps both paid shrines and the nearer southern Market143, omits Market125,
+// and buys one complementary-season Wheat field per existing paid Food Farm.
+inline constexpr std::array latest_v2_omitted_plan_ids{101U,102U,123U,128U,129U,125U};
+inline constexpr std::string_view latest_v2_recipe="authored-latest-agriculture-xia-complementary-wheat-v2";
+struct ExtraWheat {unsigned parent_plan_id;sim::Cell cell;};
+inline constexpr std::array latest_v2_wheat{ExtraWheat{103,{115,128}},ExtraWheat{105,{115,130}}};
+inline bool included(const sim::World& world,const base::Planned& node,bool latest_plan_v2=false) {
+    check(!latest_plan_v2||world.rule_version()==36,"Latest plan V2 requires Rule36");
+    if(!included(node))return false;
+    if(world.rule_version()!=36)return true;
+    if(latest_plan_v2)return std::find(latest_v2_omitted_plan_ids.begin(),latest_v2_omitted_plan_ids.end(),node.plan_id)==latest_v2_omitted_plan_ids.end();
+    return std::find(latest_omitted_plan_ids.begin(),latest_omitted_plan_ids.end(),node.plan_id)==latest_omitted_plan_ids.end();
 }
 
 inline void write(const fs::path& path,const Json& value) {
@@ -159,7 +169,8 @@ inline bool purchase_or_wait(sim::World& world,sim::Command command,const char* 
     }
     return paid::append(world,command,reason,commands,blocked);
 }
-inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked) {
+inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked,bool latest_plan_v2=false) {
+    check(!latest_plan_v2||world.rule_version()==36,"Latest plan V2 requires Rule36");
     const auto plan=paid::plan_for(recipe);
     // Retain the historical player's finite road geometry and purchases while
     // checking attachments against the current generation's actual authority.
@@ -168,7 +179,7 @@ inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked) {
     if(!paid::grid_roads(world,plan,commands,blocked))return false;
     const auto unlocked=base::phase(world);
     for(const auto& node:plan) {
-        if(!included(world,node)||node.phase>unlocked)continue;
+        if(!included(world,node,latest_plan_v2)||node.phase>unlocked)continue;
         const auto kind=sim::placed_object(node.command);check(kind.has_value(),"Unmapped paid recipe command");
         if(const auto owner=base::owner(world,node.cell)) {
             check(world.building(*owner).kind==*kind,"Paid recipe site occupied by another body");attachment(world,plan,node);continue;
@@ -181,7 +192,7 @@ inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked) {
     }
     if(unlocked>=2&&!base::elite(world))
         if(!purchase_or_wait(world,{sim::CommandType::PlaceOriginalElitePlot,base::elite_cell},"MAC04 separate paid Elite plot",commands,blocked))return false;
-    for(const auto& node:plan)if(included(world,node)&&node.duplicate&&
+    for(const auto& node:plan)if(included(world,node,latest_plan_v2)&&node.duplicate&&
         node.command!=sim::CommandType::PlaceOriginalWaterWell&&node.command!=sim::CommandType::PlaceOriginalAncestorShrine)
         if(const auto owner=base::owner(world,node.cell);owner&&world.building(*owner).operating_enabled)
             if(!paid::append(world,sim::set_building_operation(*owner,false),"MAC04 pause redundant paid provider",commands,blocked))return false;
@@ -197,11 +208,37 @@ inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked) {
             if(!paid::append(world,sim::set_building_workforce_priority(building.id,sim::WorkforcePriority::High),
                 "MAC04 paid critical workforce priority",commands,blocked))return false;
     }
+    if(latest_plan_v2)for(const auto& item:latest_v2_wheat) {
+        const auto parent=base::owner(world,paid::planned(plan,item.parent_plan_id).cell);
+        if(!parent)continue;
+        auto placed=base::owner(world,item.cell);
+        if(!placed) {
+            sim::Command field{sim::CommandType::PlaceOriginalWheatField,item.cell};field.building_id=*parent;
+            if(!purchase_or_wait(world,field,"V2 complementary-season paid Wheat field",commands,blocked))return false;
+            placed=base::owner(world,item.cell);
+            if(!placed)continue; // Actual wildlife/begun-edge claims wait for a later real tick.
+        }
+        check(world.building(*placed).kind==sim::Object::OriginalWheatField,"V2 Wheat candidate occupied by another paid body");
+        bool bound=false;
+        for(const auto& field:world.agriculture_fields())bound|=field.farm_id==*parent&&field.field_id==*placed;
+        check(bound,"V2 Wheat lost actual paid parent binding");
+        const auto& farms=world.physical_food_growers_state()->farms;
+        const auto farm=std::find_if(farms.begin(),farms.end(),[&](const auto& row){return row.farm_id==*parent;});
+        check(farm!=farms.end(),"V2 paid Farm has no physical Grower channel");
+        const auto& actor=world.courier(farm->courier_id);
+        const auto route=std::find_if(actor.dynamic_target_routes.begin(),actor.dynamic_target_routes.end(),[&](const auto& row){return row.first==*placed;});
+        if(route==actor.dynamic_target_routes.end()||!route->second||route->second->size()<=1) {
+            blocked={{"tick",world.ticks()},{"reason","V2 actual paid Wheat has no usable prepared physical route"},
+                {"parent",static_cast<unsigned>(*parent)},{"field",static_cast<unsigned>(*placed)}};
+            return false;
+        }
+    }
     return true;
 }
-inline Json remaining_plan(const sim::World& world) {
+inline Json remaining_plan(const sim::World& world,bool latest_plan_v2=false) {
+    check(!latest_plan_v2||world.rule_version()==36,"Latest plan V2 requires Rule36");
     const auto plan=paid::plan_for(recipe);Json result=Json::array();
-    for(const auto& node:plan)if(included(world,node)&&!base::owner(world,node.cell)) {
+    for(const auto& node:plan)if(included(world,node,latest_plan_v2)&&!base::owner(world,node.cell)) {
         sim::Command command{node.command,node.cell};bool owner_ready=!node.owner;
         if(node.owner)if(const auto parent=base::owner(world,paid::planned(plan,node.owner).cell)) {
             command.building_id=*parent;owner_ready=true;
@@ -211,6 +248,28 @@ inline Json remaining_plan(const sim::World& world) {
             {"cell",{node.cell.x,node.cell.y}},{"required_population_phase",node.phase},{"current_population_phase",base::phase(world)},
             {"selected_parent_present",owner_ready},{"currently_legal",decision.accepted},{"current_validator_reason",decision.reason},
             {"quoted_cost",world.construction_cost(node.command)}});
+    }
+    if(latest_plan_v2)for(const auto& item:latest_v2_wheat)
+        if(!base::owner(world,item.cell))result.push_back({{"v2_extra_wheat_parent_plan_id",item.parent_plan_id},
+            {"cell",{item.cell.x,item.cell.y}},{"reason","Complementary-season paid Wheat not yet placed"}});
+    return result;
+}
+inline Json latest_v2_wheat_report(const sim::World& world) {
+    check(world.rule_version()==36,"Latest plan V2 requires Rule36");
+    const auto plan=paid::plan_for(recipe);Json result=Json::array();
+    for(const auto& item:latest_v2_wheat) {
+        const auto parent=base::owner(world,paid::planned(plan,item.parent_plan_id).cell),field=base::owner(world,item.cell);
+        bool bound=false;std::size_t route_cells=0;
+        if(parent&&field) {
+            for(const auto& row:world.agriculture_fields())bound|=row.farm_id==*parent&&row.field_id==*field;
+            for(const auto& farm:world.physical_food_growers_state()->farms)if(farm.farm_id==*parent)
+                for(const auto& route:world.courier(farm.courier_id).dynamic_target_routes)
+                    if(route.first==*field&&route.second)route_cells=route.second->size();
+        }
+        result.push_back({{"parent_plan_id",item.parent_plan_id},{"cell",{item.cell.x,item.cell.y}},
+            {"actual_parent_id",parent?Json(static_cast<unsigned>(*parent)):Json(nullptr)},
+            {"actual_field_id",field?Json(static_cast<unsigned>(*field)):Json(nullptr)},
+            {"actual_parent_binding",bound},{"prepared_physical_route",route_cells>1},{"prepared_route_cells",route_cells}});
     }
     return result;
 }
