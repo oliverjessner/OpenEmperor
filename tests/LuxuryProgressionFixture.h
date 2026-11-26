@@ -30,6 +30,17 @@ inline constexpr std::string_view recipe="oe48-watch-phase1-third-food-three-mar
 // outside the Elite's DES stencil. Retaining their unused channels would make
 // the actual Rule29 wildlife plus Tea producer exceed the historical58 budget.
 inline bool included(const base::Planned& node) {return paid::included(node)&&node.plan_id!=13&&node.plan_id!=15;}
+// A separate finite player plan for the explicitly selected latest-generation
+// proof. Do not buy the historically wildlife-blocked Farm, the second
+// Warehouse/Clay/Pottery pair, or two paused duplicate shrines. The remaining
+// real providers, complete material chains and both productive Farms/Hemp
+// sources keep their ordinary costs, staff, DES and physical routes. Any lost
+// DES or unmet need is measured by the observer, never compensated in World.
+inline constexpr std::array<unsigned,7> latest_omitted_plan_ids{101,102,123,128,129,20,22};
+inline bool included(const sim::World& world,const base::Planned& node) {
+    return included(node)&&(world.rule_version()!=36||
+        std::find(latest_omitted_plan_ids.begin(),latest_omitted_plan_ids.end(),node.plan_id)==latest_omitted_plan_ids.end());
+}
 
 inline void write(const fs::path& path,const Json& value) {
     check(!fs::exists(path),"Preserve existing QA output");
@@ -74,19 +85,44 @@ struct Context {
     q::Context map;
     std::shared_ptr<const orig::OriginalRulesModel> model;
     std::shared_ptr<const sim::OriginalTerrainFacts> terrain;
-    explicit Context(const fs::path& data):map(q::Context::real(data)),
-        model(save::prepare_playable_hunting_rules_model(data,orig::Difficulty::Normal)),
-        terrain(save::prepare_playable_hunting_terrain_facts(data,map.map_relative)) {}
-    sim::World world()const{return sim::World::create_playable_hunting(map.policy,model,terrain);}
+    bool latest_agriculture=false;
+    explicit Context(const fs::path& data,bool latest=false):map(q::Context::real(data)),
+        model(latest?save::prepare_food_processing_rules_model(data,orig::Difficulty::Normal):
+            save::prepare_playable_hunting_rules_model(data,orig::Difficulty::Normal)),
+        terrain(save::prepare_playable_hunting_terrain_facts(data,map.map_relative)),latest_agriculture(latest) {}
+    sim::World world()const{return latest_agriculture?sim::World::create_agriculture_reconfiguration(map.policy,model,terrain):
+        sim::World::create_playable_hunting(map.policy,model,terrain);}
+    unsigned rule()const{return latest_agriculture?36:29;}
+    unsigned schema()const{return latest_agriculture?52:45;}
     save::SaveDocument document(const sim::World& world)const{return save::make_document(map.data,map.map_relative,map.mask,world);}
     sim::World restore(const save::SaveDocument& document)const {
+        if(latest_agriculture) {
+            check(document.source_schema_version==52&&document.world.rule_version==36,"Exact Rule36/schema52 input required");
+            return save::restore_agriculture_reconfiguration(document,map.data,map.mask,map.policy,model,terrain);
+        }
         check(document.source_schema_version==45&&document.world.rule_version==29,"Exact Rule29/schema45 input required");
         return save::restore_playable_hunting(document,map.data,map.mask,map.policy,model,terrain);
     }
 };
 inline void valid(const sim::World& world) {
-    check(world.rule_version()==29,"Luxury QA changed gameplay generation");
-    oe_hunting_fixture::valid(world);
+    if(world.rule_version()==36) {
+        check(!world.has_grower_navigation_session()&&world.grower_navigation_tracks().empty(),
+            "Latest Agriculture luxury proof must not contain research navigation channels");
+        check(world.population_valid()&&world.city_economy_valid()&&world.production_balance_valid()&&
+            world.navigation_valid()&&world.fire_state_valid(),"Latest Agriculture luxury World invariants failed");
+        check(world.processed_food_state()&&!world.hunting_food_state()&&!world.fishing_food_state()&&
+            !world.original_agriculture_state()&&world.original_production_state()->food==sim::OriginalFoodState{},
+            "Latest Agriculture luxury duplicated Food authority");
+        const auto channels=world.couriers().size()+world.fishing_state()->quays.size()+world.hunting_state()->tents.size()+
+            3*world.hunting_state()->habitats.size();
+        check(world.buildings().size()<=82&&channels<=58,"Latest Agriculture luxury exceeded lifetime limits");
+        const auto snapshot=world.snapshot();
+        sim::World::validate_food_processing_snapshot(snapshot);
+        sim::World::validate_agriculture_reconfiguration_snapshot(snapshot);
+    } else {
+        check(world.rule_version()==29,"Luxury QA changed gameplay generation");
+        oe_hunting_fixture::valid(world);
+    }
     for(const auto good:luxury_goods) {
         const auto value=world.original_goods_balance(good);
         check(value.supported&&value.conserved&&!value.totals.imported&&!value.totals.demolished,"Luxury conservation/origin failed");
@@ -99,13 +135,14 @@ inline void attachment(const sim::World& world,const paid::Plan& plan,const base
     const auto parent=base::owner(world,paid::planned(plan,node.owner).cell),child=base::owner(world,node.cell);
     check(parent&&child,"Paid attachment lost actual owners");bool found=false;
     if(node.command==sim::CommandType::PlaceOriginalMilletField||node.command==sim::CommandType::PlaceOriginalWheatField) {
-        for(const auto& row:world.hunting_food_state()->fields)found|=row.farm_id==*parent&&row.field_id==*child;
+        for(const auto& row:world.agriculture_fields())found|=row.farm_id==*parent&&row.field_id==*child;
     } else if(node.command==sim::CommandType::PlaceOriginalHempField) {
         for(const auto& row:world.original_production_state()->hemp_farms)found|=row.farm_id==*parent&&row.field_id==child;
     } else {
         for(const auto& row:world.plantations_state()->plants)found|=row.source_id==*parent&&row.plant_id==*child;
     }
-    check(found,"Rule29 attachment did not retain the selected paid source");
+    check(found,world.rule_version()==36?"Rule36 attachment did not retain the selected paid source":
+        "Rule29 attachment did not retain the selected paid source");
 }
 inline bool purchase_or_wait(sim::World& world,sim::Command command,const char* reason,Json& commands,Json& blocked) {
     const auto decision=world.validate(command);
@@ -131,7 +168,7 @@ inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked) {
     if(!paid::grid_roads(world,plan,commands,blocked))return false;
     const auto unlocked=base::phase(world);
     for(const auto& node:plan) {
-        if(!included(node)||node.phase>unlocked)continue;
+        if(!included(world,node)||node.phase>unlocked)continue;
         const auto kind=sim::placed_object(node.command);check(kind.has_value(),"Unmapped paid recipe command");
         if(const auto owner=base::owner(world,node.cell)) {
             check(world.building(*owner).kind==*kind,"Paid recipe site occupied by another body");attachment(world,plan,node);continue;
@@ -144,7 +181,7 @@ inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked) {
     }
     if(unlocked>=2&&!base::elite(world))
         if(!purchase_or_wait(world,{sim::CommandType::PlaceOriginalElitePlot,base::elite_cell},"MAC04 separate paid Elite plot",commands,blocked))return false;
-    for(const auto& node:plan)if(included(node)&&node.duplicate&&
+    for(const auto& node:plan)if(included(world,node)&&node.duplicate&&
         node.command!=sim::CommandType::PlaceOriginalWaterWell&&node.command!=sim::CommandType::PlaceOriginalAncestorShrine)
         if(const auto owner=base::owner(world,node.cell);owner&&world.building(*owner).operating_enabled)
             if(!paid::append(world,sim::set_building_operation(*owner,false),"MAC04 pause redundant paid provider",commands,blocked))return false;
@@ -164,7 +201,7 @@ inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked) {
 }
 inline Json remaining_plan(const sim::World& world) {
     const auto plan=paid::plan_for(recipe);Json result=Json::array();
-    for(const auto& node:plan)if(included(node)&&!base::owner(world,node.cell)) {
+    for(const auto& node:plan)if(included(world,node)&&!base::owner(world,node.cell)) {
         sim::Command command{node.command,node.cell};bool owner_ready=!node.owner;
         if(node.owner)if(const auto parent=base::owner(world,paid::planned(plan,node.owner).cell)) {
             command.building_id=*parent;owner_ready=true;
@@ -191,7 +228,11 @@ inline Json house_report(const sim::World& world,const sim::OriginalHouseState& 
         choices.push_back({{"good",static_cast<unsigned>(good)},{"stock",orig::goods_stock(query,good)},
             {"booked_incoming",booked[static_cast<unsigned>(good)]},{"eligible_need",need?Json{{"tier",need->tier},{"stock",need->stock},{"demand",need->demand}}:Json(nullptr)}});
     }
-    Json food=nullptr;for(const auto& row:world.hunting_food_state()->stocks)if(row.building_id==home.building_id)
+    Json food=nullptr;
+    if(world.processed_food_state()) {
+        for(const auto& row:world.processed_food_state()->stocks)if(row.building_id==home.building_id)
+            food={{"stock",row.amounts},{"received",row.received},{"consumed",row.consumed}};
+    } else for(const auto& row:world.hunting_food_state()->stocks)if(row.building_id==home.building_id)
         food={{"stock",row.amounts},{"received",row.received},{"consumed",row.consumed}};
     Json history=Json::array();
     for(const auto& row:world.original_production_state()->housing.houses)if(row.building_id==home.building_id)
@@ -238,9 +279,11 @@ inline void checkpoint(const Context& context,const sim::World& world,const fs::
     valid(world);const auto path=output/(label+".save.json");check(!fs::exists(path),"Preserve previous checkpoint");
     save::write_save(path,context.document(world),context.map.data,context.map.mask);
     const auto document=save::read_save(path);auto restored=context.restore(document);
-    check(restored.snapshot()==world.snapshot(),"Exact schema45 checkpoint differs after restore");
+    check(restored.snapshot()==world.snapshot(),context.latest_agriculture?"Exact schema52 checkpoint differs after restore":
+        "Exact schema45 checkpoint differs after restore");
     const auto roundtrip=output/(label+".roundtrip.json");save::write_save(roundtrip,context.document(restored),context.map.data,context.map.mask);
-    check(q::f::read_text(roundtrip)==q::f::read_text(path),"Canonical schema45 checkpoint bytes differ");
+    check(q::f::read_text(roundtrip)==q::f::read_text(path),context.latest_agriculture?"Canonical schema52 checkpoint bytes differ":
+        "Canonical schema45 checkpoint bytes differ");
     manifest.push_back({{"label",label},{"tick",world.ticks()},{"file",path.filename().string()},{"exact_roundtrip",true}});
 }
 class Observation {

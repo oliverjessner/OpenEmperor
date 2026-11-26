@@ -94,6 +94,11 @@ This mode also shows actual field/plant stages, work and water overlays, and
 physical workers, boats and wildlife. Qualified Original art and labelled
 authored geometry are distinguished in the [visual guide](docs/building-visual-profile.md#rule36-agriculture-state-presentation-agri-mac12).
 
+The [human playtest checklist](HUMAN_PLAYTEST.md) covers the complete current
+Agriculture mode. Its [technical checks](docs/testing.md#final-agriculture-integration-agri-mac14)
+separate actual production/consumption from remaining long-play, luxury and
+native-pointer limitations. Human acceptance remains outstanding.
+
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.
 **L Load Save** continues an existing OpenEmperor save with its own rules.

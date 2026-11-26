@@ -3,6 +3,21 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
+- **Current sanitizer acceptance is incomplete.** Debug/Release pass435 tests
+  each; the sanitized Multi-Field replay hits its unchanged240-second child
+  deadline after completing14000ticks and canonical/Recovery output. Its final
+  verification/report is incomplete, so the full Alpha remains FAIL (434/435
+  sanitizer tests). See the [technical result](docs/testing.md#final-agriculture-integration-agri-mac14);
+  completed files do not turn the timed-out case into a pass.
+
+- **Latest Agriculture city reliability remains partial.** A paid Rule36 city
+  consumes all seven raw Foods and meals over100000 further ticks, but records
+  deficits and House devolutions. A separate supplied-model Xia plan consumes
+  Silk/Lacquerware but misses the paid DES/Food gates for Tea and has no earned
+  luxury retention window. These finite scenarios do not establish sustainable
+  citywide supply. See the [measured gates and next scenario](docs/testing.md#final-agriculture-integration-agri-mac14)
+  and the [human checklist](HUMAN_PLAYTEST.md); human acceptance remains NOT_RUN.
+
 - **Agriculture animation is authored.** Rule36 displays actual saved growth,
   movement, work and cargo with qualified static/stage art or authored geometry.
   Original Grower/Boat/Hunter/animal animation registration and Mill/FoodShop
