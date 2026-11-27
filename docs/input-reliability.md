@@ -178,6 +178,60 @@ remain separate. Missing, zero or mismatched automation coordinates leave
 native mouse delivery **NOT_VERIFIED**; they do not establish a DPI/camera defect.
 The human playtest remains **NOT_RUN** until after MAC14.
 
+The MAC14 closure probe uses a private copy of the validated arm64 Release
+executable on merged base `aa58837`, with the same compiled source as freeze
+`a0f138ea63434707b4f663d905d0dedda625deaf1f4fe0301d806a2af463875d`.
+Its 81 retained, non-overwritten raw events confirm **Metal/Cocoa, SDL3.4.14**.
+An earned loaded-Grower save at1715 is F5-byte-exact; a paused step saves1716,
+another step reaches1717, and native F9 restores1716 before a byte-exact F5.
+The command sequence remains154 throughout. Actual held-arrow pan,1×/2×/4×
+zoom,1100×700/5055×1378 windows, all nine Help pages and both page directions
+are observed. Screenshots were opened and visually inspected in the CUA
+conversation; no on-disk native PNG is claimed.
+
+The single requested native click at `[946,360]` reaches SDL Down/Up as
+`[947.6875,580.43359375]` and selects a different UI tool, without a World
+command. This is an upstream delivery mismatch, not evidence of an app-side
+offset. Native automated mouse/inspector selection remain **NOT_VERIFIED**
+under the prompt's explicit exception; scripted SDL picking remains separate.
+No conversion workaround, game state or historical behavior changes. Original
+inputs and the protected source save retain bytes/mode/mtime. Raw logs and
+verification are under `.local/agri-mac14-close/native-01/`. Human acceptance
+remains **NOT_RUN**.
+
+The final Rule38/policy3/schema54 probes use the unchanged Release executable
+`d0e4917afccc1456fb174a3582539d8c2045f116b48a5a6d0e78bc362c407c74`
+from the931-file freeze
+`78735142a4b8e290188e5715c92f1c971f1566e1ed26a5fb100313ffcab4a4fb`.
+Native05 verifies menu8/Normal/Chengdu, the paid starter, all nine Help pages,
+held-arrow pan,1×/2×/4× zoom and loaded-cargo F5/F9. Its diagnostic bundle
+omits compatibility metadata and therefore uses fallback art. Native06 includes
+the official17 public metadata JSONs; opened native images show qualified
+Original houses, buildings and roads at all three zooms. Unqualified Tent,
+Mill and worker art retains its authored fallback. Both probes use actual
+Metal/Cocoa and SDL3.4.14; these are diagnostic apps, not distribution acceptance.
+
+In Native06, F5 at1715 is byte-equal to the earned source checkpoint, SHA
+`0971dcfa75fae3a54cb077e8c3b2c92ab71e048bced130b6e217e078ab4f8cd3`.
+A step/F5 saves1716; another unsaved step reaches1717. F9/F5 restores1716
+exactly, SHA
+`b9328731bf5e95d209d12e9e3d78241cc07fb70d906df386680870ca04e40293`.
+Pan, zoom and1100×700→5055×1378→1100×700 window changes leave that full
+World save unchanged. The command sequence stays151. Its405 raw events
+coalesce to99 retained records with zero overwrites; earlier user pointer/wheel
+input is not attributed to automation. Automation stopped on user takeover and
+resumed only after explicit confirmation. All probe apps are normally closed.
+The final read-only guard preserves all931 technical files, Alpha/core/history
+proofs, original data, supplied saves, prior native trees and the20-file bundle.
+The final Native06 receipt is
+`.local/agri-mac14-close/native-03/session-06/root-native-observation.json`, SHA
+`7609de4ba0d96ad18c198d30bac02068bca887d873149d5b1f5b8e5957004fe5`.
+
+Automated pointer delivery and600×400 resize remain **NOT_VERIFIED** after
+CUA `noWindowsAvailable`; no speculative transform is introduced. User selection
+of a Tent does not complete the manual checklist. Human acceptance remains
+**NOT_RUN** in [HUMAN_PLAYTEST](../HUMAN_PLAYTEST.md).
+
 ## Historical native-input validation (101-test snapshot)
 
 The same 269 source/CMake/resource files were hashed for all three runs and

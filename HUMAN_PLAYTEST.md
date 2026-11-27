@@ -4,49 +4,89 @@ All human checks below are **NOT_RUN**. Mark each **PASS / FAIL / NOT_RUN**
 only after you perform it. Automated World tests, scripted SDL and native Metal
 captures have separate results in the [technical acceptance](docs/testing.md).
 
-Technical integration remains **PARTIAL**: all 437 automated tests pass in each
-configuration, and latest V2 earns Tea/Silk/Lacquerware consumption plus20400
-post-maturity ticks with nonnegative Funds. A stable single all-chain city,
-uninterrupted Elite17 and the complete native matrix remain open. This checklist
-is a handoff draft; manual observations do not replace those distinct gates.
+The final automated matrix passes 451/451 tests in each of Debug, Release and
+ASan/UBSan, independent 74-case core comparisons and historical persistence.
+The real paid Rule38 city passes all 14 whole-city gates through 120000 ticks,
+including ten complete post-maturity years. Native Metal/Cocoa keyboard and
+full-byte F5/F9 checks pass. The resource-complete native probe also passes
+with qualified Original graphics at 1×/2×/4× and unchanged input guards.
+Automated mouse selection remains **NOT_VERIFIED** after the desktop
+tool returned `noWindowsAvailable`. These results do not complete any human row.
+House retention uses actual source-row needs; uninterrupted Elite17 is not required.
 
 ## Build and isolated session
 
-The integration baseline is merged commit
-`915cfaa2ca5f651a5d7b9f45e7cdb0bdb8c089e4` (merged PR75). Record the actual
-checkout with `git rev-parse HEAD`; use the tested build and source manifest
-identified in the [technical acceptance](docs/testing.md#final-agriculture-integration-agri-mac14).
-Its 912-file manifest, also binding the public core report, is
-`a0f138ea63434707b4f663d905d0dedda625deaf1f4fe0301d806a2af463875d`;
-the validated build metadata records the baseline plus uncommitted performance/QA changes,
-not an installed release. Target: native
-macOS **arm64**, SDL3/Metal, **Rule36 / policy3 / schema52**, marker
-`authored-agriculture-reconfiguration-v1`. Loading an older save retains its
-older rules; it does not test Rule36.
+Implementation commit: **ac10fc5782ff77a559319f4df078373cc8912949**. Record your checkout
+with `git rev-parse HEAD`. The validated Release executable is
+`.local/agri-mac14-close/close05-release/openemperor`, SHA256
+`d0e4917afccc1456fb174a3582539d8c2045f116b48a5a6d0e78bc362c407c74`.
+Its displayed build revision is merged baseline
+`aa58837df2dae184669cb9b096045d7b98f93923` plus the reviewed source changes.
+The exact 931-file source freeze is
+`78735142a4b8e290188e5715c92f1c971f1566e1ed26a5fb100313ffcab4a4fb`;
+see the [technical acceptance](docs/testing.md#final-agriculture-integration-agri-mac14).
+Keep the build's adjacent `resources/Compatibility` directory: it contains
+public metadata needed to admit your own Original graphics. It contains no
+Original assets. This is a locally validated build, not an installed release.
+Target: native macOS **arm64**, SDL3/Metal, **Rule38 / policy3 / schema54**,
+marker `authored-quality-aware-food-dispatch-v1`, revision1, with the inherited
+irrigated-harvest marker/revision. Loading an older save retains
+its older rules; it does not test Rule38.
 
 From the repository root, launch the validated Release executable with your
 own read-only Emperor data and a fresh private session directory:
 
 ```sh
-.local/agri-mac14-perf/final02-release/openemperor \
+.local/agri-mac14-close/close05-release/openemperor \
   --data "$PWD/.local/gog-extracted/app" \
-  --app-root "$PWD/.local/agri-mac14/manual-01"
+  --app-root "$PWD/.local/agri-mac14/human-menu-final-05"
 ```
 
-Select **R Reconfigure (36)**, **Normal**, your map, then **Start sandbox**.
-Use **Cities/Chengdu.map** for the verified current paid starter and earned
-integration city. Current empty schema52 cities also pass on **Cities/Xia.map**
-and **Cities/Loulan.map**. Xia's current fixed starter roads collide with actual
-wildlife; Loulan lacks the legal empty24×13 area. Retain the exact refusal and
+Use a fresh session path. Select **8 Quality-aware Food (38)**, **Normal**,
+**Cities/Chengdu.map**, then **Start sandbox**. **Up/Down** changes the selected
+map; **P** switches between the paid starter and **Empty city**, and **Enter**
+starts. The paid four-House Chengdu starter spends1404 Funds at tick0, with
+no residents or stock; Empty city is suitable for manual paid construction.
+The ordinary starter is a separate bounded layout, not the all-chain QA plan.
+Current Rule38 empty-source checks also cover **Cities/Xia.map** and
+**Cities/Loulan.map** with exact schema54 restores and64 continuation ticks.
+The separate actual starter attempt refuses Xia because a road overlaps live
+wildlife/a Hunter claim, and Loulan because no legal empty24×13 area exists. Retain the exact refusal and
 choose **Empty city** explicitly for ordinary manual paid construction.
 Historical Xia starter/luxury success does not establish a current starter;
 a starter refusal does not mean the whole map is unsupported.
 
 Use ordinary paid construction, immigration and production. Do not edit funds,
-residents, inventory, House level or source models. An earned checkpoint can
-shorten a focused check: copy it into this isolated session's `saves/` directory
-and select **L Load Save**. Preserve its original. Direct `--load-sandbox`
-makes the supplied file the F5 target; `--app-root` is a menu-only option.
+residents, inventory, House level or source models.
+
+For a shorter all-chain check, the actual Release-paid city is retained privately
+at `.local/agri-mac14/paid-complete-city-pcdvojm4/creator/seed.save.json`, tick20000,
+SHA256 `9524df8b085ff81f82d5410a61b7dc7e52911fd45bb0ad13daee7d7ecee7de18`.
+The same directory's `whole-city-final.save.json` is the earned tick120000 result,
+SHA256 `814ff3d5cc0a3060e8c4ecabbef3ad52641e74a31ebe64f8d8ce9f6c7289e491`.
+For loaded-Grower F5/F9, use
+`.local/agri-mac14/irrigated-checkpoint-events-krufuxkw/visual-creator/food-grower-loaded.save.json`,
+tick1715, SHA256 `0971dcfa75fae3a54cb077e8c3b2c92ab71e048bced130b6e217e078ab4f8cd3`.
+These are earned private checkpoints, not files distributed in Git.
+
+Copy a checkpoint to a fresh writable target before direct loading:
+
+```sh
+OE_PLAYTEST_ROOT="$PWD/.local/agri-mac14/human-loaded-final-05"
+mkdir "$OE_PLAYTEST_ROOT"
+cp .local/agri-mac14/paid-complete-city-pcdvojm4/creator/seed.save.json \
+  "$OE_PLAYTEST_ROOT/city.save.json"
+.local/agri-mac14-close/close05-release/openemperor \
+  --data "$PWD/.local/gog-extracted/app" \
+  --load-sandbox "$OE_PLAYTEST_ROOT/city.save.json"
+```
+
+If the directory already exists, choose a new suffix. Direct `--load-sandbox`
+makes that copy the F5 target; `--app-root` is a menu-only option. Preserve the
+earned originals. The mature city's lifetime counters already include all seven
+raw Foods and meals; a later continuation can consume no new Meat because meals
+have priority. Use a new paid city to observe fresh per-kind consumption rather
+than interpreting an unchanged mature counter as a missing lifetime receipt.
 
 ## Controls and observations
 
@@ -75,7 +115,7 @@ Scroll inspectors to see lower rows. House PageUp/Down selects
 
 ## Limits and reporting
 
-Rule36 has **82 lifetime building purchases / 58 movement channels**, five
+Rule38 has **82 lifetime building purchases / 58 movement channels**, five
 Farms,32 lifetime Food fields and an eight-entry pending/closed retirement
 journal. Closed leaves keep history and consume lifetime budgets. Stock-owner
 retirement, refunds, stock teleporting and automatic save migration are absent.
