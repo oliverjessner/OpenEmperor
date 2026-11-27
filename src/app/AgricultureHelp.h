@@ -39,15 +39,16 @@ public:
     const Rect& close_button() const { return close_; }
     std::optional<AgricultureHelpAction> button_at(double x,double y) const;
 private:
-    friend AgricultureHelp prepare_agriculture_help(Rect available_map,int scale);
+    friend AgricultureHelp prepare_agriculture_help(Rect available_map,int scale,bool quality_aware);
     Rect panel_,previous_,next_,close_;
     int scale_=1;
     std::vector<AgricultureHelpPage> pages_;
     std::size_t selected_=0;
 };
 
-// Rule36 controls only. An unavailable/tiny viewport produces no rectangles or
+// Rules36/37/38 controls only. An unavailable/tiny viewport produces no rectangles or
 // pages instead of partially drawn text or invisible control hits.
-AgricultureHelp prepare_agriculture_help(Rect available_map,int scale);
+// Only the explicit38 selection adds its gameplay guidance; older text stays exact.
+AgricultureHelp prepare_agriculture_help(Rect available_map,int scale,bool quality_aware=false);
 
 } // namespace openemperor::sandbox_ui

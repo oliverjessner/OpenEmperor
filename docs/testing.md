@@ -46,7 +46,386 @@ scenario does not prove every layout, long-play outcome or original-game parity.
 
 ## Final Agriculture integration (AGRI-MAC14)
 
-The follow-up uses merged base `915cfaa2ca5f651a5d7b9f45e7cdb0bdb8c089e4`,
+### Current Rule38 closure: automated and scoped native checks PASS
+
+The current completion candidate is explicit **Rule38/policy3/schema54** on
+merged base `aa58837df2dae184669cb9b096045d7b98f93923`. It adds the separately
+selected `authored-quality-aware-food-dispatch-v1` contract/revision1 and retains
+the inherited irrigated-harvest marker/revision1. Rules37 and older, their save
+generations, normal defaults and the82-body/58-channel limits remain separate.
+The implementation is committed as
+`ac10fc5782ff77a559319f4df078373cc8912949`. The tested binaries were built
+before that commit: their displayed revision remains base `aa58837` plus the
+reviewed working-tree changes. The matching Release executable has SHA
+`d0e4917afccc1456fb174a3582539d8c2045f116b48a5a6d0e78bc362c407c74`.
+The post-commit binding verifies all931 technical file bytes/modes/mtimes,
+the public core report and the technical worktree against that commit; it
+claims no rebuild or retest. Its receipt is
+`.local/agri-mac14-close/final-05/implementation-commit-binding.json`, SHA
+`dc4d6197dabbaea7a502d36781fb8e51a11044b1241b9e99927cd12e7365c3a7`.
+The current candidate binds931 technical source/test/resource files:
+`.local/agri-mac14-close/final-05/candidate-source-v1.json`, SHA
+`c86ad398521faf10be376caadbbc9af3fb66c1bfedf35f3c5e10913551a2bf23`.
+Relative to frozen04, only the approved QA header described below changes;
+the other930 file properties remain exact. The preceding04 candidate
+`076dc6356660b195326047feb4a17a72f52a5912168254a4529c0cc5030e30fa`
+followed the completed failed Alpha03 with exactly seven reviewed test-file
+corrections; in that step the other924 file properties remained exact.
+Production, tools, CMake, resources, test selection and deadlines are unchanged.
+That earlier application receipt is `final-04/test-delta-application.json`, SHA
+`3166dfd90fc447cc1229a6c2cad2626d0a6a9129e49a34179a00d91156976e5b`;
+the explicit test-only approval is `boundary-tests-04/approved-test-delta.json`,
+SHA `f13e978370ea1b74e8b6b719d8813352462f394bdb01d844bb7fa4f255fcb0ef`,
+under `.local/agri-mac14-close/`. Root's retained exact20-path production-delta
+and451-case review is
+`final-03/root-source-review.json`, SHA
+`72320a6dcb60a5a2c4720194c6d032532fc8dd7669643d509cd6ef3a15a53bca`,
+under `.local/agri-mac14-close/`. The reviewed World API Git blob is
+`23eb224d7652b5b91d7a5f8f2e276deaf61bf74f`; mechanically undoing the explicit
+37/38 header additions reproduces the retained base header exactly, with the
+same24 Housing API pins.
+
+The retained03 cold core preflight passes74/74 independently in Debug, Release
+and ASan/UBSan. All three portable reports are literal-equal. Compared with the
+retained prior public report, only nine exact `current.files` fingerprints
+change: the two new contract headers, `World.cpp`, `World.h`,
+`WorldAgricultureReconfiguration.cpp`, `WorldOriginalFood.cpp`,
+`WorldOriginalInfluence.cpp`, `original/OriginalModelMapping.h` under
+`src/simulation/`, and `tools/original_rules_parity.py`. Cases, observations and
+46 parity /18 corrected /6 unverified /4 unsupported classifications stay
+unchanged. After explicit review, the actual report was published as
+`docs/original-economy/core-parity.json`, SHA
+`ae003c8686159a3655748c3432706a526d5f5ae52bd5212c083367f42ad2eec7`.
+The prior `ca1b698d…` report and its preservation receipt remain intact.
+
+The actual Alpha03 **FAIL** is retained at
+`.local/agri-mac14-close/alpha-final-03.json`, SHA
+`f2a47883f192995ed2b4ea6d30421efc406da42ed0b9092a00817f97ef96f540`.
+Its three cold builds completed, then Debug ran all451 cases: **444 PASS /
+7 FAIL /0 skipped**. The failed assertions were stale version boundaries in
+`original-model-schema-synthetic`, `original-road-transport`,
+`sandbox-city-v16-geometry`, `food-processing-world`,
+`original-economy-rule-gate`, `original-deadline-inspector-world` and
+`authored-land-trade-world`. Release and sanitizer suites and later Alpha stages
+did not run after that failure. Its supervisor records exit1 and unchanged
+source/historical/Original guards in `final-03/alpha-verification.json`, SHA
+`e303edde7885741af999288e5fd74e8ce4087d917a817835fd19be595a85a09e`.
+The entire attempt remains bound to its931-file freeze
+`5b7ab3a91f4cdcb5542898c375a096d080bd74fd514e9a32133a4e7688d66cd2`;
+no selected rerun or later correction relabels it as PASS.
+
+The matching full Alpha04 is now a completed **FAIL**. Its retained freeze is
+`.local/agri-mac14-close/final-04/frozen-source-v1.json`, SHA
+`289990336aa1f481f7eea7c41e9e723b4b7910bf3b7bad36235ff09436b3b436`.
+`final-04/alpha-process.json` records the actual start at
+2026-11-27T03:01:35Z and Alpha PID53349. Its fresh build destinations are
+`close04-debug`, `close04-release` and `close04-sanitize` under
+`.local/agri-mac14-close/`. The actual report is `alpha-final-04.json`, SHA
+`2286ebc7ef0f8d0631eaac2f56146a12ea46fa33867b375583e070d932e413e6`.
+The reviewed command uses eight bounded jobs on the observed ten-core32GiB
+host; registered serial cases and every per-case deadline remain exact.
+The required inventory is the historical437 plus14 explicit additions, **451
+unskipped cases per configuration**. Historical and new test timeouts are
+checked exactly; no selected retry can stand in for that complete run.
+All three suites completed all451 registered cases with zero skips: **Debug
+451/451 PASS, Release451/451 PASS, ASan/UBSan450/451 PASS with one FAIL**.
+The sole sanitizer failure is `agriculture-paid-complete-city-real`: its first
+Creator exceeded the unchanged600-second child deadline. The raw failure at
+`.local/agri-mac14/paid-complete-city-atu4s2h6/failure.json` records600.031s,
+one timed-out Creator, preserved source inputs and the unchanged600/1800/6720s
+budgets. No final whole-city report was earned by that failed process. This is
+not a failed14-criterion assessment or a license to extend its deadline.
+
+`final-04/alpha-verification.json`, SHA
+`f4ec0667f1af5a9212cc82a8c22d30f6f40910651f5a6dd970da4b3d597e127c`,
+records exit1 and unchanged frozen source/historical/Original guards. The
+post-Alpha controller also exits **FAIL** with no stages, retaining
+`final-04/root-after-alpha-01/result.json`; it started neither independent proofs
+nor RSS measurement. Later general-profile/endurance/render Alpha stages did
+not run after the sanitizer suite failure. Actual corepre03 and public-report
+publication remain retained production evidence; no04 preflight or successful
+full matrix is invented.
+
+A reviewed05 repair changes only `tests/CompleteCityAssessment.h`:
+reuse identical actual population/workforce queries within one const per-tick
+observation and the same stock-owner kind within its twelve-column loop.
+The delta from frozen04 header
+`dffd9da6fcf93e1e4db62be4c5242ab5e5c474b6c085ac8f7b19c64de5749bb5`
+to `93ae6ad86823feecc92340c3665964c4687034dcca6ed8a0661e6b71b507b206`
+was applied after both actual private processes passed. The other930 source
+properties remain exact. Root's actual `final-05/approved-qa-delta.json` has SHA
+`f776570d1acea54fa06d0ef4585a2369c4519fa4209dbad4ce3ab16a6f3c6b8d`.
+Every tick, paired full snapshot, all14 criteria, canonical output and the
+original deadlines remain required.
+
+The first private ASan cache-prototype process completes fresh0 through120000
+in477.509s, within the same600s deadline. Its actual
+`.local/agri-mac14/perf05-cache-sanitize-02/whole-city.json` reports all14 criteria
+PASS and exactly the frozen04 Release assessment; all30 complete seed/early/
+plan/boundary/final artifacts compare byte-for-byte. The second independent
+private process also completes in468.379s under its own unchanged600s limit.
+The actual combined `sanitize-prototype-02/verification.json`, under
+`.local/agri-mac14-close/perf05/assessment-cache-01/`, is **PASS** with both full
+assessments, canonical boundaries and before/after guards exact. This private
+two-process proof is not full05 acceptance.
+
+The actual cold Alpha05 is a completed **PASS**, bound to
+`.local/agri-mac14-close/final-05/frozen-source-v1.json`, SHA
+`78735142a4b8e290188e5715c92f1c971f1566e1ed26a5fb100313ffcab4a4fb`.
+Its actual `final-05/alpha-process.json` records Alpha PID80999, supervisor
+PID80862 and start2026-11-27T07:15:16.641112Z. The fresh build destinations are
+`close05-debug`, `close05-release` and `close05-sanitize` under
+`.local/agri-mac14-close/`. The actual `alpha-final-05.json` has SHA
+`d60a3044cee8b38a8f9cc17bee583f344d7fc53a58216f6580d75b85f7478804`.
+The normal unchanged Alpha CLI uses eight bounded jobs, the same451 registered
+cases per configuration, serial-case declarations, compiler flags and deadlines.
+Debug, Release and ASan/UBSan each complete **451/451 PASS,0 skipped**, in one
+complete cold run. The supervisor records exit0, all guards unchanged and
+`single_complete_full_alpha_pass=true` in `final-05/alpha-verification.json`,
+SHA `26b7497a9d4a86f923f9e7e21c0561cdd87f3eb393cd8a848e28e5c6eb854340`.
+Neither an existing build nor a selected retry substitutes for that result.
+
+The same Alpha also completes100000-tick general-profile endurance with12
+real JSON roundtrips per configuration,3000-frame Debug and sanitizer render
+stress with zero simulation ticks/decode/uploads,100 menu/session cycles,
+actual-data Industry/City-v11 checks and Release arm64 verification. Owned
+texture lifetime counters close at zero. macOS LeakSanitizer remains disabled;
+ASan/UBSan and those separate resource counters retain their stated scopes.
+No package or installed release was produced.
+
+The actual paid38 five-child CTest passes in280.848s Debug,229.002s Release
+and1606.420s ASan/UBSan. Each earns all14 fresh0 criteria through120000,
+maturity13096,106904 post-maturity ticks and ten full windows, with exact
+independent creator/restore/replay and canonical/Recovery artifacts. The
+sanitizer Creator and Creator-replay finish in455.580s and489.368s under their
+unchanged600s child limits; all observer children retain1800s and the outer
+CTest6720s. The completed old04 timeout remains a separate FAIL.
+
+The three actual38 restored-session SliceV1 assessments remain `PARTIAL` with
+new Meat0 and actual exit2, followed by exact independent replay. Their
+`slice_v1_actual_diagnostic_and_replay_exact` is true. The older
+`slice_v1_negative_control_and_replay_exact` flag is false for38 because that
+fixed negative-control label applies only to37; it is not a failed38 replay or
+a claim that38 was compared as the old negative fixture. The actual sanitizer
+detail receipt retains that distinction separately from the fresh0 all14 PASS.
+
+Root also opened all30 actual Release software-view PNGs individually, covering
+ten paid visual subjects at1×/2×/4×. `final-05/release-visual-review.json`, SHA
+`2756c072c530bd4e9530c1bacd73314a7c4480cbea2236b48855dfbdbb9900f9`,
+binds the matching Release JUnit and source freeze. These views use historical
+Rule36/policy3/schema52, retain real roof occlusion and explicitly authored art;
+they establish neither native Metal nor human acceptance for38.
+
+Actual retained03 core/publication evidence stays separate. The fresh matching05
+independent proofs now **PASS**, with all before/after guards equal and the same
+source freeze. Each of Debug, Release and ASan/UBSan independently reproduces
+all74 cases,46 parity /18 corrected /6 unverified /4 unsupported classifications
+and literal current public-report bytes. Historical Rules24–35 retain all246
+artifacts/137 paid saves. The fresh Rule36 continuation preserves24000 ticks,
+20 checkpoints,40 canonical/roundtrip files, six Recovery payloads, the final
+save and complete work trace exactly. The combined receipt is
+`final-05/independent-verification.json`, SHA
+`d66b4bdeddccc539d2327636641a9dd10f2cab54cbe31e296b4153c702827ad0`.
+
+The direct Release QA-observer measurement also **passes**: the actual compiled
+observer continues the earned20000-tick seed for100000 ticks in28.142199s.
+It reproduces all24 canonical/roundtrip files, initial/final states and the
+entire telemetry; its report differs only in actual timing. `/usr/bin/time -l`
+records122765312 bytes peak RSS, exactly117.078125MiB. The separate sampled
+observer-process peak is121765888 bytes; samples can miss brief peaks. These are
+measurements of the QA observer, including paired-World and persistence/audit
+overhead, not GUI memory, unique physical memory or leak proof. The receipt is
+`.local/agri-mac14-close/memory38-05/direct-release-01/measurement.json`, SHA
+`c03d6ff38699c8e8e8b003821bf742671aba60b1f98f5f561740b58420d91460`.
+Its `new_whole_wrapper_or_all14_claim` remains false: the actual Release parent
+paid-city all14 result above supplies that separate acceptance.
+
+The once-only post-Alpha controller completes **PASS**, with no retries and
+unchanged input properties, in `final-05/root-after-alpha-01/result.json`, SHA
+`3cbd8cb6212d7d7059c5c3b246c303f8594902099ca560a87a9dc59923277c68`.
+This binds the actual Alpha, independent and RSS receipts together.
+
+#### Scoped Rule38 native controls, artwork and persistence
+
+Native05 and Native06 use the same matching Release executable above on
+Cocoa/Metal with SDL3.4.14. Native05 observes menu8/Normal/Chengdu's paid
+four-House starter:87 commands spend1404 Funds and retain10596 at tick0.
+F5 writes schema54 with both the Rule38 and inherited Rule37 markers. It also
+checks all nine Help pages, reverse page navigation, pan,1×/2×/4× zoom and
+1100×700↔5055×1378 window resizing. That diagnostic three-file app omitted
+compatibility metadata and displayed fallback art; its guarded result is
+`PASS_SCOPED_NATIVE_CONTROLS_FALLBACK_ART`, not Original-art acceptance.
+
+Native06 uses the complete17-file owned compatibility-metadata layout with
+the same executable/launcher/plist:20 bundle files, no proprietary Original
+payload. External Original files remain read-only. Actual opened CUA views at
+1×/2×/4× show qualified Original houses, buildings and roads. Tent/Mill and
+unqualified workers retain labelled authored fallback; no Original animation
+or whole-scene parity is inferred. The paused loaded Rule38/policy3/schema54
+city starts at tick1715. F5 reproduces its full source save exactly, SHA
+`0971dcfa75fae3a54cb077e8c3b2c92ab71e048bced130b6e217e078ab4f8cd3`.
+One period step followed by F5 earns tick1716, SHA
+`b9328731bf5e95d209d12e9e3d78241cc07fb70d906df386680870ca04e40293`.
+The next period visibly reaches unsaved1717; F9/F5 restores the entire1716
+save byte-for-byte. Right-pan500ms, the1×/2×/4×/1× zoom cycle and
+5055×1378↔1100×700 resizing leave the final F5 at that same1716 SHA.
+The paid command sequence remains151.
+
+Automation stopped when user interaction was detected, then resumed only
+after explicit authorization. The raw405 SDL events coalesce to99 retained
+records with zero overwrites; they include user pointer/wheel input and are
+not automated mouse evidence. Automated pointer/picking and600×400 resizing
+remain **NOT_VERIFIED** after the prior upstream `noWindowsAvailable` error.
+All human and distribution-package acceptance remains **NOT_RUN**. The app
+quit normally and the native app inventory was empty. Read-only Native06
+verification exits0 with all931 source, Alpha451×3, archive, Original-tree,
+save, prior-native and20-file bundle guards unchanged. Its final receipt is
+`.local/agri-mac14-close/native-03/session-06/root-native-observation.json`, SHA
+`7609de4ba0d96ad18c198d30bac02068bca887d873149d5b1f5b8e5957004fe5`,
+status `PASS_SCOPED_NATIVE_ORIGINAL_ART_AND_PERSISTENCE`. Images were opened
+in the CUA conversation; no retained native PNG artifact is claimed. The
+historical `native-01` result below continues to cover Rule36 only.
+
+#### Retained prototypes and provenance limits
+
+The completed Debug prototype is narrower evidence. Its five-child paid-city
+CTest passes in478.18s at the unchanged600s Creator,1800s observer and6720s
+outer limits. Both fresh creators execute the same235 ordinary paid V7
+commands from empty World0; the city retains65 bodies/58 channels and313
+installed workers. All14 fresh-lifecycle criteria pass: actual joint maturity
+is13096, followed by106904 real ticks through120000 and ten complete9792-tick
+windows. Every window renews actual raw-Food, meal and all three luxury House
+debits. Minimum Funds are6341, minimum edible physical reserves60, and actual
+post-maturity taxes99584 cover installed upkeep82006. No actual post-maturity
+devolution is accompanied by a source-row FoodQuality deficit. This finite
+result does not assert uninterrupted highest-tier retention or Original parity.
+
+The actual frozen03 Debug paid-city CTest separately passes in472.16s at
+`.local/agri-mac14/paid-complete-city-5fti1q4_/result.json`. Its five children
+again earn all14 fresh0 criteria, maturity13096,106904 post-maturity ticks and
+ten full windows through120000, with the same6341 minimum Funds,60 minimum
+edible reserve and99584/82006 tax/upkeep totals. Initial/seed/early/plan,
+canonical boundaries, final state and independent process/Recovery comparisons
+pass. These positive subcase results coexist with the overall Alpha03 FAIL;
+they do not establish a complete03 matrix or a future04 pass.
+
+All nine crop source kinds—five Food crops, Hemp, Tea, Lacquer and Mulberry—have
+real physical source returns before maturity; Fish/Meat unloads are checked
+separately. All seven raw Foods, meals and three luxuries are actually consumed
+by Houses during the observed lifecycle. Meat first reaches its House debit
+at1213, before the first grade4 meal debit at4120; that real early consumption
+is retained when Meals later take priority. The shared assessment is constructed
+before any paid command and observes every primary tick; it never imports seed
+prehistory. The restored-session v1 assessment remains a supplemental result:
+this Rule38 prototype reports `PARTIAL`/Meat0 there, and protected Rule37 keeps
+its own `PARTIAL`/Meat0 control. Neither is relabelled as a v1 city pass.
+
+The prototype also earns a physical harvest at3343, paid age79, from64 actual
+wet growth ticks plus16 earned bonus units and five harvest-work ticks. Its
+returning cargo1 remains outside Farm inventory until the real3347 receipt;
+64 restored continuation ticks reproduce it exactly. Independent processes
+reproduce complete initial/seed/early/plan, maturity/year-boundary and final
+canonical bytes. Actual random Recovery filenames remain in reports. Before
+symbolic comparison, each is bound to its real publication metadata and manual
+payload SHA; a bounded whole-city publication ledger retains every metadata
+snapshot, and its final snapshot equals the live history. Ordinary Recovery
+rotation remains start plus the last five checkpoints. This is a QA provenance
+comparison correction, not new gameplay or saved World authority.
+
+The earlier `paid-complete-city-ks150fr6/failure.json` and
+`dev38-debug-01-proof/default37-preservation-result.json` remain **FAIL** records
+of raw report comparisons that encountered different opaque Recovery names.
+The later provenance-aware Rule37 verification separately proves all six
+creator artifacts—including the paid plan, early saves and witness JSON—remain
+byte-identical; only the verified name identities and actual process-replay flag
+differ in report comparison. No failed record is overwritten or reclassified.
+
+The earlier38 event prototype separately passes ten children in395.39s with600s
+per child and6060s outside. The paid visual corpus retains165 exact ordinary
+checkpoints; visual/luxury/reconfiguration replays and missing/shifted receipt
+controls use exact54 manual/Recovery payloads. The retained37 event run passes
+its own ten children in about385s with schema53. Older three-configuration
+Rule36 event passes remain historical evidence, not final38 matrix results.
+
+Within the failed03 Debug suite, the actual Rule36, Rule37 and Rule38 event
+cases also pass separately in356.50s,388.36s and387.29s. Their retained roots
+are `checkpoint-events-z64vl8ga`, `irrigated-checkpoint-events-9kkeqxqp` and
+`irrigated-checkpoint-events-n8se2aam` under `.local/agri-mac14/`. The37/38
+wrappers each complete all ten children with exact53/54 event/manual/Recovery
+bindings. None of these passes supplies the unrun03 Release/sanitizer suites,
+a successful full matrix, native input or human acceptance.
+
+The matching05 Source-map Debug check passes empty Rule38/schema54
+create/save/fresh restore and64 actual ticks on Xia and Loulan, with full
+canonical roundtrips. It linked the18 completed fresh `close05-debug` archives
+while the rest of Alpha05 was running; its build binding names the actual Alpha
+driver and freeze `78735142a4b8e290188e5715c92f1c971f1566e1ed26a5fb100313ffcab4a4fb`.
+All931 technical source properties match that freeze; the15 Original inputs
+and18 archives retain bytes/mode/mtime before and after the probe. The actual
+observations report SHA is
+`aba1f7b8340e21ac73e05c20feb66ff080ae81440b64c85371cb84a4f0b62130`.
+This bounded two-map check does not establish general map playability, a full
+Alpha05 or native acceptance.
+
+No successful paid starter is claimed on either map: Xia records
+`REFUSED_UNPUBLISHED_CANDIDATE` for an actual wildlife/Hunter/current-begun claim
+after36 Roads (72 Funds). Loulan records `REFUSED_LAYOUT` for the missing legal
+empty24×13 level area before mutation. Neither refusal is bypassed or published
+as a city. The earlier `maps38-01/debug-final-04` build-bound result and
+`maps38-01/debug-prototype-01` prototype remain separately retained evidence;
+neither receipt is relabelled as final05.
+
+Private receipts below are independently hash-bound. Overall Alpha03/04 FAILs,
+individual passing subcases and final05/native06 scoped passes remain separate.
+
+| Actual scope and outcome | Private receipt | SHA-256 |
+| --- | --- | --- |
+| Completed05 source freeze | `.local/agri-mac14-close/final-05/frozen-source-v1.json` | `78735142a4b8e290188e5715c92f1c971f1566e1ed26a5fb100313ffcab4a4fb` |
+| Actual05 process start | `.local/agri-mac14-close/final-05/alpha-process.json` | `f113c26ea6a4a672afea6c3a9ae9ef656596b83b8a09ab2b08c0554c0d209a71` |
+| Complete cold Alpha05 PASS | `.local/agri-mac14-close/alpha-final-05.json` | `d60a3044cee8b38a8f9cc17bee583f344d7fc53a58216f6580d75b85f7478804` |
+| Alpha05 complete451×3 and unchanged guards | `.local/agri-mac14-close/final-05/alpha-verification.json` | `26b7497a9d4a86f923f9e7e21c0561cdd87f3eb393cd8a848e28e5c6eb854340` |
+| Matching05 independent core/historical and unchanged guards PASS | `.local/agri-mac14-close/final-05/independent-verification.json` | `d66b4bdeddccc539d2327636641a9dd10f2cab54cbe31e296b4153c702827ad0` |
+| Direct compiled Release QA-observer100k/RSS PASS | `.local/agri-mac14-close/memory38-05/direct-release-01/measurement.json` | `c03d6ff38699c8e8e8b003821bf742671aba60b1f98f5f561740b58420d91460` |
+| Once-only complete post05 controller PASS | `.local/agri-mac14-close/final-05/root-after-alpha-01/result.json` | `3cbd8cb6212d7d7059c5c3b246c303f8594902099ca560a87a9dc59923277c68` |
+| Implementation commit matches validated technical bytes; no rebuild claim | `.local/agri-mac14-close/final-05/implementation-commit-binding.json` | `dc4d6197dabbaea7a502d36781fb8e51a11044b1241b9e99927cd12e7365c3a7` |
+| Native05 scoped controls/persistence with fallback art | `.local/agri-mac14-close/native-02/session-05/root-native-observation.json` | `891fb3aca7970a4b1c82a95f7ddc32f7f153534e5ce395a6dc17219e1a2e7ea5` |
+| Native06 scoped qualified art/persistence and unchanged guards PASS | `.local/agri-mac14-close/native-03/session-06/root-native-observation.json` | `7609de4ba0d96ad18c198d30bac02068bca887d873149d5b1f5b8e5957004fe5` |
+| Actual05 Debug451/451 PASS | `.local/agri-mac14-close/close05-debug/alpha-ctest.xml` | `e7ddfa70a59238a74792399d1a49caafb63655925b15d15c58c226f256af1185` |
+| Actual05 Release451/451 PASS | `.local/agri-mac14-close/close05-release/alpha-ctest.xml` | `a1674e4149ba20d1718b6a70411ee52169cf78ec7e792403b57c48e7a931d004` |
+| Actual05 sanitizer451/451 PASS | `.local/agri-mac14-close/close05-sanitize/alpha-ctest.xml` | `57d3a5cea30fd08af6ba5e486520f4cec36b2ce035e2cd565f108a103fbecc35` |
+| Actual05 Debug paid38 five-child PASS | `.local/agri-mac14/paid-complete-city-e1rijls_/result.json` | `30fc94f201633c2c11061e145157e93c8fa3da44cf653d1a0360b67614346261` |
+| Actual05 Release paid38 five-child PASS | `.local/agri-mac14/paid-complete-city-pcdvojm4/result.json` | `9bec0539e6fa24e8e615df6fb5d26c6cbd09d2717971cb7b12b688ebcc847b3d` |
+| Actual05 sanitizer paid38 five-child PASS | `.local/agri-mac14/paid-complete-city-toh4i7l4/result.json` | `0acfbcb6e80a50c08f1198c752fdef1b857f151c8a71866dad2874ba17a0c243` |
+| Sanitizer fresh0/SliceV1 distinction | `.local/agri-mac14-close/final-05/root-sanitize-paid-details-v2.json` | `19d9f16e00ac2507d07359fd4512b8f7b0d38c39ff96b1854ac5965bb327ff0b` |
+| Thirty individually opened Release Rule36 software PNGs | `.local/agri-mac14-close/final-05/release-visual-review.json` | `2756c072c530bd4e9530c1bacd73314a7c4480cbea2236b48855dfbdbb9900f9` |
+| Actual retained03 core74×3 preflight | `.local/agri-mac14-close/final-03/core-preflight-verification.json` | `000dca8c9adc387bd1998888208f1cb0bb6d20c56317cd197db40dcd0337e481` |
+| Explicit reviewed public-core publication | `.local/agri-mac14-close/final-03/core-publication.json` | `d872c9e59b825794c4703644a52a55698c07cd75e5307861d7115176e04b3636` |
+| Actual03 Debug paid38 five-child subcase | `.local/agri-mac14/paid-complete-city-5fti1q4_/result.json` | `e8aa6fbe5e84055837f7b0a06339a47bf71e5790a9a59d7248112a234a6e7abd` |
+| Actual03 Debug event36 subcase | `.local/agri-mac14/checkpoint-events-z64vl8ga/result.json` | `8fb49ec0efd979d0be31ad7f135c5d827ee4b87b672daac95d6f4f531cea6022` |
+| Actual03 Debug event37 ten-child subcase | `.local/agri-mac14/irrigated-checkpoint-events-9kkeqxqp/result.json` | `e4239dfd02d0cc57be68dbe6a917750ba500a6735886aaf0b9d43446e2c74690` |
+| Actual03 Debug event38 ten-child subcase | `.local/agri-mac14/irrigated-checkpoint-events-n8se2aam/result.json` | `9784f0b718341ac7e04b73f54b1e5ca02675110264ee3188a7355e8dd2440802` |
+| Actual04 Debug451/451 PASS | `.local/agri-mac14-close/close04-debug/alpha-ctest.xml` | `c727d3b14ba14608f8f75120bfb2d029a208097d3fd80aeeee1a5fcf2986b900` |
+| Actual04 Release451/451 PASS | `.local/agri-mac14-close/close04-release/alpha-ctest.xml` | `3c69e4edfa0150441840f8f215c6555c34af95234ca51fd864f48167c6ca0fa8` |
+| Actual04 sanitizer450/451; one FAIL | `.local/agri-mac14-close/close04-sanitize/alpha-ctest.xml` | `26b9f034c2b0121614a4f36f7bef42f017c5aae12e24c4e2385950c0030bf521` |
+| Retained full Alpha04 FAIL | `.local/agri-mac14-close/alpha-final-04.json` | `2286ebc7ef0f8d0631eaac2f56146a12ea46fa33867b375583e070d932e413e6` |
+| Actual04 raw600s Creator timeout | `.local/agri-mac14/paid-complete-city-atu4s2h6/failure.json` | `fa8b77a2f002656c319492a9f475d54c3859c9288473c7d33ce40d1235692399` |
+| Post04 controller FAIL with no stages | `.local/agri-mac14-close/final-04/root-after-alpha-01/result.json` | `012cdb787965a9f19c7955f2077f8e46521e0749df0605deecd01dd21bcbfc93` |
+| First private ASan cache prototype only | `.local/agri-mac14/perf05-cache-sanitize-02/whole-city.json` | `063cfc93843d9ae7b4f3e0e03c1cd549d73fb5b9d73cf2505269819e11eae8d3` |
+| Second private ASan cache replay only | `.local/agri-mac14/perf05-cache-sanitize-replay-02/whole-city.json` | `db68b2169a30c752798ab092137c0f7f4285d335fd86b21ab79d1a97d0573bfc` |
+| Combined private two-process ASan prototype PASS | `.local/agri-mac14-close/perf05/assessment-cache-01/sanitize-prototype-02/verification.json` | `8acabfbfe09cfe7451d26e711868c21c75a914b0ef300cc2eee513cdc427a201` |
+| Paid38 five-child fresh0 prototype | `.local/agri-mac14/paid-complete-city-c6bmef3n/result.json` | `ea2a8cb63c13dc2d5858372fc511c375b568179ed1b6d78b28ac94a7664fc083` |
+| Event38 ten-child prototype | `.local/agri-mac14/irrigated-checkpoint-events-wx0umn7m/result.json` | `aa49d0ae8522505b6c7ae004bebdf4e9fb54fe32c80be0eed814492f99771525` |
+| Retained event37 ten-child prototype | `.local/agri-mac14/irrigated-checkpoint-events-wse63x9n/result.json` | `85faa8baa8bf217996c95cf3b067622ee8c21aaa947f1d0e583a7723b25770bc` |
+| Genuine default37 artifact preservation | `.local/agri-mac14-close/dev38-debug-01-proof/default37-provenance-aware-verification.json` | `685d3f71403061e718cee93598ddd7c0dfcd30ad4ab66f2bdcd4c0e4e17fe0e2` |
+| Matching05 Debug empty source-map38 check | `.local/agri-mac14-close/maps38-01/debug-final-05/verification.json` | `657e507d1923296f6deee1860c0f287687cce0a5c3d83b8ae07aa55865bd69b1` |
+| Matching05 map source/build binding | `.local/agri-mac14-close/maps38-01/debug-final-05/frozen-build-binding.json` | `12c881ccd4701ceaf1e8e680323d3d1081cfe9ab086b965be8ab797e8aea0ca6` |
+| Retained matching04 Debug empty source-map38 check | `.local/agri-mac14-close/maps38-01/debug-final-04/verification.json` | `9b66af1ce71821d946a016b66abfb021f17d0b4ace8d5ae0234f2c7494f31e2c` |
+| Retained matching04 map source/build binding | `.local/agri-mac14-close/maps38-01/debug-final-04/frozen-build-binding.json` | `c2da89b906d7b01252a5952cef9d85147b687945cb14849747e6997552cd6830` |
+| Retained empty source-map38 prototype | `.local/agri-mac14-close/maps38-01/debug-prototype-01/verification.json` | `68d877d025748e4cc241ef58744ac5728b20431afebc33c2f5425b85a227e7e5` |
+
+### Historical Rule36 baseline and retained attempts
+
+The merged PR76 evaluation uses base `915cfaa2ca5f651a5d7b9f45e7cdb0bdb8c089e4`,
 **Rule36/policy3/schema52**. Its frozen 912-file source/test/resource manifest is
 `a0f138ea63434707b4f663d905d0dedda625deaf1f4fe0301d806a2af463875d`.
 It additionally binds the public core report SHA
@@ -54,7 +433,7 @@ It additionally binds the public core report SHA
 Only transient validation allocations and QA scenarios change; there is no new
 gameplay generation, saved authority, migration, default or budget increase.
 
-The complete public Alpha now **passes 437/437 cases in each of Debug, Release
+That baseline's complete public Alpha **passes 437/437 cases in each of Debug, Release
 and ASan/UBSan**, with no skips. It ran from three new cold arm64 builds and
 retained all 435 prior cases plus the allocation and explicit V2 regressions.
 The result is `.local/agri-mac14-perf/alpha-final-02.json`, SHA
@@ -63,8 +442,9 @@ the supervisor confirms one complete run, exit0 and unchanged source, public
 core-report, Original, prompt and historical guards. General-profile100000-tick
 endurance/12 JSON roundtrips per configuration,3000-frame Debug/sanitizer stress,
 100 menu sessions, actual-data smoke and Release arm64 checks also complete.
-This closes technical regression, not the stable all-chain city or native/human
-acceptance gates below. Both earlier failed Alpha attempts remain retained.
+This establishes regression evidence for that historical frozen source, not the
+931-file Rule38 candidate above. The Rule36 native results are recorded below;
+they do not cover Rule38. Both earlier failed Alpha attempts remain retained.
 
 Independent probes linked to these final builds also pass 74 cases per
 configuration, preserving 46 parity /18 corrected /6 unverified /4 unsupported
@@ -103,6 +483,66 @@ earned schema52 city into a fresh private directory:
   --output "$PWD/.local/agri-mac14/replay-01" --ticks 100000 \
   --replay "$PWD/.local/agri-mac14/city-01"
 ```
+
+Select `--complete-city` on both invocations for the separate
+`paid-complete-city-acceptance-v1` QA contract. It requires one installed,
+source-bound all-chain city, actual supply to21 paid Ditches, new House debits
+of seven raw Foods, meals and all three luxuries, then at least20400 ticks
+and two full seasonal-cycle windows after their joint maturity. Every full
+window must renew actual raw-Food, meal and luxury consumption. Held edible
+Food must remain positive; Mill raw inputs, active recipes, cargo and claims
+are excluded from that reserve. Actual source-row FoodQuality evaluations,
+devolutions, occupied households, worker bounds and tax/upkeep cashflow remain
+visible. The finite retention gate covers occupied households and their
+Common/Elite family, with no actual devolution accompanied by a FoodQuality
+deficit; it does not assert uninterrupted highest-tier retention. Upward
+progression excludes admission and downward `Evolution` journal entries.
+
+This flag only observes the existing World. Its default-mode comparison must
+retain all twelve canonical checkpoints and all pre-existing telemetry fields;
+the separate-process replay must reproduce the complete assessment as well.
+The four hostile-save controls must reject restore and write without changing
+the earned final save. Exit2 means `PARTIAL`, not positive city acceptance.
+An input save alone establishes no paid creator provenance.
+
+The restored-session v1 contract retains its own time origin. In the actual
+paid V6 timeline, Houses consume Meat at1213 and1672, before the first complete
+nine-kind source return at12342. A mature Meals-first city can therefore consume
+no additional raw Meat after its20000-tick checkpoint. Such a v1 run stays
+`PARTIAL`; its report is not relabelled as whole-city acceptance.
+
+The separate `paid-complete-city-from-zero-v2` QA contract observes an explicitly
+selected fresh paid Rule37 or Rule38 city from actual World tick0. Its sealed observation starts with no
+buildings, residents, Food or paid history and follows every real construction
+command and tick. It requires the same consumption, retention, reserve,
+workforce, finance and annual-renewal gates, with all nine physical source kinds
+returned before actual joint maturity. Early raw Food consumption remains part
+of that earned lifecycle when later Meals take priority. It adds no saved state,
+Food, resident, timer, quantity or gameplay rule.
+
+Select the creator's explicit `--whole-city-ticks 100000` option to retain its
+ordinary20000-tick paid seed and then continue the same World to120000. A fresh
+source-bound restore of that seed must stay exact on every continuation tick;
+another process rebuilds the entire run from0. The separate `whole-city.json`,
+maturity/year-window checkpoints and `whole-city-final.save.json` bind actual
+World observations and canonical bytes. The ordinary restored observer must
+reach that same final save. Protected37 retains its separate v1 Meat0 negative
+control;38 reports its actual unchanged v1 criteria. The completed38 prototypes
+and matching cold451×3 Alpha05 plus independent/RSS proofs are recorded above;
+the scoped Native06 artwork/control/persistence proof also passes. Automated
+pointer/small-window and human acceptance retain their separate open statuses.
+
+The optional `--checkpoint-recovery` on the visual and latest-luxury tools
+selects `qa-event-checkpoint-recovery-v1`. It publishes canonical manual saves
+and an ordinary bounded Recovery history at actual work, loaded movement,
+accepted receipt, Pump fire/recovery and exact year-boundary epochs. A fresh
+World must restore each publication exactly. Replay independently earns the
+required event identities and ticks; shifted or missing receipt checkpoints
+are refused. Older Recovery payloads rotate normally after verification.
+The `agriculture-event-checkpoint-recovery-real` test creates its seed through
+the ordinary paid MAC10 tool, compares default and opt-in canonical state,
+then runs separate replays and both damaged-plan controls. This is API-level
+Save/Recovery evidence; native F5/F9 remains the distinct check below.
 
 The input map/difficulty/model are bound by exact restore. Duration is bounded
 20400–200000 ticks; existing outputs, duplicate arguments, wrong maps and
@@ -207,23 +647,26 @@ false claim that this helper itself is transactional. These checks establish
 bounded start/persistence support, not every commodity/layout or observed menu
 publication behavior.
 
-The milestone matrix distinguishes merged feature acceptance from the remaining
-latest-generation integration gates. Historical evidence never migrates a save
-or proves a newer generation's city stability.
+The milestone matrix distinguishes historical feature acceptance from current
+Rule38 closure. The matching cold451×3 Alpha05, independent proofs and external
+RSS check pass, as do the scoped Native05/06 controls, artwork and persistence
+checks. Automated native pointer/small-window and human acceptance remain
+unverified/unrun. Alpha04 remains FAIL. Historical evidence never migrates a
+save or proves a newer generation's city stability.
 
 | Milestone | Rule/schema boundary | Evidence and remaining scope | Result |
 | --- | --- | --- | --- |
-| MAC04 luxury | 29/45; explicit V2 plan36/52 | Supplied-model paid29 and latest V2 consume Tea/Silk/Lacquerware and earn20400 post-maturity ticks. V2 keeps nonnegative Funds; uninterrupted Elite17 remains unproved. | PASS finite historical/latest V2 |
-| MAC05 multiple fields | 30/46, inherited36/52 | Paid shared labor, five-crop consumption and both independent14k processes pass in all configurations at the unchanged240s child deadlines. | PASS |
-| MAC06 physical Growers | 31/47, inherited36/52 | At-field work, typed loaded return, reservations, actual source receipts and independent persistence; no raw Actor26 parity claim. | PASS |
-| MAC07 seasons | 32/48, inherited36/52 | Nine crop windows, expiry/return guards and latest ten-year-boundary continuation. Sustainable reserves remain a separate open city gate. | PASS bounded mechanics |
-| MAC08 water productivity | 33/49, inherited36/52 | Paid matched wet/dry work,21 supplied cells, real Pump fire/recovery, carry/clipping and exact replay; no Original yield claim. | PASS bounded mechanics |
-| MAC09 processing | 34/50, inherited36/52 | Actual ingredient debits, grades1–4 suites; latest grade2 meals physically arrive and are consumed910 further times. | PASS |
-| MAC10 Warehouses | 35/51, inherited36/52 | Typed physical input/output, return room, actual Market/Shop receipt and exact replay in the sole Food account. | PASS |
-| MAC11 reconfiguration | 36/52 | Paid leaf drainage/removal/rebuild and hostile saves; source/stock-owner retirement remains deliberately refused. | PASS scoped contract |
-| MAC12 presentation | 36/52 | Earned165-state corpus, saved work/cargo art and pure frames. Unqualified Original actor animation remains authored fallback. | PASS scoped presentation |
-| MAC13 input | 36/52 | Shared cancellation, prepared Help, scripted paid input and recorded native keyboard checks. Native automated pointer acceptance remains unverified. | PASS scoped input |
-| MAC14 complete city | 36/52 | Complete437-case Alpha passes in all configurations and finite latest luxury/finance passes. No single stable all-chain city, uninterrupted Elite17 or complete native matrix has passed. | PARTIAL |
+| MAC04 luxury | Historical29/45 and V2 plan36/52; current38/54 | Historical V2's levels/devolutions remain recorded below. Current paid38 consumes Tea/Silk/Lacquerware in all ten post-maturity years, retains the occupied luxury cohort and passes all14 criteria with positive reserves/Funds. No uninterrupted Elite17 or universal retention claim. | PASS finite current/historical scope |
+| MAC05 multiple fields | 30/46; inherited through38/54 | Historical paid shared-labor/five-crop and independent14k suites pass at unchanged240s deadlines. Current38 earns all five physical crop returns and House debits in the integrated city. | PASS |
+| MAC06 physical Growers | 31/47; inherited through38/54 | At-field work, loaded return, reservations, actual source receipts and independent persistence pass; current38 also proves the earned early harvest/return. No raw Actor26 parity claim. | PASS |
+| MAC07 seasons | 32/48; inherited through38/54 | Nine crop windows and expiry/return guards pass. Current38 completes ten full post-maturity years, with repeated raw/meal/luxury debits, minimum edible reserve60 and nonnegative Funds; historical shortages remain recorded. | PASS bounded mechanics/integrated city |
+| MAC08 water productivity | 33/49; repaired admission37/53, inherited38/54 | Matched wet/dry work,21-cell mechanics, Pump fire/recovery and carry/clipping pass. Current38 has31 supplied ditches and exact early earned-growth/return proof. No Original yield claim. | PASS bounded mechanics |
+| MAC09 processing | 34/50; inherited through38/54 | Historical grades1–4 ingredient/arrival suites pass. Current38 physically produces/delivers grade4 meals and renews meal debits in every full year; no FoodQuality-deficit devolution. | PASS |
+| MAC10 Warehouses | 35/51; inherited through38/54 | Typed physical input/output, return room, actual Market/Shop receipt and exact persistence pass, including the current integrated city's sole Food account. | PASS |
+| MAC11 reconfiguration | 36/52; inherited through38/54 | Paid leaf drainage/removal/rebuild, hostile saves and explicit current-generation event/Recovery replay pass. Source/stock-owner retirement remains deliberately refused. | PASS scoped contract |
+| MAC12 presentation | Historical36/52; current38/54 | Earned165-state event corpus and pure-frame checks pass;30 actual Release Rule36 PNGs are opened. Native06 opens qualified House/building/road art at1×/2×/4× in38. Unqualified art/animation retains authored fallback. | PASS scoped presentation |
+| MAC13 input | Historical36/52; current38/54 | Shared cancellation/Help/scripted paid input pass. Native05/06 verify38 menu8, Help, pan, zoom, large resize and byte-exact F5/F9. Automated pointer/picking and600×400 remain NOT_VERIFIED; human NOT_RUN. | PASS scoped input |
+| MAC14 complete city | Historical36/52; explicit38/54 | Cold Alpha05 passes451/451×3 and paid38 all14 fresh0/replay at unchanged600s San Creator limits. Matching74×3/historical, direct100k QA-observer/RSS and scoped Native06 qualified-art/persistence guards pass. Old03/04 FAILs and native36 remain separate. | PASS finite technical scope |
 | User human playtest | Explicit selected generation | Follow HUMAN_PLAYTEST only as manual observations; no automated run fills these rows. | NOT_RUN |
 
 The prior unchanged public Alpha ran once on three fresh arm64 builds:
@@ -272,6 +715,22 @@ then-current public-report bytes. Historical Rules24–35 retained246 artifacts/
 the Rule36 replay retained24000 ticks,20 checkpoints,40 canonical/roundtrip files,
 six Recovery payloads, the command plan and entire work trace byte-exact.
 
+The retained Rule36 closure native probe confirms actual **Metal/Cocoa/SDL3.4.14**
+from81 retained raw events, with no overwritten records. It loads an earned
+Grower-cargo city at1715, saves exactly, steps to1716, saves, steps to1717 and
+uses native F9→1716/F5 with complete canonical equality. Held-arrow camera,
+1×/2×/4× zoom,1100×700 and5055×1378 windows, nine Help pages and reverse page
+navigation are observed with the validated Release executable. Opened CUA
+screenshots are visually inspected; no retained native PNG is claimed.
+The requested click `[946,360]` arrives at SDL as
+`[947.6875,580.43359375]`, selecting a different UI tool while command sequence
+154 stays unchanged. Native automated pointer/inspector selection is therefore
+**NOT_VERIFIED**, as explicitly permitted by MAC13/14 for bad upstream input.
+This does not imply a game coordinate defect or human acceptance. The source
+save and Original input properties remain exact. Raw log and receipt:
+`.local/agri-mac14-close/native-01/verification.json`; see the
+[native-input contract](input-reliability.md#agriculture-input-and-help-agri-mac13).
+
 The prior native probe visibly loaded the earned Chengdu tick1715/loaded
 Grower city, handled OS keyboard Save/Load and opened Help. Final private F5
 bytes equal the protected source checkpoint. Its forced Cocoa/Metal backend
@@ -281,7 +740,8 @@ PageDown dispatch. Exact single-step tick, Help navigation, camera/zoom and
 valid automated mouse remain **NOT_VERIFIED / NOT_RUN** in this probe. Screenshots
 were opened in the conversation; no retained native PNG artifact is claimed.
 The earlier MAC13 native evidence below remains its separate historical run.
-No new native/human acceptance, installed package, notarization or release is claimed.
+That prior probe establishes no additional native acceptance; no human acceptance,
+installed package, notarization or release is claimed.
 
 During that prior failed-Alpha evaluation, public Alpha helpers separately passed general-profile
 100000-tick endurance with12 real JSON roundtrips in each configuration,

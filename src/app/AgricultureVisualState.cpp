@@ -62,7 +62,9 @@ public:
     Preparation(const sim::World& world,Staffing staffing):world_(world),staffing_(staffing) {}
     Cache run() {
         Cache cache;cache.tick=world_.ticks();cache.sequence=world_.command_sequence();
-        if(world_.rule_version()!=sim::kAgricultureReconfigurationRuleVersion||!world_.agriculture_reconfiguration_enabled())return cache;
+        if((world_.rule_version()!=sim::kAgricultureReconfigurationRuleVersion&&
+            world_.rule_version()!=sim::kIrrigatedHarvestRuleVersion&&
+            world_.rule_version()!=sim::kQualityAwareFoodDispatchRuleVersion)||!world_.agriculture_reconfiguration_enabled())return cache;
         for(const auto& body:world_.buildings()) {
             if(!body.placed||!supported(body.kind))continue;
             auto source=body.id;

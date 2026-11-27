@@ -146,6 +146,13 @@ FoodBatchQuality batch_quality(const AgricultureAmounts& a) {return agriculture_
 FoodBatchQuality batch_quality(const FishingFoodAmounts& a) {return agriculture_batch_quality(a);}
 FoodBatchQuality batch_quality(const HuntingFoodAmounts& a) {return agriculture_batch_quality(a);}
 FoodBatchQuality batch_quality(const ProcessedFoodAmounts& a) {return agriculture_batch_quality(a);}
+template<class Amounts> Amounts quality_aware_target_raw_load(const Amounts& available,int space,
+        const original::HouseState& target,const original::HouseEvolutionRules& rules) {
+    const auto limit=std::min({4,volume(available),space});
+    if constexpr(std::is_same_v<Amounts,ProcessedFoodAmounts>)
+        return quality_aware_raw_food_load(available,limit,rules.value(original::house_row(target.type),original::HouseField::FoodQuality));
+    else return portions(available,limit);
+}
 std::uint64_t fish_origin(const FishingState* state,BuildingId quay) {
     if(!state) invalid("Fish origin requires its sole Fishing authority");
     const auto row=std::find_if(state->quays.begin(),state->quays.end(),[&](const auto& value){return value.quay_id==quay;});
@@ -303,8 +310,25 @@ void validate_food(const Food& food,const Buildings& buildings,const Couriers& c
                 const auto through=agriculture_retirement_tick(reconfiguration_context,field.field_id,ticks);
                 if(through>ticks||through<b.placed_tick)invalid("Food Field retirement age invalid");
                 const auto age=through-b.placed_tick;
-                if(field.harvested>age/80 || (check_progress && field.harvested==age/80 &&
-                    static_cast<std::uint64_t>(farm.progress)>age%80))
+                if(irrigated_harvest_enabled(profile,rule)||quality_aware_food_dispatch_enabled(profile,rule)) {
+                    // Rule37 admits only growth actually earned by the existing
+                    // paid Field histories. Wall-clock potential is no authority.
+                    if(!multi_context||!seasonal_context||!irrigation_context)
+                        invalid("Irrigated harvest requires complete actual earned-work histories");
+                    const auto work=std::lower_bound(multi_context->fields.begin(),multi_context->fields.end(),field.field_id,
+                        [](const auto& value,BuildingId id){return value.field_id<id;});
+                    const auto season=std::lower_bound(seasonal_context->fields.begin(),seasonal_context->fields.end(),field.field_id,
+                        [](const auto& value,BuildingId id){return value.field_id<id;});
+                    if(work==multi_context->fields.end()||work->field_id!=field.field_id||work->farm_id!=field.farm_id||
+                        season==seasonal_context->fields.end()||season->field_id!=field.field_id||work->productive_ticks>age)
+                        invalid("Irrigated harvest lost its paid actual Field work");
+                    const auto earned=irrigation_earned_work(work->productive_ticks,irrigation_context,field.field_id);
+                    if(season->wasted_work>earned)invalid("Irrigated harvest waste exceeds actual earned growth");
+                    const auto net=earned-season->wasted_work;
+                    if(field.harvested>net/80||net-field.harvested*80>80||(check_progress&&farm.progress))
+                        invalid("Irrigated harvest exceeds actual earned growth");
+                } else if(field.harvested>age/80 || (check_progress && field.harvested==age/80 &&
+                          static_cast<std::uint64_t>(farm.progress)>age%80))
                     invalid("AUTHORED harvest exceeds its paid80-tick opportunities");
             }
             add(harvest[g],crop_origin(field,physical_context));
@@ -856,7 +880,7 @@ CourierDispatchDecision World::original_food_dispatch_status(const CourierState&
             if (a.next_departure!=b.next_departure) return a.next_departure<b.next_departure;
             return false; // Exact ties retain canonical cyclic order.
         };
-        bool eligible=false,room=false,missing_road=false;
+        bool eligible=false,room=false,missing_road=false,quality_blocked=false,qualified_raw=false;
         for (std::size_t i=0;i<count;++i) {
             const auto& target=*canonical[(start+i)%count];
             if (!target.operating_enabled || building_on_fire(target.id) || home(original_economy_->houses,target.id).house.occupants<=0) continue;
@@ -866,6 +890,13 @@ CourierDispatchDecision World::original_food_dispatch_status(const CourierState&
             if (target_space(target.id)<=0 || (food_processing_enabled()&&
                 !volume(available_load(food,c.owner,target.id,target.kind,c.role,food_warehouses_enabled())))) continue;
             room=true;
+            if(quality_aware_food_dispatch_enabled()&&c.role==CourierRole::OriginalFoodToHouse) {
+                if(!volume(quality_aware_target_raw_load(available_load(food,c.owner,target.id,target.kind,c.role,food_warehouses_enabled()),
+                    target_space(target.id),home(original_economy_->houses,target.id).house,original_rules_model_->house_rules()))) {
+                    quality_blocked=true;continue;
+                }
+                qualified_raw=true;
+            }
             const auto route=std::lower_bound(c.dynamic_target_routes.begin(),c.dynamic_target_routes.end(),target.id,
                 [](const auto& entry,BuildingId key){return entry.first<key;});
             if (route==c.dynamic_target_routes.end() || route->first!=target.id || !route->second || route->second->size()<2) {
@@ -915,7 +946,9 @@ CourierDispatchDecision World::original_food_dispatch_status(const CourierState&
         if (selected) return {CourierDispatchStatus::Ready,selected->target};
         if (!eligible) return {CourierDispatchStatus::NoTarget,{}};
         if (!room) return {CourierDispatchStatus::TargetFull,{}};
-        return {missing_road ? CourierDispatchStatus::NoRoad:CourierDispatchStatus::NoTarget,{}};
+        if (missing_road) return {CourierDispatchStatus::NoRoad,{}};
+        if (quality_blocked&&!qualified_raw) return {CourierDispatchStatus::NoQualifiedFood,{}};
+        return {CourierDispatchStatus::NoTarget,{}};
     }
     std::array<const BuildingState*,Rules::city_v10_household_limit> targets{};std::size_t count=0;
     for (const auto& b:buildings_) if (courier_can_target(c.role,b,profile_,rule_version_) && b.operating_enabled && !building_on_fire(b.id)) {
@@ -954,7 +987,11 @@ void World::dispatch_original_food(CourierState& c) {
         headroom=std::min(headroom,std::max(0,4-raw-incoming_raw(candidate,target)));
     }
     const auto amount=std::min({4,volume(available),headroom});if (!amount) return;
-    typename std::remove_cvref_t<decltype(food.trips)>::value_type next{{c.id,previous ? previous->transfer.sequence+1:1},c.owner,target};next.loaded=portions(available,amount);
+    typename std::remove_cvref_t<decltype(food.trips)>::value_type next{{c.id,previous ? previous->transfer.sequence+1:1},c.owner,target};
+    next.loaded=quality_aware_food_dispatch_enabled()&&c.role==CourierRole::OriginalFoodToHouse ?
+        quality_aware_target_raw_load(available,headroom,home(original_economy_->houses,target).house,original_rules_model_->house_rules()):
+        portions(available,amount);
+    if(!volume(next.loaded))return;
     for (std::size_t g=0;g<next.loaded.size();++g) {source.amounts[g]-=next.loaded[g];add(source.departed[g],static_cast<std::uint64_t>(next.loaded[g]));}
     if (auto* prior=trip_for(candidate.trips,c.id)) *prior=next;
     else candidate.trips.insert(std::lower_bound(candidate.trips.begin(),candidate.trips.end(),c.id,[](const auto& trip,CourierId key){return trip.transfer.courier_id<key;}),next);

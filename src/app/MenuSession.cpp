@@ -23,7 +23,7 @@ enum Action { ChooseFolder=1, NewGame, LoadGame, Resume, DataFolder, Quit,
     OriginalNewGame, OriginalDifficulty, OriginalStarter, OriginalFireProtectionNewGame, OriginalSustainableEconomyNewGame,
     OriginalMarketLogisticsNewGame, OriginalCardinalWaterNewGame, OriginalInspectorCoordinationNewGame, OriginalDeadlineFireDispatchNewGame, OriginalDeadlineServiceDispatchNewGame, OriginalDeadlineFoodDispatchNewGame, OriginalSafeDemolitionNewGame, RecommendedOriginalNewGame, AdvancedModes, SourceCellRampsChoice, AuthoredLandTradeNewGame,
     OriginalMusicVenuesNewGame, OriginalVenueHouseServiceNewGame, StarterEmptyCity, StarterChooseMap, OriginalAgricultureNewGame, OriginalIrrigationNewGame, PlayableAgricultureNewGame, PlayableFishingNewGame, PlayableHuntingNewGame, MultiFieldAgricultureNewGame, PhysicalFoodGrowersNewGame,
-    SeasonalAgricultureNewGame, IrrigationProductivityNewGame, FoodProcessingNewGame, FoodWarehousesNewGame, AgricultureReconfigurationNewGame, MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
+    SeasonalAgricultureNewGame, IrrigationProductivityNewGame, FoodProcessingNewGame, FoodWarehousesNewGame, AgricultureReconfigurationNewGame, IrrigatedHarvestNewGame, QualityAwareFoodDispatchNewGame, MapSelectBase=1000, SaveSelectBase=2000, RecoverySelectBase=3000 };
 // Presentation and explicit selection only; no new rule/save authority.
 struct OriginalChoice {
     int action;
@@ -33,6 +33,8 @@ struct OriginalChoice {
     const char* detail;
 };
 constexpr OriginalChoice original_choices[]={
+    {QualityAwareFoodDispatchNewGame,simulation::kQualityAwareFoodDispatchRuleVersion,SDLK_8,"8 Quality-aware Food (38)","Physical raw Food deliveries consider occupied House quality needs | AUTHORED"},
+    {IrrigatedHarvestNewGame,simulation::kIrrigatedHarvestRuleVersion,SDLK_J,"J Irrigated harvest (37)","Earned wet growth, physical harvest and safe reconfiguration | AUTHORED"},
     {AgricultureReconfigurationNewGame,simulation::kAgricultureReconfigurationRuleVersion,SDLK_R,"R Reconfigure (36)","Drain, remove and rebuild paid agriculture | AUTHORED"},
     {FoodWarehousesNewGame,simulation::kFoodWarehousesRuleVersion,SDLK_V,"V Food warehouses (35)","Paid Food storage and physical redistribution | AUTHORED"},
     {FoodProcessingNewGame,simulation::kFoodProcessingRuleVersion,SDLK_Q,"Q Food processing (34)","Paid Mill -> Food Shop -> House; graded meals | AUTHORED"},
@@ -344,6 +346,12 @@ void MenuSession::finish_loading() {
         auto view=version==simulation::kAuthoredLandTradeRuleVersion ?
             SandboxView::create_authored_land_trade(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_}) :
+            simulation::quality_aware_food_dispatch_enabled(profile,version) ?
+            SandboxView::create_quality_aware_food_dispatch(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
+            simulation::irrigated_harvest_enabled(profile,version) ?
+            SandboxView::create_irrigated_harvest(std::move(loaded),
+                document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
             simulation::agriculture_reconfiguration_enabled(profile,version) ?
             SandboxView::create_agriculture_reconfiguration(std::move(loaded),
                 document ? std::nullopt:std::optional{original_difficulty_},!document && original_paid_starter_) :
@@ -951,7 +959,7 @@ void MenuSession::rebuild_buttons() {
         if (!advanced_modes_open_) {
             // Retained-city Continue adds a row. Keep all explicit modes and
             // explanatory text inside the existing minimum 600x400 aperture.
-            const int step=sandbox_ ? 28:32,offset=sandbox_ ? step:0,h=sandbox_ ? 24:28;
+            const int step=sandbox_ ? 26:28,offset=sandbox_ ? step:0,h=24;
             const auto y=[&](int row){return 100+offset+row*step;};
             if (sandbox_) add(Resume,"Enter Continue",40,100,520,h);
             add(RecommendedOriginalNewGame,"Play Original economy",40,y(0),250,h);
@@ -972,6 +980,8 @@ void MenuSession::rebuild_buttons() {
             add(SeasonalAgricultureNewGame,"Z Seasons (32)",300,y(6),260,h);
             add(PlayableHuntingNewGame,"Y Playable Hunting (rule 29)",40,y(7),250,h);
             add(MultiFieldAgricultureNewGame,"C Multi-field Agriculture (30)",300,y(7),260,h);
+            add(IrrigatedHarvestNewGame,"J Irrigated harvest (37)",40,y(8),250,h);
+            add(QualityAwareFoodDispatchNewGame,"8 Quality-aware Food (38)",300,y(8),260,h);
             return;
         }
         add(AdvancedModes,"Back to main menu",280,40,280);
@@ -983,7 +993,7 @@ void MenuSession::rebuild_buttons() {
         buttons_.back().label="Original Data Folder";
         add(Quit,"Quit",40,left_y,210);left_y+=34;
         for (const auto& choice:original_choices) {
-            if (choice.action==AgricultureReconfigurationNewGame || choice.action==FoodWarehousesNewGame || choice.action==FoodProcessingNewGame || choice.action==IrrigationProductivityNewGame || choice.action==SeasonalAgricultureNewGame || choice.action==PhysicalFoodGrowersNewGame || choice.action==MultiFieldAgricultureNewGame || choice.action==OriginalIrrigationNewGame || choice.action==PlayableAgricultureNewGame || choice.action==PlayableFishingNewGame || choice.action==PlayableHuntingNewGame) continue; // Also available directly from the regular main menu.
+            if (choice.action==QualityAwareFoodDispatchNewGame || choice.action==IrrigatedHarvestNewGame || choice.action==AgricultureReconfigurationNewGame || choice.action==FoodWarehousesNewGame || choice.action==FoodProcessingNewGame || choice.action==IrrigationProductivityNewGame || choice.action==SeasonalAgricultureNewGame || choice.action==PhysicalFoodGrowersNewGame || choice.action==MultiFieldAgricultureNewGame || choice.action==OriginalIrrigationNewGame || choice.action==PlayableAgricultureNewGame || choice.action==PlayableFishingNewGame || choice.action==PlayableHuntingNewGame) continue; // Also available directly from the regular main menu.
             if (choice.action==OriginalAgricultureNewGame) {
                 add(choice.action,choice.label,40,40,230,28);
                 continue;
@@ -1140,7 +1150,7 @@ bool MenuSession::render() {
     };
     const auto heading=state_==State::DataSetup?"OpenEmperor":
         state_==State::MainMenu?(advanced_modes_open_?"Advanced / Legacy":"OpenEmperor"):state_==State::NewSandbox?
-            (authored_land_trade_new_game_ ? "New authored land trade":agriculture_reconfiguration_setup() ? "New Agriculture reconfiguration":food_warehouses_setup() ? "New Food warehouses":food_processing_setup() ? "New Food processing":irrigation_productivity_setup() ? "New Irrigation Productivity":seasonal_agriculture_setup() ? "New Seasonal Agriculture":physical_food_growers_setup() ? "New Physical Food Growers":multi_field_agriculture_setup() ? "New Multi-field Agriculture":playable_hunting_setup() ? "New Playable Hunting":playable_fishing_setup() ? "New Playable Fishing":playable_agriculture_setup() ? "New Playable Agriculture":original_setup() ? "New Original economy":"New sandbox"):
+            (authored_land_trade_new_game_ ? "New authored land trade":quality_aware_food_dispatch_setup() ? "New Quality-aware Food":irrigated_harvest_setup() ? "New Irrigated harvest":agriculture_reconfiguration_setup() ? "New Agriculture reconfiguration":food_warehouses_setup() ? "New Food warehouses":food_processing_setup() ? "New Food processing":irrigation_productivity_setup() ? "New Irrigation Productivity":seasonal_agriculture_setup() ? "New Seasonal Agriculture":physical_food_growers_setup() ? "New Physical Food Growers":multi_field_agriculture_setup() ? "New Multi-field Agriculture":playable_hunting_setup() ? "New Playable Hunting":playable_fishing_setup() ? "New Playable Fishing":playable_agriculture_setup() ? "New Playable Agriculture":original_setup() ? "New Original economy":"New sandbox"):
         state_==State::LoadSandbox?"Load sandbox":state_==State::Loading?"Loading...":
         state_==State::StarterUnavailable?"Paid starter unavailable":
         state_==State::ConfirmUpgrade?(upgrade_target_version_==4 ? "Enable demolition in a copy":"Enable operation controls in a copy"):
@@ -1160,7 +1170,7 @@ bool MenuSession::render() {
         if (advanced_modes_open_ && !label(280,79,"Original data: Ready")) return false;
         if (!advanced_modes_open_ &&
             (!label(40,360,"Recommended, experimental | new paid city or empty start") ||
-             !label(40,378,"Original campaigns and Emperor saves unsupported."))) return false;
+             !label(40,370,"Original campaigns and Emperor saves unsupported."))) return false;
         if (sandbox_ && !label(40,advanced_modes_open_ ? 79:88,"Retained tick "+std::to_string(sandbox_->world().ticks())+
             (sandbox_->dirty()?" (unsaved)":" (saved)"))) return false;
     } else if (state_==State::NewSandbox && authored_land_trade_new_game_ && map_index_<catalog_.entries.size()) {
@@ -1284,7 +1294,7 @@ bool MenuSession::render() {
                 " | schema "+std::to_string(e.schema)+" rule "+std::to_string(e.rule_version))) return false;
             if (e.error.empty() && simulation::original_production_enabled(
                     simulation::RulesProfile::CityV16,e.rule_version) &&
-                e.schema==(e.rule_version==simulation::kAgricultureReconfigurationRuleVersion ? 52U:e.rule_version==simulation::kFoodWarehousesRuleVersion ? 51U:e.rule_version==simulation::kFoodProcessingRuleVersion ? 50U:e.rule_version==simulation::kIrrigationProductivityRuleVersion ? 49U:e.rule_version==simulation::kSeasonalAgricultureRuleVersion ? 48U:e.rule_version==simulation::kPhysicalFoodGrowersRuleVersion ? 47U:e.rule_version==simulation::kMultiFieldAgricultureRuleVersion ? 46U:e.rule_version==simulation::kPlayableHuntingRuleVersion ? 45U:e.rule_version==simulation::kPlayableFishingRuleVersion ? 44U:
+                e.schema==(e.rule_version==simulation::kQualityAwareFoodDispatchRuleVersion ? 54U:e.rule_version==simulation::kIrrigatedHarvestRuleVersion ? 53U:e.rule_version==simulation::kAgricultureReconfigurationRuleVersion ? 52U:e.rule_version==simulation::kFoodWarehousesRuleVersion ? 51U:e.rule_version==simulation::kFoodProcessingRuleVersion ? 50U:e.rule_version==simulation::kIrrigationProductivityRuleVersion ? 49U:e.rule_version==simulation::kSeasonalAgricultureRuleVersion ? 48U:e.rule_version==simulation::kPhysicalFoodGrowersRuleVersion ? 47U:e.rule_version==simulation::kMultiFieldAgricultureRuleVersion ? 46U:e.rule_version==simulation::kPlayableHuntingRuleVersion ? 45U:e.rule_version==simulation::kPlayableFishingRuleVersion ? 44U:
                     e.rule_version==simulation::kPlayableAgricultureRuleVersion ? 43U:
                     e.rule_version==simulation::kOriginalIrrigationRuleVersion ? 42U:
                     e.rule_version==simulation::kOriginalPlantationsRuleVersion ? 41U:

@@ -3,16 +3,42 @@
 OpenEmperor is an alpha. Supported sandbox behavior does not establish
 complete original-game compatibility.
 
-- **Latest Agriculture city reliability remains partial.** A paid Rule36 city
-  consumes all seven raw Foods and meals over100000 further ticks, but records
-  deficits and House devolutions. The separate supplied-model Xia V2 plan now
-  consumes Tea/Silk/Lacquerware and completes20400 post-maturity ticks with
-  nonnegative Funds, but its Elite House devolves8 times and lacks uninterrupted
-  FoodQuality70. It does not contain all Food/meal chains. These finite scenarios
-  do not establish sustainable citywide supply. The complete Alpha now passes
-  437 tests per Debug/Release/sanitizer configuration; its prior timeout and
-  stale-fingerprint failures remain retained separately. See the [measured gates](docs/testing.md#final-agriculture-integration-agri-mac14)
-  and the [human checklist](HUMAN_PLAYTEST.md); human acceptance remains NOT_RUN.
+- **Historical irrigated harvest and neutral Well admission retain their old
+  defects.** A real Rule36 crop earned64 base+16 wet growth units and five harvest
+  work ticks before80 elapsed field ticks; the old elapsed/80 validator refused
+  it. A separate neutral Well purchase could cover an actual Hunter cell and
+  make its save invalid. Explicit Rule37/schema53 corrects earned harvest
+  admission and neutral Well current/begun footprint claims. Older rules and
+  saves stay exact without migration. See the
+  [versioned repair](docs/original-economy/agriculture.md#irrigated-harvest-admission-agri-mac14).
+
+- **Rule38 automated acceptance passes; native closure remains scoped.** Final05
+  passes451/451 tests in each of Debug, Release and ASan/UBSan, independent
+  core74×3, historical246-artifact/137-save comparisons and exact Rule36 replay.
+  The paid Rule38 city passes all14 whole-city gates through120000 ticks in
+  all three configurations: all seven Foods, meals and Tea/Silk/Lacquerware are
+  consumed, ten full post-maturity years renew their sinks, and no devolution
+  accompanies an actual FoodQuality deficit. Independent process/report
+  validation and the direct100000-tick QA-observer/RSS measurement also pass;
+  the latter is not a GUI memory or leak test. Exact scopes and receipts are in
+  [technical acceptance](docs/testing.md#final-agriculture-integration-agri-mac14).
+  Historical Rules36/37 retain their real shortages and raw-mixing behavior;
+  Rule38 changes only raw-load choice and gives no universal retention promise.
+
+- **Native pointer and human acceptance remain unverified.** Native05 passed
+  scoped Cocoa/Metal/SDL3.4.14 menu8/Chengdu paid startup, exact loaded-cargo
+  F5/F9, pan,1×/2×/4× zoom, all nine Help pages and large-window resize checks.
+  Its diagnostic three-file bundle omitted compatibility metadata and therefore
+  used fallback art; it is not Original-art acceptance. The resource-complete
+  Native06 check passes with17 owned metadata files and the same Release
+  binary: qualified Original House/building/road art at1×/2×/4×, pan/resize
+  and complete loaded-cargo F5/F9 byte equality. Tent/Mill and unqualified
+  workers retain authored fallback. Automation paused on user interaction,
+  then resumed explicitly; the app quit normally and all final preservation
+  guards pass. Mixed user pointer/wheel events are not automated mouse proof.
+  Automated mouse and600×400 checks remain **NOT_VERIFIED** after upstream
+  `noWindowsAvailable` errors; no DPI or camera correction is inferred. All
+  human and distribution-package acceptance remains **NOT_RUN**.
 
 - **Agriculture animation is authored.** Rule36 displays actual saved growth,
   movement, work and cargo with qualified static/stage art or authored geometry.

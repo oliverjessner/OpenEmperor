@@ -94,10 +94,42 @@ This mode also shows actual field/plant stages, work and water overlays, and
 physical workers, boats and wildlife. Qualified Original art and labelled
 authored geometry are distinguished in the [visual guide](docs/building-visual-profile.md#rule36-agriculture-state-presentation-agri-mac12).
 
-The [human playtest checklist](HUMAN_PLAYTEST.md) covers the complete current
-Agriculture mode. Its [technical checks](docs/testing.md#final-agriculture-integration-agri-mac14)
-separate actual production/consumption from remaining long-play, luxury and
-native-pointer limitations. Human acceptance remains outstanding.
+**J Irrigated harvest (37)** or `--irrigated-harvest` selects the separate
+Rule37/policy3/schema53 successor to Rule36. Harvest admission uses actual field
+work and earned wet-growth bonuses, so an irrigated crop can finish growth before
+eighty elapsed field ticks. Five real harvest-work ticks and the physical Farm
+return remain required. Neutral Well placement also rejects footprints occupied
+by live actors or their begun edges. Prices, staffing, limits and older saves
+retain their existing contracts. See the [irrigated-harvest guide](docs/original-economy/agriculture.md#irrigated-harvest-admission-agri-mac14).
+
+**8 Quality-aware Food (38)** or `--quality-aware-food-dispatch` selects the
+separate Rule38/policy3/schema54 successor. It inherits Rule37's earned harvest
+and safe Well placement. Markets consider an occupied House's current source-model
+FoodQuality requirement when loading physical raw Food. An already qualifying
+mixed load stays unchanged; otherwise a qualifying subset of up to four available
+portions or another eligible House is chosen. Delivery still takes the real route;
+a higher House requirement earned during travel is not predicted. Prices, storage,
+staffing, timing and82/58 budgets remain unchanged. J37 and all older modes retain
+their own rules and saves; Rule18 remains recommended play. See the
+[versioned architecture](docs/original-economy/architecture-map.md#versions-and-source-preparation).
+
+The [human playtest checklist](HUMAN_PLAYTEST.md) and
+[technical checks](docs/testing.md#final-agriculture-integration-agri-mac14)
+keep their tested generations explicit. Frozen final05 passes451/451 tests in
+each of Debug, Release and ASan/UBSan, independent core74×3, historical-save
+comparisons and the scoped100000-tick QA-observer/RSS check. The paid Rule38
+city earns all14 whole-city criteria through120000 ticks and ten post-maturity
+years, with independent replay in all three configurations.
+
+Native05 verifies Cocoa/Metal startup, menu8, loaded-cargo F5/F9, pan, zoom and
+Help, using a diagnostic bundle with fallback art. The resource-complete
+Native06 check passes with the same Release binary: qualified Original
+House/building/road art at1×/2×/4×, pan/resize and byte-exact loaded-cargo
+F5/F9. Its final preservation guards pass; Original files stay external and
+read-only. Tent/Mill and unqualified workers retain authored fallback.
+Automated mouse and600×400 checks remain **NOT_VERIFIED**, and all human
+acceptance remains **NOT_RUN**. These scoped checks add no Original-runtime
+parity claim; earlier generations retain their own contracts and evidence.
 
 **Advanced / Legacy → N New Sandbox** retains the classic sandbox profiles and
 their defaults; **O/F/S/M/W/I/D/T/U** retain the individual economy experiments.

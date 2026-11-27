@@ -437,6 +437,7 @@ const char* courier_dispatch_status_name(CourierDispatchStatus status) {
     case CourierDispatchStatus::NoRoad: return "No road connection";
     case CourierDispatchStatus::TargetFull: return "Target buffer full";
     case CourierDispatchStatus::NoTarget: return "No target building";
+    case CourierDispatchStatus::NoQualifiedFood: return "No raw Food meeting House quality needs";
     case CourierDispatchStatus::AlreadyMoving: return "Already moving";
     case CourierDispatchStatus::WaitingForRoadRevision: return "Waiting for road revision";
     case CourierDispatchStatus::Unstaffed: return "Building unstaffed";
@@ -566,6 +567,10 @@ const ProfileRules& profile_rules(RulesProfile profile,std::uint32_t version) {
     static constexpr ProfileRules city_v16_v26{26,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v27{27,32,64,32,5,800};
     static constexpr ProfileRules city_v16_v28{28,32,64,32,5,800};
+    static constexpr ProfileRules city_v16_v38{38,32,64,32,5,800};
+    if (quality_aware_food_dispatch_enabled(profile,version)) return city_v16_v38;
+    static constexpr ProfileRules city_v16_v37{37,32,64,32,5,800};
+    if (irrigated_harvest_enabled(profile,version)) return city_v16_v37;
     static constexpr ProfileRules city_v16_v36{36,32,64,32,5,800};
     if (agriculture_reconfiguration_enabled(profile,version)) return city_v16_v36;
     static constexpr ProfileRules city_v16_v35{35,32,64,32,5,800};

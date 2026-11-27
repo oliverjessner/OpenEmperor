@@ -14,8 +14,8 @@ struct Topic {
     std::vector<std::string> lines;
 };
 
-std::array<Topic,9> topics() {
-    return {{
+std::array<Topic,9> topics(bool quality_aware) {
+    std::array<Topic,9> result{{
         {"Controls",{
             "5 Select: visible-pixel inspection; construction picks ground.",
             "F1: read-only visual diagnostics; not a construction tool.",
@@ -91,6 +91,11 @@ std::array<Topic,9> topics() {
             "There is no refund, stock transfer or erased work history.",
             "Paused, burning, unstaffed or disconnected? Read the blocker."}}
     }};
+    if(quality_aware) {
+        result[7].lines.push_back("Raw Food deliveries consider an occupied House's quality needs.");
+        result[7].lines.push_back("Read House quality and needs; Food still arrives by physical courier.");
+    }
+    return result;
 }
 
 bool valid_bounds(Rect rect) {
@@ -126,7 +131,7 @@ std::optional<AgricultureHelpAction> AgricultureHelp::button_at(double x,double 
     return std::nullopt;
 }
 
-AgricultureHelp prepare_agriculture_help(Rect available_map,int scale) {
+AgricultureHelp prepare_agriculture_help(Rect available_map,int scale,bool quality_aware) {
     AgricultureHelp out;
     out.scale_=std::clamp(scale,1,1024);
     if (!valid_bounds(available_map)) return out;
@@ -151,7 +156,7 @@ AgricultureHelp prepare_agriculture_help(Rect available_map,int scale) {
     out.next_={x+pad+88*unit,button_y,80*unit,28*unit};
     out.close_={x+width-pad-80*unit,button_y,80*unit,28*unit};
     const auto columns=static_cast<std::size_t>(text_width/(10*unit));
-    for (auto& topic:topics()) {
+    for (auto& topic:topics(quality_aware)) {
         auto lines=wrap_text(topic.lines,columns);
         for (std::size_t first=0;first<lines.size();first+=static_cast<std::size_t>(rows)) {
             AgricultureHelpPage page;

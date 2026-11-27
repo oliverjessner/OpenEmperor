@@ -69,7 +69,8 @@ void version_matrix() {
             profile==sim::RulesProfile::CityV11 ? 3U:
             profile==sim::RulesProfile::CityV16 ? 4U:1U;
         check(sim::current_rule_version(profile)==current,"Legacy default rule changed");
-        for (std::uint32_t version=0;version<=37;++version) {
+        // Preserve the complete historical Rules0-36 matrix verbatim.
+        for (std::uint32_t version=0;version<=36;++version) {
             const bool expected=profile==sim::RulesProfile::ProductionV2 ? version==2:
                 profile==sim::RulesProfile::CityV11 ? version>=1 && version<=4:
                 profile==sim::RulesProfile::CityV16 ? (version>=1 && version<=15) || version==16 || version==17 || version==18 || version==19 || version==20 || version==21 || version==22 || version==23 || version==24 || version==25 || version==26 || (version==27 || version==28 || version==29 || version==30 || version==31 || version==32 || version==33 || (version==34 || (version==35 || version==36))):version==1;
@@ -144,6 +145,9 @@ void version_matrix() {
             check(sim::agriculture_reconfiguration_enabled(profile,version)==
                 (profile==sim::RulesProfile::CityV16 && version==36),
                 "Agriculture reconfiguration escaped its exact Rule36 selection");
+            check(!sim::irrigated_harvest_enabled(profile,version) &&
+                !sim::quality_aware_food_dispatch_enabled(profile,version),
+                "Rule37/38 exact opt-ins leaked into a historical generation");
             check(sim::original_food_farm_limit(profile,version)==
                 (sim::playable_agriculture_enabled(profile,version) ? 5U:
                  sim::original_sustainable_economy_enabled(profile,version) ? 3U:2U),
@@ -184,7 +188,64 @@ void version_matrix() {
                 check(rules==sim::ProfileRules{version,32,64,32,5,800},
                     "City-v16 timing/prices contract changed during version reservation");
         }
-        for (const auto unknown:{37U,999U,UINT32_MAX}) {
+        // New generations have explicit City-v16 admission and inherited
+        // capabilities; neither exact generation identity aliases the other.
+        for (const std::uint32_t version:{37U,38U,39U}) {
+            const bool expected=profile==sim::RulesProfile::CityV16 &&
+                (version==37 || version==38);
+            check(sim::rule_version_supported(profile,version)==expected,
+                "Rule37/38 admission or future Rule39 boundary changed");
+            for (const auto& [enabled,message]:std::array{
+                std::pair{sim::original_economy_enabled(profile,version),"Successor economy gate changed"},
+                std::pair{sim::original_influence_enabled(profile,version),"Successor influence gate changed"},
+                std::pair{sim::original_goods_enabled(profile,version),"Successor Goods gate changed"},
+                std::pair{sim::original_production_enabled(profile,version),"Successor production gate changed"},
+                std::pair{sim::original_fire_protection_enabled(profile,version),"Successor fire gate changed"},
+                std::pair{sim::original_sustainable_economy_enabled(profile,version),"Successor sustainable gate changed"},
+                std::pair{sim::original_market_selection_enabled(profile,version),"Successor market-selection gate changed"},
+                std::pair{sim::original_cardinal_terrain_enabled(profile,version),"Successor cardinal-terrain gate changed"},
+                std::pair{sim::original_agriculture_family_enabled(profile,version),"Successor Agriculture family changed"},
+                std::pair{sim::original_plantations_enabled(profile,version),"Successor plantation gate changed"},
+                std::pair{sim::original_irrigation_enabled(profile,version),"Successor irrigation gate changed"},
+                std::pair{sim::playable_agriculture_enabled(profile,version),"Successor playable Agriculture changed"},
+                std::pair{sim::playable_fishing_enabled(profile,version),"Successor Fishing gate changed"},
+                std::pair{sim::playable_hunting_enabled(profile,version),"Successor Hunting gate changed"},
+                std::pair{sim::multi_field_agriculture_enabled(profile,version),"Successor multiple-field gate changed"},
+                std::pair{sim::physical_food_growers_enabled(profile,version),"Successor physical Grower gate changed"},
+                std::pair{sim::seasonal_agriculture_enabled(profile,version),"Successor seasonal gate changed"},
+                std::pair{sim::irrigation_productivity_enabled(profile,version),"Successor productivity gate changed"},
+                std::pair{sim::food_processing_enabled(profile,version),"Successor processing gate changed"},
+                std::pair{sim::food_warehouses_enabled(profile,version),"Successor Food Warehouse gate changed"},
+                std::pair{sim::agriculture_reconfiguration_enabled(profile,version),"Successor reconfiguration gate changed"},
+                std::pair{sim::bridges_rule_enabled(profile,version),"Successor bridge gate changed"},
+                std::pair{sim::ramps_rule_enabled(profile,version),"Successor ramp gate changed"}})
+                check(enabled==expected,message);
+            check(sim::irrigated_harvest_enabled(profile,version)==(expected && version==37),
+                "Irrigated-harvest identity escaped exact Rule37");
+            check(sim::quality_aware_food_dispatch_enabled(profile,version)==(expected && version==38),
+                "Quality-aware Food identity escaped exact Rule38");
+            check(!sim::original_safe_demolition_enabled(profile,version) &&
+                !sim::original_music_venues_enabled(profile,version) &&
+                !sim::original_venue_house_service_enabled(profile,version) &&
+                !sim::original_agriculture_enabled(profile,version) &&
+                !sim::source_cell_ramps_enabled(profile,version) &&
+                !sim::original_market_logistics_enabled(profile,version) &&
+                !sim::original_cardinal_water_enabled(profile,version) &&
+                !sim::original_inspector_coordination_enabled(profile,version) &&
+                !sim::original_deadline_fire_dispatch_enabled(profile,version) &&
+                !sim::original_deadline_service_dispatch_enabled(profile,version) &&
+                !sim::original_deadline_food_dispatch_enabled(profile,version),
+                "Successor selection aliased a historical exact opt-in");
+            check(sim::original_food_farm_limit(profile,version)==(expected ? 5U:2U) &&
+                maps::map_rules_policy_version(profile,version)==(expected ? 3U:0U),
+                "Successor changed Farm limits or exact immutable policy3 admission");
+            if (expected)
+                check(sim::profile_rules(profile,version)==sim::ProfileRules{version,32,64,32,5,800},
+                    "Successor changed historical timing/prices");
+            else
+                rejects([&] { (void)sim::profile_rules(profile,version); },"unsupported");
+        }
+        for (const auto unknown:{39U,999U,UINT32_MAX}) {
             check(!sim::rule_version_supported(profile,unknown) &&
                 !sim::original_economy_enabled(profile,unknown) &&
                 !sim::original_influence_enabled(profile,unknown) &&
@@ -204,6 +265,8 @@ void version_matrix() {
                 !sim::food_processing_enabled(profile,unknown) &&
                 !sim::food_warehouses_enabled(profile,unknown) &&
                 !sim::agriculture_reconfiguration_enabled(profile,unknown) &&
+                !sim::irrigated_harvest_enabled(profile,unknown) &&
+                !sim::quality_aware_food_dispatch_enabled(profile,unknown) &&
                 !sim::bridges_rule_enabled(profile,unknown) &&
                 !sim::ramps_rule_enabled(profile,unknown),
                 "Unknown rule version activated a reserved gate");
@@ -360,7 +423,9 @@ void development_gate() {
         maps::map_rules_policy_version(sim::RulesProfile::CityV16,34)==3 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV16,35)==3 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV16,36)==3 &&
-        maps::map_rules_policy_version(sim::RulesProfile::CityV16,37)==0 &&
+        maps::map_rules_policy_version(sim::RulesProfile::CityV16,37)==3 &&
+        maps::map_rules_policy_version(sim::RulesProfile::CityV16,38)==3 &&
+        maps::map_rules_policy_version(sim::RulesProfile::CityV16,39)==0 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV16,999)==0 &&
         maps::map_rules_policy_version(sim::RulesProfile::CityV11,7)==0 &&
         !sim::original_economy_enabled(static_cast<sim::RulesProfile>(255),7),

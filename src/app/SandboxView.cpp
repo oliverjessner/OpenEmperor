@@ -900,6 +900,26 @@ std::unique_ptr<SandboxView> SandboxView::create_agriculture_reconfiguration(
     result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;return result;
 }
 
+std::unique_ptr<SandboxView> SandboxView::create_irrigated_harvest(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid Irrigated harvest difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule37 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kIrrigatedHarvestRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;return result;
+}
+
+std::unique_ptr<SandboxView> SandboxView::create_quality_aware_food_dispatch(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
+    if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
+        throw std::invalid_argument("Invalid quality-aware Food difficulty");
+    if (session.input_sha256.empty()) throw std::invalid_argument("Rule38 requires a source-bound map session");
+    auto result=std::unique_ptr<SandboxView>(new SandboxView(std::move(session),false,
+        simulation::RulesProfile::CityV16,simulation::kQualityAwareFoodDispatchRuleVersion,true));
+    result->original_requested_difficulty_=difficulty;result->original_paid_starter_=paid_starter;return result;
+}
+
 std::unique_ptr<SandboxView> SandboxView::create_food_warehouses(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty,bool paid_starter) {
     if (difficulty && static_cast<std::size_t>(*difficulty)>=original::difficulty_count)
@@ -1141,7 +1161,9 @@ void SandboxView::load_now() {
         throw std::runtime_error("Saved original difficulty differs from this running session");
     auto replacement=world_->authored_land_trade_enabled() ?
         persistence::restore_authored_land_trade(document,data_root_,buildable_mask_) : world_->source_cell_ramps_supported() ?
-        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : agriculture_reconfiguration() ?
+        persistence::restore_authored_source_cell_ramps(document,data_root_,buildable_mask_) : quality_aware_food_dispatch() ?
+        persistence::restore_quality_aware_food_dispatch(document,data_root_,buildable_mask_) : irrigated_harvest() ?
+        persistence::restore_irrigated_harvest(document,data_root_,buildable_mask_) : agriculture_reconfiguration() ?
         persistence::restore_agriculture_reconfiguration(document,data_root_,buildable_mask_) : food_warehouses() ?
         persistence::restore_food_warehouses(document,data_root_,buildable_mask_) : food_processing() ?
         persistence::restore_food_processing(document,data_root_,buildable_mask_) : irrigation_productivity() ?
@@ -1278,7 +1300,11 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::restore_authored_land_trade(*initial_save_,data_root_,buildable_mask_,std::move(permissions)) :
             simulation::source_cell_ramps_enabled(rules_,active_version) ?
             persistence::restore_authored_source_cell_ramps(*initial_save_,data_root_,buildable_mask_,
-                std::move(permissions)) : agriculture_reconfiguration() ?
+                std::move(permissions)) : quality_aware_food_dispatch() ?
+            persistence::restore_quality_aware_food_dispatch(*initial_save_,data_root_,buildable_mask_,
+                std::move(permissions),nullptr,std::move(terrain)) : irrigated_harvest() ?
+            persistence::restore_irrigated_harvest(*initial_save_,data_root_,buildable_mask_,
+                std::move(permissions),nullptr,std::move(terrain)) : agriculture_reconfiguration() ?
             persistence::restore_agriculture_reconfiguration(*initial_save_,data_root_,buildable_mask_,
                 std::move(permissions),nullptr,std::move(terrain)) : food_warehouses() ?
             persistence::restore_food_warehouses(*initial_save_,data_root_,buildable_mask_,
@@ -1348,6 +1374,16 @@ void SandboxView::initialize(SDL_Window* window,SDL_Renderer* renderer) {
             persistence::prepare_land_trade_boundary_facts(data_root_,map_relative_)));
         clock_.pause_and_reset();
         last_message_="Authored finite trade: buy two Warehouses; select city Warehouse; G bind / I import / E export.";
+    } else if (quality_aware_food_dispatch()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_quality_aware_food_dispatch(
+            std::move(permissions),persistence::prepare_food_processing_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_="Quality-aware Food: physical raw Food deliveries consider occupied Houses' quality needs.";
+    } else if (irrigated_harvest()) {
+        world_=std::make_unique<simulation::World>(simulation::World::create_irrigated_harvest(
+            std::move(permissions),persistence::prepare_food_processing_rules_model(data_root_,
+                original_requested_difficulty_.value_or(original::Difficulty::Normal)),std::move(terrain)));
+        last_message_="Irrigated harvest: earned wet growth, physical crop return and paid agriculture reconfiguration.";
     } else if (agriculture_reconfiguration()) {
         world_=std::make_unique<simulation::World>(simulation::World::create_agriculture_reconfiguration(
             std::move(permissions),persistence::prepare_food_processing_rules_model(data_root_,
@@ -1525,7 +1561,9 @@ void SandboxView::update_window_title() {
     if (world_->map_permissions()) title+=" | rule "+std::to_string(world_->rule_version())+
         " | map policy "+std::to_string(world_->map_permissions()->policy_version());
     if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4) title+=" | save schema 20";
-    if(agriculture_reconfiguration())title+=" | save schema 52 | Agriculture reconfiguration (AUTHORED)";
+    if(quality_aware_food_dispatch())title+=" | save schema 54 | Quality-aware Food (AUTHORED)";
+    else if(irrigated_harvest())title+=" | save schema 53 | Irrigated harvest (AUTHORED)";
+    else if(agriculture_reconfiguration())title+=" | save schema 52 | Agriculture reconfiguration (AUTHORED)";
     else if(food_warehouses())title+=" | save schema 51 | Food warehouses (AUTHORED)";
     else if(food_processing())title+=" | save schema 50 | Food processing (AUTHORED)";
     else if(irrigation_productivity())title+=" | save schema 49 | Irrigation Productivity (AUTHORED)";
@@ -9632,7 +9670,9 @@ bool SandboxView::draw_hud() {
         overview=profile+" v"+std::to_string(world_->rule_version());
         if (rules_==simulation::RulesProfile::CityV16 && world_->rule_version()==4)
             overview+=" | Policy 2 | Save 20";
-        if(agriculture_reconfiguration())overview+=" | Policy3 | Save52 | Safe agriculture reconfiguration";
+        if(quality_aware_food_dispatch())overview+=" | Policy3 | Save54 | Quality-aware Food";
+        else if(irrigated_harvest())overview+=" | Policy3 | Save53 | Irrigated harvest";
+        else if(agriculture_reconfiguration())overview+=" | Policy3 | Save52 | Safe agriculture reconfiguration";
         else if(food_warehouses())overview+=" | Policy3 | Save51 | Food Warehouses | Physical redistribution";
         else if(food_processing())overview+=" | Policy3 | Save50 | Mill to Food Shop | Graded Dinners";
         else if(irrigation_productivity())overview+=" | Policy3 | Save49 | Irrigation productivity | earned wet work";
@@ -10373,7 +10413,7 @@ bool SandboxView::draw_walker_diagnostic() {
 }
 void SandboxView::prepare_agriculture_help(bool reset_page) {
     const auto old_page=reset_page ? 0U:agriculture_help_.page_index();
-    agriculture_help_=sandbox_ui::prepare_agriculture_help(layout_.map,layout_.scale);
+    agriculture_help_=sandbox_ui::prepare_agriculture_help(layout_.map,layout_.scale,quality_aware_food_dispatch());
     if (!agriculture_help_.pages().empty())
         (void)agriculture_help_.select_page(std::min(old_page,agriculture_help_.pages().size()-1));
     ++agriculture_help_prepare_count_;

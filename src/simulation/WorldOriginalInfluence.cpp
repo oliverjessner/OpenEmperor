@@ -207,6 +207,22 @@ CommandResult World::validate_original_influence_command(Command command) const 
         if (!in_bounds(command.cell)) return reject("Source footprint outside sandbox grid");
         for (const auto cell:building_footprint_cells(profile_,rule_version_,Object::OriginalInfluenceSource,command.cell)) {
             if (!in_bounds(cell)) return reject("Source footprint outside sandbox grid");
+            if(irrigated_harvest_enabled()||quality_aware_food_dispatch_enabled()) {
+                // This separate placement path must preserve the same real
+                // current/begun claims as ordinary paid construction. Future
+                // route cells remain available for normal navigation repair.
+                if(source_cell_ramp_claim(cell)||(irrigation_&&std::any_of(irrigation_->ditches.begin(),irrigation_->ditches.end(),
+                    [&](const auto& ditch){return ditch.cell==cell;})))
+                    return reject("Source footprint overlaps existing paid infrastructure");
+                if(grower_navigation_cell_claimed(cell)||fishing_boat_cell_claimed(cell)||hunting_actor_cell_claimed(cell))
+                    return reject("Source footprint overlaps an actual actor or its begun edge");
+                for(const auto& actor:couriers_) {
+                    if(actor.phase==CourierPhase::IdleAtWorkshop||actor.path.empty())continue;
+                    if(actor.path.at(actor.path_vertex)==cell||(actor.edge_progress&&actor.path_vertex+1<actor.path.size()&&
+                        actor.path[actor.path_vertex+1]==cell))
+                        return reject("Source footprint overlaps an actual courier or its begun edge");
+                }
+            }
             if (bridge_at(cell) || bridge_bank_at(cell) || ramp_endpoint(cell))
                 return reject("Source footprint overlaps protected infrastructure");
             if (!buildable(cell) || object_at(cell)!=Object::Empty)

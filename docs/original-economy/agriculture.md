@@ -20,12 +20,87 @@ keep their exact contracts; the new gameplay supplies no raw Harvest parity.
 **X Irrigation yields, Rule33/schema49**, separately adds authored water-driven
 productive work; see [AGRI-MAC08](#irrigation-productivity-agri-mac08).
 
+## Quality-aware raw Food dispatch (AGRI-MAC14)
+
+Explicit **Rule38/policy3/schema54**, marker
+`authored-quality-aware-food-dispatch-v1`, revision1, inherits Rule37 and its
+unchanged Rule36 economy. Select **8 Quality-aware Food (38)** or
+`--quality-aware-food-dispatch`. J37, earlier generations, general defaults and
+recommended Rule18 retain their exact contracts; there is no migration.
+
+A real Rule37 city exposed a delivery choice rather than a blend defect:
+a single Wheat20 arrival lowered an Elite House's actual quality from80 to65
+while it still held four grade4 meals. That House's source row needed70.
+The existing quantized blend and meals-first consumption are retained exactly.
+Rule38 instead chooses raw Market cargo whose batch quality meets the occupied
+recipient's actual current source-row need. It keeps the historical mixed load
+when qualified; otherwise at most four physical portions are chosen from the
+same seven kinds, or the distributor considers another eligible target.
+This may produce a smaller load. No higher need earned during travel is
+predicted, and an in-flight load is never rejected on restore because its
+recipient subsequently evolved.
+
+The selector is shared by target eligibility and actual departure. Physical
+stock debits, raw4/House8 capacity, incoming/return reservations, cached routes,
+deadline order, canonical rotation, real movement, arrival, receipt and
+consumption remain authoritative. There is no quality or need grant, new
+ledger, saved dispatch-need epoch, cost, worker, timer or limit change.
+`No raw Food meeting House quality needs` explains a real quality shortage.
+Schema54 requires both the inherited irrigated-harvest marker/revision and
+the separate quality-aware marker/revision. Rule37/schema53 remains exact,
+including its historical delivery choices. Cross-generation overwrite is refused.
+The [technical acceptance](../testing.md#final-agriculture-integration-agri-mac14)
+separates initial positive Debug witnesses from the final frozen matrix and
+native checks; human acceptance remains **NOT_RUN**.
+
+## Irrigated harvest admission (AGRI-MAC14)
+
+Explicit **Rule37/policy3/schema53**, marker
+`authored-irrigated-harvest-v1`, revision1, inherits Rule36. Select **J Irrigated
+harvest (37)** or `--irrigated-harvest`; general defaults and recommended Rule18
+stay unchanged. This successor corrects Food harvest-history admission without
+changing production, seasonal windows, clocks, quantities, staffing, prices,
+physical movement, reconfiguration or the82-body/58-channel budgets.
+
+The actual paid Chengdu witness exposes the historical validator defect:
+Soy field49 is bought at3400; at3479 its64 actual productive ticks and16 earned
+wet bonus units have completed80 growth units. Its64 wet ticks, zero clipping
+and zero waste are retained. Readiness is3474; five real harvest-work ticks end
+at3479. Grower22 carries one portion on its return, with no source receipt or
+Food inventory credit yet. The historical `harvested <= elapsed/80` check
+rejects that legal earned harvest at age79. The completed World tick and its
+actual trip timestamp both read3479; this is not a pending-tick offset.
+
+The same city's first real early-harvest save also exposed a separate historical
+neutral Well72 construction path that bypassed live actor claims. A2×2 Well at
+125,136 was paid at960; at3479 Hunter2's current126,136 cell lay inside that
+Well and source-bound restore correctly refused the state. Rule37's neutral Well path uses the existing
+current/begun actor and courier claims and paid terrain claims over its complete
+footprint. A blocked purchase preserves its funds, IDs and physical actors and
+may be retried after ordinary movement clears the site. This adds no movement
+rule, stock or protection grant. Historical neutral Well admission remains exact.
+
+Rule37 uses the existing strict histories:
+`80 * harvested + pending = actual_base + actual_bonus - seasonal_waste`.
+Paid Field age and shared Farm release-time quotas still bound actual base
+work; actual wet work is bounded by base work, and `wet/4 = bonus + clipped`.
+Readiness, five harvest-work ticks, actor identity, paths, reserved return room,
+cargo and real source arrival retain their independent validation. An elapsed
+time or potential25% allowance cannot manufacture work, harvest or stock.
+
+Schema53 requires its exact marker/revision and all inherited source/model
+identities. Its writer can replace only a valid existing schema53 target.
+Rules1–36 and schemas1–52 retain their exact contracts and canonical form;
+the older33–36 Food validator still refuses this early history. No save is
+automatically migrated. Original Actor26/x87 research and its refusal domains
+remain separate; this authored correction establishes no Original harvest parity.
+
 ## Agriculture state presentation (AGRI-MAC12)
 
-The explicitly selected Rule36 mode uses prepared, read-only presentation of
-the existing paid World. There is no Rule37, schema53, new production clock or
-saved display authority. Rules1–35, their visual selectors and every historical
-save retain their existing contracts.
+MAC12 added prepared, read-only presentation to explicitly selected Rule36,
+without allocating a new gameplay generation or saved display authority.
+Rule37 inherits those same prepared views. Rules1–35, their visual selectors
+and every historical save retain their existing contracts.
 
 The [building matrix](../building-visual-profile.md#rule36-agriculture-state-presentation-agri-mac12)
 and [actor matrix](../walker-visual-profile.md) distinguish qualified Original

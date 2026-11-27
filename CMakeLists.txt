@@ -809,6 +809,20 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-agriculture-visual-presentation-tests)
     add_test(NAME agriculture-visual-presentation COMMAND openemperor-agriculture-visual-presentation-tests)
     set_tests_properties(agriculture-visual-presentation PROPERTIES TIMEOUT 600)
+    add_executable(openemperor-irrigated-harvest-view-tests
+        tests/IrrigatedHarvestViewTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-irrigated-harvest-view-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-irrigated-harvest-view-tests)
+    add_test(NAME irrigated-harvest-view COMMAND openemperor-irrigated-harvest-view-tests)
+    set_tests_properties(irrigated-harvest-view PROPERTIES TIMEOUT 600)
+    add_executable(openemperor-quality-aware-food-dispatch-view-tests
+        tests/QualityAwareFoodDispatchViewTests.cpp ${original_menu_test_sources})
+    target_link_libraries(openemperor-quality-aware-food-dispatch-view-tests PRIVATE
+        openemperor-recovery SDL3::SDL3 openemperor-version Threads::Threads ZLIB::ZLIB OpenSSL::Crypto)
+    openemperor_enable_warnings(openemperor-quality-aware-food-dispatch-view-tests)
+    add_test(NAME quality-aware-food-dispatch-view COMMAND openemperor-quality-aware-food-dispatch-view-tests)
+    set_tests_properties(quality-aware-food-dispatch-view PROPERTIES TIMEOUT 600)
     add_executable(openemperor-food-warehouses-presentation-tests
         tests/FoodProcessingPresentationTests.cpp ${original_menu_test_sources})
     target_compile_definitions(openemperor-food-warehouses-presentation-tests PRIVATE OPENEMPEROR_FOOD_WAREHOUSES_ACCEPTANCE=1)
@@ -1468,6 +1482,28 @@ if(BUILD_TESTING)
         add_test(NAME agriculture-reconfiguration-${reconfiguration_layer} COMMAND openemperor-agriculture-reconfiguration-${reconfiguration_layer}-tests)
         set_tests_properties(agriculture-reconfiguration-${reconfiguration_layer} PROPERTIES TIMEOUT 600)
     endforeach()
+    add_executable(openemperor-irrigated-harvest-world-tests tests/IrrigatedHarvestWorldTests.cpp)
+    target_link_libraries(openemperor-irrigated-harvest-world-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-irrigated-harvest-world-tests)
+    add_test(NAME irrigated-harvest-world COMMAND openemperor-irrigated-harvest-world-tests)
+    set_tests_properties(irrigated-harvest-world PROPERTIES TIMEOUT 600)
+    add_executable(openemperor-irrigated-harvest-save-tests tests/IrrigatedHarvestSaveTests.cpp)
+    target_link_libraries(openemperor-irrigated-harvest-save-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+    openemperor_enable_warnings(openemperor-irrigated-harvest-save-tests)
+    add_test(NAME irrigated-harvest-save COMMAND openemperor-irrigated-harvest-save-tests)
+    set_tests_properties(irrigated-harvest-save PROPERTIES TIMEOUT 600)
+    foreach(quality_layer world save)
+        if(quality_layer STREQUAL "world")
+            set(quality_test tests/QualityAwareFoodDispatchWorldTests.cpp)
+        else()
+            set(quality_test tests/QualityAwareFoodDispatchSaveTests.cpp)
+        endif()
+        add_executable(openemperor-quality-aware-food-dispatch-${quality_layer}-tests ${quality_test})
+        target_link_libraries(openemperor-quality-aware-food-dispatch-${quality_layer}-tests PRIVATE openemperor-recovery ZLIB::ZLIB)
+        openemperor_enable_warnings(openemperor-quality-aware-food-dispatch-${quality_layer}-tests)
+        add_test(NAME quality-aware-food-dispatch-${quality_layer} COMMAND openemperor-quality-aware-food-dispatch-${quality_layer}-tests)
+        set_tests_properties(quality-aware-food-dispatch-${quality_layer} PROPERTIES TIMEOUT 600)
+    endforeach()
     foreach(warehouse_layer world edge save)
         if(warehouse_layer STREQUAL "world")
             set(warehouse_test tests/FoodWarehouseWorldTests.cpp)
@@ -1691,6 +1727,12 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-alpha-endurance)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME irrigated-harvest-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_irrigated_harvest_cli.py --executable $<TARGET_FILE:openemperor>)
+        set_tests_properties(irrigated-harvest-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME quality-aware-food-dispatch-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_quality_aware_food_dispatch_cli.py --executable $<TARGET_FILE:openemperor>)
+        set_tests_properties(quality-aware-food-dispatch-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME agriculture-reconfiguration-cli COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/AgricultureReconfigurationCliTests.py $<TARGET_FILE:openemperor>)
         set_tests_properties(agriculture-reconfiguration-cli PROPERTIES TIMEOUT 120 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
@@ -2428,6 +2470,18 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-agriculture-integration-acceptance)
     add_test(NAME agriculture-integration-acceptance-cli COMMAND openemperor-agriculture-integration-acceptance --help)
     set_tests_properties(agriculture-integration-acceptance-cli PROPERTIES TIMEOUT 30)
+    add_executable(openemperor-paid-complete-city-creator tools/PaidCompleteCityCreator.cpp)
+    target_link_libraries(openemperor-paid-complete-city-creator PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
+    openemperor_enable_warnings(openemperor-paid-complete-city-creator)
+    add_test(NAME paid-complete-city-creator-cli COMMAND openemperor-paid-complete-city-creator --help)
+    set_tests_properties(paid-complete-city-creator-cli PROPERTIES TIMEOUT 30 PASS_REGULAR_EXPRESSION "Rule37/policy3/schema53")
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME agriculture-complete-city-cli COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_complete_city_integration.py
+            --executable $<TARGET_FILE:openemperor-agriculture-integration-acceptance> --cli-only)
+        set_tests_properties(agriculture-complete-city-cli PROPERTIES TIMEOUT 60
+            ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+    endif()
     add_executable(openemperor-agriculture-visual-acceptance tools/AgricultureVisualAcceptance.cpp)
     target_link_libraries(openemperor-agriculture-visual-acceptance PRIVATE openemperor-original-longplay-view-support openemperor-recovery)
     openemperor_enable_warnings(openemperor-agriculture-visual-acceptance)
@@ -2467,6 +2521,8 @@ if(BUILD_TESTING)
     openemperor_enable_warnings(openemperor-luxury-progression-acceptance)
     add_test(NAME original-luxury-progression-cli COMMAND openemperor-luxury-progression-acceptance --help)
     set_tests_properties(original-luxury-progression-cli PROPERTIES TIMEOUT 30)
+    set_tests_properties(agriculture-visual-acceptance-cli original-luxury-progression-cli
+        PROPERTIES PASS_REGULAR_EXPRESSION "--checkpoint-recovery")
     add_executable(openemperor-multi-field-agriculture-view-acceptance EXCLUDE_FROM_ALL
         tools/MultiFieldAgricultureViewAcceptance.cpp)
     target_link_libraries(openemperor-multi-field-agriculture-view-acceptance PRIVATE
@@ -2544,6 +2600,45 @@ if(BUILD_TESTING)
             --view-executable $<TARGET_FILE:openemperor-agriculture-visual-view-acceptance>
             --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
         set_tests_properties(original-agriculture-visual-real PROPERTIES TIMEOUT 1860 RUN_SERIAL TRUE
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME agriculture-event-checkpoint-recovery-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_checkpoint_recovery_events.py
+            --visual-executable $<TARGET_FILE:openemperor-agriculture-visual-acceptance>
+            --luxury-executable $<TARGET_FILE:openemperor-luxury-progression-acceptance>
+            --seed-executable $<TARGET_FILE:openemperor-food-warehouses-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        # Eight independent paid creator/replay/refusal children each keep
+        # their 600s limit; allow bounded parent-side JSON/source auditing.
+        set_tests_properties(agriculture-event-checkpoint-recovery-real PROPERTIES TIMEOUT 4860 RUN_SERIAL TRUE
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME agriculture-irrigated-harvest-checkpoint-recovery-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_irrigated_checkpoint_recovery_events.py
+            --visual-executable $<TARGET_FILE:openemperor-agriculture-visual-acceptance>
+            --luxury-executable $<TARGET_FILE:openemperor-luxury-progression-acceptance>
+            --reconfiguration-executable $<TARGET_FILE:openemperor-agriculture-reconfiguration-acceptance>
+            --seed-executable $<TARGET_FILE:openemperor-food-warehouses-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}")
+        # Ten independent paid/event/replay children retain their600s limits;
+        # the parent only audits saved evidence and immutable input properties.
+        set_tests_properties(agriculture-irrigated-harvest-checkpoint-recovery-real PROPERTIES TIMEOUT 6060 RUN_SERIAL TRUE
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME agriculture-quality-aware-food-checkpoint-recovery-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_irrigated_checkpoint_recovery_events.py
+            --visual-executable $<TARGET_FILE:openemperor-agriculture-visual-acceptance>
+            --luxury-executable $<TARGET_FILE:openemperor-luxury-progression-acceptance>
+            --reconfiguration-executable $<TARGET_FILE:openemperor-agriculture-reconfiguration-acceptance>
+            --seed-executable $<TARGET_FILE:openemperor-food-warehouses-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" --quality-aware-food-dispatch)
+        set_tests_properties(agriculture-quality-aware-food-checkpoint-recovery-real PROPERTIES TIMEOUT 6060 RUN_SERIAL TRUE
+            SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME agriculture-paid-complete-city-real COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tests/test_paid_complete_city.py
+            --creator-executable $<TARGET_FILE:openemperor-paid-complete-city-creator>
+            --observer-executable $<TARGET_FILE:openemperor-agriculture-integration-acceptance>
+            --data "${OPENEMPEROR_ORIGINAL_MODEL_TEST_ROOT}" --seed-ticks 20000 --quality-aware-food-dispatch)
+        # Two paid creator children and the unchanged three100k observer
+        # continuations retain their own600/1800s limits, with audit headroom.
+        set_tests_properties(agriculture-paid-complete-city-real PROPERTIES TIMEOUT 6720 RUN_SERIAL TRUE
             SKIP_RETURN_CODE 77 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
         add_test(NAME original-food-warehouses-real COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_SOURCE_DIR}/tests/test_food_warehouses_replay.py

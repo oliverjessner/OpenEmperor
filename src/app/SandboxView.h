@@ -146,6 +146,14 @@ public:
     static std::unique_ptr<SandboxView> create_agriculture_reconfiguration(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
         bool paid_starter=true);
+    // Explicit Rule37/schema53: physical harvests admit actually earned wet growth.
+    static std::unique_ptr<SandboxView> create_irrigated_harvest(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=true);
+    // Explicit Rule38/schema54: physical raw Food selection considers House quality needs.
+    static std::unique_ptr<SandboxView> create_quality_aware_food_dispatch(
+        maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
+        bool paid_starter=true);
     // Explicit Rule35/schema51: one Food account and physical Warehouse redistribution.
     static std::unique_ptr<SandboxView> create_food_warehouses(
         maps::StoredMapSession session,std::optional<original::Difficulty> difficulty=std::nullopt,
@@ -951,6 +959,12 @@ private:
     }
     bool agriculture_reconfiguration() const {
         return simulation::agriculture_reconfiguration_enabled(rules_,requested_rule_version_);
+    }
+    bool irrigated_harvest() const {
+        return simulation::irrigated_harvest_enabled(rules_,requested_rule_version_);
+    }
+    bool quality_aware_food_dispatch() const {
+        return simulation::quality_aware_food_dispatch_enabled(rules_,requested_rule_version_);
     }
     bool irrigation_productivity() const {
         return simulation::irrigation_productivity_enabled(rules_,requested_rule_version_);
