@@ -25,10 +25,21 @@ def row(world, target, section, collection, key="field_id"):
     return keyed(world[section][collection], key)[target]
 
 
-def audit(directory, replay):
+def audit(directory, replay=False, irrigated_harvest=False, quality_aware_food_dispatch=False):
     report, plan = read(directory / "report.json"), read(directory / "plan.json")
-    check(report["status"] == "PASS" and report["rule"] == 36 and report["schema"] == 52,
+    check(not (irrigated_harvest and quality_aware_food_dispatch), "Select one explicit Agriculture successor")
+    rule, schema = (38, 54) if quality_aware_food_dispatch else (37, 53) if irrigated_harvest else (36, 52)
+    check(report["status"] == "PASS" and report["rule"] == rule and report["schema"] == schema,
           "actual successor did not complete")
+    if irrigated_harvest or quality_aware_food_dispatch:
+        check(plan["rule"] == rule and plan["policy"] == report["policy"] == 3 and plan["schema"] == schema and
+              all(value["irrigated_harvest"] == "authored-irrigated-harvest-v1" and
+                  value["irrigated_harvest_revision"] == 1 for value in (report, plan)),
+              "explicit Rule37 report/plan contract metadata")
+    if quality_aware_food_dispatch:
+        check(all(value["quality_aware_food_dispatch"] == "authored-quality-aware-food-dispatch-v1" and
+                  value["quality_aware_food_dispatch_revision"] == 1 for value in (report, plan)),
+              "explicit Rule38 report/plan contract metadata")
     check(report["snapshot_stock_or_population_injection"] is False and
           report["source_bytes_mode_mtime_unchanged"] is True and
           report["fresh_restore_continuation_exact"] is True and report["recovery_exact"] is True and
@@ -41,9 +52,17 @@ def audit(directory, replay):
         path = directory / checkpoint["file"]
         doc = read(path)
         world = doc["world"]
-        check(doc["schema_version"] == 52 and doc["rules"]["version"] == 36 and
+        check(doc["schema_version"] == schema and doc["rules"]["version"] == rule and
               doc["rules"]["agriculture_reconfiguration"] == "authored-agriculture-reconfiguration-v1" and
               doc["rules"]["agriculture_reconfiguration_revision"] == 1, "exact Rule36/schema52 markers")
+        if irrigated_harvest or quality_aware_food_dispatch:
+            check(doc["rules"]["irrigated_harvest"] == "authored-irrigated-harvest-v1" and
+                  doc["rules"]["irrigated_harvest_revision"] == 1 and
+                  doc["profiles"]["map_permissions"]["version"] == 3,
+                  "exact Rule37/schema53 contract, revision and policy")
+        if quality_aware_food_dispatch:
+            check(doc["rules"]["quality_aware_food_dispatch"] == "authored-quality-aware-food-dispatch-v1" and
+                  doc["rules"]["quality_aware_food_dispatch_revision"] == 1, "exact Rule38/schema54 contract")
         check(world["ticks"] == checkpoint["tick"] and checkpoint["exact_roundtrip"] and checkpoint["exact_recovery"],
               "checkpoint clock/Recovery")
         check(path.read_bytes() == path.with_name(path.name.replace(".save.json", ".roundtrip.json")).read_bytes(),
@@ -215,13 +234,16 @@ def main():
     parser.add_argument("--seed-executable", type=pathlib.Path)
     parser.add_argument("--seed-plan", type=pathlib.Path)
     parser.add_argument("--data", required=True, type=pathlib.Path)
+    generation = parser.add_mutually_exclusive_group()
+    generation.add_argument("--irrigated-harvest", action="store_true")
+    generation.add_argument("--quality-aware-food-dispatch", action="store_true")
     args = parser.parse_args()
     if not (args.data / "Model/EmperorBuildingModels.txt").is_file():
         print("SKIP: supplied Original data unavailable")
         return 77
     repo = pathlib.Path(__file__).resolve().parents[1]
     token = uuid.uuid4().hex
-    root = repo / ".local/agri-mac11" / ("ctest-" + token)
+    root = repo / (".local/agri-mac14" if args.irrigated_harvest or args.quality_aware_food_dispatch else ".local/agri-mac11") / ("ctest-" + token)
     root.mkdir(parents=True)
     protected = [args.data / "Model/EmperorBuildingModels.txt", args.data / "Cities/Chengdu.map"]
     before = {p: source(p) for p in protected}
@@ -235,12 +257,17 @@ def main():
         seed = seed_root / "plan.json"
     seed_before = source(seed)
     common = [str(args.executable.resolve()), "--data", str(args.data.resolve()), "--ticks", "24000"]
+    if args.quality_aware_food_dispatch:
+        common.append("--quality-aware-food-dispatch")
+    elif args.irrigated_harvest:
+        common.append("--irrigated-harvest")
     creator, replay = root / "creator", root / "replay"
     for output, extra in ((creator, ["--seed-plan", str(seed.resolve())]), (replay, ["--replay", str(creator)])):
         process = subprocess.run(common + ["--output", str(output)] + extra, cwd=repo, stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT, text=True, timeout=600)
         check(process.returncode == 0, process.stdout)
-    proof = {"creator": audit(creator, False), "replay": audit(replay, True)}
+    proof = {"creator": audit(creator, False, args.irrigated_harvest, args.quality_aware_food_dispatch),
+             "replay": audit(replay, True, args.irrigated_harvest, args.quality_aware_food_dispatch)}
     check((creator / "final.save.json").read_bytes() == (replay / "final.save.json").read_bytes(), "separate process final canonical mismatch")
     check((creator / "work.jsonl").read_bytes() == (replay / "work.jsonl").read_bytes(), "separate process actual trace mismatch")
     check(before == {p: source(p) for p in protected} and seed_before == source(seed), "supplied/seed bytes, mode or mtime changed")

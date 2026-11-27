@@ -87,9 +87,19 @@ void version_contract() {
         sim::rule_version_supported(sim::RulesProfile::CityV16,24) &&
         sim::rule_version_supported(sim::RulesProfile::CityV16,25)&&sim::rule_version_supported(sim::RulesProfile::CityV16,26)&&
         sim::rule_version_supported(sim::RulesProfile::CityV16,27)&&sim::rule_version_supported(sim::RulesProfile::CityV16,28)&&sim::rule_version_supported(sim::RulesProfile::CityV16,29)&&
-        sim::rule_version_supported(sim::RulesProfile::CityV16,30)&&sim::rule_version_supported(sim::RulesProfile::CityV16,31)&&sim::rule_version_supported(sim::RulesProfile::CityV16,32)&&sim::rule_version_supported(sim::RulesProfile::CityV16,33)&&sim::rule_version_supported(sim::RulesProfile::CityV16,34)&&sim::rule_version_supported(sim::RulesProfile::CityV16,35)&&sim::rule_version_supported(sim::RulesProfile::CityV16,36)&&!sim::rule_version_supported(sim::RulesProfile::CityV16,37)&&
+        sim::rule_version_supported(sim::RulesProfile::CityV16,30)&&sim::rule_version_supported(sim::RulesProfile::CityV16,31)&&sim::rule_version_supported(sim::RulesProfile::CityV16,32)&&sim::rule_version_supported(sim::RulesProfile::CityV16,33)&&sim::rule_version_supported(sim::RulesProfile::CityV16,34)&&sim::rule_version_supported(sim::RulesProfile::CityV16,35)&&sim::rule_version_supported(sim::RulesProfile::CityV16,36)&&sim::rule_version_supported(sim::RulesProfile::CityV16,37)&&
+        sim::rule_version_supported(sim::RulesProfile::CityV16,38)&&!sim::rule_version_supported(sim::RulesProfile::CityV16,39)&&
         !sim::rule_version_supported(sim::RulesProfile::CityV16,999),
           "Unknown City-v16 rule accepted");
+    for (const auto version:{37U,38U})
+        for (const auto profile:{sim::RulesProfile::LogisticsV1,sim::RulesProfile::ProductionV2,
+                sim::RulesProfile::HouseholdV3,sim::RulesProfile::SettlementV4,sim::RulesProfile::IndustryV5,
+                sim::RulesProfile::CityV6,sim::RulesProfile::CityV7,sim::RulesProfile::CityV8,
+                sim::RulesProfile::CityV9,sim::RulesProfile::CityV10,sim::RulesProfile::CityV11,
+                sim::RulesProfile::CityV12,sim::RulesProfile::CityV13,sim::RulesProfile::CityV14,
+                sim::RulesProfile::CityV15})
+            check(!sim::rule_version_supported(profile,version),
+                "Explicit Agriculture successor accepted by a historical profile");
     check(sim::original_fire_protection_enabled(sim::RulesProfile::CityV16,11) &&
         sim::original_fire_protection_enabled(sim::RulesProfile::CityV16,12) &&
         !sim::original_fire_protection_enabled(sim::RulesProfile::CityV16,10),

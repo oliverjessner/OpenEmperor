@@ -305,6 +305,22 @@ simulation::World restore_agriculture_reconfiguration(
     std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
     std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
     std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema53/Rule37 changes only explicitly selected irrigated-harvest eligibility;
+// all inventories, work counters and reconfiguration histories remain inherited.
+simulation::World restore_irrigated_harvest(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
+// Schema54/Rule38 selects quality-aware Food dispatch without adding saved
+// inventories, House needs or transport authority to the inherited state.
+simulation::World restore_quality_aware_food_dispatch(
+    const SaveDocument& document,const std::filesystem::path& data_root,
+    std::vector<std::uint8_t> buildable,
+    std::shared_ptr<const simulation::MapPermissions> permissions=nullptr,
+    std::shared_ptr<const original::OriginalRulesModel> model=nullptr,
+    std::shared_ptr<const simulation::OriginalTerrainFacts> terrain=nullptr);
 // Schema36 is an explicit authored classic Rule6 successor. It does not
 // inherit Original-economy rules or migrate an existing transport save.
 simulation::World restore_authored_source_cell_ramps(

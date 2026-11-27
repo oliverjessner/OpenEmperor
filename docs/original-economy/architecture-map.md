@@ -212,6 +212,64 @@ and paid footprint lifetimes separately from today's occupancy. Runtime dispatch
 water invalidation, field work, physical returns, fire and finance reuse their
 existing owners. Rules1–35/defaults remain exact. See [the matrix](agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
 
+**Irrigated harvest** is separately explicit Rule37/policy3/schema53,
+`authored-irrigated-harvest-v1`, revision1, J/`--irrigated-harvest`. It inherits
+Rule36 and changes Food harvest-history admission in `WorldOriginalFood`.
+Existing per-field base work, earned irrigation bonus and seasonal waste must
+account for every harvested80-unit cycle and its pending growth. Elapsed time
+or a potential25% allowance cannot supply missing work. A fully wet cycle can
+earn64 actual growth-work ticks plus16 bonus units; five subsequent physical
+harvest-work ticks and actual Farm return still govern cargo and stock.
+
+Rule37 also makes the existing neutral Well command in `WorldOriginalInfluence`
+respect shared live-actor and paid-overlay claims across its complete footprint.
+Actual current cells and begun edges block construction, including living
+wildlife, Hunters and active couriers; an actor's future route is not reserved.
+This prevents an accepted Well from invalidating an already present Hunter.
+
+There is no new World state, inventory, clock or saved counter. Five Farms,
+eight active Fields per Farm,32 lifetime Fields,32 plantation plants, the
+eight-entry reconfiguration journal and82-body/58-channel budgets remain
+unchanged. `World::create_irrigated_harvest` and
+`World::restore_irrigated_harvest` use the existing policy/model/terrain inputs;
+`persistence::restore_irrigated_harvest` shares the existing Food-processing
+model and Hunting-terrain preparation. Schema53 adds only its exact rules
+marker/revision to the inherited payload and requires its own write target.
+Rules1–36/schemas1–52 and defaults retain their exact contracts without
+migration; the historical harvest and neutral Well validators are not reinterpreted. See the
+[contract and concrete defect](agriculture.md#irrigated-harvest-admission-agri-mac14).
+Rule37 final-source full-suite, complete-city, native-input and human acceptance
+remain pending; historical Rule36 evidence does not validate this successor.
+
+**Quality-aware Food dispatch** is separately explicit Rule38/policy3/schema54,
+`authored-quality-aware-food-dispatch-v1`, revision1, regular **8** /
+`--quality-aware-food-dispatch`. It inherits Rule37's earned-harvest admission
+and neutral Well footprint safety, together with the existing Rule36 economy.
+Only physical raw Market-to-occupied-House load choice changes in
+`WorldOriginalFood`. At dispatch, the actual occupied recipient's current
+source-model House row supplies its FoodQuality requirement. A historical mixed
+load already meeting that requirement is retained exactly. Otherwise the bounded
+chooser uses existing raw scores and stock to select a qualifying subset of at
+most four physical portions; if none qualifies, the dispatcher can try another
+eligible target. Existing routes, target ordering, physical debits, reservations,
+arrival and House consumption remain authoritative. No new blend, quality grant,
+inventory, cost, workforce, capacity, limit or clock is introduced. A higher
+requirement earned during travel is not predicted or guaranteed at arrival.
+
+`World::create_quality_aware_food_dispatch` and
+`World::restore_quality_aware_food_dispatch` use the same immutable permissions,
+prepared Food-processing model and terrain inputs as37;
+`persistence::restore_quality_aware_food_dispatch` selects exact schema54 before
+the inherited generations. Schema54 requires the new marker/revision and every
+inherited identity, without a new saved state or dispatch-need epoch. Restore
+validates physical cargo/accounting without treating a later House requirement
+as proof that an earlier valid dispatch was impossible. Only an existing valid
+schema54 target can be overwritten by its writer; schemas1–53, Rules1–37,
+J37/`--irrigated-harvest`, R36 and defaults remain exact without migration.
+Rule18 remains recommended play. Rule38 native acceptance, the full451-case
+Debug/Release/ASan+UBSan matrix and actual whole-city acceptance are **PENDING**;
+human acceptance is **NOT_RUN**. No Original dispatch or runtime parity is claimed.
+
 **Irrigation productivity** is separately explicit Rule33/policy3/schema49,
 `authored-irrigation-productivity-v1`, revision1. `WorldIrrigationProductivity`
 records per-crop wet work, earned/clipped bonus and derived quarter carry;
@@ -254,6 +312,8 @@ Historical Rules1–32 stay exact. See
 | Rule34 / schema50 / Food processing revision1 | Explicit paid Mill53/FoodShop66 successor to33. One12-column Food authority preserves seven raw ingredients and graded Dinners28, finite physical transport/reservations, one-time recipe inputs, staffed work, actual output and sole House consumption. Exact first meal provenance and strict source-bound restore; no defaults or historical migrations. |
 | Rule35 / schema51 / Food Warehouses revision1 | Explicit successor to34. Paid Warehouses join the same twelve-column Food account with bounded storage, physical source debits, another real forwarding leg and immutable first receipts. Existing construction/Goods/Aux, historical generations, defaults and82/58 limits remain exact. |
 | Rule36 / schema52 / Agriculture reconfiguration revision1 | Explicit successor to35. Settled paid Food Fields, material plants and Pumps close without refund or erased work/cargo/history. Persistent Drain and request-time observations bind actual work and returns; exact source/footprint lifetimes, closed Pump clocks/upkeep and unchanged lifetime82/58/32 limits precede publication. Source/stock owners stay refused; historical saves/defaults do not migrate. |
+| Rule37 / schema53 / irrigated harvest revision1 | Explicit successor to36, marker `authored-irrigated-harvest-v1`. Food harvest admission uses retained actual base work plus earned wet bonus minus seasonal waste. Neutral Wells honor shared live-actor/begun-edge and paid-overlay footprint claims. Five real harvest-work ticks, physical cargo/return, all inherited ledgers and bounds remain authoritative. No new saved counter/state, automatic migration or historical overwrite; exact marker/revision and source-bound restore precede publication. Acceptance evidence is separate. |
+| Rule38 / schema54 / quality-aware Food dispatch revision1 | Explicit successor to37, marker `authored-quality-aware-food-dispatch-v1`. Only raw Market-to-occupied-House load selection uses the actual current source-row FoodQuality requirement at dispatch. Preserve qualifying historical mixed loads; otherwise select a qualifying physical subset within cart4 or another eligible target. No new blend, stock, arrival/quality grant, saved need epoch, cost, staffing, storage, clock or82/58 limit. Exact54 marker/revision and inherited identities; no historical migration/overwrite. Native/full451/whole-city acceptance PENDING; human NOT_RUN. |
 
 The separate [OE53 source-cell terrain experiment](../rendering/oe53-terrain-integration.md)
 uses Rule20/schema36 and inherits **classic Rule6**, with no Original economy

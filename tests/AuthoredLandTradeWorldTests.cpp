@@ -159,11 +159,18 @@ void geometry_identity_and_configuration() {
     check(sim::rule_version_supported(sim::RulesProfile::CityV16,21)&&sim::rule_version_supported(sim::RulesProfile::CityV16,24)&&
         sim::rule_version_supported(sim::RulesProfile::CityV16,25)&&sim::rule_version_supported(sim::RulesProfile::CityV16,26)&&
         sim::rule_version_supported(sim::RulesProfile::CityV16,27)&&sim::rule_version_supported(sim::RulesProfile::CityV16,28)&&sim::rule_version_supported(sim::RulesProfile::CityV16,29)&&
-        sim::rule_version_supported(sim::RulesProfile::CityV16,30)&&sim::rule_version_supported(sim::RulesProfile::CityV16,31)&&sim::rule_version_supported(sim::RulesProfile::CityV16,32)&&sim::rule_version_supported(sim::RulesProfile::CityV16,33)&&sim::rule_version_supported(sim::RulesProfile::CityV16,34)&&sim::rule_version_supported(sim::RulesProfile::CityV16,35)&&sim::rule_version_supported(sim::RulesProfile::CityV16,36)&&!sim::rule_version_supported(sim::RulesProfile::CityV16,37)&&
+        sim::rule_version_supported(sim::RulesProfile::CityV16,30)&&sim::rule_version_supported(sim::RulesProfile::CityV16,31)&&sim::rule_version_supported(sim::RulesProfile::CityV16,32)&&sim::rule_version_supported(sim::RulesProfile::CityV16,33)&&sim::rule_version_supported(sim::RulesProfile::CityV16,34)&&sim::rule_version_supported(sim::RulesProfile::CityV16,35)&&sim::rule_version_supported(sim::RulesProfile::CityV16,36)&&sim::rule_version_supported(sim::RulesProfile::CityV16,37)&&sim::rule_version_supported(sim::RulesProfile::CityV16,38)&&!sim::rule_version_supported(sim::RulesProfile::CityV16,39)&&
         !sim::rule_version_supported(sim::RulesProfile::CityV16,999)&&
         !sim::original_economy_enabled(sim::RulesProfile::CityV16,21)&&!sim::source_cell_ramps_enabled(sim::RulesProfile::CityV16,21)&&
         sim::current_rule_version(sim::RulesProfile::CityV16)==4&&sim::current_rule_version(sim::RulesProfile::CityV11)==3,
         "New authored trade inherited Original/source-cell authority or changed defaults");
+    for(const auto version:{37U,38U})
+        check(sim::original_economy_enabled(sim::RulesProfile::CityV16,version)&&
+            sim::original_production_enabled(sim::RulesProfile::CityV16,version)&&
+            sim::food_processing_enabled(sim::RulesProfile::CityV16,version)&&
+            sim::agriculture_reconfiguration_enabled(sim::RulesProfile::CityV16,version)&&
+            !sim::source_cell_ramps_enabled(sim::RulesProfile::CityV16,version),
+            "Explicit Agriculture successors lost inherited economy or gained separate source-cell authority");
     auto w=f.fresh();const auto s=setup(w);
     refused(w,sim::configure_land_trade(s.gateway,s.city),"boundary");
     refused(w,sim::configure_land_trade(s.city,s.city),"distinct");

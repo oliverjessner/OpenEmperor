@@ -390,6 +390,40 @@
   retain existing neutral Well/Road/Ditch paths. No refund, stock transfer,
   cargo/work reset, migration or default change. Rules1–35/schemas1–51 stay exact.
   See [reconfiguration](docs/original-economy/agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
+- Irrigated harvest admission is an explicit Rule37/policy3/schema53 successor,
+  `authored-irrigated-harvest-v1`, revision1, regular J / `--irrigated-harvest`.
+  Inherit Rule36's sole Food, work, physical actors, reconfiguration, costs and
+  82/58 limits. Food harvest-history admission uses actual paid
+  base work plus actual earned irrigation bonus minus retained seasonal loss,
+  with the existing exact 80-growth/pending equation. Keep paid-release Farm
+  labor quotas, wet/4=bonus+clipped, five real harvest-work ticks, movement,
+  cargo/reservations and actual source return. Potential wet time never grants
+  work or stock. Neutral Well72 construction also respects existing physical
+  actor/courier current and begun cells and paid terrain claims across its
+  complete footprint; a refusal must leave funds, identities and actors exact.
+  Require the exact schema53 marker/revision and source-bound
+  create/restore; no new ledger/counter, migration or historical overwrite.
+  Rules1–36/schemas1–52 remain exact, including the historical coarse age/80
+  refusal for a real irrigated Food harvest before80 elapsed ticks. General
+  defaults and recommended Rule18 do not change. See
+  [irrigated harvest](docs/original-economy/agriculture.md#irrigated-harvest-admission-agri-mac14).
+- Quality-aware raw Food dispatch is a separate explicit Rule38/policy3/schema54
+  successor, `authored-quality-aware-food-dispatch-v1`, revision1, regular8 /
+  `--quality-aware-food-dispatch`. Inherit Rule37's earned-harvest and neutral
+  Well safety plus the unchanged Rule36 economy. Only raw Market-to-occupied
+  House load eligibility/selection changes: use physical stock, actual remaining
+  raw4/House8 headroom and the current source-row FoodQuality need. Keep a qualified
+  historical mixed load; otherwise choose a bounded high-score physical subset
+  of at most4 portions, or another eligible target. Retain cached routes, actual
+  incoming reservations, deadline ranking and canonical cursor. A shortage has
+  the nonserialized `NoQualifiedFood` diagnostic. Do not change blend/arrival,
+  consumption, quantities, costs, work, movement or82/58 limits; no stock, quality,
+  timer or need is granted by dispatch. A higher House need earned during travel
+  is not predicted and cannot invalidate a legitimate saved trip. Require both
+  inherited irrigated-harvest and new quality-aware markers/revisions, exact54
+  create/restore/Recovery and no53/54 overwrite. Rules1–37/schemas1–53, J37,
+  all defaults and recommended Rule18 remain exact, without migration. See
+  [quality-aware Food](docs/original-economy/agriculture.md#quality-aware-raw-food-dispatch-agri-mac14).
 - Saves are OpenEmperor JSON, never original Emperor savegames. Validate complete
   identities, versions, source hashes, geometry, accounting, goods, paths and limits
   before atomic publication. Derived indexes/caches do not become saved authority.

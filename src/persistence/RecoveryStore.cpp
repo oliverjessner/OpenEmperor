@@ -1,6 +1,8 @@
 #include "persistence/RecoveryStore.h"
 
 #include "platform/AtomicReplace.h"
+#include "simulation/IrrigatedHarvestContract.h"
+#include "simulation/QualityAwareFoodDispatchContract.h"
 
 #include <nlohmann/json.hpp>
 
@@ -274,7 +276,9 @@ void validate_policy_readback(const SaveDocument& saved,const SaveDocument& sour
         return;
     }
     if (simulation::original_production_enabled(source.world.profile,source.world.rule_version)) {
-        require(saved.source_schema_version==(simulation::agriculture_reconfiguration_enabled(source.world.profile,source.world.rule_version) ? 52U:
+        require(saved.source_schema_version==(simulation::quality_aware_food_dispatch_enabled(source.world.profile,source.world.rule_version) ? 54U:
+                simulation::irrigated_harvest_enabled(source.world.profile,source.world.rule_version) ? 53U:
+                simulation::agriculture_reconfiguration_enabled(source.world.profile,source.world.rule_version) ? 52U:
                 simulation::food_warehouses_enabled(source.world.profile,source.world.rule_version) ? 51U:
                 simulation::food_processing_enabled(source.world.profile,source.world.rule_version) ? 50U:
                 simulation::irrigation_productivity_enabled(source.world.profile,source.world.rule_version) ? 49U:
@@ -362,7 +366,9 @@ bool validate_recovery_access(const SaveDocument& document,RecoveryAccess access
             simulation::original_production_enabled(document.world.profile,document.world.rule_version),
             "schema23 development saves are unavailable in normal recovery histories");
     require((document.source_schema_version==0 || document.source_schema_version==
-                (simulation::agriculture_reconfiguration_enabled(document.world.profile,document.world.rule_version) ? 52U:
+                (simulation::quality_aware_food_dispatch_enabled(document.world.profile,document.world.rule_version) ? 54U:
+                 simulation::irrigated_harvest_enabled(document.world.profile,document.world.rule_version) ? 53U:
+                 simulation::agriculture_reconfiguration_enabled(document.world.profile,document.world.rule_version) ? 52U:
                  simulation::food_warehouses_enabled(document.world.profile,document.world.rule_version) ? 51U:
                  simulation::food_processing_enabled(document.world.profile,document.world.rule_version) ? 50U:
                  simulation::irrigation_productivity_enabled(document.world.profile,document.world.rule_version) ? 49U:

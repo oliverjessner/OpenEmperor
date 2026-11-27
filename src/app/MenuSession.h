@@ -59,7 +59,11 @@ public:
         original_rule_version_==simulation::kIrrigationProductivityRuleVersion ||
         original_rule_version_==simulation::kFoodProcessingRuleVersion ||
         original_rule_version_==simulation::kFoodWarehousesRuleVersion ||
-        original_rule_version_==simulation::kAgricultureReconfigurationRuleVersion; }
+        original_rule_version_==simulation::kAgricultureReconfigurationRuleVersion ||
+        original_rule_version_==simulation::kIrrigatedHarvestRuleVersion ||
+        original_rule_version_==simulation::kQualityAwareFoodDispatchRuleVersion; }
+    bool quality_aware_food_dispatch_setup() const { return original_rule_version_==simulation::kQualityAwareFoodDispatchRuleVersion; }
+    bool irrigated_harvest_setup() const { return original_rule_version_==simulation::kIrrigatedHarvestRuleVersion; }
     bool agriculture_reconfiguration_setup() const { return original_rule_version_==simulation::kAgricultureReconfigurationRuleVersion; }
     bool food_warehouses_setup() const { return original_rule_version_==simulation::kFoodWarehousesRuleVersion; }
     bool food_processing_setup() const { return original_rule_version_==simulation::kFoodProcessingRuleVersion; }

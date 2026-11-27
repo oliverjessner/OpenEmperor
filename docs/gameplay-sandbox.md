@@ -238,6 +238,35 @@ budgets; rebuilding costs the full price and allocates a new ID. Stock/source
 owners remain refused. Rules1–35/schemas1–51, advanced Rule19 and defaults stay
 exact without migration. See the [matrix](original-economy/agriculture.md#safe-agriculture-reconfiguration-agri-mac11).
 
+The separate regular **J Irrigated harvest (37)** / `--irrigated-harvest`
+selects Rule37/policy3/schema53, marker `authored-irrigated-harvest-v1`, revision1.
+It inherits36 and admits Food harvest history from actual base work plus earned
+wet-growth bonus minus seasonal waste. Irrigation can finish80 growth units
+before80 elapsed field ticks; five actual harvest-work ticks and real Farm
+return remain necessary. Neutral Well placement also respects shared live-actor,
+begun-edge and paid-overlay claims throughout its footprint. Future route cells
+do not become construction reservations. Prices, staffing, seasonal windows, physical transport,
+safe reconfiguration and82/58 limits do not change. Rules1–36/schemas1–52 and
+defaults retain their exact contracts. See the
+[irrigated-harvest contract](original-economy/agriculture.md#irrigated-harvest-admission-agri-mac14).
+
+The separate regular **8 Quality-aware Food (38)** /
+`--quality-aware-food-dispatch` selects Rule38/policy3/schema54, marker
+`authored-quality-aware-food-dispatch-v1`, revision1. It inherits37, including
+earned irrigated harvests and neutral Well footprint safety, and the existing
+Rule36 economy. Only raw Market-to-occupied-House load selection changes:
+the actual current source-model House row supplies the FoodQuality requirement
+at dispatch. A qualifying historical mixed load stays unchanged. Otherwise the
+Market selects a qualifying subset of up to four physically available raw portions
+or another eligible target. Existing physical source debits, cargo, reservations,
+arrival and the sole House consumption event remain authoritative. Storage,
+recipes, scores, prices, staffing, movement and clocks remain unchanged; a House
+that evolves during travel may need higher quality by arrival. J37/`--irrigated-harvest`,
+R36, Rules1–37 and general defaults retain their own contracts without migration.
+Rule18 remains recommended. Rule38 native, complete451-case Debug/Release/
+ASan+UBSan and whole-city acceptance are **PENDING**; human acceptance is
+**NOT_RUN**. See the [versioned architecture](original-economy/architecture-map.md#versions-and-source-preparation).
+
 The separate **X Irrigation yields (33)** / `--irrigation-productivity`
 selection uses Rule33/policy3/schema49 with marker
 `authored-irrigation-productivity-v1`. It inherits Rule32 and adds one bonus
@@ -336,6 +365,30 @@ Reserved space does not count as produced goods. The original v1 Goods balance c
 ## OpenEmperor sandbox saves
 
 All sandbox rule profiles can save and resume their own simulation state. This is **not** an original Emperor savegame format and cannot load one. The original map and graphics remain necessary and read only.
+
+Explicit Rule37 saves use schema53 with
+`rules.irrigated_harvest: "authored-irrigated-harvest-v1"` and
+`rules.irrigated_harvest_revision: 1`, together with every inherited Rule36
+marker and the same source/model/policy bindings. They retain the sole existing
+Food ledger, field-work, bonus, seasonal, cargo, receipt and reconfiguration
+records; no new counter or derived wet cache is saved. Missing, wrong or
+duplicate markers and inconsistent work/cargo/receipt histories are refused
+before publication. A Rule37 writer may replace only a valid existing schema53
+target. Schema52/Rule36 and schema53/Rule37 neither migrate nor overwrite each
+other; Recovery uses the same exact-generation validation and unchanged
+start-plus-five retention. See the
+[versioned contract table](original-economy/architecture-map.md#versions-and-source-preparation).
+
+Explicit Rule38 saves use schema54 with
+`rules.quality_aware_food_dispatch: "authored-quality-aware-food-dispatch-v1"`
+and `rules.quality_aware_food_dispatch_revision: 1`, plus every inherited Rule37
+marker and exact source/model/policy identity. Load choice adds no saved House-need
+epoch, ledger or counter; already in-flight cargo is not requalified against a
+later current House need. Complete physical/accounting validation still precedes
+publication. Missing, wrong or duplicate markers are refused, and a Rule38 writer
+may replace only a valid existing schema54 target. Schema53/Rule37 and all older
+generations neither migrate nor overwrite schema54; Recovery retains its ordinary
+exact-generation checks and unchanged start-plus-five rotation.
 
 ```sh
 ./build/openemperor --data /path/to/your/game-data --sandbox Cities/Xia.map --sandbox-rules sandbox-production-v2 --sandbox-save .local/saves/quicksave.oesave.json

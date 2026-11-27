@@ -69,8 +69,15 @@ void exact_identity_and_historical_generations() {
         sim::rule_version_supported(w.profile(),21)&&!sim::original_economy_enabled(w.profile(),21)&&
         sim::rule_version_supported(w.profile(),24)&&sim::rule_version_supported(w.profile(),25)&&sim::rule_version_supported(w.profile(),26)&&
         sim::rule_version_supported(w.profile(),27)&&sim::rule_version_supported(w.profile(),28)&&sim::rule_version_supported(w.profile(),29)&&
-        sim::rule_version_supported(w.profile(),30)&&sim::rule_version_supported(w.profile(),31)&&sim::rule_version_supported(w.profile(),32)&&sim::rule_version_supported(w.profile(),33)&&sim::rule_version_supported(w.profile(),34)&&sim::rule_version_supported(w.profile(),35)&&sim::rule_version_supported(w.profile(),36)&&!sim::rule_version_supported(w.profile(),37)&&!sim::rule_version_supported(w.profile(),999),
+        sim::rule_version_supported(w.profile(),30)&&sim::rule_version_supported(w.profile(),31)&&sim::rule_version_supported(w.profile(),32)&&sim::rule_version_supported(w.profile(),33)&&sim::rule_version_supported(w.profile(),34)&&sim::rule_version_supported(w.profile(),35)&&sim::rule_version_supported(w.profile(),36)&&sim::rule_version_supported(w.profile(),37)&&sim::rule_version_supported(w.profile(),38)&&!sim::rule_version_supported(w.profile(),39)&&!sim::rule_version_supported(w.profile(),999),
         "Rule16 identity/defaults or separate authored Rule20 changed");
+    for(const auto version:{37U,38U})
+        check(sim::original_production_enabled(w.profile(),version)&&
+            sim::original_fire_protection_enabled(w.profile(),version)&&
+            sim::food_processing_enabled(w.profile(),version)&&
+            sim::agriculture_reconfiguration_enabled(w.profile(),version)&&
+            !sim::source_cell_ramps_enabled(w.profile(),version),
+            "Explicit Agriculture successors lost inherited authority or gained separate source-cell ramps");
     refuses([&]{sim::World ordinary(fxt.policy,sim::RulesProfile::CityV16,16);},"Ordinary constructor enabled Rule16");
     refuses([&]{(void)sim::World::create_original_deadline_fire_dispatch(fxt.policy,fxt.model,nullptr);},"Missing terrain accepted");
     auto old=fxt.old();

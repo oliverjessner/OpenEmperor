@@ -53,7 +53,7 @@ using Staffing=std::span<const std::pair<simulation::BuildingId,int>>;
 // Call only at World publication/tick/command/load boundaries. Production may
 // reuse its existing workers_assigned cache for this exact World epoch. Missing
 // entries delegate once per unique source to the existing public World query.
-// Exact Rule36 only; older/future generations return an empty cache. Retired
+// Explicit Rules36/37/38 only; other generations return an empty cache. Retired
 // bodies are absent. Drawing/hovering uses find() and these copied observations.
 Cache prepare(const simulation::World&,Staffing staffing={});
 const char* phase_name(Phase) noexcept;

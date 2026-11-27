@@ -1,7 +1,8 @@
-// Read-only integration observer for an explicitly supplied earned Rule36 city.
+// Read-only observer for an explicitly supplied earned Rule36 or opt-in Rule37 city.
 // Source-bound restore and ordinary World ticks remain the only authority.
 #include "../tests/LuxuryProgressionFixture.h"
 #include "../tests/OriginalLongplayFixture.h"
+#include "../tests/CompleteCityAssessment.h"
 #include "FoodNativePlaytest.h"
 
 #include <charconv>
@@ -12,6 +13,11 @@ namespace l=oe_luxury_progression;
 namespace p=oe_food_playtest;
 namespace {
 using Id=sim::BuildingId;
+using oe_complete_city::Totals;
+using oe_complete_city::totals;
+using oe_complete_city::delta;
+using CompleteCity=oe_complete_city::Assessment;
+using oe_complete_city::complete_city_contract;
 using Clock=std::chrono::steady_clock;
 constexpr std::uint64_t year_ticks=51U*16U*12U;
 constexpr std::array<const char*,12> food_names{"Wheat7","Millet5","Rice6","Cabbage3","BeanCurd1","Fish2","Meat4","Dinners28-grade1","Dinners28-grade2","Dinners28-grade3","Dinners28-grade4","Dinners28-grade5"};
@@ -23,15 +29,20 @@ struct Guard {
     }
     void unchanged()const {l::check(l::q::f::read_text(path)==bytes&&fs::status(path).permissions()==mode&&fs::last_write_time(path)==modified,"Read-only input bytes/mode/mtime changed");}
 };
-struct Options {fs::path data,input,output,map,replay;unsigned ticks=100000;};
-constexpr const char* usage="openemperor-agriculture-integration-acceptance --data ABS --input EXPLICIT_EARNED_SCHEMA52_SAVE --output FRESH_.local/agri-mac14/SUBDIR [--map Cities/NAME.map] [--ticks 100000] [--replay PRIOR_RUN_DIR]";
+struct Options {fs::path data,input,output,map,replay;unsigned ticks=100000;bool complete_city=false,irrigated_harvest=false,quality_aware_food_dispatch=false;};
+constexpr const char* usage="openemperor-agriculture-integration-acceptance --data ABS --input EXPLICIT_EARNED_SAVE --output FRESH_.local/agri-mac14/SUBDIR [--map Cities/NAME.map] [--ticks 100000] [--replay PRIOR_RUN_DIR] [--complete-city] [--irrigated-harvest] [--quality-aware-food-dispatch]";
 Options options(int argc,char** argv) {
     Options o;std::map<std::string,std::string> args;
-    for(int n=1;n<argc;n+=2) {
-        l::check(n+1<argc,usage);const std::string key=argv[n];
+    for(int n=1;n<argc;++n) {
+        const std::string key=argv[n];
+        if(key=="--complete-city") {l::check(!o.complete_city,"Duplicate complete-city argument");o.complete_city=true;continue;}
+        if(key=="--quality-aware-food-dispatch"){l::check(!o.quality_aware_food_dispatch,"Duplicate quality-aware Food selection");o.quality_aware_food_dispatch=true;continue;}
+        if(key=="--irrigated-harvest") {l::check(!o.irrigated_harvest,"Duplicate irrigated-harvest argument");o.irrigated_harvest=true;continue;}
+        l::check(n+1<argc,usage);
         l::check(key=="--data"||key=="--input"||key=="--output"||key=="--map"||key=="--ticks"||key=="--replay",usage);
-        l::check(args.emplace(key,argv[n+1]).second,"Duplicate argument");
+        l::check(args.emplace(key,argv[++n]).second,"Duplicate argument");
     }
+    l::check(!(o.irrigated_harvest&&o.quality_aware_food_dispatch),"Choose exactly one explicit successor");
     l::check(args.contains("--data")&&args.contains("--input")&&args.contains("--output"),usage);
     l::no_symlinks(args.at("--data"));l::no_symlinks(args.at("--input"));
     o.data=fs::canonical(args.at("--data"));o.input=fs::canonical(args.at("--input"));
@@ -46,45 +57,21 @@ Options options(int argc,char** argv) {
 }
 struct Context {
     l::q::Context map;std::shared_ptr<const orig::OriginalRulesModel> model;std::shared_ptr<const sim::OriginalTerrainFacts> terrain;
-    Context(const fs::path& data,const fs::path& selected,orig::Difficulty difficulty):
+    unsigned rule,schema;
+    Context(const fs::path& data,const fs::path& selected,orig::Difficulty difficulty,bool irrigated_harvest,bool quality=false):
         map(oe_longplay_fixture::real_map_context(data,selected)),
         model(l::save::prepare_food_processing_rules_model(data,difficulty)),
-        terrain(l::save::prepare_playable_hunting_terrain_facts(data,selected)){}
+        terrain(l::save::prepare_playable_hunting_terrain_facts(data,selected)),
+        rule(quality?38U:irrigated_harvest?37U:36U),schema(rule+16){}
     l::save::SaveDocument document(const sim::World& world)const{return l::save::make_document(map.data,map.map_relative,map.mask,world);}
     sim::World restore(const l::save::SaveDocument& document)const {
-        l::check(document.source_schema_version==52&&document.world.rule_version==36,"Exact Rule36/schema52 required");
+        l::check(document.source_schema_version==schema&&document.world.rule_version==rule,
+            rule==38?"Exact opt-in Rule38/schema54 required":rule==37?"Exact opt-in Rule37/schema53 required":"Exact Rule36/schema52 required");
+        if(rule==38)return l::save::restore_quality_aware_food_dispatch(document,map.data,map.mask,map.policy,model,terrain);
+        if(rule==37)return l::save::restore_irrigated_harvest(document,map.data,map.mask,map.policy,model,terrain);
         return l::save::restore_agriculture_reconfiguration(document,map.data,map.mask,map.policy,model,terrain);
     }
 };
-struct Totals {
-    sim::ProcessedFoodCounters origin{},held{},used{},carried{},house_consumed{};
-    std::array<std::uint64_t,orig::goods_count> house_goods{};
-};
-Totals totals(const sim::World& world) {
-    l::check(world.rule_version()==36&&world.processed_food_state()&&!world.hunting_food_state()&&!world.fishing_food_state()&&!world.original_agriculture_state(),"Single Rule36 Food authority required");
-    Totals result;
-    for(const auto& field:world.agriculture_fields()) {
-        const auto& receipts=world.physical_food_growers_state()->fields;
-        const auto row=std::find_if(receipts.begin(),receipts.end(),[&](const auto& item){return item.field_id==field.field_id;});
-        l::check(row!=receipts.end(),"Missing physical Field return history");
-        result.origin.at(static_cast<std::size_t>(field.crop))+=row->returned;
-    }
-    for(const auto& quay:world.fishing_state()->quays)result.origin[5]+=quay.unloaded;
-    for(const auto& tent:world.hunting_state()->tents)result.origin[6]+=tent.unloaded;
-    for(const auto& mill:world.food_processing_state()->mills)for(std::size_t grade=0;grade<4;++grade)result.origin[7+grade]+=(grade+1)*mill.completed_by_grade[grade];
-    for(const auto& stock:world.processed_food_state()->stocks)for(std::size_t i=0;i<12;++i) {
-        l::check(stock.amounts[i]>=0,"Negative physical Food stock");
-        result.held[i]+=static_cast<unsigned>(stock.amounts[i]);result.used[i]+=stock.consumed[i];
-        if(sim::original_house_kind(world.building(stock.building_id).kind))result.house_consumed[i]+=stock.consumed[i];
-    }
-    for(const auto& trip:world.processed_food_state()->trips)for(std::size_t i=0;i<12;++i) {
-        const auto cargo=trip.loaded[i]-trip.delivered[i]-trip.returned[i];l::check(cargo>=0&&cargo<=4,"Invalid physical Food cargo");result.carried[i]+=static_cast<unsigned>(cargo);
-    }
-    for(std::size_t i=0;i<12;++i)l::check(result.origin[i]==result.held[i]+result.used[i]+result.carried[i],"Food origin != held + consumed/processor-debited + physical cargo");
-    for(const auto& home:world.original_production_state()->housing.houses)for(const auto& row:home.consumption_rows)
-        for(std::size_t i=0;i<orig::goods_count;++i)result.house_goods[i]+=row.consumed[i];
-    return result;
-}
 std::size_t channels(const sim::World& world) {
     return world.couriers().size()+world.grower_navigation_tracks().size()+world.fishing_state()->quays.size()+world.hunting_state()->tents.size()+3*world.hunting_state()->habitats.size();
 }
@@ -118,9 +105,25 @@ Json sample(const sim::World& world) {
         {"house_food_consumed",counts.house_consumed},{"house_goods_consumed",counts.house_goods},{"houses",houses},{"sources",sources},
         {"field_lifetime_work",fields},{"plants",plants},{"mills",mills},{"goods_balances",l::trace::balances(world)}};
 }
-template<std::size_t N>std::array<std::uint64_t,N> delta(const std::array<std::uint64_t,N>& after,const std::array<std::uint64_t,N>& before) {
-    std::array<std::uint64_t,N> result{};
-    for(std::size_t i=0;i<N;++i){l::check(after[i]>=before[i],"Lifetime receipt/consumption counter decreased");result[i]=after[i]-before[i];}return result;
+
+Json complete_hostile(const Context& context,const sim::World& world,const fs::path& output) {
+    const auto path=output/"final.save.json";const auto document=l::save::read_save(path);const auto bytes=l::q::f::read_text(path);
+    l::check(context.restore(document).snapshot()==world.snapshot(),"Complete-city hostile baseline does not restore");unsigned controls=0;
+    const auto reject=[&](auto edit) {
+        auto bad=document;edit(bad.world);bool restore=false,write=false;
+        try{(void)context.restore(bad);}catch(const std::exception&){restore=true;}
+        try{l::save::write_save(path,bad,context.map.data,context.map.mask);}catch(const std::exception&){write=true;}
+        l::check(restore&&write&&l::q::f::read_text(path)==bytes&&world.snapshot()==document.world,"Complete-city hostile rejection was not atomic");++controls;
+    };
+    reject([](auto& state){++state.treasury;});
+    reject([](auto& state){state.rule_version=35;});
+    reject([](auto& state){++state.original_goods->totals[static_cast<std::size_t>(orig::Goods::Tea)].consumed;});
+    reject([](auto& state){
+        if(!state.processed_food->stocks.empty())++state.processed_food->stocks.front().amounts.front();
+        else {typename std::remove_cvref_t<decltype(state.processed_food->stocks)>::value_type impossible{};
+            impossible.building_id=static_cast<Id>(UINT32_MAX);impossible.amounts.front()=1;state.processed_food->stocks.push_back(impossible);}
+    });
+    return {{"hostile_controls",controls},{"rejected_restore_and_write",true},{"protected_final_save_unchanged",true}};
 }
 }
 int main(int argc,char** argv) {
@@ -128,17 +131,28 @@ int main(int argc,char** argv) {
     try {
         if(argc==2&&std::string_view(argv[1])=="--help"){std::cout<<usage<<'\n';return 0;}
         const auto o=options(argc,argv);output=o.output;Guard input(o.input);const auto document=l::save::read_save(o.input);
-        l::check(document.source_schema_version==52&&document.world.rule_version==36&&document.world.original_economy&&document.world.original_economy->model_source,"Only explicit source-bound Rule36/schema52 city inputs");
+        const unsigned selected_rule=o.quality_aware_food_dispatch?38U:o.irrigated_harvest?37U:36U,selected_schema=selected_rule+16;
+        l::check(document.source_schema_version==selected_schema&&document.world.rule_version==selected_rule&&document.world.original_economy&&document.world.original_economy->model_source,
+            o.quality_aware_food_dispatch?"Only explicit source-bound Rule38/schema54 city inputs":o.irrigated_harvest?"Only explicit source-bound Rule37/schema53 city inputs":"Only explicit source-bound Rule36/schema52 city inputs");
         const auto selected=o.map.empty()?document.map_relative:o.map;
         l::check(!selected.is_absolute()&&selected==selected.lexically_normal()&&selected.parent_path()=="Cities"&&selected.extension()==".map"&&selected==document.map_relative,"Exact supplied Cities map identity required");
         Guard model(o.data/"Model/EmperorBuildingModels.txt"),map(o.data/selected);
-        Context context(o.data,selected,document.world.original_economy->model_source->difficulty);
+        Context context(o.data,selected,document.world.original_economy->model_source->difficulty,o.irrigated_harvest,o.quality_aware_food_dispatch);
         auto world=context.restore(document);auto restored=context.restore(document);
+        std::optional<CompleteCity> complete;if(o.complete_city)complete.emplace(world);
+        const auto observation=[&] {auto value=sample(world);if(complete)value["complete_city"]=complete->report(world);return value;};
         const auto begin=world.ticks();
         l::check(begin<=std::numeric_limits<std::uint64_t>::max()-o.ticks,"Continuation tick horizon overflows");
-        const auto end=begin+o.ticks;completed=begin;const auto baseline=totals(world);const auto initial=sample(world);
+        const auto end=begin+o.ticks;completed=begin;const auto baseline=totals(world);const auto initial=observation();
         std::vector<Guard> replay_inputs;
         if(!o.replay.empty())for(const char* name:{"initial.save.json","final.save.json","telemetry.jsonl"})replay_inputs.emplace_back(o.replay/name);
+        if(complete&&!o.replay.empty()) {
+            replay_inputs.emplace_back(o.replay/"report.json");const auto previous=Json::parse(replay_inputs.back().bytes);
+            l::check(previous.is_object()&&previous.value("format",std::string{})=="openemperor-complete-city-acceptance-v1"&&
+                previous.value("rule",0U)==context.rule&&previous.value("schema",0U)==context.schema&&
+                previous.contains("complete_city")&&previous.at("complete_city").value("contract",std::string{})==complete_city_contract,
+                "Complete-city replay requires the same explicit QA contract; saved World authority remains independent");
+        }
         Json checkpoints=Json::array();l::save::RecoveryStore recovery(output/"recovery",o.data,l::save::recovery_storage_budget_bytes,l::save::RecoveryAccess::OriginalProduction);std::string history;
         const auto checkpoint=[&](const std::string& label) {
             l::check(checkpoints.size()<16,"Bounded16 checkpoint allowance exhausted");valid(world);const auto path=output/(label+".save.json");
@@ -149,7 +163,7 @@ int main(int argc,char** argv) {
             l::check(l::q::f::read_text(path)==l::q::f::read_text(again),"Canonical JSON roundtrip changed bytes");
             if(history.empty())history=recovery.create_history(saved,context.map.mask);
             const auto r=recovery.write_checkpoint(history,saved,context.map.mask);
-            l::check(r.loadable()&&r.schema==52&&context.restore(l::save::read_save(r.path)).snapshot()==world.snapshot(),"Recovery checkpoint lost authority");
+            l::check(r.loadable()&&r.schema==context.schema&&context.restore(l::save::read_save(r.path)).snapshot()==world.snapshot(),"Recovery checkpoint lost authority");
             checkpoints.push_back({{"tick",world.ticks()},{"file",path.filename().string()},{"canonical_roundtrip_exact",true},{"recovery_exact",true}});
         };
         checkpoint("initial");
@@ -169,6 +183,7 @@ int main(int argc,char** argv) {
             for(const auto& home:world.original_economy_state()->houses) {
                 const auto type=static_cast<unsigned>(home.house.type);const auto previous=previous_types.at(home.building_id);devolutions+=type<previous;previous_types[home.building_id]=type;burning_house_ticks+=world.building_on_fire(home.building_id);
             }
+            if(complete)complete->after(world);
             // Bound the observer to existing inventories; no retained event vector.
             sim::ProcessedFoodCounters consumed{};for(const auto& stock:world.processed_food_state()->stocks)if(sim::original_house_kind(world.building(stock.building_id).kind))for(std::size_t i=0;i<12;++i)consumed[i]+=stock.consumed[i];
             bool all_raw=true,any_meal=false;
@@ -184,11 +199,11 @@ int main(int argc,char** argv) {
                 const auto key=std::to_string(i);if(consumed_good>baseline.house_goods[i]&&!first_luxury_consumption.contains(key))first_luxury_consumption[key]=world.ticks();
             }
             if((world.ticks()-begin)%816U==0||world.ticks()==end) {
-                l::check(restored.snapshot()==world.snapshot(),"Independent restored continuation differs");telemetry<<sample(world).dump()<<'\n';l::check(bool(telemetry),"Telemetry stream failed");
+                l::check(restored.snapshot()==world.snapshot(),"Independent restored continuation differs");telemetry<<observation().dump()<<'\n';l::check(bool(telemetry),"Telemetry stream failed");
             }
             if((world.ticks()-begin)%interval==0&&world.ticks()!=end)checkpoint("tick-"+std::to_string(world.ticks()));
         }
-        checkpoint("final");telemetry.close();const auto final=sample(world);const auto ending=totals(world);
+        checkpoint("final");telemetry.close();const auto final=observation();const auto ending=totals(world);
         const auto food_delta=delta(ending.house_consumed,baseline.house_consumed);
         const auto goods_delta=delta(ending.house_goods,baseline.house_goods);
         Json missing=Json::array();for(std::size_t i=0;i<7;++i)if(!food_delta[i])missing.push_back(std::string("No new House consumption of ")+food_names[i]+" during this continuation");
@@ -200,8 +215,8 @@ int main(int argc,char** argv) {
         }
         input.unchanged();model.unchanged();map.unchanged();for(const auto& guard:replay_inputs)guard.unchanged();
         const auto duration=std::chrono::duration<double>(Clock::now()-started).count();
-        l::write(output/"report.json",{{"format","openemperor-agriculture-integration-acceptance-v1"},{"status","PASS"},{"gameplay_coverage",missing.empty()?"PASS":"PARTIAL"},
-            {"rule",36},{"policy",3},{"schema",52},{"map",selected.generic_string()},{"input",o.input.generic_string()},
+        Json report={{"format","openemperor-agriculture-integration-acceptance-v1"},{"status","PASS"},{"gameplay_coverage",missing.empty()?"PASS":"PARTIAL"},
+            {"rule",context.rule},{"policy",3},{"schema",context.schema},{"map",selected.generic_string()},{"input",o.input.generic_string()},
             {"continued_real_ticks",o.ticks},{"initial_tick",begin},{"final_tick",world.ticks()},{"complete_year_boundaries_crossed",end/year_ticks-begin/year_ticks},
             {"initial",initial},{"final",final},{"new_house_food_consumption",food_delta},{"new_house_goods_consumption",goods_delta},
             {"first_new_food_consumption_ticks",first_consumption},{"first_new_luxury_consumption_ticks_by_goods_index",first_luxury_consumption},
@@ -213,7 +228,18 @@ int main(int argc,char** argv) {
             {"missing_gameplay_witnesses",missing},{"paid_source_catalog",l::matrix::source_catalog(world)},
             {"timing",{{"wall_seconds",duration},{"measured_primary_tick_mean_us",double(tick_total.count())/double(o.ticks)/1000.0},{"measured_primary_tick_max_us",double(tick_max.count())/1000.0},{"observer_and_independent_world_excluded_from_tick_timing",true}}},
             {"memory_peak","Measure externally; no frame/tick instrumentation added to game"},{"native_metal","NOT_RUN"},{"human_acceptance","NOT_RUN"},
-            {"claim_scope","Technical continuation and source-bound persistence; gameplay coverage is reported separately. AUTHORED Rule36, no Original runtime parity or human acceptance"}});
+            {"claim_scope","Technical continuation and source-bound persistence; gameplay coverage is reported separately. AUTHORED Rule36, no Original runtime parity or human acceptance"}};
+        if(o.quality_aware_food_dispatch)report["claim_scope"]="Technical continuation and source-bound persistence; gameplay coverage is reported separately. Explicit AUTHORED Rule38, no Original runtime parity or human acceptance";
+        else if(o.irrigated_harvest)report["claim_scope"]="Technical continuation and source-bound persistence; gameplay coverage is reported separately. Explicit AUTHORED Rule37, no Original runtime parity or human acceptance";
+        if(complete) {
+            const auto assessment=complete->report(world);const bool passed=assessment.at("status")=="PASS";
+            report["format"]="openemperor-complete-city-acceptance-v1";report["technical_status"]="PASS";
+            report["status"]=passed?"PASS":"PARTIAL";report["gameplay_coverage"]=passed?"PASS":"PARTIAL";
+            report["complete_city"]=assessment;report["persistence"]=complete_hostile(context,world,output);
+            report["claim_scope"]="Explicit finite complete-city QA: bound paid all-chain installation, joint new House consumption maturity, two complete seasonal windows, retained occupied cohort/luxury-consumer family, real Food reserves/needs, cashflow and independent persistence. No fixed highest House stage, gameplay changes, source-model edits, stock grants or native/human acceptance.";
+            l::write(output/"report.json",report);std::cout<<(passed?"PASS":"PARTIAL")<<" complete-city continuation ticks="<<o.ticks<<" report="<<output/"report.json"<<'\n';return passed?0:2;
+        }
+        l::write(output/"report.json",report);
         std::cout<<"PASS technical continuation ticks="<<o.ticks<<" gameplay="<<(missing.empty()?"PASS":"PARTIAL")<<" report="<<output/"report.json"<<'\n';return 0;
     } catch(const std::exception& error) {
         if(!output.empty()&&!fs::exists(output/"report.json"))try{l::write(output/"report.json",{{"status","FAIL"},{"reason",error.what()},{"last_completed_tick",completed}});}catch(...){}

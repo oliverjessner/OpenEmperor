@@ -7,6 +7,8 @@
 #include "HuntingFixture.h"
 #include "persistence/RecoveryStore.h"
 #include "simulation/OriginalMarketPolicy.h"
+#include "simulation/IrrigatedHarvestContract.h"
+#include "simulation/QualityAwareFoodDispatchContract.h"
 
 #include <fstream>
 #include <map>
@@ -45,9 +47,9 @@ inline constexpr std::string_view latest_v2_recipe="authored-latest-agriculture-
 struct ExtraWheat {unsigned parent_plan_id;sim::Cell cell;};
 inline constexpr std::array latest_v2_wheat{ExtraWheat{103,{115,128}},ExtraWheat{105,{115,130}}};
 inline bool included(const sim::World& world,const base::Planned& node,bool latest_plan_v2=false) {
-    check(!latest_plan_v2||world.rule_version()==36,"Latest plan V2 requires Rule36");
+    check(!latest_plan_v2||world.rule_version()==36||(world.irrigated_harvest_enabled()||world.quality_aware_food_dispatch_enabled()),"Latest plan V2 requires Rule36");
     if(!included(node))return false;
-    if(world.rule_version()!=36)return true;
+    if(world.rule_version()!=36&&!(world.irrigated_harvest_enabled()||world.quality_aware_food_dispatch_enabled()))return true;
     if(latest_plan_v2)return std::find(latest_v2_omitted_plan_ids.begin(),latest_v2_omitted_plan_ids.end(),node.plan_id)==latest_v2_omitted_plan_ids.end();
     return std::find(latest_omitted_plan_ids.begin(),latest_omitted_plan_ids.end(),node.plan_id)==latest_omitted_plan_ids.end();
 }
@@ -95,17 +97,29 @@ struct Context {
     q::Context map;
     std::shared_ptr<const orig::OriginalRulesModel> model;
     std::shared_ptr<const sim::OriginalTerrainFacts> terrain;
-    bool latest_agriculture=false;
-    explicit Context(const fs::path& data,bool latest=false):map(q::Context::real(data)),
+    bool latest_agriculture=false,irrigated_harvest=false,quality_aware_food_dispatch=false;
+    explicit Context(const fs::path& data,bool latest=false,bool irrigated=false,bool quality_aware=false):map(q::Context::real(data)),
         model(latest?save::prepare_food_processing_rules_model(data,orig::Difficulty::Normal):
             save::prepare_playable_hunting_rules_model(data,orig::Difficulty::Normal)),
-        terrain(save::prepare_playable_hunting_terrain_facts(data,map.map_relative)),latest_agriculture(latest) {}
-    sim::World world()const{return latest_agriculture?sim::World::create_agriculture_reconfiguration(map.policy,model,terrain):
+        terrain(save::prepare_playable_hunting_terrain_facts(data,map.map_relative)),latest_agriculture(latest),irrigated_harvest(irrigated),quality_aware_food_dispatch(quality_aware) {
+        check(!irrigated_harvest||latest_agriculture,"Explicit irrigated harvest requires latest Agriculture selection");
+        check(!quality_aware_food_dispatch||latest_agriculture,"Explicit quality-aware Food dispatch requires latest Agriculture selection");
+        check(!(irrigated_harvest&&quality_aware_food_dispatch),"Choose one explicit Agriculture successor");
+    }
+    sim::World world()const{return quality_aware_food_dispatch?sim::World::create_quality_aware_food_dispatch(map.policy,model,terrain):irrigated_harvest?sim::World::create_irrigated_harvest(map.policy,model,terrain):latest_agriculture?sim::World::create_agriculture_reconfiguration(map.policy,model,terrain):
         sim::World::create_playable_hunting(map.policy,model,terrain);}
-    unsigned rule()const{return latest_agriculture?36:29;}
-    unsigned schema()const{return latest_agriculture?52:45;}
+    unsigned rule()const{return quality_aware_food_dispatch?38:irrigated_harvest?37:latest_agriculture?36:29;}
+    unsigned schema()const{return quality_aware_food_dispatch?54:irrigated_harvest?53:latest_agriculture?52:45;}
     save::SaveDocument document(const sim::World& world)const{return save::make_document(map.data,map.map_relative,map.mask,world);}
     sim::World restore(const save::SaveDocument& document)const {
+        if(quality_aware_food_dispatch) {
+            check(document.source_schema_version==54&&document.world.rule_version==38,"Exact opt-in Rule38/schema54 input required");
+            return save::restore_quality_aware_food_dispatch(document,map.data,map.mask,map.policy,model,terrain);
+        }
+        if(irrigated_harvest) {
+            check(document.source_schema_version==53&&document.world.rule_version==37,"Exact opt-in Rule37/schema53 input required");
+            return save::restore_irrigated_harvest(document,map.data,map.mask,map.policy,model,terrain);
+        }
         if(latest_agriculture) {
             check(document.source_schema_version==52&&document.world.rule_version==36,"Exact Rule36/schema52 input required");
             return save::restore_agriculture_reconfiguration(document,map.data,map.mask,map.policy,model,terrain);
@@ -115,7 +129,7 @@ struct Context {
     }
 };
 inline void valid(const sim::World& world) {
-    if(world.rule_version()==36) {
+    if(world.rule_version()==36||(world.irrigated_harvest_enabled()||world.quality_aware_food_dispatch_enabled())) {
         check(!world.has_grower_navigation_session()&&world.grower_navigation_tracks().empty(),
             "Latest Agriculture luxury proof must not contain research navigation channels");
         check(world.population_valid()&&world.city_economy_valid()&&world.production_balance_valid()&&
@@ -151,12 +165,15 @@ inline void attachment(const sim::World& world,const paid::Plan& plan,const base
     } else {
         for(const auto& row:world.plantations_state()->plants)found|=row.source_id==*parent&&row.plant_id==*child;
     }
-    check(found,world.rule_version()==36?"Rule36 attachment did not retain the selected paid source":
+    check(found,world.quality_aware_food_dispatch_enabled()?"Rule38 attachment did not retain the selected paid source":world.irrigated_harvest_enabled()?"Rule37 attachment did not retain the selected paid source":world.rule_version()==36?"Rule36 attachment did not retain the selected paid source":
         "Rule29 attachment did not retain the selected paid source");
 }
 inline bool purchase_or_wait(sim::World& world,sim::Command command,const char* reason,Json& commands,Json& blocked) {
     const auto decision=world.validate(command);
-    if(!decision.accepted&&decision.reason.find("overlaps actual wildlife, a Hunter or its begun edge")!=std::string::npos) {
+    const bool neutral_actor_claim=(world.irrigated_harvest_enabled()||world.quality_aware_food_dispatch_enabled())&&
+        (decision.reason=="Source footprint overlaps an actual actor or its begun edge"||
+         decision.reason=="Source footprint overlaps an actual courier or its begun edge");
+    if(!decision.accepted&&(decision.reason.find("overlaps actual wildlife, a Hunter or its begun edge")!=std::string::npos||neutral_actor_claim)) {
         // The actual animal and begun section retain their claims. This is a
         // finite player retry on a later real tick, never an admission bypass.
         const auto value=static_cast<unsigned>(command.type);const Json cell={command.cell.x,command.cell.y};
@@ -170,7 +187,7 @@ inline bool purchase_or_wait(sim::World& world,sim::Command command,const char* 
     return paid::append(world,command,reason,commands,blocked);
 }
 inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked,bool latest_plan_v2=false) {
-    check(!latest_plan_v2||world.rule_version()==36,"Latest plan V2 requires Rule36");
+    check(!latest_plan_v2||world.rule_version()==36||(world.irrigated_harvest_enabled()||world.quality_aware_food_dispatch_enabled()),"Latest plan V2 requires Rule36");
     const auto plan=paid::plan_for(recipe);
     // Retain the historical player's finite road geometry and purchases while
     // checking attachments against the current generation's actual authority.
@@ -236,7 +253,7 @@ inline bool apply_recipe(sim::World& world,Json& commands,Json& blocked,bool lat
     return true;
 }
 inline Json remaining_plan(const sim::World& world,bool latest_plan_v2=false) {
-    check(!latest_plan_v2||world.rule_version()==36,"Latest plan V2 requires Rule36");
+    check(!latest_plan_v2||world.rule_version()==36||(world.irrigated_harvest_enabled()||world.quality_aware_food_dispatch_enabled()),"Latest plan V2 requires Rule36");
     const auto plan=paid::plan_for(recipe);Json result=Json::array();
     for(const auto& node:plan)if(included(world,node,latest_plan_v2)&&!base::owner(world,node.cell)) {
         sim::Command command{node.command,node.cell};bool owner_ready=!node.owner;
@@ -255,7 +272,7 @@ inline Json remaining_plan(const sim::World& world,bool latest_plan_v2=false) {
     return result;
 }
 inline Json latest_v2_wheat_report(const sim::World& world) {
-    check(world.rule_version()==36,"Latest plan V2 requires Rule36");
+    check(world.rule_version()==36||(world.irrigated_harvest_enabled()||world.quality_aware_food_dispatch_enabled()),"Latest plan V2 requires Rule36");
     const auto plan=paid::plan_for(recipe);Json result=Json::array();
     for(const auto& item:latest_v2_wheat) {
         const auto parent=base::owner(world,paid::planned(plan,item.parent_plan_id).cell),field=base::owner(world,item.cell);
@@ -338,10 +355,10 @@ inline void checkpoint(const Context& context,const sim::World& world,const fs::
     valid(world);const auto path=output/(label+".save.json");check(!fs::exists(path),"Preserve previous checkpoint");
     save::write_save(path,context.document(world),context.map.data,context.map.mask);
     const auto document=save::read_save(path);auto restored=context.restore(document);
-    check(restored.snapshot()==world.snapshot(),context.latest_agriculture?"Exact schema52 checkpoint differs after restore":
+    check(restored.snapshot()==world.snapshot(),context.quality_aware_food_dispatch?"Exact schema54 checkpoint differs after restore":context.irrigated_harvest?"Exact schema53 checkpoint differs after restore":context.latest_agriculture?"Exact schema52 checkpoint differs after restore":
         "Exact schema45 checkpoint differs after restore");
     const auto roundtrip=output/(label+".roundtrip.json");save::write_save(roundtrip,context.document(restored),context.map.data,context.map.mask);
-    check(q::f::read_text(roundtrip)==q::f::read_text(path),context.latest_agriculture?"Canonical schema52 checkpoint bytes differ":
+    check(q::f::read_text(roundtrip)==q::f::read_text(path),context.quality_aware_food_dispatch?"Canonical schema54 checkpoint bytes differ":context.irrigated_harvest?"Canonical schema53 checkpoint bytes differ":context.latest_agriculture?"Canonical schema52 checkpoint bytes differ":
         "Canonical schema45 checkpoint bytes differ");
     manifest.push_back({{"label",label},{"tick",world.ticks()},{"file",path.filename().string()},{"exact_roundtrip",true}});
 }

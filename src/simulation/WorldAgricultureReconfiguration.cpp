@@ -185,9 +185,29 @@ World World::create_agriculture_reconfiguration(std::shared_ptr<const MapPermiss
     w.validate_food_processing_model();w.initialize_fishing_sites();w.initialize_hunting_habitats();w.validate_fishing_context();w.validate_hunting_context();return w;
 }
 World World::restore_agriculture_reconfiguration(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> p,std::shared_ptr<const original::OriginalRulesModel> m,std::shared_ptr<const OriginalTerrainFacts> t){
-    if(!simulation::agriculture_reconfiguration_enabled(s.profile,s.rule_version))invalid("Agriculture reconfiguration restore requires exact Rule36");
+    if(s.profile!=RulesProfile::CityV16||s.rule_version!=kAgricultureReconfigurationRuleVersion)invalid("Agriculture reconfiguration restore requires exact Rule36");
     validate_agriculture_reconfiguration_snapshot(s);
     auto w=restore_irrigation_generation(kAgricultureReconfigurationRuleVersion,s,std::move(p),std::move(m),std::move(t));
+    w.validate_food_processing_model();w.validate_fishing_context();w.validate_hunting_context();return w;
+}
+World World::create_irrigated_harvest(std::shared_ptr<const MapPermissions> p,std::shared_ptr<const original::OriginalRulesModel> m,std::shared_ptr<const OriginalTerrainFacts> t){
+    auto w=create_irrigation_generation(kIrrigatedHarvestRuleVersion,std::move(p),std::move(m),std::move(t));
+    w.validate_food_processing_model();w.initialize_fishing_sites();w.initialize_hunting_habitats();w.validate_fishing_context();w.validate_hunting_context();return w;
+}
+World World::restore_irrigated_harvest(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> p,std::shared_ptr<const original::OriginalRulesModel> m,std::shared_ptr<const OriginalTerrainFacts> t){
+    if(!simulation::irrigated_harvest_enabled(s.profile,s.rule_version))invalid("Irrigated harvest restore requires exact Rule37");
+    validate_agriculture_reconfiguration_snapshot(s);
+    auto w=restore_irrigation_generation(kIrrigatedHarvestRuleVersion,s,std::move(p),std::move(m),std::move(t));
+    w.validate_food_processing_model();w.validate_fishing_context();w.validate_hunting_context();return w;
+}
+World World::create_quality_aware_food_dispatch(std::shared_ptr<const MapPermissions> p,std::shared_ptr<const original::OriginalRulesModel> m,std::shared_ptr<const OriginalTerrainFacts> t){
+    auto w=create_irrigation_generation(kQualityAwareFoodDispatchRuleVersion,std::move(p),std::move(m),std::move(t));
+    w.validate_food_processing_model();w.initialize_fishing_sites();w.initialize_hunting_habitats();w.validate_fishing_context();w.validate_hunting_context();return w;
+}
+World World::restore_quality_aware_food_dispatch(const WorldSnapshot& s,std::shared_ptr<const MapPermissions> p,std::shared_ptr<const original::OriginalRulesModel> m,std::shared_ptr<const OriginalTerrainFacts> t){
+    if(!simulation::quality_aware_food_dispatch_enabled(s.profile,s.rule_version))invalid("Quality-aware Food dispatch restore requires exact Rule38");
+    validate_agriculture_reconfiguration_snapshot(s);
+    auto w=restore_irrigation_generation(kQualityAwareFoodDispatchRuleVersion,s,std::move(p),std::move(m),std::move(t));
     w.validate_food_processing_model();w.validate_fishing_context();w.validate_hunting_context();return w;
 }
 bool World::agriculture_draining(BuildingId id)const{const auto* e=agriculture_reconfiguration_entry(agriculture_reconfiguration_?&*agriculture_reconfiguration_:nullptr,id);return e&&!e->removed_tick;}

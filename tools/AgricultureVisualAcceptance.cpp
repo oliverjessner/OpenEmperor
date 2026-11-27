@@ -1,8 +1,9 @@
-// Actual paid Rule36 visual-state corpus. Presentation never grants authority.
+// Actual paid Rule36 or explicitly selected Rule37 visual-state corpus.
 // Only paid World commands, ordinary work and physical arrivals create evidence.
 #include "../tests/LuxuryProgressionFixture.h"
 #include "../tests/OriginalLongplayFixture.h"
 #include "FoodNativePlaytest.h"
+#include "../tests/CheckpointRecoveryProof.h"
 #include "simulation/original/IrrigationRules.h"
 #include "assets/PlantationVisualProfile.h"
 #include <charconv>
@@ -16,10 +17,13 @@ struct Guard{fs::path path;std::string bytes;fs::perms mode;fs::file_time_type t
     explicit Guard(fs::path f):path(std::move(f)),bytes(l::q::f::read_text(path)),mode(fs::status(path).permissions()),time(fs::last_write_time(path)){}
     void check()const{l::check(l::q::f::read_text(path)==bytes&&fs::status(path).permissions()==mode&&fs::last_write_time(path)==time,"Read-only supplied/replay input changed");}};
 struct Context{l::q::Context map;std::shared_ptr<const orig::OriginalRulesModel> model;std::shared_ptr<const sim::OriginalTerrainFacts> terrain;
-    Context(const fs::path& data,const fs::path& selected):map(oe_longplay_fixture::real_map_context(data,selected)),model(l::save::prepare_food_processing_rules_model(data)),terrain(l::save::prepare_playable_hunting_terrain_facts(data,selected)){}
-    sim::World create()const{return sim::World::create_agriculture_reconfiguration(map.policy,model,terrain);}
+    bool irrigated_harvest=false,quality_aware_food_dispatch=false;
+    Context(const fs::path& data,const fs::path& selected,bool irrigated=false,bool quality_aware=false):map(oe_longplay_fixture::real_map_context(data,selected)),model(l::save::prepare_food_processing_rules_model(data)),terrain(l::save::prepare_playable_hunting_terrain_facts(data,selected)),irrigated_harvest(irrigated),quality_aware_food_dispatch(quality_aware){}
+    unsigned rule()const{return quality_aware_food_dispatch?38U:irrigated_harvest?37U:36U;}
+    unsigned schema()const{return quality_aware_food_dispatch?54U:irrigated_harvest?53U:52U;}
+    sim::World create()const{return quality_aware_food_dispatch?sim::World::create_quality_aware_food_dispatch(map.policy,model,terrain):irrigated_harvest?sim::World::create_irrigated_harvest(map.policy,model,terrain):sim::World::create_agriculture_reconfiguration(map.policy,model,terrain);}
     l::save::SaveDocument document(const sim::World& w)const{return l::save::make_document(map.data,map.map_relative,map.mask,w);}
-    sim::World restore(const l::save::SaveDocument& d)const{l::check(d.source_schema_version==52&&d.world.rule_version==36,"Exact Rule36/schema52 required");return l::save::restore_agriculture_reconfiguration(d,map.data,map.mask,map.policy,model,terrain);}};
+    sim::World restore(const l::save::SaveDocument& d)const{l::check(d.source_schema_version==schema()&&d.world.rule_version==rule(),quality_aware_food_dispatch?"Exact opt-in Rule38/schema54 required":irrigated_harvest?"Exact Rule37/schema53 required":"Exact Rule36/schema52 required");return quality_aware_food_dispatch?l::save::restore_quality_aware_food_dispatch(d,map.data,map.mask,map.policy,model,terrain):irrigated_harvest?l::save::restore_irrigated_harvest(d,map.data,map.mask,map.policy,model,terrain):l::save::restore_agriculture_reconfiguration(d,map.data,map.mask,map.policy,model,terrain);}};
 Json encode(const sim::Command& c){return {{"type",static_cast<unsigned>(c.type)},{"cell",{c.cell.x,c.cell.y}},{"owner",static_cast<unsigned>(c.building_id)},{"orientation",c.orientation},{"recipe_grade",c.recipe_grade},{"operating_enabled",c.operating_enabled},{"workforce_priority",static_cast<unsigned>(c.workforce_priority)}};}
 sim::Command decode(const Json& j){sim::Command c{static_cast<sim::CommandType>(j.at("type").get<unsigned>()),{j.at("cell")[0].get<int>(),j.at("cell")[1].get<int>()}};c.building_id=static_cast<Id>(j.at("owner").get<unsigned>());c.orientation=j.at("orientation").get<std::uint8_t>();c.recipe_grade=j.at("recipe_grade").get<std::uint8_t>();c.operating_enabled=j.at("operating_enabled").get<bool>();c.workforce_priority=static_cast<sim::WorkforcePriority>(j.at("workforce_priority").get<unsigned>());return c;}
 bool paid(sim::World& w,std::vector<sim::Command>& commands,sim::Command c){if(!w.validate(c).accepted||!w.execute(c).accepted)return false;commands.push_back(c);return true;}
@@ -152,7 +156,7 @@ Id plan_field(sim::World& w,std::vector<sim::Command>& commands,Id farm,sim::Com
     throw std::runtime_error("Finite actual paid source/Field placement failed");
 }
 void valid(const sim::World& w) {
-    l::check(w.rule_version()==36&&w.processed_food_state()&&!w.hunting_food_state()&&!w.fishing_food_state()&&!w.original_agriculture_state(),"Visual proof duplicated the sole Food authority");
+    l::check((w.rule_version()==36||w.rule_version()==37||w.rule_version()==38)&&w.processed_food_state()&&!w.hunting_food_state()&&!w.fishing_food_state()&&!w.original_agriculture_state(),"Visual proof duplicated the sole Food authority");
     l::check(w.population_valid()&&w.city_economy_valid()&&w.production_balance_valid()&&w.navigation_valid()&&w.fire_state_valid(),"Paid visual city broke a World invariant");
     const auto channels=w.couriers().size()+w.fishing_state()->quays.size()+w.hunting_state()->tents.size()+3*w.hunting_state()->habitats.size();
     l::check(w.buildings().size()<=82&&channels<=58,"Visual proof exceeded lifetime82/58 limits");
@@ -198,15 +202,19 @@ Json sample(const sim::World& w,const Scene& scene) {
         {"crops",crops},{"returned",returned},{"workers",workers},{"boats",boats},{"hunters",hunters},{"animals",animals},{"transfers",transfers},
         {"pump",{{"id",static_cast<unsigned>(scene.water.pump)},{"burning",status.burning},{"supplying",status.supplying},{"phase_tick",status.last_phase_tick?Json(*status.last_phase_tick):Json(nullptr)}}}};
 }
-struct Options {fs::path data,output,seed,replay,map="Cities/Chengdu.map";unsigned ticks=24000;};
-constexpr const char* usage="openemperor-agriculture-visual-acceptance --data ABS --output FRESH_.local/agri-mac12/SUBDIR [--seed-plan MAC10_PAID_COMMAND_PLAN | --replay CREATOR_DIR] [--map Cities/Chengdu.map] [--ticks 24000]";
+struct Options {fs::path data,output,seed,replay,map="Cities/Chengdu.map";unsigned ticks=24000;bool checkpoint_recovery=false,irrigated_harvest=false,quality_aware_food_dispatch=false;};
+constexpr std::array recovery_labels{"paid-city","food-grower-work-earned","food-grower-loaded","crop-Tea-growing",
+    "boat-loaded-moving","hunter-loaded-moving","mill-processing","warehouse-stock","warehouse-outbound",
+    "market-stock-receipt","market-house-receipt","shop-house-receipt","pump-fire","pump-extinguished","pump-recovered-wet","final"};
+constexpr const char* usage="openemperor-agriculture-visual-acceptance --data ABS --output FRESH_PRIVATE_SUBDIR [--seed-plan MAC10_PAID_COMMAND_PLAN | --replay CREATOR_DIR] [--map Cities/Chengdu.map] [--ticks 24000] [--checkpoint-recovery] [--irrigated-harvest | --quality-aware-food-dispatch] (default Rule36/schema52: .local/agri-mac12; explicit Rule37/schema53 or Rule38/schema54: .local/agri-mac14)";
 Options options(int argc,char** argv) {
-    std::map<std::string,std::string> args;for(int n=1;n<argc;n+=2){l::check(n+1<argc,usage);const std::string key=argv[n];l::check(key=="--data"||key=="--output"||key=="--seed-plan"||key=="--replay"||key=="--map"||key=="--ticks",usage);l::check(args.emplace(key,argv[n+1]).second,"Duplicate argument");}
-    l::check(args.contains("--data")&&args.contains("--output")&&(args.contains("--seed-plan")!=args.contains("--replay")),usage);Options o;l::no_symlinks(args.at("--data"));o.data=fs::canonical(args.at("--data"));
+    Options o;std::map<std::string,std::string> args;
+    for(int n=1;n<argc;++n){const std::string key=argv[n];if(key=="--checkpoint-recovery"){l::check(!o.checkpoint_recovery,"Duplicate argument");o.checkpoint_recovery=true;continue;}if(key=="--quality-aware-food-dispatch"){l::check(!o.quality_aware_food_dispatch,"Duplicate argument");o.quality_aware_food_dispatch=true;continue;}if(key=="--irrigated-harvest"){l::check(!o.irrigated_harvest,"Duplicate argument");o.irrigated_harvest=true;continue;}l::check(n+1<argc,usage);l::check(key=="--data"||key=="--output"||key=="--seed-plan"||key=="--replay"||key=="--map"||key=="--ticks",usage);l::check(args.emplace(key,argv[++n]).second,"Duplicate argument");}
+    l::check(args.contains("--data")&&args.contains("--output")&&(args.contains("--seed-plan")!=args.contains("--replay")),usage);l::no_symlinks(args.at("--data"));o.data=fs::canonical(args.at("--data"));
     l::check(fs::path(args.at("--data")).is_absolute()&&fs::path(args.at("--output")).is_absolute(),"Explicit absolute data/output paths required");
     if(args.contains("--map"))o.map=args.at("--map");l::check(!o.map.is_absolute()&&o.map==o.map.lexically_normal()&&o.map.parent_path()=="Cities"&&o.map.extension()==".map","Explicit supplied Cities map required");l::no_symlinks(o.data/o.map);
     if(args.contains("--ticks")){const auto& s=args.at("--ticks");const auto r=std::from_chars(s.data(),s.data()+s.size(),o.ticks);l::check(r.ec==std::errc{}&&r.ptr==s.data()+s.size(),"Invalid tick count");}l::check(o.ticks>=12000&&o.ticks<=50000,"Require12000..50000 actual ticks");
-    o.output=p::output_root(args.at("--output"),o.data,".local/agri-mac12");
+    l::check(!(o.irrigated_harvest&&o.quality_aware_food_dispatch),"Choose one explicit Agriculture successor");o.output=p::output_root(args.at("--output"),o.data,(o.irrigated_harvest||o.quality_aware_food_dispatch)?".local/agri-mac14":".local/agri-mac12");
     if(args.contains("--seed-plan")){l::no_symlinks(args.at("--seed-plan"));o.seed=fs::canonical(args.at("--seed-plan"));}
     if(args.contains("--replay")){l::no_symlinks(args.at("--replay"));o.replay=fs::canonical(args.at("--replay"));}return o;
 }
@@ -216,17 +224,26 @@ int main(int argc,char** argv) {
     fs::path output;std::uint64_t completed=0;
     try {
         if(argc==2&&std::string_view(argv[1])=="--help"){std::cout<<usage<<'\n';return 0;}
-        const auto o=options(argc,argv);output=o.output;Guard model(o.data/"Model/EmperorBuildingModels.txt"),map(o.data/o.map);Context context(o.data,o.map);auto world=context.create();Scene scene;
+        const auto o=options(argc,argv);output=o.output;Guard model(o.data/"Model/EmperorBuildingModels.txt"),map(o.data/o.map);Context context(o.data,o.map,o.irrigated_harvest,o.quality_aware_food_dispatch);auto world=context.create();Scene scene;
         std::optional<sim::World> restored;Json events=Json::array(),checkpoints=Json::array(),coverage=Json::object();std::vector<Guard> inputs;
+        std::unique_ptr<oe_checkpoint_recovery::Proof> recovery;
+        if(o.checkpoint_recovery)recovery=std::make_unique<oe_checkpoint_recovery::Proof>(output,o.data);
         Json replay_plan;std::size_t event_at=0;std::set<std::string> checkpoint_labels;
         const auto apply=[&](const sim::Command& c,const std::string& reason){const auto result=world.execute(c);l::check(result.accepted,reason+": "+result.reason);if(restored)l::check(restored->execute(c).accepted&&restored->snapshot()==world.snapshot(),"Restored paid command diverged");events.push_back({{"type","command"},{"tick",world.ticks()},{"command",encode(c)},{"reason",reason}});};
         const auto capture=[&](const std::string& label,const std::string& domain,std::uint64_t id,const std::string& state){
             l::check(checkpoint_label_valid(label),"Checkpoint label must be a bounded ASCII leaf identifier");
             l::check(checkpoint_labels.insert(label).second,"Duplicate visual checkpoint label");
+            if(recovery&&(label=="paid-city"||label=="final"))
+                l::check(world.ticks()==(label=="paid-city"?0:o.ticks)&&domain=="Building"&&id==static_cast<unsigned>(scene.farm)&&state==(label=="paid-city"?"initial":"final"),
+                    "Event Recovery initial/final checkpoint differs from its required epoch/identity");
             const auto path=output/(label+".save.json"),roundtrip=output/(label+".roundtrip.json");
             l::check(absent_checkpoint_path(path)&&absent_checkpoint_path(roundtrip),"Both visual checkpoint targets must be fresh");
             const auto document=context.document(world);l::save::write_save(path,document,context.map.data,context.map.mask);const auto loaded=l::save::read_save(path);auto fresh=context.restore(loaded);l::check(fresh.snapshot()==world.snapshot(),"Visual checkpoint restore changed authority");
             l::save::write_save(roundtrip,context.document(fresh),context.map.data,context.map.mask);l::check(l::q::f::read_text(path)==l::q::f::read_text(roundtrip),"Visual checkpoint canonical bytes differ");
+            if(recovery) {
+                if(label.starts_with("year-boundary-")||std::find(recovery_labels.begin(),recovery_labels.end(),label)!=recovery_labels.end())
+                    recovery->capture(label,loaded,context.map.mask,world,path,[&](const auto& saved){return context.restore(saved);});
+            }
             if(!restored)restored=std::move(fresh);
             const Json item{{"label",label},{"domain",domain},{"id",id},{"state",state},{"tick",world.ticks()},{"file",path.filename().string()},{"actual",sample(world,scene)}};
             checkpoints.push_back(item);events.push_back({{"type","checkpoint"},{"tick",world.ticks()},{"label",label},{"domain",domain},{"id",id},{"state",state}});
@@ -234,7 +251,19 @@ int main(int argc,char** argv) {
         const auto mark=[&](const std::string& label,const std::string& domain,std::uint64_t id,const std::string& state){if(coverage.contains(label))return;coverage[label]={{"tick",world.ticks()},{"domain",domain},{"id",id},{"state",state}};if(o.replay.empty())capture(label,domain,id,state);};
         if(!o.replay.empty()) {
             for(const char* name:{"plan.json","final.save.json","work.jsonl"}){l::no_symlinks(o.replay/name);inputs.emplace_back(o.replay/name);}
-            replay_plan=Json::parse(inputs.front().bytes);l::check(replay_plan.at("format")=="openemperor-agriculture-visual-plan-v1"&&replay_plan.at("events").size()<=2048,"Bounded exact visual replay plan required");validate_replay_checkpoint_labels(replay_plan.at("events"));scene=scene_from(replay_plan.at("scene"));
+            replay_plan=Json::parse(inputs.front().bytes);l::check(replay_plan.at("format")=="openemperor-agriculture-visual-plan-v1"&&replay_plan.at("events").size()<=2048,"Bounded exact visual replay plan required");
+            const bool explicit_generation=replay_plan.contains("rule")||replay_plan.contains("schema")||replay_plan.contains("irrigated_harvest")||replay_plan.contains("irrigated_harvest_revision")||replay_plan.contains("quality_aware_food_dispatch")||replay_plan.contains("quality_aware_food_dispatch_revision");
+            l::check((o.irrigated_harvest||o.quality_aware_food_dispatch)==explicit_generation,"Rule37 visual replay requires the creator's explicit --irrigated-harvest selection");
+            l::check(o.quality_aware_food_dispatch==(replay_plan.contains("quality_aware_food_dispatch")||replay_plan.contains("quality_aware_food_dispatch_revision")),
+                "Rule38 visual replay requires its explicit --quality-aware-food-dispatch selection");
+            if(o.quality_aware_food_dispatch)l::check(replay_plan.at("quality_aware_food_dispatch")==sim::quality_aware_food_dispatch_contract&&
+                replay_plan.at("quality_aware_food_dispatch_revision")==sim::quality_aware_food_dispatch_revision,"Unknown Rule38 visual replay contract");
+            if(o.irrigated_harvest||o.quality_aware_food_dispatch)l::check(replay_plan.at("rule")==context.rule()&&replay_plan.at("policy")==3&&replay_plan.at("schema")==context.schema()&&
+                replay_plan.at("irrigated_harvest")==sim::irrigated_harvest_contract&&replay_plan.at("irrigated_harvest_revision")==sim::irrigated_harvest_revision,
+                "Unknown Rule37 visual replay generation contract");
+            l::check(o.checkpoint_recovery==replay_plan.contains("checkpoint_recovery"),"Event Recovery replay requires the creator's explicit --checkpoint-recovery selection");
+            if(o.checkpoint_recovery)l::check(replay_plan.at("checkpoint_recovery")==oe_checkpoint_recovery::contract,"Unknown event Recovery QA contract");
+            validate_replay_checkpoint_labels(replay_plan.at("events"));scene=scene_from(replay_plan.at("scene"));
         } else {
             inputs.emplace_back(o.seed);const auto seed=Json::parse(inputs.back().bytes);l::check(seed.at("format")=="openemperor-food-warehouses-plan-v1"&&seed.at("commands").size()<=512,"Normal paid MAC10 command plan required, never a save");
             std::map<unsigned,Id> actual_ids;unsigned old_id=0,watch_purchases=0;
@@ -245,7 +274,7 @@ int main(int argc,char** argv) {
                 // No paid identity is removed or reused: this purchase never occurs.
                 if(object==sim::Object::FireWatch&&++watch_purchases==2)continue;
                 if(static_cast<unsigned>(command.building_id))command.building_id=actual_ids.at(static_cast<unsigned>(command.building_id));
-                apply(command,"Fresh actual Rule36 paid construction with a reserved recovery Watch slot");
+                apply(command,o.quality_aware_food_dispatch?"Fresh actual Rule38 paid construction with a reserved recovery Watch slot":o.irrigated_harvest?"Fresh actual Rule37 paid construction with a reserved recovery Watch slot":"Fresh actual Rule36 paid construction with a reserved recovery Watch slot");
                 if(object)actual_ids.emplace(old_id,*world.building_owner_at(command.cell));
             }
             l::check(watch_purchases==2,"Expected the normal two-Watch paid seed plan");
@@ -307,6 +336,8 @@ int main(int argc,char** argv) {
             for(const auto& f:world.physical_food_growers_state()->farms)if(f.latest_trip&&!f.latest_trip->returned_tick) {
                 const auto& t=*f.latest_trip;const auto& c=world.courier(f.courier_id);const auto name=std::string("food-grower-")+std::to_string(static_cast<unsigned>(t.phase));
                 mark(name,"Courier",static_cast<unsigned>(f.courier_id),"phase-"+std::to_string(static_cast<unsigned>(t.phase)));
+                if(o.checkpoint_recovery&&t.phase==sim::PhysicalFoodGrowerPhase::Working&&t.work_ticks>0)
+                    mark("food-grower-work-earned","Courier",static_cast<unsigned>(f.courier_id),"actual-work");
                 if(sim::physical_food_trip_cargo(t)&&c.edge_progress)mark("food-grower-loaded","Courier",static_cast<unsigned>(f.courier_id),"loaded");
             }
             for(const auto& f:world.seasonal_agriculture_state()->hemp_farms)if(f.latest_trip&&sim::seasonal_hemp_cargo(*f.latest_trip)&&world.courier(f.courier_id).edge_progress)mark("hemp-grower-loaded","Courier",static_cast<unsigned>(f.courier_id),"loaded");
@@ -319,6 +350,38 @@ int main(int argc,char** argv) {
             for(const auto& h:world.hunting_state()->hunters)if(h.edge_progress)mark("hunter-moving","Hunter",h.id.value,"moving");
             for(const auto& b:world.fishing_state()->boats)if(static_cast<unsigned>(b.phase)<2||b.cargo>0)mark("boat-"+std::to_string(static_cast<unsigned>(b.phase)),"Boat",b.id.value,sim::fishing_boat_phase_name(b.phase));
             for(const auto& h:world.hunting_state()->hunters){if(static_cast<unsigned>(h.phase)<2||h.cargo>0)mark("hunter-"+std::to_string(static_cast<unsigned>(h.phase)),"Hunter",h.id.value,sim::hunting_hunter_phase_name(h.phase));if(h.killed_tick&&*h.killed_tick==world.ticks())mark("hunter-kill","Hunter",h.id.value,"killed");}
+            if(o.checkpoint_recovery) {
+                for(const auto& boat:world.fishing_state()->boats)if(boat.cargo>0&&boat.edge_progress>0)
+                    mark("boat-loaded-moving","Boat",boat.id.value,"loaded-moving");
+                for(const auto& hunter:world.hunting_state()->hunters)if(hunter.cargo>0&&hunter.edge_progress>0)
+                    mark("hunter-loaded-moving","Hunter",hunter.id.value,"loaded-moving");
+                for(const auto& market:world.food_warehouses_state()->markets)for(const auto& receipt:market.first_received)
+                    if(receipt&&receipt->tick==world.ticks()&&receipt->amount>0)
+                        mark("market-stock-receipt","Building",static_cast<unsigned>(market.market_id),"actual-receipt");
+                for(const auto& stock:world.processed_food_state()->stocks)if(sim::original_house_kind(world.building(stock.building_id).kind)&&
+                    stock.quality_witness&&stock.quality_witness->tick==world.ticks()) {
+                    const auto role=world.courier(stock.quality_witness->transfer.courier_id).role;
+                    if(role==sim::CourierRole::OriginalFoodToHouse)mark("market-house-receipt","Building",static_cast<unsigned>(stock.building_id),"actual-receipt");
+                    if(role==sim::CourierRole::OriginalMealsToHouse)mark("shop-house-receipt","Building",static_cast<unsigned>(stock.building_id),"actual-receipt");
+                }
+                if(world.ticks()>0&&world.ticks()%sim::seasonal_year_ticks==0)
+                    mark("year-boundary-"+std::to_string(world.ticks()),"Building",static_cast<unsigned>(scene.farm),"year-boundary");
+                // Replay earns the natural-fire epochs from World facts too;
+                // checkpoint labels in its input plan are not event evidence.
+                if(!o.replay.empty()) {
+                    const auto returned=current.at("returned").get<std::array<std::uint64_t,9>>();
+                    if(std::all_of(returned.begin(),returned.end(),[](auto n){return n>0;})&&world.building_on_fire(scene.water.pump))
+                        mark("pump-fire","Building",static_cast<unsigned>(scene.water.pump),"burning");
+                    if(coverage.contains("pump-fire")) {
+                        const auto burning_tick=coverage.at("pump-fire").at("tick").get<std::uint64_t>();
+                        for(const auto& arrival:world.original_production_state()->fire_protection->arrivals)
+                            if(arrival.trip.target==scene.water.pump&&arrival.extinguished&&arrival.tick==world.ticks()&&arrival.tick>=burning_tick)
+                                mark("pump-extinguished","Building",static_cast<unsigned>(scene.water.pump),"extinguished");
+                    }
+                    if(coverage.contains("pump-extinguished")&&world.ticks()>coverage.at("pump-extinguished").at("tick").get<std::uint64_t>()&&world.irrigation_pump_status(scene.water.pump).supplying)
+                        mark("pump-recovered-wet","Building",static_cast<unsigned>(scene.water.pump),"wet");
+                }
+            }
             for(const auto& a:world.hunting_state()->animals)mark("animal-"+std::to_string(static_cast<unsigned>(a.species))+(a.edge_progress?"-moving":"-standing"),"Animal",a.id.value,a.edge_progress?"moving":"standing");
             for(const auto& m:world.food_processing_state()->mills)if(m.active&&m.active->work>0)mark("mill-processing","Building",static_cast<unsigned>(m.mill_id),"processing");
             for(const auto& t:world.processed_food_state()->trips) {
@@ -368,8 +431,9 @@ int main(int argc,char** argv) {
         trace.close();if(o.replay.empty())capture("final","Building",static_cast<unsigned>(scene.farm),"final");
         else {
             l::check(event_at==replay_plan.at("events").size()&&events==replay_plan.at("events"),"Separate process did not replay every paid command/checkpoint");
-            // Natural-fire coverage is independently rechecked from the recorded snapshots.
-            for(const auto& item:checkpoints)if(item.at("label")=="pump-fire"||item.at("label")=="pump-extinguished"||item.at("label")=="pump-recovered-wet")coverage[item.at("label").get<std::string>()]={{"tick",item.at("tick")},{"domain",item.at("domain")},{"id",item.at("id")},{"state",item.at("state")}};
+            // Preserve the historical report path; opt-in event Recovery uses
+            // the independent World observations above instead of plan labels.
+            if(!o.checkpoint_recovery)for(const auto& item:checkpoints)if(item.at("label")=="pump-fire"||item.at("label")=="pump-extinguished"||item.at("label")=="pump-recovered-wet")coverage[item.at("label").get<std::string>()]={{"tick",item.at("tick")},{"domain",item.at("domain")},{"id",item.at("id")},{"state",item.at("state")}};
             l::check(l::q::f::read_text(output/"final.save.json")==inputs[1].bytes&&l::q::f::read_text(output/"work.jsonl")==inputs[2].bytes,"Separate process final canonical bytes or complete trace differ");
         }
         std::vector<std::string> required;
@@ -381,10 +445,44 @@ int main(int argc,char** argv) {
         for(unsigned phase=0;phase<4;++phase){required.push_back("boat-"+std::to_string(phase));required.push_back("hunter-"+std::to_string(phase));}
         for(const unsigned species:{75U,76U,77U})for(const auto* state:{"moving","standing"})required.push_back("animal-"+std::to_string(species)+"-"+state);
         for(const char* label:{"food-grower-loaded","hemp-grower-loaded","plantation-grower-loaded","hunter-kill","mill-processing","food-courier-loaded","warehouse-inbound","warehouse-outbound","warehouse-stock","shop-meals-loaded","water-dry","water-wet","pump-fire","pump-extinguished","pump-recovered-wet"})required.emplace_back(label);
+        if(o.checkpoint_recovery)for(const char* label:{"food-grower-work-earned","boat-loaded-moving","hunter-loaded-moving","market-stock-receipt","market-house-receipt","shop-house-receipt","year-boundary-9792"})required.emplace_back(label);
+        if(recovery) {
+          const auto recovery_report=recovery->report();
+          std::set<std::string> published;
+          for(const auto& event:recovery_report.at("verified_events"))published.insert(event.at("label").get<std::string>());
+          for(const char* label:recovery_labels)
+            l::check(published.contains(label),"Required event Recovery checkpoint was not published");
+          for(std::uint64_t tick=sim::seasonal_year_ticks;tick<=o.ticks;tick+=sim::seasonal_year_ticks)
+            l::check(published.contains("year-boundary-"+std::to_string(tick)),"Required year-boundary Recovery checkpoint was not published");
+          for(const auto& event:recovery_report.at("verified_events")) {
+            const auto label=event.at("label").get<std::string>();
+            if(label=="paid-city"||label=="final")continue;
+            const auto saved=std::find_if(checkpoints.begin(),checkpoints.end(),[&](const auto& row){return row.at("label")==label;});
+            l::check(saved!=checkpoints.end()&&coverage.contains(label),"Selected event Recovery checkpoint lacks independently earned coverage");
+            const auto& actual=coverage.at(label);
+            l::check(saved->at("tick")==actual.at("tick")&&saved->at("domain")==actual.at("domain")&&
+                saved->at("id")==actual.at("id")&&saved->at("state")==actual.at("state"),
+                "Event Recovery checkpoint differs from independently earned epoch/identity");
+          }
+        }
         Json missing=Json::array();for(const auto& label:required)if(!coverage.contains(label))missing.push_back(label);
         const bool positive=missing.empty()&&minimum_funds>=0;for(const auto& input:inputs)input.check();model.check();map.check();
-        l::write(output/"plan.json",{{"format","openemperor-agriculture-visual-plan-v1"},{"scene",scene_json(scene)},{"events",events}});
-        l::write(output/"report.json",{{"format","openemperor-agriculture-visual-acceptance-v1"},{"status",positive?"PASS":"PARTIAL"},{"rule",36},{"schema",52},{"real_ticks",completed},{"minimum_funds",minimum_funds},{"coverage",coverage},{"missing",missing},{"checkpoints",checkpoints},{"final",sample(world,scene)},{"fresh_restore_continuation_exact",true},{"separate_process_replay_exact",!o.replay.empty()},{"source_bytes_mode_mtime_unchanged",true},{"snapshot_stock_or_population_injection",false},{"native_metal","NOT_RUN"},{"human_acceptance","NOT_RUN"}});
+        Json plan={{"format","openemperor-agriculture-visual-plan-v1"},{"scene",scene_json(scene)},{"events",events}};
+        Json report={{"format","openemperor-agriculture-visual-acceptance-v1"},{"status",positive?"PASS":"PARTIAL"},{"rule",context.rule()},{"schema",context.schema()},{"real_ticks",completed},{"minimum_funds",minimum_funds},{"coverage",coverage},{"missing",missing},{"checkpoints",checkpoints},{"final",sample(world,scene)},{"fresh_restore_continuation_exact",true},{"separate_process_replay_exact",!o.replay.empty()},{"source_bytes_mode_mtime_unchanged",true},{"snapshot_stock_or_population_injection",false},{"native_metal","NOT_RUN"},{"human_acceptance","NOT_RUN"}};
+        if(o.irrigated_harvest||o.quality_aware_food_dispatch) {
+            for(auto* value:{&plan,&report}) {
+                (*value)["policy"]=3;
+                (*value)["irrigated_harvest"]=sim::irrigated_harvest_contract;
+                (*value)["irrigated_harvest_revision"]=sim::irrigated_harvest_revision;
+            }
+            plan["rule"]=context.rule();plan["schema"]=context.schema();
+        }
+        if(o.quality_aware_food_dispatch)for(auto* value:{&plan,&report}) {
+            (*value)["quality_aware_food_dispatch"]=sim::quality_aware_food_dispatch_contract;
+            (*value)["quality_aware_food_dispatch_revision"]=sim::quality_aware_food_dispatch_revision;
+        }
+        if(recovery){plan["checkpoint_recovery"]=oe_checkpoint_recovery::contract;report["checkpoint_recovery"]=recovery->report();}
+        l::write(output/"plan.json",plan);l::write(output/"report.json",report);
         std::cout<<(positive?"PASS":"PARTIAL")<<" paid Agriculture visual corpus ticks="<<completed<<" missing="<<missing.dump()<<'\n';return positive?0:2;
     } catch(const std::exception& e) {
         if(!output.empty()&&!fs::exists(output/"report.json"))try{l::write(output/"report.json",{{"status","FAIL"},{"reason",e.what()},{"last_completed_tick",completed}});}catch(...){}
